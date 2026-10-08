@@ -1,0 +1,26 @@
+{
+  "name": "local-events",
+  "private": true,
+  "packageManager": "pnpm@12.10.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:generate": "pnpm --filter @local-events/db db:generate",
+    "db:migrate": "pnpm --filter @local-events/db db:migrate"
+  },
+  "devDependencies": {
+    "prettier": "^3.0.0",
+    "turbo": "^2.11.7",
+    "typescript": "^7.0.2"
+  }
+}

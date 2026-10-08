@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.turbo/
+.next/
+out/
+cdk.out/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+# Expo
+.expo/
+ios/
+android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision

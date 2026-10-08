@@ -1,0 +1,11 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'infra'
+
+# Packages allowed to run install scripts (pnpm blocks build scripts by default).
+allowBuilds:
+  esbuild: true
+  # Added for the Next.js apps (create-next-app puts these in a nested file you should delete).
+  sharp: false
+  unrs-resolver: false

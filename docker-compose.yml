@@ -1,0 +1,20 @@
+# Local dependencies: PostgreSQL + PostGIS and Valkey.
+# Check Docker Hub for the newest postgis/postgis tag if this one is outdated.
+services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_USER: events
+      POSTGRES_PASSWORD: events
+      POSTGRES_DB: events
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/local/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  valkey:
+    image: valkey/valkey:8
+    ports:
+      - '6379:6379'
+volumes:
+  pgdata:

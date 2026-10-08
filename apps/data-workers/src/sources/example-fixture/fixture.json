@@ -1,0 +1,26 @@
+[
+  {
+    "id": "fx-1",
+    "name": "Jazzkväll på Gamla Teatern",
+    "start": "2026-11-07T19:00:00+01:00",
+    "end": "2026-11-07T22:00:00+01:00",
+    "venue": "Gamla Teatern",
+    "lat": 61.3031,
+    "lng": 17.0601,
+    "url": "https://example.org/events/fx-1",
+    "organizer": { "id": "org-teatern", "name": "Gamla Teatern" },
+    "tags": ["music", "jazz"]
+  },
+  {
+    "id": "fx-2",
+    "name": "Höstmarknad i centrum",
+    "start": "2026-11-14T10:00:00+01:00",
+    "end": "2026-11-14T15:00:00+01:00",
+    "venue": "Rådhustorget",
+    "lat": 61.3046,
+    "lng": 17.0587,
+    "url": "https://example.org/events/fx-2",
+    "organizer": { "id": "org-centrum", "name": "Centrumföreningen" },
+    "tags": ["market", "social"]
+  }
+]
