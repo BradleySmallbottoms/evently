@@ -1,12 +1,15 @@
-/** Max nearby/publisher/event pushes per user per local calendar day. */
+/** Max local OS notifications the app may present per user per local calendar day. */
 export const DAILY_NOTIFICATION_CAP = 5;
+
+/** Inbox rows older than this are hard-deleted by the worker (storage hygiene). */
+export const NOTIFICATION_RETENTION_DAYS = 90;
 
 export const DEFAULT_NOTIFICATION_TIMEZONE = 'Europe/Stockholm';
 
 /**
  * Local quiet window 22:00–08:00 (wraps midnight).
- * During the window, matches are stored in the notification inbox and Expo push is deferred
- * until an aggregate flush after the window ends (see docs/decisions.md).
+ * Enforced on the client when deciding whether to present an OS notification.
+ * Inbox storage and silent Expo delivery are not gated by quiet hours.
  */
 export const DEFAULT_QUIET_HOURS = {
   startMin: 22 * 60,
@@ -39,10 +42,10 @@ export function interestsOverlap(
 }
 
 export function canSendUnderDailyCap(
-  sentToday: number,
+  presentedToday: number,
   cap: number = DAILY_NOTIFICATION_CAP,
 ): boolean {
-  return sentToday < cap;
+  return presentedToday < cap;
 }
 
 /** Local minutes-from-midnight for `now` in `timezone`. Falls back to UTC on bad TZ. */
@@ -90,20 +93,47 @@ export function localDayKey(now: Date, timezone: string): string {
   }
 }
 
-/** Copy for the single Expo push after quiet hours ends. */
-export function aggregatePushCopy(
+/**
+ * Whether the mobile app should post a local OS notification after a silent push.
+ * Cap + quiet hours are client-only; foreground skips the OS notification (badge/inbox only).
+ */
+export function shouldPresentOsNotification(input: {
+  now: Date;
+  quietHours: QuietHoursPrefs;
+  presentedToday: number;
+  appInForeground: boolean;
+  cap?: number;
+}): boolean {
+  if (input.appInForeground) return false;
+  if (isWithinQuietHours(input.now, input.quietHours)) return false;
+  if (!canSendUnderDailyCap(input.presentedToday, input.cap)) return false;
+  return true;
+}
+
+/** Copy for a client-presented local OS notification. */
+export function eventNotificationCopy(
   locale: string,
-  count: number,
+  title: string,
+  reason: NotificationReason,
 ): { title: string; body: string } {
-  const n = Math.max(1, count);
   if (locale.startsWith('en')) {
     return {
-      title: n === 1 ? '1 new event' : `${n} new events`,
-      body: n === 1 ? 'Something new while you were away' : 'Catch up on events near you',
+      title,
+      body:
+        reason === 'publisher'
+          ? 'A followed publisher posted a new event'
+          : reason === 'event'
+            ? 'An event you follow was updated'
+            : 'A new event near you',
     };
   }
   return {
-    title: n === 1 ? '1 nytt evenemang' : `${n} nya evenemang`,
-    body: n === 1 ? 'Något nytt medan du vilade' : 'Se vad som hänt nära dig',
+    title,
+    body:
+      reason === 'publisher'
+        ? 'En följd arrangör publicerade ett evenemang'
+        : reason === 'event'
+          ? 'Ett evenemang du följer uppdaterades'
+          : 'Ett nytt evenemang nära dig',
   };
 }

@@ -1,6 +1,6 @@
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import type { NotificationServices } from './types';
 
@@ -30,6 +30,11 @@ export function createDbNotificationServices(
         .orderBy(desc(notifications.sentAt))
         .limit(100);
 
+      const [unread] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(notifications)
+        .where(and(eq(notifications.userId, userId), isNull(notifications.readAt)));
+
       return {
         items: rows.map((r) => ({
           id: r.id,
@@ -41,6 +46,7 @@ export function createDbNotificationServices(
           pushedAt: r.pushedAt?.toISOString() ?? null,
           readAt: r.readAt?.toISOString() ?? null,
         })),
+        unreadCount: Number(unread?.count ?? 0),
       };
     },
   };

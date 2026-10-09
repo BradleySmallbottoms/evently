@@ -36,7 +36,7 @@ describe('notification inbox', () => {
 
     const empty = await app.request('/v1/me/notifications', { headers: authHeader });
     expect(empty.status).toBe(200);
-    expect(await empty.json()).toEqual({ items: [] });
+    expect(await empty.json()).toEqual({ items: [], unreadCount: 0 });
 
     const eventId = '11111111-1111-4111-8111-111111111301';
     store.events.set(eventId, {
@@ -75,8 +75,10 @@ describe('notification inbox', () => {
     expect(listed.status).toBe(200);
     const body = (await listed.json()) as {
       items: Array<{ eventTitle: string; pushState: string }>;
+      unreadCount: number;
     };
     expect(body.items).toHaveLength(1);
+    expect(body.unreadCount).toBe(1);
     expect(body.items[0]).toMatchObject({
       eventTitle: 'Quiet show',
       pushState: 'pending',

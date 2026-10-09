@@ -9,8 +9,8 @@ export function createMemoryNotificationServices(
   return {
     async listNotifications(sessionToken) {
       const { userId } = await auth.requireUserSession(sessionToken);
-      const items = [...store.notifications.values()]
-        .filter((n) => n.userId === userId)
+      const mine = [...store.notifications.values()].filter((n) => n.userId === userId);
+      const items = mine
         .sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime())
         .map((n) => {
           const event = store.events.get(n.eventId);
@@ -25,7 +25,10 @@ export function createMemoryNotificationServices(
             readAt: n.readAt?.toISOString() ?? null,
           };
         });
-      return { items };
+      return {
+        items,
+        unreadCount: mine.filter((n) => n.readAt == null).length,
+      };
     },
   };
 }

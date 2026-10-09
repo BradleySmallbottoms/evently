@@ -8,20 +8,18 @@ const USER_ID = '11111111-1111-4111-8111-111111111202';
 const DEVICE_ID = '11111111-1111-4111-8111-111111111203';
 
 function mockDb() {
-  const tx = { execute: vi.fn(async () => []) };
-  return {
-    transaction: async (fn: (tx: typeof tx) => Promise<unknown>) => fn(tx),
-  } as never;
+  return {} as never;
 }
 
 describe('handleEventPublished', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.spyOn(match, 'loadPendingPushCandidates').mockResolvedValue([]);
+    vi.spyOn(match, 'purgeExpiredNotifications').mockResolvedValue(0);
     vi.spyOn(match, 'markNotificationsPushed').mockResolvedValue();
+    vi.spyOn(match, 'countUnreadNotifications').mockResolvedValue(1);
   });
 
-  it('sends Expo push and claims notification for matched users', async () => {
+  it('claims inbox and sends silent Expo push for matched users', async () => {
     const send = vi.fn(async () => [{ status: 'ok' as const, id: 'ticket-1' }]);
     const expo: ExpoPushClient = { send };
 
@@ -33,22 +31,17 @@ describe('handleEventPublished', () => {
       hasLocation: true,
       categoryIds: ['cat'],
     });
-    vi.spyOn(match, 'findNearbyCandidates').mockResolvedValue([
+    vi.spyOn(match, 'findNearbyMatchedUsers').mockResolvedValue([{ userId: USER_ID }]);
+    vi.spyOn(match, 'findPublisherSubscriberUsers').mockResolvedValue([]);
+    const claim = vi.spyOn(match, 'claimNotification').mockResolvedValue('notif-1');
+    vi.spyOn(match, 'loadPushDevicesForUsers').mockResolvedValue([
       {
         userId: USER_ID,
         deviceId: DEVICE_ID,
         expoPushToken: 'ExponentPushToken[abc]',
         locale: 'sv',
-        timezone: 'Europe/Stockholm',
-        quietHoursStartMin: 22 * 60,
-        quietHoursEndMin: 8 * 60,
-        quietHoursEnabled: true,
       },
     ]);
-    vi.spyOn(match, 'findPublisherSubscriberCandidates').mockResolvedValue([]);
-    vi.spyOn(match, 'loadRecentNotificationCounts').mockResolvedValue(new Map());
-    const claim = vi.spyOn(match, 'claimNotification').mockResolvedValue('notif-1');
-    vi.spyOn(match, 'releaseNotificationClaim').mockResolvedValue();
 
     const result = await handleEventPublished(EVENT_ID, {
       db: mockDb(),
@@ -56,26 +49,33 @@ describe('handleEventPublished', () => {
       now: () => new Date('2026-06-15T12:00:00.000Z'),
     });
 
-    expect(result).toEqual({ matched: 1, sent: 1, skipped: 0, deferred: 0 });
+    expect(result).toEqual({ matched: 1, claimed: 1, sent: 1, skipped: 0 });
     expect(claim).toHaveBeenCalledOnce();
     expect(match.markNotificationsPushed).toHaveBeenCalledWith(
       expect.anything(),
       ['notif-1'],
-      'sent',
       expect.any(Date),
     );
     expect(send).toHaveBeenCalledWith([
       expect.objectContaining({
         to: 'ExponentPushToken[abc]',
-        title: 'Konsert',
-        body: 'Ett nytt evenemang nära dig',
-        data: { eventId: EVENT_ID, reason: 'nearby' },
+        _contentAvailable: true,
+        badge: 1,
+        data: expect.objectContaining({
+          kind: 'inbox',
+          notificationId: 'notif-1',
+          eventId: EVENT_ID,
+          reason: 'nearby',
+          eventTitle: 'Konsert',
+        }),
       }),
     ]);
+    expect(send.mock.calls[0]![0]![0]).not.toHaveProperty('title');
+    expect(send.mock.calls[0]![0]![0]).not.toHaveProperty('body');
   });
 
-  it('defers Expo during quiet hours but still claims the inbox row', async () => {
-    const send = vi.fn();
+  it('still claims inbox during quiet hours and sends silent push', async () => {
+    const send = vi.fn(async () => [{ status: 'ok' as const }]);
     vi.spyOn(match, 'loadPublishedEvent').mockResolvedValue({
       id: EVENT_ID,
       title: 'Konsert',
@@ -84,21 +84,17 @@ describe('handleEventPublished', () => {
       hasLocation: true,
       categoryIds: ['cat'],
     });
-    vi.spyOn(match, 'findNearbyCandidates').mockResolvedValue([
+    vi.spyOn(match, 'findNearbyMatchedUsers').mockResolvedValue([{ userId: USER_ID }]);
+    vi.spyOn(match, 'findPublisherSubscriberUsers').mockResolvedValue([]);
+    const claim = vi.spyOn(match, 'claimNotification').mockResolvedValue('notif-quiet');
+    vi.spyOn(match, 'loadPushDevicesForUsers').mockResolvedValue([
       {
         userId: USER_ID,
         deviceId: DEVICE_ID,
         expoPushToken: 'ExponentPushToken[abc]',
         locale: 'sv',
-        timezone: 'Europe/Stockholm',
-        quietHoursStartMin: 22 * 60,
-        quietHoursEndMin: 8 * 60,
-        quietHoursEnabled: true,
       },
     ]);
-    vi.spyOn(match, 'findPublisherSubscriberCandidates').mockResolvedValue([]);
-    vi.spyOn(match, 'loadRecentNotificationCounts').mockResolvedValue(new Map());
-    const claim = vi.spyOn(match, 'claimNotification').mockResolvedValue('notif-quiet');
 
     const result = await handleEventPublished(EVENT_ID, {
       db: mockDb(),
@@ -106,9 +102,39 @@ describe('handleEventPublished', () => {
       now: () => new Date('2026-06-15T21:30:00.000Z'), // 23:30 CEST
     });
 
-    expect(result).toEqual({ matched: 1, sent: 0, skipped: 0, deferred: 1 });
+    expect(result).toEqual({ matched: 1, claimed: 1, sent: 1, skipped: 0 });
     expect(claim).toHaveBeenCalledOnce();
-    expect(send).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it('keeps inbox row when Expo returns no tickets', async () => {
+    vi.spyOn(match, 'loadPublishedEvent').mockResolvedValue({
+      id: EVENT_ID,
+      title: 'Konsert',
+      status: 'published',
+      publisherId: '11111111-1111-4111-8111-111111111204',
+      hasLocation: true,
+      categoryIds: ['cat'],
+    });
+    vi.spyOn(match, 'findNearbyMatchedUsers').mockResolvedValue([{ userId: USER_ID }]);
+    vi.spyOn(match, 'findPublisherSubscriberUsers').mockResolvedValue([]);
+    vi.spyOn(match, 'claimNotification').mockResolvedValue('notif-1');
+    vi.spyOn(match, 'loadPushDevicesForUsers').mockResolvedValue([
+      {
+        userId: USER_ID,
+        deviceId: DEVICE_ID,
+        expoPushToken: 'ExponentPushToken[abc]',
+        locale: 'sv',
+      },
+    ]);
+
+    const result = await handleEventPublished(EVENT_ID, {
+      db: mockDb(),
+      expo: { send: vi.fn(async () => []) },
+      now: () => new Date('2026-06-15T12:00:00.000Z'),
+    });
+
+    expect(result).toEqual({ matched: 1, claimed: 1, sent: 0, skipped: 0 });
     expect(match.markNotificationsPushed).not.toHaveBeenCalled();
   });
 
@@ -121,8 +147,8 @@ describe('handleEventPublished', () => {
       hasLocation: false,
       categoryIds: ['cat'],
     });
-    const findNearby = vi.spyOn(match, 'findNearbyCandidates');
-    vi.spyOn(match, 'findPublisherSubscriberCandidates').mockResolvedValue([]);
+    const findNearby = vi.spyOn(match, 'findNearbyMatchedUsers');
+    vi.spyOn(match, 'findPublisherSubscriberUsers').mockResolvedValue([]);
     const result = await handleEventPublished(EVENT_ID, {
       db: mockDb(),
       expo: { send: vi.fn() },
@@ -131,7 +157,7 @@ describe('handleEventPublished', () => {
     expect(findNearby).not.toHaveBeenCalled();
   });
 
-  it('releases claims when Expo returns no tickets', async () => {
+  it('claims inbox even when the user has no push token', async () => {
     vi.spyOn(match, 'loadPublishedEvent').mockResolvedValue({
       id: EVENT_ID,
       title: 'Konsert',
@@ -140,30 +166,20 @@ describe('handleEventPublished', () => {
       hasLocation: true,
       categoryIds: ['cat'],
     });
-    vi.spyOn(match, 'findNearbyCandidates').mockResolvedValue([
-      {
-        userId: USER_ID,
-        deviceId: DEVICE_ID,
-        expoPushToken: 'ExponentPushToken[abc]',
-        locale: 'sv',
-        timezone: 'Europe/Stockholm',
-        quietHoursStartMin: 22 * 60,
-        quietHoursEndMin: 8 * 60,
-        quietHoursEnabled: true,
-      },
-    ]);
-    vi.spyOn(match, 'findPublisherSubscriberCandidates').mockResolvedValue([]);
-    vi.spyOn(match, 'loadRecentNotificationCounts').mockResolvedValue(new Map());
-    vi.spyOn(match, 'claimNotification').mockResolvedValue('notif-1');
-    const release = vi.spyOn(match, 'releaseNotificationClaim').mockResolvedValue();
+    vi.spyOn(match, 'findNearbyMatchedUsers').mockResolvedValue([{ userId: USER_ID }]);
+    vi.spyOn(match, 'findPublisherSubscriberUsers').mockResolvedValue([]);
+    const claim = vi.spyOn(match, 'claimNotification').mockResolvedValue('notif-1');
+    vi.spyOn(match, 'loadPushDevicesForUsers').mockResolvedValue([]);
+    const send = vi.fn();
 
     const result = await handleEventPublished(EVENT_ID, {
       db: mockDb(),
-      expo: { send: vi.fn(async () => []) },
+      expo: { send },
       now: () => new Date('2026-06-15T12:00:00.000Z'),
     });
 
-    expect(result.sent).toBe(0);
-    expect(release).toHaveBeenCalledWith(expect.anything(), 'notif-1');
+    expect(result).toEqual({ matched: 1, claimed: 1, sent: 0, skipped: 0 });
+    expect(claim).toHaveBeenCalledOnce();
+    expect(send).not.toHaveBeenCalled();
   });
 });

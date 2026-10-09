@@ -1,9 +1,14 @@
 export type ExpoPushMessage = {
   to: string;
-  title: string;
-  body: string;
+  /** Omit for silent/data pushes (client may present a local OS notification). */
+  title?: string;
+  body?: string;
   data?: Record<string, string>;
   sound?: 'default' | null;
+  badge?: number;
+  /** iOS content-available / background delivery. */
+  _contentAvailable?: boolean;
+  priority?: 'default' | 'normal' | 'high';
 };
 
 export type ExpoPushTicket = {

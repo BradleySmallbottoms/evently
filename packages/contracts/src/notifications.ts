@@ -22,6 +22,8 @@ export type NotificationItem = z.infer<typeof NotificationItem>;
 
 export const NotificationListResponse = z.object({
   items: z.array(NotificationItem),
+  /** Unread inbox rows (read_at IS NULL) for the notifications-button badge. */
+  unreadCount: z.number().int().nonnegative(),
 });
 export type NotificationListResponse = z.infer<typeof NotificationListResponse>;
 

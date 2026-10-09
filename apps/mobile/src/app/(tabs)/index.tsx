@@ -32,6 +32,7 @@ import {
 } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
 import { getPreferences, primaryCircleArea } from '@/lib/preferences';
+import { subscribeSilentPushHandlers } from '@/lib/push-notifications';
 import {
   acceptRegionSuggestion,
   bumpRegionActivity,
@@ -101,13 +102,24 @@ export default function HomeScreen() {
   });
   const inbox = useQuery({
     queryKey: ['notifications', identity.data?.userId],
-    enabled: notificationsOpen && identity.isSuccess,
+    enabled: identity.isSuccess,
     queryFn: () => listNotifications(identity.data!),
+    refetchInterval: notificationsOpen ? 15_000 : false,
   });
 
   useEffect(() => {
     void bumpRegionActivity();
   }, []);
+
+  useEffect(() => {
+    return subscribeSilentPushHandlers({
+      getQuietHours: () => preferences.data?.quietHours,
+      getLocale: () => locale,
+      onInboxPing: () => {
+        void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      },
+    });
+  }, [preferences.data?.quietHours, locale, queryClient]);
 
   useEffect(() => {
     if (!identity.isSuccess || !preferences.isSuccess) return;
@@ -302,6 +314,7 @@ export default function HomeScreen() {
                 <CircleIconButton
                   sf="bell"
                   md="notifications"
+                  badge={(inbox.data?.unreadCount ?? 0) > 0}
                   accessibilityLabel={t('events.notifications')}
                   onPress={() => setNotificationsOpen(true)}
                 />
@@ -391,7 +404,7 @@ export default function HomeScreen() {
         emptyMessage={t('events.notificationsEmpty')}
         loadingMessage={t('events.notificationsLoading')}
         loading={inbox.isLoading}
-        items={(inbox.data ?? []).map((n) => ({
+        items={(inbox.data?.items ?? []).map((n) => ({
           id: n.id,
           title: n.eventTitle,
           subtitle:

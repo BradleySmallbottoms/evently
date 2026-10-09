@@ -2,9 +2,10 @@
 
 Mobile registers an Expo push token on the device row. Publishing a verified event enqueues
 `event.published` for the worker (SQS in AWS; ElasticMQ locally via `DOMAIN_EVENTS_QUEUE_URL`;
-in-process memory when the queue URL is unset). The worker matches nearby users (areas ∩
-interests), enforces the daily inbox cap, writes a `notifications` inbox row, then either sends
-an immediate Expo push or defers until after quiet hours.
+in-process memory when the queue URL is unset). The worker matches users (areas ∩ interests and
+publisher followers), **always** writes a `notifications` inbox row, then always sends a
+**silent/data Expo push** (no alert title/body). The app decides whether to present a local OS
+notification using quiet hours and the daily cap. The in-app list is API-backed.
 
 ```mermaid
 sequenceDiagram
@@ -22,34 +23,35 @@ sequenceDiagram
   API->>DB: events.status = published
   API->>Queue: { type: event.published, eventId } (best-effort after write)
   Worker->>Queue: long-poll ReceiveMessage
-  Worker->>DB: PostGIS match + claim notifications inbox row
-  alt Outside quiet hours
-    Worker->>Worker: Expo Push (per event)
-  else Inside quiet hours
-    Note over Worker,DB: push_state = pending; no Expo yet
-  end
+  Worker->>DB: purge notifications older than 90 days
+  Worker->>DB: PostGIS / subscription match + insert inbox row
+  Worker->>Worker: Silent Expo push (data + badge, no alert)
   Worker->>Queue: DeleteMessage
 
-  Note over Mobile,API: Any time (incl. quiet hours)
-  Mobile->>API: GET /v1/me/notifications
-  API->>DB: list inbox rows for user
-  API-->>Mobile: items for notifications window
+  Note over Mobile: Cap + quiet hours on device
+  Mobile->>Mobile: Optional local OS notification
+  Mobile->>Mobile: Refresh badge / inbox query
 
-  Note over Worker,DB: After quiet window ends (scheduler / wake)
-  Worker->>DB: pending rows for user
-  Worker->>Worker: one aggregate Expo push
-  Worker->>DB: mark pending → aggregated
+  Note over Mobile,API: Any time
+  Mobile->>API: GET /v1/me/notifications
+  API->>DB: list inbox rows + unreadCount
+  API-->>Mobile: items for notifications window
 ```
 
-## Quiet hours
+## Quiet hours and daily cap (client-only)
 
 - Defaults: enabled, 22:00–08:00 in the user’s timezone (`Europe/Stockholm` at launch). Editable in
-  preferences (planned).
-- During the window: still insert the inbox row so the mobile notifications window can show it if
-  the user opens the app. Do **not** send an immediate Expo push.
-- When the window ends: send **one** aggregate Expo summarizing deferred pending items; mark those
-  rows `aggregated`. Individual event pages remain reachable from the inbox list.
-- Daily cap (5/day) counts matches accepted into the inbox, not the aggregate Expo itself.
+  preferences (`PUT /me/quiet-hours`).
+- Backend always stores the inbox row and always attempts a silent Expo push (when a token exists).
+- Mobile: after a silent push, post a **local** OS notification only if outside quiet hours, under
+  the 5/day presentation cap, and the app is not in the foreground. Otherwise update badge/inbox only.
+- Opening the app always shows stored inbox rows via `GET /me/notifications` (independent of push
+  delivery). Silent pushes are best-effort (iOS throttles background delivery).
+
+## Retention
+
+- Worker hard-deletes inbox rows with `sent_at` older than **90 days** (batched) when handling
+  `event.published`.
 
 ## Auth notes
 

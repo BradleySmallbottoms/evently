@@ -1,16 +1,17 @@
+import { NOTIFICATION_RETENTION_DAYS } from '@local-events/domain';
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 
-export type NearbyCandidate = {
+export type MatchedUser = {
+  userId: string;
+};
+
+export type PushDevice = {
   userId: string;
   deviceId: string;
   expoPushToken: string;
   locale: string;
-  timezone: string;
-  quietHoursStartMin: number;
-  quietHoursEndMin: number;
-  quietHoursEnabled: boolean;
 };
 
 export type PublishedEventForNotify = {
@@ -53,24 +54,16 @@ export async function loadPublishedEvent(
 }
 
 /**
- * Users with an active notify area covering the event point, overlapping interests,
- * and at least one device with an Expo push token.
+ * Users with an active notify area covering the event point and overlapping interests.
+ * Push token is not required — inbox rows are stored even without a device token.
  */
-export async function findNearbyCandidates(
+export async function findNearbyMatchedUsers(
   db: Db,
   eventId: string,
   limit = 500,
-): Promise<NearbyCandidate[]> {
+): Promise<MatchedUser[]> {
   const rows = await db.execute(sql`
-    SELECT DISTINCT
-      u.id AS user_id,
-      d.id AS device_id,
-      d.expo_push_token,
-      d.locale,
-      u.timezone,
-      u.quiet_hours_start_min,
-      u.quiet_hours_end_min,
-      u.quiet_hours_enabled
+    SELECT DISTINCT u.id AS user_id
     FROM events e
     INNER JOIN event_categories ec ON ec.event_id = e.id
     INNER JOIN user_interests ui ON ui.category_id = ec.category_id
@@ -79,10 +72,6 @@ export async function findNearbyCandidates(
       ON ua.user_id = u.id
       AND ua.active = true
       AND ua.notify = true
-    INNER JOIN devices d
-      ON d.user_id = u.id
-      AND d.revoked_at IS NULL
-      AND d.expo_push_token IS NOT NULL
     WHERE e.id = ${eventId}::uuid
       AND e.status = 'published'
       AND e.location IS NOT NULL
@@ -97,80 +86,61 @@ export async function findNearbyCandidates(
     LIMIT ${limit}
   `);
 
-  const list = (Array.isArray(rows) ? rows : []) as Array<{
-    user_id: string;
-    device_id: string;
-    expo_push_token: string;
-    locale: string;
-    timezone: string;
-    quiet_hours_start_min: number;
-    quiet_hours_end_min: number;
-    quiet_hours_enabled: boolean;
-  }>;
-
-  return list.map((r) => ({
-    userId: r.user_id,
-    deviceId: r.device_id,
-    expoPushToken: r.expo_push_token,
-    locale: r.locale,
-    timezone: r.timezone,
-    quietHoursStartMin: Number(r.quiet_hours_start_min),
-    quietHoursEndMin: Number(r.quiet_hours_end_min),
-    quietHoursEnabled: Boolean(r.quiet_hours_enabled),
-  }));
+  const list = (Array.isArray(rows) ? rows : []) as Array<{ user_id: string }>;
+  return list.map((r) => ({ userId: r.user_id }));
 }
 
 /** Drizzle transaction or root db — both support the query builders we use. */
 export type NotifyDb = Pick<Db, 'insert' | 'delete' | 'update' | 'select' | 'execute'>;
 
-/** Publisher followers with a push-capable device (no geo/interest filter). */
-export async function findPublisherSubscriberCandidates(
+/** Publisher followers (no geo/interest filter). Inbox without requiring a push token. */
+export async function findPublisherSubscriberUsers(
   db: Db,
   publisherId: string,
   limit = 500,
-): Promise<NearbyCandidate[]> {
+): Promise<MatchedUser[]> {
   const rows = await db.execute(sql`
-    SELECT DISTINCT
-      u.id AS user_id,
-      d.id AS device_id,
-      d.expo_push_token,
-      d.locale,
-      u.timezone,
-      u.quiet_hours_start_min,
-      u.quiet_hours_end_min,
-      u.quiet_hours_enabled
+    SELECT DISTINCT u.id AS user_id
     FROM subscriptions s
     INNER JOIN users u ON u.id = s.user_id
-    INNER JOIN devices d
-      ON d.user_id = u.id
-      AND d.revoked_at IS NULL
-      AND d.expo_push_token IS NOT NULL
     WHERE s.target_type = 'publisher'
       AND s.target_id = ${publisherId}::uuid
     LIMIT ${limit}
   `);
 
-  const list = (Array.isArray(rows) ? rows : []) as Array<{
-    user_id: string;
-    device_id: string;
-    expo_push_token: string;
-    locale: string;
-    timezone: string;
-    quiet_hours_start_min: number;
-    quiet_hours_end_min: number;
-    quiet_hours_enabled: boolean;
-  }>;
+  const list = (Array.isArray(rows) ? rows : []) as Array<{ user_id: string }>;
+  return list.map((r) => ({ userId: r.user_id }));
+}
 
-  return list.map((r) => ({
-    userId: r.user_id,
-    deviceId: r.device_id,
-    expoPushToken: r.expo_push_token,
-    locale: r.locale,
-    timezone: r.timezone,
-    quietHoursStartMin: Number(r.quiet_hours_start_min),
-    quietHoursEndMin: Number(r.quiet_hours_end_min),
-    quietHoursEnabled: Boolean(r.quiet_hours_enabled),
-  }));
+export async function loadPushDevicesForUsers(
+  db: NotifyDb,
+  userIds: string[],
+): Promise<PushDevice[]> {
+  if (userIds.length === 0) return [];
+  const rows = await db
+    .select({
+      userId: schema.devices.userId,
+      deviceId: schema.devices.id,
+      expoPushToken: schema.devices.expoPushToken,
+      locale: schema.devices.locale,
+    })
+    .from(schema.devices)
+    .where(
+      and(
+        inArray(schema.devices.userId, userIds),
+        isNull(schema.devices.revokedAt),
+        sql`${schema.devices.expoPushToken} IS NOT NULL`,
+      ),
+    );
+
+  return rows
+    .filter((r): r is typeof r & { expoPushToken: string } => r.expoPushToken != null)
+    .map((r) => ({
+      userId: r.userId,
+      deviceId: r.deviceId,
+      expoPushToken: r.expoPushToken,
+      locale: r.locale,
+    }));
 }
 
 export async function claimNotification(
@@ -191,81 +161,16 @@ export async function claimNotification(
   return inserted[0]?.id ?? null;
 }
 
-export async function releaseNotificationClaim(db: NotifyDb, notificationId: string): Promise<void> {
-  await db.delete(schema.notifications).where(eq(schema.notifications.id, notificationId));
-}
-
 export async function markNotificationsPushed(
   db: NotifyDb,
   notificationIds: string[],
-  state: 'sent' | 'aggregated',
   now: Date,
 ): Promise<void> {
   if (notificationIds.length === 0) return;
   await db
     .update(schema.notifications)
-    .set({ pushState: state, pushedAt: now })
+    .set({ pushState: 'sent', pushedAt: now })
     .where(inArray(schema.notifications.id, notificationIds));
-}
-
-export type PendingQuietHoursRow = {
-  notificationId: string;
-  userId: string;
-  deviceId: string;
-  expoPushToken: string;
-  locale: string;
-  timezone: string;
-  quietHoursStartMin: number;
-  quietHoursEndMin: number;
-  quietHoursEnabled: boolean;
-};
-
-/** Pending inbox rows with a pushable device (for aggregate flush after quiet hours). */
-export async function loadPendingPushCandidates(
-  db: NotifyDb,
-  limit = 2_000,
-): Promise<PendingQuietHoursRow[]> {
-  const rows = await db.execute(sql`
-    SELECT
-      n.id AS notification_id,
-      n.user_id,
-      d.id AS device_id,
-      d.expo_push_token,
-      d.locale,
-      u.timezone,
-      u.quiet_hours_start_min,
-      u.quiet_hours_end_min,
-      u.quiet_hours_enabled
-    FROM notifications n
-    INNER JOIN users u ON u.id = n.user_id
-    INNER JOIN devices d ON d.user_id = u.id
-    WHERE n.push_state = 'pending'
-      AND d.expo_push_token IS NOT NULL
-    ORDER BY n.sent_at ASC
-    LIMIT ${limit}
-  `);
-  const list = (Array.isArray(rows) ? rows : []) as Array<{
-    notification_id: string;
-    user_id: string;
-    device_id: string;
-    expo_push_token: string;
-    locale: string;
-    timezone: string;
-    quiet_hours_start_min: number;
-    quiet_hours_end_min: number;
-    quiet_hours_enabled: boolean;
-  }>;
-  return list.map((r) => ({
-    notificationId: r.notification_id,
-    userId: r.user_id,
-    deviceId: r.device_id,
-    expoPushToken: r.expo_push_token,
-    locale: r.locale,
-    timezone: r.timezone,
-    quietHoursStartMin: Number(r.quiet_hours_start_min),
-    quietHoursEndMin: Number(r.quiet_hours_end_min),
-    quietHoursEnabled: Boolean(r.quiet_hours_enabled),
-  }));
 }
 
 /** Clear stale Expo tokens after DeviceNotRegistered-style errors. */
@@ -276,29 +181,39 @@ export async function clearExpoPushToken(db: NotifyDb, deviceId: string): Promis
     .where(eq(schema.devices.id, deviceId));
 }
 
-export async function loadRecentNotificationCounts(
-  db: NotifyDb,
-  userIds: string[],
-  now: Date,
-): Promise<Map<string, { sentAt: Date }[]>> {
-  const map = new Map<string, { sentAt: Date }[]>();
-  if (userIds.length === 0) return map;
-  const rows = await db
-    .select({
-      userId: schema.notifications.userId,
-      sentAt: schema.notifications.sentAt,
-    })
+export async function countUnreadNotifications(db: NotifyDb, userId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
     .from(schema.notifications)
     .where(
-      and(
-        inArray(schema.notifications.userId, userIds),
-        sql`${schema.notifications.sentAt} > ${new Date(now.getTime() - 48 * 60 * 60 * 1000)}`,
-      ),
+      and(eq(schema.notifications.userId, userId), isNull(schema.notifications.readAt)),
     );
-  for (const row of rows) {
-    const list = map.get(row.userId) ?? [];
-    list.push({ sentAt: row.sentAt });
-    map.set(row.userId, list);
+  return Number(row?.count ?? 0);
+}
+
+/**
+ * Hard-delete inbox rows older than retention. Batched to avoid long locks.
+ * Returns total rows deleted.
+ */
+export async function purgeExpiredNotifications(
+  db: NotifyDb,
+  now: Date,
+  retentionDays: number = NOTIFICATION_RETENTION_DAYS,
+  batchSize = 1_000,
+): Promise<number> {
+  const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
+  let total = 0;
+  for (;;) {
+    const old = await db
+      .select({ id: schema.notifications.id })
+      .from(schema.notifications)
+      .where(lt(schema.notifications.sentAt, cutoff))
+      .limit(batchSize);
+    if (old.length === 0) break;
+    const ids = old.map((r) => r.id);
+    await db.delete(schema.notifications).where(inArray(schema.notifications.id, ids));
+    total += ids.length;
+    if (old.length < batchSize) break;
   }
-  return map;
+  return total;
 }
