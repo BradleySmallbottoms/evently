@@ -51,6 +51,36 @@ describe('ratings', () => {
   });
 });
 
+describe('profile', () => {
+  it('resolves named and anonymous choices', async () => {
+    const { resolveProfileChoice, normalizeRecoveryEmail } = await import(
+      '../../../packages/domain/src/profile'
+    );
+    expect(resolveProfileChoice({ choice: 'anonymous' })).toEqual({
+      ok: true,
+      displayName: null,
+      isPublic: false,
+    });
+    expect(
+      resolveProfileChoice({ choice: 'named', displayName: '  Mia  Sund  ' }),
+    ).toEqual({ ok: true, displayName: 'Mia Sund', isPublic: true });
+    expect(resolveProfileChoice({ choice: 'named', displayName: 'x' }).ok).toBe(false);
+    expect(normalizeRecoveryEmail('  Mia@Example.com ')).toBe('mia@example.com');
+    expect(normalizeRecoveryEmail('')).toBe(null);
+  });
+});
+
+describe('event content', () => {
+  it('gates attendee visibility on check-in', async () => {
+    const { canViewEventContent } = await import(
+      '../../../packages/domain/src/event-content'
+    );
+    expect(canViewEventContent('public', false)).toBe(true);
+    expect(canViewEventContent('attendees', false)).toBe(false);
+    expect(canViewEventContent('attendees', true)).toBe(true);
+  });
+});
+
 describe('publishing', () => {
   it('hides events from unverified publishers', () => {
     expect(statusOnPublish({ origin: 'native', publisherVerified: false })).toBe(

@@ -13,7 +13,8 @@ external sources. Launch area: Söderhamn and Gävleborgs län. Languages: Swedi
 ## Status
 
 Phase 4 (Check-in) is underway. Phase 3 nearby push and follows are in place. Physical geofence
-check-in (geo + rotating digital codes) works; profile-at-check-in and attendee content remain.
+Phase 4 check-in, digital codes, profile prompt, and attendee content are in place. Ratings and
+stats come next.
 
 ## Prerequisites
 
@@ -109,10 +110,11 @@ calls) in the same change as every new major feature.**
 - Publishing a **`published`** event (or admin verify releasing one) enqueues
   `{ type: 'event.published', eventId }` best-effort after the DB write. Without
   `DOMAIN_EVENTS_QUEUE_URL`, APIs keep events in-process and the worker idles.
-- Worker fan-out: nearby (areas ∩ interests) + publisher followers, 5/day inbox cap, Expo Push,
-  `notifications` inbox (`GET /me/notifications`). Quiet hours (default 22:00–08:00 Stockholm):
-  store during the window, one aggregate Expo after it ends; toggle in preferences
-  (`PUT /me/quiet-hours`). Follow via `POST /v1/me/subscriptions`. Needs `DATABASE_URL` on the
+- Worker fan-out: nearby (areas ∩ interests) + publisher followers → always insert
+  `notifications` inbox row → silent Expo push (data + badge). Quiet hours + 5/day OS-notification
+  cap are enforced on the mobile client (local notification vs badge only). Inbox list/badge via
+  `GET /me/notifications` (`unreadCount`). Rows older than 90 days are purged. Toggle quiet hours
+  with `PUT /me/quiet-hours`. Follow via `POST /v1/me/subscriptions`. Needs `DATABASE_URL` on the
   worker. Flow: [docs/flows/push-and-domain-events.md](docs/flows/push-and-domain-events.md).
 
 ### Frontend structure
@@ -145,6 +147,13 @@ calls) in the same change as every new major feature.**
   payload. Attendees `POST /v1/events/{id}/check-ins/code` with `{ code }` once `codeActive`.
   Secret stays server-side (HMAC per 60s slot). Flow:
   [docs/flows/digital-code-check-in.md](docs/flows/digital-code-check-in.md).
+- First check-in profile: `GET/PUT /v1/me/profile` — named (`displayName` + public) or anonymous;
+  optional `recoveryEmail` stored unverified. Mobile prompts when `profileChosen` is false.
+  Flow: [docs/flows/profile-at-check-in.md](docs/flows/profile-at-check-in.md).
+- Attendee content: publisher CRUD on `/manage/events/{id}/content`; attendees
+  `GET /events/{id}/content` (attendee-only rows after check-in). File `s3Key` → short-lived signed
+  URL (memory signer in dev). Mobile caches checked-in payloads offline.
+  Flow: [docs/flows/attendee-content.md](docs/flows/attendee-content.md).
 
 ### E2E vs local data
 

@@ -5,6 +5,8 @@ import { createDbAuthServices } from './services/auth/db';
 import { createMemoryAuthServices } from './services/auth/memory';
 import { createDbCheckInServices } from './services/check-ins/db';
 import { createMemoryCheckInServices } from './services/check-ins/memory';
+import { createDbEventContentServices } from './services/event-content/db';
+import { createMemoryEventContentServices } from './services/event-content/memory';
 import { createDbEventServices } from './services/events/db';
 import { createMemoryEventServices } from './services/events/memory';
 import { createMemoryDomainEventPublisher } from './services/domain-events/memory';
@@ -56,7 +58,17 @@ const domainEvents = queueUrl
 const eventEnvWithQueue = { ...eventEnv, domainEvents };
 
 const checkInEnv = { now: () => new Date(), domainEvents };
-const { auth, events, preferences, regions, subscriptions, checkIns, notifications } = (() => {
+const contentEnv = { now: () => new Date() };
+const {
+  auth,
+  events,
+  preferences,
+  regions,
+  subscriptions,
+  checkIns,
+  notifications,
+  eventContent,
+} = (() => {
   if (databaseUrl) {
     const db = createDb(databaseUrl);
     const authServices = createDbAuthServices(db, authEnv);
@@ -68,6 +80,7 @@ const { auth, events, preferences, regions, subscriptions, checkIns, notificatio
       subscriptions: createDbSubscriptionServices(db, authServices),
       checkIns: createDbCheckInServices(db, authServices, checkInEnv),
       notifications: createDbNotificationServices(db, authServices),
+      eventContent: createDbEventContentServices(db, authServices, contentEnv),
     };
   }
   const store = createMemoryStore();
@@ -80,6 +93,7 @@ const { auth, events, preferences, regions, subscriptions, checkIns, notificatio
     subscriptions: createMemorySubscriptionServices(authServices, store),
     checkIns: createMemoryCheckInServices(authServices, checkInEnv, store),
     notifications: createMemoryNotificationServices(authServices, store),
+    eventContent: createMemoryEventContentServices(authServices, contentEnv, store),
   };
 })();
 
@@ -101,6 +115,7 @@ serve(
       subscriptions,
       checkIns,
       notifications,
+      eventContent,
       corsOrigin,
     }).fetch,
     port,

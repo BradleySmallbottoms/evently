@@ -17,31 +17,26 @@ import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
 import { enqueueDomainEvent } from '../domain-events/types';
-import { createMemoryStore, type MemoryStore } from '../memory-store';
+import {
+  createMemoryStore,
+  type MemoryCheckIn,
+  type MemoryStore,
+} from '../memory-store';
 import { deriveDigitalCode, generateDigitalCodeSecret, validCodesForNow } from './codes';
 import { CheckInError, type CheckInEnv, type CheckInServices } from './types';
 
 const DEFAULT_GEOFENCE_RADIUS_M = 100;
 
-export type MemoryCheckIn = {
-  id: string;
-  userId: string;
-  eventId: string;
-  method: 'geo' | 'code';
-  lat: number | null;
-  lng: number | null;
-  accuracyM: number | null;
-  createdAt: Date;
-};
+export type { MemoryCheckIn };
 
 export function createMemoryCheckInServices(
   auth: AuthServices,
   env: CheckInEnv = {},
   store: MemoryStore = createMemoryStore(),
-  checkIns: MemoryCheckIn[] = [],
 ): CheckInServices {
   const now = env.now ?? (() => new Date());
   const domainEvents = env.domainEvents ?? createMemoryDomainEventPublisher();
+  const checkIns = store.checkIns;
 
   async function requireUser(sessionToken: string | undefined) {
     try {

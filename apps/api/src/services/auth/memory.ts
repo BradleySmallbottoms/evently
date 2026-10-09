@@ -94,6 +94,11 @@ export function createMemoryAuthServices(
       users.set(userId, {
         id: userId,
         createdAt: now,
+        displayName: null,
+        isPublic: false,
+        recoveryEmail: null,
+        recoveryEmailVerifiedAt: null,
+        profileChosenAt: null,
         timezone: 'Europe/Stockholm',
         quietHoursStartMin: 22 * 60,
         quietHoursEndMin: 8 * 60,

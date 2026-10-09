@@ -230,7 +230,7 @@ starter subset; the rest is added phase by phase.
 
 | Entity                                         | Key fields                                                                                                                                                                                                                                        | Notes                                                                                    |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `users`                                        | id, display_name (nullable), is_public (default false), recovery_email (nullable), recovery_email_verified_at, timezone (default Europe/Stockholm), quiet_hours_start_min / end_min / enabled, created_at, last_seen_at                            | Created on first app launch; a profile only adds a name and visibility; quiet hours defer Expo (inbox still written; prefs UI planned) |
+| `users`                                        | id, display_name (nullable), is_public (default false), recovery_email (nullable), recovery_email_verified_at, profile_chosen_at (nullable), timezone (default Europe/Stockholm), quiet_hours_start_min / end_min / enabled, created_at, last_seen_at | Created on first app launch; `profile_chosen_at` set after named/anonymous prompt; recovery email stored unverified until verify flow ships; quiet hours defer Expo |
 | `devices`                                      | id, user_id, credential_hash, expo_push_token, platform, locale, last_seen_at                                                                                                                                                                     | The app's identity credential; pruned on push receipt errors                             |
 | `sessions`                                     | id, subject_type (user / publisher_account / admin), subject_id, token_hash, client (app / web / admin), expires_at, revoked_at                                                                                                                   | Opaque tokens, hashed at rest, revocable                                                 |
 | `web_login_codes`                              | id, code_hash, purpose (web_login / device_link), browser_label, status, user_id, device_id (device_link), expires_at                                                                                                                               | 5-minute TTL, single use; device_id is the device remapped on confirm                    |
@@ -255,7 +255,7 @@ starter subset; the rest is added phase by phase.
 | `check_ins`                                    | id, user_id, event_id, method (geo / code), lat, lng, accuracy_m, device_flags, created_at                                                                                                                                                        | Unique on (user, event); geo check-in via `POST /v1/events/{id}/check-ins`               |
 | `ratings`                                      | user_id, event_id, score 1–5, comment, created_at                                                                                                                                                                                                 | Requires a check-in; comment only from named profiles                                    |
 | `digital_codes`                                | event_id, secret, revealed_at, rotation_s                                                                                                                                                                                                         | Secret seeds rotating codes; never sent to attendees                                     |
-| `notifications`                                | id, user_id, event_id, reason (nearby / publisher / event), sent_at (inbox accept time), push_state (pending / sent / aggregated), pushed_at (nullable), read_at (nullable)                                                                         | Inbox + dedupe + daily-cap; unique (user, event, reason). Quiet-hours matches stay `pending` until an aggregate flush |
+| `notifications`                                | id, user_id, event_id, reason (nearby / publisher / event), sent_at (inbox accept time), push_state (pending / sent / aggregated legacy), pushed_at (nullable), read_at (nullable)                                                                  | Inbox for every match + silent Expo delivery; unique (user, event, reason). Cap/quiet hours are client-side. Purged after 90 days |
 | `data_sources`                                 | id, slug, kind (api / feed / scraper), schedule, config, trust (auto_publish / review), enabled                                                                                                                                                   | One row per source; secrets referenced, not stored                                       |
 | `ingestion_runs`                               | id, source_id, started_at, finished_at, status, fetched, created, updated, skipped, error                                                                                                                                                         | Run history shown in admin                                                               |
 | `external_refs`                                | source_id, external_id, event_id, content_hash, last_seen_at                                                                                                                                                                                      | Unique on (source, external_id); unchanged hash = skip                                   |
@@ -275,7 +275,8 @@ Every write that matters emits a domain event (`event.published`, `event.updated
    short-lived session tokens. A user id alone never authenticates. After a session is ready the
    mobile app may call `PUT /v1/me/push-token` with the device credential and an Expo push token.
 
-3. First check-in: the app offers a profile — a display name, or stay anonymous.
+3. First check-in: the app offers a profile — a display name, or stay anonymous
+   (`PUT /v1/me/profile`). Optional recovery email may be stored (verification later).
 4. Publishers log in on the web with a verified email and password (httpOnly cookie session).
 5. App users sign in on the web by pairing: the app generates an 8-character code (5 min TTL),
    the user types it on the web `/login-with-code` page, and the browser receives an httpOnly
@@ -294,16 +295,16 @@ Any linked device can be revoked.
 2. The worker finds matching users in one PostGIS query: active notify area covers the event
    point (`ST_Covers` on polygon/region, `ST_DWithin` on circle), interests overlap (empty
    interests → no nearby push). Digital events without a location are skipped here.
-3. Dedupe against `notifications`, per-user cap (5/day local calendar — counts inbox accepts).
-   Publisher/event subscribers merge in when follows ship.
-4. Claim/insert a `notifications` inbox row for every accepted match (always visible in the app
-   notifications window).
-5. If the user is outside quiet hours (default 22:00–08:00 `Europe/Stockholm`, overridable in
-   preferences): send Expo push immediately (`push_state = sent`). If inside quiet hours: leave
-   `pending` (no immediate Expo). When the quiet window ends, the worker sends one aggregate Expo
-   covering pending rows for that user and marks them `aggregated`. Opening the app during quiet
-   hours still shows those rows in the notifications UI.
-6. Expo sends in batches of 100; clear tokens on `DeviceNotRegistered`. Receipt polling later.
+3. Dedupe against `notifications` only (unique user + event + reason). Publisher followers merge
+   in with nearby (nearby wins when both match). Fan-out capped at 500 candidates per path.
+4. Insert a `notifications` inbox row for every match (visible in the app notifications window via
+   `GET /me/notifications`, including `unreadCount` for the badge).
+5. Always send a **silent/data Expo push** to devices with tokens (no alert title/body; includes
+   badge + payload). Mark `push_state = sent` on Expo accept. Inbox rows are kept even if push
+   fails. Quiet hours and the 5/day OS-notification cap are enforced **on the client** (optional
+   local OS notification); opening the app always shows the full retained inbox.
+6. Worker purges inbox rows older than 90 days. Expo sends in batches of 100; clear tokens on
+   `DeviceNotRegistered`. Receipt polling later.
 
 Areas are saved places, not live tracking.
 

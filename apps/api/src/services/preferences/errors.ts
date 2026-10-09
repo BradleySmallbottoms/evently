@@ -10,6 +10,8 @@ const MESSAGES: Record<PreferenceErrorCode, string> = {
   area_limit: 'Saved area limit reached',
   unknown_category: 'One or more category ids are unknown',
   unknown_region: 'Unknown region',
+  invalid_display_name: 'Display name must be 2–40 characters',
+  name_required: 'Display name is required for a named profile',
 };
 
 const STATUS: Record<PreferenceErrorCode, 400 | 401 | 404 | 403> = {
@@ -19,6 +21,8 @@ const STATUS: Record<PreferenceErrorCode, 400 | 401 | 404 | 403> = {
   area_limit: 403,
   unknown_category: 400,
   unknown_region: 400,
+  invalid_display_name: 400,
+  name_required: 400,
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

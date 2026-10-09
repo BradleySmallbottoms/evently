@@ -26,6 +26,7 @@ describe('user preferences', () => {
     expect(doc.paths['/me/interests']).toBeDefined();
     expect(doc.paths['/me/areas']).toBeDefined();
     expect(doc.paths['/me/areas/{id}']).toBeDefined();
+    expect(doc.paths['/me/profile']).toBeDefined();
   });
 
   it('replaces interests and CRUD circle + polygon areas with Bearer auth', async () => {
@@ -173,5 +174,71 @@ describe('user preferences', () => {
       headers: { authorization: `Bearer ${other.sessionToken}` },
     });
     expect(deleted.status).toBe(404);
+  });
+
+  it('sets named or anonymous profile with optional recovery email', async () => {
+    const store = createMemoryStore();
+    const env = { includeVerificationToken: true, now: () => new Date() };
+    const auth = createMemoryAuthServices(env, store);
+    const preferences = createMemoryPreferenceServices(auth, { now: env.now }, store);
+    const app = createApp({ auth, preferences });
+
+    const session = await createUserSession(app);
+    const authHeader = {
+      authorization: `Bearer ${session.sessionToken}`,
+      'content-type': 'application/json',
+    };
+
+    const initial = await app.request('/v1/me/profile', {
+      headers: { authorization: `Bearer ${session.sessionToken}` },
+    });
+    expect(initial.status).toBe(200);
+    expect(await initial.json()).toMatchObject({
+      profileChosen: false,
+      displayName: null,
+      isPublic: false,
+      recoveryEmail: null,
+    });
+
+    const named = await app.request('/v1/me/profile', {
+      method: 'PUT',
+      headers: authHeader,
+      body: JSON.stringify({
+        choice: 'named',
+        displayName: 'Mia',
+        recoveryEmail: 'mia@example.com',
+      }),
+    });
+    expect(named.status).toBe(200);
+    expect(await named.json()).toMatchObject({
+      profileChosen: true,
+      displayName: 'Mia',
+      isPublic: true,
+      recoveryEmail: 'mia@example.com',
+      recoveryEmailVerified: false,
+    });
+
+    const other = await createUserSession(app);
+    const anon = await app.request('/v1/me/profile', {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${other.sessionToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ choice: 'anonymous' }),
+    });
+    expect(anon.status).toBe(200);
+    expect(await anon.json()).toMatchObject({
+      profileChosen: true,
+      displayName: null,
+      isPublic: false,
+    });
+
+    const bad = await app.request('/v1/me/profile', {
+      method: 'PUT',
+      headers: authHeader,
+      body: JSON.stringify({ choice: 'named', displayName: 'x' }),
+    });
+    expect(bad.status).toBe(400);
   });
 });

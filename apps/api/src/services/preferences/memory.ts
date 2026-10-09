@@ -1,10 +1,14 @@
 import type {
   CreateUserAreaRequest,
   UpdateUserAreaRequest,
+  UpdateUserProfileRequest,
   UserArea,
+  UserProfile,
 } from '@local-events/contracts';
 import {
   canAddSavedArea,
+  normalizeRecoveryEmail,
+  resolveProfileChoice,
   validateCircleArea,
   validatePolygonArea,
 } from '@local-events/domain';
@@ -12,6 +16,22 @@ import { randomUUID } from 'node:crypto';
 import type { AuthServices } from '../auth/types';
 import { createMemoryStore, type MemoryStore } from '../memory-store';
 import { PreferenceError, type PreferenceEnv, type PreferenceServices } from './types';
+
+function toProfile(user: {
+  displayName: string | null;
+  isPublic: boolean;
+  profileChosenAt: Date | null;
+  recoveryEmail: string | null;
+  recoveryEmailVerifiedAt: Date | null;
+}): UserProfile {
+  return {
+    displayName: user.displayName,
+    isPublic: user.isPublic,
+    profileChosen: user.profileChosenAt != null,
+    recoveryEmail: user.recoveryEmail,
+    recoveryEmailVerified: user.recoveryEmailVerifiedAt != null,
+  };
+}
 
 function toUserArea(row: {
   id: string;
@@ -84,6 +104,39 @@ export function createMemoryPreferenceServices(
         endMin: user.quietHoursEndMin,
         timezone: user.timezone,
       };
+    },
+
+    async getProfile(sessionToken) {
+      const { userId } = await auth.requireUserSession(sessionToken);
+      const user = store.users.get(userId);
+      if (!user) throw new PreferenceError('unauthorized');
+      return toProfile(user);
+    },
+
+    async updateProfile(sessionToken, input: UpdateUserProfileRequest) {
+      const { userId } = await auth.requireUserSession(sessionToken);
+      const user = store.users.get(userId);
+      if (!user) throw new PreferenceError('unauthorized');
+      const resolved =
+        input.choice === 'anonymous'
+          ? resolveProfileChoice({ choice: 'anonymous' })
+          : resolveProfileChoice({
+              choice: 'named',
+              displayName: input.displayName ?? '',
+              isPublic: input.isPublic,
+            });
+      if (!resolved.ok) throw new PreferenceError(resolved.reason);
+      user.displayName = resolved.displayName;
+      user.isPublic = resolved.isPublic;
+      user.profileChosenAt = env.now();
+      if (input.recoveryEmail !== undefined) {
+        const next = normalizeRecoveryEmail(input.recoveryEmail);
+        if (next !== user.recoveryEmail) {
+          user.recoveryEmail = next;
+          user.recoveryEmailVerifiedAt = null;
+        }
+      }
+      return toProfile(user);
     },
 
     async replaceInterests(sessionToken, input) {

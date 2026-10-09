@@ -14,6 +14,7 @@ import type { FormEvent } from 'react';
 import { AppLink } from '@/components/app-link';
 import { api, throwIfError } from '@/lib/api';
 import { DigitalCodePanel } from './digital-code-panel';
+import { EventContentPanel } from './event-content-panel';
 import {
   ManagedEventFields,
   readManagedEventForm,
@@ -223,6 +224,7 @@ export function EditEventForm() {
         </Stack>
       </Stack>
       <DigitalCodePanel eventId={eventId} published={event.status === 'published'} />
+      <EventContentPanel eventId={eventId} />
     </Stack>
   );
 }

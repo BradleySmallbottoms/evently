@@ -51,7 +51,10 @@ export const notificationReason = pgEnum('notification_reason', [
   'publisher',
   'event',
 ]);
-/** Expo delivery state — inbox rows always exist; push may wait for quiet hours. */
+/**
+ * Silent Expo delivery state for an inbox row.
+ * `aggregated` is legacy (server quiet-hours digest); new writes use pending → sent.
+ */
 export const notificationPushState = pgEnum('notification_push_state', [
   'pending',
   'sent',
@@ -59,6 +62,8 @@ export const notificationPushState = pgEnum('notification_push_state', [
 ]);
 export const subscriptionTarget = pgEnum('subscription_target', ['publisher', 'event']);
 export const checkInMethod = pgEnum('check_in_method', ['geo', 'code']);
+export const eventContentKind = pgEnum('event_content_kind', ['map', 'schedule', 'info', 'file']);
+export const eventContentVisibility = pgEnum('event_content_visibility', ['public', 'attendees']);
 
 // ---------- identity ----------
 export const users = pgTable('users', {
@@ -67,6 +72,11 @@ export const users = pgTable('users', {
   isPublic: boolean('is_public').notNull().default(false),
   recoveryEmail: text('recovery_email'),
   recoveryEmailVerifiedAt: timestamp('recovery_email_verified_at', { withTimezone: true }),
+  /**
+   * Set when the user answers the first-check-in profile prompt (named or anonymous).
+   * Null means the app should still offer the prompt after check-in.
+   */
+  profileChosenAt: timestamp('profile_chosen_at', { withTimezone: true }),
   /** IANA timezone for quiet-hours evaluation (launch default: Sweden). */
   timezone: text('timezone').notNull().default('Europe/Stockholm'),
   /** Minutes from local midnight; window wraps midnight when start ≥ end. */
@@ -395,11 +405,30 @@ export const digitalCodes = pgTable('digital_codes', {
   createdAt: createdAt(),
 });
 
+/** Maps, schedules, info and files — attendee visibility gated by check-in. */
+export const eventContent = pgTable(
+  'event_content',
+  {
+    id: id(),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    kind: eventContentKind('kind').notNull(),
+    title: text('title').notNull(),
+    body: text('body'),
+    /** Private S3 object key; signed URL minted at read time when present. */
+    s3Key: text('s3_key'),
+    visibility: eventContentVisibility('visibility').notNull().default('attendees'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('event_content_event_id_idx').on(t.eventId)],
+);
+
 /**
- * Notification inbox — dedupe + daily-cap accounting + Expo delivery state.
- * Unique on (user, event, reason) so SQS at-least-once retries stay idempotent.
- * `sentAt` is when the match was accepted into the inbox (cap bucketing); Expo delivery
- * is tracked via `pushState` / `pushedAt`.
+ * Notification inbox — every match is stored; unique (user, event, reason) for SQS retries.
+ * Quiet hours + daily OS-notification cap are client-side. `sentAt` = inbox accept time;
+ * silent Expo delivery is tracked via `pushState` / `pushedAt`. Rows older than 90 days
+ * are purged by the worker.
  */
 export const notifications = pgTable(
   'notifications',

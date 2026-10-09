@@ -4,6 +4,11 @@ import { SEED_CATEGORIES } from './events/seed-categories';
 export type MemoryUser = {
   id: string;
   createdAt: Date;
+  displayName: string | null;
+  isPublic: boolean;
+  recoveryEmail: string | null;
+  recoveryEmailVerifiedAt: Date | null;
+  profileChosenAt: Date | null;
   timezone: string;
   quietHoursStartMin: number;
   quietHoursEndMin: number;
@@ -130,6 +135,28 @@ export type MemoryDigitalCode = {
   createdAt: Date;
 };
 
+export type MemoryCheckIn = {
+  id: string;
+  userId: string;
+  eventId: string;
+  method: 'geo' | 'code';
+  lat: number | null;
+  lng: number | null;
+  accuracyM: number | null;
+  createdAt: Date;
+};
+
+export type MemoryEventContent = {
+  id: string;
+  eventId: string;
+  kind: 'map' | 'schedule' | 'info' | 'file';
+  title: string;
+  body: string | null;
+  s3Key: string | null;
+  visibility: 'public' | 'attendees';
+  createdAt: Date;
+};
+
 export type MemoryStore = {
   users: Map<string, MemoryUser>;
   devices: Map<string, MemoryDevice>;
@@ -147,6 +174,8 @@ export type MemoryStore = {
   subscriptions: MemorySubscription[];
   notifications: Map<string, MemoryNotification>;
   digitalCodes: Map<string, MemoryDigitalCode>;
+  checkIns: MemoryCheckIn[];
+  eventContent: MemoryEventContent[];
 };
 
 /** Fixed UUIDs matching packages/db seed migration for regions. */
@@ -188,5 +217,7 @@ export function createMemoryStore(): MemoryStore {
     subscriptions: [],
     notifications: new Map(),
     digitalCodes: new Map(),
+    checkIns: [],
+    eventContent: [],
   };
 }

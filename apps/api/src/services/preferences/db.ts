@@ -1,12 +1,16 @@
 import type {
   CreateUserAreaRequest,
   UpdateUserAreaRequest,
+  UpdateUserProfileRequest,
   UserArea,
+  UserProfile,
 } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { pointEwkt, polygonEwkt, schema } from '@local-events/db';
 import {
   canAddSavedArea,
+  normalizeRecoveryEmail,
+  resolveProfileChoice,
   validateCircleArea,
   validatePolygonArea,
 } from '@local-events/domain';
@@ -14,6 +18,22 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { AuthServices } from '../auth/types';
 import { PreferenceError, type PreferenceEnv, type PreferenceServices } from './types';
+
+function toProfile(row: {
+  displayName: string | null;
+  isPublic: boolean;
+  profileChosenAt: Date | null;
+  recoveryEmail: string | null;
+  recoveryEmailVerifiedAt: Date | null;
+}): UserProfile {
+  return {
+    displayName: row.displayName,
+    isPublic: row.isPublic,
+    profileChosen: row.profileChosenAt != null,
+    recoveryEmail: row.recoveryEmail,
+    recoveryEmailVerified: row.recoveryEmailVerifiedAt != null,
+  };
+}
 
 type AreaRow = {
   id: string;
@@ -144,6 +164,75 @@ export function createDbPreferenceServices(
         endMin: user.quietHoursEndMin,
         timezone: user.timezone,
       };
+    },
+
+    async getProfile(sessionToken) {
+      const { userId } = await auth.requireUserSession(sessionToken);
+      const [row] = await db
+        .select({
+          displayName: users.displayName,
+          isPublic: users.isPublic,
+          profileChosenAt: users.profileChosenAt,
+          recoveryEmail: users.recoveryEmail,
+          recoveryEmailVerifiedAt: users.recoveryEmailVerifiedAt,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      if (!row) throw new PreferenceError('unauthorized');
+      return toProfile(row);
+    },
+
+    async updateProfile(sessionToken, input: UpdateUserProfileRequest) {
+      const { userId } = await auth.requireUserSession(sessionToken);
+      const resolved =
+        input.choice === 'anonymous'
+          ? resolveProfileChoice({ choice: 'anonymous' })
+          : resolveProfileChoice({
+              choice: 'named',
+              displayName: input.displayName ?? '',
+              isPublic: input.isPublic,
+            });
+      if (!resolved.ok) throw new PreferenceError(resolved.reason);
+
+      const [existing] = await db
+        .select({
+          recoveryEmail: users.recoveryEmail,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      if (!existing) throw new PreferenceError('unauthorized');
+
+      let recoveryEmail = existing.recoveryEmail;
+      let clearVerified = false;
+      if (input.recoveryEmail !== undefined) {
+        const next = normalizeRecoveryEmail(input.recoveryEmail);
+        if (next !== existing.recoveryEmail) {
+          recoveryEmail = next;
+          clearVerified = true;
+        }
+      }
+
+      const [row] = await db
+        .update(users)
+        .set({
+          displayName: resolved.displayName,
+          isPublic: resolved.isPublic,
+          profileChosenAt: _env.now(),
+          recoveryEmail,
+          ...(clearVerified ? { recoveryEmailVerifiedAt: null } : {}),
+        })
+        .where(eq(users.id, userId))
+        .returning({
+          displayName: users.displayName,
+          isPublic: users.isPublic,
+          profileChosenAt: users.profileChosenAt,
+          recoveryEmail: users.recoveryEmail,
+          recoveryEmailVerifiedAt: users.recoveryEmailVerifiedAt,
+        });
+      if (!row) throw new PreferenceError('unauthorized');
+      return toProfile(row);
     },
 
     async replaceInterests(sessionToken, input) {

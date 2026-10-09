@@ -7,6 +7,8 @@ import { createMemoryAuthServices } from './services/auth/memory';
 import type { AuthServices } from './services/auth/types';
 import { createMemoryCheckInServices } from './services/check-ins/memory';
 import type { CheckInServices } from './services/check-ins/types';
+import { createMemoryEventContentServices } from './services/event-content/memory';
+import type { EventContentServices } from './services/event-content/types';
 import { createMemoryEventServices } from './services/events/memory';
 import type { EventServices } from './services/events/types';
 import { createMemoryNotificationServices } from './services/notifications/memory';
@@ -28,6 +30,7 @@ export type CreateAppOptions = {
   subscriptions?: SubscriptionServices;
   checkIns?: CheckInServices;
   notifications?: NotificationServices;
+  eventContent?: EventContentServices;
   /**
    * Origins allowed for credentialed CORS (web publisher login).
    * Pass a string list, or a function that returns the reflected Origin (never bare `*`).
@@ -58,6 +61,8 @@ export function createApp(options: CreateAppOptions = {}) {
   const checkIns = options.checkIns ?? createMemoryCheckInServices(auth, {}, store);
   const notifications =
     options.notifications ?? createMemoryNotificationServices(auth, store);
+  const eventContent =
+    options.eventContent ?? createMemoryEventContentServices(auth, {}, store);
   const app = new OpenAPIHono();
 
   app.onError((err, c) => {
@@ -95,6 +100,7 @@ export function createApp(options: CreateAppOptions = {}) {
     subscriptions,
     checkIns,
     notifications,
+    eventContent,
   });
   api.doc('/openapi.json', {
     openapi: '3.1.0',

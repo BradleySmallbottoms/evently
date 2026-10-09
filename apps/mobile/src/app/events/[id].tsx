@@ -10,6 +10,7 @@ import { SymbolView } from 'expo-symbols';
 
 import { ConfirmAction } from '@/components/native/confirm-action';
 import { EventActionsMenu } from '@/components/native/event-actions-menu';
+import { ProfilePromptSheet } from '@/components/native/profile-prompt-sheet';
 import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -19,8 +20,13 @@ import {
   performCodeCheckIn,
   performGeoCheckIn,
 } from '@/lib/check-in';
+import {
+  fetchEventContent,
+  readCachedEventContent,
+} from '@/lib/event-content';
 import { getPublicEvent } from '@/lib/events';
 import { ensureIdentity } from '@/lib/identity';
+import { fetchProfile, updateProfile } from '@/lib/profile';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space, typography } from '@/theme/tokens';
 
@@ -35,6 +41,7 @@ export default function EventDetailScreen() {
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [reportOpen, setReportOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [code, setCode] = useState('');
 
   const identity = useQuery({
@@ -52,10 +59,33 @@ export default function EventDetailScreen() {
     queryFn: () => fetchCheckInStatus(identity.data!, id!),
     enabled: identity.isSuccess && typeof id === 'string' && id.length > 0,
   });
+  const content = useQuery({
+    queryKey: ['event-content', id, identity.data?.userId, checkInStatus.data?.checkedIn],
+    queryFn: async () => {
+      try {
+        return await fetchEventContent(identity.data ?? null, id!);
+      } catch {
+        const cached = await readCachedEventContent(id!);
+        if (cached) return { items: cached, checkedIn: true, fromCache: true as const };
+        throw new Error('content_unavailable');
+      }
+    },
+    enabled: typeof id === 'string' && id.length > 0,
+  });
+  async function afterCheckIn() {
+    await queryClient.invalidateQueries({ queryKey: ['check-in-status', id] });
+    await queryClient.invalidateQueries({ queryKey: ['event-content', id] });
+    const current = await queryClient.fetchQuery({
+      queryKey: ['profile', identity.data?.userId],
+      queryFn: () => fetchProfile(identity.data!),
+    });
+    if (!current.profileChosen) setProfileOpen(true);
+  }
+
   const checkIn = useMutation({
     mutationFn: () => performGeoCheckIn(identity.data!, id!),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['check-in-status', id] });
+    onSuccess: () => {
+      void afterCheckIn();
     },
     onError: (err: Error) => {
       const message =
@@ -67,12 +97,26 @@ export default function EventDetailScreen() {
   });
   const codeCheckIn = useMutation({
     mutationFn: () => performCodeCheckIn(identity.data!, id!, code),
-    onSuccess: async () => {
+    onSuccess: () => {
       setCode('');
-      await queryClient.invalidateQueries({ queryKey: ['check-in-status', id] });
+      void afterCheckIn();
     },
     onError: () => {
       Alert.alert(t('events.checkIn'), t('events.checkInCodeError'));
+    },
+  });
+  const saveProfile = useMutation({
+    mutationFn: (input: {
+      choice: 'named' | 'anonymous';
+      displayName?: string;
+      recoveryEmail?: string | null;
+    }) => updateProfile(identity.data!, input),
+    onSuccess: async () => {
+      setProfileOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
+    onError: () => {
+      Alert.alert(t('events.profilePromptTitle'), t('events.profileSaveError'));
     },
   });
 
@@ -201,6 +245,41 @@ export default function EventDetailScreen() {
                   {event.data.description ?? t('events.noDescription')}
                 </AppText>
               </View>
+
+              <View
+                style={{
+                  backgroundColor: colors.card as string,
+                  borderRadius: radius.lg,
+                  borderCurve: 'continuous',
+                  padding: space.xl,
+                  gap: space.md,
+                  boxShadow: shadow.soft,
+                }}
+              >
+                <AppText variant="subtitle">{t('events.contentTitle')}</AppText>
+                {'fromCache' in (content.data ?? {}) && (content.data as { fromCache?: boolean }).fromCache ? (
+                  <AppText variant="caption">{t('events.contentCached')}</AppText>
+                ) : null}
+                {content.isPending && <AppText variant="caption">{t('events.loading')}</AppText>}
+                {content.data && content.data.items.length === 0 ? (
+                  <AppText variant="caption">
+                    {content.data.checkedIn
+                      ? t('events.contentEmpty')
+                      : t('events.contentLocked')}
+                  </AppText>
+                ) : null}
+                {content.data?.items.map((item) => (
+                  <View key={item.id} style={{ gap: 4 }}>
+                    <AppText variant="subtitle">{item.title}</AppText>
+                    {item.body ? <AppText variant="body">{item.body}</AppText> : null}
+                    {item.url ? (
+                      <AppText variant="caption" style={{ color: colors.accent }}>
+                        {item.url}
+                      </AppText>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
             </>
           )}
         </View>
@@ -291,6 +370,33 @@ export default function EventDetailScreen() {
         isPresented={reportOpen}
         onIsPresentedChange={setReportOpen}
         onConfirm={() => setReportOpen(false)}
+      />
+
+      <ProfilePromptSheet
+        isPresented={profileOpen}
+        onDismiss={() => setProfileOpen(false)}
+        title={t('events.profilePromptTitle')}
+        body={t('events.profilePromptBody')}
+        nameLabel={t('events.profileNameLabel')}
+        namePlaceholder={t('events.profileNamePlaceholder')}
+        emailLabel={t('events.profileEmailLabel')}
+        emailPlaceholder={t('events.profileEmailPlaceholder')}
+        saveNamedLabel={t('events.profileSaveNamed')}
+        stayAnonymousLabel={t('events.profileStayAnonymous')}
+        saving={saveProfile.isPending}
+        onSaveNamed={(displayName, recoveryEmail) =>
+          saveProfile.mutate({
+            choice: 'named',
+            displayName,
+            recoveryEmail: recoveryEmail || null,
+          })
+        }
+        onStayAnonymous={(recoveryEmail) =>
+          saveProfile.mutate({
+            choice: 'anonymous',
+            recoveryEmail: recoveryEmail || null,
+          })
+        }
       />
     </View>
   );

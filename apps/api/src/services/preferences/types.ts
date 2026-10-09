@@ -5,8 +5,10 @@ import type {
   ReplaceUserInterestsResponse,
   UpdateQuietHoursRequest,
   UpdateUserAreaRequest,
+  UpdateUserProfileRequest,
   UserArea,
   UserPreferencesResponse,
+  UserProfile,
 } from '@local-events/contracts';
 
 export type PreferenceErrorCode =
@@ -15,7 +17,9 @@ export type PreferenceErrorCode =
   | 'invalid_area'
   | 'area_limit'
   | 'unknown_category'
-  | 'unknown_region';
+  | 'unknown_region'
+  | 'invalid_display_name'
+  | 'name_required';
 
 export class PreferenceError extends Error {
   constructor(readonly code: PreferenceErrorCode) {
@@ -34,6 +38,11 @@ export type PreferenceServices = {
     sessionToken: string | undefined,
     input: UpdateQuietHoursRequest,
   ) => Promise<QuietHoursPrefs>;
+  getProfile: (sessionToken: string | undefined) => Promise<UserProfile>;
+  updateProfile: (
+    sessionToken: string | undefined,
+    input: UpdateUserProfileRequest,
+  ) => Promise<UserProfile>;
   listAreas: (sessionToken: string | undefined) => Promise<{ items: UserArea[] }>;
   createArea: (
     sessionToken: string | undefined,

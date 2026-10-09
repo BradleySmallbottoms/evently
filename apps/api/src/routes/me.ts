@@ -10,9 +10,11 @@ import {
   ReplaceUserInterestsResponse,
   UpdateQuietHoursRequest,
   UpdateUserAreaRequest,
+  UpdateUserProfileRequest,
   UserArea,
   UserAreaListResponse,
   UserPreferencesResponse,
+  UserProfile,
 } from '@local-events/contracts';
 import { z } from 'zod';
 import { readUserSessionToken } from '../services/auth/cookies';
@@ -293,6 +295,61 @@ export function registerMeRoutes(
       const body = c.req.valid('json');
       const result = await preferences.updateQuietHours(readUserSessionToken(c), body);
       return c.json(result, 200);
+    } catch (err) {
+      return preferenceErrorResponse(c, err);
+    }
+  });
+
+  const getProfile = createRoute({
+    method: 'get',
+    path: '/me/profile',
+    responses: {
+      200: {
+        description: 'Display name / anonymity and optional recovery email',
+        content: { 'application/json': { schema: UserProfile } },
+      },
+      401: {
+        description: 'Missing or invalid user session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(getProfile, async (c) => {
+    try {
+      return c.json(await preferences.getProfile(readUserSessionToken(c)), 200);
+    } catch (err) {
+      return preferenceErrorResponse(c, err);
+    }
+  });
+
+  const updateProfile = createRoute({
+    method: 'put',
+    path: '/me/profile',
+    request: {
+      body: {
+        content: { 'application/json': { schema: UpdateUserProfileRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Updated profile (marks first-check-in prompt as answered)',
+        content: { 'application/json': { schema: UserProfile } },
+      },
+      400: {
+        description: 'Invalid display name or missing name for named choice',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      401: {
+        description: 'Missing or invalid user session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(updateProfile, async (c) => {
+    try {
+      const body = c.req.valid('json');
+      return c.json(await preferences.updateProfile(readUserSessionToken(c), body), 200);
     } catch (err) {
       return preferenceErrorResponse(c, err);
     }

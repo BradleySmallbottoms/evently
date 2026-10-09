@@ -56,19 +56,19 @@ Closed beta around week 15, store launch around week 19.
 - [x] Interests, saved areas (radius and polygon)
 - [x] Region suggestions + region subscriptions (municipality boundaries seeded into `regions`)
 - [x] Push token registration; SQS + worker wired up
-- [x] Geo matching, caps and quiet hours defaults (nearby Expo push via worker; drop-on-skip superseded — see below)
+- [x] Geo matching; silent Expo after inbox insert; client-side quiet hours + 5/day OS-notification cap; 90-day inbox retention
 - [x] Publisher and event subscriptions (follow API + publisher merge on publish; event.updated debounce later)
 - [x] Notification inbox: persist every matched notification; `GET /me/notifications`; mobile notifications window lists inbox rows
 - [x] Quiet hours deferral: during the window store only (no immediate Expo); after the window ends, one aggregate Expo push; preferences UI to enable/disable (defaults 22:00–08:00)
-- **Exit:** publishing an event reaches a matching phone within one minute outside quiet hours; during quiet hours it appears in the inbox immediately and in an aggregate push after the window.
+- **Exit:** publishing an event inserts an inbox row and a silent push within one minute; outside quiet hours (and under the client cap) the phone may show a local OS notification; the in-app notifications window always lists API inbox rows (incl. during quiet hours).
 
 ## Phase 4 — Check-in + attendee content (weeks 10–13)
 
 - [x] Geofence check-in (`validateGeoCheckIn`) — venue QR fallback still open
 - [x] Venue QR fallback (uses digital codes)
 - [x] Rotating digital codes with QR
-- [ ] Profile prompt at first check-in (named or anonymous) + optional recovery email
-- [ ] Attendee-only content via signed URLs; offline cache
+- [x] Profile prompt at first check-in (named or anonymous) + optional recovery email
+- [x] Attendee-only content via signed URLs; offline cache
 - **Exit:** a test event runs end to end, physical and digital.
 
 ## Phase 5 — Ratings + stats (weeks 13–15)
