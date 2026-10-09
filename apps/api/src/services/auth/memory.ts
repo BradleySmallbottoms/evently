@@ -9,6 +9,7 @@ import {
   hashToken,
   normalizePairingCode,
   PAIRING_CODE_TTL_SECONDS,
+  PUBLISHER_INVITE_TTL_SECONDS,
   PUBLISHER_SESSION_TTL_SECONDS,
   verifyPassword,
 } from '@local-events/auth';
@@ -20,7 +21,14 @@ import type {
   RegisterPublisherRequest,
   VerifyPublisherEmailRequest,
 } from '@local-events/contracts';
-import { canConfirmDeviceLink, canPublisherLogin, slugifyPublisherName } from '@local-events/domain';
+import {
+  canConfirmDeviceLink,
+  canInviteAnotherMember,
+  canManagePublisherOrg,
+  canPublisherLogin,
+  entitlementsFor,
+  slugifyPublisherName,
+} from '@local-events/domain';
 import { randomUUID } from 'node:crypto';
 import { createMemoryStore, type MemoryStore } from '../memory-store';
 import { AuthError, type AuthEnv, type AuthServices } from './types';
@@ -34,7 +42,7 @@ export function createMemoryAuthServices(
   env: AuthEnv = defaultEnv(),
   store: MemoryStore = createMemoryStore(),
 ): AuthServices {
-  const { users, devices, sessions, accounts, publishers, members, tokens } = store;
+  const { users, devices, sessions, accounts, publishers, members, invites, tokens } = store;
 
   function normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
@@ -172,6 +180,7 @@ export function createMemoryAuthServices(
         publisherId,
         publisherAccountId: accountId,
         role: 'owner',
+        createdAt: now,
       });
 
       const verificationToken = generateEmailToken();
@@ -401,6 +410,173 @@ export function createMemoryAuthServices(
         role: membership.role,
         publisherVerified: publisher.verified,
       };
+    },
+
+    async getPublisherProfile(sessionToken, publisherId) {
+      const access = await this.requirePublisherMember(sessionToken, publisherId);
+      const publisher = publishers.get(publisherId);
+      if (!publisher) throw new AuthError('unauthorized');
+      return {
+        id: publisher.id,
+        name: publisher.name,
+        slug: publisher.slug,
+        type: publisher.type,
+        verified: publisher.verified,
+        origin: publisher.origin,
+        role: access.role,
+      };
+    },
+
+    async updatePublisherProfile(sessionToken, publisherId, input) {
+      const access = await this.requirePublisherMember(sessionToken, publisherId);
+      if (!canManagePublisherOrg(access.role)) throw new AuthError('forbidden');
+      const publisher = publishers.get(publisherId);
+      if (!publisher) throw new AuthError('unauthorized');
+      if (input.slug !== undefined) {
+        for (const p of publishers.values()) {
+          if (p.id !== publisherId && p.slug === input.slug) throw new AuthError('slug_taken');
+        }
+        publisher.slug = input.slug;
+      }
+      if (input.name !== undefined) publisher.name = input.name;
+      if (input.type !== undefined) publisher.type = input.type;
+      return this.getPublisherProfile(sessionToken, publisherId);
+    },
+
+    async listPublisherMembers(sessionToken, publisherId) {
+      await this.requirePublisherMember(sessionToken, publisherId);
+      return {
+        items: members
+          .filter((m) => m.publisherId === publisherId)
+          .map((m) => {
+            const account = accounts.get(m.publisherAccountId);
+            return {
+              publisherAccountId: m.publisherAccountId,
+              email: account?.email ?? '',
+              role: m.role,
+              createdAt: m.createdAt.toISOString(),
+            };
+          }),
+      };
+    },
+
+    async listPublisherInvites(sessionToken, publisherId) {
+      const access = await this.requirePublisherMember(sessionToken, publisherId);
+      if (!canManagePublisherOrg(access.role)) throw new AuthError('forbidden');
+      const now = env.now();
+      return {
+        items: invites
+          .filter(
+            (i) =>
+              i.publisherId === publisherId &&
+              i.acceptedAt === null &&
+              i.expiresAt > now,
+          )
+          .map((i) => ({
+            id: i.id,
+            email: i.email,
+            role: i.role,
+            expiresAt: i.expiresAt.toISOString(),
+            createdAt: i.createdAt.toISOString(),
+          })),
+      };
+    },
+
+    async createPublisherInvite(sessionToken, publisherId, input) {
+      const access = await this.requirePublisherMember(sessionToken, publisherId);
+      if (!canManagePublisherOrg(access.role)) throw new AuthError('forbidden');
+
+      const email = normalizeEmail(input.email);
+      const now = env.now();
+      const memberCount = members.filter((m) => m.publisherId === publisherId).length;
+      const pendingCount = invites.filter(
+        (i) =>
+          i.publisherId === publisherId &&
+          i.acceptedAt === null &&
+          i.expiresAt > now,
+      ).length;
+      if (!canInviteAnotherMember(entitlementsFor(publisherId), memberCount + pendingCount)) {
+        throw new AuthError('member_limit');
+      }
+
+      const existingAccount = [...accounts.values()].find(
+        (a) => normalizeEmail(a.email) === email,
+      );
+      if (existingAccount) {
+        const existingMember = members.find(
+          (m) =>
+            m.publisherId === publisherId && m.publisherAccountId === existingAccount.id,
+        );
+        if (existingMember) throw new AuthError('already_member');
+      }
+
+      const pending = invites.find(
+        (i) =>
+          i.publisherId === publisherId &&
+          normalizeEmail(i.email) === email &&
+          i.acceptedAt === null &&
+          i.expiresAt > now,
+      );
+      if (pending) throw new AuthError('invite_pending');
+
+      const token = generateEmailToken();
+      const expiresAt = addSeconds(now, PUBLISHER_INVITE_TTL_SECONDS);
+      const id = randomUUID();
+      invites.push({
+        id,
+        publisherId,
+        email,
+        role: input.role,
+        tokenHash: hashToken(token),
+        invitedByAccountId: access.accountId,
+        expiresAt,
+        acceptedAt: null,
+        createdAt: now,
+      });
+
+      return {
+        id,
+        email,
+        role: input.role,
+        expiresAt: expiresAt.toISOString(),
+        ...(env.includeVerificationToken ? { inviteToken: token } : {}),
+      };
+    },
+
+    async acceptPublisherInvite(sessionToken, input) {
+      const account = await resolvePublisherSession(sessionToken);
+      const now = env.now();
+      const invite = invites.find(
+        (i) =>
+          i.tokenHash === hashToken(input.token) &&
+          i.acceptedAt === null &&
+          i.expiresAt > now,
+      );
+      if (!invite) throw new AuthError('invalid_token');
+      if (normalizeEmail(account.email) !== normalizeEmail(invite.email)) {
+        throw new AuthError('invite_email_mismatch');
+      }
+
+      const existing = members.find(
+        (m) =>
+          m.publisherId === invite.publisherId && m.publisherAccountId === account.id,
+      );
+      if (existing) throw new AuthError('already_member');
+
+      const memberCount = members.filter((m) => m.publisherId === invite.publisherId).length;
+      if (!canInviteAnotherMember(entitlementsFor(invite.publisherId), memberCount)) {
+        throw new AuthError('member_limit');
+      }
+
+      invite.acceptedAt = now;
+      members.push({
+        publisherId: invite.publisherId,
+        publisherAccountId: account.id,
+        role: invite.role,
+        createdAt: now,
+      });
+
+      return { publisherId: invite.publisherId, role: invite.role };
     },
   };
 }

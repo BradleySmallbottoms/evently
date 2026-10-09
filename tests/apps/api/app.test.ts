@@ -35,6 +35,10 @@ describe('public api', () => {
     expect(doc.paths['/publishers/login']).toBeDefined();
     expect(doc.paths['/publishers/logout']).toBeDefined();
     expect(doc.paths['/publishers/me']).toBeDefined();
+    expect(doc.paths['/publishers/{publisherId}']).toBeDefined();
+    expect(doc.paths['/publishers/{publisherId}/members']).toBeDefined();
+    expect(doc.paths['/publishers/{publisherId}/invites']).toBeDefined();
+    expect(doc.paths['/publishers/invites/accept']).toBeDefined();
     expect(doc.paths['/categories']).toBeDefined();
     expect(doc.paths['/events']).toBeDefined();
     expect(doc.paths['/publishers/{publisherId}/events']).toBeDefined();

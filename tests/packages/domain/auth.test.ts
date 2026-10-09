@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   canConfirmDeviceLink,
+  canManagePublisherOrg,
   canPublisherLogin,
   isPasswordStrongEnough,
   slugifyPublisherName,
 } from '../../../packages/domain/src/auth';
+import { canInviteAnotherMember, LAUNCH_PLAN } from '../../../packages/domain/src/entitlements';
 
 describe('canPublisherLogin', () => {
   it('requires a verified email', () => {
@@ -48,5 +50,22 @@ describe('canConfirmDeviceLink', () => {
         confirmingUserId: 'user-old',
       }),
     ).toEqual({ ok: true });
+  });
+});
+
+describe('canManagePublisherOrg', () => {
+  it('is owner-only', () => {
+    expect(canManagePublisherOrg('owner')).toBe(true);
+    expect(canManagePublisherOrg('editor')).toBe(false);
+  });
+});
+
+describe('canInviteAnotherMember', () => {
+  it('allows unlimited members on the launch plan', () => {
+    expect(canInviteAnotherMember(LAUNCH_PLAN, 100)).toBe(true);
+  });
+  it('respects a finite maxMembers cap', () => {
+    expect(canInviteAnotherMember({ ...LAUNCH_PLAN, maxMembers: 2 }, 2)).toBe(false);
+    expect(canInviteAnotherMember({ ...LAUNCH_PLAN, maxMembers: 2 }, 1)).toBe(true);
   });
 });

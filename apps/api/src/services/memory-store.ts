@@ -38,6 +38,18 @@ export type MemoryMember = {
   publisherId: string;
   publisherAccountId: string;
   role: 'owner' | 'editor';
+  createdAt: Date;
+};
+export type MemoryPublisherInvite = {
+  id: string;
+  publisherId: string;
+  email: string;
+  role: 'owner' | 'editor';
+  tokenHash: string;
+  invitedByAccountId: string;
+  expiresAt: Date;
+  acceptedAt: Date | null;
+  createdAt: Date;
 };
 export type MemoryToken = {
   id: string;
@@ -63,6 +75,7 @@ export type MemoryStore = {
   accounts: Map<string, MemoryPublisherAccount>;
   publishers: Map<string, MemoryPublisher>;
   members: MemoryMember[];
+  invites: MemoryPublisherInvite[];
   tokens: Map<string, MemoryToken>;
   categories: Map<string, Category>;
   events: Map<string, MemoryEventRow>;
@@ -78,6 +91,7 @@ export function createMemoryStore(): MemoryStore {
     accounts: new Map(),
     publishers: new Map(),
     members: [],
+    invites: [],
     tokens: new Map(),
     categories,
     events: new Map(),

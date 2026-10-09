@@ -97,6 +97,87 @@ export type LoginPublisherResponse = z.infer<typeof LoginPublisherResponse>;
 export const PublisherMeResponse = LoginPublisherResponse;
 export type PublisherMeResponse = z.infer<typeof PublisherMeResponse>;
 
+export const MemberRole = z.enum(['owner', 'editor']);
+export type MemberRole = z.infer<typeof MemberRole>;
+
+export const PublisherProfile = z.object({
+  id: Id,
+  name: z.string(),
+  slug: z.string(),
+  type: PublisherType,
+  verified: z.boolean(),
+  origin: z.enum(['native', 'imported']),
+  role: MemberRole.optional(),
+});
+export type PublisherProfile = z.infer<typeof PublisherProfile>;
+
+export const UpdatePublisherProfileRequest = z.object({
+  name: z.string().trim().min(2).max(120).optional(),
+  slug: z
+    .string()
+    .trim()
+    .min(2)
+    .max(48)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .optional(),
+  type: PublisherType.optional(),
+});
+export type UpdatePublisherProfileRequest = z.infer<typeof UpdatePublisherProfileRequest>;
+
+export const PublisherMember = z.object({
+  publisherAccountId: Id,
+  email: z.email(),
+  role: MemberRole,
+  createdAt: z.iso.datetime(),
+});
+export type PublisherMember = z.infer<typeof PublisherMember>;
+
+export const PublisherMemberListResponse = z.object({
+  items: z.array(PublisherMember),
+});
+export type PublisherMemberListResponse = z.infer<typeof PublisherMemberListResponse>;
+
+export const CreatePublisherInviteRequest = z.object({
+  email: z.email(),
+  role: MemberRole,
+});
+export type CreatePublisherInviteRequest = z.infer<typeof CreatePublisherInviteRequest>;
+
+export const CreatePublisherInviteResponse = z.object({
+  id: Id,
+  email: z.email(),
+  role: MemberRole,
+  expiresAt: z.iso.datetime(),
+  /** Present only outside production so local/dev can accept without SES. */
+  inviteToken: z.string().optional(),
+});
+export type CreatePublisherInviteResponse = z.infer<typeof CreatePublisherInviteResponse>;
+
+export const PublisherInvite = z.object({
+  id: Id,
+  email: z.email(),
+  role: MemberRole,
+  expiresAt: z.iso.datetime(),
+  createdAt: z.iso.datetime(),
+});
+export type PublisherInvite = z.infer<typeof PublisherInvite>;
+
+export const PublisherInviteListResponse = z.object({
+  items: z.array(PublisherInvite),
+});
+export type PublisherInviteListResponse = z.infer<typeof PublisherInviteListResponse>;
+
+export const AcceptPublisherInviteRequest = z.object({
+  token: z.string().min(1),
+});
+export type AcceptPublisherInviteRequest = z.infer<typeof AcceptPublisherInviteRequest>;
+
+export const AcceptPublisherInviteResponse = z.object({
+  publisherId: Id,
+  role: MemberRole,
+});
+export type AcceptPublisherInviteResponse = z.infer<typeof AcceptPublisherInviteResponse>;
+
 export const CreateWebLoginCodeRequest = z.object({
   deviceCredential: z.string().min(1),
 });

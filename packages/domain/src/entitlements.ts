@@ -32,3 +32,7 @@ export function entitlementsFor(_publisherId: string): Entitlements {
 export function canPublishAnother(ent: Entitlements, publishedThisMonth: number): boolean {
   return ent.eventsPerMonth === null || publishedThisMonth < ent.eventsPerMonth;
 }
+
+export function canInviteAnotherMember(ent: Entitlements, currentMemberCount: number): boolean {
+  return ent.maxMembers === null || currentMemberCount < ent.maxMembers;
+}

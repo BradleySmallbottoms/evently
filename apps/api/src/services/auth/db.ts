@@ -9,6 +9,7 @@ import {
   hashToken,
   normalizePairingCode,
   PAIRING_CODE_TTL_SECONDS,
+  PUBLISHER_INVITE_TTL_SECONDS,
   PUBLISHER_SESSION_TTL_SECONDS,
   verifyPassword,
 } from '@local-events/auth';
@@ -22,7 +23,14 @@ import type {
 } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
-import { canConfirmDeviceLink, canPublisherLogin, slugifyPublisherName } from '@local-events/domain';
+import {
+  canConfirmDeviceLink,
+  canInviteAnotherMember,
+  canManagePublisherOrg,
+  canPublisherLogin,
+  entitlementsFor,
+  slugifyPublisherName,
+} from '@local-events/domain';
 import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { AuthError, type AuthEnv, type AuthServices } from './types';
@@ -53,6 +61,7 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
     publisherAccounts,
     publishers,
     publisherMembers,
+    publisherInvites,
     emailVerificationTokens,
   } = schema;
 
@@ -104,6 +113,25 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
       .limit(1);
     if (!row) throw new AuthError('unauthorized');
     return row;
+  }
+
+  /** Current members plus unexpired pending invites (seats reserved until accept/expiry). */
+  async function reservedMemberSeats(publisherId: string, now: Date): Promise<number> {
+    const [memberRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(publisherMembers)
+      .where(eq(publisherMembers.publisherId, publisherId));
+    const [inviteRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(publisherInvites)
+      .where(
+        and(
+          eq(publisherInvites.publisherId, publisherId),
+          isNull(publisherInvites.acceptedAt),
+          gt(publisherInvites.expiresAt, now),
+        ),
+      );
+    return (memberRow?.count ?? 0) + (inviteRow?.count ?? 0);
   }
 
   return {
@@ -510,6 +538,249 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
         role: membership.role,
         publisherVerified: membership.verified,
       };
+    },
+
+    async getPublisherProfile(sessionToken, publisherId) {
+      const access = await this.requirePublisherMember(sessionToken, publisherId);
+      const [row] = await db
+        .select({
+          id: publishers.id,
+          name: publishers.name,
+          slug: publishers.slug,
+          type: publishers.type,
+          verified: publishers.verified,
+          origin: publishers.origin,
+        })
+        .from(publishers)
+        .where(eq(publishers.id, publisherId))
+        .limit(1);
+      if (!row) throw new AuthError('unauthorized');
+      return { ...row, role: access.role };
+    },
+
+    async updatePublisherProfile(sessionToken, publisherId, input) {
+      const access = await this.requirePublisherMember(sessionToken, publisherId);
+      if (!canManagePublisherOrg(access.role)) throw new AuthError('forbidden');
+      if (!input.name && !input.slug && !input.type) {
+        return this.getPublisherProfile(sessionToken, publisherId);
+      }
+      try {
+        await db
+          .update(publishers)
+          .set({
+            ...(input.name !== undefined ? { name: input.name } : {}),
+            ...(input.slug !== undefined ? { slug: input.slug } : {}),
+            ...(input.type !== undefined ? { type: input.type } : {}),
+          })
+          .where(eq(publishers.id, publisherId));
+      } catch (err) {
+        const constraint = uniqueViolationConstraint(err);
+        if (constraint?.includes('slug')) throw new AuthError('slug_taken');
+        throw err;
+      }
+      return this.getPublisherProfile(sessionToken, publisherId);
+    },
+
+    async listPublisherMembers(sessionToken, publisherId) {
+      await this.requirePublisherMember(sessionToken, publisherId);
+      const rows = await db
+        .select({
+          publisherAccountId: publisherAccounts.id,
+          email: publisherAccounts.email,
+          role: publisherMembers.role,
+          createdAt: publisherMembers.createdAt,
+        })
+        .from(publisherMembers)
+        .innerJoin(
+          publisherAccounts,
+          eq(publisherAccounts.id, publisherMembers.publisherAccountId),
+        )
+        .where(eq(publisherMembers.publisherId, publisherId));
+      return {
+        items: rows.map((r) => ({
+          publisherAccountId: r.publisherAccountId,
+          email: r.email,
+          role: r.role,
+          createdAt: r.createdAt.toISOString(),
+        })),
+      };
+    },
+
+    async listPublisherInvites(sessionToken, publisherId) {
+      const access = await this.requirePublisherMember(sessionToken, publisherId);
+      if (!canManagePublisherOrg(access.role)) throw new AuthError('forbidden');
+      const now = env.now();
+      const rows = await db
+        .select({
+          id: publisherInvites.id,
+          email: publisherInvites.email,
+          role: publisherInvites.role,
+          expiresAt: publisherInvites.expiresAt,
+          createdAt: publisherInvites.createdAt,
+        })
+        .from(publisherInvites)
+        .where(
+          and(
+            eq(publisherInvites.publisherId, publisherId),
+            isNull(publisherInvites.acceptedAt),
+            gt(publisherInvites.expiresAt, now),
+          ),
+        );
+      return {
+        items: rows.map((r) => ({
+          id: r.id,
+          email: r.email,
+          role: r.role,
+          expiresAt: r.expiresAt.toISOString(),
+          createdAt: r.createdAt.toISOString(),
+        })),
+      };
+    },
+
+    async createPublisherInvite(sessionToken, publisherId, input) {
+      const access = await this.requirePublisherMember(sessionToken, publisherId);
+      if (!canManagePublisherOrg(access.role)) throw new AuthError('forbidden');
+
+      const email = normalizeEmail(input.email);
+      const now = env.now();
+      const seats = await reservedMemberSeats(publisherId, now);
+      if (!canInviteAnotherMember(entitlementsFor(publisherId), seats)) {
+        throw new AuthError('member_limit');
+      }
+
+      const [existingAccount] = await db
+        .select({ id: publisherAccounts.id })
+        .from(publisherAccounts)
+        .where(sql`lower(${publisherAccounts.email}) = ${email}`)
+        .limit(1);
+      if (existingAccount) {
+        const [existingMember] = await db
+          .select({ role: publisherMembers.role })
+          .from(publisherMembers)
+          .where(
+            and(
+              eq(publisherMembers.publisherId, publisherId),
+              eq(publisherMembers.publisherAccountId, existingAccount.id),
+            ),
+          )
+          .limit(1);
+        if (existingMember) throw new AuthError('already_member');
+      }
+
+      const token = generateEmailToken();
+      const expiresAt = addSeconds(now, PUBLISHER_INVITE_TTL_SECONDS);
+      const id = randomUUID();
+
+      await db.transaction(async (tx) => {
+        const [pending] = await tx
+          .select({ id: publisherInvites.id })
+          .from(publisherInvites)
+          .where(
+            and(
+              eq(publisherInvites.publisherId, publisherId),
+              sql`lower(${publisherInvites.email}) = ${email}`,
+              isNull(publisherInvites.acceptedAt),
+              gt(publisherInvites.expiresAt, now),
+            ),
+          )
+          .limit(1);
+        if (pending) throw new AuthError('invite_pending');
+
+        const [memberRow] = await tx
+          .select({ count: sql<number>`count(*)::int` })
+          .from(publisherMembers)
+          .where(eq(publisherMembers.publisherId, publisherId));
+        const [inviteRow] = await tx
+          .select({ count: sql<number>`count(*)::int` })
+          .from(publisherInvites)
+          .where(
+            and(
+              eq(publisherInvites.publisherId, publisherId),
+              isNull(publisherInvites.acceptedAt),
+              gt(publisherInvites.expiresAt, now),
+            ),
+          );
+        const seatsInTx = (memberRow?.count ?? 0) + (inviteRow?.count ?? 0);
+        if (!canInviteAnotherMember(entitlementsFor(publisherId), seatsInTx)) {
+          throw new AuthError('member_limit');
+        }
+
+        await tx.insert(publisherInvites).values({
+          id,
+          publisherId,
+          email,
+          role: input.role,
+          tokenHash: hashToken(token),
+          invitedByAccountId: access.accountId,
+          expiresAt,
+        });
+      });
+
+      return {
+        id,
+        email,
+        role: input.role,
+        expiresAt: expiresAt.toISOString(),
+        ...(env.includeVerificationToken ? { inviteToken: token } : {}),
+      };
+    },
+
+    async acceptPublisherInvite(sessionToken, input) {
+      const account = await resolvePublisherSession(sessionToken);
+      const now = env.now();
+      const [invite] = await db
+        .select()
+        .from(publisherInvites)
+        .where(
+          and(
+            eq(publisherInvites.tokenHash, hashToken(input.token)),
+            isNull(publisherInvites.acceptedAt),
+            gt(publisherInvites.expiresAt, now),
+          ),
+        )
+        .limit(1);
+      if (!invite) throw new AuthError('invalid_token');
+      if (normalizeEmail(account.email) !== normalizeEmail(invite.email)) {
+        throw new AuthError('invite_email_mismatch');
+      }
+
+      const [existing] = await db
+        .select({ role: publisherMembers.role })
+        .from(publisherMembers)
+        .where(
+          and(
+            eq(publisherMembers.publisherId, invite.publisherId),
+            eq(publisherMembers.publisherAccountId, account.accountId),
+          ),
+        )
+        .limit(1);
+      if (existing) throw new AuthError('already_member');
+
+      await db.transaction(async (tx) => {
+        const [memberRow] = await tx
+          .select({ count: sql<number>`count(*)::int` })
+          .from(publisherMembers)
+          .where(eq(publisherMembers.publisherId, invite.publisherId));
+        if (!canInviteAnotherMember(entitlementsFor(invite.publisherId), memberRow?.count ?? 0)) {
+          throw new AuthError('member_limit');
+        }
+
+        const consumed = await tx
+          .update(publisherInvites)
+          .set({ acceptedAt: now })
+          .where(
+            and(eq(publisherInvites.id, invite.id), isNull(publisherInvites.acceptedAt)),
+          )
+          .returning({ id: publisherInvites.id });
+        if (consumed.length === 0) throw new AuthError('invalid_token');
+        await tx.insert(publisherMembers).values({
+          publisherId: invite.publisherId,
+          publisherAccountId: account.accountId,
+          role: invite.role,
+        });
+      });
+
+      return { publisherId: invite.publisherId, role: invite.role };
     },
   };
 }

@@ -10,8 +10,13 @@ const MESSAGES: Record<AuthErrorCode, string> = {
   invalid_token: 'Invalid or already used token',
   token_expired: 'Token has expired',
   unauthorized: 'Unauthorized',
+  forbidden: 'Forbidden',
   invalid_pairing_code: 'Invalid or expired pairing code',
   device_link_same_user: 'Cannot link a device to the same user',
+  already_member: 'Account is already a member of this publisher',
+  invite_pending: 'An invite is already pending for this email',
+  member_limit: 'Publisher member limit reached',
+  invite_email_mismatch: 'Signed-in email does not match the invite',
 };
 
 const STATUS: Record<AuthErrorCode, 400 | 401 | 403 | 409> = {
@@ -22,8 +27,13 @@ const STATUS: Record<AuthErrorCode, 400 | 401 | 403 | 409> = {
   invalid_token: 400,
   token_expired: 400,
   unauthorized: 401,
+  forbidden: 403,
   invalid_pairing_code: 401,
   device_link_same_user: 400,
+  already_member: 409,
+  invite_pending: 409,
+  member_limit: 403,
+  invite_email_mismatch: 403,
 };
 
 /**

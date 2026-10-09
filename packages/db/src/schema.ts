@@ -167,6 +167,30 @@ export const publisherMembers = pgTable(
   (t) => [primaryKey({ columns: [t.publisherId, t.publisherAccountId] })],
 );
 
+/** Pending (and accepted) email invites for publisher owner/editor membership. */
+export const publisherInvites = pgTable(
+  'publisher_invites',
+  {
+    id: id(),
+    publisherId: uuid('publisher_id')
+      .notNull()
+      .references(() => publishers.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    role: memberRole('role').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    invitedByAccountId: uuid('invited_by_account_id')
+      .notNull()
+      .references(() => publisherAccounts.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('publisher_invites_token_hash_idx').on(t.tokenHash),
+    index('publisher_invites_publisher_id_idx').on(t.publisherId),
+  ],
+);
+
 // ---------- events ----------
 export const categories = pgTable('categories', {
   id: id(),

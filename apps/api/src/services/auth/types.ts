@@ -1,8 +1,12 @@
 import type {
+  AcceptPublisherInviteRequest,
+  AcceptPublisherInviteResponse,
   ConfirmDeviceLinkRequest,
   ConfirmDeviceLinkResponse,
   CreateDeviceLinkCodeRequest,
   CreateDeviceLinkCodeResponse,
+  CreatePublisherInviteRequest,
+  CreatePublisherInviteResponse,
   CreateWebLoginCodeRequest,
   CreateWebLoginCodeResponse,
   CreateIdentityRequest,
@@ -13,9 +17,13 @@ import type {
   ExchangeWebLoginCodeResponse,
   LoginPublisherRequest,
   LoginPublisherResponse,
+  PublisherInviteListResponse,
+  PublisherMemberListResponse,
   PublisherMeResponse,
+  PublisherProfile,
   RegisterPublisherRequest,
   RegisterPublisherResponse,
+  UpdatePublisherProfileRequest,
   VerifyPublisherEmailRequest,
   VerifyPublisherEmailResponse,
   WebUserMeResponse,
@@ -29,8 +37,13 @@ export type AuthErrorCode =
   | 'invalid_token'
   | 'token_expired'
   | 'unauthorized'
+  | 'forbidden'
   | 'invalid_pairing_code'
-  | 'device_link_same_user';
+  | 'device_link_same_user'
+  | 'already_member'
+  | 'invite_pending'
+  | 'member_limit'
+  | 'invite_email_mismatch';
 
 export class AuthError extends Error {
   constructor(readonly code: AuthErrorCode) {
@@ -77,6 +90,32 @@ export type AuthServices = {
     sessionToken: string | undefined,
     publisherId: string,
   ) => Promise<PublisherMemberAccess>;
+  getPublisherProfile: (
+    sessionToken: string | undefined,
+    publisherId: string,
+  ) => Promise<PublisherProfile>;
+  updatePublisherProfile: (
+    sessionToken: string | undefined,
+    publisherId: string,
+    input: UpdatePublisherProfileRequest,
+  ) => Promise<PublisherProfile>;
+  listPublisherMembers: (
+    sessionToken: string | undefined,
+    publisherId: string,
+  ) => Promise<PublisherMemberListResponse>;
+  listPublisherInvites: (
+    sessionToken: string | undefined,
+    publisherId: string,
+  ) => Promise<PublisherInviteListResponse>;
+  createPublisherInvite: (
+    sessionToken: string | undefined,
+    publisherId: string,
+    input: CreatePublisherInviteRequest,
+  ) => Promise<CreatePublisherInviteResponse>;
+  acceptPublisherInvite: (
+    sessionToken: string | undefined,
+    input: AcceptPublisherInviteRequest,
+  ) => Promise<AcceptPublisherInviteResponse>;
 };
 
 export type AuthEnv = {

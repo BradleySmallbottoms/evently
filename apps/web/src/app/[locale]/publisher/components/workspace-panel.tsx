@@ -60,14 +60,24 @@ function WorkspaceInner() {
               key={p.id}
               divider
               secondaryAction={
-                <Link
-                  component={AppLink}
-                  href={`/publisher/${p.id}/events`}
-                  underline="hover"
-                  variant="body2"
-                >
-                  {t('manageEvents')}
-                </Link>
+                <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                  <Link
+                    component={AppLink}
+                    href={`/publisher/${p.id}/settings`}
+                    underline="hover"
+                    variant="body2"
+                  >
+                    {t('settingsLink')}
+                  </Link>
+                  <Link
+                    component={AppLink}
+                    href={`/publisher/${p.id}/events`}
+                    underline="hover"
+                    variant="body2"
+                  >
+                    {t('manageEvents')}
+                  </Link>
+                </Stack>
               }
             >
               <ListItemText primary={p.name} secondary={`${p.slug} · ${p.role}`} />

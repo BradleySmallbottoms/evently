@@ -51,6 +51,8 @@ export const APP_SESSION_TTL_SECONDS = 60 * 60;
 export const PUBLISHER_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 /** Email verification link lifetime. */
 export const EMAIL_VERIFICATION_TTL_SECONDS = 24 * 60 * 60;
+/** Publisher member invite lifetime. */
+export const PUBLISHER_INVITE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export const PUBLISHER_SESSION_COOKIE = 'le_publisher_session';
 export const APP_USER_SESSION_COOKIE = 'le_user_session';

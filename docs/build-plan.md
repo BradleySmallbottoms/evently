@@ -42,7 +42,7 @@ Closed beta around week 15, store launch around week 19.
 
 ## Phase 2 — Publishers + events (weeks 2–6)
 
-- [ ] Publisher profiles; owner/editor members with email invites
+- [x] Publisher profiles; owner/editor members with email invites
 - [x] Event CRUD (physical + digital), categories (sv/en names); image upload to S3 deferred
 - [x] Unverified publishers: events stored as `awaiting_verification`, released on verification
 - [x] Public event pages on web; list and map views in the app

@@ -21,3 +21,4 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | ------- | ------- |
 | Web sign-in with app pairing code | [web-pairing-login.md](./web-pairing-login.md) |
 | Device linking (new phone → old phone confirms) | [device-linking.md](./device-linking.md) |
+| Publisher profiles & member invites | [publisher-invites.md](./publisher-invites.md) |

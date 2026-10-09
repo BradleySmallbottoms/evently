@@ -12,9 +12,9 @@ external sources. Launch area: Söderhamn and Gävleborgs län. Languages: Swedi
 
 ## Status
 
-Phase 2 (Publishers + events) is in progress. Public API event CRUD, publisher web workspace,
-public event pages, mobile list/map, web pairing login, and device linking are in place. Still
-open on the Phase 2 checklist: publisher profiles and owner/editor invites.
+Phase 2 (Publishers + events) is largely done: event CRUD, publisher web workspace (including
+profiles and owner/editor invites), public event pages, mobile list/map, web pairing login, and
+device linking. Check `docs/build-plan.md` for any remaining Phase 2 polish.
 
 ## Prerequisites
 
@@ -61,6 +61,10 @@ calls) in the same change as every new major feature.**
 - Empty mobile/web lists usually mean no published events nearby — not a broken client. Verify
   publishers via admin-api `POST /v1/publishers/{id}/verify` in local/dev.
 - Fallback discovery point is **Söderhamn** (`61.3037, 17.0592`, 50 km).
+- **Publisher profiles / invites:** owners `GET`/`PATCH /v1/publishers/{id}`, list members, create
+  email invites (`POST …/invites`). Invitee signs in with the invited email and
+  `POST /v1/publishers/invites/accept`. Non-prod responses may include `inviteToken`. Flow:
+  [docs/flows/publisher-invites.md](docs/flows/publisher-invites.md).
 
 ### Mobile location (especially Expo web)
 

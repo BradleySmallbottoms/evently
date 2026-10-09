@@ -37,3 +37,8 @@ export function canConfirmDeviceLink(input: {
   }
   return { ok: true };
 }
+
+/** Owner-only: edit publisher profile (name/slug/type) and manage members. */
+export function canManagePublisherOrg(role: 'owner' | 'editor'): boolean {
+  return role === 'owner';
+}
