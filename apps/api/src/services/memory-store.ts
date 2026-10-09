@@ -1,7 +1,14 @@
 import type { Category, Event } from '@local-events/contracts';
 import { SEED_CATEGORIES } from './events/seed-categories';
 
-export type MemoryUser = { id: string; createdAt: Date };
+export type MemoryUser = {
+  id: string;
+  createdAt: Date;
+  timezone: string;
+  quietHoursStartMin: number;
+  quietHoursEndMin: number;
+  quietHoursEnabled: boolean;
+};
 export type MemoryDevice = {
   id: string;
   userId: string;
@@ -104,6 +111,17 @@ export type MemorySubscription = {
   createdAt: Date;
 };
 
+export type MemoryNotification = {
+  id: string;
+  userId: string;
+  eventId: string;
+  reason: 'nearby' | 'publisher' | 'event';
+  pushState: 'pending' | 'sent' | 'aggregated';
+  sentAt: Date;
+  pushedAt: Date | null;
+  readAt: Date | null;
+};
+
 export type MemoryStore = {
   users: Map<string, MemoryUser>;
   devices: Map<string, MemoryDevice>;
@@ -119,6 +137,7 @@ export type MemoryStore = {
   categories: Map<string, Category>;
   events: Map<string, MemoryEventRow>;
   subscriptions: MemorySubscription[];
+  notifications: Map<string, MemoryNotification>;
 };
 
 /** Fixed UUIDs matching packages/db seed migration for regions. */
@@ -158,5 +177,6 @@ export function createMemoryStore(): MemoryStore {
     categories,
     events: new Map(),
     subscriptions: [],
+    notifications: new Map(),
   };
 }

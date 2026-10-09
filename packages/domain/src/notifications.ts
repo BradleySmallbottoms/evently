@@ -89,3 +89,21 @@ export function localDayKey(now: Date, timezone: string): string {
     return now.toISOString().slice(0, 10);
   }
 }
+
+/** Copy for the single Expo push after quiet hours ends. */
+export function aggregatePushCopy(
+  locale: string,
+  count: number,
+): { title: string; body: string } {
+  const n = Math.max(1, count);
+  if (locale.startsWith('en')) {
+    return {
+      title: n === 1 ? '1 new event' : `${n} new events`,
+      body: n === 1 ? 'Something new while you were away' : 'Catch up on events near you',
+    };
+  }
+  return {
+    title: n === 1 ? '1 nytt evenemang' : `${n} nya evenemang`,
+    body: n === 1 ? 'Något nytt medan du vilade' : 'Se vad som hänt nära dig',
+  };
+}

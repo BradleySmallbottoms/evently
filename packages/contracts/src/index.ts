@@ -49,6 +49,7 @@ export * from './check-ins';
 export * from './devices';
 export * from './domain-events';
 export * from './events';
+export * from './notifications';
 export * from './preferences';
 export * from './regions';
 export * from './subscriptions';

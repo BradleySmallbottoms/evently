@@ -33,6 +33,12 @@ export type UserArea = z.infer<typeof UserArea>;
 export const UserPreferencesResponse = z.object({
   categoryIds: z.array(Id),
   areas: z.array(UserArea),
+  quietHours: z.object({
+    enabled: z.boolean(),
+    startMin: z.number().int().min(0).max(1439),
+    endMin: z.number().int().min(0).max(1439),
+    timezone: z.string(),
+  }),
 });
 export type UserPreferencesResponse = z.infer<typeof UserPreferencesResponse>;
 

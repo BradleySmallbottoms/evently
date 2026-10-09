@@ -20,6 +20,18 @@ export async function replaceInterests(identity: StoredIdentity, categoryIds: st
   );
 }
 
+export async function updateQuietHours(
+  identity: StoredIdentity,
+  input: { enabled: boolean; startMin: number; endMin: number },
+) {
+  return throwIfError(
+    await api.PUT('/me/quiet-hours', {
+      headers: authHeaders(identity),
+      body: input,
+    }),
+  );
+}
+
 export async function createCircleArea(
   identity: StoredIdentity,
   input: { name: string; lat: number; lng: number; radiusM: number },

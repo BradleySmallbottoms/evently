@@ -2049,11 +2049,39 @@
                           "createdAt"
                         ]
                       }
+                    },
+                    "quietHours": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "startMin": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1439
+                        },
+                        "endMin": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1439
+                        },
+                        "timezone": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "startMin",
+                        "endMin",
+                        "timezone"
+                      ]
                     }
                   },
                   "required": [
                     "categoryIds",
-                    "areas"
+                    "areas",
+                    "quietHours"
                   ]
                 }
               }
@@ -3062,6 +3090,218 @@
           },
           "401": {
             "description": "Missing session or device credential mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/notifications": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Notification inbox for the signed-in user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "eventId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "eventTitle": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "nearby",
+                              "publisher",
+                              "event"
+                            ]
+                          },
+                          "pushState": {
+                            "type": "string",
+                            "enum": [
+                              "pending",
+                              "sent",
+                              "aggregated"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "pushedAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "readAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "eventId",
+                          "eventTitle",
+                          "reason",
+                          "pushState",
+                          "createdAt",
+                          "pushedAt",
+                          "readAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/quiet-hours": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "startMin": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1439
+                  },
+                  "endMin": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1439
+                  }
+                },
+                "required": [
+                  "enabled",
+                  "startMin",
+                  "endMin"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated quiet hours",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "startMin": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1439
+                    },
+                    "endMin": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1439
+                    },
+                    "timezone": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    }
+                  },
+                  "required": [
+                    "enabled",
+                    "startMin",
+                    "endMin",
+                    "timezone"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
             "content": {
               "application/json": {
                 "schema": {

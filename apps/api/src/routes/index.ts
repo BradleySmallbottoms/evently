@@ -2,6 +2,7 @@ import type { OpenAPIHono } from '@hono/zod-openapi';
 import type { AuthServices } from '../services/auth/types';
 import type { CheckInServices } from '../services/check-ins/types';
 import type { EventServices } from '../services/events/types';
+import type { NotificationServices } from '../services/notifications/types';
 import type { PreferenceServices } from '../services/preferences/types';
 import type { RegionServices } from '../services/regions/types';
 import type { SubscriptionServices } from '../services/subscriptions/types';
@@ -23,6 +24,7 @@ export type ApiRouteServices = {
   regions: RegionServices;
   subscriptions: SubscriptionServices;
   checkIns: CheckInServices;
+  notifications: NotificationServices;
 };
 
 /**
@@ -34,7 +36,7 @@ export function registerRoutes(app: OpenAPIHono, services: ApiRouteServices): vo
   registerSessionRoutes(app, services.auth);
   registerPairingRoutes(app, services.auth);
   registerPublisherRoutes(app, services.auth);
-  registerMeRoutes(app, services.preferences, services.auth);
+  registerMeRoutes(app, services.preferences, services.auth, services.notifications);
   registerSubscriptionRoutes(app, services.subscriptions);
   registerRegionRoutes(app, services.regions);
   registerCategoryRoutes(app, services.events);

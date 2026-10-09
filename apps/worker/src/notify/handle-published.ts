@@ -1,4 +1,5 @@
 import {
+  aggregatePushCopy,
   canSendUnderDailyCap,
   DAILY_NOTIFICATION_CAP,
   isWithinQuietHours,
@@ -12,8 +13,10 @@ import {
   clearExpoPushToken,
   findNearbyCandidates,
   findPublisherSubscriberCandidates,
+  loadPendingPushCandidates,
   loadPublishedEvent,
   loadRecentNotificationCounts,
+  markNotificationsPushed,
   releaseNotificationClaim,
   type NearbyCandidate,
 } from './match';
@@ -79,9 +82,10 @@ function mergeCandidates(
 
 type PendingSend = {
   userId: string;
-  claimId: string;
+  claimIds: string[];
   devices: NearbyCandidate[];
   messages: ExpoPushMessage[];
+  pushState: 'sent' | 'aggregated';
 };
 
 async function claimUnderDailyCap(
@@ -115,17 +119,114 @@ async function claimUnderDailyCap(
 }
 
 /**
+ * After quiet hours: one aggregate Expo per user for all still-pending inbox rows.
+ */
+export async function flushQuietHoursAggregates(
+  deps: HandlePublishedDeps,
+): Promise<{ users: number; notifications: number }> {
+  const now = deps.now?.() ?? new Date();
+  const pending = await loadPendingPushCandidates(deps.db);
+  const byUser = new Map<
+    string,
+    {
+      notificationIds: Set<string>;
+      devices: Map<string, NearbyCandidate>;
+      locale: string;
+      prefs: {
+        enabled: boolean;
+        timezone: string;
+        startMin: number;
+        endMin: number;
+      };
+    }
+  >();
+
+  for (const row of pending) {
+    const prefs = {
+      enabled: row.quietHoursEnabled,
+      timezone: row.timezone,
+      startMin: row.quietHoursStartMin,
+      endMin: row.quietHoursEndMin,
+    };
+    if (isWithinQuietHours(now, prefs)) continue;
+    let bucket = byUser.get(row.userId);
+    if (!bucket) {
+      bucket = {
+        notificationIds: new Set(),
+        devices: new Map(),
+        locale: row.locale,
+        prefs,
+      };
+      byUser.set(row.userId, bucket);
+    }
+    bucket.notificationIds.add(row.notificationId);
+    bucket.devices.set(row.deviceId, {
+      userId: row.userId,
+      deviceId: row.deviceId,
+      expoPushToken: row.expoPushToken,
+      locale: row.locale,
+      timezone: row.timezone,
+      quietHoursStartMin: row.quietHoursStartMin,
+      quietHoursEndMin: row.quietHoursEndMin,
+      quietHoursEnabled: row.quietHoursEnabled,
+    });
+  }
+
+  let notificationCount = 0;
+  for (const [, bucket] of byUser) {
+    const ids = [...bucket.notificationIds];
+    const copy = aggregatePushCopy(bucket.locale, ids.length);
+    const devices = [...bucket.devices.values()];
+    const messages: ExpoPushMessage[] = devices.map((d) => ({
+      to: d.expoPushToken,
+      title: copy.title,
+      body: copy.body,
+      data: { kind: 'quiet_hours_aggregate', count: ids.length },
+      sound: 'default' as const,
+    }));
+    try {
+      const tickets = await deps.expo.send(messages);
+      let anyOk = false;
+      for (let i = 0; i < tickets.length; i++) {
+        const ticket = tickets[i];
+        const device = devices[i];
+        if (!ticket || !device) continue;
+        if (ticket.status === 'ok') {
+          anyOk = true;
+          continue;
+        }
+        const err = ticket.details?.error ?? ticket.message ?? '';
+        if (err.includes('DeviceNotRegistered') || err.includes('InvalidCredentials')) {
+          await clearExpoPushToken(deps.db, device.deviceId);
+        }
+      }
+      if (anyOk) {
+        await markNotificationsPushed(deps.db, ids, 'aggregated', now);
+        notificationCount += ids.length;
+      }
+    } catch (err) {
+      console.error('quiet-hours aggregate flush failed', err);
+    }
+  }
+
+  return { users: byUser.size, notifications: notificationCount };
+}
+
+/**
  * Fan out push for a published event: nearby geo match + publisher followers.
+ * Quiet hours: claim inbox row as pending (no Expo); flush aggregates when the window ends.
  * Idempotent via notifications unique (user, event, reason).
  */
 export async function handleEventPublished(
   eventId: string,
   deps: HandlePublishedDeps,
-): Promise<{ matched: number; sent: number; skipped: number }> {
+): Promise<{ matched: number; sent: number; skipped: number; deferred: number }> {
   const now = deps.now?.() ?? new Date();
+  await flushQuietHoursAggregates(deps);
+
   const event = await loadPublishedEvent(deps.db, eventId);
   if (!event || event.status !== 'published') {
-    return { matched: 0, sent: 0, skipped: 0 };
+    return { matched: 0, sent: 0, skipped: 0, deferred: 0 };
   }
 
   const nearby = event.hasLocation
@@ -151,7 +252,9 @@ export async function handleEventPublished(
   const recent = await loadRecentNotificationCounts(deps.db, [...byUser.keys()], now);
 
   let skipped = 0;
+  let deferred = 0;
   const pending: PendingSend[] = [];
+  const stagedClaims = new Map<string, number>();
 
   for (const [userId, { devices, reason }] of byUser) {
     const sample = devices[0]!;
@@ -161,12 +264,7 @@ export async function handleEventPublished(
       startMin: sample.quietHoursStartMin,
       endMin: sample.quietHoursEndMin,
     };
-    if (isWithinQuietHours(now, prefs)) {
-      // Spec (docs/decisions.md): store in inbox + aggregate Expo after the window.
-      // Current implementation still drops the push; inbox deferral is a planned Phase 3 follow-up.
-      skipped += 1;
-      continue;
-    }
+    const inQuietHours = isWithinQuietHours(now, prefs);
 
     const day = localDayKey(now, sample.timezone);
     const claimId = await claimUnderDailyCap(deps.db, {
@@ -176,7 +274,7 @@ export async function handleEventPublished(
       timezone: sample.timezone,
       day,
       now,
-      stagedExtra: pending.filter((p) => p.userId === userId).length,
+      stagedExtra: stagedClaims.get(userId) ?? 0,
     });
 
     if (!claimId) {
@@ -184,15 +282,22 @@ export async function handleEventPublished(
       continue;
     }
 
+    stagedClaims.set(userId, (stagedClaims.get(userId) ?? 0) + 1);
     const list = recent.get(userId) ?? [];
     list.push({ sentAt: now });
     recent.set(userId, list);
 
+    if (inQuietHours) {
+      deferred += 1;
+      continue;
+    }
+
     const copy = pushCopy(sample.locale, event.title, reason);
     pending.push({
       userId,
-      claimId,
+      claimIds: [claimId],
       devices,
+      pushState: 'sent',
       messages: devices.map((d) => ({
         to: d.expoPushToken,
         title: copy.title,
@@ -204,7 +309,7 @@ export async function handleEventPublished(
   }
 
   if (pending.length === 0) {
-    return { matched: byUser.size, sent: 0, skipped };
+    return { matched: byUser.size, sent: 0, skipped, deferred };
   }
 
   const allMessages = pending.flatMap((p) => p.messages);
@@ -219,13 +324,13 @@ export async function handleEventPublished(
   try {
     tickets = await deps.expo.send(allMessages);
   } catch (err) {
-    await Promise.all(pending.map((p) => releaseNotificationClaim(deps.db, p.claimId)));
+    await Promise.all(pending.flatMap((p) => p.claimIds.map((id) => releaseNotificationClaim(deps.db, id))));
     throw err;
   }
 
   if (tickets.length === 0) {
-    await Promise.all(pending.map((p) => releaseNotificationClaim(deps.db, p.claimId)));
-    return { matched: byUser.size, sent: 0, skipped: skipped + pending.length };
+    await Promise.all(pending.flatMap((p) => p.claimIds.map((id) => releaseNotificationClaim(deps.db, id))));
+    return { matched: byUser.size, sent: 0, skipped: skipped + pending.length, deferred };
   }
 
   const okByPending = new Array(pending.length).fill(false);
@@ -248,12 +353,13 @@ export async function handleEventPublished(
   for (let i = 0; i < pending.length; i++) {
     const p = pending[i]!;
     if (okByPending[i]) {
+      await markNotificationsPushed(deps.db, p.claimIds, p.pushState, now);
       sent += 1;
     } else {
-      await releaseNotificationClaim(deps.db, p.claimId);
+      await Promise.all(p.claimIds.map((id) => releaseNotificationClaim(deps.db, id)));
       skipped += 1;
     }
   }
 
-  return { matched: byUser.size, sent, skipped };
+  return { matched: byUser.size, sent, skipped, deferred };
 }

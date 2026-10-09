@@ -184,6 +184,7 @@ export async function claimNotification(
       eventId: input.eventId,
       reason: input.reason,
       sentAt: input.now,
+      pushState: 'pending',
     })
     .onConflictDoNothing()
     .returning({ id: schema.notifications.id });
@@ -192,6 +193,79 @@ export async function claimNotification(
 
 export async function releaseNotificationClaim(db: NotifyDb, notificationId: string): Promise<void> {
   await db.delete(schema.notifications).where(eq(schema.notifications.id, notificationId));
+}
+
+export async function markNotificationsPushed(
+  db: NotifyDb,
+  notificationIds: string[],
+  state: 'sent' | 'aggregated',
+  now: Date,
+): Promise<void> {
+  if (notificationIds.length === 0) return;
+  await db
+    .update(schema.notifications)
+    .set({ pushState: state, pushedAt: now })
+    .where(inArray(schema.notifications.id, notificationIds));
+}
+
+export type PendingQuietHoursRow = {
+  notificationId: string;
+  userId: string;
+  deviceId: string;
+  expoPushToken: string;
+  locale: string;
+  timezone: string;
+  quietHoursStartMin: number;
+  quietHoursEndMin: number;
+  quietHoursEnabled: boolean;
+};
+
+/** Pending inbox rows with a pushable device (for aggregate flush after quiet hours). */
+export async function loadPendingPushCandidates(
+  db: NotifyDb,
+  limit = 2_000,
+): Promise<PendingQuietHoursRow[]> {
+  const rows = await db.execute(sql`
+    SELECT
+      n.id AS notification_id,
+      n.user_id,
+      d.id AS device_id,
+      d.expo_push_token,
+      d.locale,
+      u.timezone,
+      u.quiet_hours_start_min,
+      u.quiet_hours_end_min,
+      u.quiet_hours_enabled
+    FROM notifications n
+    INNER JOIN users u ON u.id = n.user_id
+    INNER JOIN devices d ON d.user_id = u.id
+    WHERE n.push_state = 'pending'
+      AND d.expo_push_token IS NOT NULL
+    ORDER BY n.sent_at ASC
+    LIMIT ${limit}
+  `);
+  const list = (Array.isArray(rows) ? rows : []) as Array<{
+    notification_id: string;
+    user_id: string;
+    device_id: string;
+    expo_push_token: string;
+    locale: string;
+    timezone: string;
+    quiet_hours_start_min: number;
+    quiet_hours_end_min: number;
+    quiet_hours_enabled: boolean;
+  }>;
+  return list.map((r) => ({
+    notificationId: r.notification_id,
+    userId: r.user_id,
+    deviceId: r.device_id,
+    expoPushToken: r.expo_push_token,
+    locale: r.locale,
+    timezone: r.timezone,
+    quietHoursStartMin: Number(r.quiet_hours_start_min),
+    quietHoursEndMin: Number(r.quiet_hours_end_min),
+    quietHoursEnabled: Boolean(r.quiet_hours_enabled),
+  }));
 }
 
 /** Clear stale Expo tokens after DeviceNotRegistered-style errors. */

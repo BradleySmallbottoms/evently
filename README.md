@@ -110,10 +110,10 @@ calls) in the same change as every new major feature.**
   `{ type: 'event.published', eventId }` best-effort after the DB write. Without
   `DOMAIN_EVENTS_QUEUE_URL`, APIs keep events in-process and the worker idles.
 - Worker fan-out: nearby (areas ∩ interests) + publisher followers, 5/day inbox cap, Expo Push,
-  `notifications` inbox/dedupe. Quiet hours (default 22:00–08:00 Stockholm): store in inbox during
-  the window, aggregate Expo after it ends; prefs UI planned. Follow via `POST /v1/me/subscriptions`.
-  Needs `DATABASE_URL` on the worker. Flow:
-  [docs/flows/push-and-domain-events.md](docs/flows/push-and-domain-events.md).
+  `notifications` inbox (`GET /me/notifications`). Quiet hours (default 22:00–08:00 Stockholm):
+  store during the window, one aggregate Expo after it ends; toggle in preferences
+  (`PUT /me/quiet-hours`). Follow via `POST /v1/me/subscriptions`. Needs `DATABASE_URL` on the
+  worker. Flow: [docs/flows/push-and-domain-events.md](docs/flows/push-and-domain-events.md).
 
 ### Frontend structure
 

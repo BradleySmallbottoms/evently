@@ -9,6 +9,8 @@ import { createDbEventServices } from './services/events/db';
 import { createMemoryEventServices } from './services/events/memory';
 import { createMemoryDomainEventPublisher } from './services/domain-events/memory';
 import { createSqsDomainEventPublisher } from './services/domain-events/sqs';
+import { createDbNotificationServices } from './services/notifications/db';
+import { createMemoryNotificationServices } from './services/notifications/memory';
 import { createDbPreferenceServices } from './services/preferences/db';
 import { createMemoryPreferenceServices } from './services/preferences/memory';
 import { createDbRegionServices } from './services/regions/db';
@@ -54,7 +56,7 @@ const domainEvents = queueUrl
 const eventEnvWithQueue = { ...eventEnv, domainEvents };
 
 const checkInEnv = { now: () => new Date(), domainEvents };
-const { auth, events, preferences, regions, subscriptions, checkIns } = (() => {
+const { auth, events, preferences, regions, subscriptions, checkIns, notifications } = (() => {
   if (databaseUrl) {
     const db = createDb(databaseUrl);
     const authServices = createDbAuthServices(db, authEnv);
@@ -65,6 +67,7 @@ const { auth, events, preferences, regions, subscriptions, checkIns } = (() => {
       regions: createDbRegionServices(db),
       subscriptions: createDbSubscriptionServices(db, authServices),
       checkIns: createDbCheckInServices(db, authServices, checkInEnv),
+      notifications: createDbNotificationServices(db, authServices),
     };
   }
   const store = createMemoryStore();
@@ -76,6 +79,7 @@ const { auth, events, preferences, regions, subscriptions, checkIns } = (() => {
     regions: createMemoryRegionServices(store),
     subscriptions: createMemorySubscriptionServices(authServices, store),
     checkIns: createMemoryCheckInServices(authServices, checkInEnv, store),
+    notifications: createMemoryNotificationServices(authServices, store),
   };
 })();
 
@@ -96,6 +100,7 @@ serve(
       regions,
       subscriptions,
       checkIns,
+      notifications,
       corsOrigin,
     }).fetch,
     port,

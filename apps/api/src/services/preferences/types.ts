@@ -1,7 +1,9 @@
 import type {
   CreateUserAreaRequest,
+  QuietHoursPrefs,
   ReplaceUserInterestsRequest,
   ReplaceUserInterestsResponse,
+  UpdateQuietHoursRequest,
   UpdateUserAreaRequest,
   UserArea,
   UserPreferencesResponse,
@@ -28,6 +30,10 @@ export type PreferenceServices = {
     sessionToken: string | undefined,
     input: ReplaceUserInterestsRequest,
   ) => Promise<ReplaceUserInterestsResponse>;
+  updateQuietHours: (
+    sessionToken: string | undefined,
+    input: UpdateQuietHoursRequest,
+  ) => Promise<QuietHoursPrefs>;
   listAreas: (sessionToken: string | undefined) => Promise<{ items: UserArea[] }>;
   createArea: (
     sessionToken: string | undefined,

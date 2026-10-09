@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleEventPublished } from '../../../apps/worker/src/notify/handle-published';
 import type { ExpoPushClient } from '../../../apps/worker/src/notify/expo-push';
 import * as match from '../../../apps/worker/src/notify/match';
@@ -15,6 +15,12 @@ function mockDb() {
 }
 
 describe('handleEventPublished', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(match, 'loadPendingPushCandidates').mockResolvedValue([]);
+    vi.spyOn(match, 'markNotificationsPushed').mockResolvedValue();
+  });
+
   it('sends Expo push and claims notification for matched users', async () => {
     const send = vi.fn(async () => [{ status: 'ok' as const, id: 'ticket-1' }]);
     const expo: ExpoPushClient = { send };
@@ -50,8 +56,14 @@ describe('handleEventPublished', () => {
       now: () => new Date('2026-06-15T12:00:00.000Z'),
     });
 
-    expect(result).toEqual({ matched: 1, sent: 1, skipped: 0 });
+    expect(result).toEqual({ matched: 1, sent: 1, skipped: 0, deferred: 0 });
     expect(claim).toHaveBeenCalledOnce();
+    expect(match.markNotificationsPushed).toHaveBeenCalledWith(
+      expect.anything(),
+      ['notif-1'],
+      'sent',
+      expect.any(Date),
+    );
     expect(send).toHaveBeenCalledWith([
       expect.objectContaining({
         to: 'ExponentPushToken[abc]',
@@ -62,7 +74,7 @@ describe('handleEventPublished', () => {
     ]);
   });
 
-  it('skips during quiet hours', async () => {
+  it('defers Expo during quiet hours but still claims the inbox row', async () => {
     const send = vi.fn();
     vi.spyOn(match, 'loadPublishedEvent').mockResolvedValue({
       id: EVENT_ID,
@@ -86,6 +98,7 @@ describe('handleEventPublished', () => {
     ]);
     vi.spyOn(match, 'findPublisherSubscriberCandidates').mockResolvedValue([]);
     vi.spyOn(match, 'loadRecentNotificationCounts').mockResolvedValue(new Map());
+    const claim = vi.spyOn(match, 'claimNotification').mockResolvedValue('notif-quiet');
 
     const result = await handleEventPublished(EVENT_ID, {
       db: mockDb(),
@@ -93,8 +106,10 @@ describe('handleEventPublished', () => {
       now: () => new Date('2026-06-15T21:30:00.000Z'), // 23:30 CEST
     });
 
-    expect(result).toEqual({ matched: 1, sent: 0, skipped: 1 });
+    expect(result).toEqual({ matched: 1, sent: 0, skipped: 0, deferred: 1 });
+    expect(claim).toHaveBeenCalledOnce();
     expect(send).not.toHaveBeenCalled();
+    expect(match.markNotificationsPushed).not.toHaveBeenCalled();
   });
 
   it('skips geo match for digital events but still checks publisher followers', async () => {

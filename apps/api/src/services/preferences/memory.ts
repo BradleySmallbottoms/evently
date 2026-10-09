@@ -51,13 +51,39 @@ export function createMemoryPreferenceServices(
   return {
     async getPreferences(sessionToken) {
       const { userId } = await auth.requireUserSession(sessionToken);
+      const user = store.users.get(userId);
+      if (!user) throw new PreferenceError('unauthorized');
       const categoryIds = userInterests
         .filter((i) => i.userId === userId)
         .map((i) => i.categoryId);
       const areas = [...userAreas.values()]
         .filter((a) => a.userId === userId)
         .map(toUserArea);
-      return { categoryIds, areas };
+      return {
+        categoryIds,
+        areas,
+        quietHours: {
+          enabled: user.quietHoursEnabled,
+          startMin: user.quietHoursStartMin,
+          endMin: user.quietHoursEndMin,
+          timezone: user.timezone,
+        },
+      };
+    },
+
+    async updateQuietHours(sessionToken, input) {
+      const { userId } = await auth.requireUserSession(sessionToken);
+      const user = store.users.get(userId);
+      if (!user) throw new PreferenceError('unauthorized');
+      user.quietHoursEnabled = input.enabled;
+      user.quietHoursStartMin = input.startMin;
+      user.quietHoursEndMin = input.endMin;
+      return {
+        enabled: user.quietHoursEnabled,
+        startMin: user.quietHoursStartMin,
+        endMin: user.quietHoursEndMin,
+        timezone: user.timezone,
+      };
     },
 
     async replaceInterests(sessionToken, input) {

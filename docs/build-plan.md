@@ -58,8 +58,8 @@ Closed beta around week 15, store launch around week 19.
 - [x] Push token registration; SQS + worker wired up
 - [x] Geo matching, caps and quiet hours defaults (nearby Expo push via worker; drop-on-skip superseded — see below)
 - [x] Publisher and event subscriptions (follow API + publisher merge on publish; event.updated debounce later)
-- [ ] Notification inbox: persist every matched notification; `GET` list for the signed-in user; mobile notifications window shows the full history (not a stub)
-- [ ] Quiet hours deferral: during the window store only (no immediate Expo); after the window ends, one aggregate Expo push; preferences UI to enable/disable and edit start/end (defaults 22:00–08:00)
+- [x] Notification inbox: persist every matched notification; `GET /me/notifications`; mobile notifications window lists inbox rows
+- [x] Quiet hours deferral: during the window store only (no immediate Expo); after the window ends, one aggregate Expo push; preferences UI to enable/disable (defaults 22:00–08:00)
 - **Exit:** publishing an event reaches a matching phone within one minute outside quiet hours; during quiet hours it appears in the inbox immediately and in an aggregate push after the window.
 
 ## Phase 4 — Check-in + attendee content (weeks 10–13)

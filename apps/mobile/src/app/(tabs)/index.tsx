@@ -30,6 +30,7 @@ import {
   loadStoredIdentity,
   refreshIdentitySession,
 } from '@/lib/identity';
+import { listNotifications } from '@/lib/notifications';
 import { getPreferences, primaryCircleArea } from '@/lib/preferences';
 import {
   acceptRegionSuggestion,
@@ -97,6 +98,11 @@ export default function HomeScreen() {
     queryKey: ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM],
     queryFn: () => listPublicEvents(point.data!),
     enabled: point.isSuccess,
+  });
+  const inbox = useQuery({
+    queryKey: ['notifications', identity.data?.userId],
+    enabled: notificationsOpen && identity.isSuccess,
+    queryFn: () => listNotifications(identity.data!),
   });
 
   useEffect(() => {
@@ -383,6 +389,23 @@ export default function HomeScreen() {
         onDismiss={() => setNotificationsOpen(false)}
         title={t('events.notifications')}
         emptyMessage={t('events.notificationsEmpty')}
+        loadingMessage={t('events.notificationsLoading')}
+        loading={inbox.isLoading}
+        items={(inbox.data ?? []).map((n) => ({
+          id: n.id,
+          title: n.eventTitle,
+          subtitle:
+            n.reason === 'publisher'
+              ? t('events.notificationReasonPublisher')
+              : n.reason === 'event'
+                ? t('events.notificationReasonEvent')
+                : t('events.notificationReasonNearby'),
+          eventId: n.eventId,
+        }))}
+        onOpenEvent={(eventId) => {
+          setNotificationsOpen(false);
+          router.push(`/events/${eventId}`);
+        }}
       />
 
       <PairingSheet

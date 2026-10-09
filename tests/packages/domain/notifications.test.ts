@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  aggregatePushCopy,
   canSendUnderDailyCap,
   DAILY_NOTIFICATION_CAP,
   interestsOverlap,
@@ -66,5 +67,10 @@ describe('quiet hours', () => {
     expect(localDayKey(new Date('2026-06-15T22:30:00.000Z'), 'Europe/Stockholm')).toBe(
       '2026-06-16',
     );
+  });
+
+  it('builds aggregate quiet-hours copy', () => {
+    expect(aggregatePushCopy('sv', 3).title).toBe('3 nya evenemang');
+    expect(aggregatePushCopy('en', 1).title).toBe('1 new event');
   });
 });

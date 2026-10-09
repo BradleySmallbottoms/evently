@@ -40,7 +40,16 @@ describe('user preferences', () => {
 
     const empty = await app.request('/v1/me/preferences', { headers: authHeader });
     expect(empty.status).toBe(200);
-    expect(await empty.json()).toEqual({ categoryIds: [], areas: [] });
+    expect(await empty.json()).toEqual({
+      categoryIds: [],
+      areas: [],
+      quietHours: {
+        enabled: true,
+        startMin: 22 * 60,
+        endMin: 8 * 60,
+        timezone: 'Europe/Stockholm',
+      },
+    });
 
     const interests = await app.request('/v1/me/interests', {
       method: 'PUT',

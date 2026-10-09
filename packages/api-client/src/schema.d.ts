@@ -1302,6 +1302,12 @@ export interface paths {
                                 /** Format: date-time */
                                 createdAt: string;
                             }[];
+                            quietHours: {
+                                enabled: boolean;
+                                startMin: number;
+                                endMin: number;
+                                timezone: string;
+                            };
                         };
                     };
                 };
@@ -1782,6 +1788,135 @@ export interface paths {
                     };
                 };
                 /** @description Missing session or device credential mismatch */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Notification inbox for the signed-in user */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                eventId: string;
+                                eventTitle: string;
+                                /** @enum {string} */
+                                reason: "nearby" | "publisher" | "event";
+                                /** @enum {string} */
+                                pushState: "pending" | "sent" | "aggregated";
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                pushedAt: string | null;
+                                /** Format: date-time */
+                                readAt: string | null;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/quiet-hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                        startMin: number;
+                        endMin: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated quiet hours */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            enabled: boolean;
+                            startMin: number;
+                            endMin: number;
+                            timezone: string;
+                        };
+                    };
+                };
+                /** @description Missing or invalid user session */
                 401: {
                     headers: {
                         [name: string]: unknown;

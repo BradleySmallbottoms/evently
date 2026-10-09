@@ -2,10 +2,13 @@ import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
   CreateUserAreaRequest,
   ErrorResponse,
+  NotificationListResponse,
+  QuietHoursPrefs,
   RegisterPushTokenRequest,
   RegisterPushTokenResponse,
   ReplaceUserInterestsRequest,
   ReplaceUserInterestsResponse,
+  UpdateQuietHoursRequest,
   UpdateUserAreaRequest,
   UserArea,
   UserAreaListResponse,
@@ -15,6 +18,8 @@ import { z } from 'zod';
 import { readUserSessionToken } from '../services/auth/cookies';
 import { authErrorResponse } from '../services/auth/errors';
 import type { AuthServices } from '../services/auth/types';
+import { notificationErrorResponse } from '../services/notifications/errors';
+import type { NotificationServices } from '../services/notifications/types';
 import { preferenceErrorResponse } from '../services/preferences/errors';
 import type { PreferenceServices } from '../services/preferences/types';
 
@@ -24,6 +29,7 @@ export function registerMeRoutes(
   app: OpenAPIHono,
   preferences: PreferenceServices,
   auth: AuthServices,
+  notifications: NotificationServices,
 ): void {
   const getPreferences = createRoute({
     method: 'get',
@@ -236,6 +242,59 @@ export function registerMeRoutes(
       return c.json(result, 200);
     } catch (err) {
       return authErrorResponse(c, err);
+    }
+  });
+
+  const listNotifications = createRoute({
+    method: 'get',
+    path: '/me/notifications',
+    responses: {
+      200: {
+        description: 'Notification inbox for the signed-in user',
+        content: { 'application/json': { schema: NotificationListResponse } },
+      },
+      401: {
+        description: 'Missing or invalid user session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(listNotifications, async (c) => {
+    try {
+      const result = await notifications.listNotifications(readUserSessionToken(c));
+      return c.json(result, 200);
+    } catch (err) {
+      return notificationErrorResponse(c, err);
+    }
+  });
+
+  const updateQuietHours = createRoute({
+    method: 'put',
+    path: '/me/quiet-hours',
+    request: {
+      body: {
+        content: { 'application/json': { schema: UpdateQuietHoursRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Updated quiet hours',
+        content: { 'application/json': { schema: QuietHoursPrefs } },
+      },
+      401: {
+        description: 'Missing or invalid user session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(updateQuietHours, async (c) => {
+    try {
+      const body = c.req.valid('json');
+      const result = await preferences.updateQuietHours(readUserSessionToken(c), body);
+      return c.json(result, 200);
+    } catch (err) {
+      return preferenceErrorResponse(c, err);
     }
   });
 }

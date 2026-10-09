@@ -81,7 +81,7 @@ export function createDbPreferenceServices(
   auth: AuthServices,
   _env: PreferenceEnv = { now: () => new Date() },
 ): PreferenceServices {
-  const { userInterests, userAreas, categories, regions } = schema;
+  const { userInterests, userAreas, categories, regions, users } = schema;
 
   async function areasForUser(userId: string): Promise<UserArea[]> {
     const rows = await db
@@ -94,6 +94,17 @@ export function createDbPreferenceServices(
   return {
     async getPreferences(sessionToken) {
       const { userId } = await auth.requireUserSession(sessionToken);
+      const [user] = await db
+        .select({
+          timezone: users.timezone,
+          quietHoursStartMin: users.quietHoursStartMin,
+          quietHoursEndMin: users.quietHoursEndMin,
+          quietHoursEnabled: users.quietHoursEnabled,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      if (!user) throw new PreferenceError('unauthorized');
       const interestRows = await db
         .select({ categoryId: userInterests.categoryId })
         .from(userInterests)
@@ -101,6 +112,37 @@ export function createDbPreferenceServices(
       return {
         categoryIds: interestRows.map((r) => r.categoryId),
         areas: await areasForUser(userId),
+        quietHours: {
+          enabled: user.quietHoursEnabled,
+          startMin: user.quietHoursStartMin,
+          endMin: user.quietHoursEndMin,
+          timezone: user.timezone,
+        },
+      };
+    },
+
+    async updateQuietHours(sessionToken, input) {
+      const { userId } = await auth.requireUserSession(sessionToken);
+      const [user] = await db
+        .update(users)
+        .set({
+          quietHoursEnabled: input.enabled,
+          quietHoursStartMin: input.startMin,
+          quietHoursEndMin: input.endMin,
+        })
+        .where(eq(users.id, userId))
+        .returning({
+          timezone: users.timezone,
+          quietHoursStartMin: users.quietHoursStartMin,
+          quietHoursEndMin: users.quietHoursEndMin,
+          quietHoursEnabled: users.quietHoursEnabled,
+        });
+      if (!user) throw new PreferenceError('unauthorized');
+      return {
+        enabled: user.quietHoursEnabled,
+        startMin: user.quietHoursStartMin,
+        endMin: user.quietHoursEndMin,
+        timezone: user.timezone,
       };
     },
 

@@ -14,11 +14,14 @@ import {
   getPreferences,
   replaceInterests,
   updateCircleArea,
+  updateQuietHours,
 } from '@/lib/preferences';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
 const RADIUS_PRESETS = [5_000, 15_000, 50_000] as const;
+const DEFAULT_QUIET_START = 22 * 60;
+const DEFAULT_QUIET_END = 8 * 60;
 
 export function PreferencesForm() {
   const { t, i18n } = useTranslation();
@@ -27,6 +30,7 @@ export function PreferencesForm() {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [radiusM, setRadiusM] = useState<(typeof RADIUS_PRESETS)[number]>(15_000);
+  const [quietHoursEnabled, setQuietHoursEnabled] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
@@ -53,6 +57,7 @@ export function PreferencesForm() {
     if (circle?.radiusM && RADIUS_PRESETS.includes(circle.radiusM as (typeof RADIUS_PRESETS)[number])) {
       setRadiusM(circle.radiusM as (typeof RADIUS_PRESETS)[number]);
     }
+    setQuietHoursEnabled(preferences.data.quietHours.enabled);
     setHydrated(true);
   }, [preferences.data, hydrated]);
 
@@ -61,6 +66,11 @@ export function PreferencesForm() {
       const id = identity.data;
       if (!id) throw new Error('missing_identity');
       await replaceInterests(id, [...selected]);
+      await updateQuietHours(id, {
+        enabled: quietHoursEnabled,
+        startMin: DEFAULT_QUIET_START,
+        endMin: DEFAULT_QUIET_END,
+      });
       const point = await resolveEventQueryPoint();
       const existingCircle = preferences.data?.areas.find((a) => a.center && a.radiusM != null);
       if (existingCircle) {
@@ -160,6 +170,43 @@ export function PreferencesForm() {
                   style={{ color: on ? '#FFFFFF' : colors.ink, fontWeight: '600' }}
                 >
                   {t('preferences.radiusKm', { km: r / 1000 })}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={{ gap: space.md }}>
+        <AppText variant="subtitle">{t('preferences.quietHoursTitle')}</AppText>
+        <AppText variant="caption">{t('preferences.quietHoursHint')}</AppText>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+          {(
+            [
+              { on: true, label: t('preferences.quietHoursOn') },
+              { on: false, label: t('preferences.quietHoursOff') },
+            ] as const
+          ).map((opt) => {
+            const selectedOpt = quietHoursEnabled === opt.on;
+            return (
+              <Pressable
+                key={opt.label}
+                onPress={() => setQuietHoursEnabled(opt.on)}
+                style={{
+                  paddingHorizontal: space.lg,
+                  paddingVertical: space.sm + 2,
+                  borderRadius: radius.pill,
+                  borderCurve: 'continuous',
+                  backgroundColor: selectedOpt ? colors.accent : (colors.card as string),
+                  borderWidth: selectedOpt ? 0 : 1,
+                  borderColor: colors.line,
+                }}
+              >
+                <AppText
+                  variant="label"
+                  style={{ color: selectedOpt ? '#FFFFFF' : colors.ink, fontWeight: '600' }}
+                >
+                  {opt.label}
                 </AppText>
               </Pressable>
             );

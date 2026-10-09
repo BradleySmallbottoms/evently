@@ -51,6 +51,12 @@ export const notificationReason = pgEnum('notification_reason', [
   'publisher',
   'event',
 ]);
+/** Expo delivery state — inbox rows always exist; push may wait for quiet hours. */
+export const notificationPushState = pgEnum('notification_push_state', [
+  'pending',
+  'sent',
+  'aggregated',
+]);
 export const subscriptionTarget = pgEnum('subscription_target', ['publisher', 'event']);
 export const checkInMethod = pgEnum('check_in_method', ['geo', 'code']);
 
@@ -375,8 +381,10 @@ export const checkIns = pgTable(
 );
 
 /**
- * Sent push notifications — dedupe + daily-cap accounting.
+ * Notification inbox — dedupe + daily-cap accounting + Expo delivery state.
  * Unique on (user, event, reason) so SQS at-least-once retries stay idempotent.
+ * `sentAt` is when the match was accepted into the inbox (cap bucketing); Expo delivery
+ * is tracked via `pushState` / `pushedAt`.
  */
 export const notifications = pgTable(
   'notifications',
@@ -389,11 +397,16 @@ export const notifications = pgTable(
       .notNull()
       .references(() => events.id, { onDelete: 'cascade' }),
     reason: notificationReason('reason').notNull(),
+    /** Inbox accept time (daily-cap bucketing). Historical name; not “Expo sent”. */
     sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+    pushState: notificationPushState('push_state').notNull().default('pending'),
+    pushedAt: timestamp('pushed_at', { withTimezone: true }),
+    readAt: timestamp('read_at', { withTimezone: true }),
   },
   (t) => [
     uniqueIndex('notifications_user_event_reason_idx').on(t.userId, t.eventId, t.reason),
     index('notifications_user_sent_at_idx').on(t.userId, t.sentAt),
+    index('notifications_push_state_idx').on(t.pushState, t.sentAt),
   ],
 );
 

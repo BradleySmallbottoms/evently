@@ -9,6 +9,8 @@ import { createMemoryCheckInServices } from './services/check-ins/memory';
 import type { CheckInServices } from './services/check-ins/types';
 import { createMemoryEventServices } from './services/events/memory';
 import type { EventServices } from './services/events/types';
+import { createMemoryNotificationServices } from './services/notifications/memory';
+import type { NotificationServices } from './services/notifications/types';
 import { createMemoryPreferenceServices } from './services/preferences/memory';
 import type { PreferenceServices } from './services/preferences/types';
 import { createMemoryRegionServices } from './services/regions/memory';
@@ -25,6 +27,7 @@ export type CreateAppOptions = {
   regions?: RegionServices;
   subscriptions?: SubscriptionServices;
   checkIns?: CheckInServices;
+  notifications?: NotificationServices;
   /**
    * Origins allowed for credentialed CORS (web publisher login).
    * Pass a string list, or a function that returns the reflected Origin (never bare `*`).
@@ -53,6 +56,8 @@ export function createApp(options: CreateAppOptions = {}) {
   const subscriptions =
     options.subscriptions ?? createMemorySubscriptionServices(auth, store);
   const checkIns = options.checkIns ?? createMemoryCheckInServices(auth, {}, store);
+  const notifications =
+    options.notifications ?? createMemoryNotificationServices(auth, store);
   const app = new OpenAPIHono();
 
   app.onError((err, c) => {
@@ -82,7 +87,15 @@ export function createApp(options: CreateAppOptions = {}) {
     Sentry.captureException(err);
     return c.json({ error: { code: 'internal_error', message: 'Internal server error' } }, 500);
   });
-  registerRoutes(api, { auth, events, preferences, regions, subscriptions, checkIns });
+  registerRoutes(api, {
+    auth,
+    events,
+    preferences,
+    regions,
+    subscriptions,
+    checkIns,
+    notifications,
+  });
   api.doc('/openapi.json', {
     openapi: '3.1.0',
     info: { title: 'Local Events public API', version: `${API_VERSION}.0.0` },

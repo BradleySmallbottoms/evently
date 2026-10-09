@@ -91,7 +91,14 @@ export function createMemoryAuthServices(
       const sessionToken = generateSessionToken();
       const expiresAt = addSeconds(now, APP_SESSION_TTL_SECONDS);
 
-      users.set(userId, { id: userId, createdAt: now });
+      users.set(userId, {
+        id: userId,
+        createdAt: now,
+        timezone: 'Europe/Stockholm',
+        quietHoursStartMin: 22 * 60,
+        quietHoursEndMin: 8 * 60,
+        quietHoursEnabled: true,
+      });
       devices.set(deviceId, {
         id: deviceId,
         userId,
