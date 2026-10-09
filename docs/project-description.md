@@ -274,8 +274,9 @@ Every write that matters emits a domain event (`event.published`, `event.updated
    short-lived session tokens. A user id alone never authenticates.
 3. First check-in: the app offers a profile — a display name, or stay anonymous.
 4. Publishers log in on the web with a verified email and password (httpOnly cookie session).
-5. App users sign in on the web by pairing: the web page shows an 8-character code + QR (5 min),
-   the user scans/types it in the app and confirms, the web page's next poll receives a session.
+5. App users sign in on the web by pairing: the app generates an 8-character code (5 min TTL),
+   the user types it on the web `/login-with-code` page, and the browser receives an httpOnly
+   app-user session cookie from `POST /v1/pairing/login`.
 
 Recovery in v1: **device linking** (new phone shows a pairing code, old phone confirms) and an
 optional **recovery email** (one-time code issues a fresh device credential). The email is never

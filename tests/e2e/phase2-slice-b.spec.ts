@@ -140,4 +140,9 @@ test('web pairing sign-in works with generated app code', async ({ page, request
 
   await page.goto(`/login-with-code?code=${encodeURIComponent(codeBody.code)}`);
   await expect(page.getByText(/Inloggad som anvandare|Signed in as user/i)).toBeVisible();
+
+  const meRes = await page.request.get('http://localhost:3000/v1/pairing/me');
+  expect(meRes.ok()).toBeTruthy();
+  const me = (await meRes.json()) as { userId: string };
+  expect(me.userId).toBeTruthy();
 });
