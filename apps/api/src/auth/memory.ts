@@ -229,7 +229,7 @@ export function createMemoryAuthServices(env: AuthEnv = defaultEnv()): AuthServi
         publisherAccountId: accountId,
         publisherId,
         email,
-        ...(env.isProduction ? {} : { verificationToken }),
+        ...(env.includeVerificationToken ? { verificationToken } : {}),
       };
     },
 
@@ -304,5 +304,5 @@ export function createMemoryAuthServices(env: AuthEnv = defaultEnv()): AuthServi
 }
 
 function defaultEnv(): AuthEnv {
-  return { isProduction: false, now: () => new Date() };
+  return { includeVerificationToken: true, now: () => new Date() };
 }

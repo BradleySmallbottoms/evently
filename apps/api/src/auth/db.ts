@@ -28,6 +28,19 @@ function addSeconds(date: Date, seconds: number): Date {
   return new Date(date.getTime() + seconds * 1000);
 }
 
+/** Postgres unique_violation (23505), including drizzle/postgres.js wrappers. */
+function uniqueViolationConstraint(err: unknown): string | undefined {
+  let current: unknown = err;
+  for (let i = 0; i < 4 && current && typeof current === 'object'; i++) {
+    const obj = current as { code?: string; constraint_name?: string; constraint?: string; cause?: unknown };
+    if (obj.code === '23505') {
+      return obj.constraint_name ?? obj.constraint;
+    }
+    current = obj.cause;
+  }
+  return undefined;
+}
+
 export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
   const {
     users,
@@ -161,66 +174,75 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
 
     async registerPublisher(input: RegisterPublisherRequest) {
       const email = normalizeEmail(input.email);
-      const [existing] = await db
-        .select({ id: publisherAccounts.id })
-        .from(publisherAccounts)
-        .where(sql`lower(${publisherAccounts.email}) = ${email}`)
-        .limit(1);
-      if (existing) throw new AuthError('email_taken');
-
       let slug = input.slug ?? slugifyPublisherName(input.name);
-      const [slugTaken] = await db
-        .select({ id: publishers.id })
-        .from(publishers)
-        .where(eq(publishers.slug, slug))
-        .limit(1);
-      if (slugTaken) {
-        if (input.slug) throw new AuthError('slug_taken');
-        slug = `${slug}-${randomUUID().slice(0, 8)}`;
-      }
-
       const passwordHash = await hashPassword(input.password);
       const verificationToken = generateEmailToken();
       const expiresAt = addSeconds(env.now(), EMAIL_VERIFICATION_TTL_SECONDS);
 
-      const created = await db.transaction(async (tx) => {
-        const [account] = await tx
-          .insert(publisherAccounts)
-          .values({ email, passwordHash })
-          .returning({ id: publisherAccounts.id });
-        if (!account) throw new Error('failed to create publisher account');
-        const [publisher] = await tx
-          .insert(publishers)
-          .values({
-            type: input.type,
-            name: input.name,
-            slug,
-            verified: false,
-            origin: 'native',
-            isTemporary: false,
-          })
-          .returning({ id: publishers.id });
-        if (!publisher) throw new Error('failed to create publisher');
-        await tx.insert(publisherMembers).values({
-          publisherId: publisher.id,
-          publisherAccountId: account.id,
-          role: 'owner',
-        });
-        await tx.insert(emailVerificationTokens).values({
-          purpose: 'publisher_email',
-          subjectId: account.id,
-          tokenHash: hashToken(verificationToken),
-          expiresAt,
-        });
-        return { accountId: account.id, publisherId: publisher.id };
-      });
+      try {
+        const created = await db.transaction(async (tx) => {
+          const [existing] = await tx
+            .select({ id: publisherAccounts.id })
+            .from(publisherAccounts)
+            .where(sql`lower(${publisherAccounts.email}) = ${email}`)
+            .limit(1);
+          if (existing) throw new AuthError('email_taken');
 
-      return {
-        publisherAccountId: created.accountId,
-        publisherId: created.publisherId,
-        email,
-        ...(env.isProduction ? {} : { verificationToken }),
-      };
+          const [slugTaken] = await tx
+            .select({ id: publishers.id })
+            .from(publishers)
+            .where(eq(publishers.slug, slug))
+            .limit(1);
+          if (slugTaken) {
+            if (input.slug) throw new AuthError('slug_taken');
+            slug = `${slug}-${randomUUID().slice(0, 8)}`;
+          }
+
+          const [account] = await tx
+            .insert(publisherAccounts)
+            .values({ email, passwordHash })
+            .returning({ id: publisherAccounts.id });
+          if (!account) throw new Error('failed to create publisher account');
+          const [publisher] = await tx
+            .insert(publishers)
+            .values({
+              type: input.type,
+              name: input.name,
+              slug,
+              verified: false,
+              origin: 'native',
+              isTemporary: false,
+            })
+            .returning({ id: publishers.id });
+          if (!publisher) throw new Error('failed to create publisher');
+          await tx.insert(publisherMembers).values({
+            publisherId: publisher.id,
+            publisherAccountId: account.id,
+            role: 'owner',
+          });
+          await tx.insert(emailVerificationTokens).values({
+            purpose: 'publisher_email',
+            subjectId: account.id,
+            tokenHash: hashToken(verificationToken),
+            expiresAt,
+          });
+          return { accountId: account.id, publisherId: publisher.id };
+        });
+
+        return {
+          publisherAccountId: created.accountId,
+          publisherId: created.publisherId,
+          email,
+          ...(env.includeVerificationToken ? { verificationToken } : {}),
+        };
+      } catch (err) {
+        if (err instanceof AuthError) throw err;
+        const constraint = uniqueViolationConstraint(err);
+        if (constraint?.includes('email')) throw new AuthError('email_taken');
+        if (constraint?.includes('slug')) throw new AuthError('slug_taken');
+        if (constraint) throw new AuthError('email_taken');
+        throw err;
+      }
     },
 
     async verifyPublisherEmail(input: VerifyPublisherEmailRequest) {

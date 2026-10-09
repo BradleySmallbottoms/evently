@@ -27,8 +27,14 @@ import { Sentry } from './sentry';
 
 export type CreateAppOptions = {
   auth?: AuthServices;
-  /** Origins allowed for credentialed CORS (web publisher login). */
-  corsOrigins?: string[];
+  /**
+   * Origins allowed for credentialed CORS (web publisher login).
+   * Pass a string list, or a function that returns the reflected Origin (never bare `*`).
+   */
+  corsOrigin?:
+    | string
+    | string[]
+    | ((origin: string) => string | null | undefined | Promise<string | null | undefined>);
 };
 
 /**
@@ -48,7 +54,7 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use(
     '*',
     cors({
-      origin: options.corsOrigins ?? [
+      origin: options.corsOrigin ?? [
         'http://localhost:3100',
         'http://127.0.0.1:3100',
         'http://localhost:8081',

@@ -10,6 +10,17 @@ describe('public api', () => {
     expect(await res.json()).toMatchObject({ status: 'ok', service: 'api' });
   });
 
+  it('reflects Origin when corsOrigin is a reflector (credentials CORS)', async () => {
+    const app = createApp({
+      corsOrigin: (origin) => (origin.length > 0 ? origin : null),
+    });
+    const res = await app.request('/health', {
+      headers: { Origin: 'https://web.example' },
+    });
+    expect(res.headers.get('access-control-allow-origin')).toBe('https://web.example');
+    expect(res.headers.get('access-control-allow-credentials')).toBe('true');
+  });
+
   it('serves the OpenAPI document with identity and publisher routes', async () => {
     const res = await createApp().request('/v1/openapi.json');
     const doc = (await res.json()) as { paths: Record<string, unknown> };
@@ -64,7 +75,7 @@ describe('identity + sessions', () => {
 describe('publisher auth', () => {
   it('registers, verifies email, logs in with a cookie, and returns me', async () => {
     const app = createApp({
-      auth: createMemoryAuthServices({ isProduction: false, now: () => new Date() }),
+      auth: createMemoryAuthServices({ includeVerificationToken: true, now: () => new Date() }),
     });
 
     const registered = await app.request('/v1/publishers/register', {

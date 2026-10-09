@@ -18,7 +18,8 @@ export function resolveDatabaseUrl(
   const database = env.DB_NAME;
   if (!host || !user || !password || !database) return undefined;
   const port = env.DB_PORT ?? '5432';
-  return `postgres://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${database}`;
+  // RDS requires TLS (force_ssl); local Docker uses DATABASE_URL without sslmode.
+  return `postgres://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${database}?sslmode=require`;
 }
 
 export function createDb(url = resolveDatabaseUrl()) {

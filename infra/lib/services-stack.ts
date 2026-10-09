@@ -119,6 +119,8 @@ export class ServicesStack extends Stack {
       PRIVATE_FILES_BUCKET: props.data.privateFilesBucket.bucketName,
       RAW_INGESTION_BUCKET: props.data.rawIngestionBucket.bucketName,
       SENTRY_ENVIRONMENT: props.envName,
+      // Reflect request Origin until EdgeStack pins known web hosts (credentials CORS).
+      ...(props.envName !== 'prod' ? { CORS_ORIGINS: '*', INCLUDE_VERIFICATION_TOKEN: 'true' } : {}),
     };
 
     const cpu = isProd ? 512 : 256;
@@ -151,7 +153,7 @@ export class ServicesStack extends Stack {
     apiTask.addContainer('api', {
       image: ecs.ContainerImage.fromEcrRepository(this.apiRepository, imageTag),
       logging: ecs.LogDrivers.awsLogs({ streamPrefix: 'api', logRetention }),
-      environment: { ...commonEnvironment, API_PORT: '3000', CORS_ORIGINS: '*' },
+      environment: { ...commonEnvironment, API_PORT: '3000' },
       secrets: commonSecrets,
       portMappings: [{ containerPort: 3000 }],
       healthCheck: {

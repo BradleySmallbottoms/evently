@@ -45,7 +45,10 @@ export type AuthServices = {
 };
 
 export type AuthEnv = {
-  /** When false, registration responses include the verification token (local/dev). */
-  isProduction: boolean;
+  /**
+   * When true, registration responses include the email verification token.
+   * Used locally and on AWS until SES delivers the link (set INCLUDE_VERIFICATION_TOKEN).
+   */
+  includeVerificationToken: boolean;
   now: () => Date;
 };

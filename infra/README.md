@@ -18,6 +18,9 @@ pnpm --filter @local-events/infra deploy -c env=dev -c imageTag=$(git rev-parse 
 
 Still planned: `DataWorkersStack` (EventBridge schedules), `EdgeStack` (CloudFront + WAF).
 
+Non-prod API tasks set `CORS_ORIGINS=*` (reflect Origin; required with credentialed cookies) and
+`INCLUDE_VERIFICATION_TOKEN=true` until SES sends verification links. Tighten both before prod.
+
 ## First-time AWS setup
 
 1. Bootstrap the account: `pnpm --filter @local-events/infra exec cdk bootstrap aws://ACCOUNT/eu-north-1`
