@@ -16,6 +16,7 @@ changes, update this file, `project-description.md` and `build-plan.md` together
 | Imported events           | Per-source trust level; new sources start in review. Unknown organizers get a temporary publisher that admins re-map or complete.                                                                            |
 | Who can publish           | Anyone can register; events from unverified publishers stay hidden and are never pushed until an admin verifies the publisher. Upcoming events are then released; ended ones stay hidden.                    |
 | Users                     | Anonymous by default, no registration. Profile (name or anonymous) offered at first check-in. Web login only for publishers or app users pairing via code.                                                   |
+| Nearby push rules         | Match active notify areas (circle `ST_DWithin` / polygon `ST_Covers`) ∩ interest overlap (empty interests = no nearby push). Cap 5/day per user. Quiet hours default 22:00–08:00 in `Europe/Stockholm` (per-user override columns on `users`). Quiet-hours skips drop that publish for the user in v1 (no deferred send). Digital events without a point skip nearby but still notify publisher followers. Fan-out capped at 500 candidates per path per event. |
 
 ## Architecture
 
@@ -28,6 +29,7 @@ changes, update this file, `project-description.md` and `build-plan.md` together
 | UI kit       | Material UI (`@mui/material` + `@mui/material-nextjs`) on `apps/web` and `apps/admin`. Mobile uses custom RN screens plus `@expo/ui` (universal BottomSheet/etc.) and SwiftUI overlays (`ConfirmationDialog`, `ContextMenu`, `DatePicker`, `Alert`) for system chrome — not React Native Paper / Gluestack. |
 | Monorepo     | pnpm workspaces + Turborepo; Expo (mobile), Next.js (web, admin).                                                                                                   |
 | Database     | PostgreSQL + PostGIS on RDS; Drizzle ORM. Geography columns are plain `geography` because drizzle-kit quotes constrained type names.                                |
+| Local queues | ElasticMQ in Docker Compose as the SQS stand-in (`domain-events` + DLQ). Same `@aws-sdk/client-sqs` clients; `AWS_ENDPOINT_URL_SQS` + `DOMAIN_EVENTS_QUEUE_URL` point at localhost. Real SQS in AWS. |
 
 ## Risk mitigations (reviewed, kept as proposed)
 

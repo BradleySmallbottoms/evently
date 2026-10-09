@@ -3,7 +3,9 @@ import {
   ReceiveMessageCommand,
   SQSClient,
 } from '@aws-sdk/client-sqs';
-import { processMessage } from './handlers';
+import { createDb, resolveDatabaseUrl } from '@local-events/db';
+import { processMessage, type HandlerContext } from './handlers';
+import { createExpoPushClient } from './notify/expo-push';
 import { initSentry, Sentry } from './sentry';
 
 initSentry('worker');
@@ -12,8 +14,36 @@ const queueUrl = process.env.DOMAIN_EVENTS_QUEUE_URL?.trim();
 const region = process.env.AWS_REGION ?? 'eu-north-1';
 const waitTimeSeconds = Number(process.env.SQS_WAIT_TIME_SECONDS ?? 20);
 const maxMessages = Number(process.env.SQS_MAX_MESSAGES ?? 10);
+const databaseUrl = resolveDatabaseUrl();
+const sqsEndpoint =
+  process.env.AWS_ENDPOINT_URL_SQS?.trim() || process.env.AWS_ENDPOINT_URL?.trim() || undefined;
 
-async function pollOnce(client: SQSClient): Promise<void> {
+function createSqsClient(): SQSClient {
+  return new SQSClient({
+    region,
+    ...(sqsEndpoint
+      ? {
+          endpoint: sqsEndpoint,
+          credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? 'test',
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? 'test',
+          },
+        }
+      : {}),
+  });
+}
+
+function buildHandlerContext(): HandlerContext {
+  if (!databaseUrl) return {};
+  return {
+    notify: {
+      db: createDb(databaseUrl),
+      expo: createExpoPushClient(),
+    },
+  };
+}
+
+async function pollOnce(client: SQSClient, ctx: HandlerContext): Promise<void> {
   const res = await client.send(
     new ReceiveMessageCommand({
       QueueUrl: queueUrl,
@@ -25,7 +55,7 @@ async function pollOnce(client: SQSClient): Promise<void> {
   for (const message of res.Messages ?? []) {
     if (!message.Body || !message.ReceiptHandle) continue;
     try {
-      const type = await processMessage(message.Body);
+      const type = await processMessage(message.Body, ctx);
       await client.send(
         new DeleteMessageCommand({
           QueueUrl: queueUrl,
@@ -43,18 +73,30 @@ async function pollOnce(client: SQSClient): Promise<void> {
 async function main() {
   if (!queueUrl) {
     console.log('worker idle: DOMAIN_EVENTS_QUEUE_URL not set');
-    // Keep process alive in ECS/dev so the service does not crash-loop.
     await new Promise(() => {
       /* never resolves */
     });
     return;
   }
 
-  const client = new SQSClient({ region });
-  console.log(JSON.stringify({ worker: 'started', queueUrl, region }));
+  if (!databaseUrl) {
+    console.warn('DATABASE_URL not set; worker will acknowledge events without sending push');
+  }
+
+  const ctx = buildHandlerContext();
+  const client = createSqsClient();
+  console.log(
+    JSON.stringify({
+      worker: 'started',
+      region,
+      endpoint: sqsEndpoint ?? 'aws',
+      notify: Boolean(ctx.notify),
+      queueConfigured: true,
+    }),
+  );
   for (;;) {
     try {
-      await pollOnce(client);
+      await pollOnce(client, ctx);
     } catch (err) {
       Sentry.captureException(err);
       console.error('poll failed', err);

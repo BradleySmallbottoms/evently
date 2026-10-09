@@ -13,7 +13,7 @@ Read before larger changes:
 
 ```bash
 pnpm install
-pnpm db:up                 # Postgres + PostGIS + Valkey in Docker
+pnpm db:up                 # Postgres + PostGIS + Valkey + ElasticMQ (local SQS) in Docker
 pnpm db:migrate            # apply migrations (packages/db/migrations)
 pnpm typecheck             # all workspaces
 pnpm test                  # vitest in all workspaces

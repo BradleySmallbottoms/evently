@@ -1,16 +1,17 @@
 # Push token registration + domain events
 
 Mobile registers an Expo push token on the device row. Publishing a verified event enqueues
-`event.published` for the worker (SQS in AWS; in-process memory locally when the queue URL is
-unset). Geo matching and Expo delivery are the next Phase 3 slice — the worker currently logs
-receipt only.
+`event.published` for the worker (SQS in AWS; ElasticMQ locally via `DOMAIN_EVENTS_QUEUE_URL`;
+in-process memory when the queue URL is unset). The worker matches nearby users (areas ∩
+interests), applies quiet hours and a daily cap, then sends Expo push and records a
+`notifications` row.
 
 ```mermaid
 sequenceDiagram
   participant Mobile
   participant API
   participant DB
-  participant Queue as SQS / memory
+  participant Queue as SQS / ElasticMQ / memory
   participant Worker
 
   Mobile->>API: PUT /v1/me/push-token<br/>Bearer session + deviceCredential + expoPushToken
@@ -21,7 +22,8 @@ sequenceDiagram
   API->>DB: events.status = published
   API->>Queue: { type: event.published, eventId } (best-effort after write)
   Worker->>Queue: long-poll ReceiveMessage
-  Worker-->>Worker: processMessage (log stub today)
+  Worker->>DB: PostGIS match + claim notifications
+  Worker->>Worker: Expo Push API (batches of 100)
   Worker->>Queue: DeleteMessage
 ```
 

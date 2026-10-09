@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
+/** Isolated e2e API (see playwright.config.ts) — never the `pnpm dev` :3000 instance. */
+const API = process.env.E2E_API_ORIGIN ?? 'http://localhost:3090';
+
 const NEXT_REACT_CONSOLE_WARNING =
   /(next\.?js|react|hydration|did not match|text content does not match|rendered more hooks|cannot update a component while rendering|minified react error)/i;
 const NEXT_INSTANT_VALIDATION_NOISE =
@@ -52,7 +55,7 @@ function tsPlusMinutes(minutes: number): string {
 test('publisher event flow is visible in web workspace', async ({ page, request, context }) => {
   const email = `e2e-publisher-${Date.now()}@example.com`;
   const password = 'long-enough-password';
-  const registerRes = await request.post('http://localhost:3000/v1/publishers/register', {
+  const registerRes = await request.post(`${API}/v1/publishers/register`, {
     data: { email, password, name: 'E2E Arrangor', type: 'org' },
   });
   expect(registerRes.ok()).toBeTruthy();
@@ -62,12 +65,12 @@ test('publisher event flow is visible in web workspace', async ({ page, request,
   };
   expect(registered.verificationToken).toBeTruthy();
 
-  const verifyRes = await request.post('http://localhost:3000/v1/publishers/verify-email', {
+  const verifyRes = await request.post(`${API}/v1/publishers/verify-email`, {
     data: { token: registered.verificationToken },
   });
   expect(verifyRes.ok()).toBeTruthy();
 
-  const loginRes = await request.post('http://localhost:3000/v1/publishers/login', {
+  const loginRes = await request.post(`${API}/v1/publishers/login`, {
     data: { email, password },
   });
   expect(loginRes.ok()).toBeTruthy();
@@ -83,18 +86,18 @@ test('publisher event flow is visible in web workspace', async ({ page, request,
     {
       name: cookieName!,
       value: cookieValue!,
-      url: 'http://localhost:3000',
+      url: API,
     },
   ]);
 
-  const categoriesRes = await request.get('http://localhost:3000/v1/categories');
+  const categoriesRes = await request.get(`${API}/v1/categories`);
   expect(categoriesRes.ok()).toBeTruthy();
   const categories = (await categoriesRes.json()) as { items: { id: string }[] };
   const categoryId = categories.items[0]?.id;
   expect(categoryId).toBeTruthy();
 
   const createRes = await request.post(
-    `http://localhost:3000/v1/publishers/${registered.publisherId}/events`,
+    `${API}/v1/publishers/${registered.publisherId}/events`,
     {
       headers: { cookie: sessionPair },
       data: {
@@ -113,7 +116,7 @@ test('publisher event flow is visible in web workspace', async ({ page, request,
   const created = (await createRes.json()) as { id: string };
 
   const publishRes = await request.post(
-    `http://localhost:3000/v1/manage/events/${created.id}/publish`,
+    `${API}/v1/manage/events/${created.id}/publish`,
     { headers: { cookie: sessionPair } },
   );
   expect(publishRes.ok()).toBeTruthy();
@@ -126,13 +129,13 @@ test('publisher event flow is visible in web workspace', async ({ page, request,
 });
 
 test('web pairing sign-in works with generated app code', async ({ page, request }) => {
-  const identityRes = await request.post('http://localhost:3000/v1/identities', {
+  const identityRes = await request.post(`${API}/v1/identities`, {
     data: { platform: 'web', locale: 'sv' },
   });
   expect(identityRes.ok()).toBeTruthy();
   const identity = (await identityRes.json()) as { deviceCredential: string };
 
-  const codeRes = await request.post('http://localhost:3000/v1/pairing/code', {
+  const codeRes = await request.post(`${API}/v1/pairing/code`, {
     data: { deviceCredential: identity.deviceCredential },
   });
   expect(codeRes.ok()).toBeTruthy();
@@ -141,7 +144,7 @@ test('web pairing sign-in works with generated app code', async ({ page, request
   await page.goto(`/login-with-code?code=${encodeURIComponent(codeBody.code)}`);
   await expect(page.getByText(/Inloggad som anvandare|Signed in as user/i)).toBeVisible();
 
-  const meRes = await page.request.get('http://localhost:3000/v1/pairing/me');
+  const meRes = await page.request.get(`${API}/v1/pairing/me`);
   expect(meRes.ok()).toBeTruthy();
   const me = (await meRes.json()) as { userId: string };
   expect(me.userId).toBeTruthy();

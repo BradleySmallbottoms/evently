@@ -1,7 +1,7 @@
 /**
  * Schema covering identity, publishers, events, preferences and ingestion.
  * The full model is in docs/project-description.md (Data model); add the remaining tables
- * (check-ins, ratings, subscriptions, notifications, stats, regions, ...) as each phase needs them.
+ * (check-ins, ratings, subscriptions, stats, ...) as each phase needs them.
  * Spatial indexes (GiST) are declared with `.using('gist', ...)`.
  */
 import { sql } from 'drizzle-orm';
@@ -44,6 +44,13 @@ export const sourceTrust = pgEnum('source_trust', ['auto_publish', 'review']);
 export const userAreaKind = pgEnum('user_area_kind', ['manual', 'region']);
 export const userAreaOrigin = pgEnum('user_area_origin', ['manual', 'suggested']);
 export const regionKind = pgEnum('region_kind', ['municipality', 'county']);
+/** Why a push was sent — `nearby` first; publisher/event follows come later. */
+export const notificationReason = pgEnum('notification_reason', [
+  'nearby',
+  'publisher',
+  'event',
+]);
+export const subscriptionTarget = pgEnum('subscription_target', ['publisher', 'event']);
 
 // ---------- identity ----------
 export const users = pgTable('users', {
@@ -52,6 +59,12 @@ export const users = pgTable('users', {
   isPublic: boolean('is_public').notNull().default(false),
   recoveryEmail: text('recovery_email'),
   recoveryEmailVerifiedAt: timestamp('recovery_email_verified_at', { withTimezone: true }),
+  /** IANA timezone for quiet-hours evaluation (launch default: Sweden). */
+  timezone: text('timezone').notNull().default('Europe/Stockholm'),
+  /** Minutes from local midnight; window wraps midnight when start ≥ end. */
+  quietHoursStartMin: integer('quiet_hours_start_min').notNull().default(22 * 60),
+  quietHoursEndMin: integer('quiet_hours_end_min').notNull().default(8 * 60),
+  quietHoursEnabled: boolean('quiet_hours_enabled').notNull().default(true),
   createdAt: createdAt(),
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
 });
@@ -311,6 +324,49 @@ export const eventCategories = pgTable(
       .references(() => categories.id),
   },
   (t) => [primaryKey({ columns: [t.eventId, t.categoryId] })],
+);
+
+/**
+ * User follows for push: publisher (on publish) or event (on meaningful update).
+ */
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    targetType: subscriptionTarget('target_type').notNull(),
+    targetId: uuid('target_id').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.targetType, t.targetId] }),
+    index('subscriptions_user_id_idx').on(t.userId),
+    index('subscriptions_target_idx').on(t.targetType, t.targetId),
+  ],
+);
+
+/**
+ * Sent push notifications — dedupe + daily-cap accounting.
+ * Unique on (user, event, reason) so SQS at-least-once retries stay idempotent.
+ */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    reason: notificationReason('reason').notNull(),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('notifications_user_event_reason_idx').on(t.userId, t.eventId, t.reason),
+    index('notifications_user_sent_at_idx').on(t.userId, t.sentAt),
+  ],
 );
 
 // ---------- ingestion ----------

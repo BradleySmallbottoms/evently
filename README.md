@@ -12,9 +12,9 @@ external sources. Launch area: Söderhamn and Gävleborgs län. Languages: Swedi
 
 ## Status
 
-Phase 3 (Discovery + notifications) is underway. Interests, saved areas, region suggestions,
-push-token registration, and SQS → worker wiring are in place. Geo matching, Expo send,
-subscriptions, caps, and quiet hours remain.
+Phase 3 (Discovery + notifications) is largely in place: nearby push, caps/quiet hours, Expo send,
+and publisher/event follow APIs (event.updated debounce still TODO). Closed-beta exit for this
+phase: a matching phone gets a push within about a minute of publish.
 
 ## Prerequisites
 
@@ -30,7 +30,7 @@ subscriptions, caps, and quiet hours remain.
 corepack enable
 pnpm install
 cp .env.example .env
-pnpm db:up          # Postgres + PostGIS + Valkey in Docker
+pnpm db:up          # Postgres + PostGIS + Valkey + ElasticMQ (local SQS) in Docker
 pnpm db:migrate     # apply packages/db/migrations
 pnpm typecheck
 pnpm test
@@ -104,10 +104,15 @@ calls) in the same change as every new major feature.**
 
 - Mobile calls `PUT /v1/me/push-token` with Bearer session + `deviceCredential` + Expo token after
   identity is ready (no-op on web / denied permission).
+- Local queues: `pnpm db:up` starts **ElasticMQ** (SQS-compatible) on `:9324` (UI `:9325`). Copy
+  `DOMAIN_EVENTS_QUEUE_URL` / `AWS_ENDPOINT_URL_SQS` from `.env.example`. Queue definitions live in
+  `infra/local/elasticmq.conf` (add new queues there as consumers appear).
 - Publishing a **`published`** event (or admin verify releasing one) enqueues
-  `{ type: 'event.published', eventId }` best-effort after the DB write. Set
-  `DOMAIN_EVENTS_QUEUE_URL` for SQS; without it APIs keep events in-process and the worker idles.
-  Worker handlers currently log only — matching/Expo send is next. Flow:
+  `{ type: 'event.published', eventId }` best-effort after the DB write. Without
+  `DOMAIN_EVENTS_QUEUE_URL`, APIs keep events in-process and the worker idles.
+- Worker fan-out: nearby (areas ∩ interests) + publisher followers, quiet hours (default
+  22:00–08:00 Stockholm), 5/day cap, Expo Push, `notifications` dedupe. Follow via
+  `POST /v1/me/subscriptions`. Needs `DATABASE_URL` on the worker. Flow:
   [docs/flows/push-and-domain-events.md](docs/flows/push-and-domain-events.md).
 
 ### Frontend structure
@@ -126,6 +131,17 @@ calls) in the same change as every new major feature.**
 | Web        | 3100 |
 | Admin      | 3200 |
 | Mobile web | 8081 |
+| E2E API    | 3090 |
+| E2E web    | 3190 |
+
+### E2E vs local data
+
+- Vitest uses in-memory stores — never touches Postgres.
+- Playwright (`pnpm test:e2e`) starts its own API/web on **3090/3190** against the disposable
+  `events_e2e` database (created by `pnpm db:e2e:setup`). It does **not** reuse `pnpm dev` on
+  :3000/:3100, so your day-to-day `events` DB stays clean. Wipe e2e data anytime with
+  `docker compose exec postgres psql -U events -c 'DROP DATABASE events_e2e'` then
+  `pnpm db:e2e:setup`.
 
 ## Scripts
 
@@ -135,7 +151,8 @@ calls) in the same change as every new major feature.**
 | `pnpm build`                           | Builds all apps (esbuild bundles for the Node services) |
 | `pnpm typecheck`                       | TypeScript in every workspace                           |
 | `pnpm test`                            | Vitest in every workspace                               |
-| `pnpm test:e2e`                        | Playwright Phase 2 smoke (web + API)                    |
+| `pnpm db:e2e:setup`                    | Create/migrate disposable `events_e2e` DB for Playwright |
+| `pnpm test:e2e`                        | Playwright smoke against `events_e2e` (ports 3090/3190) |
 | `pnpm format` / `pnpm format:check`    | Prettier                                                |
 | `pnpm db:up` / `pnpm db:down`          | Start/stop local Postgres + Valkey                      |
 | `pnpm db:generate` / `pnpm db:migrate` | Create / apply Drizzle migrations                       |

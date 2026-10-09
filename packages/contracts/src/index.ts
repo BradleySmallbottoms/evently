@@ -50,3 +50,4 @@ export * from './domain-events';
 export * from './events';
 export * from './preferences';
 export * from './regions';
+export * from './subscriptions';

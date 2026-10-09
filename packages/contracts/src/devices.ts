@@ -1,9 +1,13 @@
 import { z } from 'zod';
 
 export const RegisterPushTokenRequest = z.object({
-  deviceCredential: z.string().min(1),
-  /** Expo push token, e.g. ExponentPushToken[…]. */
-  expoPushToken: z.string().min(1).max(512),
+  deviceCredential: z.string().min(1).max(512),
+  /** Expo push token, e.g. ExponentPushToken[…] or ExpoPushToken[…]. */
+  expoPushToken: z
+    .string()
+    .min(1)
+    .max(512)
+    .regex(/^(ExponentPushToken|ExpoPushToken)\[[^\]]+\]$/),
 });
 export type RegisterPushTokenRequest = z.infer<typeof RegisterPushTokenRequest>;
 

@@ -97,6 +97,13 @@ export type MemoryEventRow = Event & {
 };
 
 /** Shared in-memory tables for auth + events + admin tests. */
+export type MemorySubscription = {
+  userId: string;
+  targetType: 'publisher' | 'event';
+  targetId: string;
+  createdAt: Date;
+};
+
 export type MemoryStore = {
   users: Map<string, MemoryUser>;
   devices: Map<string, MemoryDevice>;
@@ -111,6 +118,7 @@ export type MemoryStore = {
   tokens: Map<string, MemoryToken>;
   categories: Map<string, Category>;
   events: Map<string, MemoryEventRow>;
+  subscriptions: MemorySubscription[];
 };
 
 /** Fixed UUIDs matching packages/db seed migration for regions. */
@@ -149,5 +157,6 @@ export function createMemoryStore(): MemoryStore {
     tokens: new Map(),
     categories,
     events: new Map(),
+    subscriptions: [],
   };
 }

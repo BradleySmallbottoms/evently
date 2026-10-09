@@ -29,7 +29,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Monorepo scaffold (pnpm + Turborepo), shared tsconfig, Prettier, CI workflow
 - [x] Starter packages: `contracts`, `geo`, `domain`, `auth`, `ingest`, `db`
 - [x] API, admin API, worker and data-workers skeletons with tests and Dockerfiles
-- [x] Docker Compose for Postgres + PostGIS and Valkey; first migrations
+- [x] Docker Compose for Postgres + PostGIS, Valkey, and ElasticMQ (local SQS); first migrations
 - [x] CDK app with network stack
 - [x] Create `apps/mobile`, `apps/web`, `apps/admin` (see `apps/README.md`)
 - [x] i18n setup on all three frontends: Swedish default, English
@@ -56,7 +56,8 @@ Closed beta around week 15, store launch around week 19.
 - [x] Interests, saved areas (radius and polygon)
 - [x] Region suggestions + region subscriptions (municipality boundaries seeded into `regions`)
 - [x] Push token registration; SQS + worker wired up
-- [ ] Geo matching, publisher and event subscriptions, caps and quiet hours
+- [x] Geo matching, caps and quiet hours (nearby Expo push via worker)
+- [x] Publisher and event subscriptions (follow API + publisher merge on publish; event.updated debounce later)
 - **Exit:** publishing an event pushes a notification to a matching phone within one minute.
 
 ## Phase 4 — Check-in + attendee content (weeks 10–13)

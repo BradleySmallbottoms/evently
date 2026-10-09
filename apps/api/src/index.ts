@@ -11,6 +11,8 @@ import { createDbPreferenceServices } from './services/preferences/db';
 import { createMemoryPreferenceServices } from './services/preferences/memory';
 import { createDbRegionServices } from './services/regions/db';
 import { createMemoryRegionServices } from './services/regions/memory';
+import { createDbSubscriptionServices } from './services/subscriptions/db';
+import { createMemorySubscriptionServices } from './services/subscriptions/memory';
 import { createMemoryStore } from './services/memory-store';
 import { initSentry } from './sentry';
 
@@ -49,7 +51,7 @@ const domainEvents = queueUrl
   : createMemoryDomainEventPublisher();
 const eventEnvWithQueue = { ...eventEnv, domainEvents };
 
-const { auth, events, preferences, regions } = (() => {
+const { auth, events, preferences, regions, subscriptions } = (() => {
   if (databaseUrl) {
     const db = createDb(databaseUrl);
     const authServices = createDbAuthServices(db, authEnv);
@@ -58,6 +60,7 @@ const { auth, events, preferences, regions } = (() => {
       events: createDbEventServices(db, authServices, eventEnvWithQueue),
       preferences: createDbPreferenceServices(db, authServices, preferenceEnv),
       regions: createDbRegionServices(db),
+      subscriptions: createDbSubscriptionServices(db, authServices),
     };
   }
   const store = createMemoryStore();
@@ -67,6 +70,7 @@ const { auth, events, preferences, regions } = (() => {
     events: createMemoryEventServices(authServices, eventEnvWithQueue, store),
     preferences: createMemoryPreferenceServices(authServices, preferenceEnv, store),
     regions: createMemoryRegionServices(store),
+    subscriptions: createMemorySubscriptionServices(authServices, store),
   };
 })();
 
@@ -80,7 +84,7 @@ if (!databaseUrl) {
 
 serve(
   {
-    fetch: createApp({ auth, events, preferences, regions, corsOrigin }).fetch,
+    fetch: createApp({ auth, events, preferences, regions, subscriptions, corsOrigin }).fetch,
     port,
   },
   (info) => {

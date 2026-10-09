@@ -24,4 +24,4 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Publisher profiles & member invites | [publisher-invites.md](./publisher-invites.md) |
 | User interests & saved areas | [user-preferences.md](./user-preferences.md) |
 | Region suggestions | [region-suggestions.md](./region-suggestions.md) |
-| Push token + domain events (SQS → worker) | [push-and-domain-events.md](./push-and-domain-events.md) |
+| Push token, nearby match, subscriptions (SQS → worker) | [push-and-domain-events.md](./push-and-domain-events.md) |

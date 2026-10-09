@@ -3,6 +3,7 @@ import type { AuthServices } from '../services/auth/types';
 import type { EventServices } from '../services/events/types';
 import type { PreferenceServices } from '../services/preferences/types';
 import type { RegionServices } from '../services/regions/types';
+import type { SubscriptionServices } from '../services/subscriptions/types';
 import { registerCategoryRoutes } from './categories';
 import { registerEventRoutes } from './events';
 import { registerIdentityRoutes } from './identities';
@@ -11,12 +12,14 @@ import { registerPairingRoutes } from './pairing';
 import { registerPublisherRoutes } from './publishers';
 import { registerRegionRoutes } from './regions';
 import { registerSessionRoutes } from './sessions';
+import { registerSubscriptionRoutes } from './subscriptions';
 
 export type ApiRouteServices = {
   auth: AuthServices;
   events: EventServices;
   preferences: PreferenceServices;
   regions: RegionServices;
+  subscriptions: SubscriptionServices;
 };
 
 /**
@@ -29,6 +32,7 @@ export function registerRoutes(app: OpenAPIHono, services: ApiRouteServices): vo
   registerPairingRoutes(app, services.auth);
   registerPublisherRoutes(app, services.auth);
   registerMeRoutes(app, services.preferences, services.auth);
+  registerSubscriptionRoutes(app, services.subscriptions);
   registerRegionRoutes(app, services.regions);
   registerCategoryRoutes(app, services.events);
   registerEventRoutes(app, services.events);

@@ -1,4 +1,4 @@
-# Local dependencies: PostgreSQL + PostGIS and Valkey.
+# Local dependencies: PostgreSQL + PostGIS, Valkey, and ElasticMQ (SQS-compatible).
 # Official postgis/postgis is amd64-only; imresamu/postgis is the multi-arch mirror
 # (arm64 Macs included). Same tags as postgis/postgis — bump together when updating.
 services:
@@ -12,10 +12,21 @@ services:
       - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./infra/local/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./infra/local/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      # Disposable Playwright DB (same instance; not used by pnpm dev).
+      - ./infra/local/02-e2e-db.sh:/docker-entrypoint-initdb.d/02-e2e-db.sh:ro
   valkey:
     image: valkey/valkey:8
     ports:
       - '6379:6379'
+  # SQS stand-in for domain events (+ DLQ). Same AWS SDK clients as prod; point
+  # DOMAIN_EVENTS_QUEUE_URL + AWS_ENDPOINT_URL_SQS at this host (see .env.example).
+  elasticmq:
+    image: softwaremill/elasticmq-native:1.6.12
+    ports:
+      - '9324:9324' # SQS API
+      - '9325:9325' # stats / queue UI
+    volumes:
+      - ./infra/local/elasticmq.conf:/opt/elasticmq.conf:ro
 volumes:
   pgdata:

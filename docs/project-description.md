@@ -176,7 +176,7 @@ TypeScript end to end, so schemas, validation and API types are shared across ev
 | ORM / migrations       | Drizzle ORM + drizzle-kit                                                                                    | Typed SQL, good PostGIS escape hatches                                  |
 | Database               | PostgreSQL + PostGIS (Amazon RDS)                                                                            | Geo queries (radius, polygon, geofence) with GiST indexes               |
 | Cache / rate limiting  | ElastiCache (Valkey)                                                                                         | Feed caching, rate limits, check-in throttling                          |
-| Async jobs             | Amazon SQS (+ DLQ) and a worker service                                                                      | Notification fan-out, stats, media processing                           |
+| Async jobs             | Amazon SQS (+ DLQ) and a worker service; ElasticMQ locally via Docker Compose                                | Notification fan-out, stats, media processing                           |
 | Scheduling             | EventBridge Scheduler                                                                                        | Event start/end triggers, rating prompts, source runs                   |
 | Data workers           | Node.js container per run on ECS Fargate, one adapter per source                                             | Small, scheduled, pay per run; same domain code as the APIs             |
 | Fetching and parsing   | fetch for APIs, ical.js for ICS, a feed parser for RSS, Cheerio for HTML, Playwright only when unavoidable   | Cheapest tool per source; browser image kept separate                   |
@@ -230,7 +230,7 @@ starter subset; the rest is added phase by phase.
 
 | Entity                                         | Key fields                                                                                                                                                                                                                                        | Notes                                                                                    |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `users`                                        | id, display_name (nullable), is_public (default false), recovery_email (nullable), recovery_email_verified_at, created_at, last_seen_at                                                                                                           | Created on first app launch; a profile only adds a name and visibility                   |
+| `users`                                        | id, display_name (nullable), is_public (default false), recovery_email (nullable), recovery_email_verified_at, timezone (default Europe/Stockholm), quiet_hours_start_min / end_min / enabled, created_at, last_seen_at                            | Created on first app launch; a profile only adds a name and visibility; quiet hours gate pushes |
 | `devices`                                      | id, user_id, credential_hash, expo_push_token, platform, locale, last_seen_at                                                                                                                                                                     | The app's identity credential; pruned on push receipt errors                             |
 | `sessions`                                     | id, subject_type (user / publisher_account / admin), subject_id, token_hash, client (app / web / admin), expires_at, revoked_at                                                                                                                   | Opaque tokens, hashed at rest, revocable                                                 |
 | `web_login_codes`                              | id, code_hash, purpose (web_login / device_link), browser_label, status, user_id, device_id (device_link), expires_at                                                                                                                               | 5-minute TTL, single use; device_id is the device remapped on confirm                    |
@@ -251,11 +251,11 @@ starter subset; the rest is added phase by phase.
 | `user_interests`                               | user_id, category_id                                                                                                                                                                                                                              | What the user wants notifications for                                                    |
 | `user_areas`                                   | id, user_id, name, kind (manual / region), origin (manual / suggested), region_id, area, center, radius_m, notify, active                                                                                                                         | Circle, drawn polygon, or region subscription                                            |
 | `regions`                                      | id, name, kind (municipality / county), code, boundary                                                                                                                                                                                            | Launch: simplified Söderhamn/Gävleborg fixtures; replace with open Swedish boundary data later |
-| `subscriptions`                                | user_id, target_type (publisher / event), target_id, created_at                                                                                                                                                                                   | Unique on (user, target)                                                                 |
+| `subscriptions`                                | user_id, target_type (publisher / event), target_id, created_at                                                                                                                                                                                   | PK (user, target_type, target_id); publisher follows notify on publish                   |
 | `check_ins`                                    | id, user_id, event_id, method (geo / code), lat, lng, accuracy_m, device_flags, created_at                                                                                                                                                        | Unique on (user, event); source of truth for attendance                                  |
 | `ratings`                                      | user_id, event_id, score 1–5, comment, created_at                                                                                                                                                                                                 | Requires a check-in; comment only from named profiles                                    |
 | `digital_codes`                                | event_id, secret, revealed_at, rotation_s                                                                                                                                                                                                         | Secret seeds rotating codes; never sent to attendees                                     |
-| `notifications`                                | id, user_id, event_id, reason, sent_at                                                                                                                                                                                                            | Dedupe and frequency caps                                                                |
+| `notifications`                                | id, user_id, event_id, reason (nearby / publisher / event), sent_at                                                                                                                                                                               | Unique (user, event, reason); dedupe + daily-cap accounting                              |
 | `data_sources`                                 | id, slug, kind (api / feed / scraper), schedule, config, trust (auto_publish / review), enabled                                                                                                                                                   | One row per source; secrets referenced, not stored                                       |
 | `ingestion_runs`                               | id, source_id, started_at, finished_at, status, fetched, created, updated, skipped, error                                                                                                                                                         | Run history shown in admin                                                               |
 | `external_refs`                                | source_id, external_id, event_id, content_hash, last_seen_at                                                                                                                                                                                      | Unique on (source, external_id); unchanged hash = skip                                   |
@@ -291,10 +291,13 @@ Any linked device can be revoked.
 
 1. Publisher publishes. From an unverified publisher the event is stored as
    `awaiting_verification` and nothing is enqueued; otherwise the API enqueues `event.published`.
-2. The worker finds matching users in one PostGIS query: active area or region covers the event
-   point (`ST_Covers` / `ST_DWithin`), interests overlap, user is not the publisher.
-3. Merge publisher subscribers, dedupe against `notifications`, per-user cap (e.g. 5/day), quiet hours.
-4. Send in batches of 100 via Expo Push; read receipts to drop dead tokens.
+2. The worker finds matching users in one PostGIS query: active notify area covers the event
+   point (`ST_Covers` on polygon/region, `ST_DWithin` on circle), interests overlap (empty
+   interests → no nearby push). Digital events without a location are skipped here.
+3. Dedupe against `notifications`, per-user cap (5/day local calendar), quiet hours
+   (default 22:00–08:00 `Europe/Stockholm`). Publisher/event subscribers merge in when follows ship.
+4. Claim a `notifications` row, send in batches of 100 via Expo Push; clear tokens on
+   `DeviceNotRegistered`. Receipt polling to prune dead tokens is later.
 
 Areas are saved places, not live tracking.
 
@@ -315,9 +318,11 @@ visited region. The check runs on the device; the location only leaves the phone
 
 ### Subscriptions
 
-- Publisher subscription: notified on `event.published` from that publisher.
-- Event subscription: notified on meaningful `event.updated` changes (time, venue, cancellation,
-  new attendee content), debounced 10 minutes.
+- `POST/GET/DELETE /v1/me/subscriptions` — follow a publisher or a published event.
+- Publisher subscription: notified on `event.published` from that publisher (merged with nearby;
+  nearby reason wins if both match).
+- Event subscription: stored now; notified on meaningful `event.updated` changes (time, venue,
+  cancellation, new attendee content), debounced 10 minutes — handler still TODO.
 
 ### Physical check-in
 
