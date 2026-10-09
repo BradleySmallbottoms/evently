@@ -142,9 +142,15 @@ Code conventions
 
 Git / commits
 
-- **Never create a git commit without the user's explicit permission** in that turn (e.g. “commit”,
-  “commit this”, “create a commit”). Do not commit as part of “continue”, “finish”, “wrap up”, or
-  after completing a slice unless they also asked to commit.
+- **Never create a git commit without the user's explicit permission in that same turn** (e.g.
+  “commit”, “commit this”, “create a commit”). Permission does **not** carry forward to later
+  turns or later slices in the same turn.
+- **One ask → one commit** of the work already done (or currently staged/ready). After that commit,
+  do **not** create further commits unless the user asks again. Phrases like “commit and continue”,
+  “commit then keep going”, or “commit and carry on” mean: commit **once** now, then continue
+  implementing **without** committing again when later slices finish.
+- Do **not** treat “continue”, “finish”, “wrap up”, “done”, or completing a build-plan checkbox as
+  permission to commit.
 - Do not push, amend, rebase, or force-push unless the user explicitly asks for that action.
 
 Docs
