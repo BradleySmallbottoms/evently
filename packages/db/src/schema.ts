@@ -381,6 +381,21 @@ export const checkIns = pgTable(
 );
 
 /**
+ * Rotating check-in codes (venue QR + digital events). Secret never leaves the server;
+ * attendees only see the current 6-char code / QR after the publisher starts the session.
+ */
+export const digitalCodes = pgTable('digital_codes', {
+  eventId: uuid('event_id')
+    .primaryKey()
+    .references(() => events.id, { onDelete: 'cascade' }),
+  secret: text('secret').notNull(),
+  revealedAt: timestamp('revealed_at', { withTimezone: true }),
+  /** Slot length in seconds (default 60). */
+  rotationS: integer('rotation_s').notNull().default(60),
+  createdAt: createdAt(),
+});
+
+/**
  * Notification inbox — dedupe + daily-cap accounting + Expo delivery state.
  * Unique on (user, event, reason) so SQS at-least-once retries stay idempotent.
  * `sentAt` is when the match was accepted into the inbox (cap bucketing); Expo delivery
