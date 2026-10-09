@@ -29,8 +29,14 @@ describe('public api', () => {
     expect(doc.paths['/sessions']).toBeDefined();
     expect(doc.paths['/publishers/register']).toBeDefined();
     expect(doc.paths['/publishers/login']).toBeDefined();
+    expect(doc.paths['/publishers/logout']).toBeDefined();
+    expect(doc.paths['/publishers/me']).toBeDefined();
     expect(doc.paths['/categories']).toBeDefined();
     expect(doc.paths['/events']).toBeDefined();
+    expect(doc.paths['/publishers/{publisherId}/events']).toBeDefined();
+    expect(doc.paths['/manage/events/{id}']).toBeDefined();
+    expect(doc.paths['/manage/events/{id}/publish']).toBeDefined();
+    expect(doc.paths['/manage/events/{id}/cancel']).toBeDefined();
   });
 });
 
@@ -133,5 +139,16 @@ describe('publisher auth', () => {
     });
     expect(me.status).toBe(200);
     expect(await me.json()).toMatchObject({ email: 'org@example.com' });
+
+    const logout = await app.request('/v1/publishers/logout', {
+      method: 'POST',
+      headers: { cookie: setCookie.split(';')[0]! },
+    });
+    expect(logout.status).toBe(204);
+
+    const meAfterLogout = await app.request('/v1/publishers/me', {
+      headers: { cookie: setCookie.split(';')[0]! },
+    });
+    expect(meAfterLogout.status).toBe(401);
   });
 });

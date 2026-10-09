@@ -63,4 +63,22 @@ describe('admin api', () => {
     });
     expect(events.get('33333333-3333-4333-8333-333333333301')?.status).toBe('published');
   });
+
+  it('returns empty list when verified=true and 404 on unknown verify id', async () => {
+    const app = createApp({
+      publishers: createMemoryAdminPublisherServices({ publishers: new Map(), events: new Map() }),
+    });
+
+    const verified = await app.request('/v1/publishers?verified=true');
+    expect(verified.status).toBe(200);
+    expect(await verified.json()).toMatchObject({ items: [] });
+
+    const missing = await app.request('/v1/publishers/00000000-0000-4000-8000-000000000000/verify', {
+      method: 'POST',
+    });
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toMatchObject({
+      error: { code: 'not_found' },
+    });
+  });
 });

@@ -102,6 +102,12 @@ describe('events', () => {
 
     const detail = await app.request(`/v1/events/${draft.id}`);
     expect(detail.status).toBe(200);
+
+    const managed = await app.request(`/v1/manage/events/${draft.id}`, {
+      headers: { cookie },
+    });
+    expect(managed.status).toBe(200);
+    expect((await managed.json()) as { id: string }).toMatchObject({ id: draft.id });
   });
 
   it('publishes immediately when the publisher is already verified', async () => {
@@ -129,5 +135,54 @@ describe('events', () => {
       headers: { cookie },
     });
     expect(((await published.json()) as { status: string }).status).toBe('published');
+
+    const cancelled = await app.request(`/v1/manage/events/${draft.id}/cancel`, {
+      method: 'POST',
+      headers: { cookie },
+    });
+    expect(cancelled.status).toBe(200);
+    expect(((await cancelled.json()) as { status: string }).status).toBe('cancelled');
+  });
+
+  it('lists publisher events and updates a managed event', async () => {
+    const store = createMemoryStore();
+    const auth = createMemoryAuthServices(
+      { includeVerificationToken: true, now: () => new Date() },
+      store,
+    );
+    const events = createMemoryEventServices(auth, { now: () => new Date() }, store);
+    const app = createApp({ auth, events });
+
+    const { publisherId, cookie } = await registerAndLogin(app, 'owner@example.com');
+    const created = await app.request(`/v1/publishers/${publisherId}/events`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify(physicalBody),
+    });
+    expect(created.status).toBe(201);
+    const draft = (await created.json()) as { id: string };
+
+    const list = await app.request(`/v1/publishers/${publisherId}/events`, {
+      headers: { cookie },
+    });
+    expect(list.status).toBe(200);
+    const listed = (await list.json()) as { items: { id: string }[] };
+    expect(listed.items.some((item) => item.id === draft.id)).toBe(true);
+
+    const updated = await app.request(`/v1/manage/events/${draft.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify({
+        title: 'Uppdaterad titel',
+        description: 'Ny beskrivning',
+        mode: 'digital',
+        onlineUrl: 'https://example.com/live',
+      }),
+    });
+    expect(updated.status).toBe(200);
+    const body = (await updated.json()) as { title: string; mode: string; onlineUrl: string | null };
+    expect(body.title).toBe('Uppdaterad titel');
+    expect(body.mode).toBe('digital');
+    expect(body.onlineUrl).toBe('https://example.com/live');
   });
 });

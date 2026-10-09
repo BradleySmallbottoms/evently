@@ -26,6 +26,33 @@ pnpm api-client:generate   # export OpenAPI → packages/api-client types
 
 Always finish a change with `pnpm typecheck && pnpm test` (or the filtered equivalent).
 
+## Testing policy (required on every change)
+
+After any code change, run all relevant checks before marking work done:
+
+```bash
+# Core required checks
+pnpm --filter @local-events/web typecheck
+pnpm --filter @local-events/admin typecheck
+pnpm --filter @local-events/mobile typecheck
+pnpm --filter @local-events/api test
+pnpm --filter @local-events/admin-api test
+```
+
+If the change touches shared packages or backend behavior, also run:
+
+```bash
+pnpm typecheck
+pnpm test
+```
+
+For runtime sanity:
+
+- Start affected apps (`pnpm dev` or per-app dev commands) and verify they boot without runtime errors.
+- For web/admin/mobile-web flows, run browser click-through smoke checks on changed pages.
+- If an endpoint/feature is added or behavior changes, add/adjust tests in the same change.
+- Explicitly assess test coverage gaps per change: happy path + key rejection/edge path.
+
 ## Layout
 
 - `apps/api`, `apps/admin-api` — Hono + @hono/zod-openapi REST APIs. Version prefix comes from
