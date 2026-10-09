@@ -140,6 +140,13 @@ Code conventions
   components.
 - Never read or print `.env` files or secrets.
 
+Git / commits
+
+- **Never create a git commit without the user's explicit permission** in that turn (e.g. “commit”,
+  “commit this”, “create a commit”). Do not commit as part of “continue”, “finish”, “wrap up”, or
+  after completing a slice unless they also asked to commit.
+- Do not push, amend, rebase, or force-push unless the user explicitly asks for that action.
+
 Docs
 
 - When a decision changes, update `docs/decisions.md`, `docs/project-description.md` and
@@ -204,4 +211,7 @@ Keep UI colocated by reuse scope. Apply the same idea on web, admin, and mobile.
 ### Quality gates
 
 - **`code-tester`** — launch after any code change (even outside the pipeline) to run typecheck, lint, and tests; loop on its failures before proceeding.
-- **`code-reviewer`** and **`security-auditor`** — launch **in parallel, in one message**, once tests pass and before anything is committed. Reviewer covers quality/architecture; auditor covers OWASP-class issues, auth gaps, secrets, and the data-isolation boundary.
+- **`code-reviewer`** and **`security-auditor`** — launch **in parallel, in one message**, once tests
+  pass and the change is ready for review (still do **not** commit unless the user asked). Reviewer
+  covers quality/architecture; auditor covers OWASP-class issues, auth gaps, secrets, and the
+  data-isolation boundary.

@@ -98,6 +98,8 @@ export function createMemoryAuthServices(
         credentialHash: hashToken(deviceCredential),
         platform: input.platform,
         locale: input.locale,
+        expoPushToken: null,
+        lastSeenAt: now,
         revokedAt: null,
       });
       sessions.set(sessionToken, {
@@ -424,6 +426,19 @@ export function createMemoryAuthServices(
       );
       if (!session) throw new AuthError('unauthorized');
       return { userId: session.subjectId };
+    },
+
+    async registerPushToken(sessionToken, input) {
+      const { userId } = await this.requireUserSession(sessionToken);
+      const device = [...devices.values()].find(
+        (d) =>
+          d.credentialHash === hashToken(input.deviceCredential) &&
+          !d.revokedAt,
+      );
+      if (!device || device.userId !== userId) throw new AuthError('invalid_credentials');
+      device.expoPushToken = input.expoPushToken;
+      device.lastSeenAt = env.now();
+      return { ok: true as const };
     },
 
     async getPublisherProfile(sessionToken, publisherId) {

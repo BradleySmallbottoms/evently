@@ -8,6 +8,8 @@ export type MemoryDevice = {
   credentialHash: string;
   platform: string;
   locale: string;
+  expoPushToken: string | null;
+  lastSeenAt: Date;
   revokedAt: Date | null;
 };
 export type MemorySession = {

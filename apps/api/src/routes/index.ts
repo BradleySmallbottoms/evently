@@ -28,7 +28,7 @@ export function registerRoutes(app: OpenAPIHono, services: ApiRouteServices): vo
   registerSessionRoutes(app, services.auth);
   registerPairingRoutes(app, services.auth);
   registerPublisherRoutes(app, services.auth);
-  registerMeRoutes(app, services.preferences);
+  registerMeRoutes(app, services.preferences, services.auth);
   registerRegionRoutes(app, services.regions);
   registerCategoryRoutes(app, services.events);
   registerEventRoutes(app, services.events);

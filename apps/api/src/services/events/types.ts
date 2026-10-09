@@ -5,6 +5,9 @@ import type {
   PublicEventListQuery,
   UpdateEventRequest,
 } from '@local-events/contracts';
+import type { DomainEventPublisher } from '../domain-events/types';
+
+export type { DomainEventPublisher };
 
 export type EventErrorCode =
   | 'unauthorized'
@@ -60,4 +63,5 @@ export type EventServices = {
 
 export type EventEnv = {
   now: () => Date;
+  domainEvents?: DomainEventPublisher;
 };

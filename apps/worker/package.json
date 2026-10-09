@@ -11,6 +11,8 @@
     "test": "vitest run --root ../.. tests/apps/worker --passWithNoTests"
   },
   "dependencies": {
+    "@aws-sdk/client-sqs": "^3.1148.0",
+    "@local-events/contracts": "workspace:*",
     "@local-events/db": "workspace:*",
     "@local-events/domain": "workspace:*",
     "@sentry/node": "^11.4.0"

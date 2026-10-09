@@ -4,12 +4,19 @@ import type {
 } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
-import { releaseOnVerification } from '@local-events/domain';
+import { releaseOnVerification, shouldEnqueueNotifications } from '@local-events/domain';
 import { and, eq } from 'drizzle-orm';
+import { createMemoryDomainEventPublisher } from './domain-events/memory';
+import { enqueueDomainEvent, type DomainEventPublisher } from './domain-events/types';
 
 export type AdminPublisherServices = {
   listUnverified: () => Promise<AdminPublisherListResponse['items']>;
   verify: (publisherId: string) => Promise<VerifyPublisherResponse | null>;
+};
+
+export type AdminPublisherEnv = {
+  now?: () => Date;
+  domainEvents?: DomainEventPublisher;
 };
 
 /** Minimal in-memory shape for admin tests (no dependency on apps/api). */
@@ -40,8 +47,10 @@ export type AdminMemoryStore = {
 
 export function createMemoryAdminPublisherServices(
   store: AdminMemoryStore,
-  now: () => Date = () => new Date(),
+  env: AdminPublisherEnv = {},
 ): AdminPublisherServices {
+  const now = env.now ?? (() => new Date());
+  const domainEvents = env.domainEvents ?? createMemoryDomainEventPublisher();
   return {
     async listUnverified() {
       return [...store.publishers.values()]
@@ -72,6 +81,12 @@ export function createMemoryAdminPublisherServices(
           row.status = next;
           row.updatedAt = at.toISOString();
           releasedEventCount += 1;
+          if (shouldEnqueueNotifications(next)) {
+            await enqueueDomainEvent(domainEvents, {
+              type: 'event.published',
+              eventId: row.id,
+            });
+          }
         }
       }
       return { id: publisherId, verified: true as const, releasedEventCount };
@@ -81,8 +96,10 @@ export function createMemoryAdminPublisherServices(
 
 export function createDbAdminPublisherServices(
   db: Db,
-  now: () => Date = () => new Date(),
+  env: AdminPublisherEnv = {},
 ): AdminPublisherServices {
+  const now = env.now ?? (() => new Date());
+  const domainEvents = env.domainEvents ?? createMemoryDomainEventPublisher();
   return {
     async listUnverified() {
       const rows = await db
@@ -144,6 +161,12 @@ export function createDbAdminPublisherServices(
             .set({ status: next, updatedAt: at })
             .where(eq(schema.events.id, row.id));
           releasedEventCount += 1;
+          if (shouldEnqueueNotifications(next)) {
+            await enqueueDomainEvent(domainEvents, {
+              type: 'event.published',
+              eventId: row.id,
+            });
+          }
         }
       }
 

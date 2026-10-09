@@ -1,3 +1,4 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
@@ -6,14 +7,19 @@ import { colors } from '@/theme/colors';
 import { radius, shadow } from '@/theme/tokens';
 
 type Props = {
+  /** SF Symbol name — used on iOS. */
   sf: string;
+  /** Material Icons name — used on Android and web (SF Symbols are iOS-only). */
+  md: keyof typeof MaterialIcons.glyphMap;
   onPress?: () => void;
   badge?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel: string;
 };
 
-export function CircleIconButton({ sf, onPress, badge, style, accessibilityLabel }: Props) {
+export function CircleIconButton({ sf, md, onPress, badge, style, accessibilityLabel }: Props) {
+  const tint = colors.ink as string;
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -36,7 +42,11 @@ export function CircleIconButton({ sf, onPress, badge, style, accessibilityLabel
         style,
       ]}
     >
-      <SymbolView name={sf as never} size={20} tintColor={colors.ink as string} />
+      {process.env.EXPO_OS === 'ios' ? (
+        <SymbolView name={sf as never} size={20} tintColor={tint} />
+      ) : (
+        <MaterialIcons name={md} size={22} color={tint} />
+      )}
       {badge ? (
         <View
           style={{

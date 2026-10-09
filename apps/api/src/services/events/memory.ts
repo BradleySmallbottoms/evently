@@ -11,9 +11,12 @@ import {
   canPublishEvent,
   entitlementsFor,
   releaseOnVerification,
+  shouldEnqueueNotifications,
   statusOnPublish,
   validateEventFields,
 } from '@local-events/domain';
+import { createMemoryDomainEventPublisher } from '../domain-events/memory';
+import { enqueueDomainEvent } from '../domain-events/types';
 import { randomUUID } from 'node:crypto';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
@@ -50,6 +53,7 @@ export function createMemoryEventServices(
   env: EventEnv = { now: () => new Date() },
   store: MemoryStore = createMemoryStore(),
 ): EventServices {
+  const domainEvents = env.domainEvents ?? createMemoryDomainEventPublisher();
   const { categories, events, publishers } = store;
 
   async function requireMember(sessionToken: string | undefined, publisherId: string) {
@@ -178,6 +182,12 @@ export function createMemoryEventServices(
         publisherVerified: access.publisherVerified,
       });
       row.updatedAt = now.toISOString();
+      if (shouldEnqueueNotifications(row.status)) {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.published',
+          eventId: row.id,
+        });
+      }
       return toEvent(row);
     },
 

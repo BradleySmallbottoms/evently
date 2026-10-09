@@ -85,6 +85,7 @@ export default function EventDetailScreen() {
           >
             <CircleIconButton
               sf="chevron.left"
+              md="chevron-left"
               accessibilityLabel={t('events.back')}
               onPress={() => router.back()}
             />

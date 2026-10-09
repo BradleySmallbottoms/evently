@@ -560,6 +560,22 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
       return { userId: row.userId };
     },
 
+    async registerPushToken(sessionToken, input) {
+      const { userId } = await this.requireUserSession(sessionToken);
+      const credentialHash = hashToken(input.deviceCredential);
+      const [device] = await db
+        .select({ id: devices.id, userId: devices.userId })
+        .from(devices)
+        .where(and(eq(devices.credentialHash, credentialHash), isNull(devices.revokedAt)))
+        .limit(1);
+      if (!device || device.userId !== userId) throw new AuthError('invalid_credentials');
+      await db
+        .update(devices)
+        .set({ expoPushToken: input.expoPushToken, lastSeenAt: env.now() })
+        .where(eq(devices.id, device.id));
+      return { ok: true as const };
+    },
+
     async getPublisherProfile(sessionToken, publisherId) {
       const access = await this.requirePublisherMember(sessionToken, publisherId);
       const [row] = await db

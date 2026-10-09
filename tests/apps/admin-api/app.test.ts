@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../../apps/admin-api/src/app';
+import { createMemoryDomainEventPublisher } from '../../../apps/admin-api/src/services/domain-events/memory';
 import { createMemoryAdminPublisherServices } from '../../../apps/admin-api/src/services/publishers';
 
 describe('admin api', () => {
@@ -43,8 +44,9 @@ describe('admin api', () => {
         },
       ],
     ]);
+    const domainEvents = createMemoryDomainEventPublisher();
     const app = createApp({
-      publishers: createMemoryAdminPublisherServices({ publishers, events }),
+      publishers: createMemoryAdminPublisherServices({ publishers, events }, { domainEvents }),
     });
 
     const list = await app.request('/v1/publishers?verified=false');
@@ -61,6 +63,12 @@ describe('admin api', () => {
       releasedEventCount: 1,
     });
     expect(events.get('33333333-3333-4333-8333-333333333301')?.status).toBe('published');
+    expect(domainEvents.events).toEqual([
+      {
+        type: 'event.published',
+        eventId: '33333333-3333-4333-8333-333333333301',
+      },
+    ]);
   });
 
   it('returns empty list when verified=true and 404 on unknown verify id', async () => {

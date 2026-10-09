@@ -5,6 +5,8 @@ import { createDbAuthServices } from './services/auth/db';
 import { createMemoryAuthServices } from './services/auth/memory';
 import { createDbEventServices } from './services/events/db';
 import { createMemoryEventServices } from './services/events/memory';
+import { createMemoryDomainEventPublisher } from './services/domain-events/memory';
+import { createSqsDomainEventPublisher } from './services/domain-events/sqs';
 import { createDbPreferenceServices } from './services/preferences/db';
 import { createMemoryPreferenceServices } from './services/preferences/memory';
 import { createDbRegionServices } from './services/regions/db';
@@ -41,6 +43,11 @@ const authEnv = { includeVerificationToken, now: () => new Date() };
 const eventEnv = { now: () => new Date() };
 
 const preferenceEnv = { now: () => new Date() };
+const queueUrl = process.env.DOMAIN_EVENTS_QUEUE_URL?.trim();
+const domainEvents = queueUrl
+  ? createSqsDomainEventPublisher({ queueUrl })
+  : createMemoryDomainEventPublisher();
+const eventEnvWithQueue = { ...eventEnv, domainEvents };
 
 const { auth, events, preferences, regions } = (() => {
   if (databaseUrl) {
@@ -48,7 +55,7 @@ const { auth, events, preferences, regions } = (() => {
     const authServices = createDbAuthServices(db, authEnv);
     return {
       auth: authServices,
-      events: createDbEventServices(db, authServices, eventEnv),
+      events: createDbEventServices(db, authServices, eventEnvWithQueue),
       preferences: createDbPreferenceServices(db, authServices, preferenceEnv),
       regions: createDbRegionServices(db),
     };
@@ -57,11 +64,15 @@ const { auth, events, preferences, regions } = (() => {
   const authServices = createMemoryAuthServices(authEnv, store);
   return {
     auth: authServices,
-    events: createMemoryEventServices(authServices, eventEnv, store),
+    events: createMemoryEventServices(authServices, eventEnvWithQueue, store),
     preferences: createMemoryPreferenceServices(authServices, preferenceEnv, store),
     regions: createMemoryRegionServices(store),
   };
 })();
+
+if (!queueUrl) {
+  console.warn('DOMAIN_EVENTS_QUEUE_URL not set; domain events stay in-process (not durable)');
+}
 
 if (!databaseUrl) {
   console.warn('DATABASE_URL not set; using in-memory store (data is lost on restart)');

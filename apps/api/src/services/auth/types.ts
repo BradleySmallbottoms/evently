@@ -17,6 +17,8 @@ import type {
   ExchangeWebLoginCodeResponse,
   LoginPublisherRequest,
   LoginPublisherResponse,
+  RegisterPushTokenRequest,
+  RegisterPushTokenResponse,
   PublisherInviteListResponse,
   PublisherMemberListResponse,
   PublisherMeResponse,
@@ -96,6 +98,11 @@ export type AuthServices = {
   ) => Promise<PublisherMemberAccess>;
   /** Resolves an app-user session (Bearer or pairing cookie token). */
   requireUserSession: (sessionToken: string | undefined) => Promise<UserSessionAccess>;
+  /** Stores an Expo push token on the device identified by deviceCredential. */
+  registerPushToken: (
+    sessionToken: string | undefined,
+    input: RegisterPushTokenRequest,
+  ) => Promise<RegisterPushTokenResponse>;
   getPublisherProfile: (
     sessionToken: string | undefined,
     publisherId: string,

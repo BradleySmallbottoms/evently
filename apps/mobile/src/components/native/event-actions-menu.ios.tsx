@@ -27,7 +27,7 @@ export function EventActionsMenu({
     <Host matchContents>
       <ContextMenu>
         <ContextMenu.Trigger>
-          <CircleIconButton sf="ellipsis" accessibilityLabel={accessibilityLabel} />
+          <CircleIconButton sf="ellipsis" md="more-horiz" accessibilityLabel={accessibilityLabel} />
         </ContextMenu.Trigger>
         <ContextMenu.Items>
           <Button systemImage="square.and.arrow.up" onPress={onShare} label={shareLabel} />

@@ -272,7 +272,9 @@ Every write that matters emits a domain event (`event.published`, `event.updated
 1. First launch: the app calls `POST /v1/identities`. The server creates a user and a device and
    returns the user id plus a random 256-bit device credential.
 2. The app keeps both in expo-secure-store (Keychain / Keystore) and trades the credential for
-   short-lived session tokens. A user id alone never authenticates.
+   short-lived session tokens. A user id alone never authenticates. After a session is ready the
+   mobile app may call `PUT /v1/me/push-token` with the device credential and an Expo push token.
+
 3. First check-in: the app offers a profile — a display name, or stay anonymous.
 4. Publishers log in on the web with a verified email and password (httpOnly cookie session).
 5. App users sign in on the web by pairing: the app generates an 8-character code (5 min TTL),

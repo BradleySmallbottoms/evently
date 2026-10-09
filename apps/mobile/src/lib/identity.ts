@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { api, throwIfError } from './api';
+import { registerPushToken } from './push-notifications';
 
 const KEYS = {
   userId: 'le.userId',
@@ -64,7 +65,12 @@ export async function ensureIdentity(locale: 'sv' | 'en' = 'sv'): Promise<Stored
   const existing = await loadStoredIdentity();
   if (existing) {
     const expiresSoon = new Date(existing.expiresAt).getTime() - Date.now() < 5 * 60 * 1000;
-    if (!expiresSoon) return existing;
+    if (!expiresSoon) {
+      void registerPushToken(existing).catch(() => {
+        /* permission denied / Expo project missing — ignore */
+      });
+      return existing;
+    }
     const session = throwIfError(
       await api.POST('/sessions', {
         body: { deviceCredential: existing.deviceCredential },
@@ -76,6 +82,9 @@ export async function ensureIdentity(locale: 'sv' | 'en' = 'sv'): Promise<Stored
       expiresAt: session.expiresAt,
     };
     await persistIdentity(refreshed);
+    void registerPushToken(refreshed).catch(() => {
+      /* ignore */
+    });
     return refreshed;
   }
 
@@ -92,6 +101,9 @@ export async function ensureIdentity(locale: 'sv' | 'en' = 'sv'): Promise<Stored
     expiresAt: created.expiresAt,
   };
   await persistIdentity(identity);
+  void registerPushToken(identity).catch(() => {
+    /* ignore */
+  });
   return identity;
 }
 

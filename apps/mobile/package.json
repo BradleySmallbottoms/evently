@@ -6,6 +6,7 @@
   "dependencies": {
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@expo/ui": "~57.0.22",
+    "@expo/vector-icons": "^15.1.1",
     "@local-events/api-client": "workspace:*",
     "@local-events/contracts": "workspace:*",
     "@local-events/domain": "workspace:*",

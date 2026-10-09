@@ -2,6 +2,7 @@ import { PUBLISHER_SESSION_COOKIE } from '../../../packages/auth/src/index';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../../apps/api/src/app';
 import { createMemoryAuthServices } from '../../../apps/api/src/services/auth/memory';
+import { createMemoryDomainEventPublisher } from '../../../apps/api/src/services/domain-events/memory';
 import { createMemoryEventServices, releaseAwaitingEventsInStore } from '../../../apps/api/src/services/events/memory';
 import { SEED_CATEGORIES } from '../../../apps/api/src/services/events/seed-categories';
 import { createMemoryStore } from '../../../apps/api/src/services/memory-store';
@@ -116,7 +117,12 @@ describe('events', () => {
       { includeVerificationToken: true, now: () => new Date() },
       store,
     );
-    const events = createMemoryEventServices(auth, { now: () => new Date() }, store);
+    const domainEvents = createMemoryDomainEventPublisher();
+    const events = createMemoryEventServices(
+      auth,
+      { now: () => new Date(), domainEvents },
+      store,
+    );
     const app = createApp({ auth, events });
 
     const { publisherId, cookie } = await registerAndLogin(app, 'verified@example.com');
@@ -135,6 +141,7 @@ describe('events', () => {
       headers: { cookie },
     });
     expect(((await published.json()) as { status: string }).status).toBe('published');
+    expect(domainEvents.events).toEqual([{ type: 'event.published', eventId: draft.id }]);
 
     const cancelled = await app.request(`/v1/manage/events/${draft.id}/cancel`, {
       method: 'POST',
@@ -142,6 +149,35 @@ describe('events', () => {
     });
     expect(cancelled.status).toBe(200);
     expect(((await cancelled.json()) as { status: string }).status).toBe('cancelled');
+  });
+
+  it('does not enqueue domain events for awaiting_verification publishes', async () => {
+    const store = createMemoryStore();
+    const auth = createMemoryAuthServices(
+      { includeVerificationToken: true, now: () => new Date() },
+      store,
+    );
+    const domainEvents = createMemoryDomainEventPublisher();
+    const events = createMemoryEventServices(
+      auth,
+      { now: () => new Date(), domainEvents },
+      store,
+    );
+    const app = createApp({ auth, events });
+
+    const { publisherId, cookie } = await registerAndLogin(app, 'unverified-enqueue@example.com');
+    const created = await app.request(`/v1/publishers/${publisherId}/events`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify(physicalBody),
+    });
+    const draft = (await created.json()) as { id: string };
+
+    await app.request(`/v1/manage/events/${draft.id}/publish`, {
+      method: 'POST',
+      headers: { cookie },
+    });
+    expect(domainEvents.events).toEqual([]);
   });
 
   it('lists publisher events and updates a managed event', async () => {

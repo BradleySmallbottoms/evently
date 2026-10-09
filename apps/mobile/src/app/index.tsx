@@ -272,16 +272,19 @@ export default function HomeScreen() {
               <View style={{ flexDirection: 'row', gap: space.sm }}>
                 <CircleIconButton
                   sf="slider.horizontal.3"
+                  md="tune"
                   accessibilityLabel={t('preferences.open')}
                   onPress={() => router.push('/preferences')}
                 />
                 <CircleIconButton
                   sf="qrcode"
+                  md="qr-code"
                   accessibilityLabel={t('events.pairingTitle')}
                   onPress={() => setPairingOpen(true)}
                 />
                 <CircleIconButton
                   sf="bell"
+                  md="notifications"
                   badge
                   accessibilityLabel={t('events.notifications')}
                 />

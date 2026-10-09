@@ -37,6 +37,7 @@ export function EventActionsMenu({
     <>
       <CircleIconButton
         sf="ellipsis"
+        md="more-horiz"
         accessibilityLabel={accessibilityLabel}
         onPress={() => setOpen(true)}
       />

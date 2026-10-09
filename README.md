@@ -12,9 +12,9 @@ external sources. Launch area: Söderhamn and Gävleborgs län. Languages: Swedi
 
 ## Status
 
-Phase 3 (Discovery + notifications) is underway. Interests, saved areas, and region suggestions
-(seeded Söderhamn/Gävleborg fixtures) are in place. Push token registration, worker matching, and
-subscriptions remain.
+Phase 3 (Discovery + notifications) is underway. Interests, saved areas, region suggestions,
+push-token registration, and SQS → worker wiring are in place. Geo matching, Expo send,
+subscriptions, caps, and quiet hours remain.
 
 ## Prerequisites
 
@@ -99,6 +99,16 @@ calls) in the same change as every new major feature.**
   kommun / Gävleborg län). Mobile may offer save via `shouldSuggestRegion`; accept posts
   `regionId` (or 15 km circle fallback). Declines stay on-device. Flow:
   [docs/flows/region-suggestions.md](docs/flows/region-suggestions.md).
+
+### Push + domain events
+
+- Mobile calls `PUT /v1/me/push-token` with Bearer session + `deviceCredential` + Expo token after
+  identity is ready (no-op on web / denied permission).
+- Publishing a **`published`** event (or admin verify releasing one) enqueues
+  `{ type: 'event.published', eventId }` best-effort after the DB write. Set
+  `DOMAIN_EVENTS_QUEUE_URL` for SQS; without it APIs keep events in-process and the worker idles.
+  Worker handlers currently log only — matching/Expo send is next. Flow:
+  [docs/flows/push-and-domain-events.md](docs/flows/push-and-domain-events.md).
 
 ### Frontend structure
 

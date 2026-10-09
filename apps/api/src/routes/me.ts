@@ -2,6 +2,8 @@ import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
   CreateUserAreaRequest,
   ErrorResponse,
+  RegisterPushTokenRequest,
+  RegisterPushTokenResponse,
   ReplaceUserInterestsRequest,
   ReplaceUserInterestsResponse,
   UpdateUserAreaRequest,
@@ -11,12 +13,18 @@ import {
 } from '@local-events/contracts';
 import { z } from 'zod';
 import { readUserSessionToken } from '../services/auth/cookies';
+import { authErrorResponse } from '../services/auth/errors';
+import type { AuthServices } from '../services/auth/types';
 import { preferenceErrorResponse } from '../services/preferences/errors';
 import type { PreferenceServices } from '../services/preferences/types';
 
 const AreaIdParam = z.object({ id: z.uuid() });
 
-export function registerMeRoutes(app: OpenAPIHono, preferences: PreferenceServices): void {
+export function registerMeRoutes(
+  app: OpenAPIHono,
+  preferences: PreferenceServices,
+  auth: AuthServices,
+): void {
   const getPreferences = createRoute({
     method: 'get',
     path: '/me/preferences',
@@ -198,6 +206,36 @@ export function registerMeRoutes(app: OpenAPIHono, preferences: PreferenceServic
       return c.body(null, 204);
     } catch (err) {
       return preferenceErrorResponse(c, err);
+    }
+  });
+
+  const registerPushToken = createRoute({
+    method: 'put',
+    path: '/me/push-token',
+    request: {
+      body: {
+        content: { 'application/json': { schema: RegisterPushTokenRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Push token stored on the device',
+        content: { 'application/json': { schema: RegisterPushTokenResponse } },
+      },
+      401: {
+        description: 'Missing session or device credential mismatch',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(registerPushToken, async (c) => {
+    try {
+      const body = c.req.valid('json');
+      const result = await auth.registerPushToken(readUserSessionToken(c), body);
+      return c.json(result, 200);
+    } catch (err) {
+      return authErrorResponse(c, err);
     }
   });
 }

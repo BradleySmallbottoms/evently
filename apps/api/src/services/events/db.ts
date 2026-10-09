@@ -8,12 +8,15 @@ import {
   canPublishEvent,
   entitlementsFor,
   releaseOnVerification,
+  shouldEnqueueNotifications,
   statusOnPublish,
   validateEventFields,
 } from '@local-events/domain';
 import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
+import { createMemoryDomainEventPublisher } from '../domain-events/memory';
+import { enqueueDomainEvent } from '../domain-events/types';
 import { EventError, type EventEnv, type EventServices } from './types';
 
 type LocRow = {
@@ -92,6 +95,7 @@ export function createDbEventServices(
   auth: AuthServices,
   env: EventEnv = { now: () => new Date() },
 ): EventServices {
+  const domainEvents = env.domainEvents ?? createMemoryDomainEventPublisher();
   const { events, eventCategories, categories } = schema;
 
   async function requireMember(sessionToken: string | undefined, publisherId: string) {
@@ -282,6 +286,12 @@ export function createDbEventServices(
         .where(eq(events.id, eventId));
       const published = await loadEvent(eventId);
       if (!published) throw new EventError('not_found');
+      if (shouldEnqueueNotifications(published.status)) {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.published',
+          eventId: published.id,
+        });
+      }
       return published;
     },
 
