@@ -62,6 +62,7 @@ function CustomTabList(props: TabListProps) {
     <View
       style={{
         position: 'absolute',
+        bottom: 0,
         width: '100%',
         padding: space.md,
         flexDirection: 'row',
@@ -76,9 +77,9 @@ function CustomTabList(props: TabListProps) {
           alignItems: 'center',
           borderRadius: radius.xl,
           borderCurve: 'continuous',
-          backgroundColor: brand.card,
+          backgroundColor: 'rgba(255,255,255,0.96)',
           paddingHorizontal: space.xl,
-          paddingVertical: space.sm,
+          paddingVertical: space.md,
           gap: space.sm,
           boxShadow: shadow.card,
         }}

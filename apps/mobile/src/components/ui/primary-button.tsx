@@ -1,9 +1,10 @@
 import * as Haptics from 'expo-haptics';
 import { ActivityIndicator, Pressable, type StyleProp, type ViewStyle } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { AppText } from '@/components/ui/app-text';
 import { colors } from '@/theme/colors';
-import { radius, space } from '@/theme/tokens';
+import { radius, shadow, space } from '@/theme/tokens';
 
 type Props = {
   label: string;
@@ -22,26 +23,35 @@ export function PrimaryButton({ label, onPress, loading, disabled, style }: Prop
         if (process.env.EXPO_OS === 'ios') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         onPress?.();
       }}
-      style={({ pressed }) => [
-        {
-          backgroundColor: colors.accent,
-          borderRadius: radius.xl,
-          borderCurve: 'continuous',
-          paddingVertical: space.lg,
-          paddingHorizontal: space.xxl,
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: disabled || loading ? 0.5 : pressed ? 0.9 : 1,
-        },
-        style,
-      ]}
     >
-      {loading ? (
-        <ActivityIndicator color="#FFFFFF" />
-      ) : (
-        <AppText variant="subtitle" style={{ color: '#FFFFFF' }}>
-          {label}
-        </AppText>
+      {({ pressed }) => (
+        <Animated.View
+          style={[
+            {
+              backgroundColor: colors.accent,
+              borderRadius: radius.xl,
+              borderCurve: 'continuous',
+              paddingVertical: space.lg + 2,
+              paddingHorizontal: space.xxl,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: disabled || loading ? 0.5 : 1,
+              boxShadow: shadow.cta,
+              transform: [{ scale: pressed ? 0.97 : 1 }],
+              transitionProperty: 'transform',
+              transitionDuration: 120,
+            },
+            style,
+          ]}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <AppText variant="subtitle" style={{ color: '#FFFFFF', fontWeight: '700' }}>
+              {label}
+            </AppText>
+          )}
+        </Animated.View>
       )}
     </Pressable>
   );

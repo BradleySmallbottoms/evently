@@ -6,7 +6,7 @@ import { typography } from '@/theme/tokens';
 type Variant = 'hero' | 'title' | 'subtitle' | 'body' | 'caption' | 'label';
 
 const variantStyle: Record<Variant, object> = {
-  hero: { fontFamily: typography.familyBold, fontSize: 28, lineHeight: 34, color: colors.ink },
+  hero: { fontFamily: typography.familyBold, fontSize: 30, lineHeight: 36, letterSpacing: -0.4, color: colors.ink },
   title: { fontFamily: typography.familyBold, fontSize: 22, lineHeight: 28, color: colors.ink },
   subtitle: {
     fontFamily: typography.familySemi,

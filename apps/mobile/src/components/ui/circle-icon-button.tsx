@@ -24,10 +24,10 @@ export function CircleIconButton({ sf, onPress, badge, style, accessibilityLabel
       }}
       style={[
         {
-          width: 44,
-          height: 44,
+          width: 46,
+          height: 46,
           borderRadius: radius.pill,
-          backgroundColor: colors.card as string,
+          backgroundColor: 'rgba(255,255,255,0.96)',
           alignItems: 'center',
           justifyContent: 'center',
           boxShadow: shadow.soft,

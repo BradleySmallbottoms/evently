@@ -8,11 +8,12 @@ export const space = {
   xxxl: 36,
 } as const;
 
+/** Large continuous radii — Events Booking Dribbble language. */
 export const radius = {
-  sm: 12,
-  md: 18,
-  lg: 24,
-  xl: 28,
+  sm: 14,
+  md: 20,
+  lg: 28,
+  xl: 32,
   pill: 999,
 } as const;
 
@@ -24,6 +25,7 @@ export const typography = {
 } as const;
 
 export const shadow = {
-  card: '0 8px 24px rgba(20, 20, 20, 0.08)',
-  soft: '0 2px 10px rgba(20, 20, 20, 0.06)',
+  card: '0 12px 32px rgba(20, 20, 20, 0.1)',
+  soft: '0 4px 14px rgba(20, 20, 20, 0.06)',
+  cta: '0 10px 28px rgba(255, 106, 61, 0.35)',
 } as const;

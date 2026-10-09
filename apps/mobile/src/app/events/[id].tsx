@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Share, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
 import { ConfirmAction } from '@/components/native/confirm-action';
@@ -16,7 +17,7 @@ import { MaxContentWidth } from '@/constants/theme';
 import { getPublicEvent } from '@/lib/events';
 import { ensureIdentity } from '@/lib/identity';
 import { colors } from '@/theme/colors';
-import { radius, space } from '@/theme/tokens';
+import { radius, shadow, space } from '@/theme/tokens';
 
 const HERO =
   'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&q=80';
@@ -25,6 +26,7 @@ export default function EventDetailScreen() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [reportOpen, setReportOpen] = useState(false);
 
@@ -54,14 +56,26 @@ export default function EventDetailScreen() {
       <ScrollView
         style={{ flex: 1, width: '100%', maxWidth: MaxContentWidth }}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingBottom: 120, gap: space.xl }}
+        contentContainerStyle={{ paddingBottom: 140, gap: space.xl }}
       >
-        <View style={{ height: 280, backgroundColor: colors.accentSoft }}>
+        <View style={{ height: 320, backgroundColor: colors.accentSoft }}>
           <Image source={{ uri: HERO }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 140,
+              experimental_backgroundImage:
+                'linear-gradient(to bottom, rgba(20,20,20,0) 0%, rgba(20,20,20,0.55) 100%)',
+            }}
+          />
           <View
             style={{
               position: 'absolute',
-              top: space.lg,
+              top: Math.max(insets.top, space.lg),
               left: space.xl,
               right: space.xl,
               flexDirection: 'row',
@@ -74,9 +88,18 @@ export default function EventDetailScreen() {
               accessibilityLabel={t('events.back')}
               onPress={() => router.back()}
             />
-            <AppText variant="subtitle" style={{ color: '#FFFFFF' }}>
-              {t('events.details')}
-            </AppText>
+            <View
+              style={{
+                backgroundColor: 'rgba(20,20,20,0.35)',
+                borderRadius: radius.pill,
+                paddingHorizontal: space.md,
+                paddingVertical: space.xs + 2,
+              }}
+            >
+              <AppText variant="label" style={{ color: '#FFFFFF', fontWeight: '700' }}>
+                {t('events.details')}
+              </AppText>
+            </View>
             <EventActionsMenu
               accessibilityLabel={t('events.moreActions')}
               shareLabel={t('events.share')}
@@ -89,7 +112,7 @@ export default function EventDetailScreen() {
           </View>
         </View>
 
-        <View style={{ paddingHorizontal: space.xl, gap: space.lg }}>
+        <View style={{ paddingHorizontal: space.xl, gap: space.lg, marginTop: -space.xxl }}>
           {event.isPending && <AppText variant="caption">{t('events.loading')}</AppText>}
           {event.isError && (
             <AppText variant="caption" style={{ color: colors.danger }}>
@@ -98,26 +121,45 @@ export default function EventDetailScreen() {
           )}
           {event.data && (
             <>
-              <AppText variant="hero">{event.data.title}</AppText>
+              <View
+                style={{
+                  backgroundColor: colors.card as string,
+                  borderRadius: radius.lg,
+                  borderCurve: 'continuous',
+                  padding: space.xl,
+                  gap: space.md,
+                  boxShadow: shadow.card,
+                }}
+              >
+                <AppText variant="hero">{event.data.title}</AppText>
+                <InfoRow
+                  icon="calendar"
+                  title={t('events.when')}
+                  value={`${new Date(event.data.startsAt).toLocaleString(locale)} – ${new Date(
+                    event.data.endsAt,
+                  ).toLocaleString(locale)}`}
+                />
+                <InfoRow
+                  icon={event.data.mode === 'physical' ? 'mappin.and.ellipse' : 'link'}
+                  title={event.data.mode === 'physical' ? t('events.venue') : t('events.online')}
+                  value={
+                    event.data.mode === 'physical'
+                      ? (event.data.venueName ?? t('events.missingVenue'))
+                      : (event.data.onlineUrl ?? t('events.missingUrl'))
+                  }
+                />
+              </View>
 
-              <InfoRow
-                icon="calendar"
-                title={t('events.when')}
-                value={`${new Date(event.data.startsAt).toLocaleString(locale)} – ${new Date(
-                  event.data.endsAt,
-                ).toLocaleString(locale)}`}
-              />
-              <InfoRow
-                icon={event.data.mode === 'physical' ? 'mappin.and.ellipse' : 'link'}
-                title={event.data.mode === 'physical' ? t('events.venue') : t('events.online')}
-                value={
-                  event.data.mode === 'physical'
-                    ? (event.data.venueName ?? t('events.missingVenue'))
-                    : (event.data.onlineUrl ?? t('events.missingUrl'))
-                }
-              />
-
-              <View style={{ gap: space.sm }}>
+              <View
+                style={{
+                  backgroundColor: colors.card as string,
+                  borderRadius: radius.lg,
+                  borderCurve: 'continuous',
+                  padding: space.xl,
+                  gap: space.sm,
+                  boxShadow: shadow.soft,
+                }}
+              >
                 <AppText variant="subtitle">{t('events.description')}</AppText>
                 <AppText variant="body">
                   {event.data.description ?? t('events.noDescription')}
@@ -136,18 +178,24 @@ export default function EventDetailScreen() {
             right: 0,
             bottom: 0,
             paddingHorizontal: space.xl,
-            paddingTop: space.lg,
-            paddingBottom: space.xxl,
-            backgroundColor: colors.canvas,
-            borderTopWidth: 1,
-            borderTopColor: colors.line,
+            paddingTop: space.md,
+            paddingBottom: Math.max(insets.bottom, space.lg),
             alignItems: 'center',
           }}
         >
-          <PrimaryButton
-            label={t('events.remindMe')}
-            style={{ width: '100%', maxWidth: MaxContentWidth }}
-          />
+          <View
+            style={{
+              width: '100%',
+              maxWidth: MaxContentWidth,
+              backgroundColor: colors.card as string,
+              borderRadius: radius.xl,
+              borderCurve: 'continuous',
+              padding: space.md,
+              boxShadow: shadow.card,
+            }}
+          >
+            <PrimaryButton label={t('events.remindMe')} />
+          </View>
         </View>
       ) : null}
 
@@ -171,7 +219,7 @@ function InfoRow({ icon, title, value }: { icon: string; title: string; value: s
         flexDirection: 'row',
         gap: space.md,
         alignItems: 'center',
-        backgroundColor: colors.card as string,
+        backgroundColor: colors.canvas,
         borderRadius: radius.md,
         borderCurve: 'continuous',
         padding: space.lg,

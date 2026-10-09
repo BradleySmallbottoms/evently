@@ -2,13 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
 
 import { AppText } from '@/components/ui/app-text';
-import { MaxContentWidth } from '@/constants/theme';
+import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { listPublicEvents, resolveEventQueryPoint } from '@/lib/events';
 import { ensureIdentity } from '@/lib/identity';
 import { colors } from '@/theme/colors';
-import { radius, space } from '@/theme/tokens';
+import { radius, shadow, space } from '@/theme/tokens';
 
 export default function MapWebScreen() {
   const { t, i18n } = useTranslation();
@@ -39,7 +40,11 @@ export default function MapWebScreen() {
         contentInsetAdjustmentBehavior="automatic"
         data={events.data?.items ?? []}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: space.xl, gap: space.md }}
+        contentContainerStyle={{
+          padding: space.xl,
+          gap: space.md,
+          paddingBottom: BottomTabInset + space.xxxl,
+        }}
         ListHeaderComponent={
           <View style={{ gap: space.sm, marginBottom: space.md }}>
             <AppText variant="hero">{t('events.mapTitle')}</AppText>
@@ -57,19 +62,24 @@ export default function MapWebScreen() {
         renderItem={({ item }) => (
           <Pressable
             onPress={() => router.push(`/events/${item.id}`)}
-            style={{
+            style={({ pressed }) => ({
               backgroundColor: colors.card as string,
-              borderRadius: radius.md,
+              borderRadius: radius.lg,
               borderCurve: 'continuous',
               padding: space.lg,
-              borderWidth: 1,
-              borderColor: colors.line,
-            }}
+              gap: space.xs,
+              boxShadow: shadow.soft,
+              opacity: pressed ? 0.92 : 1,
+              transform: [{ scale: pressed ? 0.99 : 1 }],
+            })}
           >
             <AppText variant="subtitle">{item.title}</AppText>
-            <AppText variant="caption">
-              {new Date(item.startsAt).toLocaleString(locale)}
-            </AppText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+              <SymbolView name={'calendar' as never} size={14} tintColor={colors.inkFaint} />
+              <AppText variant="caption">
+                {new Date(item.startsAt).toLocaleString(locale)}
+              </AppText>
+            </View>
           </Pressable>
         )}
       />
