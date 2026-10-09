@@ -1,10 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, Share, View } from 'react-native';
+import { Alert, ScrollView, Share, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
@@ -14,6 +14,7 @@ import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { MaxContentWidth } from '@/constants/theme';
+import { fetchCheckInStatus, performGeoCheckIn } from '@/lib/check-in';
 import { getPublicEvent } from '@/lib/events';
 import { ensureIdentity } from '@/lib/identity';
 import { colors } from '@/theme/colors';
@@ -27,6 +28,7 @@ export default function EventDetailScreen() {
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [reportOpen, setReportOpen] = useState(false);
 
@@ -38,7 +40,29 @@ export default function EventDetailScreen() {
   const event = useQuery({
     queryKey: ['public-event', id],
     queryFn: () => getPublicEvent(id),
-    enabled: identity.isSuccess && typeof id === 'string' && id.length > 0,
+    enabled: typeof id === 'string' && id.length > 0,
+  });
+  const checkInStatus = useQuery({
+    queryKey: ['check-in-status', id, identity.data?.userId],
+    queryFn: () => fetchCheckInStatus(identity.data!, id!),
+    enabled:
+      identity.isSuccess &&
+      typeof id === 'string' &&
+      id.length > 0 &&
+      event.data?.mode === 'physical',
+  });
+  const checkIn = useMutation({
+    mutationFn: () => performGeoCheckIn(identity.data!, id!),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['check-in-status', id] });
+    },
+    onError: (err: Error) => {
+      const message =
+        err.message === 'location_permission_denied'
+          ? t('events.checkInPermission')
+          : t('events.checkInError');
+      Alert.alert(t('events.checkIn'), message);
+    },
   });
 
   async function shareEvent() {
@@ -195,7 +219,31 @@ export default function EventDetailScreen() {
               boxShadow: shadow.card,
             }}
           >
-            <PrimaryButton label={t('events.remindMe')} />
+            {event.data.mode === 'physical' ? (
+              <PrimaryButton
+                label={
+                  checkInStatus.data?.checkedIn
+                    ? t('events.checkInDone')
+                    : checkInStatus.isError
+                      ? t('events.checkInError')
+                      : checkInStatus.isLoading
+                        ? t('events.loading')
+                        : checkInStatus.data?.open
+                          ? t('events.checkIn')
+                          : t('events.checkInClosed')
+                }
+                loading={checkIn.isPending || checkInStatus.isLoading}
+                disabled={
+                  checkInStatus.isError ||
+                  checkInStatus.data?.checkedIn ||
+                  !checkInStatus.data?.open ||
+                  !identity.data
+                }
+                onPress={() => checkIn.mutate()}
+              />
+            ) : (
+              <PrimaryButton label={t('events.remindMe')} />
+            )}
           </View>
         </View>
       ) : null}

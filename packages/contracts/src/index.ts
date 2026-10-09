@@ -45,6 +45,7 @@ export const ErrorResponse = z.object({
 export type ErrorResponse = z.infer<typeof ErrorResponse>;
 
 export * from './auth';
+export * from './check-ins';
 export * from './devices';
 export * from './domain-events';
 export * from './events';

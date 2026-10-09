@@ -5,6 +5,8 @@ import { registerRoutes } from './routes';
 import { registerHealthRoutes } from './routes/health';
 import { createMemoryAuthServices } from './services/auth/memory';
 import type { AuthServices } from './services/auth/types';
+import { createMemoryCheckInServices } from './services/check-ins/memory';
+import type { CheckInServices } from './services/check-ins/types';
 import { createMemoryEventServices } from './services/events/memory';
 import type { EventServices } from './services/events/types';
 import { createMemoryPreferenceServices } from './services/preferences/memory';
@@ -22,6 +24,7 @@ export type CreateAppOptions = {
   preferences?: PreferenceServices;
   regions?: RegionServices;
   subscriptions?: SubscriptionServices;
+  checkIns?: CheckInServices;
   /**
    * Origins allowed for credentialed CORS (web publisher login).
    * Pass a string list, or a function that returns the reflected Origin (never bare `*`).
@@ -49,6 +52,7 @@ export function createApp(options: CreateAppOptions = {}) {
   const regions = options.regions ?? createMemoryRegionServices(store);
   const subscriptions =
     options.subscriptions ?? createMemorySubscriptionServices(auth, store);
+  const checkIns = options.checkIns ?? createMemoryCheckInServices(auth, {}, store);
   const app = new OpenAPIHono();
 
   app.onError((err, c) => {
@@ -78,7 +82,7 @@ export function createApp(options: CreateAppOptions = {}) {
     Sentry.captureException(err);
     return c.json({ error: { code: 'internal_error', message: 'Internal server error' } }, 500);
   });
-  registerRoutes(api, { auth, events, preferences, regions, subscriptions });
+  registerRoutes(api, { auth, events, preferences, regions, subscriptions, checkIns });
   api.doc('/openapi.json', {
     openapi: '3.1.0',
     info: { title: 'Local Events public API', version: `${API_VERSION}.0.0` },

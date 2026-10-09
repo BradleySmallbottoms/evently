@@ -7,7 +7,7 @@ import {
   PlusJakartaSans_700Bold,
   useFonts,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -15,14 +15,13 @@ import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
 import { brand } from '@/theme/colors';
 import { initSentry } from '@/lib/sentry';
 
 initSentry();
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
+export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [queryClient] = useState(() => new QueryClient());
   const [fontsLoaded] = useFonts({
@@ -56,7 +55,11 @@ export default function TabLayout() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider value={navTheme}>
           <AnimatedSplashOverlay />
-          <AppTabs />
+          <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="events/[id]" />
+            <Stack.Screen name="preferences/index" />
+          </Stack>
         </ThemeProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

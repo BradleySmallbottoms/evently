@@ -1,12 +1,13 @@
 /**
  * Schema covering identity, publishers, events, preferences and ingestion.
  * The full model is in docs/project-description.md (Data model); add the remaining tables
- * (check-ins, ratings, subscriptions, stats, ...) as each phase needs them.
+ * (ratings, stats, ...) as each phase needs them.
  * Spatial indexes (GiST) are declared with `.using('gist', ...)`.
  */
 import { sql } from 'drizzle-orm';
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -51,6 +52,7 @@ export const notificationReason = pgEnum('notification_reason', [
   'event',
 ]);
 export const subscriptionTarget = pgEnum('subscription_target', ['publisher', 'event']);
+export const checkInMethod = pgEnum('check_in_method', ['geo', 'code']);
 
 // ---------- identity ----------
 export const users = pgTable('users', {
@@ -343,6 +345,32 @@ export const subscriptions = pgTable(
     primaryKey({ columns: [t.userId, t.targetType, t.targetId] }),
     index('subscriptions_user_id_idx').on(t.userId),
     index('subscriptions_target_idx').on(t.targetType, t.targetId),
+  ],
+);
+
+/**
+ * Attendance proof. Unique per (user, event). Geo first; code/QR later.
+ */
+export const checkIns = pgTable(
+  'check_ins',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    method: checkInMethod('method').notNull(),
+    lat: doublePrecision('lat'),
+    lng: doublePrecision('lng'),
+    accuracyM: integer('accuracy_m'),
+    deviceFlags: jsonb('device_flags').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('check_ins_user_event_idx').on(t.userId, t.eventId),
+    index('check_ins_event_id_idx').on(t.eventId),
   ],
 );
 

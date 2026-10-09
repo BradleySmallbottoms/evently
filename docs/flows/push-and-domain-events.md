@@ -3,8 +3,8 @@
 Mobile registers an Expo push token on the device row. Publishing a verified event enqueues
 `event.published` for the worker (SQS in AWS; ElasticMQ locally via `DOMAIN_EVENTS_QUEUE_URL`;
 in-process memory when the queue URL is unset). The worker matches nearby users (areas ∩
-interests), applies quiet hours and a daily cap, then sends Expo push and records a
-`notifications` row.
+interests), enforces the daily inbox cap, writes a `notifications` inbox row, then either sends
+an immediate Expo push or defers until after quiet hours.
 
 ```mermaid
 sequenceDiagram
@@ -22,10 +22,34 @@ sequenceDiagram
   API->>DB: events.status = published
   API->>Queue: { type: event.published, eventId } (best-effort after write)
   Worker->>Queue: long-poll ReceiveMessage
-  Worker->>DB: PostGIS match + claim notifications
-  Worker->>Worker: Expo Push API (batches of 100)
+  Worker->>DB: PostGIS match + claim notifications inbox row
+  alt Outside quiet hours
+    Worker->>Worker: Expo Push (per event)
+  else Inside quiet hours
+    Note over Worker,DB: push_state = pending; no Expo yet
+  end
   Worker->>Queue: DeleteMessage
+
+  Note over Mobile,API: Any time (incl. quiet hours)
+  Mobile->>API: GET /v1/me/notifications
+  API->>DB: list inbox rows for user
+  API-->>Mobile: items for notifications window
+
+  Note over Worker,DB: After quiet window ends (scheduler / wake)
+  Worker->>DB: pending rows for user
+  Worker->>Worker: one aggregate Expo push
+  Worker->>DB: mark pending → aggregated
 ```
+
+## Quiet hours
+
+- Defaults: enabled, 22:00–08:00 in the user’s timezone (`Europe/Stockholm` at launch). Editable in
+  preferences (planned).
+- During the window: still insert the inbox row so the mobile notifications window can show it if
+  the user opens the app. Do **not** send an immediate Expo push.
+- When the window ends: send **one** aggregate Expo summarizing deferred pending items; mark those
+  rows `aggregated`. Individual event pages remain reachable from the inbox list.
+- Daily cap (5/day) counts matches accepted into the inbox, not the aggregate Expo itself.
 
 ## Auth notes
 

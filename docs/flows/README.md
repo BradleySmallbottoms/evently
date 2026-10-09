@@ -25,3 +25,4 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | User interests & saved areas | [user-preferences.md](./user-preferences.md) |
 | Region suggestions | [region-suggestions.md](./region-suggestions.md) |
 | Push token, nearby match, subscriptions (SQS → worker) | [push-and-domain-events.md](./push-and-domain-events.md) |
+| Physical geofence check-in | [geo-check-in.md](./geo-check-in.md) |

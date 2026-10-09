@@ -3,7 +3,11 @@ export const DAILY_NOTIFICATION_CAP = 5;
 
 export const DEFAULT_NOTIFICATION_TIMEZONE = 'Europe/Stockholm';
 
-/** Local quiet window 22:00–08:00 (wraps midnight). */
+/**
+ * Local quiet window 22:00–08:00 (wraps midnight).
+ * During the window, matches are stored in the notification inbox and Expo push is deferred
+ * until an aggregate flush after the window ends (see docs/decisions.md).
+ */
 export const DEFAULT_QUIET_HOURS = {
   startMin: 22 * 60,
   endMin: 8 * 60,

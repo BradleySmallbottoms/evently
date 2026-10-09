@@ -3,6 +3,8 @@ import { createDb, resolveDatabaseUrl } from '@local-events/db';
 import { createApp } from './app';
 import { createDbAuthServices } from './services/auth/db';
 import { createMemoryAuthServices } from './services/auth/memory';
+import { createDbCheckInServices } from './services/check-ins/db';
+import { createMemoryCheckInServices } from './services/check-ins/memory';
 import { createDbEventServices } from './services/events/db';
 import { createMemoryEventServices } from './services/events/memory';
 import { createMemoryDomainEventPublisher } from './services/domain-events/memory';
@@ -51,7 +53,8 @@ const domainEvents = queueUrl
   : createMemoryDomainEventPublisher();
 const eventEnvWithQueue = { ...eventEnv, domainEvents };
 
-const { auth, events, preferences, regions, subscriptions } = (() => {
+const checkInEnv = { now: () => new Date(), domainEvents };
+const { auth, events, preferences, regions, subscriptions, checkIns } = (() => {
   if (databaseUrl) {
     const db = createDb(databaseUrl);
     const authServices = createDbAuthServices(db, authEnv);
@@ -61,6 +64,7 @@ const { auth, events, preferences, regions, subscriptions } = (() => {
       preferences: createDbPreferenceServices(db, authServices, preferenceEnv),
       regions: createDbRegionServices(db),
       subscriptions: createDbSubscriptionServices(db, authServices),
+      checkIns: createDbCheckInServices(db, authServices, checkInEnv),
     };
   }
   const store = createMemoryStore();
@@ -71,6 +75,7 @@ const { auth, events, preferences, regions, subscriptions } = (() => {
     preferences: createMemoryPreferenceServices(authServices, preferenceEnv, store),
     regions: createMemoryRegionServices(store),
     subscriptions: createMemorySubscriptionServices(authServices, store),
+    checkIns: createMemoryCheckInServices(authServices, checkInEnv, store),
   };
 })();
 
@@ -84,7 +89,15 @@ if (!databaseUrl) {
 
 serve(
   {
-    fetch: createApp({ auth, events, preferences, regions, subscriptions, corsOrigin }).fetch,
+    fetch: createApp({
+      auth,
+      events,
+      preferences,
+      regions,
+      subscriptions,
+      checkIns,
+      corsOrigin,
+    }).fetch,
     port,
   },
   (info) => {

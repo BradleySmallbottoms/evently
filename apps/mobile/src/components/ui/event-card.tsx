@@ -1,5 +1,7 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
+import { useTranslation } from 'react-i18next';
 import { Pressable, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -38,21 +40,61 @@ export function EventCard({
   onFavoritePress,
   favorited,
 }: Props) {
+  const { t } = useTranslation();
+
   return (
     <Animated.View
       style={{
         transitionProperty: ['transform', 'opacity'],
         transitionDuration: 120,
+        backgroundColor: colors.card as string,
+        borderRadius: radius.lg,
+        borderCurve: 'continuous',
+        overflow: 'hidden',
+        boxShadow: shadow.card,
       }}
     >
+      {/* Favorite sits as a sibling so web does not nest <button> inside <button>. */}
+      {onFavoritePress ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={favorited ? t('events.unfavorite') : t('events.favorite')}
+          onPress={onFavoritePress}
+          style={{
+            position: 'absolute',
+            top: space.md,
+            right: space.md,
+            zIndex: 2,
+            width: 40,
+            height: 40,
+            borderRadius: radius.pill,
+            backgroundColor: 'rgba(255,255,255,0.94)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: shadow.soft,
+          }}
+        >
+          {process.env.EXPO_OS === 'ios' ? (
+            <SymbolView
+              name={(favorited ? 'heart.fill' : 'heart') as never}
+              size={18}
+              tintColor={favorited ? colors.accent : (colors.ink as string)}
+            />
+          ) : (
+            <MaterialIcons
+              name={favorited ? 'favorite' : 'favorite-border'}
+              size={20}
+              color={favorited ? colors.accent : (colors.ink as string)}
+            />
+          )}
+        </Pressable>
+      ) : null}
+
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={title}
         onPress={onPress}
         style={({ pressed }) => ({
-          backgroundColor: colors.card as string,
-          borderRadius: radius.lg,
-          borderCurve: 'continuous',
-          overflow: 'hidden',
-          boxShadow: shadow.card,
           transform: [{ scale: pressed ? 0.985 : 1 }],
           opacity: pressed ? 0.96 : 1,
         })}
@@ -76,32 +118,8 @@ export function EventCard({
                 'linear-gradient(to bottom, rgba(20,20,20,0) 0%, rgba(20,20,20,0.45) 100%)',
             }}
           />
-          <Pressable
-            accessibilityRole="button"
-            onPress={(e) => {
-              e.stopPropagation?.();
-              onFavoritePress?.();
-            }}
-            style={{
-              position: 'absolute',
-              top: space.md,
-              right: space.md,
-              width: 40,
-              height: 40,
-              borderRadius: radius.pill,
-              backgroundColor: 'rgba(255,255,255,0.94)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: shadow.soft,
-            }}
-          >
-            <SymbolView
-              name={(favorited ? 'heart.fill' : 'heart') as never}
-              size={18}
-              tintColor={favorited ? colors.accent : (colors.ink as string)}
-            />
-          </Pressable>
           <View
+            pointerEvents="none"
             style={{
               position: 'absolute',
               left: space.md,
@@ -123,8 +141,8 @@ export function EventCard({
             {title}
           </AppText>
           <View style={{ gap: space.xs }}>
-            <MetaRow icon="calendar" text={when} />
-            <MetaRow icon="mappin.and.ellipse" text={where} />
+            <MetaRow sf="calendar" md="event" text={when} />
+            <MetaRow sf="mappin.and.ellipse" md="place" text={where} />
           </View>
         </View>
       </Pressable>
@@ -132,10 +150,23 @@ export function EventCard({
   );
 }
 
-function MetaRow({ icon, text }: { icon: string; text: string }) {
+function MetaRow({
+  sf,
+  md,
+  text,
+}: {
+  sf: string;
+  md: keyof typeof MaterialIcons.glyphMap;
+  text: string;
+}) {
+  const tint = colors.inkFaint as string;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-      <SymbolView name={icon as never} size={14} tintColor={colors.inkFaint} />
+      {process.env.EXPO_OS === 'ios' ? (
+        <SymbolView name={sf as never} size={14} tintColor={tint} />
+      ) : (
+        <MaterialIcons name={md} size={16} color={tint} />
+      )}
       <AppText variant="caption" numberOfLines={1} style={{ flex: 1 }}>
         {text}
       </AppText>

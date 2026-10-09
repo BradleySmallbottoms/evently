@@ -162,12 +162,13 @@ export async function handleEventPublished(
       endMin: sample.quietHoursEndMin,
     };
     if (isWithinQuietHours(now, prefs)) {
+      // Spec (docs/decisions.md): store in inbox + aggregate Expo after the window.
+      // Current implementation still drops the push; inbox deferral is a planned Phase 3 follow-up.
       skipped += 1;
       continue;
     }
 
     const day = localDayKey(now, sample.timezone);
-    // Quiet-hours skip is intentional for v1 (that publish is not resent later).
     const claimId = await claimUnderDailyCap(deps.db, {
       userId,
       eventId,

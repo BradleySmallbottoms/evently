@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/ui/app-text';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
-import { PreferencesForm } from './_components/preferences-form';
+import { PreferencesForm } from '@/components/preferences/preferences-form';
 
 export default function PreferencesScreen() {
   const { t } = useTranslation();

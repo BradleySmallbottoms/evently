@@ -12,9 +12,8 @@ external sources. Launch area: Söderhamn and Gävleborgs län. Languages: Swedi
 
 ## Status
 
-Phase 3 (Discovery + notifications) is largely in place: nearby push, caps/quiet hours, Expo send,
-and publisher/event follow APIs (event.updated debounce still TODO). Closed-beta exit for this
-phase: a matching phone gets a push within about a minute of publish.
+Phase 4 (Check-in) is underway. Phase 3 nearby push and follows are in place. Physical geofence
+check-in works; digital codes, profile-at-check-in, and attendee content remain.
 
 ## Prerequisites
 
@@ -110,9 +109,10 @@ calls) in the same change as every new major feature.**
 - Publishing a **`published`** event (or admin verify releasing one) enqueues
   `{ type: 'event.published', eventId }` best-effort after the DB write. Without
   `DOMAIN_EVENTS_QUEUE_URL`, APIs keep events in-process and the worker idles.
-- Worker fan-out: nearby (areas ∩ interests) + publisher followers, quiet hours (default
-  22:00–08:00 Stockholm), 5/day cap, Expo Push, `notifications` dedupe. Follow via
-  `POST /v1/me/subscriptions`. Needs `DATABASE_URL` on the worker. Flow:
+- Worker fan-out: nearby (areas ∩ interests) + publisher followers, 5/day inbox cap, Expo Push,
+  `notifications` inbox/dedupe. Quiet hours (default 22:00–08:00 Stockholm): store in inbox during
+  the window, aggregate Expo after it ends; prefs UI planned. Follow via `POST /v1/me/subscriptions`.
+  Needs `DATABASE_URL` on the worker. Flow:
   [docs/flows/push-and-domain-events.md](docs/flows/push-and-domain-events.md).
 
 ### Frontend structure
@@ -133,6 +133,13 @@ calls) in the same change as every new major feature.**
 | Mobile web | 8081 |
 | E2E API    | 3090 |
 | E2E web    | 3190 |
+
+### Check-in
+
+- Physical: `GET /v1/events/{id}/check-in` + `POST /v1/events/{id}/check-ins` with Bearer session,
+  high-accuracy lat/lng, and `accuracyM`. Domain enforces window (30 min before start → end),
+  accuracy ≤ 100 m, and circle geofence (`geofenceRadiusM`, default 100). Unique per user+event.
+  Flow: [docs/flows/geo-check-in.md](docs/flows/geo-check-in.md).
 
 ### E2E vs local data
 

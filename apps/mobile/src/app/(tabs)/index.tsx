@@ -6,6 +6,7 @@ import { FlatList, RefreshControl, View } from 'react-native';
 
 import { DateFilter } from '@/components/native/date-filter';
 import { LocationMenu } from '@/components/native/location-menu';
+import { NotificationsSheet } from '@/components/native/notifications-sheet';
 import {
   PairingSheet,
   type PairingSheetTab,
@@ -51,6 +52,7 @@ export default function HomeScreen() {
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [filterDate, setFilterDate] = useState(() => new Date());
   const [locationOpen, setLocationOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [pairingOpen, setPairingOpen] = useState(false);
   const [pairingTab, setPairingTab] = useState<PairingSheetTab>('web');
   const [pairingCode, setPairingCode] = useState<string | null>(null);
@@ -87,7 +89,8 @@ export default function HomeScreen() {
       if (savedArea) return savedArea;
       return resolveEventQueryPoint();
     },
-    enabled: identity.isSuccess && !preferences.isLoading,
+    // Public discovery must work even if anonymous identity creation fails.
+    enabled: !identity.isPending && (identity.isError || !preferences.isLoading),
     retry: false,
   });
   const events = useQuery({
@@ -134,13 +137,17 @@ export default function HomeScreen() {
   const filtered = useMemo(() => {
     const items = events.data?.items ?? [];
     const q = search.trim().toLowerCase();
+    const dayStart = new Date(filterDate);
+    dayStart.setHours(0, 0, 0, 0);
     return items.filter((event) => {
       if (categoryId === 'physical' && event.mode !== 'physical') return false;
       if (categoryId === 'digital' && event.mode !== 'digital') return false;
+      // From the selected day onward (day picker is a lower bound, not a single day).
+      if (new Date(event.startsAt).getTime() < dayStart.getTime()) return false;
       if (!q) return true;
       return event.title.toLowerCase().includes(q);
     });
-  }, [events.data?.items, search, categoryId]);
+  }, [events.data?.items, search, categoryId, filterDate]);
 
   async function generatePairingCode() {
     setPairingPending(true);
@@ -232,8 +239,12 @@ export default function HomeScreen() {
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
-            refreshing={events.isFetching && !events.isPending}
-            onRefresh={() => void events.refetch()}
+            refreshing={(events.isFetching || identity.isFetching) && !events.isPending}
+            onRefresh={() => {
+              void identity.refetch();
+              void point.refetch();
+              void events.refetch();
+            }}
             tintColor={colors.accent}
           />
         }
@@ -285,8 +296,8 @@ export default function HomeScreen() {
                 <CircleIconButton
                   sf="bell"
                   md="notifications"
-                  badge
                   accessibilityLabel={t('events.notifications')}
+                  onPress={() => setNotificationsOpen(true)}
                 />
               </View>
             </View>
@@ -365,6 +376,13 @@ export default function HomeScreen() {
             />
           </View>
         )}
+      />
+
+      <NotificationsSheet
+        isPresented={notificationsOpen}
+        onDismiss={() => setNotificationsOpen(false)}
+        title={t('events.notifications')}
+        emptyMessage={t('events.notificationsEmpty')}
       />
 
       <PairingSheet
