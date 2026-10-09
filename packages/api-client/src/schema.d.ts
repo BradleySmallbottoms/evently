@@ -4,499 +4,1240 @@
  */
 
 export interface paths {
-  '/health': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Service is up */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              /** @enum {string} */
-              status: 'ok';
-              service: string;
-              /** Format: date-time */
-              time: string;
+    "/identities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
             };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/identities': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            /** @enum {string} */
-            platform: 'ios' | 'android' | 'web';
-            /**
-             * @default sv
-             * @enum {string}
-             */
-            locale?: 'sv' | 'en';
-          };
-        };
-      };
-      responses: {
-        /** @description Anonymous identity created */
-        201: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              /** Format: uuid */
-              userId: string;
-              /** Format: uuid */
-              deviceId: string;
-              deviceCredential: string;
-              sessionToken: string;
-              /** Format: date-time */
-              expiresAt: string;
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        platform: "ios" | "android" | "web";
+                        /**
+                         * @default sv
+                         * @enum {string}
+                         */
+                        locale?: "sv" | "en";
+                    };
+                };
             };
-          };
-        };
-        /** @description Validation error */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error: {
-                code: string;
-                message: string;
-              };
+            responses: {
+                /** @description Anonymous identity created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            userId: string;
+                            /** Format: uuid */
+                            deviceId: string;
+                            deviceCredential: string;
+                            sessionToken: string;
+                            /** Format: date-time */
+                            expiresAt: string;
+                        };
+                    };
+                };
+                /** @description Validation error */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
             };
-          };
         };
-      };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/sessions': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            deviceCredential: string;
-          };
+    "/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-      responses: {
-        /** @description Session issued from device credential */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              /** Format: uuid */
-              userId: string;
-              sessionToken: string;
-              /** Format: date-time */
-              expiresAt: string;
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
             };
-          };
-        };
-        /** @description Invalid device credential */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error: {
-                code: string;
-                message: string;
-              };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        deviceCredential: string;
+                    };
+                };
             };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/publishers/register': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            /** Format: email */
-            email: string;
-            password: string;
-            name: string;
-            /** @enum {string} */
-            type: 'org' | 'person';
-            slug?: string;
-          };
-        };
-      };
-      responses: {
-        /** @description Publisher account created; email verification required before login */
-        201: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              /** Format: uuid */
-              publisherAccountId: string;
-              /** Format: uuid */
-              publisherId: string;
-              /** Format: email */
-              email: string;
-              verificationToken?: string;
+            responses: {
+                /** @description Session issued from device credential */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            userId: string;
+                            sessionToken: string;
+                            /** Format: date-time */
+                            expiresAt: string;
+                        };
+                    };
+                };
+                /** @description Invalid device credential */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
             };
-          };
         };
-        /** @description Email or slug already taken */
-        409: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error: {
-                code: string;
-                message: string;
-              };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/publishers/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
             };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/publishers/verify-email': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            token: string;
-          };
-        };
-      };
-      responses: {
-        /** @description Email verified */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              /** @enum {boolean} */
-              ok: true;
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        email: string;
+                        password: string;
+                        name: string;
+                        /** @enum {string} */
+                        type: "org" | "person";
+                        slug?: string;
+                    };
+                };
             };
-          };
-        };
-        /** @description Invalid or expired token */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error: {
-                code: string;
-                message: string;
-              };
+            responses: {
+                /** @description Publisher account created; email verification required before login */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            publisherAccountId: string;
+                            /** Format: uuid */
+                            publisherId: string;
+                            /** Format: email */
+                            email: string;
+                            verificationToken?: string;
+                        };
+                    };
+                };
+                /** @description Email or slug already taken */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
             };
-          };
         };
-      };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/publishers/login': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            /** Format: email */
-            email: string;
-            password: string;
-          };
+    "/publishers/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-      responses: {
-        /** @description Logged in; session cookie set */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              /** Format: uuid */
-              publisherAccountId: string;
-              /** Format: email */
-              email: string;
-              publishers: {
-                /** Format: uuid */
-                id: string;
-                name: string;
-                slug: string;
-                /** @enum {string} */
-                type: 'org' | 'person';
-                verified: boolean;
-                /** @enum {string} */
-                role: 'owner' | 'editor';
-              }[];
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
             };
-          };
-        };
-        /** @description Invalid credentials */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error: {
-                code: string;
-                message: string;
-              };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        token: string;
+                    };
+                };
             };
-          };
-        };
-        /** @description Email not verified */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error: {
-                code: string;
-                message: string;
-              };
+            responses: {
+                /** @description Email verified */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            ok: true;
+                        };
+                    };
+                };
+                /** @description Invalid or expired token */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
             };
-          };
         };
-      };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/publishers/logout': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Logged out */
-        204: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
+    "/publishers/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/publishers/me': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Current publisher account */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              /** Format: uuid */
-              publisherAccountId: string;
-              /** Format: email */
-              email: string;
-              publishers: {
-                /** Format: uuid */
-                id: string;
-                name: string;
-                slug: string;
-                /** @enum {string} */
-                type: 'org' | 'person';
-                verified: boolean;
-                /** @enum {string} */
-                role: 'owner' | 'editor';
-              }[];
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
             };
-          };
-        };
-        /** @description Not authenticated */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error: {
-                code: string;
-                message: string;
-              };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        email: string;
+                        password: string;
+                    };
+                };
             };
-          };
+            responses: {
+                /** @description Logged in; session cookie set */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            publisherAccountId: string;
+                            /** Format: email */
+                            email: string;
+                            publishers: {
+                                /** Format: uuid */
+                                id: string;
+                                name: string;
+                                slug: string;
+                                /** @enum {string} */
+                                type: "org" | "person";
+                                verified: boolean;
+                                /** @enum {string} */
+                                role: "owner" | "editor";
+                            }[];
+                        };
+                    };
+                };
+                /** @description Invalid credentials */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Email not verified */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
         };
-      };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
+    "/publishers/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Logged out */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/publishers/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Current publisher account */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            publisherAccountId: string;
+                            /** Format: email */
+                            email: string;
+                            publishers: {
+                                /** Format: uuid */
+                                id: string;
+                                name: string;
+                                slug: string;
+                                /** @enum {string} */
+                                type: "org" | "person";
+                                verified: boolean;
+                                /** @enum {string} */
+                                role: "owner" | "editor";
+                            }[];
+                        };
+                    };
+                };
+                /** @description Not authenticated */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Event categories */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                /** Format: uuid */
+                                id: string;
+                                slug: string;
+                                /** Format: uuid */
+                                parentId: string | null;
+                                nameSv: string;
+                                nameEn: string;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/publishers/{publisherId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    publisherId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Events for a publisher (all statuses the member can see) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                publisherId: string;
+                                title: string;
+                                description: string | null;
+                                /** @enum {string} */
+                                mode: "physical" | "digital";
+                                /** @enum {string} */
+                                status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                /** @enum {string} */
+                                origin: "native" | "imported";
+                                /** Format: date-time */
+                                startsAt: string;
+                                /** Format: date-time */
+                                endsAt: string;
+                                timezone: string;
+                                venueName: string | null;
+                                location: {
+                                    lat: number;
+                                    lng: number;
+                                } | null;
+                                geofenceRadiusM: number | null;
+                                /** Format: uri */
+                                onlineUrl: string | null;
+                                categoryIds: string[];
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    publisherId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        title: string;
+                        description?: string;
+                        /** @enum {string} */
+                        mode: "physical" | "digital";
+                        /** Format: date-time */
+                        startsAt: string;
+                        /** Format: date-time */
+                        endsAt: string;
+                        /** @default Europe/Stockholm */
+                        timezone?: string;
+                        venueName?: string;
+                        location?: {
+                            lat: number;
+                            lng: number;
+                        };
+                        geofenceRadiusM?: number;
+                        /** Format: uri */
+                        onlineUrl?: string;
+                        /** @default [] */
+                        categoryIds?: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Draft event created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            publisherId: string;
+                            title: string;
+                            description: string | null;
+                            /** @enum {string} */
+                            mode: "physical" | "digital";
+                            /** @enum {string} */
+                            status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                            /** @enum {string} */
+                            origin: "native" | "imported";
+                            /** Format: date-time */
+                            startsAt: string;
+                            /** Format: date-time */
+                            endsAt: string;
+                            timezone: string;
+                            venueName: string | null;
+                            location: {
+                                lat: number;
+                                lng: number;
+                            } | null;
+                            geofenceRadiusM: number | null;
+                            /** Format: uri */
+                            onlineUrl: string | null;
+                            categoryIds: string[];
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        };
+                    };
+                };
+                /** @description Validation error */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    lat?: number | null;
+                    lng?: number | null;
+                    radiusM?: number;
+                    from?: string;
+                    to?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Published events near a point */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                publisherId: string;
+                                title: string;
+                                description: string | null;
+                                /** @enum {string} */
+                                mode: "physical" | "digital";
+                                /** @enum {string} */
+                                status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                /** @enum {string} */
+                                origin: "native" | "imported";
+                                /** Format: date-time */
+                                startsAt: string;
+                                /** Format: date-time */
+                                endsAt: string;
+                                timezone: string;
+                                venueName: string | null;
+                                location: {
+                                    lat: number;
+                                    lng: number;
+                                } | null;
+                                geofenceRadiusM: number | null;
+                                /** Format: uri */
+                                onlineUrl: string | null;
+                                categoryIds: string[];
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Published event */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            publisherId: string;
+                            title: string;
+                            description: string | null;
+                            /** @enum {string} */
+                            mode: "physical" | "digital";
+                            /** @enum {string} */
+                            status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                            /** @enum {string} */
+                            origin: "native" | "imported";
+                            /** Format: date-time */
+                            startsAt: string;
+                            /** Format: date-time */
+                            endsAt: string;
+                            timezone: string;
+                            venueName: string | null;
+                            location: {
+                                lat: number;
+                                lng: number;
+                            } | null;
+                            geofenceRadiusM: number | null;
+                            /** Format: uri */
+                            onlineUrl: string | null;
+                            categoryIds: string[];
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        };
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/manage/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Event for a publisher member (any status) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            publisherId: string;
+                            title: string;
+                            description: string | null;
+                            /** @enum {string} */
+                            mode: "physical" | "digital";
+                            /** @enum {string} */
+                            status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                            /** @enum {string} */
+                            origin: "native" | "imported";
+                            /** Format: date-time */
+                            startsAt: string;
+                            /** Format: date-time */
+                            endsAt: string;
+                            timezone: string;
+                            venueName: string | null;
+                            location: {
+                                lat: number;
+                                lng: number;
+                            } | null;
+                            geofenceRadiusM: number | null;
+                            /** Format: uri */
+                            onlineUrl: string | null;
+                            categoryIds: string[];
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        title?: string;
+                        description?: string | null;
+                        /** @enum {string} */
+                        mode?: "physical" | "digital";
+                        /** Format: date-time */
+                        startsAt?: string;
+                        /** Format: date-time */
+                        endsAt?: string;
+                        timezone?: string;
+                        venueName?: string | null;
+                        location?: {
+                            lat: number;
+                            lng: number;
+                        } | null;
+                        geofenceRadiusM?: number | null;
+                        /** Format: uri */
+                        onlineUrl?: string | null;
+                        categoryIds?: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Event updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            publisherId: string;
+                            title: string;
+                            description: string | null;
+                            /** @enum {string} */
+                            mode: "physical" | "digital";
+                            /** @enum {string} */
+                            status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                            /** @enum {string} */
+                            origin: "native" | "imported";
+                            /** Format: date-time */
+                            startsAt: string;
+                            /** Format: date-time */
+                            endsAt: string;
+                            timezone: string;
+                            venueName: string | null;
+                            location: {
+                                lat: number;
+                                lng: number;
+                            } | null;
+                            geofenceRadiusM: number | null;
+                            /** Format: uri */
+                            onlineUrl: string | null;
+                            categoryIds: string[];
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        };
+                    };
+                };
+                /** @description Validation error */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/manage/events/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Event published (or awaiting_verification) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            publisherId: string;
+                            title: string;
+                            description: string | null;
+                            /** @enum {string} */
+                            mode: "physical" | "digital";
+                            /** @enum {string} */
+                            status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                            /** @enum {string} */
+                            origin: "native" | "imported";
+                            /** Format: date-time */
+                            startsAt: string;
+                            /** Format: date-time */
+                            endsAt: string;
+                            timezone: string;
+                            venueName: string | null;
+                            location: {
+                                lat: number;
+                                lng: number;
+                            } | null;
+                            geofenceRadiusM: number | null;
+                            /** Format: uri */
+                            onlineUrl: string | null;
+                            categoryIds: string[];
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        };
+                    };
+                };
+                /** @description Cannot publish */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/manage/events/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Event cancelled */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            publisherId: string;
+                            title: string;
+                            description: string | null;
+                            /** @enum {string} */
+                            mode: "physical" | "digital";
+                            /** @enum {string} */
+                            status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                            /** @enum {string} */
+                            origin: "native" | "imported";
+                            /** Format: date-time */
+                            startsAt: string;
+                            /** Format: date-time */
+                            endsAt: string;
+                            timezone: string;
+                            venueName: string | null;
+                            location: {
+                                lat: number;
+                                lng: number;
+                            } | null;
+                            geofenceRadiusM: number | null;
+                            /** Format: uri */
+                            onlineUrl: string | null;
+                            categoryIds: string[];
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        };
+                    };
+                };
+                /** @description Cannot cancel */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: never;
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    schemas: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

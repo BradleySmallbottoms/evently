@@ -16,15 +16,20 @@ Endpoints are thin. The order below keeps rules testable and the OpenAPI spec ac
    `docs/project-description.md` → Key flows and the invariants in `CLAUDE.md`. Plan limits go
    through `entitlementsFor()`.
 4. **Persistence** — if new tables/columns are needed, use the `db-schema-change` skill first.
-5. **Route** — in `apps/<api>/src`, define it with `createRoute` from `@hono/zod-openapi` and
-   register with `app.openapi(route, handler)`. Path under `/v1/...`. Return `ErrorResponse` for
-   errors with a stable `code`.
-6. **Auth** — public routes resolve the caller from the session token (device credential → session);
+5. **Service** — add or extend an adapter in `apps/<api>/src/services/<group>/` (or
+   `services/<group>.ts`): types, `db` + `memory` implementations, error mapping. Keep business
+   rules in `packages/domain`.
+6. **Route** — add the endpoint in `apps/<api>/src/routes/<group>.ts` with `createRoute` from
+   `@hono/zod-openapi` and `app.openapi(route, handler)`. Path **without** the version prefix
+   (e.g. `/identities`, not `/v1/identities`) — the app mounts versioned routes at `API_PREFIX`
+   from package.json `apiVersion`. Return `ErrorResponse` with a stable `code`. Register the
+   group from `routes/index.ts`. Do **not** put routes in `app.ts` or under `services/`.
+7. **Auth** — public routes resolve the caller from the session token (device credential → session);
    never trust a user id from the request body. Admin routes require an admin session.
-7. **Side effects** — writes that others react to (publish, update, check-in, rating) enqueue a
+8. **Side effects** — writes that others react to (publish, update, check-in, rating) enqueue a
    domain event for `apps/worker`; don't send notifications inline.
-8. **Tests** — call `createApp().request(...)` in `src/*.test.ts` for the happy path and each
-   rejection reason.
-9. **Verify** — `pnpm --filter @local-events/<api> typecheck test`, then root `pnpm typecheck`.
-   Check the route appears in `/v1/openapi.json`.
-10. Tick the matching item in `docs/build-plan.md`.
+9. **Tests** — call `createApp().request(`${API_PREFIX}/…`)` (or `/v1/…`) in `src/*.test.ts` for
+   the happy path and each rejection reason. OpenAPI path assertions omit the prefix.
+10. **Verify** — `pnpm --filter @local-events/<api> typecheck test`, then root `pnpm typecheck`.
+    Check the route appears in `/v1/openapi.json` (paths without `/v1`).
+11. Tick the matching item in `docs/build-plan.md`.

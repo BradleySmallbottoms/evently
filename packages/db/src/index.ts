@@ -3,6 +3,7 @@ import postgres from 'postgres';
 import * as schema from './schema';
 
 export { schema };
+export { pointEwkt, geographyPoint, geographyPolygon, geographyMultiPolygon } from './postgis';
 
 /**
  * Prefer DATABASE_URL. In ECS we inject discrete DB_* fields from the RDS secret

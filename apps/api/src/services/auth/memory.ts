@@ -19,66 +19,19 @@ import type {
 } from '@local-events/contracts';
 import { canPublisherLogin, slugifyPublisherName } from '@local-events/domain';
 import { randomUUID } from 'node:crypto';
+import { createMemoryStore, type MemoryStore } from '../memory-store';
 import { AuthError, type AuthEnv, type AuthServices } from './types';
-
-type UserRow = { id: string; createdAt: Date };
-type DeviceRow = {
-  id: string;
-  userId: string;
-  credentialHash: string;
-  platform: string;
-  locale: string;
-  revokedAt: Date | null;
-};
-type SessionRow = {
-  id: string;
-  subjectType: 'user' | 'publisher_account' | 'admin';
-  subjectId: string;
-  tokenHash: string;
-  client: string;
-  expiresAt: Date;
-  revokedAt: Date | null;
-};
-type PublisherAccountRow = {
-  id: string;
-  email: string;
-  passwordHash: string;
-  emailVerifiedAt: Date | null;
-};
-type PublisherRow = {
-  id: string;
-  type: 'org' | 'person';
-  name: string;
-  slug: string;
-  verified: boolean;
-};
-type MemberRow = {
-  publisherId: string;
-  publisherAccountId: string;
-  role: 'owner' | 'editor';
-};
-type TokenRow = {
-  id: string;
-  purpose: string;
-  subjectId: string;
-  tokenHash: string;
-  expiresAt: Date;
-  usedAt: Date | null;
-};
 
 function addSeconds(date: Date, seconds: number): Date {
   return new Date(date.getTime() + seconds * 1000);
 }
 
 /** In-memory auth backend for unit tests (no Postgres required). */
-export function createMemoryAuthServices(env: AuthEnv = defaultEnv()): AuthServices {
-  const users = new Map<string, UserRow>();
-  const devices = new Map<string, DeviceRow>();
-  const sessions = new Map<string, SessionRow>();
-  const accounts = new Map<string, PublisherAccountRow>();
-  const publishers = new Map<string, PublisherRow>();
-  const members: MemberRow[] = [];
-  const tokens = new Map<string, TokenRow>();
+export function createMemoryAuthServices(
+  env: AuthEnv = defaultEnv(),
+  store: MemoryStore = createMemoryStore(),
+): AuthServices {
+  const { users, devices, sessions, accounts, publishers, members, tokens } = store;
 
   function normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
@@ -196,6 +149,7 @@ export function createMemoryAuthServices(env: AuthEnv = defaultEnv()): AuthServi
 
       const accountId = randomUUID();
       const publisherId = randomUUID();
+      const now = env.now();
       accounts.set(accountId, {
         id: accountId,
         email,
@@ -208,6 +162,8 @@ export function createMemoryAuthServices(env: AuthEnv = defaultEnv()): AuthServi
         name: input.name,
         slug,
         verified: false,
+        origin: 'native',
+        createdAt: now,
       });
       members.push({
         publisherId,
@@ -221,7 +177,7 @@ export function createMemoryAuthServices(env: AuthEnv = defaultEnv()): AuthServi
         purpose: 'publisher_email',
         subjectId: accountId,
         tokenHash: hashToken(verificationToken),
-        expiresAt: addSeconds(env.now(), EMAIL_VERIFICATION_TTL_SECONDS),
+        expiresAt: addSeconds(now, EMAIL_VERIFICATION_TTL_SECONDS),
         usedAt: null,
       });
 
@@ -298,6 +254,21 @@ export function createMemoryAuthServices(env: AuthEnv = defaultEnv()): AuthServi
         publisherAccountId: account.id,
         email: account.email,
         publishers: publishersForAccount(account.id),
+      };
+    },
+
+    async requirePublisherMember(sessionToken: string | undefined, publisherId: string) {
+      const account = await resolvePublisherSession(sessionToken);
+      const membership = members.find(
+        (m) => m.publisherAccountId === account.id && m.publisherId === publisherId,
+      );
+      if (!membership) throw new AuthError('unauthorized');
+      const publisher = publishers.get(publisherId);
+      if (!publisher) throw new AuthError('unauthorized');
+      return {
+        accountId: account.id,
+        role: membership.role,
+        publisherVerified: publisher.verified,
       };
     },
   };

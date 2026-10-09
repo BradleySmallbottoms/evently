@@ -66,7 +66,7 @@ export async function ensureIdentity(locale: 'sv' | 'en' = 'sv'): Promise<Stored
     const expiresSoon = new Date(existing.expiresAt).getTime() - Date.now() < 5 * 60 * 1000;
     if (!expiresSoon) return existing;
     const session = throwIfError(
-      await api.POST('/v1/sessions', {
+      await api.POST('/sessions', {
         body: { deviceCredential: existing.deviceCredential },
       }),
     );
@@ -80,7 +80,7 @@ export async function ensureIdentity(locale: 'sv' | 'en' = 'sv'): Promise<Stored
   }
 
   const created = throwIfError(
-    await api.POST('/v1/identities', {
+    await api.POST('/identities', {
       body: { platform: platform(), locale },
     }),
   );

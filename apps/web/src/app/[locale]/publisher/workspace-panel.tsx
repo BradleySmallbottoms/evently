@@ -11,7 +11,7 @@ function WorkspaceInner() {
   const t = useTranslations('Publisher');
   const me = useQuery({
     queryKey: ['publisher-me'],
-    queryFn: async () => throwIfError(await api.GET('/v1/publishers/me')),
+    queryFn: async () => throwIfError(await api.GET('/publishers/me')),
     retry: false,
   });
 

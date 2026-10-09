@@ -1,8 +1,11 @@
 import { serve } from '@hono/node-server';
 import { createDb, resolveDatabaseUrl } from '@local-events/db';
 import { createApp } from './app';
-import { createDbAuthServices } from './auth/db';
-import { createMemoryAuthServices } from './auth/memory';
+import { createDbAuthServices } from './services/auth/db';
+import { createMemoryAuthServices } from './services/auth/memory';
+import { createDbEventServices } from './services/events/db';
+import { createMemoryEventServices } from './services/events/memory';
+import { createMemoryStore } from './services/memory-store';
 import { initSentry } from './sentry';
 
 initSentry('api');
@@ -30,20 +33,33 @@ const includeVerificationToken =
   (process.env.INCLUDE_VERIFICATION_TOKEN !== 'false' && process.env.NODE_ENV !== 'production');
 
 const databaseUrl = resolveDatabaseUrl();
-const auth = databaseUrl
-  ? createDbAuthServices(createDb(databaseUrl), {
-      includeVerificationToken,
-      now: () => new Date(),
-    })
-  : createMemoryAuthServices({ includeVerificationToken, now: () => new Date() });
+const authEnv = { includeVerificationToken, now: () => new Date() };
+const eventEnv = { now: () => new Date() };
+
+const { auth, events } = (() => {
+  if (databaseUrl) {
+    const db = createDb(databaseUrl);
+    const authServices = createDbAuthServices(db, authEnv);
+    return {
+      auth: authServices,
+      events: createDbEventServices(db, authServices, eventEnv),
+    };
+  }
+  const store = createMemoryStore();
+  const authServices = createMemoryAuthServices(authEnv, store);
+  return {
+    auth: authServices,
+    events: createMemoryEventServices(authServices, eventEnv, store),
+  };
+})();
 
 if (!databaseUrl) {
-  console.warn('DATABASE_URL not set; using in-memory auth store (data is lost on restart)');
+  console.warn('DATABASE_URL not set; using in-memory store (data is lost on restart)');
 }
 
 serve(
   {
-    fetch: createApp({ auth, corsOrigin }).fetch,
+    fetch: createApp({ auth, events, corsOrigin }).fetch,
     port,
   },
   (info) => {

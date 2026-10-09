@@ -28,7 +28,9 @@ Always finish a change with `pnpm typecheck && pnpm test` (or the filtered equiv
 
 ## Layout
 
-- `apps/api`, `apps/admin-api` — Hono + @hono/zod-openapi REST APIs (`/v1`, OpenAPI at `/v1/openapi.json`)
+- `apps/api`, `apps/admin-api` — Hono + @hono/zod-openapi REST APIs. Version prefix comes from
+  package.json `apiVersion` (mounted as `/v{n}`); OpenAPI at `/v{n}/openapi.json`. Route paths in
+  code omit the prefix.
 - `apps/worker` — SQS consumer for domain events (notifications, stats)
 - `apps/data-workers` — scheduled ingestion; one adapter per source in `src/sources/<slug>/`
 - `apps/mobile` (Expo), `apps/web` / `apps/admin` (Next.js) — scaffolded; follow `apps/README.md`
@@ -36,11 +38,40 @@ Always finish a change with `pnpm typecheck && pnpm test` (or the filtered equiv
   `geo`, `config` (tsconfig presets)
 - `infra` — AWS CDK, region eu-north-1
 
+### API app layout (`apps/api`, `apps/admin-api`)
+
+```
+src/
+  app.ts                 # createApp: middleware, registerRoutes, OpenAPI doc
+  index.ts               # process entry: wire DB/memory services → createApp → serve
+  routes/                # HTTP only — one file per resource group
+    index.ts             # registerRoutes(app, services)
+    health.ts
+    identities.ts        # (public API)
+    sessions.ts
+    publishers.ts
+    categories.ts
+    events.ts
+    …
+  services/              # persistence / adapters (db + memory implementations)
+    auth/                # or publishers.ts, events/, …
+    events/
+    …
+```
+
+- Put new endpoints in `routes/<group>.ts` (e.g. `events.ts`, `publishers.ts`). Do not define
+  `createRoute` handlers in `app.ts` or under `services/`. Paths omit the version prefix
+  (`/identities`, not `/v1/identities`); `apiVersion` in that app's `package.json` sets
+  `API_PREFIX` (e.g. `/v1`) in `src/config.ts`.
+- Put AuthServices / EventServices / DB + memory backends in `services/<group>/` (or a single
+  `services/<group>.ts` when small). Routes call services; services call domain + db.
+- `app.ts` stays thin: error handler, CORS (public API), mount at `API_PREFIX`, OpenAPI.
+
 ## Rules
 
 Architecture
 
-- Apps import packages; packages never import apps.
+- Apps import packages; packages never import apps. API apps must not import each other.
 - Business rules live in `packages/domain` with unit tests. Route handlers and workers stay thin:
   validate → call domain → persist.
 - `db`, `auth`, `ingest` are server-only (they use Node APIs). Frontends may import only

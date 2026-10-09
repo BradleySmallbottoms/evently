@@ -15,7 +15,7 @@ export function RegisterForm() {
     setPending(true);
     setError(null);
     try {
-      const result = await api.POST('/v1/publishers/register', {
+      const result = await api.POST('/publishers/register', {
         body: {
           email: String(formData.get('email') ?? ''),
           password: String(formData.get('password') ?? ''),

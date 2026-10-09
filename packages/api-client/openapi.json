@@ -9,37 +9,7 @@
     "parameters": {}
   },
   "paths": {
-    "/health": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Service is up",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": ["ok"]
-                    },
-                    "service": {
-                      "type": "string"
-                    },
-                    "time": {
-                      "type": "string",
-                      "format": "date-time"
-                    }
-                  },
-                  "required": ["status", "service", "time"]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identities": {
+    "/identities": {
       "post": {
         "requestBody": {
           "required": true,
@@ -50,15 +20,24 @@
                 "properties": {
                   "platform": {
                     "type": "string",
-                    "enum": ["ios", "android", "web"]
+                    "enum": [
+                      "ios",
+                      "android",
+                      "web"
+                    ]
                   },
                   "locale": {
                     "type": "string",
-                    "enum": ["sv", "en"],
+                    "enum": [
+                      "sv",
+                      "en"
+                    ],
                     "default": "sv"
                   }
                 },
-                "required": ["platform"]
+                "required": [
+                  "platform"
+                ]
               }
             }
           }
@@ -120,10 +99,15 @@
                           "type": "string"
                         }
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -131,7 +115,7 @@
         }
       }
     },
-    "/v1/sessions": {
+    "/sessions": {
       "post": {
         "requestBody": {
           "required": true,
@@ -145,7 +129,9 @@
                     "minLength": 1
                   }
                 },
-                "required": ["deviceCredential"]
+                "required": [
+                  "deviceCredential"
+                ]
               }
             }
           }
@@ -171,7 +157,11 @@
                       "format": "date-time"
                     }
                   },
-                  "required": ["userId", "sessionToken", "expiresAt"]
+                  "required": [
+                    "userId",
+                    "sessionToken",
+                    "expiresAt"
+                  ]
                 }
               }
             }
@@ -193,10 +183,15 @@
                           "type": "string"
                         }
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -204,7 +199,7 @@
         }
       }
     },
-    "/v1/publishers/register": {
+    "/publishers/register": {
       "post": {
         "requestBody": {
           "required": true,
@@ -229,7 +224,10 @@
                   },
                   "type": {
                     "type": "string",
-                    "enum": ["org", "person"]
+                    "enum": [
+                      "org",
+                      "person"
+                    ]
                   },
                   "slug": {
                     "type": "string",
@@ -238,7 +236,12 @@
                     "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
                   }
                 },
-                "required": ["email", "password", "name", "type"]
+                "required": [
+                  "email",
+                  "password",
+                  "name",
+                  "type"
+                ]
               }
             }
           }
@@ -267,7 +270,11 @@
                       "type": "string"
                     }
                   },
-                  "required": ["publisherAccountId", "publisherId", "email"]
+                  "required": [
+                    "publisherAccountId",
+                    "publisherId",
+                    "email"
+                  ]
                 }
               }
             }
@@ -289,10 +296,15 @@
                           "type": "string"
                         }
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -300,7 +312,7 @@
         }
       }
     },
-    "/v1/publishers/verify-email": {
+    "/publishers/verify-email": {
       "post": {
         "requestBody": {
           "required": true,
@@ -314,7 +326,9 @@
                     "minLength": 1
                   }
                 },
-                "required": ["token"]
+                "required": [
+                  "token"
+                ]
               }
             }
           }
@@ -329,10 +343,14 @@
                   "properties": {
                     "ok": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     }
                   },
-                  "required": ["ok"]
+                  "required": [
+                    "ok"
+                  ]
                 }
               }
             }
@@ -354,10 +372,15 @@
                           "type": "string"
                         }
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -365,7 +388,7 @@
         }
       }
     },
-    "/v1/publishers/login": {
+    "/publishers/login": {
       "post": {
         "requestBody": {
           "required": true,
@@ -384,7 +407,10 @@
                     "maxLength": 200
                   }
                 },
-                "required": ["email", "password"]
+                "required": [
+                  "email",
+                  "password"
+                ]
               }
             }
           }
@@ -422,21 +448,38 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": ["org", "person"]
+                            "enum": [
+                              "org",
+                              "person"
+                            ]
                           },
                           "verified": {
                             "type": "boolean"
                           },
                           "role": {
                             "type": "string",
-                            "enum": ["owner", "editor"]
+                            "enum": [
+                              "owner",
+                              "editor"
+                            ]
                           }
                         },
-                        "required": ["id", "name", "slug", "type", "verified", "role"]
+                        "required": [
+                          "id",
+                          "name",
+                          "slug",
+                          "type",
+                          "verified",
+                          "role"
+                        ]
                       }
                     }
                   },
-                  "required": ["publisherAccountId", "email", "publishers"]
+                  "required": [
+                    "publisherAccountId",
+                    "email",
+                    "publishers"
+                  ]
                 }
               }
             }
@@ -458,10 +501,15 @@
                           "type": "string"
                         }
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -483,10 +531,15 @@
                           "type": "string"
                         }
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -494,7 +547,7 @@
         }
       }
     },
-    "/v1/publishers/logout": {
+    "/publishers/logout": {
       "post": {
         "responses": {
           "204": {
@@ -503,7 +556,7 @@
         }
       }
     },
-    "/v1/publishers/me": {
+    "/publishers/me": {
       "get": {
         "responses": {
           "200": {
@@ -538,21 +591,38 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": ["org", "person"]
+                            "enum": [
+                              "org",
+                              "person"
+                            ]
                           },
                           "verified": {
                             "type": "boolean"
                           },
                           "role": {
                             "type": "string",
-                            "enum": ["owner", "editor"]
+                            "enum": [
+                              "owner",
+                              "editor"
+                            ]
                           }
                         },
-                        "required": ["id", "name", "slug", "type", "verified", "role"]
+                        "required": [
+                          "id",
+                          "name",
+                          "slug",
+                          "type",
+                          "verified",
+                          "role"
+                        ]
                       }
                     }
                   },
-                  "required": ["publisherAccountId", "email", "publishers"]
+                  "required": [
+                    "publisherAccountId",
+                    "email",
+                    "publishers"
+                  ]
                 }
               }
             }
@@ -574,10 +644,1851 @@
                           "type": "string"
                         }
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/categories": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Event categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "parentId": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uuid"
+                          },
+                          "nameSv": {
+                            "type": "string"
+                          },
+                          "nameEn": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "slug",
+                          "parentId",
+                          "nameSv",
+                          "nameEn"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/publishers/{publisherId}/events": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "publisherId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events for a publisher (all statuses the member can see)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "publisherId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "physical",
+                              "digital"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "awaiting_verification",
+                              "in_review",
+                              "published",
+                              "cancelled",
+                              "ended"
+                            ]
+                          },
+                          "origin": {
+                            "type": "string",
+                            "enum": [
+                              "native",
+                              "imported"
+                            ]
+                          },
+                          "startsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "timezone": {
+                            "type": "string"
+                          },
+                          "venueName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "location": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "lat": {
+                                "type": "number",
+                                "minimum": -90,
+                                "maximum": 90
+                              },
+                              "lng": {
+                                "type": "number",
+                                "minimum": -180,
+                                "maximum": 180
+                              }
+                            },
+                            "required": [
+                              "lat",
+                              "lng"
+                            ]
+                          },
+                          "geofenceRadiusM": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "onlineUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
+                          "categoryIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "publisherId",
+                          "title",
+                          "description",
+                          "mode",
+                          "status",
+                          "origin",
+                          "startsAt",
+                          "endsAt",
+                          "timezone",
+                          "venueName",
+                          "location",
+                          "geofenceRadiusM",
+                          "onlineUrl",
+                          "categoryIds",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "publisherId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 10000
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "physical",
+                      "digital"
+                    ]
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "default": "Europe/Stockholm"
+                  },
+                  "venueName": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "location": {
+                    "type": "object",
+                    "properties": {
+                      "lat": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                      },
+                      "lng": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                      }
+                    },
+                    "required": [
+                      "lat",
+                      "lng"
+                    ]
+                  },
+                  "geofenceRadiusM": {
+                    "type": "integer",
+                    "minimum": 10,
+                    "maximum": 5000
+                  },
+                  "onlineUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "categoryIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 20,
+                    "default": []
+                  }
+                },
+                "required": [
+                  "title",
+                  "mode",
+                  "startsAt",
+                  "endsAt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Draft event created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "publisherId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "physical",
+                        "digital"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "awaiting_verification",
+                        "in_review",
+                        "published",
+                        "cancelled",
+                        "ended"
+                      ]
+                    },
+                    "origin": {
+                      "type": "string",
+                      "enum": [
+                        "native",
+                        "imported"
+                      ]
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "venueName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ]
+                    },
+                    "geofenceRadiusM": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "onlineUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "categoryIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "publisherId",
+                    "title",
+                    "description",
+                    "mode",
+                    "status",
+                    "origin",
+                    "startsAt",
+                    "endsAt",
+                    "timezone",
+                    "venueName",
+                    "location",
+                    "geofenceRadiusM",
+                    "onlineUrl",
+                    "categoryIds",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "number",
+              "nullable": true,
+              "minimum": -90,
+              "maximum": 90
+            },
+            "required": false,
+            "name": "lat",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "nullable": true,
+              "minimum": -180,
+              "maximum": 180
+            },
+            "required": false,
+            "name": "lng",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 200000,
+              "default": 50000
+            },
+            "required": false,
+            "name": "radiusM",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published events near a point",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "publisherId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "physical",
+                              "digital"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "awaiting_verification",
+                              "in_review",
+                              "published",
+                              "cancelled",
+                              "ended"
+                            ]
+                          },
+                          "origin": {
+                            "type": "string",
+                            "enum": [
+                              "native",
+                              "imported"
+                            ]
+                          },
+                          "startsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "timezone": {
+                            "type": "string"
+                          },
+                          "venueName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "location": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "lat": {
+                                "type": "number",
+                                "minimum": -90,
+                                "maximum": 90
+                              },
+                              "lng": {
+                                "type": "number",
+                                "minimum": -180,
+                                "maximum": 180
+                              }
+                            },
+                            "required": [
+                              "lat",
+                              "lng"
+                            ]
+                          },
+                          "geofenceRadiusM": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "onlineUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
+                          "categoryIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "publisherId",
+                          "title",
+                          "description",
+                          "mode",
+                          "status",
+                          "origin",
+                          "startsAt",
+                          "endsAt",
+                          "timezone",
+                          "venueName",
+                          "location",
+                          "geofenceRadiusM",
+                          "onlineUrl",
+                          "categoryIds",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "publisherId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "physical",
+                        "digital"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "awaiting_verification",
+                        "in_review",
+                        "published",
+                        "cancelled",
+                        "ended"
+                      ]
+                    },
+                    "origin": {
+                      "type": "string",
+                      "enum": [
+                        "native",
+                        "imported"
+                      ]
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "venueName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ]
+                    },
+                    "geofenceRadiusM": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "onlineUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "categoryIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "publisherId",
+                    "title",
+                    "description",
+                    "mode",
+                    "status",
+                    "origin",
+                    "startsAt",
+                    "endsAt",
+                    "timezone",
+                    "venueName",
+                    "location",
+                    "geofenceRadiusM",
+                    "onlineUrl",
+                    "categoryIds",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/manage/events/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event for a publisher member (any status)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "publisherId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "physical",
+                        "digital"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "awaiting_verification",
+                        "in_review",
+                        "published",
+                        "cancelled",
+                        "ended"
+                      ]
+                    },
+                    "origin": {
+                      "type": "string",
+                      "enum": [
+                        "native",
+                        "imported"
+                      ]
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "venueName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ]
+                    },
+                    "geofenceRadiusM": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "onlineUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "categoryIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "publisherId",
+                    "title",
+                    "description",
+                    "mode",
+                    "status",
+                    "origin",
+                    "startsAt",
+                    "endsAt",
+                    "timezone",
+                    "venueName",
+                    "location",
+                    "geofenceRadiusM",
+                    "onlineUrl",
+                    "categoryIds",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 10000
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "physical",
+                      "digital"
+                    ]
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "venueName": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 200
+                  },
+                  "location": {
+                    "type": "object",
+                    "nullable": true,
+                    "properties": {
+                      "lat": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                      },
+                      "lng": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                      }
+                    },
+                    "required": [
+                      "lat",
+                      "lng"
+                    ]
+                  },
+                  "geofenceRadiusM": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 10,
+                    "maximum": 5000
+                  },
+                  "onlineUrl": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "uri"
+                  },
+                  "categoryIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 20
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Event updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "publisherId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "physical",
+                        "digital"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "awaiting_verification",
+                        "in_review",
+                        "published",
+                        "cancelled",
+                        "ended"
+                      ]
+                    },
+                    "origin": {
+                      "type": "string",
+                      "enum": [
+                        "native",
+                        "imported"
+                      ]
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "venueName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ]
+                    },
+                    "geofenceRadiusM": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "onlineUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "categoryIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "publisherId",
+                    "title",
+                    "description",
+                    "mode",
+                    "status",
+                    "origin",
+                    "startsAt",
+                    "endsAt",
+                    "timezone",
+                    "venueName",
+                    "location",
+                    "geofenceRadiusM",
+                    "onlineUrl",
+                    "categoryIds",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/manage/events/{id}/publish": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event published (or awaiting_verification)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "publisherId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "physical",
+                        "digital"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "awaiting_verification",
+                        "in_review",
+                        "published",
+                        "cancelled",
+                        "ended"
+                      ]
+                    },
+                    "origin": {
+                      "type": "string",
+                      "enum": [
+                        "native",
+                        "imported"
+                      ]
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "venueName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ]
+                    },
+                    "geofenceRadiusM": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "onlineUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "categoryIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "publisherId",
+                    "title",
+                    "description",
+                    "mode",
+                    "status",
+                    "origin",
+                    "startsAt",
+                    "endsAt",
+                    "timezone",
+                    "venueName",
+                    "location",
+                    "geofenceRadiusM",
+                    "onlineUrl",
+                    "categoryIds",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cannot publish",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/manage/events/{id}/cancel": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "publisherId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "physical",
+                        "digital"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "awaiting_verification",
+                        "in_review",
+                        "published",
+                        "cancelled",
+                        "ended"
+                      ]
+                    },
+                    "origin": {
+                      "type": "string",
+                      "enum": [
+                        "native",
+                        "imported"
+                      ]
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "venueName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ]
+                    },
+                    "geofenceRadiusM": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "onlineUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "categoryIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "publisherId",
+                    "title",
+                    "description",
+                    "mode",
+                    "status",
+                    "origin",
+                    "startsAt",
+                    "endsAt",
+                    "timezone",
+                    "venueName",
+                    "location",
+                    "geofenceRadiusM",
+                    "onlineUrl",
+                    "categoryIds",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cannot cancel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }

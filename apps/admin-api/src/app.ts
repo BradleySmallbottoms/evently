@@ -1,41 +1,48 @@
-import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
-import { HealthResponse } from '@local-events/contracts';
+import { OpenAPIHono } from '@hono/zod-openapi';
+import { API_PREFIX, API_VERSION } from './config';
+import { registerRoutes } from './routes';
+import { registerHealthRoutes } from './routes/health';
+import {
+  createMemoryAdminPublisherServices,
+  type AdminPublisherServices,
+} from './services/publishers';
 import { Sentry } from './sentry';
 
+export type CreateAdminAppOptions = {
+  publishers?: AdminPublisherServices;
+};
+
 /**
- * Admin API used only by apps/admin. Network-restricted (WAF IP allowlist) and authenticated with admin accounts + TOTP. Routes are defined with zod-openapi so the
- * OpenAPI spec (served at /v1/openapi.json) can generate the typed client in packages/admin-client.
- * Keep handlers thin: validate, call @local-events/domain, persist via @local-events/db.
+ * Admin API used only by apps/admin. Routes live in `src/routes/`; services in `src/services/`.
+ * Versioned routes mount at `API_PREFIX` from package.json `apiVersion`.
  */
-export function createApp() {
+export function createApp(options: CreateAdminAppOptions = {}) {
   const app = new OpenAPIHono();
+  const publishers =
+    options.publishers ??
+    createMemoryAdminPublisherServices({
+      publishers: new Map(),
+      events: new Map(),
+    });
 
   app.onError((err, c) => {
     Sentry.captureException(err);
     return c.json({ error: { code: 'internal_error', message: 'Internal server error' } }, 500);
   });
 
-  const health = createRoute({
-    method: 'get',
-    path: '/health',
-    responses: {
-      200: {
-        description: 'Service is up',
-        content: { 'application/json': { schema: HealthResponse } },
-      },
-    },
+  registerHealthRoutes(app);
+
+  const api = new OpenAPIHono();
+  api.onError((err, c) => {
+    Sentry.captureException(err);
+    return c.json({ error: { code: 'internal_error', message: 'Internal server error' } }, 500);
   });
-  app.openapi(health, (c) =>
-    c.json({ status: 'ok' as const, service: 'admin-api', time: new Date().toISOString() }, 200),
-  );
-
-  // v1 routes are added here as the build plan progresses, e.g.:
-  // GET /v1/publishers?verified=false, POST /v1/publishers/{id}/verify, GET /v1/sources/{id}/runs
-
-  app.doc('/v1/openapi.json', {
+  registerRoutes(api, publishers);
+  api.doc('/openapi.json', {
     openapi: '3.1.0',
-    info: { title: 'Local Events admin API', version: '1.0.0' },
+    info: { title: 'Local Events admin API', version: `${API_VERSION}.0.0` },
   });
+  app.route(API_PREFIX, api);
 
   return app;
 }

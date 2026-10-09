@@ -325,5 +325,29 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
         publishers: await publishersForAccount(account.accountId),
       };
     },
+
+    async requirePublisherMember(sessionToken: string | undefined, publisherId: string) {
+      const account = await resolvePublisherSession(sessionToken);
+      const [membership] = await db
+        .select({
+          role: publisherMembers.role,
+          verified: publishers.verified,
+        })
+        .from(publisherMembers)
+        .innerJoin(publishers, eq(publishers.id, publisherMembers.publisherId))
+        .where(
+          and(
+            eq(publisherMembers.publisherAccountId, account.accountId),
+            eq(publisherMembers.publisherId, publisherId),
+          ),
+        )
+        .limit(1);
+      if (!membership) throw new AuthError('unauthorized');
+      return {
+        accountId: account.accountId,
+        role: membership.role,
+        publisherVerified: membership.verified,
+      };
+    },
   };
 }

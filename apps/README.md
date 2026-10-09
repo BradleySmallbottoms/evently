@@ -187,7 +187,7 @@ pnpm --filter @local-events/web add @local-events/contracts@workspace:* @local-e
 
 ### 3. Configure
 
-- `apps/web/.env.local`: `NEXT_PUBLIC_API_URL=http://localhost:3000`
+- `apps/web/.env.local`: `NEXT_PUBLIC_API_URL=http://localhost:3000/v1`
 - i18n with `next-intl`: locales `sv` (default) and `en`.
 - The web app hosts public event pages (SEO), the publisher workspace (email login) and the
   "sign in with the app" pairing page.
@@ -234,7 +234,7 @@ cd ../..
 
 ### 4. Configure
 
-- `apps/admin/.env.local`: `NEXT_PUBLIC_ADMIN_API_URL=http://localhost:3001`
+- `apps/admin/.env.local`: `NEXT_PUBLIC_ADMIN_API_URL=http://localhost:3001/v1`
 - The admin app calls the **admin API only**, never the public API.
 - In AWS it sits behind the WAF IP allowlist like the admin API.
 

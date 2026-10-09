@@ -13,7 +13,7 @@ export function LogoutButton() {
       type="button"
       className="rounded border border-zinc-300 px-3 py-1.5 text-sm"
       onClick={async () => {
-        await api.POST('/v1/publishers/logout');
+        await api.POST('/publishers/logout');
         router.push('/publisher/login');
       }}
     >

@@ -28,6 +28,12 @@ export class AuthError extends Error {
   }
 }
 
+export type PublisherMemberAccess = {
+  accountId: string;
+  role: 'owner' | 'editor';
+  publisherVerified: boolean;
+};
+
 export type AuthServices = {
   createIdentity: (input: CreateIdentityRequest) => Promise<CreateIdentityResponse>;
   createSession: (input: CreateSessionRequest) => Promise<CreateSessionResponse>;
@@ -42,6 +48,11 @@ export type AuthServices = {
   }>;
   logoutPublisher: (sessionToken: string | undefined) => Promise<void>;
   getPublisherMe: (sessionToken: string | undefined) => Promise<PublisherMeResponse>;
+  /** Resolves a publisher session and checks membership on the given publisher. */
+  requirePublisherMember: (
+    sessionToken: string | undefined,
+    publisherId: string,
+  ) => Promise<PublisherMemberAccess>;
 };
 
 export type AuthEnv = {

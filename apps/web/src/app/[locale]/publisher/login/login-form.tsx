@@ -17,7 +17,7 @@ export function LoginForm() {
     setError(null);
     try {
       throwIfError(
-        await api.POST('/v1/publishers/login', {
+        await api.POST('/publishers/login', {
           body: {
             email: String(formData.get('email') ?? ''),
             password: String(formData.get('password') ?? ''),

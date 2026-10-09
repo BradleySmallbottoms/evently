@@ -1,6 +1,7 @@
 {
   "name": "@local-events/admin-api",
   "version": "0.0.0",
+  "apiVersion": 1,
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,6 +19,7 @@
     "@local-events/db": "workspace:*",
     "@local-events/domain": "workspace:*",
     "@sentry/node": "^11.4.0",
+    "drizzle-orm": "^0.45.3",
     "hono": "^4.13.13",
     "zod": "^4.6.5"
   },

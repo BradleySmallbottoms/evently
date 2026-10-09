@@ -20,7 +20,7 @@ export function VerifyForm() {
     setError(null);
     try {
       throwIfError(
-        await api.POST('/v1/publishers/verify-email', {
+        await api.POST('/publishers/verify-email', {
           body: { token: String(formData.get('token') ?? '') },
         }),
       );

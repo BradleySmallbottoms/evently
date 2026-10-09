@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createApp } from './app';
-import { createMemoryAuthServices } from './auth/memory';
+import { createMemoryAuthServices } from './services/auth/memory';
 import { PUBLISHER_SESSION_COOKIE } from '@local-events/auth';
 
 describe('public api', () => {
@@ -24,11 +24,13 @@ describe('public api', () => {
   it('serves the OpenAPI document with identity and publisher routes', async () => {
     const res = await createApp().request('/v1/openapi.json');
     const doc = (await res.json()) as { paths: Record<string, unknown> };
-    expect(doc.paths['/health']).toBeDefined();
-    expect(doc.paths['/v1/identities']).toBeDefined();
-    expect(doc.paths['/v1/sessions']).toBeDefined();
-    expect(doc.paths['/v1/publishers/register']).toBeDefined();
-    expect(doc.paths['/v1/publishers/login']).toBeDefined();
+    // Paths are relative to API_PREFIX; clients set baseUrl to …/v1.
+    expect(doc.paths['/identities']).toBeDefined();
+    expect(doc.paths['/sessions']).toBeDefined();
+    expect(doc.paths['/publishers/register']).toBeDefined();
+    expect(doc.paths['/publishers/login']).toBeDefined();
+    expect(doc.paths['/categories']).toBeDefined();
+    expect(doc.paths['/events']).toBeDefined();
   });
 });
 

@@ -3,4 +3,6 @@ export * from './check-in';
 export * from './ratings';
 export * from './publishing';
 export * from './entitlements';
+export * from './events';
 export * from './regions';
+export type { EventMode, EventStatus } from './types';
