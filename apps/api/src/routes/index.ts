@@ -1,9 +1,11 @@
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import type { AuthServices } from '../services/auth/types';
 import type { EventServices } from '../services/events/types';
+import type { PreferenceServices } from '../services/preferences/types';
 import { registerCategoryRoutes } from './categories';
 import { registerEventRoutes } from './events';
 import { registerIdentityRoutes } from './identities';
+import { registerMeRoutes } from './me';
 import { registerPairingRoutes } from './pairing';
 import { registerPublisherRoutes } from './publishers';
 import { registerSessionRoutes } from './sessions';
@@ -11,6 +13,7 @@ import { registerSessionRoutes } from './sessions';
 export type ApiRouteServices = {
   auth: AuthServices;
   events: EventServices;
+  preferences: PreferenceServices;
 };
 
 /**
@@ -22,6 +25,7 @@ export function registerRoutes(app: OpenAPIHono, services: ApiRouteServices): vo
   registerSessionRoutes(app, services.auth);
   registerPairingRoutes(app, services.auth);
   registerPublisherRoutes(app, services.auth);
+  registerMeRoutes(app, services.preferences);
   registerCategoryRoutes(app, services.events);
   registerEventRoutes(app, services.events);
 }

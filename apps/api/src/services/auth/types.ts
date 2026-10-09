@@ -58,6 +58,10 @@ export type PublisherMemberAccess = {
   publisherVerified: boolean;
 };
 
+export type UserSessionAccess = {
+  userId: string;
+};
+
 export type AuthServices = {
   createIdentity: (input: CreateIdentityRequest) => Promise<CreateIdentityResponse>;
   createSession: (input: CreateSessionRequest) => Promise<CreateSessionResponse>;
@@ -90,6 +94,8 @@ export type AuthServices = {
     sessionToken: string | undefined,
     publisherId: string,
   ) => Promise<PublisherMemberAccess>;
+  /** Resolves an app-user session (Bearer or pairing cookie token). */
+  requireUserSession: (sessionToken: string | undefined) => Promise<UserSessionAccess>;
   getPublisherProfile: (
     sessionToken: string | undefined,
     publisherId: string,

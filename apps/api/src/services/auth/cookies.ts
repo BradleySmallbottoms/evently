@@ -24,6 +24,16 @@ export function readAppUserSessionToken(c: Context): string | undefined {
   return getCookie(c, APP_USER_SESSION_COOKIE);
 }
 
+/** Bearer token (mobile) or app-user pairing cookie (web). */
+export function readUserSessionToken(c: Context): string | undefined {
+  const header = c.req.header('authorization');
+  if (header?.toLowerCase().startsWith('bearer ')) {
+    const token = header.slice(7).trim();
+    if (token.length > 0) return token;
+  }
+  return readAppUserSessionToken(c);
+}
+
 export function setAppUserSessionCookie(c: Context, token: string, expiresAt: Date): void {
   setCookie(c, APP_USER_SESSION_COOKIE, token, {
     httpOnly: true,

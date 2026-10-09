@@ -1,5 +1,5 @@
 /**
- * Starter schema covering identity, publishers, events and ingestion.
+ * Schema covering identity, publishers, events, preferences and ingestion.
  * The full model is in docs/project-description.md (Data model); add the remaining tables
  * (check-ins, ratings, subscriptions, notifications, stats, regions, ...) as each phase needs them.
  * Spatial indexes (GiST) are declared with `.using('gist', ...)`.
@@ -41,6 +41,8 @@ export const memberRole = pgEnum('member_role', ['owner', 'editor']);
 export const sessionSubject = pgEnum('session_subject', ['user', 'publisher_account', 'admin']);
 export const sourceKind = pgEnum('source_kind', ['api', 'feed', 'scraper']);
 export const sourceTrust = pgEnum('source_trust', ['auto_publish', 'review']);
+export const userAreaKind = pgEnum('user_area_kind', ['manual', 'region']);
+export const userAreaOrigin = pgEnum('user_area_origin', ['manual', 'suggested']);
 
 // ---------- identity ----------
 export const users = pgTable('users', {
@@ -199,6 +201,53 @@ export const categories = pgTable('categories', {
   nameSv: text('name_sv').notNull(),
   nameEn: text('name_en').notNull(),
 });
+
+/** Categories the user wants notifications for. */
+export const userInterests = pgTable(
+  'user_interests',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => categories.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.categoryId] }),
+    index('user_interests_user_id_idx').on(t.userId),
+  ],
+);
+
+/**
+ * Saved notification/search areas. Circle = center + radius_m; drawn polygon = area.
+ * Region subscriptions (kind=region) land in a later slice with the `regions` table.
+ */
+export const userAreas = pgTable(
+  'user_areas',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    kind: userAreaKind('kind').notNull().default('manual'),
+    origin: userAreaOrigin('origin').notNull().default('manual'),
+    regionId: uuid('region_id'),
+    area: geographyPolygon('area'),
+    center: geographyPoint('center'),
+    radiusM: integer('radius_m'),
+    notify: boolean('notify').notNull().default(true),
+    active: boolean('active').notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('user_areas_user_id_idx').on(t.userId),
+    index('user_areas_center_gist').using('gist', t.center),
+    index('user_areas_area_gist').using('gist', t.area),
+  ],
+);
 
 export const events = pgTable(
   'events',

@@ -72,5 +72,18 @@
     "pairingRefreshAfterLink": "I’ve confirmed — refresh",
     "pairingRefreshSuccess": "This phone is now linked.",
     "pairingRefreshPending": "Not linked yet. Confirm on your other phone, then try again."
+  },
+  "preferences": {
+    "title": "Your interests",
+    "subtitle": "Choose what you want alerts for, and how far to look.",
+    "interestsTitle": "Categories",
+    "areaTitle": "Search area",
+    "areaHint": "We’ll use your current location when available, otherwise Söderhamn.",
+    "radiusKm": "{{km}} km",
+    "defaultAreaName": "Near me",
+    "save": "Save preferences",
+    "saveError": "Could not save preferences.",
+    "back": "Back",
+    "open": "Preferences"
   }
 }

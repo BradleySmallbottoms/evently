@@ -28,6 +28,7 @@ import {
   loadStoredIdentity,
   refreshIdentitySession,
 } from '@/lib/identity';
+import { getPreferences, primaryCircleArea } from '@/lib/preferences';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
@@ -55,11 +56,27 @@ export default function HomeScreen() {
     queryFn: () => ensureIdentity(locale),
     retry: 1,
   });
-  const point = useQuery({
-    queryKey: ['event-query-point', useFallbackCenter],
-    queryFn: async (): Promise<EventQueryPoint> =>
-      useFallbackCenter ? { ...FALLBACK_CENTER } : resolveEventQueryPoint(),
+  const preferences = useQuery({
+    queryKey: ['preferences', identity.data?.userId],
     enabled: identity.isSuccess,
+    queryFn: () => getPreferences(identity.data!),
+    retry: false,
+  });
+  const savedArea = primaryCircleArea(preferences.data?.areas ?? []);
+  const point = useQuery({
+    queryKey: [
+      'event-query-point',
+      useFallbackCenter,
+      savedArea?.lat,
+      savedArea?.lng,
+      savedArea?.radiusM,
+    ],
+    queryFn: async (): Promise<EventQueryPoint> => {
+      if (useFallbackCenter) return { ...FALLBACK_CENTER };
+      if (savedArea) return savedArea;
+      return resolveEventQueryPoint();
+    },
+    enabled: identity.isSuccess && !preferences.isLoading,
     retry: false,
   });
   const events = useQuery({
@@ -216,6 +233,11 @@ export default function HomeScreen() {
                 }}
               />
               <View style={{ flexDirection: 'row', gap: space.sm }}>
+                <CircleIconButton
+                  sf="slider.horizontal.3"
+                  accessibilityLabel={t('preferences.open')}
+                  onPress={() => router.push('/preferences')}
+                />
                 <CircleIconButton
                   sf="qrcode"
                   accessibilityLabel={t('events.pairingTitle')}

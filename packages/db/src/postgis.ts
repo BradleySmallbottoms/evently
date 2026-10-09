@@ -23,3 +23,18 @@ export const geographyMultiPolygon = geography;
 export function pointEwkt(p: { lat: number; lng: number }): string {
   return `SRID=4326;POINT(${p.lng} ${p.lat})`;
 }
+
+/** Closed ring of positions as EWKT POLYGON (lng lat order). Auto-closes if needed. */
+export function polygonEwkt(ring: { lat: number; lng: number }[]): string {
+  if (ring.length < 3) {
+    throw new Error('polygon ring needs at least 3 positions');
+  }
+  const closed = [...ring];
+  const first = closed[0]!;
+  const last = closed[closed.length - 1]!;
+  if (first.lat !== last.lat || first.lng !== last.lng) {
+    closed.push(first);
+  }
+  const body = closed.map((p) => `${p.lng} ${p.lat}`).join(', ');
+  return `SRID=4326;POLYGON((${body}))`;
+}

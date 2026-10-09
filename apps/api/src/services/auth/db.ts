@@ -540,6 +540,26 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
       };
     },
 
+    async requireUserSession(sessionToken) {
+      if (!sessionToken) throw new AuthError('unauthorized');
+      const tokenHash = hashToken(sessionToken);
+      const now = env.now();
+      const [row] = await db
+        .select({ userId: sessions.subjectId })
+        .from(sessions)
+        .where(
+          and(
+            eq(sessions.tokenHash, tokenHash),
+            eq(sessions.subjectType, 'user'),
+            isNull(sessions.revokedAt),
+            gt(sessions.expiresAt, now),
+          ),
+        )
+        .limit(1);
+      if (!row) throw new AuthError('unauthorized');
+      return { userId: row.userId };
+    },
+
     async getPublisherProfile(sessionToken, publisherId) {
       const access = await this.requirePublisherMember(sessionToken, publisherId);
       const [row] = await db

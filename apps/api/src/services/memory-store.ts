@@ -51,6 +51,24 @@ export type MemoryPublisherInvite = {
   acceptedAt: Date | null;
   createdAt: Date;
 };
+export type MemoryUserInterest = {
+  userId: string;
+  categoryId: string;
+  createdAt: Date;
+};
+export type MemoryUserArea = {
+  id: string;
+  userId: string;
+  name: string;
+  kind: 'manual' | 'region';
+  origin: 'manual' | 'suggested';
+  center: { lat: number; lng: number } | null;
+  radiusM: number | null;
+  polygon: { lat: number; lng: number }[] | null;
+  notify: boolean;
+  active: boolean;
+  createdAt: Date;
+};
 export type MemoryToken = {
   id: string;
   purpose: string;
@@ -76,6 +94,8 @@ export type MemoryStore = {
   publishers: Map<string, MemoryPublisher>;
   members: MemoryMember[];
   invites: MemoryPublisherInvite[];
+  userInterests: MemoryUserInterest[];
+  userAreas: Map<string, MemoryUserArea>;
   tokens: Map<string, MemoryToken>;
   categories: Map<string, Category>;
   events: Map<string, MemoryEventRow>;
@@ -92,6 +112,8 @@ export function createMemoryStore(): MemoryStore {
     publishers: new Map(),
     members: [],
     invites: [],
+    userInterests: [],
+    userAreas: new Map(),
     tokens: new Map(),
     categories,
     events: new Map(),

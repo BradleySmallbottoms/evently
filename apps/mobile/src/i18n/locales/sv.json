@@ -72,5 +72,18 @@
     "pairingRefreshAfterLink": "Jag har bekräftat — uppdatera",
     "pairingRefreshSuccess": "Den här telefonen är nu kopplad.",
     "pairingRefreshPending": "Inte kopplad än. Bekräfta på den andra telefonen och försök igen."
+  },
+  "preferences": {
+    "title": "Dina intressen",
+    "subtitle": "Välj vad du vill ha notiser om, och hur långt bort.",
+    "interestsTitle": "Kategorier",
+    "areaTitle": "Sökområde",
+    "areaHint": "Vi använder din plats när den finns, annars Söderhamn.",
+    "radiusKm": "{{km}} km",
+    "defaultAreaName": "Nära mig",
+    "save": "Spara preferenser",
+    "saveError": "Kunde inte spara preferenser.",
+    "back": "Tillbaka",
+    "open": "Preferenser"
   }
 }

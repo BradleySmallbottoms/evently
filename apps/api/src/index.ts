@@ -5,6 +5,8 @@ import { createDbAuthServices } from './services/auth/db';
 import { createMemoryAuthServices } from './services/auth/memory';
 import { createDbEventServices } from './services/events/db';
 import { createMemoryEventServices } from './services/events/memory';
+import { createDbPreferenceServices } from './services/preferences/db';
+import { createMemoryPreferenceServices } from './services/preferences/memory';
 import { createMemoryStore } from './services/memory-store';
 import { initSentry } from './sentry';
 
@@ -36,13 +38,16 @@ const databaseUrl = resolveDatabaseUrl();
 const authEnv = { includeVerificationToken, now: () => new Date() };
 const eventEnv = { now: () => new Date() };
 
-const { auth, events } = (() => {
+const preferenceEnv = { now: () => new Date() };
+
+const { auth, events, preferences } = (() => {
   if (databaseUrl) {
     const db = createDb(databaseUrl);
     const authServices = createDbAuthServices(db, authEnv);
     return {
       auth: authServices,
       events: createDbEventServices(db, authServices, eventEnv),
+      preferences: createDbPreferenceServices(db, authServices, preferenceEnv),
     };
   }
   const store = createMemoryStore();
@@ -50,6 +55,7 @@ const { auth, events } = (() => {
   return {
     auth: authServices,
     events: createMemoryEventServices(authServices, eventEnv, store),
+    preferences: createMemoryPreferenceServices(authServices, preferenceEnv, store),
   };
 })();
 
@@ -59,7 +65,7 @@ if (!databaseUrl) {
 
 serve(
   {
-    fetch: createApp({ auth, events, corsOrigin }).fetch,
+    fetch: createApp({ auth, events, preferences, corsOrigin }).fetch,
     port,
   },
   (info) => {

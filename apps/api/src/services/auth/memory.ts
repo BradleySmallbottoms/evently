@@ -412,6 +412,20 @@ export function createMemoryAuthServices(
       };
     },
 
+    async requireUserSession(sessionToken) {
+      if (!sessionToken) throw new AuthError('unauthorized');
+      const tokenHash = hashToken(sessionToken);
+      const session = [...sessions.values()].find(
+        (s) =>
+          s.tokenHash === tokenHash &&
+          s.subjectType === 'user' &&
+          !s.revokedAt &&
+          s.expiresAt > env.now(),
+      );
+      if (!session) throw new AuthError('unauthorized');
+      return { userId: session.subjectId };
+    },
+
     async getPublisherProfile(sessionToken, publisherId) {
       const access = await this.requirePublisherMember(sessionToken, publisherId);
       const publisher = publishers.get(publisherId);

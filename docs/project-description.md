@@ -391,9 +391,10 @@ Mobile builds and store submissions run on EAS; EAS Update channels map to the t
 
 ## Security, privacy and anti-abuse
 
-- **Location minimization:** no background tracking in v1. Store saved areas and the single
-  location sample at check-in. Region suggestions compare locations on the device and send nothing
-  unless the user saves the region. Round or drop raw check-in coordinates after ~90 days.
+- **Location minimization:** no background tracking in v1. Store saved areas (`user_areas`) and the
+  single location sample at check-in; both are included in user export/deletion. Region suggestions
+  compare locations on the device and send nothing unless the user saves the region. Round or drop
+  raw check-in coordinates after ~90 days.
 - **Permissions:** "While Using" location only, at first check-in or area setup. Notifications
   permission asked after interests are chosen.
 - **Anonymous identity:** device credentials are random, in secure storage, hashed server-side and

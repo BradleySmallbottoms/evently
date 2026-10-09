@@ -12,9 +12,9 @@ external sources. Launch area: Söderhamn and Gävleborgs län. Languages: Swedi
 
 ## Status
 
-Phase 2 (Publishers + events) is largely done: event CRUD, publisher web workspace (including
-profiles and owner/editor invites), public event pages, mobile list/map, web pairing login, and
-device linking. Check `docs/build-plan.md` for any remaining Phase 2 polish.
+Phase 3 (Discovery + notifications) is underway. Phase 2 is complete. Interests and saved areas
+(circle + polygon) are available via `/v1/me/*` and the mobile preferences screen; region
+suggestions, push, and matching remain.
 
 ## Prerequisites
 
@@ -87,6 +87,14 @@ calls) in the same change as every new major feature.**
 - App identity is a **device credential** in secure storage (localStorage on web), not the user id.
 - Dev CORS defaults allow web `:3100` and Expo web `:8081` with credentials. Override with
   `CORS_ORIGINS`.
+
+### Preferences (interests & areas)
+
+- Mobile uses `Authorization: Bearer <sessionToken>` on `GET/PUT /v1/me/interests`,
+  `GET/POST/PATCH/DELETE /v1/me/areas`, and `GET /v1/me/preferences`.
+- Circle areas store `center` + `radius_m`; polygons store geography `area`. Cap 20 areas.
+- Home feed prefers the primary active circle when set. Flow:
+  [docs/flows/user-preferences.md](docs/flows/user-preferences.md).
 
 ### Frontend structure
 
