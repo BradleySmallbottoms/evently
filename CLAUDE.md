@@ -83,3 +83,6 @@ Docs
 
 `.claude/skills/` has step-by-step guides: `scaffold-frontend`, `add-api-endpoint`,
 `add-data-source`, `db-schema-change`, `record-decision`.
+
+- **`code-tester`** — launch after any code change (even outside the pipeline) to run typecheck, lint, and tests; loop on its failures before proceeding.
+- **`code-reviewer`** and **`security-auditor`** — launch **in parallel, in one message**, once tests pass and before anything is committed. Reviewer covers quality/architecture; auditor covers OWASP-class issues, auth gaps, secrets, and the data-isolation boundary.
