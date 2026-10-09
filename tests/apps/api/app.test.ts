@@ -29,6 +29,8 @@ describe('public api', () => {
     expect(doc.paths['/pairing/code']).toBeDefined();
     expect(doc.paths['/pairing/login']).toBeDefined();
     expect(doc.paths['/pairing/me']).toBeDefined();
+    expect(doc.paths['/pairing/device-link/code']).toBeDefined();
+    expect(doc.paths['/pairing/device-link/confirm']).toBeDefined();
     expect(doc.paths['/publishers/register']).toBeDefined();
     expect(doc.paths['/publishers/login']).toBeDefined();
     expect(doc.paths['/publishers/logout']).toBeDefined();
@@ -197,5 +199,99 @@ describe('web pairing login', () => {
       body: JSON.stringify({ code: codeBody.code }),
     });
     expect(badLogin.status).toBe(401);
+  });
+});
+
+describe('device linking', () => {
+  it('moves the new device onto the confirming user', async () => {
+    const app = createApp({ auth: createMemoryAuthServices() });
+
+    const oldRes = await app.request('/v1/identities', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ platform: 'ios', locale: 'sv' }),
+    });
+    const oldIdentity = (await oldRes.json()) as {
+      userId: string;
+      deviceCredential: string;
+    };
+
+    const newRes = await app.request('/v1/identities', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ platform: 'android', locale: 'en' }),
+    });
+    const newIdentity = (await newRes.json()) as {
+      userId: string;
+      deviceCredential: string;
+    };
+    expect(newIdentity.userId).not.toBe(oldIdentity.userId);
+
+    const codeRes = await app.request('/v1/pairing/device-link/code', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ deviceCredential: newIdentity.deviceCredential }),
+    });
+    expect(codeRes.status).toBe(200);
+    const { code } = (await codeRes.json()) as { code: string };
+
+    const confirmRes = await app.request('/v1/pairing/device-link/confirm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        deviceCredential: oldIdentity.deviceCredential,
+        code,
+      }),
+    });
+    expect(confirmRes.status).toBe(200);
+    expect(await confirmRes.json()).toMatchObject({ userId: oldIdentity.userId });
+
+    const sessionRes = await app.request('/v1/sessions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ deviceCredential: newIdentity.deviceCredential }),
+    });
+    expect(sessionRes.status).toBe(200);
+    expect(await sessionRes.json()).toMatchObject({ userId: oldIdentity.userId });
+
+    const reuse = await app.request('/v1/pairing/device-link/confirm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        deviceCredential: oldIdentity.deviceCredential,
+        code,
+      }),
+    });
+    expect(reuse.status).toBe(401);
+  });
+
+  it('rejects confirming a code from the same user', async () => {
+    const app = createApp({ auth: createMemoryAuthServices() });
+    const identityRes = await app.request('/v1/identities', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ platform: 'ios', locale: 'sv' }),
+    });
+    const identity = (await identityRes.json()) as { deviceCredential: string };
+
+    const codeRes = await app.request('/v1/pairing/device-link/code', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ deviceCredential: identity.deviceCredential }),
+    });
+    const { code } = (await codeRes.json()) as { code: string };
+
+    const confirmRes = await app.request('/v1/pairing/device-link/confirm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        deviceCredential: identity.deviceCredential,
+        code,
+      }),
+    });
+    expect(confirmRes.status).toBe(400);
+    expect(await confirmRes.json()).toMatchObject({
+      error: { code: 'device_link_same_user' },
+    });
   });
 });

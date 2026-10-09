@@ -20,7 +20,7 @@ import type {
   RegisterPublisherRequest,
   VerifyPublisherEmailRequest,
 } from '@local-events/contracts';
-import { canPublisherLogin, slugifyPublisherName } from '@local-events/domain';
+import { canConfirmDeviceLink, canPublisherLogin, slugifyPublisherName } from '@local-events/domain';
 import { randomUUID } from 'node:crypto';
 import { createMemoryStore, type MemoryStore } from '../memory-store';
 import { AuthError, type AuthEnv, type AuthServices } from './types';
@@ -322,6 +322,70 @@ export function createMemoryAuthServices(
       );
       if (!session) throw new AuthError('unauthorized');
       return { userId: session.subjectId };
+    },
+
+    async createDeviceLinkCode(input) {
+      const credentialHash = hashToken(input.deviceCredential);
+      const device = [...devices.values()].find(
+        (d) => d.credentialHash === credentialHash && !d.revokedAt,
+      );
+      if (!device) throw new AuthError('invalid_credentials');
+
+      const code = generatePairingCode();
+      const now = env.now();
+      tokens.set(code, {
+        id: randomUUID(),
+        purpose: 'device_link_code',
+        subjectId: device.userId,
+        deviceId: device.id,
+        tokenHash: hashToken(code),
+        expiresAt: addSeconds(now, PAIRING_CODE_TTL_SECONDS),
+        usedAt: null,
+      });
+      return { code, expiresAt: addSeconds(now, PAIRING_CODE_TTL_SECONDS).toISOString() };
+    },
+
+    async confirmDeviceLink(input) {
+      const confirmingHash = hashToken(input.deviceCredential);
+      const confirming = [...devices.values()].find(
+        (d) => d.credentialHash === confirmingHash && !d.revokedAt,
+      );
+      if (!confirming) throw new AuthError('invalid_credentials');
+
+      const normalized = normalizePairingCode(input.code);
+      const tokenHash = hashToken(normalized);
+      const row = [...tokens.values()].find(
+        (t) => t.purpose === 'device_link_code' && t.tokenHash === tokenHash,
+      );
+      if (!row || !row.deviceId || row.usedAt || row.expiresAt <= env.now()) {
+        throw new AuthError('invalid_pairing_code');
+      }
+
+      const decision = canConfirmDeviceLink({
+        pendingUserId: row.subjectId,
+        confirmingUserId: confirming.userId,
+      });
+      if (!decision.ok) throw new AuthError('device_link_same_user');
+
+      // Atomic consume: first writer wins.
+      if (row.usedAt) throw new AuthError('invalid_pairing_code');
+      row.usedAt = env.now();
+
+      const pendingDevice = devices.get(row.deviceId);
+      if (pendingDevice && !pendingDevice.revokedAt) {
+        pendingDevice.userId = confirming.userId;
+      }
+      for (const session of sessions.values()) {
+        if (
+          session.subjectType === 'user' &&
+          session.subjectId === row.subjectId &&
+          !session.revokedAt
+        ) {
+          session.revokedAt = env.now();
+        }
+      }
+
+      return { userId: confirming.userId };
     },
 
     async requirePublisherMember(sessionToken: string | undefined, publisherId: string) {

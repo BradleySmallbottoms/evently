@@ -56,10 +56,21 @@
     "reportMessage": "Vi granskar listningen. Den tas inte bort direkt.",
     "reportConfirm": "Rapportera",
     "cancel": "Avbryt",
-    "pairingTitle": "Webbinloggningskod",
+    "pairingTitle": "Koder och enhetskoppling",
+    "pairingWebTab": "Webbinloggning",
+    "pairingLinkTab": "Koppla telefon",
     "pairingHint": "Använd koden på webbens inloggningssida.",
+    "pairingLinkHint": "På den nya telefonen skapar du en kod. På denna telefon anger du koden för att koppla.",
     "pairingGenerate": "Skapa kod",
     "pairingGenerating": "Skapar…",
-    "pairingGenerateError": "Kunde inte skapa kod."
+    "pairingGenerateError": "Kunde inte skapa kod.",
+    "pairingConfirmHint": "Har du redan en kod från din nya telefon?",
+    "pairingConfirm": "Bekräfta koppling",
+    "pairingConfirming": "Kopplar…",
+    "pairingConfirmError": "Kunde inte bekräfta enhetskoppling.",
+    "pairingConfirmSuccess": "Enhet kopplad.",
+    "pairingRefreshAfterLink": "Jag har bekräftat — uppdatera",
+    "pairingRefreshSuccess": "Den här telefonen är nu kopplad.",
+    "pairingRefreshPending": "Inte kopplad än. Bekräfta på den andra telefonen och försök igen."
   }
 }

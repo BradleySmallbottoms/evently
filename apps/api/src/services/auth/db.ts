@@ -22,7 +22,7 @@ import type {
 } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
-import { canPublisherLogin, slugifyPublisherName } from '@local-events/domain';
+import { canConfirmDeviceLink, canPublisherLogin, slugifyPublisherName } from '@local-events/domain';
 import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { AuthError, type AuthEnv, type AuthServices } from './types';
@@ -405,6 +405,87 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
         .limit(1);
       if (!row) throw new AuthError('unauthorized');
       return { userId: row.userId };
+    },
+
+    async createDeviceLinkCode(input) {
+      const credentialHash = hashToken(input.deviceCredential);
+      const [device] = await db
+        .select({ id: devices.id, userId: devices.userId })
+        .from(devices)
+        .where(and(eq(devices.credentialHash, credentialHash), isNull(devices.revokedAt)))
+        .limit(1);
+      if (!device) throw new AuthError('invalid_credentials');
+
+      const now = env.now();
+      const code = generatePairingCode();
+      const expiresAt = addSeconds(now, PAIRING_CODE_TTL_SECONDS);
+      await db.insert(webLoginCodes).values({
+        codeHash: hashToken(code),
+        purpose: 'device_link',
+        status: 'pending',
+        userId: device.userId,
+        deviceId: device.id,
+        expiresAt,
+      });
+      return { code, expiresAt: expiresAt.toISOString() };
+    },
+
+    async confirmDeviceLink(input) {
+      const confirmingHash = hashToken(input.deviceCredential);
+      const [confirming] = await db
+        .select({ userId: devices.userId })
+        .from(devices)
+        .where(and(eq(devices.credentialHash, confirmingHash), isNull(devices.revokedAt)))
+        .limit(1);
+      if (!confirming) throw new AuthError('invalid_credentials');
+
+      const now = env.now();
+      const codeHash = hashToken(normalizePairingCode(input.code));
+      const [row] = await db
+        .select()
+        .from(webLoginCodes)
+        .where(
+          and(
+            eq(webLoginCodes.codeHash, codeHash),
+            eq(webLoginCodes.purpose, 'device_link'),
+            eq(webLoginCodes.status, 'pending'),
+            gt(webLoginCodes.expiresAt, now),
+          ),
+        )
+        .limit(1);
+      if (!row?.userId || !row.deviceId) throw new AuthError('invalid_pairing_code');
+
+      const decision = canConfirmDeviceLink({
+        pendingUserId: row.userId,
+        confirmingUserId: confirming.userId,
+      });
+      if (!decision.ok) throw new AuthError('device_link_same_user');
+
+      await db.transaction(async (tx) => {
+        const consumed = await tx
+          .update(webLoginCodes)
+          .set({ status: 'used' })
+          .where(and(eq(webLoginCodes.id, row.id), eq(webLoginCodes.status, 'pending')))
+          .returning({ id: webLoginCodes.id });
+        if (consumed.length === 0) throw new AuthError('invalid_pairing_code');
+
+        await tx
+          .update(devices)
+          .set({ userId: confirming.userId })
+          .where(and(eq(devices.id, row.deviceId!), isNull(devices.revokedAt)));
+        await tx
+          .update(sessions)
+          .set({ revokedAt: now })
+          .where(
+            and(
+              eq(sessions.subjectType, 'user'),
+              eq(sessions.subjectId, row.userId!),
+              isNull(sessions.revokedAt),
+            ),
+          );
+      });
+
+      return { userId: confirming.userId };
     },
 
     async requirePublisherMember(sessionToken: string | undefined, publisherId: string) {

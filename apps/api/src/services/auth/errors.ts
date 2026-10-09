@@ -11,6 +11,7 @@ const MESSAGES: Record<AuthErrorCode, string> = {
   token_expired: 'Token has expired',
   unauthorized: 'Unauthorized',
   invalid_pairing_code: 'Invalid or expired pairing code',
+  device_link_same_user: 'Cannot link a device to the same user',
 };
 
 const STATUS: Record<AuthErrorCode, 400 | 401 | 403 | 409> = {
@@ -22,6 +23,7 @@ const STATUS: Record<AuthErrorCode, 400 | 401 | 403 | 409> = {
   token_expired: 400,
   unauthorized: 401,
   invalid_pairing_code: 401,
+  device_link_same_user: 400,
 };
 
 /**

@@ -94,3 +94,22 @@ export async function ensureIdentity(locale: 'sv' | 'en' = 'sv'): Promise<Stored
   await persistIdentity(identity);
   return identity;
 }
+
+/** Force a session exchange (e.g. after device linking remaps this credential to another user). */
+export async function refreshIdentitySession(): Promise<StoredIdentity> {
+  const existing = await loadStoredIdentity();
+  if (!existing) throw new Error('missing_identity');
+  const session = throwIfError(
+    await api.POST('/sessions', {
+      body: { deviceCredential: existing.deviceCredential },
+    }),
+  );
+  const refreshed: StoredIdentity = {
+    ...existing,
+    userId: session.userId,
+    sessionToken: session.sessionToken,
+    expiresAt: session.expiresAt,
+  };
+  await persistIdentity(refreshed);
+  return refreshed;
+}

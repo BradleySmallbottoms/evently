@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { canPublisherLogin, isPasswordStrongEnough, slugifyPublisherName } from '../../../packages/domain/src/auth';
+import {
+  canConfirmDeviceLink,
+  canPublisherLogin,
+  isPasswordStrongEnough,
+  slugifyPublisherName,
+} from '../../../packages/domain/src/auth';
 
 describe('canPublisherLogin', () => {
   it('requires a verified email', () => {
@@ -24,5 +29,24 @@ describe('isPasswordStrongEnough', () => {
   it('requires at least 10 characters', () => {
     expect(isPasswordStrongEnough('short')).toBe(false);
     expect(isPasswordStrongEnough('long-enough')).toBe(true);
+  });
+});
+
+describe('canConfirmDeviceLink', () => {
+  it('rejects linking a device to the same user', () => {
+    expect(
+      canConfirmDeviceLink({
+        pendingUserId: 'user-a',
+        confirmingUserId: 'user-a',
+      }),
+    ).toEqual({ ok: false, reason: 'same_user' });
+  });
+  it('allows linking onto a different user', () => {
+    expect(
+      canConfirmDeviceLink({
+        pendingUserId: 'user-new',
+        confirmingUserId: 'user-old',
+      }),
+    ).toEqual({ ok: true });
   });
 });

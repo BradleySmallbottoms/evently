@@ -93,6 +93,8 @@ export const webLoginCodes = pgTable('web_login_codes', {
   browserLabel: text('browser_label'),
   status: text('status').notNull().default('pending'),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  /** Set for device_link: which device should be reassigned on confirm. */
+  deviceId: uuid('device_id').references(() => devices.id, { onDelete: 'cascade' }),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   createdAt: createdAt(),
 });

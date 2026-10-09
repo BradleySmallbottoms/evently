@@ -47,7 +47,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Unverified publishers: events stored as `awaiting_verification`, released on verification
 - [x] Public event pages on web; list and map views in the app
 - [x] Web sign-in by pairing code (app generates code → web exchanges for httpOnly cookie)
-- [ ] Device linking with the same pairing-code mechanism
+- [x] Device linking with the same pairing-code mechanism
 - **Exit:** a publisher creates an event on web and it shows on the mobile map; an app user signs
   in on web with a code.
 

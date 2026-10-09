@@ -1,4 +1,8 @@
 import type {
+  ConfirmDeviceLinkRequest,
+  ConfirmDeviceLinkResponse,
+  CreateDeviceLinkCodeRequest,
+  CreateDeviceLinkCodeResponse,
   CreateWebLoginCodeRequest,
   CreateWebLoginCodeResponse,
   CreateIdentityRequest,
@@ -25,7 +29,8 @@ export type AuthErrorCode =
   | 'invalid_token'
   | 'token_expired'
   | 'unauthorized'
-  | 'invalid_pairing_code';
+  | 'invalid_pairing_code'
+  | 'device_link_same_user';
 
 export class AuthError extends Error {
   constructor(readonly code: AuthErrorCode) {
@@ -63,6 +68,10 @@ export type AuthServices = {
     expiresAt: Date;
   }>;
   getWebUserMe: (sessionToken: string | undefined) => Promise<WebUserMeResponse>;
+  createDeviceLinkCode: (
+    input: CreateDeviceLinkCodeRequest,
+  ) => Promise<CreateDeviceLinkCodeResponse>;
+  confirmDeviceLink: (input: ConfirmDeviceLinkRequest) => Promise<ConfirmDeviceLinkResponse>;
   /** Resolves a publisher session and checks membership on the given publisher. */
   requirePublisherMember: (
     sessionToken: string | undefined,

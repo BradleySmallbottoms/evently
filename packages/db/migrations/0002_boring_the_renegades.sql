@@ -1,0 +1,2 @@
+ALTER TABLE "web_login_codes" ADD COLUMN "device_id" uuid;--> statement-breakpoint
+ALTER TABLE "web_login_codes" ADD CONSTRAINT "web_login_codes_device_id_devices_id_fk" FOREIGN KEY ("device_id") REFERENCES "public"."devices"("id") ON DELETE cascade ON UPDATE no action;

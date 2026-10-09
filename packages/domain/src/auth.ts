@@ -23,3 +23,17 @@ export function slugifyPublisherName(name: string): string {
 export function isPasswordStrongEnough(password: string): boolean {
   return password.length >= MIN_PASSWORD_LENGTH;
 }
+
+/**
+ * Device linking: a new phone shows a code; an existing phone confirms.
+ * The confirming user must differ from the pending (new) user.
+ */
+export function canConfirmDeviceLink(input: {
+  pendingUserId: string;
+  confirmingUserId: string;
+}): { ok: true } | { ok: false; reason: 'same_user' } {
+  if (input.pendingUserId === input.confirmingUserId) {
+    return { ok: false, reason: 'same_user' };
+  }
+  return { ok: true };
+}

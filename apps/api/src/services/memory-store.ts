@@ -43,6 +43,8 @@ export type MemoryToken = {
   id: string;
   purpose: string;
   subjectId: string;
+  /** For device_link_code: device waiting to be reassigned. */
+  deviceId?: string;
   tokenHash: string;
   expiresAt: Date;
   usedAt: Date | null;

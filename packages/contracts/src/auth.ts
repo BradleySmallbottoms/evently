@@ -123,3 +123,27 @@ export const WebUserMeResponse = z.object({
   userId: Id,
 });
 export type WebUserMeResponse = z.infer<typeof WebUserMeResponse>;
+
+/** New phone: create a short-lived code for an already-signed-in device to confirm. */
+export const CreateDeviceLinkCodeRequest = z.object({
+  deviceCredential: z.string().min(1),
+});
+export type CreateDeviceLinkCodeRequest = z.infer<typeof CreateDeviceLinkCodeRequest>;
+
+export const CreateDeviceLinkCodeResponse = z.object({
+  code: z.string().min(4),
+  expiresAt: z.iso.datetime(),
+});
+export type CreateDeviceLinkCodeResponse = z.infer<typeof CreateDeviceLinkCodeResponse>;
+
+/** Old phone: confirm a device-link code and attach the new device to this user. */
+export const ConfirmDeviceLinkRequest = z.object({
+  deviceCredential: z.string().min(1),
+  code: z.string().min(4),
+});
+export type ConfirmDeviceLinkRequest = z.infer<typeof ConfirmDeviceLinkRequest>;
+
+export const ConfirmDeviceLinkResponse = z.object({
+  userId: Id,
+});
+export type ConfirmDeviceLinkResponse = z.infer<typeof ConfirmDeviceLinkResponse>;

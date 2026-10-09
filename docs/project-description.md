@@ -233,7 +233,7 @@ starter subset; the rest is added phase by phase.
 | `users`                                        | id, display_name (nullable), is_public (default false), recovery_email (nullable), recovery_email_verified_at, created_at, last_seen_at                                                                                                           | Created on first app launch; a profile only adds a name and visibility                   |
 | `devices`                                      | id, user_id, credential_hash, expo_push_token, platform, locale, last_seen_at                                                                                                                                                                     | The app's identity credential; pruned on push receipt errors                             |
 | `sessions`                                     | id, subject_type (user / publisher_account / admin), subject_id, token_hash, client (app / web / admin), expires_at, revoked_at                                                                                                                   | Opaque tokens, hashed at rest, revocable                                                 |
-| `web_login_codes`                              | id, code_hash, purpose (web_login / device_link), browser_label, status, user_id, expires_at                                                                                                                                                      | 5-minute TTL, single use                                                                 |
+| `web_login_codes`                              | id, code_hash, purpose (web_login / device_link), browser_label, status, user_id, device_id (device_link), expires_at                                                                                                                               | 5-minute TTL, single use; device_id is the device remapped on confirm                    |
 | `publisher_accounts`                           | id, email, password_hash, email_verified_at                                                                                                                                                                                                       | Web login for publishers                                                                 |
 | `email_verification_tokens`                    | id, purpose, subject_id, token_hash, expires_at, used_at                                                                                                                                                                                          | Publisher email verification (and later recovery emails); hashed, single-use             |
 | `admin_users`                                  | id, email, password_hash, totp_secret, role                                                                                                                                                                                                       | Separate table, never mixed with app users                                               |
@@ -278,9 +278,11 @@ Every write that matters emits a domain event (`event.published`, `event.updated
    the user types it on the web `/login-with-code` page, and the browser receives an httpOnly
    app-user session cookie from `POST /v1/pairing/login`.
 
-Recovery in v1: **device linking** (new phone shows a pairing code, old phone confirms) and an
-optional **recovery email** (one-time code issues a fresh device credential). The email is never
-shown publicly. Any linked device can be revoked.
+Recovery in v1: **device linking** — the new phone calls `POST /v1/pairing/device-link/code`,
+the old phone confirms with `POST /v1/pairing/device-link/confirm` (same 8-character codes as web
+pairing); the new device is reassigned to the confirming user. Optional **recovery email**
+(one-time code issues a fresh device credential) is later. The email is never shown publicly.
+Any linked device can be revoked.
 
 ### New event near me
 

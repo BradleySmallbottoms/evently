@@ -56,10 +56,21 @@
     "reportMessage": "We’ll review the listing. This does not remove it immediately.",
     "reportConfirm": "Report",
     "cancel": "Cancel",
-    "pairingTitle": "Web sign-in code",
+    "pairingTitle": "Codes & device link",
+    "pairingWebTab": "Web sign-in",
+    "pairingLinkTab": "Link phone",
     "pairingHint": "Use this code on the web sign-in page.",
+    "pairingLinkHint": "On the new phone, generate a code. On this phone, enter that code to link.",
     "pairingGenerate": "Generate code",
     "pairingGenerating": "Generating…",
-    "pairingGenerateError": "Could not generate code."
+    "pairingGenerateError": "Could not generate code.",
+    "pairingConfirmHint": "Already have a code from your new phone?",
+    "pairingConfirm": "Confirm link",
+    "pairingConfirming": "Linking…",
+    "pairingConfirmError": "Could not confirm device link.",
+    "pairingConfirmSuccess": "Device linked.",
+    "pairingRefreshAfterLink": "I’ve confirmed — refresh",
+    "pairingRefreshSuccess": "This phone is now linked.",
+    "pairingRefreshPending": "Not linked yet. Confirm on your other phone, then try again."
   }
 }
