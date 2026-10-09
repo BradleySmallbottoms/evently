@@ -10,6 +10,7 @@ const MESSAGES: Record<AuthErrorCode, string> = {
   invalid_token: 'Invalid or already used token',
   token_expired: 'Token has expired',
   unauthorized: 'Unauthorized',
+  invalid_pairing_code: 'Invalid or expired pairing code',
 };
 
 const STATUS: Record<AuthErrorCode, 400 | 401 | 403 | 409> = {
@@ -20,6 +21,7 @@ const STATUS: Record<AuthErrorCode, 400 | 401 | 403 | 409> = {
   invalid_token: 400,
   token_expired: 400,
   unauthorized: 401,
+  invalid_pairing_code: 401,
 };
 
 /**

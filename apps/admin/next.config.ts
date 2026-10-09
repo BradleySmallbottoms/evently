@@ -7,14 +7,6 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@local-events/contracts', '@local-events/domain'],
   cacheComponents: true,
   partialPrefetching: true,
-  turbopack: {
-    rules: {
-      '*.css': {
-        loaders: ['@tailwindcss/turbopack'],
-        as: '*.css',
-      },
-    },
-  },
 };
 
 export default withNextIntl(nextConfig);

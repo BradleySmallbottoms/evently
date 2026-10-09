@@ -96,3 +96,30 @@ export type LoginPublisherResponse = z.infer<typeof LoginPublisherResponse>;
 
 export const PublisherMeResponse = LoginPublisherResponse;
 export type PublisherMeResponse = z.infer<typeof PublisherMeResponse>;
+
+export const CreateWebLoginCodeRequest = z.object({
+  deviceCredential: z.string().min(1),
+});
+export type CreateWebLoginCodeRequest = z.infer<typeof CreateWebLoginCodeRequest>;
+
+export const CreateWebLoginCodeResponse = z.object({
+  code: z.string().min(4),
+  expiresAt: z.iso.datetime(),
+});
+export type CreateWebLoginCodeResponse = z.infer<typeof CreateWebLoginCodeResponse>;
+
+export const ExchangeWebLoginCodeRequest = z.object({
+  code: z.string().min(4),
+});
+export type ExchangeWebLoginCodeRequest = z.infer<typeof ExchangeWebLoginCodeRequest>;
+
+export const ExchangeWebLoginCodeResponse = z.object({
+  userId: Id,
+  expiresAt: z.iso.datetime(),
+});
+export type ExchangeWebLoginCodeResponse = z.infer<typeof ExchangeWebLoginCodeResponse>;
+
+export const WebUserMeResponse = z.object({
+  userId: Id,
+});
+export type WebUserMeResponse = z.infer<typeof WebUserMeResponse>;

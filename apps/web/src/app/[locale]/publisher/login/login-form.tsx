@@ -1,9 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 import { ApiError } from '@local-events/api-client';
-import { Link, useRouter } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
+import { AppLink } from '@/components/app-link';
+import { useRouter } from '@/i18n/navigation';
 import { api, throwIfError } from '@/lib/api';
 
 export function LoginForm() {
@@ -12,10 +20,12 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function onSubmit(formData: FormData) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setPending(true);
     setError(null);
     try {
+      const formData = new FormData(event.currentTarget);
       throwIfError(
         await api.POST('/publishers/login', {
           body: {
@@ -39,42 +49,22 @@ export function LoginForm() {
   }
 
   return (
-    <form action={onSubmit} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1 text-sm">
-        <span>{t('email')}</span>
-        <input
-          name="email"
-          type="email"
-          required
-          className="rounded border border-zinc-300 bg-white px-3 py-2"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        <span>{t('password')}</span>
-        <input
-          name="password"
-          type="password"
-          required
-          className="rounded border border-zinc-300 bg-white px-3 py-2"
-        />
-      </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-      >
+    <Stack component="form" onSubmit={onSubmit} spacing={2}>
+      <TextField name="email" type="email" label={t('email')} required fullWidth />
+      <TextField name="password" type="password" label={t('password')} required fullWidth />
+      {error && <Alert severity="error">{error}</Alert>}
+      <Button type="submit" variant="contained" disabled={pending}>
         {t('loginSubmit')}
-      </button>
-      <p className="text-sm text-zinc-600">
-        <Link href="/publisher/register" className="underline underline-offset-4">
+      </Button>
+      <Typography variant="body2" color="text.secondary">
+        <Link component={AppLink} href="/publisher/register" underline="hover">
           {t('registerTitle')}
         </Link>
         {' · '}
-        <Link href="/publisher/verify" className="underline underline-offset-4">
+        <Link component={AppLink} href="/publisher/verify" underline="hover">
           {t('verifyTitle')}
         </Link>
-      </p>
-    </form>
+      </Typography>
+    </Stack>
   );
 }

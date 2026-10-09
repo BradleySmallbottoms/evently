@@ -25,6 +25,7 @@ changes, update this file, `project-description.md` and `build-plan.md` together
 | Auth         | Own auth in the APIs, users/devices/sessions in Postgres. No Cognito. App stores a random device credential in secure storage; a user id alone never authenticates. |
 | Data workers | Part of the monorepo (`apps/data-workers`); one adapter per source; scheduled Fargate tasks (~0.25 vCPU / 0.5 GB).                                                  |
 | Hosting      | AWS, eu-north-1 (Stockholm), dev/staging/prod accounts, CDK.                                                                                                        |
+| UI kit       | Material UI (`@mui/material` + `@mui/material-nextjs`) on `apps/web` and `apps/admin`. Mobile uses custom RN screens plus `@expo/ui` (universal BottomSheet/etc.) and SwiftUI overlays (`ConfirmationDialog`, `ContextMenu`, `DatePicker`, `Alert`) for system chrome — not React Native Paper / Gluestack. |
 | Monorepo     | pnpm workspaces + Turborepo; Expo (mobile), Next.js (web, admin).                                                                                                   |
 | Database     | PostgreSQL + PostGIS on RDS; Drizzle ORM. Geography columns are plain `geography` because drizzle-kit quotes constrained type names.                                |
 

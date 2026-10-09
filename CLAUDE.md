@@ -50,8 +50,16 @@ For runtime sanity:
 
 - Start affected apps (`pnpm dev` or per-app dev commands) and verify they boot without runtime errors.
 - For web/admin/mobile-web flows, run browser click-through smoke checks on changed pages.
+- During browser smoke checks, inspect browser devtools console and fail the check on Next.js/React
+  errors or warnings that indicate runtime/render/hydration problems.
 - If an endpoint/feature is added or behavior changes, add/adjust tests in the same change.
 - Explicitly assess test coverage gaps per change: happy path + key rejection/edge path.
+- After each code change, validate that tests still pass for the touched area (and broader suites when
+  needed), and explicitly check whether the change affects existing tests under `tests/`.
+- If a change touches behavior covered by existing tests, update those tests in the same change; if it
+  adds new behavior, add new tests in `tests/` in the same change.
+- After each slice (for example a Phase checklist slice), validate and test that the slice's stated
+  exit criteria are actually met before marking the slice done.
 
 ## Layout
 
@@ -123,7 +131,7 @@ Code conventions
 - TypeScript, ESM, strict. Packages export TS source (`"exports": { ".": "./src/index.ts" }`);
   imports are extensionless.
 - Zod v4 APIs (`z.uuid()`, `z.iso.datetime()`, `z.url()`).
-- Tests: vitest, `*.test.ts` next to the code.
+- Tests: vitest, all test files live under the repo root `tests/` directory.
 - PostGIS: EWKT is `POINT(lng lat)` — longitude first. Geography columns are plain `geography`
   (see `packages/db/src/postgis.ts`). Use `ST_DWithin` / `ST_Covers` in SQL.
 - Migrations: change `packages/db/src/schema.ts`, then `pnpm db:generate`. Never edit a migration
@@ -140,7 +148,28 @@ Docs
 ## Skills
 
 `.claude/skills/` has step-by-step guides: `scaffold-frontend`, `add-api-endpoint`,
-`add-data-source`, `db-schema-change`, `record-decision`.
+`add-data-source`, `db-schema-change`, `record-decision`. Frontend UI skills live under
+`.agents/skills/`.
+
+### Frontend UI (required)
+
+1. **Admin and web (`apps/admin`, `apps/web`)** — always use the **MUI** skill before building
+   or changing UI. Read `.agents/skills/mui/SKILL.md` (and
+   `.agents/skills/mui/resources/` as needed). Use stock `@mui/material` with typed `sx` /
+   theme tokens; Next App Router via `@mui/material-nextjs/v16-appRouter`. Do not use
+   Gluestack, UniWind, React Native Paper, or `react-native-web` in these apps.
+
+2. **Mobile (`apps/mobile`)** — always use the **expo-ui** skill (and **expo-native-ui** for
+   layout/HIG). Read `.agents/skills/expo-ui/SKILL.md` before building or changing UI.
+   Prefer `@expo/ui` for sheets, pickers, menus, toggles; SwiftUI (`@expo/ui/swift-ui`) for
+   ConfirmationDialog, ContextMenu, DatePicker, Alert/popups (in `components/*.ios.tsx`,
+   never under `app/`). Custom RN components for everything else. Do not use React Native
+   Paper or MUI. Strive for the look and feel of
+   [Events Booking Mobile App](https://dribbble.com/shots/25922019-Events-Booking-Mobile-App)
+   (soft canvas, coral accent, large continuous corner radii, hero event cards, clear
+   location/search/category header, sticky primary CTA on detail).
+
+### Quality gates
 
 - **`code-tester`** — launch after any code change (even outside the pipeline) to run typecheck, lint, and tests; loop on its failures before proceeding.
 - **`code-reviewer`** and **`security-auditor`** — launch **in parallel, in one message**, once tests pass and before anything is committed. Reviewer covers quality/architecture; auditor covers OWASP-class issues, auth gaps, secrets, and the data-isolation boundary.

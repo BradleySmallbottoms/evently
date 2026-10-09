@@ -1,8 +1,14 @@
 'use client';
 
+import Link from '@mui/material/Link';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemText from '@mui/material/ListItemText';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
+import { AppLink } from '@/components/app-link';
 import { api, throwIfError } from '@/lib/api';
 import { QueryProvider } from '@/lib/query-provider';
 import { LogoutButton } from './logout-button';
@@ -16,42 +22,60 @@ function WorkspaceInner() {
   });
 
   if (me.isPending) {
-    return <p className="text-sm text-zinc-500">…</p>;
+    return (
+      <Typography variant="body2" color="text.secondary">
+        …
+      </Typography>
+    );
   }
 
   if (me.isError || !me.data) {
     return (
-      <div className="space-y-3">
-        <p className="text-zinc-600">{t('errorCredentials')}</p>
-        <Link href="/publisher/login" className="underline underline-offset-4">
+      <Stack spacing={1.5}>
+        <Typography color="text.secondary">{t('errorCredentials')}</Typography>
+        <Link component={AppLink} href="/publisher/login" underline="hover">
           {t('loginTitle')}
         </Link>
-      </div>
+      </Stack>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <p className="text-zinc-600">{t('welcome', { email: me.data.email })}</p>
+    <Stack spacing={3}>
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}
+      >
+        <Typography color="text.secondary">{t('welcome', { email: me.data.email })}</Typography>
         <LogoutButton />
-      </div>
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+      </Stack>
+      <Stack spacing={1}>
+        <Typography variant="overline" color="text.secondary">
           {t('yourPublishers')}
-        </h2>
-        <ul className="divide-y divide-zinc-200 rounded border border-zinc-200 bg-white">
+        </Typography>
+        <List disablePadding sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
           {me.data.publishers.map((p) => (
-            <li key={p.id} className="flex items-center justify-between px-4 py-3 text-sm">
-              <span className="font-medium">{p.name}</span>
-              <span className="text-zinc-500">
-                {p.slug} · {p.role}
-              </span>
-            </li>
+            <ListItem
+              key={p.id}
+              divider
+              secondaryAction={
+                <Link
+                  component={AppLink}
+                  href={`/publisher/${p.id}/events`}
+                  underline="hover"
+                  variant="body2"
+                >
+                  {t('manageEvents')}
+                </Link>
+              }
+            >
+              <ListItemText primary={p.name} secondary={`${p.slug} · ${p.role}`} />
+            </ListItem>
           ))}
-        </ul>
-      </section>
-    </div>
+        </List>
+      </Stack>
+    </Stack>
   );
 }
 

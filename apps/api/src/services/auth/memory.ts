@@ -3,9 +3,12 @@ import {
   EMAIL_VERIFICATION_TTL_SECONDS,
   generateDeviceCredential,
   generateEmailToken,
+  generatePairingCode,
   generateSessionToken,
   hashPassword,
   hashToken,
+  normalizePairingCode,
+  PAIRING_CODE_TTL_SECONDS,
   PUBLISHER_SESSION_TTL_SECONDS,
   verifyPassword,
 } from '@local-events/auth';
@@ -255,6 +258,70 @@ export function createMemoryAuthServices(
         email: account.email,
         publishers: publishersForAccount(account.id),
       };
+    },
+
+    async createWebLoginCode(input) {
+      const credentialHash = hashToken(input.deviceCredential);
+      const device = [...devices.values()].find(
+        (d) => d.credentialHash === credentialHash && !d.revokedAt,
+      );
+      if (!device) throw new AuthError('invalid_credentials');
+
+      const code = generatePairingCode();
+      const now = env.now();
+      tokens.set(code, {
+        id: randomUUID(),
+        purpose: 'web_login_code',
+        subjectId: device.userId,
+        tokenHash: hashToken(code),
+        expiresAt: addSeconds(now, PAIRING_CODE_TTL_SECONDS),
+        usedAt: null,
+      });
+      return { code, expiresAt: addSeconds(now, PAIRING_CODE_TTL_SECONDS).toISOString() };
+    },
+
+    async exchangeWebLoginCode(input) {
+      const normalized = normalizePairingCode(input.code);
+      const tokenHash = hashToken(normalized);
+      const row = [...tokens.values()].find(
+        (t) => t.purpose === 'web_login_code' && t.tokenHash === tokenHash,
+      );
+      if (!row || row.usedAt || row.expiresAt <= env.now()) {
+        throw new AuthError('invalid_pairing_code');
+      }
+
+      row.usedAt = env.now();
+      const sessionToken = generateSessionToken();
+      const expiresAt = addSeconds(env.now(), APP_SESSION_TTL_SECONDS);
+      sessions.set(sessionToken, {
+        id: randomUUID(),
+        subjectType: 'user',
+        subjectId: row.subjectId,
+        tokenHash: hashToken(sessionToken),
+        client: 'web',
+        expiresAt,
+        revokedAt: null,
+      });
+      return {
+        body: { userId: row.subjectId, expiresAt: expiresAt.toISOString() },
+        sessionToken,
+        expiresAt,
+      };
+    },
+
+    async getWebUserMe(sessionToken: string | undefined) {
+      if (!sessionToken) throw new AuthError('unauthorized');
+      const tokenHash = hashToken(sessionToken);
+      const session = [...sessions.values()].find(
+        (s) =>
+          s.tokenHash === tokenHash &&
+          s.subjectType === 'user' &&
+          s.client === 'web' &&
+          !s.revokedAt &&
+          s.expiresAt > env.now(),
+      );
+      if (!session) throw new AuthError('unauthorized');
+      return { userId: session.subjectId };
     },
 
     async requirePublisherMember(sessionToken: string | undefined, publisherId: string) {

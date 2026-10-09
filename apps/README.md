@@ -138,7 +138,7 @@ pnpm --filter @local-events/mobile dev
 
 ```bash
 cd apps
-pnpm create next-app@latest web --ts --app --src-dir --eslint --tailwind --import-alias "@/*" --use-pnpm --disable-git --skip-install
+pnpm create next-app@latest web --ts --app --src-dir --eslint --no-tailwind --import-alias "@/*" --use-pnpm --disable-git --skip-install
 cd ..
 rm apps/web/pnpm-workspace.yaml   # nested workspace file would split the app off the monorepo
 ```
@@ -182,8 +182,12 @@ Install and add packages:
 
 ```bash
 pnpm install
-pnpm --filter @local-events/web add @local-events/contracts@workspace:* @local-events/domain@workspace:* @local-events/geo@workspace:* @tanstack/react-query next-intl
+pnpm --filter @local-events/web add @local-events/contracts@workspace:* @local-events/domain@workspace:* @local-events/geo@workspace:* @tanstack/react-query next-intl @mui/material @mui/material-nextjs @emotion/cache @emotion/react @emotion/styled
 ```
+
+Wire MUI App Router SSR in the locale layout with `AppRouterCacheProvider` from
+`@mui/material-nextjs/v16-appRouter`, plus a client `ThemeProvider` + `CssBaseline`. Follow
+`.agents/skills/mui/SKILL.md`.
 
 ### 3. Configure
 
@@ -201,13 +205,13 @@ pnpm --filter @local-events/web build
 
 ---
 
-## Admin console (Next.js + shadcn/ui)
+## Admin console (Next.js + Material UI)
 
 ### 1. Scaffold
 
 ```bash
 cd apps
-pnpm create next-app@latest admin --ts --app --src-dir --eslint --tailwind --import-alias "@/*" --use-pnpm --disable-git --skip-install
+pnpm create next-app@latest admin --ts --app --src-dir --eslint --no-tailwind --import-alias "@/*" --use-pnpm --disable-git --skip-install
 cd ..
 rm apps/admin/pnpm-workspace.yaml
 ```
@@ -216,21 +220,19 @@ rm apps/admin/pnpm-workspace.yaml
 
 Same as the web app, with `"name": "@local-events/admin"` and port **3200**
 (`next dev -p 3200`, `next start -p 3200`), the same `typecheck` script and the same
-`transpilePackages`.
+`transpilePackages` (admin omits `geo` / `api-client`).
 
 ```bash
 pnpm install
-pnpm --filter @local-events/admin add @local-events/contracts@workspace:* @local-events/domain@workspace:* @tanstack/react-query @tanstack/react-table
+pnpm --filter @local-events/admin add @local-events/contracts@workspace:* @local-events/domain@workspace:* @tanstack/react-query @tanstack/react-table @mui/material @mui/material-nextjs @emotion/cache @emotion/react @emotion/styled
 ```
 
-### 3. shadcn/ui
+### 3. Material UI
 
-```bash
-cd apps/admin
-pnpm dlx shadcn@latest init
-pnpm dlx shadcn@latest add button input table dialog form select badge tabs sonner
-cd ../..
-```
+Admin and web use `@mui/material` + `@mui/material-nextjs` (App Router cache provider) and Emotion.
+Mobile uses custom components plus `@expo/ui` (and SwiftUI overlays) — do not add MUI,
+`react-native-web`, or React Native Paper to the wrong apps.
+Follow `.agents/skills/mui/SKILL.md` for web/admin and `.agents/skills/expo-ui/SKILL.md` for mobile.
 
 ### 4. Configure
 

@@ -9,7 +9,7 @@
   "scripts": {
     "generate": "openapi-typescript ./openapi.json -o ./src/schema.d.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --root ../.. tests/packages/api-client --passWithNoTests"
   },
   "dependencies": {
     "openapi-fetch": "^0.15.0"

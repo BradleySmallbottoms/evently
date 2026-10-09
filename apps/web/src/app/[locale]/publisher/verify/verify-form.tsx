@@ -1,9 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
+import { AppLink } from '@/components/app-link';
+import { useRouter } from '@/i18n/navigation';
 import { api, throwIfError } from '@/lib/api';
 
 export function VerifyForm() {
@@ -15,10 +23,12 @@ export function VerifyForm() {
   const [success, setSuccess] = useState(false);
   const [pending, setPending] = useState(false);
 
-  async function onSubmit(formData: FormData) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setPending(true);
     setError(null);
     try {
+      const formData = new FormData(event.currentTarget);
       throwIfError(
         await api.POST('/publishers/verify-email', {
           body: { token: String(formData.get('token') ?? '') },
@@ -34,31 +44,28 @@ export function VerifyForm() {
   }
 
   return (
-    <form action={onSubmit} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1 text-sm">
-        <span>{t('verifyToken')}</span>
-        <input
-          name="token"
-          type="text"
-          required
-          defaultValue={initialToken}
-          className="rounded border border-zinc-300 bg-white px-3 py-2 font-mono text-sm"
-        />
-      </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {success && <p className="text-sm text-green-700">{t('verifySuccess')}</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-      >
+    <Stack component="form" onSubmit={onSubmit} spacing={2}>
+      <TextField
+        name="token"
+        type="text"
+        label={t('verifyToken')}
+        required
+        fullWidth
+        defaultValue={initialToken}
+        slotProps={{
+          input: { sx: { fontFamily: 'ui-monospace, monospace', fontSize: 14 } },
+        }}
+      />
+      {error && <Alert severity="error">{error}</Alert>}
+      {success && <Alert severity="success">{t('verifySuccess')}</Alert>}
+      <Button type="submit" variant="contained" disabled={pending}>
         {t('verifySubmit')}
-      </button>
-      <p className="text-sm text-zinc-600">
-        <Link href="/publisher/login" className="underline underline-offset-4">
+      </Button>
+      <Typography variant="body2" color="text.secondary">
+        <Link component={AppLink} href="/publisher/login" underline="hover">
           {t('loginTitle')}
         </Link>
-      </p>
-    </form>
+      </Typography>
+    </Stack>
   );
 }

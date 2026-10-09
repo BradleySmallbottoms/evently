@@ -1,5 +1,6 @@
 'use client';
 
+import Button from '@mui/material/Button';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { api } from '@/lib/api';
@@ -9,15 +10,16 @@ export function LogoutButton() {
   const router = useRouter();
 
   return (
-    <button
+    <Button
       type="button"
-      className="rounded border border-zinc-300 px-3 py-1.5 text-sm"
+      variant="outlined"
+      size="small"
       onClick={async () => {
         await api.POST('/publishers/logout');
         router.push('/publisher/login');
       }}
     >
       {t('logout')}
-    </button>
+    </Button>
   );
 }

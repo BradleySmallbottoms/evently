@@ -1,5 +1,9 @@
+import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
+import { AppLink } from '@/components/app-link';
+import { PageMain } from '@/components/page-main';
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -8,19 +12,29 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const nav = await getTranslations('Nav');
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-8 px-6 py-16">
-      <div className="space-y-3">
-        <h1 className="text-4xl font-semibold tracking-tight">{t('name')}</h1>
-        <p className="text-lg text-zinc-600">{t('tagline')}</p>
-      </div>
-      <nav className="flex flex-wrap gap-4 text-sm font-medium">
-        <Link className="underline underline-offset-4" href="/publisher/login">
+    <PageMain maxWidth="sm" sx={{ justifyContent: 'center' }}>
+      <Stack spacing={1.5}>
+        <Typography variant="h3" component="h1">
+          {t('name')}
+        </Typography>
+        <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 400 }}>
+          {t('tagline')}
+        </Typography>
+      </Stack>
+      <Stack direction="row" useFlexGap spacing={1.5} sx={{ flexWrap: 'wrap' }}>
+        <Button component={AppLink} href="/events" variant="contained">
+          {nav('events')}
+        </Button>
+        <Button component={AppLink} href="/login-with-code" variant="outlined">
+          {nav('loginWithCode')}
+        </Button>
+        <Button component={AppLink} href="/publisher/login" variant="outlined">
           {nav('publisherLogin')}
-        </Link>
-        <Link className="underline underline-offset-4" href="/publisher/register">
+        </Button>
+        <Button component={AppLink} href="/publisher/register" variant="text">
           {nav('publisherRegister')}
-        </Link>
-      </nav>
-    </main>
+        </Button>
+      </Stack>
+    </PageMain>
   );
 }

@@ -38,7 +38,8 @@ Web / Admin (Next.js):
 - [ ] `typecheck` is `next typegen && tsc --noEmit`
 - [ ] `next.config.ts` has `transpilePackages` for every `@local-events/*` package imported
 - [ ] Ports: web 3100, admin 3200 (API 3000, admin API 3001)
-- [ ] Admin: shadcn/ui initialised; talks **only** to the admin API (`NEXT_PUBLIC_ADMIN_API_URL`)
+- [ ] Admin: Material UI; talks **only** to the admin API (`NEXT_PUBLIC_ADMIN_API_URL`)
+- [ ] Web: Material UI; mobile: custom UI + `@expo/ui` / SwiftUI overlays (not Paper)
 
 ## Afterwards
 

@@ -10,10 +10,15 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@local-events/api-client": "workspace:*",
     "@local-events/contracts": "workspace:*",
     "@local-events/domain": "workspace:*",
     "@local-events/geo": "workspace:*",
+    "@mui/material": "^9.4.0",
+    "@mui/material-nextjs": "^9.4.0",
     "@sentry/nextjs": "^11.4.0",
     "@tanstack/react-query": "^5.104.1",
     "next": "16.4.0",
@@ -22,13 +27,11 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
-    "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
-    "tailwindcss": "^4",
     "typescript": "^5"
   }
 }

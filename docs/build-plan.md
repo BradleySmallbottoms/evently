@@ -33,6 +33,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] CDK app with network stack
 - [x] Create `apps/mobile`, `apps/web`, `apps/admin` (see `apps/README.md`)
 - [x] i18n setup on all three frontends: Swedish default, English
+- [x] Material UI on admin and web; mobile custom UI + `@expo/ui` / SwiftUI overlays
 - [x] `POST /v1/identities` (anonymous device identity) + session exchange
 - [x] Publisher registration + email verification + login (web)
 - [x] OpenAPI → `packages/api-client` generation; Sentry on all apps
@@ -44,7 +45,7 @@ Closed beta around week 15, store launch around week 19.
 - [ ] Publisher profiles; owner/editor members with email invites
 - [x] Event CRUD (physical + digital), categories (sv/en names); image upload to S3 deferred
 - [x] Unverified publishers: events stored as `awaiting_verification`, released on verification
-- [ ] Public event pages on web; list and map views in the app
+- [x] Public event pages on web; list and map views in the app
 - [ ] Web sign-in by pairing code; device linking with the same mechanism
 - **Exit:** a publisher creates an event on web and it shows on the mobile map; an app user signs
   in on web with a code.

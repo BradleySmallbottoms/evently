@@ -1,8 +1,12 @@
 import type {
+  CreateWebLoginCodeRequest,
+  CreateWebLoginCodeResponse,
   CreateIdentityRequest,
   CreateIdentityResponse,
   CreateSessionRequest,
   CreateSessionResponse,
+  ExchangeWebLoginCodeRequest,
+  ExchangeWebLoginCodeResponse,
   LoginPublisherRequest,
   LoginPublisherResponse,
   PublisherMeResponse,
@@ -10,6 +14,7 @@ import type {
   RegisterPublisherResponse,
   VerifyPublisherEmailRequest,
   VerifyPublisherEmailResponse,
+  WebUserMeResponse,
 } from '@local-events/contracts';
 
 export type AuthErrorCode =
@@ -19,7 +24,8 @@ export type AuthErrorCode =
   | 'slug_taken'
   | 'invalid_token'
   | 'token_expired'
-  | 'unauthorized';
+  | 'unauthorized'
+  | 'invalid_pairing_code';
 
 export class AuthError extends Error {
   constructor(readonly code: AuthErrorCode) {
@@ -48,6 +54,15 @@ export type AuthServices = {
   }>;
   logoutPublisher: (sessionToken: string | undefined) => Promise<void>;
   getPublisherMe: (sessionToken: string | undefined) => Promise<PublisherMeResponse>;
+  createWebLoginCode: (input: CreateWebLoginCodeRequest) => Promise<CreateWebLoginCodeResponse>;
+  exchangeWebLoginCode: (
+    input: ExchangeWebLoginCodeRequest,
+  ) => Promise<{
+    body: ExchangeWebLoginCodeResponse;
+    sessionToken: string;
+    expiresAt: Date;
+  }>;
+  getWebUserMe: (sessionToken: string | undefined) => Promise<WebUserMeResponse>;
   /** Resolves a publisher session and checks membership on the given publisher. */
   requirePublisherMember: (
     sessionToken: string | undefined,

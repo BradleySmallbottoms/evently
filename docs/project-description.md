@@ -167,10 +167,10 @@ TypeScript end to end, so schemas, validation and API types are shared across ev
 | ---------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | Language               | TypeScript                                                                                                   | One language across mobile, web, admin, APIs and infra                  |
 | Monorepo               | pnpm workspaces + Turborepo                                                                                  | Fast installs, cached builds, task graph across apps                    |
-| Mobile                 | Expo, Expo Router, EAS Build / Submit / Update                                                               | Managed builds and store submission, OTA updates for JS fixes           |
+| Mobile                 | Expo, Expo Router, EAS, `@expo/ui` + custom UI (Events Booking visual language)                             | Managed builds and store submission, OTA updates for JS fixes           |
 | Mobile native features | expo-location, expo-task-manager, expo-notifications, expo-camera (QR), expo-secure-store, react-native-maps | Location check-in, push, code scanning, device credential storage, maps |
-| Web app                | Next.js (App Router)                                                                                         | SEO for public event pages, publisher workspace                         |
-| Admin                  | Next.js + shadcn/ui + TanStack Table                                                                         | Fast data-heavy CRUD screens                                            |
+| Web app                | Next.js (App Router) + Material UI                                                                           | SEO for public event pages, publisher workspace                         |
+| Admin                  | Next.js + Material UI + TanStack Table                                                                       | Fast data-heavy CRUD screens                                            |
 | Client data            | TanStack Query + generated API client                                                                        | Caching, retries and offline-friendly reads on all three frontends      |
 | API framework          | Hono + @hono/zod-openapi on Node.js                                                                          | Lightweight, Zod-first, emits OpenAPI                                   |
 | ORM / migrations       | Drizzle ORM + drizzle-kit                                                                                    | Typed SQL, good PostGIS escape hatches                                  |
@@ -219,7 +219,7 @@ packages, packages never import apps.
   geo/           Distance and geofence utilities (client and server)
   config/        Shared tsconfig presets
   api-client/    Generated typed client from public OpenAPI (`pnpm api-client:generate`)
-  (later) admin-client/; ui-web/ shared shadcn components
+  (later) admin-client/
 /infra           AWS CDK app
 ```
 

@@ -1,5 +1,9 @@
+import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
+import { AppLink } from '@/components/app-link';
+import { PageMain } from '@/components/page-main';
 import { WorkspacePanel } from './workspace-panel';
 
 export default async function PublisherWorkspacePage({
@@ -12,14 +16,16 @@ export default async function PublisherWorkspacePage({
   const nav = await getTranslations('Nav');
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-16">
-      <div className="space-y-2">
-        <Link href="/" className="text-sm text-zinc-500 underline underline-offset-4">
+    <PageMain maxWidth="sm">
+      <Stack spacing={1}>
+        <Link component={AppLink} href="/" underline="hover" variant="body2" color="text.secondary">
           {nav('home')}
         </Link>
-        <h1 className="text-2xl font-semibold">{nav('workspace')}</h1>
-      </div>
+        <Typography variant="h4" component="h1">
+          {nav('workspace')}
+        </Typography>
+      </Stack>
       <WorkspacePanel />
-    </main>
+    </PageMain>
   );
 }

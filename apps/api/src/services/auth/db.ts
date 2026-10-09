@@ -3,9 +3,12 @@ import {
   EMAIL_VERIFICATION_TTL_SECONDS,
   generateDeviceCredential,
   generateEmailToken,
+  generatePairingCode,
   generateSessionToken,
   hashPassword,
   hashToken,
+  normalizePairingCode,
+  PAIRING_CODE_TTL_SECONDS,
   PUBLISHER_SESSION_TTL_SECONDS,
   verifyPassword,
 } from '@local-events/auth';
@@ -46,6 +49,7 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
     users,
     devices,
     sessions,
+    webLoginCodes,
     publisherAccounts,
     publishers,
     publisherMembers,
@@ -324,6 +328,83 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
         email: account.email,
         publishers: await publishersForAccount(account.accountId),
       };
+    },
+
+    async createWebLoginCode(input) {
+      const credentialHash = hashToken(input.deviceCredential);
+      const [device] = await db
+        .select({ userId: devices.userId })
+        .from(devices)
+        .where(and(eq(devices.credentialHash, credentialHash), isNull(devices.revokedAt)))
+        .limit(1);
+      if (!device) throw new AuthError('invalid_credentials');
+
+      const now = env.now();
+      const code = generatePairingCode();
+      const expiresAt = addSeconds(now, PAIRING_CODE_TTL_SECONDS);
+      await db.insert(webLoginCodes).values({
+        codeHash: hashToken(code),
+        purpose: 'web_login',
+        status: 'pending',
+        userId: device.userId,
+        expiresAt,
+      });
+      return { code, expiresAt: expiresAt.toISOString() };
+    },
+
+    async exchangeWebLoginCode(input) {
+      const codeHash = hashToken(normalizePairingCode(input.code));
+      const now = env.now();
+      const [row] = await db
+        .select()
+        .from(webLoginCodes)
+        .where(
+          and(
+            eq(webLoginCodes.codeHash, codeHash),
+            eq(webLoginCodes.purpose, 'web_login'),
+            eq(webLoginCodes.status, 'pending'),
+            gt(webLoginCodes.expiresAt, now),
+          ),
+        )
+        .limit(1);
+      if (!row || !row.userId) throw new AuthError('invalid_pairing_code');
+
+      const sessionToken = generateSessionToken();
+      const expiresAt = addSeconds(now, APP_SESSION_TTL_SECONDS);
+      await db.transaction(async (tx) => {
+        await tx
+          .update(webLoginCodes)
+          .set({ status: 'used' })
+          .where(eq(webLoginCodes.id, row.id));
+        await tx.insert(sessions).values({
+          subjectType: 'user',
+          subjectId: row.userId!,
+          tokenHash: hashToken(sessionToken),
+          client: 'web',
+          expiresAt,
+        });
+      });
+      return { body: { userId: row.userId, expiresAt: expiresAt.toISOString() }, sessionToken, expiresAt };
+    },
+
+    async getWebUserMe(sessionToken: string | undefined) {
+      if (!sessionToken) throw new AuthError('unauthorized');
+      const now = env.now();
+      const [row] = await db
+        .select({ userId: sessions.subjectId })
+        .from(sessions)
+        .where(
+          and(
+            eq(sessions.subjectType, 'user'),
+            eq(sessions.client, 'web'),
+            eq(sessions.tokenHash, hashToken(sessionToken)),
+            isNull(sessions.revokedAt),
+            gt(sessions.expiresAt, now),
+          ),
+        )
+        .limit(1);
+      if (!row) throw new AuthError('unauthorized');
+      return { userId: row.userId };
     },
 
     async requirePublisherMember(sessionToken: string | undefined, publisherId: string) {

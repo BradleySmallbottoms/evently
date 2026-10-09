@@ -4,6 +4,7 @@ import type { EventServices } from '../services/events/types';
 import { registerCategoryRoutes } from './categories';
 import { registerEventRoutes } from './events';
 import { registerIdentityRoutes } from './identities';
+import { registerPairingRoutes } from './pairing';
 import { registerPublisherRoutes } from './publishers';
 import { registerSessionRoutes } from './sessions';
 
@@ -19,6 +20,7 @@ export type ApiRouteServices = {
 export function registerRoutes(app: OpenAPIHono, services: ApiRouteServices): void {
   registerIdentityRoutes(app, services.auth);
   registerSessionRoutes(app, services.auth);
+  registerPairingRoutes(app, services.auth);
   registerPublisherRoutes(app, services.auth);
   registerCategoryRoutes(app, services.events);
   registerEventRoutes(app, services.events);

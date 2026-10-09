@@ -1,4 +1,5 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { AdminHome } from '@/components/admin-home';
 
 export default async function AdminHomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -6,12 +7,10 @@ export default async function AdminHomePage({ params }: { params: Promise<{ loca
   const t = await getTranslations('App');
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-4 px-6 py-16">
-      <h1 className="text-3xl font-semibold tracking-tight">{t('name')}</h1>
-      <p className="text-zinc-600">{t('tagline')}</p>
-      <p className="font-mono text-xs text-zinc-400">
-        {process.env.NEXT_PUBLIC_ADMIN_API_URL ?? 'http://localhost:3001'}
-      </p>
-    </main>
+    <AdminHome
+      name={t('name')}
+      tagline={t('tagline')}
+      apiUrl={process.env.NEXT_PUBLIC_ADMIN_API_URL ?? 'http://localhost:3001'}
+    />
   );
 }

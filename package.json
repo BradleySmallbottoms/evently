@@ -10,6 +10,8 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:e2e": "playwright test -c tests/e2e/playwright.config.ts",
+    "test:e2e:headed": "playwright test -c tests/e2e/playwright.config.ts --headed",
     "lint": "turbo run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -21,6 +23,7 @@
     "api-client:generate": "tsx apps/api/scripts/export-openapi.ts && pnpm --filter @local-events/api-client generate"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "prettier": "^3.0.0",
     "tsx": "^4.23.15",
     "turbo": "^2.11.7",

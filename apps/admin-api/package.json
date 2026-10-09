@@ -9,7 +9,7 @@
     "start": "node --env-file=../../.env dist/index.js",
     "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --sourcemap --outfile=dist/index.js --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --root ../.. tests/apps/admin-api --passWithNoTests"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.3",

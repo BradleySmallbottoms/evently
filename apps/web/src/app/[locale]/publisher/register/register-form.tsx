@@ -1,8 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Link from '@mui/material/Link';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 import { useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
+import { AppLink } from '@/components/app-link';
+import { useRouter } from '@/i18n/navigation';
 import { api, throwIfError } from '@/lib/api';
 
 export function RegisterForm() {
@@ -11,17 +23,20 @@ export function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function onSubmit(formData: FormData) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setPending(true);
     setError(null);
     try {
+      const formData = new FormData(event.currentTarget);
       const result = await api.POST('/publishers/register', {
         body: {
           email: String(formData.get('email') ?? ''),
           password: String(formData.get('password') ?? ''),
           name: String(formData.get('name') ?? ''),
           type: (String(formData.get('type') ?? 'org') === 'person' ? 'person' : 'org') as
-            'org' | 'person',
+            | 'org'
+            | 'person',
         },
       });
       const data = throwIfError(result);
@@ -37,56 +52,45 @@ export function RegisterForm() {
   }
 
   return (
-    <form action={onSubmit} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1 text-sm">
-        <span>{t('email')}</span>
-        <input
-          name="email"
-          type="email"
-          required
-          className="rounded border border-zinc-300 bg-white px-3 py-2"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        <span>{t('password')}</span>
-        <input
-          name="password"
-          type="password"
-          required
-          minLength={10}
-          className="rounded border border-zinc-300 bg-white px-3 py-2"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        <span>{t('name')}</span>
-        <input
-          name="name"
-          type="text"
-          required
-          minLength={2}
-          className="rounded border border-zinc-300 bg-white px-3 py-2"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        <span>{t('type')}</span>
-        <select name="type" className="rounded border border-zinc-300 bg-white px-3 py-2">
-          <option value="org">{t('typeOrg')}</option>
-          <option value="person">{t('typePerson')}</option>
-        </select>
-      </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-      >
+    <Stack component="form" onSubmit={onSubmit} spacing={2}>
+      <TextField name="email" type="email" label={t('email')} required fullWidth />
+      <TextField
+        name="password"
+        type="password"
+        label={t('password')}
+        required
+        fullWidth
+        slotProps={{ htmlInput: { minLength: 10 } }}
+      />
+      <TextField
+        name="name"
+        type="text"
+        label={t('name')}
+        required
+        fullWidth
+        slotProps={{ htmlInput: { minLength: 2 } }}
+      />
+      <FormControl fullWidth>
+        <InputLabel id="publisher-type-label">{t('type')}</InputLabel>
+        <Select
+          labelId="publisher-type-label"
+          name="type"
+          label={t('type')}
+          defaultValue="org"
+        >
+          <MenuItem value="org">{t('typeOrg')}</MenuItem>
+          <MenuItem value="person">{t('typePerson')}</MenuItem>
+        </Select>
+      </FormControl>
+      {error && <Alert severity="error">{error}</Alert>}
+      <Button type="submit" variant="contained" disabled={pending}>
         {t('registerSubmit')}
-      </button>
-      <p className="text-sm text-zinc-600">
-        <Link href="/publisher/login" className="underline underline-offset-4">
+      </Button>
+      <Typography variant="body2" color="text.secondary">
+        <Link component={AppLink} href="/publisher/login" underline="hover">
           {t('loginTitle')}
         </Link>
-      </p>
-    </form>
+      </Typography>
+    </Stack>
   );
 }
