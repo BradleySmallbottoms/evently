@@ -17,5 +17,7 @@ The three docs must agree. Update all affected ones in the same change.
    timing changes, update the gantt chart.
 4. **Code** — if the decision is a rule, add or update the function in `packages/domain` and its
    tests, and the invariants list in `CLAUDE.md`.
-5. Summarize to the user what changed, and flag any assumption you made that they may want to
+5. **README / flows** — for major product features, add Need-to-know bullets in root `README.md`
+   and a Mermaid diagram under `docs/flows/` when client → API → DB calls are non-trivial.
+6. Summarize to the user what changed, and flag any assumption you made that they may want to
    overrule.

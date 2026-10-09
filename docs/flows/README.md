@@ -1,0 +1,23 @@
+# Flow charts
+
+End-to-end diagrams for major features that span **client → API → DB** (and sometimes workers).
+Use these when onboarding, debugging, or reviewing a flow.
+
+## When to add one
+
+After every **new major feature** with non-trivial client/API/DB sequencing, add a Mermaid
+flowchart here and link it from the root [README.md](../../README.md) Need-to-knows section.
+
+Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
+
+- Which client (mobile / web / admin)
+- HTTP method + path (versioned as called, e.g. `/v1/…`)
+- Auth material (device credential, cookie, session)
+- Tables touched and important status transitions
+
+## Index
+
+| Feature | Diagram |
+| ------- | ------- |
+| Web sign-in with app pairing code | [web-pairing-login.md](./web-pairing-login.md) |
+| Device linking (new phone → old phone confirms) | [device-linking.md](./device-linking.md) |

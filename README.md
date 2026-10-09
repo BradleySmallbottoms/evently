@@ -7,20 +7,21 @@ external sources. Launch area: Söderhamn and Gävleborgs län. Languages: Swedi
 - [Project description & architecture](docs/project-description.md)
 - [Build plan](docs/build-plan.md)
 - [Decision log](docs/decisions.md)
-- [Creating the mobile, web and admin apps](apps/README.md)
+- [Flow charts (client → API → DB)](docs/flows/README.md)
+- [Creating / wiring frontends](apps/README.md)
 
 ## Status
 
-Phase 1 (Foundations) has started. The backend skeletons, shared packages, database schema and
-infrastructure entry point exist and are tested. **The Expo mobile app and the two Next.js apps are
-not created yet**; follow [apps/README.md](apps/README.md) to create them.
+Phase 2 (Publishers + events) is in progress. Public API event CRUD, publisher web workspace,
+public event pages, mobile list/map, web pairing login, and device linking are in place. Still
+open on the Phase 2 checklist: publisher profiles and owner/editor invites.
 
 ## Prerequisites
 
 - Node.js 24 LTS (`.nvmrc`; 22+ works)
 - pnpm via Corepack: `corepack enable` (version pinned in `package.json`)
 - Docker (local Postgres + PostGIS and Valkey)
-- For the mobile app later: an Expo account and `eas-cli`
+- For the mobile app: an Expo account and `eas-cli` when building natively
 - For deploying: AWS credentials and the AWS CDK (installed as a dev dependency)
 
 ## Getting started
@@ -33,16 +34,72 @@ pnpm db:up          # Postgres + PostGIS + Valkey in Docker
 pnpm db:migrate     # apply packages/db/migrations
 pnpm typecheck
 pnpm test
+pnpm dev            # API :3000, admin-api :3001, web :3100, admin :3200, mobile Metro :8081
 ```
 
-Run things:
+Useful singles:
 
 ```bash
-pnpm --filter @local-events/api dev            # http://localhost:3000/health, /v1/openapi.json
-pnpm --filter @local-events/admin-api dev      # http://localhost:3001/health
+pnpm --filter @local-events/api dev
+pnpm --filter @local-events/admin-api dev
+pnpm --filter @local-events/web dev
+pnpm --filter @local-events/mobile dev
 pnpm --filter @local-events/data-workers dev -- --source example-fixture
-pnpm --filter @local-events/infra synth -c env=dev
+pnpm api-client:generate   # after public API OpenAPI changes
 ```
+
+## Need to know
+
+Operational and product facts that bite during local development. **Update this section (and add
+a diagram under [`docs/flows/`](docs/flows/README.md) when the feature has complex client→API→DB
+calls) in the same change as every new major feature.**
+
+### Public events & publishers
+
+- Public `GET /v1/events` only returns **`status = published`**. Unverified publishers’ events stay
+  `awaiting_verification` until an admin verifies the publisher (which releases upcoming events).
+- Empty mobile/web lists usually mean no published events nearby — not a broken client. Verify
+  publishers via admin-api `POST /v1/publishers/{id}/verify` in local/dev.
+- Fallback discovery point is **Söderhamn** (`61.3037, 17.0592`, 50 km).
+
+### Mobile location (especially Expo web)
+
+- Resolving GPS can hang on web permission prompts. The app **times out** (≈2s on web) and falls
+  back to Söderhamn so the events query can run. Switching tabs used to “fix” a hung prompt —
+  that should no longer be required.
+- Queries chain: identity → query point → `GET /v1/events`. Use `isLoading` (not bare `isPending`)
+  so disabled queries don’t look stuck forever.
+
+### Pairing & sessions
+
+- **Web login:** phone generates `POST /v1/pairing/code`; browser exchanges with
+  `POST /v1/pairing/login` from a **client** form (`credentials: 'include'`). Never exchange the
+  code in a Next.js server component — that burns the single-use code without setting the browser
+  cookie. Flow: [docs/flows/web-pairing-login.md](docs/flows/web-pairing-login.md).
+- **Device linking:** new phone `POST /v1/pairing/device-link/code`; old phone
+  `POST /v1/pairing/device-link/confirm`; new phone then `POST /v1/sessions` to pick up the new
+  `userId`. Only the device that created the code is remapped. Flow:
+  [docs/flows/device-linking.md](docs/flows/device-linking.md).
+- App identity is a **device credential** in secure storage (localStorage on web), not the user id.
+- Dev CORS defaults allow web `:3100` and Expo web `:8081` with credentials. Override with
+  `CORS_ORIGINS`.
+
+### Frontend structure
+
+- Admin/web: **MUI** only. Mobile: custom UI + `@expo/ui` / SwiftUI overlays (not Paper/MUI).
+- Shared components → `src/components/`. Route-only → Next `app/.../components/`, Expo
+  `app/.../_components/`. Native/SwiftUI overlays stay under `apps/mobile/src/components/native/`.
+  Details in `CLAUDE.md`.
+
+### Ports (local)
+
+| App        | Port |
+| ---------- | ---- |
+| API        | 3000 |
+| Admin API  | 3001 |
+| Web        | 3100 |
+| Admin      | 3200 |
+| Mobile web | 8081 |
 
 ## Scripts
 
@@ -52,9 +109,11 @@ pnpm --filter @local-events/infra synth -c env=dev
 | `pnpm build`                           | Builds all apps (esbuild bundles for the Node services) |
 | `pnpm typecheck`                       | TypeScript in every workspace                           |
 | `pnpm test`                            | Vitest in every workspace                               |
+| `pnpm test:e2e`                        | Playwright Phase 2 smoke (web + API)                    |
 | `pnpm format` / `pnpm format:check`    | Prettier                                                |
 | `pnpm db:up` / `pnpm db:down`          | Start/stop local Postgres + Valkey                      |
 | `pnpm db:generate` / `pnpm db:migrate` | Create / apply Drizzle migrations                       |
+| `pnpm api-client:generate`             | Export OpenAPI → `packages/api-client` types            |
 
 ## Repository layout
 
@@ -64,9 +123,9 @@ apps/
   admin-api/      Admin REST API — admin console only
   worker/         SQS consumer: notifications, stats
   data-workers/   Scheduled ingestion, one adapter per source
-  mobile/         Expo app            (create per apps/README.md)
-  web/            Next.js web app     (create per apps/README.md)
-  admin/          Next.js admin       (create per apps/README.md)
+  mobile/         Expo app
+  web/            Next.js public web (MUI)
+  admin/          Next.js admin (MUI)
 packages/
   contracts/      Zod schemas shared by APIs and clients
   domain/         Business rules (check-in, ratings, publishing, entitlements, regions)
@@ -74,10 +133,14 @@ packages/
   ingest/         IncomingEvent shape, adapter interface, dedupe
   db/             Drizzle schema + migrations (PostgreSQL + PostGIS)
   geo/            Distance / geofence helpers
+  api-client/     Generated OpenAPI client for the public API
   config/         Shared tsconfig presets
 infra/            AWS CDK app (eu-north-1)
 docs/             Project description, build plan, decisions
+docs/flows/       Mermaid e2e flow charts for major features
+tests/            Vitest + Playwright (not colocated under apps/)
 .claude/          Claude Code settings and skills
+.agents/skills/   Frontend UI skills (MUI, Expo UI, …)
 ```
 
 ## Docker images

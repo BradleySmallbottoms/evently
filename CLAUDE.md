@@ -144,6 +144,11 @@ Docs
 
 - When a decision changes, update `docs/decisions.md`, `docs/project-description.md` and
   `docs/build-plan.md` in the same change. Tick build-plan checkboxes when items are done.
+- After **every new major feature**, in the same change:
+  1. Add or update **Need to know** bullets in the root `README.md` (dev/ops gotchas, invariants).
+  2. If the feature has non-trivial **client → API → DB** sequencing, add a Mermaid flowchart under
+     `docs/flows/<feature>.md` and link it from `docs/flows/README.md` and the README Need-to-knows
+     section.
 
 ## Skills
 

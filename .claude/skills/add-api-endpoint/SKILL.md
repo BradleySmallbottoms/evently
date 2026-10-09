@@ -33,3 +33,6 @@ Endpoints are thin. The order below keeps rules testable and the OpenAPI spec ac
 10. **Verify** — `pnpm --filter @local-events/<api> typecheck test`, then root `pnpm typecheck`.
     Check the route appears in `/v1/openapi.json` (paths without `/v1`).
 11. Tick the matching item in `docs/build-plan.md`.
+12. **Docs for major flows** — update root `README.md` Need-to-knows; if the feature has complex
+    client → API → DB sequencing, add `docs/flows/<feature>.md` (Mermaid) and link it from
+    `docs/flows/README.md` (see `CLAUDE.md` → Docs).
