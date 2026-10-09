@@ -15,7 +15,7 @@ import { CategoryChips } from '@/components/ui/category-chips';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { EventCard } from '@/components/ui/event-card';
 import { SearchBar } from '@/components/ui/search-bar';
-import { MaxContentWidth } from '@/constants/theme';
+import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { api, throwIfError } from '@/lib/api';
 import {
   FALLBACK_CENTER,
@@ -201,7 +201,7 @@ export default function HomeScreen() {
           />
         }
         contentContainerStyle={{
-          paddingBottom: space.xxxl,
+          paddingBottom: BottomTabInset + space.xxxl,
           gap: space.lg,
         }}
         ListHeaderComponent={
