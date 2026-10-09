@@ -47,3 +47,4 @@ export type ErrorResponse = z.infer<typeof ErrorResponse>;
 export * from './auth';
 export * from './events';
 export * from './preferences';
+export * from './regions';

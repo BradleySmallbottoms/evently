@@ -1286,6 +1286,8 @@ export interface paths {
                                 kind: "manual" | "region";
                                 /** @enum {string} */
                                 origin: "manual" | "suggested";
+                                /** Format: uuid */
+                                regionId: string | null;
                                 center: {
                                     lat: number;
                                     lng: number;
@@ -1429,6 +1431,8 @@ export interface paths {
                                 kind: "manual" | "region";
                                 /** @enum {string} */
                                 origin: "manual" | "suggested";
+                                /** Format: uuid */
+                                regionId: string | null;
                                 center: {
                                     lat: number;
                                     lng: number;
@@ -1476,6 +1480,8 @@ export interface paths {
                         name: string;
                         notify?: boolean;
                         active?: boolean;
+                        /** @enum {string} */
+                        origin?: "manual" | "suggested";
                         center?: {
                             lat: number;
                             lng: number;
@@ -1485,6 +1491,8 @@ export interface paths {
                             lat: number;
                             lng: number;
                         }[];
+                        /** Format: uuid */
+                        regionId?: string;
                     };
                 };
             };
@@ -1503,6 +1511,8 @@ export interface paths {
                             kind: "manual" | "region";
                             /** @enum {string} */
                             origin: "manual" | "suggested";
+                            /** Format: uuid */
+                            regionId: string | null;
                             center: {
                                 lat: number;
                                 lng: number;
@@ -1671,6 +1681,8 @@ export interface paths {
                             kind: "manual" | "region";
                             /** @enum {string} */
                             origin: "manual" | "suggested";
+                            /** Format: uuid */
+                            regionId: string | null;
                             center: {
                                 lat: number;
                                 lng: number;
@@ -1731,6 +1743,53 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/regions/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    lat?: number | null;
+                    lng?: number | null;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Region covering the point (municipality preferred), or null */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            region: {
+                                /** Format: uuid */
+                                id: string;
+                                name: string;
+                                /** @enum {string} */
+                                kind: "municipality" | "county";
+                                code: string;
+                            } | null;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/categories": {

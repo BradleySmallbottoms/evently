@@ -54,7 +54,7 @@ Closed beta around week 15, store launch around week 19.
 ## Phase 3 — Discovery + notifications (weeks 6–10)
 
 - [x] Interests, saved areas (radius and polygon)
-- [ ] Region suggestions + region subscriptions (municipality boundaries seeded into `regions`)
+- [x] Region suggestions + region subscriptions (municipality boundaries seeded into `regions`)
 - [ ] Push token registration; SQS + worker wired up
 - [ ] Geo matching, publisher and event subscriptions, caps and quiet hours
 - **Exit:** publishing an event pushes a notification to a matching phone within one minute.

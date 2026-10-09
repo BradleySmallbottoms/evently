@@ -9,6 +9,8 @@ import { createMemoryEventServices } from './services/events/memory';
 import type { EventServices } from './services/events/types';
 import { createMemoryPreferenceServices } from './services/preferences/memory';
 import type { PreferenceServices } from './services/preferences/types';
+import { createMemoryRegionServices } from './services/regions/memory';
+import type { RegionServices } from './services/regions/types';
 import { createMemoryStore } from './services/memory-store';
 import { Sentry } from './sentry';
 
@@ -16,6 +18,7 @@ export type CreateAppOptions = {
   auth?: AuthServices;
   events?: EventServices;
   preferences?: PreferenceServices;
+  regions?: RegionServices;
   /**
    * Origins allowed for credentialed CORS (web publisher login).
    * Pass a string list, or a function that returns the reflected Origin (never bare `*`).
@@ -40,6 +43,7 @@ export function createApp(options: CreateAppOptions = {}) {
   const preferences =
     options.preferences ??
     createMemoryPreferenceServices(auth, { now: defaultEnv.now }, store);
+  const regions = options.regions ?? createMemoryRegionServices(store);
   const app = new OpenAPIHono();
 
   app.onError((err, c) => {
@@ -69,7 +73,7 @@ export function createApp(options: CreateAppOptions = {}) {
     Sentry.captureException(err);
     return c.json({ error: { code: 'internal_error', message: 'Internal server error' } }, 500);
   });
-  registerRoutes(api, { auth, events, preferences });
+  registerRoutes(api, { auth, events, preferences, regions });
   api.doc('/openapi.json', {
     openapi: '3.1.0',
     info: { title: 'Local Events public API', version: `${API_VERSION}.0.0` },

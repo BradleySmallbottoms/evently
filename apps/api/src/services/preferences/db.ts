@@ -20,6 +20,7 @@ type AreaRow = {
   name: string;
   kind: 'manual' | 'region';
   origin: 'manual' | 'suggested';
+  regionId: string | null;
   lat: number | null;
   lng: number | null;
   radiusM: number | null;
@@ -50,6 +51,7 @@ function mapArea(row: AreaRow): UserArea {
     name: row.name,
     kind: row.kind,
     origin: row.origin,
+    regionId: row.regionId,
     center: row.lat != null && row.lng != null ? { lat: row.lat, lng: row.lng } : null,
     radiusM: row.radiusM,
     polygon: parsePolygon(row.polygonGeoJson),
@@ -64,6 +66,7 @@ const areaSelect = {
   name: schema.userAreas.name,
   kind: schema.userAreas.kind,
   origin: schema.userAreas.origin,
+  regionId: schema.userAreas.regionId,
   lat: sql<number | null>`ST_Y(${schema.userAreas.center}::geometry)`,
   lng: sql<number | null>`ST_X(${schema.userAreas.center}::geometry)`,
   radiusM: schema.userAreas.radiusM,
@@ -78,7 +81,7 @@ export function createDbPreferenceServices(
   auth: AuthServices,
   _env: PreferenceEnv = { now: () => new Date() },
 ): PreferenceServices {
-  const { userInterests, userAreas, categories } = schema;
+  const { userInterests, userAreas, categories, regions } = schema;
 
   async function areasForUser(userId: string): Promise<UserArea[]> {
     const rows = await db
@@ -134,12 +137,26 @@ export function createDbPreferenceServices(
       let centerEwkt: string | null = null;
       let radiusM: number | null = null;
       let areaEwkt: string | null = null;
+      let regionId: string | null = null;
+      let kind: 'manual' | 'region' = 'manual';
+      let origin: 'manual' | 'suggested' = input.origin ?? 'manual';
 
-      if (input.center && input.radiusM != null) {
+      if (input.regionId) {
+        const [region] = await db
+          .select({ id: regions.id, name: regions.name })
+          .from(regions)
+          .where(eq(regions.id, input.regionId))
+          .limit(1);
+        if (!region) throw new PreferenceError('unknown_region');
+        regionId = region.id;
+        kind = 'region';
+        origin = input.origin ?? 'suggested';
+      } else if (input.center && input.radiusM != null) {
         const check = validateCircleArea({ center: input.center, radiusM: input.radiusM });
         if (!check.ok) throw new PreferenceError('invalid_area');
         centerEwkt = pointEwkt(input.center);
         radiusM = input.radiusM;
+        if (origin === 'suggested') kind = 'region';
       } else if (input.polygon) {
         const check = validatePolygonArea({ polygon: input.polygon });
         if (!check.ok) throw new PreferenceError('invalid_area');
@@ -156,18 +173,41 @@ export function createDbPreferenceServices(
           .where(eq(userAreas.userId, userId));
         if (!canAddSavedArea(countRow?.count ?? 0)) throw new PreferenceError('area_limit');
 
-        await tx.insert(userAreas).values({
-          id,
-          userId,
-          name: input.name,
-          kind: 'manual',
-          origin: 'manual',
-          center: centerEwkt,
-          radiusM,
-          area: areaEwkt,
-          notify: input.notify ?? true,
-          active: input.active ?? true,
-        });
+        if (regionId) {
+          await tx.execute(sql`
+            INSERT INTO user_areas (
+              id, user_id, name, kind, origin, region_id, area, center, radius_m, notify, active
+            )
+            SELECT
+              ${id}::uuid,
+              ${userId}::uuid,
+              ${input.name},
+              'region',
+              ${origin},
+              r.id,
+              ST_SetSRID(ST_GeometryN(r.boundary::geometry, 1), 4326)::geography,
+              NULL,
+              NULL,
+              ${input.notify ?? true},
+              ${input.active ?? true}
+            FROM regions r
+            WHERE r.id = ${regionId}::uuid
+          `);
+        } else {
+          await tx.insert(userAreas).values({
+            id,
+            userId,
+            name: input.name,
+            kind,
+            origin,
+            regionId: null,
+            center: centerEwkt,
+            radiusM,
+            area: areaEwkt,
+            notify: input.notify ?? true,
+            active: input.active ?? true,
+          });
+        }
       });
 
       const [row] = await db

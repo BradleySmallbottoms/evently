@@ -85,5 +85,13 @@
     "saveError": "Kunde inte spara preferenser.",
     "back": "Tillbaka",
     "open": "Preferenser"
+  },
+  "regions": {
+    "suggestTitle": "Spara {{name}}?",
+    "suggestMessage": "Du är på en ny plats. Vill du få notiser om evenemang här?",
+    "saveNotify": "Spara och meddela mig",
+    "saveQuiet": "Spara utan notiser",
+    "notNow": "Inte nu",
+    "never": "Fråga aldrig om den här platsen"
   }
 }

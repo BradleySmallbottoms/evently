@@ -12,9 +12,9 @@ external sources. Launch area: Söderhamn and Gävleborgs län. Languages: Swedi
 
 ## Status
 
-Phase 3 (Discovery + notifications) is underway. Phase 2 is complete. Interests and saved areas
-(circle + polygon) are available via `/v1/me/*` and the mobile preferences screen; region
-suggestions, push, and matching remain.
+Phase 3 (Discovery + notifications) is underway. Interests, saved areas, and region suggestions
+(seeded Söderhamn/Gävleborg fixtures) are in place. Push token registration, worker matching, and
+subscriptions remain.
 
 ## Prerequisites
 
@@ -95,6 +95,10 @@ calls) in the same change as every new major feature.**
 - Circle areas store `center` + `radius_m`; polygons store geography `area`. Cap 20 areas.
 - Home feed prefers the primary active circle when set. Flow:
   [docs/flows/user-preferences.md](docs/flows/user-preferences.md).
+- **Regions:** `GET /v1/regions/lookup?lat&lng` uses `ST_Covers` on seeded fixtures (Söderhamn
+  kommun / Gävleborg län). Mobile may offer save via `shouldSuggestRegion`; accept posts
+  `regionId` (or 15 km circle fallback). Declines stay on-device. Flow:
+  [docs/flows/region-suggestions.md](docs/flows/region-suggestions.md).
 
 ### Frontend structure
 

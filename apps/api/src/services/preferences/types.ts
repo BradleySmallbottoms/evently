@@ -12,7 +12,8 @@ export type PreferenceErrorCode =
   | 'not_found'
   | 'invalid_area'
   | 'area_limit'
-  | 'unknown_category';
+  | 'unknown_category'
+  | 'unknown_region';
 
 export class PreferenceError extends Error {
   constructor(readonly code: PreferenceErrorCode) {

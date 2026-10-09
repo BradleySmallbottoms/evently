@@ -85,5 +85,13 @@
     "saveError": "Could not save preferences.",
     "back": "Back",
     "open": "Preferences"
+  },
+  "regions": {
+    "suggestTitle": "Save {{name}}?",
+    "suggestMessage": "You’re somewhere new. Get notified about events in this area?",
+    "saveNotify": "Save and notify me",
+    "saveQuiet": "Save without notifications",
+    "notNow": "Not now",
+    "never": "Never ask for this place"
   }
 }

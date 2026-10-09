@@ -62,12 +62,21 @@ export type MemoryUserArea = {
   name: string;
   kind: 'manual' | 'region';
   origin: 'manual' | 'suggested';
+  regionId: string | null;
   center: { lat: number; lng: number } | null;
   radiusM: number | null;
   polygon: { lat: number; lng: number }[] | null;
   notify: boolean;
   active: boolean;
   createdAt: Date;
+};
+export type MemoryRegion = {
+  id: string;
+  name: string;
+  kind: 'municipality' | 'county';
+  code: string;
+  /** Axis-aligned bbox for in-memory point-in-region (fixture). */
+  bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number };
 };
 export type MemoryToken = {
   id: string;
@@ -96,14 +105,34 @@ export type MemoryStore = {
   invites: MemoryPublisherInvite[];
   userInterests: MemoryUserInterest[];
   userAreas: Map<string, MemoryUserArea>;
+  regions: Map<string, MemoryRegion>;
   tokens: Map<string, MemoryToken>;
   categories: Map<string, Category>;
   events: Map<string, MemoryEventRow>;
 };
 
+/** Fixed UUIDs matching packages/db seed migration for regions. */
+export const SEED_REGION_SODERHAMN_ID = '22222222-2222-4222-8222-222222222201';
+export const SEED_REGION_GAVLEBORG_ID = '22222222-2222-4222-8222-222222222202';
+
 export function createMemoryStore(): MemoryStore {
   const categories = new Map<string, Category>();
   for (const c of SEED_CATEGORIES) categories.set(c.id, c);
+  const regions = new Map<string, MemoryRegion>();
+  regions.set(SEED_REGION_SODERHAMN_ID, {
+    id: SEED_REGION_SODERHAMN_ID,
+    name: 'Söderhamn',
+    kind: 'municipality',
+    code: '2180',
+    bbox: { minLat: 61.15, maxLat: 61.45, minLng: 16.85, maxLng: 17.35 },
+  });
+  regions.set(SEED_REGION_GAVLEBORG_ID, {
+    id: SEED_REGION_GAVLEBORG_ID,
+    name: 'Gävleborg',
+    kind: 'county',
+    code: '21',
+    bbox: { minLat: 60.5, maxLat: 62.5, minLng: 15.5, maxLng: 18.0 },
+  });
   return {
     users: new Map(),
     devices: new Map(),
@@ -114,6 +143,7 @@ export function createMemoryStore(): MemoryStore {
     invites: [],
     userInterests: [],
     userAreas: new Map(),
+    regions,
     tokens: new Map(),
     categories,
     events: new Map(),

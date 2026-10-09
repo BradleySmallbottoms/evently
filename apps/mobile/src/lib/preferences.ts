@@ -54,15 +54,27 @@ export async function updateCircleArea(
   );
 }
 
-/** Primary active circle area for discovery, if any. */
+/** Primary active area for discovery (circle, or centroid of a region polygon). */
 export function primaryCircleArea(
   areas: {
     active: boolean;
+    kind?: 'manual' | 'region';
     center: { lat: number; lng: number } | null;
     radiusM: number | null;
+    polygon?: { lat: number; lng: number }[] | null;
   }[],
 ): { lat: number; lng: number; radiusM: number } | null {
-  const area = areas.find((a) => a.active && a.center && a.radiusM != null);
-  if (!area?.center || area.radiusM == null) return null;
-  return { lat: area.center.lat, lng: area.center.lng, radiusM: area.radiusM };
+  const circle = areas.find((a) => a.active && a.center && a.radiusM != null);
+  if (circle?.center && circle.radiusM != null) {
+    return { lat: circle.center.lat, lng: circle.center.lng, radiusM: circle.radiusM };
+  }
+  const region = areas.find((a) => a.active && a.polygon && a.polygon.length >= 3);
+  if (region?.polygon) {
+    const lats = region.polygon.map((p) => p.lat);
+    const lngs = region.polygon.map((p) => p.lng);
+    const lat = (Math.min(...lats) + Math.max(...lats)) / 2;
+    const lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+    return { lat, lng, radiusM: 15_000 };
+  }
+  return null;
 }

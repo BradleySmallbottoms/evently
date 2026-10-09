@@ -18,7 +18,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { geographyPoint, geographyPolygon } from './postgis';
+import { geographyMultiPolygon, geographyPoint, geographyPolygon } from './postgis';
 
 const id = () =>
   uuid('id')
@@ -43,6 +43,7 @@ export const sourceKind = pgEnum('source_kind', ['api', 'feed', 'scraper']);
 export const sourceTrust = pgEnum('source_trust', ['auto_publish', 'review']);
 export const userAreaKind = pgEnum('user_area_kind', ['manual', 'region']);
 export const userAreaOrigin = pgEnum('user_area_origin', ['manual', 'suggested']);
+export const regionKind = pgEnum('region_kind', ['municipality', 'county']);
 
 // ---------- identity ----------
 export const users = pgTable('users', {
@@ -202,6 +203,26 @@ export const categories = pgTable('categories', {
   nameEn: text('name_en').notNull(),
 });
 
+/**
+ * Swedish municipality/county boundaries for region subscriptions.
+ * Launch seed: Söderhamn kommun + Gävleborg län (simplified fixture polygons).
+ */
+export const regions = pgTable(
+  'regions',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    kind: regionKind('kind').notNull(),
+    code: text('code').notNull(),
+    boundary: geographyMultiPolygon('boundary').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('regions_code_idx').on(t.code),
+    index('regions_boundary_gist').using('gist', t.boundary),
+  ],
+);
+
 /** Categories the user wants notifications for. */
 export const userInterests = pgTable(
   'user_interests',
@@ -221,8 +242,8 @@ export const userInterests = pgTable(
 );
 
 /**
- * Saved notification/search areas. Circle = center + radius_m; drawn polygon = area.
- * Region subscriptions (kind=region) land in a later slice with the `regions` table.
+ * Saved notification/search areas. Circle = center + radius_m; drawn polygon = area;
+ * region subscription copies `regions.boundary` into `area` and sets `region_id`.
  */
 export const userAreas = pgTable(
   'user_areas',
@@ -234,7 +255,7 @@ export const userAreas = pgTable(
     name: text('name').notNull(),
     kind: userAreaKind('kind').notNull().default('manual'),
     origin: userAreaOrigin('origin').notNull().default('manual'),
-    regionId: uuid('region_id'),
+    regionId: uuid('region_id').references(() => regions.id, { onDelete: 'set null' }),
     area: geographyPolygon('area'),
     center: geographyPoint('center'),
     radiusM: integer('radius_m'),

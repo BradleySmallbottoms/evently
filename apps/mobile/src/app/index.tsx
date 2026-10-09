@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, RefreshControl, View } from 'react-native';
 
@@ -10,6 +10,7 @@ import {
   PairingSheet,
   type PairingSheetTab,
 } from '@/components/native/pairing-sheet';
+import { RegionSuggestionSheet } from '@/components/native/region-suggestion-sheet';
 import { AppText } from '@/components/ui/app-text';
 import { CategoryChips } from '@/components/ui/category-chips';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
@@ -29,11 +30,19 @@ import {
   refreshIdentitySession,
 } from '@/lib/identity';
 import { getPreferences, primaryCircleArea } from '@/lib/preferences';
+import {
+  acceptRegionSuggestion,
+  bumpRegionActivity,
+  evaluateRegionSuggestion,
+  recordRegionDecline,
+  type RegionSuggestion,
+} from '@/lib/region-suggestion';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
 
@@ -50,6 +59,8 @@ export default function HomeScreen() {
   const [pairingPending, setPairingPending] = useState(false);
   const [confirmCode, setConfirmCode] = useState('');
   const [useFallbackCenter, setUseFallbackCenter] = useState(false);
+  const [regionSuggestion, setRegionSuggestion] = useState<RegionSuggestion | null>(null);
+  const [regionSheetOpen, setRegionSheetOpen] = useState(false);
 
   const identity = useQuery({
     queryKey: ['identity', locale],
@@ -84,6 +95,32 @@ export default function HomeScreen() {
     queryFn: () => listPublicEvents(point.data!),
     enabled: point.isSuccess,
   });
+
+  useEffect(() => {
+    void bumpRegionActivity();
+  }, []);
+
+  useEffect(() => {
+    if (!identity.isSuccess || !preferences.isSuccess) return;
+    const savedAreas = (preferences.data.areas ?? [])
+      .filter((a) => a.active && a.center && a.radiusM != null)
+      .map((a) => ({ center: a.center!, radiusM: a.radiusM! }));
+    let cancelled = false;
+    void (async () => {
+      try {
+        const suggestion = await evaluateRegionSuggestion({ savedAreas });
+        if (!cancelled && suggestion) {
+          setRegionSuggestion(suggestion);
+          setRegionSheetOpen(true);
+        }
+      } catch {
+        // Ignore suggestion failures (permission, network).
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [identity.isSuccess, preferences.isSuccess, preferences.data?.areas]);
 
   const categories = useMemo(
     () => [
@@ -356,6 +393,37 @@ export default function HomeScreen() {
         confirmingLabel={t('events.pairingConfirming')}
         onConfirm={confirmDeviceLink}
         confirmHint={t('events.pairingConfirmHint')}
+      />
+
+      <RegionSuggestionSheet
+        isPresented={regionSheetOpen}
+        onIsPresentedChange={setRegionSheetOpen}
+        title={t('regions.suggestTitle', { name: regionSuggestion?.name ?? '' })}
+        message={t('regions.suggestMessage')}
+        saveNotifyLabel={t('regions.saveNotify')}
+        saveQuietLabel={t('regions.saveQuiet')}
+        notNowLabel={t('regions.notNow')}
+        neverLabel={t('regions.never')}
+        onSaveNotify={() => {
+          if (!identity.data || !regionSuggestion) return;
+          void acceptRegionSuggestion(identity.data, regionSuggestion, true).then(() =>
+            queryClient.invalidateQueries({ queryKey: ['preferences'] }),
+          );
+        }}
+        onSaveQuiet={() => {
+          if (!identity.data || !regionSuggestion) return;
+          void acceptRegionSuggestion(identity.data, regionSuggestion, false).then(() =>
+            queryClient.invalidateQueries({ queryKey: ['preferences'] }),
+          );
+        }}
+        onNotNow={() => {
+          if (!regionSuggestion) return;
+          void recordRegionDecline(regionSuggestion, false);
+        }}
+        onNever={() => {
+          if (!regionSuggestion) return;
+          void recordRegionDecline(regionSuggestion, true);
+        }}
       />
     </View>
   );

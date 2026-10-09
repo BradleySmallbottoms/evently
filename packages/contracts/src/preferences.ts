@@ -18,6 +18,7 @@ export const UserArea = z.object({
   name: z.string(),
   kind: UserAreaKind,
   origin: UserAreaOrigin,
+  regionId: Id.nullable(),
   /** Circle center when radiusM is set. */
   center: GeoPointSchema.nullable(),
   radiusM: z.number().int().nullable(),
@@ -50,18 +51,23 @@ export const CreateUserAreaRequest = z
     name: z.string().trim().min(1).max(80),
     notify: z.boolean().optional(),
     active: z.boolean().optional(),
+    origin: UserAreaOrigin.optional(),
     center: GeoPointSchema.optional(),
     radiusM: z.number().int().min(500).max(100_000).optional(),
     /** Outer ring only; at least 3 unique vertices (server closes the ring). */
     polygon: z.array(GeoPointSchema).min(3).max(100).optional(),
+    /** Subscribe using a seeded region boundary (copies into area). */
+    regionId: Id.optional(),
   })
   .superRefine((val, ctx) => {
     const hasCircle = val.center != null && val.radiusM != null;
     const hasPolygon = val.polygon != null;
-    if (hasCircle === hasPolygon) {
+    const hasRegion = val.regionId != null;
+    const modes = [hasCircle, hasPolygon, hasRegion].filter(Boolean).length;
+    if (modes !== 1) {
       ctx.addIssue({
         code: 'custom',
-        message: 'Provide either center+radiusM or polygon, not both or neither',
+        message: 'Provide exactly one of center+radiusM, polygon, or regionId',
       });
     }
   });

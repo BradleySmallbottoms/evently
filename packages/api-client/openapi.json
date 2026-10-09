@@ -1972,6 +1972,11 @@
                               "suggested"
                             ]
                           },
+                          "regionId": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uuid"
+                          },
                           "center": {
                             "type": "object",
                             "nullable": true,
@@ -2035,6 +2040,7 @@
                           "name",
                           "kind",
                           "origin",
+                          "regionId",
                           "center",
                           "radiusM",
                           "polygon",
@@ -2233,6 +2239,11 @@
                               "suggested"
                             ]
                           },
+                          "regionId": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uuid"
+                          },
                           "center": {
                             "type": "object",
                             "nullable": true,
@@ -2296,6 +2307,7 @@
                           "name",
                           "kind",
                           "origin",
+                          "regionId",
                           "center",
                           "radiusM",
                           "polygon",
@@ -2364,6 +2376,13 @@
                   "active": {
                     "type": "boolean"
                   },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "manual",
+                      "suggested"
+                    ]
+                  },
                   "center": {
                     "type": "object",
                     "properties": {
@@ -2411,6 +2430,10 @@
                     },
                     "minItems": 3,
                     "maxItems": 100
+                  },
+                  "regionId": {
+                    "type": "string",
+                    "format": "uuid"
                   }
                 },
                 "required": [
@@ -2448,6 +2471,11 @@
                         "manual",
                         "suggested"
                       ]
+                    },
+                    "regionId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
                     },
                     "center": {
                       "type": "object",
@@ -2512,6 +2540,7 @@
                     "name",
                     "kind",
                     "origin",
+                    "regionId",
                     "center",
                     "radiusM",
                     "polygon",
@@ -2729,6 +2758,11 @@
                         "suggested"
                       ]
                     },
+                    "regionId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
                     "center": {
                       "type": "object",
                       "nullable": true,
@@ -2792,6 +2826,7 @@
                     "name",
                     "kind",
                     "origin",
+                    "regionId",
                     "center",
                     "radiusM",
                     "polygon",
@@ -2966,6 +3001,80 @@
                   },
                   "required": [
                     "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/regions/lookup": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "number",
+              "nullable": true,
+              "minimum": -90,
+              "maximum": 90
+            },
+            "required": false,
+            "name": "lat",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "nullable": true,
+              "minimum": -180,
+              "maximum": 180
+            },
+            "required": false,
+            "name": "lng",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Region covering the point (municipality preferred), or null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "region": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "municipality",
+                            "county"
+                          ]
+                        },
+                        "code": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "kind",
+                        "code"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "region"
                   ]
                 }
               }

@@ -36,6 +36,20 @@
       "when": 1791573985891,
       "tag": "0004_numerous_puppet_master",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791580351609,
+      "tag": "0005_dashing_mentor",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791580351610,
+      "tag": "0006_seed_regions",
+      "breakpoints": true
     }
   ]
 }

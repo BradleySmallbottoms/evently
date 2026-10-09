@@ -23,3 +23,4 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Device linking (new phone → old phone confirms) | [device-linking.md](./device-linking.md) |
 | Publisher profiles & member invites | [publisher-invites.md](./publisher-invites.md) |
 | User interests & saved areas | [user-preferences.md](./user-preferences.md) |
+| Region suggestions | [region-suggestions.md](./region-suggestions.md) |

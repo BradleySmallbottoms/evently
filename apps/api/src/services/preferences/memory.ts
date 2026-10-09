@@ -18,6 +18,7 @@ function toUserArea(row: {
   name: string;
   kind: 'manual' | 'region';
   origin: 'manual' | 'suggested';
+  regionId: string | null;
   center: { lat: number; lng: number } | null;
   radiusM: number | null;
   polygon: { lat: number; lng: number }[] | null;
@@ -30,6 +31,7 @@ function toUserArea(row: {
     name: row.name,
     kind: row.kind,
     origin: row.origin,
+    regionId: row.regionId,
     center: row.center,
     radiusM: row.radiusM,
     polygon: row.polygon,
@@ -44,7 +46,7 @@ export function createMemoryPreferenceServices(
   env: PreferenceEnv = { now: () => new Date() },
   store: MemoryStore = createMemoryStore(),
 ): PreferenceServices {
-  const { userInterests, userAreas, categories } = store;
+  const { userInterests, userAreas, categories, regions } = store;
 
   return {
     async getPreferences(sessionToken) {
@@ -89,12 +91,28 @@ export function createMemoryPreferenceServices(
       let center: { lat: number; lng: number } | null = null;
       let radiusM: number | null = null;
       let polygon: { lat: number; lng: number }[] | null = null;
+      let regionId: string | null = null;
+      let kind: 'manual' | 'region' = 'manual';
+      let origin: 'manual' | 'suggested' = input.origin ?? 'manual';
 
-      if (input.center && input.radiusM != null) {
+      if (input.regionId) {
+        const region = regions.get(input.regionId);
+        if (!region) throw new PreferenceError('unknown_region');
+        regionId = region.id;
+        kind = 'region';
+        origin = input.origin ?? 'suggested';
+        polygon = [
+          { lat: region.bbox.minLat, lng: region.bbox.minLng },
+          { lat: region.bbox.minLat, lng: region.bbox.maxLng },
+          { lat: region.bbox.maxLat, lng: region.bbox.maxLng },
+          { lat: region.bbox.maxLat, lng: region.bbox.minLng },
+        ];
+      } else if (input.center && input.radiusM != null) {
         const check = validateCircleArea({ center: input.center, radiusM: input.radiusM });
         if (!check.ok) throw new PreferenceError('invalid_area');
         center = input.center;
         radiusM = input.radiusM;
+        if (origin === 'suggested') kind = 'region';
       } else if (input.polygon) {
         const check = validatePolygonArea({ polygon: input.polygon });
         if (!check.ok) throw new PreferenceError('invalid_area');
@@ -108,8 +126,9 @@ export function createMemoryPreferenceServices(
         id,
         userId,
         name: input.name,
-        kind: 'manual' as const,
-        origin: 'manual' as const,
+        kind,
+        origin,
+        regionId,
         center,
         radiusM,
         polygon,
