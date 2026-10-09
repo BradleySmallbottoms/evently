@@ -10,7 +10,9 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests"
   },
-  "dependencies": {},
+  "dependencies": {
+    "argon2": "^0.45.1"
+  },
   "devDependencies": {
     "@local-events/config": "workspace:*",
     "@types/node": "^26.6.4",

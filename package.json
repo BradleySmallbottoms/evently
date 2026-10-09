@@ -6,20 +6,23 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=!@local-events/data-workers",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "lint": "turbo run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "worker:test": "pnpm --filter @local-events/data-workers dev -- --source example-fixture",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:generate": "pnpm --filter @local-events/db db:generate",
-    "db:migrate": "pnpm --filter @local-events/db db:migrate"
+    "db:migrate": "pnpm --filter @local-events/db db:migrate",
+    "api-client:generate": "tsx apps/api/scripts/export-openapi.ts && pnpm --filter @local-events/api-client generate"
   },
   "devDependencies": {
     "prettier": "^3.0.0",
+    "tsx": "^4.23.15",
     "turbo": "^2.11.7",
     "typescript": "^7.0.2"
   }

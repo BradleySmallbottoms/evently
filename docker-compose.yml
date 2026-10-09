@@ -1,8 +1,9 @@
 # Local dependencies: PostgreSQL + PostGIS and Valkey.
-# Check Docker Hub for the newest postgis/postgis tag if this one is outdated.
+# Official postgis/postgis is amd64-only; imresamu/postgis is the multi-arch mirror
+# (arm64 Macs included). Same tags as postgis/postgis — bump together when updating.
 services:
   postgres:
-    image: postgis/postgis:17-3.5
+    image: imresamu/postgis:17-3.5
     environment:
       POSTGRES_USER: events
       POSTGRES_PASSWORD: events

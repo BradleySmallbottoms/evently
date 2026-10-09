@@ -1,4 +1,7 @@
 import { runSource } from './run';
+import { initSentry, Sentry } from './sentry';
+
+initSentry('data-workers');
 
 /**
  * Container entrypoint. EventBridge Scheduler starts one Fargate task per source with
@@ -22,6 +25,7 @@ runSource(slug)
     if (summary.invalid.length > 0) process.exitCode = 1;
   })
   .catch((err) => {
+    Sentry.captureException(err);
     console.error(err);
     process.exit(1);
   });

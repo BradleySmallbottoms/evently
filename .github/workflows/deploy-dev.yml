@@ -1,0 +1,98 @@
+name: Deploy dev
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm --filter @local-events/infra synth -c env=dev
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      AWS_REGION: eu-north-1
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: docker/setup-buildx-action@v3
+      - run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: CDK deploy
+        working-directory: infra
+        run: |
+          pnpm exec cdk deploy --all \
+            -c env=dev \
+            -c imageTag="${IMAGE_TAG}" \
+            --require-approval never \
+            --outputs-file cdk-outputs.json
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push images
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          for app in api admin-api worker; do
+            image="${REGISTRY}/local-events/dev/${app}:${IMAGE_TAG}"
+            latest="${REGISTRY}/local-events/dev/${app}:latest"
+            docker build -f "apps/${app}/Dockerfile" -t "$image" -t "$latest" .
+            docker push "$image"
+            docker push "$latest"
+          done
+
+      - name: Force new ECS deployments
+        run: |
+          set -euo pipefail
+          cluster="local-events-dev"
+          for svc in api admin-api worker; do
+            aws ecs update-service \
+              --cluster "$cluster" \
+              --service "local-events-dev-${svc}" \
+              --force-new-deployment \
+              --no-cli-pager
+          done
+
+      - name: Upload CDK outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdk-outputs-dev
+          path: infra/cdk-outputs.json

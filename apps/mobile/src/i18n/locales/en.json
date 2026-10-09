@@ -1,0 +1,13 @@
+{
+  "app": {
+    "name": "Local Events"
+  },
+  "home": {
+    "title": "Local Events",
+    "subtitle": "Discover and check in to events near you.",
+    "identityReady": "Device linked",
+    "identityLoading": "Creating anonymous identity…",
+    "identityError": "Could not create identity. Make sure the API is running.",
+    "userId": "User id"
+  }
+}

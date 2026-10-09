@@ -1,0 +1,35 @@
+{
+  "App": {
+    "name": "Lokala evenemang",
+    "tagline": "Hitta och checka in på evenemang nära dig."
+  },
+  "Nav": {
+    "home": "Hem",
+    "publisherLogin": "Logga in som arrangör",
+    "publisherRegister": "Skapa arrangörskonto",
+    "workspace": "Arbetsyta"
+  },
+  "Publisher": {
+    "registerTitle": "Skapa arrangörskonto",
+    "registerSubmit": "Registrera",
+    "registerSuccess": "Konto skapat. Verifiera din e-post för att logga in.",
+    "loginTitle": "Logga in som arrangör",
+    "loginSubmit": "Logga in",
+    "email": "E-post",
+    "password": "Lösenord",
+    "name": "Namn",
+    "type": "Typ",
+    "typeOrg": "Organisation",
+    "typePerson": "Person",
+    "verifyTitle": "Verifiera e-post",
+    "verifySubmit": "Verifiera",
+    "verifyToken": "Verifieringskod",
+    "verifySuccess": "E-post verifierad. Du kan nu logga in.",
+    "logout": "Logga ut",
+    "welcome": "Välkommen, {email}",
+    "yourPublishers": "Dina arrangörer",
+    "errorGeneric": "Något gick fel. Försök igen.",
+    "errorUnverified": "Verifiera din e-post innan du loggar in.",
+    "errorCredentials": "Fel e-post eller lösenord."
+  }
+}

@@ -5,10 +5,13 @@
 | `api/`          | Skeleton (Hono)         | 3000       | DB, SQS, S3    |
 | `admin-api/`    | Skeleton (Hono)         | 3001       | DB, SQS, S3    |
 | `worker/`       | Skeleton (SQS handlers) | –          | DB, Expo Push  |
-| `data-workers/` | Runner + example source | –          | DB, SQS, S3    |
-| `mobile/`       | **Not created yet**     | Expo       | public API     |
-| `web/`          | **Not created yet**     | 3100       | public API     |
-| `admin/`        | **Not created yet**     | 3200       | admin API only |
+| `data-workers/` | One-shot ingest runner  | –          | DB, SQS, S3    |
+| `mobile/`       | Scaffolded (Expo)       | Expo       | public API     |
+
+`pnpm dev` starts the long-running apps only (data-workers is excluded — run it with a source
+slug when you need a fetch: `pnpm --filter @local-events/data-workers dev -- --source example-fixture`).
+| `web/`          | Scaffolded (Next.js)    | 3100       | public API     |
+| `admin/`        | Scaffolded (Next.js)    | 3200       | admin API only |
 
 The three frontends are created with their official scaffolders so they start on current
 framework defaults. The steps below were tested inside this monorepo (Expo SDK 57, Next.js 16.4,
@@ -248,6 +251,7 @@ pnpm --filter @local-events/admin build
 
 - Run `pnpm typecheck && pnpm test && pnpm build` from the root.
 - Tick the "Create apps/mobile, apps/web, apps/admin" item in `docs/build-plan.md`.
-- When the public API has real routes, add `packages/api-client` (generated from
-  `/v1/openapi.json`, e.g. with `openapi-typescript` + `openapi-fetch`) and swap hand-written
-  fetches for it. Same for `packages/admin-client`.
+- Public API client: `packages/api-client` (regenerate with `pnpm api-client:generate`). Admin
+  client (`packages/admin-client`) is still pending until the admin API has real routes.
+- Sentry is wired on all apps; set `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` /
+  `EXPO_PUBLIC_SENTRY_DSN` to enable (no-op when unset).

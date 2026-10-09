@@ -1,0 +1,24 @@
+{
+  "name": "@local-events/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "openapi-typescript ./openapi.json -o ./src/schema.d.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.15.0"
+  },
+  "devDependencies": {
+    "@local-events/config": "workspace:*",
+    "@types/node": "^26.6.4",
+    "openapi-typescript": "^7.10.1",
+    "typescript": "5.8.3",
+    "vitest": "^5.0.3"
+  }
+}

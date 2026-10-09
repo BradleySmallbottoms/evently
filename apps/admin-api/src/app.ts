@@ -1,5 +1,6 @@
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
 import { HealthResponse } from '@local-events/contracts';
+import { Sentry } from './sentry';
 
 /**
  * Admin API used only by apps/admin. Network-restricted (WAF IP allowlist) and authenticated with admin accounts + TOTP. Routes are defined with zod-openapi so the
@@ -8,6 +9,11 @@ import { HealthResponse } from '@local-events/contracts';
  */
 export function createApp() {
   const app = new OpenAPIHono();
+
+  app.onError((err, c) => {
+    Sentry.captureException(err);
+    return c.json({ error: { code: 'internal_error', message: 'Internal server error' } }, 500);
+  });
 
   const health = createRoute({
     method: 'get',

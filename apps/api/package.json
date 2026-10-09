@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
+    "dev": "tsx watch --env-file=../../.env src/index.ts",
+    "start": "node --env-file=../../.env dist/index.js",
     "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --sourcemap --outfile=dist/index.js --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests"
@@ -17,6 +17,8 @@
     "@local-events/contracts": "workspace:*",
     "@local-events/db": "workspace:*",
     "@local-events/domain": "workspace:*",
+    "@sentry/node": "^11.4.0",
+    "drizzle-orm": "^0.45.3",
     "hono": "^4.13.13",
     "zod": "^4.6.5"
   },

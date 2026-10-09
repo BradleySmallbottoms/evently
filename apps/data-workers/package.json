@@ -4,16 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx src/index.ts",
-    "start": "node dist/index.js",
+    "dev": "tsx --env-file=../../.env src/index.ts",
+    "start": "node --env-file=../../.env dist/index.js",
     "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --sourcemap --outfile=dist/index.js --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@local-events/db": "workspace:*",
+    "@local-events/domain": "workspace:*",
     "@local-events/ingest": "workspace:*",
-    "@local-events/domain": "workspace:*"
+    "@sentry/node": "^11.4.0"
   },
   "devDependencies": {
     "@local-events/config": "workspace:*",

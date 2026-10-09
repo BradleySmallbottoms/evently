@@ -1,0 +1,589 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Local Events public API",
+    "version": "1.0.0"
+  },
+  "components": {
+    "schemas": {},
+    "parameters": {}
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Service is up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["ok"]
+                    },
+                    "service": {
+                      "type": "string"
+                    },
+                    "time": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": ["status", "service", "time"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identities": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "platform": {
+                    "type": "string",
+                    "enum": ["ios", "android", "web"]
+                  },
+                  "locale": {
+                    "type": "string",
+                    "enum": ["sv", "en"],
+                    "default": "sv"
+                  }
+                },
+                "required": ["platform"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Anonymous identity created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "deviceId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "deviceCredential": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "sessionToken": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "userId",
+                    "deviceId",
+                    "deviceCredential",
+                    "sessionToken",
+                    "expiresAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sessions": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "deviceCredential": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["deviceCredential"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session issued from device credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "sessionToken": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": ["userId", "sessionToken", "expiresAt"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid device credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/publishers/register": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 200
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["org", "person"]
+                  },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 48,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  }
+                },
+                "required": ["email", "password", "name", "type"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Publisher account created; email verification required before login",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "publisherAccountId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "publisherId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "verificationToken": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["publisherAccountId", "publisherId", "email"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email or slug already taken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/publishers/verify-email": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["token"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["ok"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/publishers/login": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logged in; session cookie set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "publisherAccountId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "publishers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": ["org", "person"]
+                          },
+                          "verified": {
+                            "type": "boolean"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": ["owner", "editor"]
+                          }
+                        },
+                        "required": ["id", "name", "slug", "type", "verified", "role"]
+                      }
+                    }
+                  },
+                  "required": ["publisherAccountId", "email", "publishers"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Email not verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/publishers/logout": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "Logged out"
+          }
+        }
+      }
+    },
+    "/v1/publishers/me": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Current publisher account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "publisherAccountId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "publishers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": ["org", "person"]
+                          },
+                          "verified": {
+                            "type": "boolean"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": ["owner", "editor"]
+                          }
+                        },
+                        "required": ["id", "name", "slug", "type", "verified", "role"]
+                      }
+                    }
+                  },
+                  "required": ["publisherAccountId", "email", "publishers"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

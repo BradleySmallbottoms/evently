@@ -1,4 +1,7 @@
 import { processMessage } from './handlers';
+import { initSentry, Sentry } from './sentry';
+
+initSentry('worker');
 
 /**
  * SQS long-poll loop. The AWS SDK client is wired in Phase 3; until then this file documents
@@ -10,6 +13,7 @@ async function main() {
 }
 
 main().catch((err) => {
+  Sentry.captureException(err);
   console.error(err);
   process.exit(1);
 });

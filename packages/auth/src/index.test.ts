@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   generateDeviceCredential,
+  generateEmailToken,
   generatePairingCode,
+  hashPassword,
   hashToken,
   normalizePairingCode,
   PAIRING_CODE_LENGTH,
   tokenMatchesHash,
+  verifyPassword,
 } from './index';
 
 describe('device credentials', () => {
@@ -26,5 +29,20 @@ describe('pairing codes', () => {
   });
   it('normalize user input', () => {
     expect(normalizePairingCode(' ab-cd 23ef ')).toBe('ABCD23EF');
+  });
+});
+
+describe('passwords', () => {
+  it('hash and verify with argon2id', async () => {
+    const hash = await hashPassword('correct-horse-battery');
+    expect(hash).not.toContain('correct-horse-battery');
+    expect(await verifyPassword('correct-horse-battery', hash)).toBe(true);
+    expect(await verifyPassword('wrong', hash)).toBe(false);
+  });
+});
+
+describe('email tokens', () => {
+  it('are unique opaque values', () => {
+    expect(generateEmailToken()).not.toBe(generateEmailToken());
   });
 });

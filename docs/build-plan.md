@@ -31,12 +31,12 @@ Closed beta around week 15, store launch around week 19.
 - [x] API, admin API, worker and data-workers skeletons with tests and Dockerfiles
 - [x] Docker Compose for Postgres + PostGIS and Valkey; first migrations
 - [x] CDK app with network stack
-- [ ] Create `apps/mobile`, `apps/web`, `apps/admin` (see `apps/README.md`)
-- [ ] i18n setup on all three frontends: Swedish default, English
-- [ ] `POST /v1/identities` (anonymous device identity) + session exchange
-- [ ] Publisher registration + email verification + login (web)
-- [ ] OpenAPI → `packages/api-client` generation; Sentry on all apps
-- [ ] CDK data stack (RDS, Valkey, S3, SQS) and services stack for dev; deploy from CI
+- [x] Create `apps/mobile`, `apps/web`, `apps/admin` (see `apps/README.md`)
+- [x] i18n setup on all three frontends: Swedish default, English
+- [x] `POST /v1/identities` (anonymous device identity) + session exchange
+- [x] Publisher registration + email verification + login (web)
+- [x] OpenAPI → `packages/api-client` generation; Sentry on all apps
+- [x] CDK data stack (RDS, Valkey, S3, SQS) and services stack for dev; deploy from CI
 - **Exit:** a fresh install gets an identity, a publisher logs in on web, both deployed to dev from CI.
 
 ## Phase 2 — Publishers + events (weeks 2–6)

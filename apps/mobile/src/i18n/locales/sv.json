@@ -1,0 +1,13 @@
+{
+  "app": {
+    "name": "Lokala evenemang"
+  },
+  "home": {
+    "title": "Lokala evenemang",
+    "subtitle": "Hitta och checka in på evenemang nära dig.",
+    "identityReady": "Enhet kopplad",
+    "identityLoading": "Skapar anonym identitet…",
+    "identityError": "Kunde inte skapa identitet. Kontrollera att API:t körs.",
+    "userId": "Användar-id"
+  }
+}

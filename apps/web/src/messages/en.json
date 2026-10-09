@@ -1,0 +1,35 @@
+{
+  "App": {
+    "name": "Local Events",
+    "tagline": "Discover and check in to events near you."
+  },
+  "Nav": {
+    "home": "Home",
+    "publisherLogin": "Publisher login",
+    "publisherRegister": "Create publisher account",
+    "workspace": "Workspace"
+  },
+  "Publisher": {
+    "registerTitle": "Create publisher account",
+    "registerSubmit": "Register",
+    "registerSuccess": "Account created. Verify your email to sign in.",
+    "loginTitle": "Publisher login",
+    "loginSubmit": "Sign in",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "type": "Type",
+    "typeOrg": "Organization",
+    "typePerson": "Person",
+    "verifyTitle": "Verify email",
+    "verifySubmit": "Verify",
+    "verifyToken": "Verification code",
+    "verifySuccess": "Email verified. You can sign in now.",
+    "logout": "Sign out",
+    "welcome": "Welcome, {email}",
+    "yourPublishers": "Your publishers",
+    "errorGeneric": "Something went wrong. Try again.",
+    "errorUnverified": "Verify your email before signing in.",
+    "errorCredentials": "Wrong email or password."
+  }
+}

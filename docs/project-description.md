@@ -218,7 +218,8 @@ packages, packages never import apps.
   db/            Drizzle schema, migrations, PostGIS helpers
   geo/           Distance and geofence utilities (client and server)
   config/        Shared tsconfig presets
-  (later) api-client/, admin-client/ generated from OpenAPI; ui-web/ shared shadcn components
+  api-client/    Generated typed client from public OpenAPI (`pnpm api-client:generate`)
+  (later) admin-client/; ui-web/ shared shadcn components
 /infra           AWS CDK app
 ```
 
@@ -234,6 +235,7 @@ starter subset; the rest is added phase by phase.
 | `sessions`                                     | id, subject_type (user / publisher_account / admin), subject_id, token_hash, client (app / web / admin), expires_at, revoked_at                                                                                                                   | Opaque tokens, hashed at rest, revocable                                                 |
 | `web_login_codes`                              | id, code_hash, purpose (web_login / device_link), browser_label, status, user_id, expires_at                                                                                                                                                      | 5-minute TTL, single use                                                                 |
 | `publisher_accounts`                           | id, email, password_hash, email_verified_at                                                                                                                                                                                                       | Web login for publishers                                                                 |
+| `email_verification_tokens`                    | id, purpose, subject_id, token_hash, expires_at, used_at                                                                                                                                                                                          | Publisher email verification (and later recovery emails); hashed, single-use             |
 | `admin_users`                                  | id, email, password_hash, totp_secret, role                                                                                                                                                                                                       | Separate table, never mixed with app users                                               |
 | `publishers`                                   | id, type (org / person), name, slug, verified, origin (native / imported), is_temporary, claimed_at                                                                                                                                               | Imported publishers start temporary; an admin re-maps them or completes their details    |
 | `publisher_aliases`                            | source_id, external_organizer_key, publisher_id, mapped_by, mapped_at                                                                                                                                                                             | Remembers which publisher a source's organizer maps to                                   |
@@ -359,11 +361,14 @@ site's terms allow it, respect robots.txt and rate limits, and link back to the 
 ## AWS infrastructure
 
 ECS Fargate for backend services and data workers, managed data services, three AWS accounts
-(dev, staging, prod) in **eu-north-1 (Stockholm)** under AWS Organizations, all defined in CDK.
+(dev, staging, prod) in **eu-north-1 (Stockholm)** under AWS Organizations, all defined in CDK
+(`infra/`). Phase 1 ships three stacks — `network`, `data`, `services` — deployed to **dev** from
+GitHub Actions (OIDC). CloudFront/WAF (`EdgeStack`) and scheduled data workers come later; ALBs are
+HTTP-only until the edge stack adds HTTPS.
 
 | Component         | AWS service                                                              | Notes                                                             |
 | ----------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| Network           | VPC, 2–3 AZs, private subnets, NAT                                       | Fixed egress IP for data workers                                  |
+| Network           | VPC, 2–3 AZs, private subnets, NAT                                       | Fixed egress IP for data workers; shared App SG for ECS tasks     |
 | Public API        | ECS Fargate behind ALB, CloudFront + WAF                                 | Autoscale on CPU/requests; cache public GETs                      |
 | Admin API         | ECS Fargate behind its own ALB, WAF IP allowlist                         | Separate service and security group                               |
 | Worker            | ECS Fargate service consuming SQS                                        | Scales on queue depth                                             |

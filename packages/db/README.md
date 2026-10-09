@@ -10,7 +10,8 @@ pnpm db:migrate     # apply migrations to DATABASE_URL
 
 - Geography columns are SRID 4326. Write EWKT with `pointEwkt()`; query with `ST_DWithin` /
   `ST_Covers` in SQL.
-- Migration `0000_extensions` creates `postgis`, `pg_trgm` and `pgcrypto` (RDS supports all
-  three); `0001_init` holds the starter tables. Both were applied and tested against PostGIS 3.4.
-- Geography columns are created as plain `geography` (see `src/postgis.ts` for why).
+- Local Docker uses `imresamu/postgis` (multi-arch mirror of `postgis/postgis`) so Apple Silicon
+  works; official `postgis/postgis` is amd64-only.
+- The initial migration creates `postgis`, `pg_trgm` and `pgcrypto` (RDS supports all three)
+  plus the starter tables. Geography columns are plain `geography` (see `src/postgis.ts`).
 - The schema is a starter subset; see `docs/project-description.md` → Data model for the full list.

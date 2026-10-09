@@ -9,3 +9,8 @@ allowBuilds:
   # Added for the Next.js apps (create-next-app puts these in a nested file you should delete).
   sharp: false
   unrs-resolver: false
+  # Pulled in by next-intl / tooling when scaffolding frontends.
+  '@swc/core': true
+  '@parcel/watcher': true
+  argon2: true
+  '@sentry/cli': true

@@ -1,0 +1,21 @@
+import { PUBLISHER_SESSION_COOKIE } from '@local-events/auth';
+import type { Context } from 'hono';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+
+export function readPublisherSessionToken(c: Context): string | undefined {
+  return getCookie(c, PUBLISHER_SESSION_COOKIE);
+}
+
+export function setPublisherSessionCookie(c: Context, token: string, expiresAt: Date): void {
+  setCookie(c, PUBLISHER_SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'Lax',
+    path: '/',
+    expires: expiresAt,
+  });
+}
+
+export function clearPublisherSessionCookie(c: Context): void {
+  deleteCookie(c, PUBLISHER_SESSION_COOKIE, { path: '/' });
+}

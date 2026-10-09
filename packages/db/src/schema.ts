@@ -109,6 +109,21 @@ export const publisherAccounts = pgTable(
   (t) => [uniqueIndex('publisher_accounts_email_idx').on(sql`lower(${t.email})`)],
 );
 
+/** Single-use tokens for publisher email verification (and later recovery emails). */
+export const emailVerificationTokens = pgTable(
+  'email_verification_tokens',
+  {
+    id: id(),
+    purpose: text('purpose').notNull(), // e.g. 'publisher_email'
+    subjectId: uuid('subject_id').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('email_verification_tokens_hash_idx').on(t.tokenHash)],
+);
+
 export const adminUsers = pgTable('admin_users', {
   id: id(),
   email: text('email').notNull().unique(),

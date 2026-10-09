@@ -21,6 +21,7 @@ pnpm build                 # esbuild bundles for Node apps
 pnpm format                # prettier
 pnpm --filter @local-events/api dev
 pnpm --filter @local-events/data-workers dev -- --source example-fixture
+pnpm api-client:generate   # export OpenAPI → packages/api-client types
 ```
 
 Always finish a change with `pnpm typecheck && pnpm test` (or the filtered equivalent).
@@ -30,7 +31,7 @@ Always finish a change with `pnpm typecheck && pnpm test` (or the filtered equiv
 - `apps/api`, `apps/admin-api` — Hono + @hono/zod-openapi REST APIs (`/v1`, OpenAPI at `/v1/openapi.json`)
 - `apps/worker` — SQS consumer for domain events (notifications, stats)
 - `apps/data-workers` — scheduled ingestion; one adapter per source in `src/sources/<slug>/`
-- `apps/mobile`, `apps/web`, `apps/admin` — **not created yet**; follow `apps/README.md`
+- `apps/mobile` (Expo), `apps/web` / `apps/admin` (Next.js) — scaffolded; follow `apps/README.md`
 - `packages/contracts` (zod schemas), `domain` (business rules), `auth`, `ingest`, `db` (Drizzle),
   `geo`, `config` (tsconfig presets)
 - `infra` — AWS CDK, region eu-north-1
