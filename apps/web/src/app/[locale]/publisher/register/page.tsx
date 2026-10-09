@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppLink } from '@/components/app-link';
 import { PageMain } from '@/components/page-main';
-import { RegisterForm } from './register-form';
+import { RegisterForm } from './components/register-form';
 
 export default async function RegisterPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;

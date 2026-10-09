@@ -40,6 +40,8 @@ Web / Admin (Next.js):
 - [ ] Ports: web 3100, admin 3200 (API 3000, admin API 3001)
 - [ ] Admin: Material UI; talks **only** to the admin API (`NEXT_PUBLIC_ADMIN_API_URL`)
 - [ ] Web: Material UI; mobile: custom UI + `@expo/ui` / SwiftUI overlays (not Paper)
+- [ ] Component placement: shared in `src/components/`; route-only in
+      `app/.../components/` (Next) or `app/.../_components/` (Expo); see `CLAUDE.md`
 
 ## Afterwards
 

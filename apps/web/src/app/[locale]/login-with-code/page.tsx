@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppLink } from '@/components/app-link';
 import { PageMain } from '@/components/page-main';
-import { LoginWithCodeForm } from './login-with-code-form';
+import { LoginWithCodeForm } from './components/login-with-code-form';
 
 export default async function LoginWithCodePage({
   params,

@@ -162,12 +162,39 @@ Docs
 2. **Mobile (`apps/mobile`)** — always use the **expo-ui** skill (and **expo-native-ui** for
    layout/HIG). Read `.agents/skills/expo-ui/SKILL.md` before building or changing UI.
    Prefer `@expo/ui` for sheets, pickers, menus, toggles; SwiftUI (`@expo/ui/swift-ui`) for
-   ConfirmationDialog, ContextMenu, DatePicker, Alert/popups (in `components/*.ios.tsx`,
+   ConfirmationDialog, ContextMenu, DatePicker, Alert/popups (in `src/components/**/*.ios.tsx`,
    never under `app/`). Custom RN components for everything else. Do not use React Native
    Paper or MUI. Strive for the look and feel of
    [Events Booking Mobile App](https://dribbble.com/shots/25922019-Events-Booking-Mobile-App)
    (soft canvas, coral accent, large continuous corner radii, hero event cards, clear
    location/search/category header, sticky primary CTA on detail).
+
+### Frontend component placement (required)
+
+Keep UI colocated by reuse scope. Apply the same idea on web, admin, and mobile.
+
+**Admin / web (Next.js App Router)** under `apps/<app>/src/`:
+
+- Reusable across routes → `components/` (e.g. `components/page-main.tsx`, theme/chrome).
+- Unique to one route/view → that route’s `components/` folder
+  (e.g. `app/[locale]/login-with-code/components/login-with-code-form.tsx`).
+- `page.tsx` / `layout.tsx` stay thin: compose route `components/` + shared `components/`.
+
+**Mobile (Expo Router)** under `apps/mobile/src/`:
+
+- Reusable across screens → `components/` (`components/ui/`, chrome such as tabs/splash).
+- Unique to one screen → that route’s `_components/` folder (Expo private folder so it is not
+  a route; same role as Next `components/`), e.g. `app/events/[id]/_components/…`.
+- `@expo/ui` / SwiftUI overlays stay in `components/native/**` (including `*.ios.tsx`), never
+  under `app/`, even when only one screen uses them.
+
+**When adding or changing a component:**
+
+1. Search the same app for an existing component that already does the job (or close enough).
+2. If it can be reused from another route, move/refactor it into `src/components` (or
+   `components/ui` / `components/native` on mobile) and update imports.
+3. Do not leave a second copy under a route `components/` / `_components/` folder.
+4. Do not put route-only widgets in the shared `components/` tree.
 
 ### Quality gates
 

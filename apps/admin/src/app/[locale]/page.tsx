@@ -1,5 +1,5 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { AdminHome } from '@/components/admin-home';
+import { AdminHome } from './components/admin-home';
 
 export default async function AdminHomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;

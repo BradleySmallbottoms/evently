@@ -5,7 +5,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Suspense } from 'react';
 import { AppLink } from '@/components/app-link';
 import { PageMain } from '@/components/page-main';
-import { VerifyForm } from './verify-form';
+import { VerifyForm } from './components/verify-form';
 
 export default async function VerifyPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;

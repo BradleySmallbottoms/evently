@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppLink } from '@/components/app-link';
 import { PageMain } from '@/components/page-main';
-import { WorkspacePanel } from './workspace-panel';
+import { WorkspacePanel } from './components/workspace-panel';
 
 export default async function PublisherWorkspacePage({
   params,

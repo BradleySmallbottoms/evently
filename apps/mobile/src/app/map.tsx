@@ -1,4 +1,3 @@
-import { BottomSheet, Column, Host, Text } from '@expo/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -6,21 +5,22 @@ import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
+import {
+  MapEventSheet,
+  type MapEventSelection,
+} from '@/components/native/map-event-sheet';
 import { AppText } from '@/components/ui/app-text';
-import { PrimaryButton } from '@/components/ui/primary-button';
 import { MaxContentWidth } from '@/constants/theme';
 import { listPublicEvents, resolveEventQueryPoint } from '@/lib/events';
 import { ensureIdentity } from '@/lib/identity';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
-type Selected = { id: string; title: string; when: string };
-
 export default function MapScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
-  const [selected, setSelected] = useState<Selected | null>(null);
+  const [selected, setSelected] = useState<MapEventSelection | null>(null);
 
   const identity = useQuery({
     queryKey: ['identity', locale],
@@ -107,32 +107,12 @@ export default function MapScreen() {
         </View>
       </View>
 
-      <Host style={{ position: 'absolute', width: 0, height: 0 }}>
-        <BottomSheet
-          isPresented={!!selected}
-          onDismiss={() => setSelected(null)}
-          snapPoints={['half']}
-        >
-          <Column spacing={12}>
-            <Text textStyle={{ fontSize: 22, fontWeight: '700' }}>
-              {selected?.title ?? ''}
-            </Text>
-            <Text textStyle={{ fontSize: 14, color: colors.inkMuted as string }}>
-              {selected?.when ?? ''}
-            </Text>
-            <View>
-              <PrimaryButton
-                label={t('events.readMore')}
-                onPress={() => {
-                  const id = selected?.id;
-                  setSelected(null);
-                  if (id) router.push(`/events/${id}`);
-                }}
-              />
-            </View>
-          </Column>
-        </BottomSheet>
-      </Host>
+      <MapEventSheet
+        selected={selected}
+        onDismiss={() => setSelected(null)}
+        readMoreLabel={t('events.readMore')}
+        onReadMore={(id) => router.push(`/events/${id}`)}
+      />
     </View>
   );
 }

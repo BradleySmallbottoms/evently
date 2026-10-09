@@ -15,5 +15,7 @@ Patterns:
 - Use `slotProps` on MUI v7+
 - Wire Next App Router with `@mui/material-nextjs/v16-appRouter` + `ThemeProvider` + `CssBaseline`
 - Do not reintroduce Gluestack, UniWind, React Native Paper, or react-native-web into admin/web
+- Component placement (see CLAUDE.md): shared → `src/components/`; route-only →
+  `app/.../<route>/components/`. Reuse existing components instead of duplicating.
 
 Mobile UI rules live in `.cursor/rules/expo-mobile-ui.mdc` and `CLAUDE.md`.

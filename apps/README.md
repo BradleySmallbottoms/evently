@@ -234,6 +234,13 @@ Mobile uses custom components plus `@expo/ui` (and SwiftUI overlays) — do not 
 `react-native-web`, or React Native Paper to the wrong apps.
 Follow `.agents/skills/mui/SKILL.md` for web/admin and `.agents/skills/expo-ui/SKILL.md` for mobile.
 
+Component placement (also in `CLAUDE.md`):
+
+- Shared across routes/screens → `src/components/`
+- Unique to one route → Next: `app/.../<route>/components/`; Expo: `app/<route>/_components/`
+- Before adding a component, reuse or promote an existing one into `src/components/` when it fits
+  more than one view. Native/SwiftUI overlays on mobile stay under `src/components/native/`.
+
 ### 4. Configure
 
 - `apps/admin/.env.local`: `NEXT_PUBLIC_ADMIN_API_URL=http://localhost:3001/v1`
