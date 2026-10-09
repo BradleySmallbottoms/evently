@@ -9,6 +9,8 @@ import { createDbEventContentServices } from './services/event-content/db';
 import { createMemoryEventContentServices } from './services/event-content/memory';
 import { createDbEventServices } from './services/events/db';
 import { createMemoryEventServices } from './services/events/memory';
+import { createDbRatingServices } from './services/ratings/db';
+import { createMemoryRatingServices } from './services/ratings/memory';
 import { createMemoryDomainEventPublisher } from './services/domain-events/memory';
 import { createSqsDomainEventPublisher } from './services/domain-events/sqs';
 import { createDbNotificationServices } from './services/notifications/db';
@@ -68,6 +70,7 @@ const {
   checkIns,
   notifications,
   eventContent,
+  ratings,
 } = (() => {
   if (databaseUrl) {
     const db = createDb(databaseUrl);
@@ -81,6 +84,7 @@ const {
       checkIns: createDbCheckInServices(db, authServices, checkInEnv),
       notifications: createDbNotificationServices(db, authServices),
       eventContent: createDbEventContentServices(db, authServices, contentEnv),
+      ratings: createDbRatingServices(db, authServices, checkInEnv),
     };
   }
   const store = createMemoryStore();
@@ -94,6 +98,7 @@ const {
     checkIns: createMemoryCheckInServices(authServices, checkInEnv, store),
     notifications: createMemoryNotificationServices(authServices, store),
     eventContent: createMemoryEventContentServices(authServices, contentEnv, store),
+    ratings: createMemoryRatingServices(authServices, checkInEnv, store),
   };
 })();
 
@@ -116,6 +121,7 @@ serve(
       checkIns,
       notifications,
       eventContent,
+      ratings,
       corsOrigin,
     }).fetch,
     port,

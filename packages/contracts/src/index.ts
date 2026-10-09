@@ -53,5 +53,6 @@ export * from './event-content';
 export * from './notifications';
 export * from './preferences';
 export * from './profile';
+export * from './ratings';
 export * from './regions';
 export * from './subscriptions';

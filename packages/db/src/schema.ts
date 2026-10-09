@@ -405,6 +405,26 @@ export const digitalCodes = pgTable('digital_codes', {
   createdAt: createdAt(),
 });
 
+export const ratings = pgTable(
+  'ratings',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    score: integer('score').notNull(),
+    comment: text('comment'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('ratings_user_event_idx').on(t.userId, t.eventId),
+    index('ratings_event_id_idx').on(t.eventId),
+  ],
+);
+
 /** Maps, schedules, info and files — attendee visibility gated by check-in. */
 export const eventContent = pgTable(
   'event_content',

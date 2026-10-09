@@ -11,6 +11,7 @@ import { SymbolView } from 'expo-symbols';
 import { ConfirmAction } from '@/components/native/confirm-action';
 import { EventActionsMenu } from '@/components/native/event-actions-menu';
 import { ProfilePromptSheet } from '@/components/native/profile-prompt-sheet';
+import { RatingSheet } from '@/components/native/rating-sheet';
 import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -27,6 +28,7 @@ import {
 import { getPublicEvent } from '@/lib/events';
 import { ensureIdentity } from '@/lib/identity';
 import { fetchProfile, updateProfile } from '@/lib/profile';
+import { fetchRatingStatus, submitRating } from '@/lib/ratings';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space, typography } from '@/theme/tokens';
 
@@ -42,6 +44,7 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [reportOpen, setReportOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [ratingOpen, setRatingOpen] = useState(false);
   const [code, setCode] = useState('');
 
   const identity = useQuery({
@@ -71,6 +74,22 @@ export default function EventDetailScreen() {
       }
     },
     enabled: typeof id === 'string' && id.length > 0,
+  });
+  const ratingStatus = useQuery({
+    queryKey: ['rating-status', id, identity.data?.userId],
+    queryFn: () => fetchRatingStatus(identity.data ?? null, id!),
+    enabled: typeof id === 'string' && id.length > 0,
+  });
+  const rate = useMutation({
+    mutationFn: (input: { score: number; comment?: string | null }) =>
+      submitRating(identity.data!, id!, input),
+    onSuccess: async () => {
+      setRatingOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ['rating-status', id] });
+    },
+    onError: () => {
+      Alert.alert(t('events.rateHowWasIt'), t('events.rateError'));
+    },
   });
   async function afterCheckIn() {
     await queryClient.invalidateQueries({ queryKey: ['check-in-status', id] });
@@ -280,6 +299,15 @@ export default function EventDetailScreen() {
                   </View>
                 ))}
               </View>
+
+              {ratingStatus.data?.aggregate.count ? (
+                <AppText variant="caption">
+                  {t('events.rateAggregate', {
+                    average: ratingStatus.data.aggregate.average ?? '–',
+                    count: ratingStatus.data.aggregate.count,
+                  })}
+                </AppText>
+              ) : null}
             </>
           )}
         </View>
@@ -309,7 +337,14 @@ export default function EventDetailScreen() {
               boxShadow: shadow.card,
             }}
           >
-            {checkInStatus.data?.checkedIn ? (
+            {ratingStatus.data?.canRate ? (
+              <PrimaryButton
+                label={t('events.rateHowWasIt')}
+                onPress={() => setRatingOpen(true)}
+              />
+            ) : ratingStatus.data?.hasRated ? (
+              <PrimaryButton label={t('events.rateDone')} disabled />
+            ) : checkInStatus.data?.checkedIn ? (
               <PrimaryButton label={t('events.checkInDone')} disabled />
             ) : event.data.mode === 'physical' ? (
               <View style={{ gap: space.md }}>
@@ -396,6 +431,20 @@ export default function EventDetailScreen() {
             choice: 'anonymous',
             recoveryEmail: recoveryEmail || null,
           })
+        }
+      />
+
+      <RatingSheet
+        isPresented={ratingOpen}
+        onDismiss={() => setRatingOpen(false)}
+        title={t('events.rateHowWasIt')}
+        body={t('events.rateBody')}
+        commentLabel={t('events.rateCommentLabel')}
+        commentPlaceholder={t('events.rateCommentPlaceholder')}
+        submitLabel={t('events.rateSubmit')}
+        saving={rate.isPending}
+        onSubmit={(score, comment) =>
+          rate.mutate({ score, comment: comment || null })
         }
       />
     </View>

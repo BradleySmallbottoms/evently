@@ -15,6 +15,8 @@ import { createMemoryNotificationServices } from './services/notifications/memor
 import type { NotificationServices } from './services/notifications/types';
 import { createMemoryPreferenceServices } from './services/preferences/memory';
 import type { PreferenceServices } from './services/preferences/types';
+import { createMemoryRatingServices } from './services/ratings/memory';
+import type { RatingServices } from './services/ratings/types';
 import { createMemoryRegionServices } from './services/regions/memory';
 import type { RegionServices } from './services/regions/types';
 import { createMemorySubscriptionServices } from './services/subscriptions/memory';
@@ -31,6 +33,7 @@ export type CreateAppOptions = {
   checkIns?: CheckInServices;
   notifications?: NotificationServices;
   eventContent?: EventContentServices;
+  ratings?: RatingServices;
   /**
    * Origins allowed for credentialed CORS (web publisher login).
    * Pass a string list, or a function that returns the reflected Origin (never bare `*`).
@@ -63,6 +66,7 @@ export function createApp(options: CreateAppOptions = {}) {
     options.notifications ?? createMemoryNotificationServices(auth, store);
   const eventContent =
     options.eventContent ?? createMemoryEventContentServices(auth, {}, store);
+  const ratings = options.ratings ?? createMemoryRatingServices(auth, {}, store);
   const app = new OpenAPIHono();
 
   app.onError((err, c) => {
@@ -101,6 +105,7 @@ export function createApp(options: CreateAppOptions = {}) {
     checkIns,
     notifications,
     eventContent,
+    ratings,
   });
   api.doc('/openapi.json', {
     openapi: '3.1.0',

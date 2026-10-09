@@ -157,6 +157,15 @@ export type MemoryEventContent = {
   createdAt: Date;
 };
 
+export type MemoryRating = {
+  id: string;
+  userId: string;
+  eventId: string;
+  score: number;
+  comment: string | null;
+  createdAt: Date;
+};
+
 export type MemoryStore = {
   users: Map<string, MemoryUser>;
   devices: Map<string, MemoryDevice>;
@@ -176,6 +185,7 @@ export type MemoryStore = {
   digitalCodes: Map<string, MemoryDigitalCode>;
   checkIns: MemoryCheckIn[];
   eventContent: MemoryEventContent[];
+  ratings: MemoryRating[];
 };
 
 /** Fixed UUIDs matching packages/db seed migration for regions. */
@@ -219,5 +229,6 @@ export function createMemoryStore(): MemoryStore {
     digitalCodes: new Map(),
     checkIns: [],
     eventContent: [],
+    ratings: [],
   };
 }

@@ -13,8 +13,7 @@ external sources. Launch area: Söderhamn and Gävleborgs län. Languages: Swedi
 ## Status
 
 Phase 4 (Check-in) is underway. Phase 3 nearby push and follows are in place. Physical geofence
-Phase 4 check-in, digital codes, profile prompt, and attendee content are in place. Ratings and
-stats come next.
+Phase 4 is complete; Phase 5 ratings (“How was it?”) are in place. Stats counters come next.
 
 ## Prerequisites
 
@@ -154,6 +153,9 @@ calls) in the same change as every new major feature.**
   `GET /events/{id}/content` (attendee-only rows after check-in). File `s3Key` → short-lived signed
   URL (memory signer in dev). Mobile caches checked-in payloads offline.
   Flow: [docs/flows/attendee-content.md](docs/flows/attendee-content.md).
+- Ratings: `GET/POST /events/{id}/rating(s)` after check-in from `ends_at` → +14 days. Public
+  aggregate only; comments need named profile and appear on
+  `GET /manage/events/{id}/ratings`. Flow: [docs/flows/ratings.md](docs/flows/ratings.md).
 
 ### E2E vs local data
 
