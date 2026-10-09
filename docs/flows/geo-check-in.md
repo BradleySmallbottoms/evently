@@ -27,4 +27,4 @@ sequenceDiagram
   end
 ```
 
-Venue QR / digital codes are a later Phase 4 slice.
+Venue QR / digital codes: [digital-code-check-in.md](./digital-code-check-in.md).

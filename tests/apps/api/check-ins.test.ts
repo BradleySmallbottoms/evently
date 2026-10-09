@@ -70,7 +70,7 @@ async function publishPhysicalEvent(
     method: 'POST',
     headers: { cookie },
   });
-  return draft.id;
+  return { eventId: draft.id, cookie };
 }
 
 describe('geo check-in', () => {
@@ -79,6 +79,9 @@ describe('geo check-in', () => {
     const doc = (await res.json()) as { paths: Record<string, unknown> };
     expect(doc.paths['/events/{eventId}/check-in']).toBeDefined();
     expect(doc.paths['/events/{eventId}/check-ins']).toBeDefined();
+    expect(doc.paths['/events/{eventId}/check-ins/code']).toBeDefined();
+    expect(doc.paths['/manage/events/{eventId}/digital-code']).toBeDefined();
+    expect(doc.paths['/manage/events/{eventId}/digital-code/start']).toBeDefined();
   });
 
   it('checks in when inside the geofence and window', async () => {
@@ -97,7 +100,7 @@ describe('geo check-in', () => {
     );
     const app = createApp({ auth, events, checkIns });
 
-    const eventId = await publishPhysicalEvent(
+    const { eventId } = await publishPhysicalEvent(
       app,
       store,
       new Date('2026-06-15T18:10:00.000Z'),
@@ -110,7 +113,11 @@ describe('geo check-in', () => {
       headers: authHeader,
     });
     expect(status.status).toBe(200);
-    expect(await status.json()).toMatchObject({ checkedIn: false, open: true });
+    expect(await status.json()).toMatchObject({
+      checkedIn: false,
+      open: true,
+      codeActive: false,
+    });
 
     const res = await app.request(`/v1/events/${eventId}/check-ins`, {
       method: 'POST',
@@ -148,7 +155,7 @@ describe('geo check-in', () => {
     const checkIns = createMemoryCheckInServices(auth, { now: () => now }, store);
     const app = createApp({ auth, events, checkIns });
 
-    const eventId = await publishPhysicalEvent(
+    const { eventId } = await publishPhysicalEvent(
       app,
       store,
       new Date('2026-06-15T18:10:00.000Z'),
@@ -185,5 +192,90 @@ describe('geo check-in', () => {
     expect(((await poor.json()) as { error: { code: string } }).error.code).toBe(
       'poor_accuracy',
     );
+  });
+});
+
+describe('digital code check-in', () => {
+  it('starts a live session and accepts the current code', async () => {
+    const store = createMemoryStore();
+    const now = new Date('2026-06-15T18:00:00.000Z');
+    const auth = createMemoryAuthServices(
+      { includeVerificationToken: true, now: () => now },
+      store,
+    );
+    const domainEvents = createMemoryDomainEventPublisher();
+    const events = createMemoryEventServices(auth, { now: () => now }, store);
+    const checkIns = createMemoryCheckInServices(
+      auth,
+      { now: () => now, domainEvents },
+      store,
+    );
+    const app = createApp({ auth, events, checkIns });
+
+    const { eventId, cookie } = await publishPhysicalEvent(
+      app,
+      store,
+      new Date('2026-06-15T18:10:00.000Z'),
+      new Date('2026-06-15T21:00:00.000Z'),
+    );
+
+    const session = await createUserSession(app);
+    const authHeader = {
+      authorization: `Bearer ${session.sessionToken}`,
+      'content-type': 'application/json',
+    };
+
+    const before = await app.request(`/v1/events/${eventId}/check-ins/code`, {
+      method: 'POST',
+      headers: authHeader,
+      body: JSON.stringify({ code: 'ABCDEF' }),
+    });
+    expect(before.status).toBe(400);
+    expect(((await before.json()) as { error: { code: string } }).error.code).toBe(
+      'not_revealed',
+    );
+
+    const started = await app.request(`/v1/manage/events/${eventId}/digital-code/start`, {
+      method: 'POST',
+      headers: { cookie },
+    });
+    expect(started.status).toBe(200);
+    const live = (await started.json()) as {
+      revealed: boolean;
+      code: string;
+      qrPayload: string;
+    };
+    expect(live.revealed).toBe(true);
+    expect(live.code).toMatch(/^[A-Z2-9]{6}$/);
+    expect(live.qrPayload).toContain(eventId);
+
+    const status = await app.request(`/v1/events/${eventId}/check-in`, {
+      headers: { authorization: `Bearer ${session.sessionToken}` },
+    });
+    expect(await status.json()).toMatchObject({ codeActive: true, open: true });
+
+    const wrong = await app.request(`/v1/events/${eventId}/check-ins/code`, {
+      method: 'POST',
+      headers: authHeader,
+      body: JSON.stringify({ code: 'ZZZZZZ' }),
+    });
+    expect(wrong.status).toBe(400);
+
+    const ok = await app.request(`/v1/events/${eventId}/check-ins/code`, {
+      method: 'POST',
+      headers: authHeader,
+      body: JSON.stringify({ code: live.code }),
+    });
+    expect(ok.status).toBe(201);
+    expect(await ok.json()).toMatchObject({ eventId, method: 'code' });
+    expect(domainEvents.events).toEqual([
+      expect.objectContaining({ type: 'checkin.created', eventId }),
+    ]);
+
+    const sessionGet = await app.request(`/v1/manage/events/${eventId}/digital-code`, {
+      headers: { cookie },
+    });
+    expect(sessionGet.status).toBe(200);
+    expect(await sessionGet.json()).toMatchObject({ revealed: true, code: live.code });
   });
 });

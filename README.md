@@ -13,7 +13,7 @@ external sources. Launch area: Söderhamn and Gävleborgs län. Languages: Swedi
 ## Status
 
 Phase 4 (Check-in) is underway. Phase 3 nearby push and follows are in place. Physical geofence
-check-in works; digital codes, profile-at-check-in, and attendee content remain.
+check-in (geo + rotating digital codes) works; profile-at-check-in and attendee content remain.
 
 ## Prerequisites
 
@@ -136,10 +136,15 @@ calls) in the same change as every new major feature.**
 
 ### Check-in
 
-- Physical: `GET /v1/events/{id}/check-in` + `POST /v1/events/{id}/check-ins` with Bearer session,
-  high-accuracy lat/lng, and `accuracyM`. Domain enforces window (30 min before start → end),
-  accuracy ≤ 100 m, and circle geofence (`geofenceRadiusM`, default 100). Unique per user+event.
-  Flow: [docs/flows/geo-check-in.md](docs/flows/geo-check-in.md).
+- Physical geo: `GET /v1/events/{id}/check-in` + `POST /v1/events/{id}/check-ins` with Bearer
+  session, high-accuracy lat/lng, and `accuracyM`. Domain enforces window (30 min before start →
+  end), accuracy ≤ 100 m, and circle geofence (`geofenceRadiusM`, default 100). Unique per
+  user+event. Flow: [docs/flows/geo-check-in.md](docs/flows/geo-check-in.md).
+- Digital / venue QR: publisher `POST /v1/manage/events/{id}/digital-code/start` (cookie) then
+  polls `GET …/digital-code` for the rotating 6-char code + `localevents://check-in/{id}?c=…`
+  payload. Attendees `POST /v1/events/{id}/check-ins/code` with `{ code }` once `codeActive`.
+  Secret stays server-side (HMAC per 60s slot). Flow:
+  [docs/flows/digital-code-check-in.md](docs/flows/digital-code-check-in.md).
 
 ### E2E vs local data
 

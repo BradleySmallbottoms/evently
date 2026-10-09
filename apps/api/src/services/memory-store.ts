@@ -122,6 +122,14 @@ export type MemoryNotification = {
   readAt: Date | null;
 };
 
+export type MemoryDigitalCode = {
+  eventId: string;
+  secret: string;
+  revealedAt: Date | null;
+  rotationS: number;
+  createdAt: Date;
+};
+
 export type MemoryStore = {
   users: Map<string, MemoryUser>;
   devices: Map<string, MemoryDevice>;
@@ -138,6 +146,7 @@ export type MemoryStore = {
   events: Map<string, MemoryEventRow>;
   subscriptions: MemorySubscription[];
   notifications: Map<string, MemoryNotification>;
+  digitalCodes: Map<string, MemoryDigitalCode>;
 };
 
 /** Fixed UUIDs matching packages/db seed migration for regions. */
@@ -178,5 +187,6 @@ export function createMemoryStore(): MemoryStore {
     events: new Map(),
     subscriptions: [],
     notifications: new Map(),
+    digitalCodes: new Map(),
   };
 }

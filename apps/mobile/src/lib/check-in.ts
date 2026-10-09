@@ -37,3 +37,18 @@ export async function performGeoCheckIn(identity: StoredIdentity, eventId: strin
     }),
   );
 }
+
+/** Venue QR / digital rotating code check-in. */
+export async function performCodeCheckIn(
+  identity: StoredIdentity,
+  eventId: string,
+  code: string,
+) {
+  return throwIfError(
+    await api.POST('/events/{eventId}/check-ins/code', {
+      params: { path: { eventId } },
+      headers: { Authorization: `Bearer ${identity.sessionToken}` },
+      body: { code },
+    }),
+  );
+}

@@ -65,8 +65,8 @@ Closed beta around week 15, store launch around week 19.
 ## Phase 4 — Check-in + attendee content (weeks 10–13)
 
 - [x] Geofence check-in (`validateGeoCheckIn`) — venue QR fallback still open
-- [ ] Venue QR fallback (uses digital codes)
-- [ ] Rotating digital codes with QR
+- [x] Venue QR fallback (uses digital codes)
+- [x] Rotating digital codes with QR
 - [ ] Profile prompt at first check-in (named or anonymous) + optional recovery email
 - [ ] Attendee-only content via signed URLs; offline cache
 - **Exit:** a test event runs end to end, physical and digital.

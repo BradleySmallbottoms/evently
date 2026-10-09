@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, ScrollView, Share, View } from 'react-native';
+import { Alert, ScrollView, Share, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
@@ -14,11 +14,15 @@ import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { MaxContentWidth } from '@/constants/theme';
-import { fetchCheckInStatus, performGeoCheckIn } from '@/lib/check-in';
+import {
+  fetchCheckInStatus,
+  performCodeCheckIn,
+  performGeoCheckIn,
+} from '@/lib/check-in';
 import { getPublicEvent } from '@/lib/events';
 import { ensureIdentity } from '@/lib/identity';
 import { colors } from '@/theme/colors';
-import { radius, shadow, space } from '@/theme/tokens';
+import { radius, shadow, space, typography } from '@/theme/tokens';
 
 const HERO =
   'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&q=80';
@@ -31,6 +35,7 @@ export default function EventDetailScreen() {
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [reportOpen, setReportOpen] = useState(false);
+  const [code, setCode] = useState('');
 
   const identity = useQuery({
     queryKey: ['identity', locale],
@@ -45,11 +50,7 @@ export default function EventDetailScreen() {
   const checkInStatus = useQuery({
     queryKey: ['check-in-status', id, identity.data?.userId],
     queryFn: () => fetchCheckInStatus(identity.data!, id!),
-    enabled:
-      identity.isSuccess &&
-      typeof id === 'string' &&
-      id.length > 0 &&
-      event.data?.mode === 'physical',
+    enabled: identity.isSuccess && typeof id === 'string' && id.length > 0,
   });
   const checkIn = useMutation({
     mutationFn: () => performGeoCheckIn(identity.data!, id!),
@@ -62,6 +63,16 @@ export default function EventDetailScreen() {
           ? t('events.checkInPermission')
           : t('events.checkInError');
       Alert.alert(t('events.checkIn'), message);
+    },
+  });
+  const codeCheckIn = useMutation({
+    mutationFn: () => performCodeCheckIn(identity.data!, id!, code),
+    onSuccess: async () => {
+      setCode('');
+      await queryClient.invalidateQueries({ queryKey: ['check-in-status', id] });
+    },
+    onError: () => {
+      Alert.alert(t('events.checkIn'), t('events.checkInCodeError'));
     },
   });
 
@@ -219,27 +230,51 @@ export default function EventDetailScreen() {
               boxShadow: shadow.card,
             }}
           >
-            {event.data.mode === 'physical' ? (
-              <PrimaryButton
-                label={
-                  checkInStatus.data?.checkedIn
-                    ? t('events.checkInDone')
-                    : checkInStatus.isError
+            {checkInStatus.data?.checkedIn ? (
+              <PrimaryButton label={t('events.checkInDone')} disabled />
+            ) : event.data.mode === 'physical' ? (
+              <View style={{ gap: space.md }}>
+                <PrimaryButton
+                  label={
+                    checkInStatus.isError
                       ? t('events.checkInError')
                       : checkInStatus.isLoading
                         ? t('events.loading')
                         : checkInStatus.data?.open
                           ? t('events.checkIn')
                           : t('events.checkInClosed')
-                }
-                loading={checkIn.isPending || checkInStatus.isLoading}
-                disabled={
-                  checkInStatus.isError ||
-                  checkInStatus.data?.checkedIn ||
-                  !checkInStatus.data?.open ||
-                  !identity.data
-                }
-                onPress={() => checkIn.mutate()}
+                  }
+                  loading={checkIn.isPending || checkInStatus.isLoading}
+                  disabled={
+                    checkInStatus.isError ||
+                    !checkInStatus.data?.open ||
+                    !identity.data
+                  }
+                  onPress={() => checkIn.mutate()}
+                />
+                {checkInStatus.data?.codeActive && checkInStatus.data.open ? (
+                  <CodeCheckInFields
+                    code={code}
+                    onChangeCode={setCode}
+                    loading={codeCheckIn.isPending}
+                    disabled={!identity.data}
+                    onSubmit={() => codeCheckIn.mutate()}
+                    hint={t('events.checkInCodeHint')}
+                    placeholder={t('events.checkInCodePlaceholder')}
+                    submitLabel={t('events.checkInWithCode')}
+                  />
+                ) : null}
+              </View>
+            ) : checkInStatus.data?.codeActive && checkInStatus.data.open ? (
+              <CodeCheckInFields
+                code={code}
+                onChangeCode={setCode}
+                loading={codeCheckIn.isPending}
+                disabled={!identity.data}
+                onSubmit={() => codeCheckIn.mutate()}
+                hint={t('events.checkInCodeHint')}
+                placeholder={t('events.checkInCodePlaceholder')}
+                submitLabel={t('events.checkInWithCode')}
               />
             ) : (
               <PrimaryButton label={t('events.remindMe')} />
@@ -256,6 +291,58 @@ export default function EventDetailScreen() {
         isPresented={reportOpen}
         onIsPresentedChange={setReportOpen}
         onConfirm={() => setReportOpen(false)}
+      />
+    </View>
+  );
+}
+
+function CodeCheckInFields({
+  code,
+  onChangeCode,
+  loading,
+  disabled,
+  onSubmit,
+  hint,
+  placeholder,
+  submitLabel,
+}: {
+  code: string;
+  onChangeCode: (value: string) => void;
+  loading?: boolean;
+  disabled?: boolean;
+  onSubmit: () => void;
+  hint: string;
+  placeholder: string;
+  submitLabel: string;
+}) {
+  return (
+    <View style={{ gap: space.sm }}>
+      <AppText variant="caption">{hint}</AppText>
+      <TextInput
+        value={code}
+        onChangeText={(v) => onChangeCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
+        placeholder={placeholder}
+        placeholderTextColor={colors.inkFaint}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        style={{
+          backgroundColor: colors.canvas,
+          borderRadius: radius.md,
+          borderCurve: 'continuous',
+          paddingHorizontal: space.lg,
+          paddingVertical: space.md,
+          fontFamily: typography.familyRegular,
+          fontSize: 18,
+          letterSpacing: 4,
+          color: colors.ink,
+          textAlign: 'center',
+        }}
+      />
+      <PrimaryButton
+        label={submitLabel}
+        loading={loading}
+        disabled={disabled || code.trim().length < 4}
+        onPress={onSubmit}
       />
     </View>
   );

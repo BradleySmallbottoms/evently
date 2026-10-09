@@ -1,12 +1,25 @@
-import type { CheckIn, CreateGeoCheckInRequest } from '@local-events/contracts';
+import type {
+  CheckIn,
+  CreateCodeCheckInRequest,
+  CreateGeoCheckInRequest,
+  DigitalCodeSessionResponse,
+} from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
-import { checkInWindow, validateGeoCheckIn } from '@local-events/domain';
+import {
+  checkInWindow,
+  DIGITAL_CODE_SLOT_SECONDS,
+  digitalCheckInQrPayload,
+  digitalCodeSlot,
+  validateCodeCheckIn,
+  validateGeoCheckIn,
+} from '@local-events/domain';
 import { and, eq, sql } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
 import { enqueueDomainEvent } from '../domain-events/types';
+import { deriveDigitalCode, generateDigitalCodeSecret, validCodesForNow } from './codes';
 import { CheckInError, type CheckInEnv, type CheckInServices } from './types';
 
 const DEFAULT_GEOFENCE_RADIUS_M = 100;
@@ -28,31 +41,110 @@ export function createDbCheckInServices(
     }
   }
 
-  async function loadPublishedPhysical(eventId: string) {
+  async function loadPublished(eventId: string) {
     const [row] = await db
       .select({
         id: schema.events.id,
+        publisherId: schema.events.publisherId,
         mode: schema.events.mode,
         status: schema.events.status,
         startsAt: schema.events.startsAt,
         endsAt: schema.events.endsAt,
         geofenceRadiusM: schema.events.geofenceRadiusM,
-        lat: sql<number>`ST_Y(${schema.events.location}::geometry)`,
-        lng: sql<number>`ST_X(${schema.events.location}::geometry)`,
+        lat: sql<number | null>`ST_Y(${schema.events.location}::geometry)`,
+        lng: sql<number | null>`ST_X(${schema.events.location}::geometry)`,
         hasLocation: sql<boolean>`${schema.events.location} IS NOT NULL`,
       })
       .from(schema.events)
       .where(eq(schema.events.id, eventId))
       .limit(1);
     if (!row || row.status !== 'published') throw new CheckInError('not_found');
-    if (row.mode !== 'physical' || !row.hasLocation) throw new CheckInError('not_physical');
     return row;
+  }
+
+  async function ensureCodeRow(eventId: string) {
+    const [existing] = await db
+      .select()
+      .from(schema.digitalCodes)
+      .where(eq(schema.digitalCodes.eventId, eventId))
+      .limit(1);
+    if (existing) return existing;
+    const [created] = await db
+      .insert(schema.digitalCodes)
+      .values({
+        eventId,
+        secret: generateDigitalCodeSecret(),
+        rotationS: DIGITAL_CODE_SLOT_SECONDS,
+      })
+      .onConflictDoNothing()
+      .returning();
+    if (created) return created;
+    const [again] = await db
+      .select()
+      .from(schema.digitalCodes)
+      .where(eq(schema.digitalCodes.eventId, eventId))
+      .limit(1);
+    if (!again) throw new CheckInError('not_found');
+    return again;
+  }
+
+  function sessionFromRow(
+    eventId: string,
+    row: { secret: string; revealedAt: Date | null; rotationS: number },
+    at: Date,
+  ): DigitalCodeSessionResponse {
+    if (!row.revealedAt) {
+      return {
+        eventId,
+        revealed: false,
+        code: null,
+        qrPayload: null,
+        slotEndsAt: null,
+        rotationS: row.rotationS,
+      };
+    }
+    const slot = digitalCodeSlot(at);
+    const code = deriveDigitalCode(row.secret, slot);
+    const slotEndsAt = new Date((slot + 1) * row.rotationS * 1000);
+    return {
+      eventId,
+      revealed: true,
+      code,
+      qrPayload: digitalCheckInQrPayload(eventId, code),
+      slotEndsAt: slotEndsAt.toISOString(),
+      rotationS: row.rotationS,
+    };
+  }
+
+  async function insertCodeCheckIn(userId: string, eventId: string, createdAt: Date) {
+    try {
+      const rows = await db
+        .insert(schema.checkIns)
+        .values({
+          userId,
+          eventId,
+          method: 'code',
+          createdAt,
+        })
+        .returning({
+          id: schema.checkIns.id,
+          userId: schema.checkIns.userId,
+          eventId: schema.checkIns.eventId,
+          method: schema.checkIns.method,
+          createdAt: schema.checkIns.createdAt,
+        });
+      return rows[0];
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code === '23505') throw new CheckInError('already_checked_in');
+      throw err;
+    }
   }
 
   return {
     async getStatus(sessionToken, eventId) {
       const { userId } = await requireUser(sessionToken);
-      const row = await loadPublishedPhysical(eventId);
+      const row = await loadPublished(eventId);
       const window = checkInWindow({ startsAt: row.startsAt, endsAt: row.endsAt });
       const at = now();
       const [existing] = await db
@@ -62,17 +154,26 @@ export function createDbCheckInServices(
           and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)),
         )
         .limit(1);
+      const [codeRow] = await db
+        .select({ revealedAt: schema.digitalCodes.revealedAt })
+        .from(schema.digitalCodes)
+        .where(eq(schema.digitalCodes.eventId, eventId))
+        .limit(1);
       return {
         checkedIn: Boolean(existing),
         open: at >= window.opensAt && at <= window.closesAt,
         opensAt: window.opensAt.toISOString(),
         closesAt: window.closesAt.toISOString(),
+        codeActive: Boolean(codeRow?.revealedAt),
       };
     },
 
     async createGeo(sessionToken, eventId, input: CreateGeoCheckInRequest) {
       const { userId } = await requireUser(sessionToken);
-      const row = await loadPublishedPhysical(eventId);
+      const row = await loadPublished(eventId);
+      if (row.mode !== 'physical' || !row.hasLocation || row.lat == null || row.lng == null) {
+        throw new CheckInError('not_physical');
+      }
       const [existing] = await db
         .select({ id: schema.checkIns.id })
         .from(schema.checkIns)
@@ -136,14 +237,93 @@ export function createDbCheckInServices(
         userId,
       });
 
-      const out: CheckIn = {
+      return {
         id: inserted.id,
         eventId: inserted.eventId,
         userId: inserted.userId,
         method: inserted.method,
         createdAt: inserted.createdAt.toISOString(),
-      };
-      return out;
+      } satisfies CheckIn;
+    },
+
+    async createCode(sessionToken, eventId, input: CreateCodeCheckInRequest) {
+      const { userId } = await requireUser(sessionToken);
+      const row = await loadPublished(eventId);
+      const [existing] = await db
+        .select({ id: schema.checkIns.id })
+        .from(schema.checkIns)
+        .where(
+          and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)),
+        )
+        .limit(1);
+      const [codeRow] = await db
+        .select()
+        .from(schema.digitalCodes)
+        .where(eq(schema.digitalCodes.eventId, eventId))
+        .limit(1);
+      const at = now();
+      const result = validateCodeCheckIn({
+        event: { startsAt: row.startsAt, endsAt: row.endsAt },
+        revealed: Boolean(codeRow?.revealedAt),
+        validCodes: codeRow ? validCodesForNow(codeRow.secret, at) : [],
+        code: input.code,
+        alreadyCheckedIn: Boolean(existing),
+        now: at,
+      });
+      if (!result.ok) throw new CheckInError(result.reason);
+
+      const inserted = await insertCodeCheckIn(userId, eventId, at);
+      if (!inserted) throw new CheckInError('already_checked_in');
+
+      await enqueueDomainEvent(domainEvents, {
+        type: 'checkin.created',
+        eventId,
+        userId,
+      });
+
+      return {
+        id: inserted.id,
+        eventId: inserted.eventId,
+        userId: inserted.userId,
+        method: inserted.method,
+        createdAt: inserted.createdAt.toISOString(),
+      } satisfies CheckIn;
+    },
+
+    async startDigitalCode(publisherSessionToken, eventId) {
+      const event = await loadPublished(eventId);
+      try {
+        await auth.requirePublisherMember(publisherSessionToken, event.publisherId);
+      } catch (err) {
+        if (err instanceof AuthError) {
+          throw new CheckInError(err.code === 'forbidden' ? 'forbidden' : 'unauthorized');
+        }
+        throw err;
+      }
+      const codeRow = await ensureCodeRow(eventId);
+      const at = now();
+      if (!codeRow.revealedAt) {
+        await db
+          .update(schema.digitalCodes)
+          .set({ revealedAt: at })
+          .where(eq(schema.digitalCodes.eventId, eventId));
+        return sessionFromRow(eventId, { ...codeRow, revealedAt: at }, at);
+      }
+      return sessionFromRow(eventId, codeRow, at);
+    },
+
+    async getDigitalCodeSession(publisherSessionToken, eventId) {
+      const event = await loadPublished(eventId);
+      try {
+        await auth.requirePublisherMember(publisherSessionToken, event.publisherId);
+      } catch (err) {
+        if (err instanceof AuthError) {
+          throw new CheckInError(err.code === 'forbidden' ? 'forbidden' : 'unauthorized');
+        }
+        throw err;
+      }
+      const codeRow = await ensureCodeRow(eventId);
+      return sessionFromRow(eventId, codeRow, now());
     },
   };
 }
