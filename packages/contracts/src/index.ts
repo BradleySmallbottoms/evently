@@ -55,4 +55,5 @@ export * from './preferences';
 export * from './profile';
 export * from './ratings';
 export * from './regions';
+export * from './stats';
 export * from './subscriptions';

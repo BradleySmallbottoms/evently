@@ -13,7 +13,8 @@ external sources. Launch area: Söderhamn and Gävleborgs län. Languages: Swedi
 ## Status
 
 Phase 4 (Check-in) is underway. Phase 3 nearby push and follows are in place. Physical geofence
-Phase 4 is complete; Phase 5 ratings (“How was it?”) are in place. Stats counters come next.
+Phase 5 (ratings + stats) is in place. Phase 6 beta/hardening and parallel admin/data-worker tracks
+remain.
 
 ## Prerequisites
 
@@ -156,6 +157,11 @@ calls) in the same change as every new major feature.**
 - Ratings: `GET/POST /events/{id}/rating(s)` after check-in from `ends_at` → +14 days. Public
   aggregate only; comments need named profile and appear on
   `GET /manage/events/{id}/ratings`. Flow: [docs/flows/ratings.md](docs/flows/ratings.md).
+- Stats: single EAV `stats` table. Worker expands lifetime + day/week/month/year keys and
+  `PUT`s `{key, add|remove|value}` (`STATS_WORKER_TOKEN`). Nightly `STATS_RECONCILE_MS`
+  (default 24h) resets lifetime keys from source tables. Read via
+  `GET /stats/{sourceType}/{sourceId}?key=numCheckins&key=…`. Averages =
+  `totalRatingValue / numRatings`. Flow: [docs/flows/stats.md](docs/flows/stats.md).
 
 ### E2E vs local data
 

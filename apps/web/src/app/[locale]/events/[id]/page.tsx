@@ -48,6 +48,26 @@ export default async function PublicEventDetailPage({
   if (!res.ok) notFound();
   const event = (await res.json()) as PublicEvent;
   const onlineUrl = safeHttpUrl(event.onlineUrl);
+  const statsParams = new URLSearchParams();
+  for (const key of ['numCheckins', 'numRatings', 'totalRatingValue']) {
+    statsParams.append('key', key);
+  }
+  const statsRes = await fetch(`${API_URL}/stats/event/${id}?${statsParams}`, {
+    cache: 'no-store',
+  });
+  const statsItems = statsRes.ok
+    ? (((await statsRes.json()) as { items: { key: string; value: number }[] }).items ?? [])
+    : [];
+  const statsMap = Object.fromEntries(statsItems.map((i) => [i.key, i.value]));
+  const numCheckins = statsMap.numCheckins ?? 0;
+  const numRatings = statsMap.numRatings ?? 0;
+  const totalRatingValue = statsMap.totalRatingValue ?? 0;
+  const ratingAverage =
+    numRatings > 0 ? Math.round((totalRatingValue / numRatings) * 10) / 10 : null;
+  const stats =
+    numCheckins > 0 || numRatings > 0
+      ? { numCheckins, numRatings, ratingAverage }
+      : null;
 
   return (
     <PageMain>
@@ -75,6 +95,15 @@ export default async function PublicEventDetailPage({
             <Typography variant="body2" color="text.secondary">
               {t('status')}: {t(`status.${event.status}`)}
             </Typography>
+            {stats ? (
+              <Typography variant="body2" color="text.secondary">
+                {t('statsLine', {
+                  checkIns: stats.numCheckins,
+                  average: stats.ratingAverage ?? '–',
+                  ratings: stats.numRatings,
+                })}
+              </Typography>
+            ) : null}
             <Typography>{event.description ?? t('noDescription')}</Typography>
             {event.mode === 'physical' ? (
               <Stack spacing={0.5}>

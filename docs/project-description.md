@@ -259,7 +259,7 @@ starter subset; the rest is added phase by phase.
 | `data_sources`                                 | id, slug, kind (api / feed / scraper), schedule, config, trust (auto_publish / review), enabled                                                                                                                                                   | One row per source; secrets referenced, not stored                                       |
 | `ingestion_runs`                               | id, source_id, started_at, finished_at, status, fetched, created, updated, skipped, error                                                                                                                                                         | Run history shown in admin                                                               |
 | `external_refs`                                | source_id, external_id, event_id, content_hash, last_seen_at                                                                                                                                                                                      | Unique on (source, external_id); unchanged hash = skip                                   |
-| `user_stats`, `event_stats`, `publisher_stats` | counters + averages, updated_at                                                                                                                                                                                                                   | Maintained by the worker, reconciled nightly                                             |
+| `stats`                                        | source_type (user/event/publisher), source_id, key, value, created_at, updated_at                                                                                                                                                                 | EAV counters; worker puts lifetime + day/week/month/year keys; averages via numRatings + totalRatingValue |
 | `audit_log`                                    | actor, action, entity, before, after, at                                                                                                                                                                                                          | Every admin write and every source run's changes                                         |
 
 ## Key flows
@@ -359,7 +359,8 @@ publisher and admins, never to the public. Anonymous users can still give a scor
 ### Stats
 
 The worker increments counters per domain event; a nightly job recomputes from source tables.
-Stats endpoints read only the stats tables.
+Stats endpoints read the EAV `stats` table (`GET /stats/{sourceType}/{sourceId}?key=`).
+`PUT` is worker-token only and applies body mutations without expanding keys.
 
 ### Data ingestion
 

@@ -19,6 +19,8 @@ import { createMemoryRatingServices } from './services/ratings/memory';
 import type { RatingServices } from './services/ratings/types';
 import { createMemoryRegionServices } from './services/regions/memory';
 import type { RegionServices } from './services/regions/types';
+import { createMemoryStatsServices } from './services/stats/memory';
+import type { StatsServices } from './services/stats/types';
 import { createMemorySubscriptionServices } from './services/subscriptions/memory';
 import type { SubscriptionServices } from './services/subscriptions/types';
 import { createMemoryStore } from './services/memory-store';
@@ -34,6 +36,7 @@ export type CreateAppOptions = {
   notifications?: NotificationServices;
   eventContent?: EventContentServices;
   ratings?: RatingServices;
+  stats?: StatsServices;
   /**
    * Origins allowed for credentialed CORS (web publisher login).
    * Pass a string list, or a function that returns the reflected Origin (never bare `*`).
@@ -67,6 +70,9 @@ export function createApp(options: CreateAppOptions = {}) {
   const eventContent =
     options.eventContent ?? createMemoryEventContentServices(auth, {}, store);
   const ratings = options.ratings ?? createMemoryRatingServices(auth, {}, store);
+  const stats =
+    options.stats ??
+    createMemoryStatsServices(auth, store, { workerToken: 'test-stats-worker-token' });
   const app = new OpenAPIHono();
 
   app.onError((err, c) => {
@@ -84,7 +90,7 @@ export function createApp(options: CreateAppOptions = {}) {
         'http://127.0.0.1:8081',
       ],
       credentials: true,
-      allowHeaders: ['Content-Type', 'Authorization'],
+      allowHeaders: ['Content-Type', 'Authorization', 'X-Stats-Worker-Token'],
       allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     }),
   );
@@ -106,6 +112,7 @@ export function createApp(options: CreateAppOptions = {}) {
     notifications,
     eventContent,
     ratings,
+    stats,
   });
   api.doc('/openapi.json', {
     openapi: '3.1.0',

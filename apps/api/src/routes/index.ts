@@ -7,6 +7,7 @@ import type { NotificationServices } from '../services/notifications/types';
 import type { PreferenceServices } from '../services/preferences/types';
 import type { RatingServices } from '../services/ratings/types';
 import type { RegionServices } from '../services/regions/types';
+import type { StatsServices } from '../services/stats/types';
 import type { SubscriptionServices } from '../services/subscriptions/types';
 import { registerCategoryRoutes } from './categories';
 import { registerCheckInRoutes } from './check-ins';
@@ -19,6 +20,7 @@ import { registerPublisherRoutes } from './publishers';
 import { registerRatingRoutes } from './ratings';
 import { registerRegionRoutes } from './regions';
 import { registerSessionRoutes } from './sessions';
+import { registerStatsRoutes } from './stats';
 import { registerSubscriptionRoutes } from './subscriptions';
 
 export type ApiRouteServices = {
@@ -31,6 +33,7 @@ export type ApiRouteServices = {
   notifications: NotificationServices;
   eventContent: EventContentServices;
   ratings: RatingServices;
+  stats: StatsServices;
 };
 
 /**
@@ -50,4 +53,5 @@ export function registerRoutes(app: OpenAPIHono, services: ApiRouteServices): vo
   registerCheckInRoutes(app, services.checkIns);
   registerEventContentRoutes(app, services.eventContent);
   registerRatingRoutes(app, services.ratings);
+  registerStatsRoutes(app, services.stats);
 }

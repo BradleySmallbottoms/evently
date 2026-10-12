@@ -30,3 +30,4 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Profile prompt at first check-in | [profile-at-check-in.md](./profile-at-check-in.md) |
 | Attendee content (signed URLs) | [attendee-content.md](./attendee-content.md) |
 | Ratings (“How was it?”) | [ratings.md](./ratings.md) |
+| Stats counters | [stats.md](./stats.md) |

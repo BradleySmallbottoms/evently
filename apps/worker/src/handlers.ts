@@ -1,15 +1,28 @@
 import { DomainEvent as DomainEventSchema, type DomainEvent } from '@local-events/contracts';
+import type { Db } from '@local-events/db';
+import { schema } from '@local-events/db';
+import { eq } from 'drizzle-orm';
 import type { HandlePublishedDeps } from './notify/handle-published';
 import { handleEventPublished } from './notify/handle-published';
+import {
+  applyCheckInStats,
+  applyPublishedStats,
+  applyRatingStats,
+  type StatsWriter,
+} from './stats/apply';
 
 /**
  * Domain events arrive from SQS. Each type has one handler; handlers must be idempotent
- * because SQS delivers at least once.
+ * because SQS delivers at least once. Stats use incremental adds — nightly reconcile
+ * resets lifetime keys from source tables.
  */
 export type { DomainEvent };
 
 export type HandlerContext = {
   notify?: HandlePublishedDeps;
+  db?: Db;
+  stats?: StatsWriter;
+  now?: () => Date;
 };
 
 export type Handler<E extends DomainEvent = DomainEvent> = (
@@ -17,25 +30,61 @@ export type Handler<E extends DomainEvent = DomainEvent> = (
   ctx: HandlerContext,
 ) => Promise<void>;
 
+async function publisherIdFor(db: Db, eventId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ publisherId: schema.events.publisherId })
+    .from(schema.events)
+    .where(eq(schema.events.id, eventId))
+    .limit(1);
+  return row?.publisherId ?? null;
+}
+
 export const handlers: {
   [K in DomainEvent['type']]: Handler<Extract<DomainEvent, { type: K }>>;
 } = {
   'event.published': async (e, ctx) => {
     if (!ctx.notify) {
-      // Fail closed so SQS does not ack-and-forget when the worker has no DB.
       throw new Error('notify_unavailable');
     }
     const result = await handleEventPublished(e.eventId, ctx.notify);
     console.log(JSON.stringify({ handled: e.type, eventId: e.eventId, ...result }));
+
+    if (!ctx.stats) return;
+    const db = ctx.db ?? ctx.notify.db;
+    const publisherId = await publisherIdFor(db, e.eventId);
+    if (publisherId) {
+      await applyPublishedStats(ctx.stats, publisherId, ctx.now?.() ?? new Date());
+    }
   },
   'event.updated': async (_e) => {
     // TODO: notify event subscribers on meaningful changes (debounced 10 min).
   },
-  'checkin.created': async (_e) => {
-    // TODO Phase 5: increment user/event/publisher stats.
+  'checkin.created': async (e, ctx) => {
+    if (!ctx.stats || !ctx.db) throw new Error('stats_unavailable');
+    const publisherId = await publisherIdFor(ctx.db, e.eventId);
+    if (!publisherId) return;
+    await applyCheckInStats(
+      ctx.stats,
+      { eventId: e.eventId, userId: e.userId, publisherId },
+      ctx.now?.() ?? new Date(),
+    );
+    console.log(JSON.stringify({ handled: e.type, eventId: e.eventId, userId: e.userId }));
   },
-  'rating.created': async (_e) => {
-    // TODO Phase 5: update rating aggregates.
+  'rating.created': async (e, ctx) => {
+    if (!ctx.stats || !ctx.db) throw new Error('stats_unavailable');
+    const publisherId = await publisherIdFor(ctx.db, e.eventId);
+    if (!publisherId) return;
+    await applyRatingStats(
+      ctx.stats,
+      {
+        eventId: e.eventId,
+        userId: e.userId,
+        publisherId,
+        score: e.score,
+      },
+      ctx.now?.() ?? new Date(),
+    );
+    console.log(JSON.stringify({ handled: e.type, eventId: e.eventId, userId: e.userId }));
   },
 };
 

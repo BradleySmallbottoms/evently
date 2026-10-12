@@ -11,6 +11,8 @@ import { createDbEventServices } from './services/events/db';
 import { createMemoryEventServices } from './services/events/memory';
 import { createDbRatingServices } from './services/ratings/db';
 import { createMemoryRatingServices } from './services/ratings/memory';
+import { createDbStatsServices } from './services/stats/db';
+import { createMemoryStatsServices } from './services/stats/memory';
 import { createMemoryDomainEventPublisher } from './services/domain-events/memory';
 import { createSqsDomainEventPublisher } from './services/domain-events/sqs';
 import { createDbNotificationServices } from './services/notifications/db';
@@ -71,6 +73,7 @@ const {
   notifications,
   eventContent,
   ratings,
+  stats,
 } = (() => {
   if (databaseUrl) {
     const db = createDb(databaseUrl);
@@ -85,10 +88,14 @@ const {
       notifications: createDbNotificationServices(db, authServices),
       eventContent: createDbEventContentServices(db, authServices, contentEnv),
       ratings: createDbRatingServices(db, authServices, checkInEnv),
+      stats: createDbStatsServices(db, authServices, {
+        workerToken: process.env.STATS_WORKER_TOKEN?.trim(),
+      }),
     };
   }
   const store = createMemoryStore();
   const authServices = createMemoryAuthServices(authEnv, store);
+  const statsWorkerToken = process.env.STATS_WORKER_TOKEN?.trim() || 'test-stats-worker-token';
   return {
     auth: authServices,
     events: createMemoryEventServices(authServices, eventEnvWithQueue, store),
@@ -99,6 +106,7 @@ const {
     notifications: createMemoryNotificationServices(authServices, store),
     eventContent: createMemoryEventContentServices(authServices, contentEnv, store),
     ratings: createMemoryRatingServices(authServices, checkInEnv, store),
+    stats: createMemoryStatsServices(authServices, store, { workerToken: statsWorkerToken }),
   };
 })();
 
@@ -122,6 +130,7 @@ serve(
       notifications,
       eventContent,
       ratings,
+      stats,
       corsOrigin,
     }).fetch,
     port,

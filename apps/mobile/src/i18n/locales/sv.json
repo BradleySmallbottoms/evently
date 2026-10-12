@@ -86,6 +86,8 @@
     "rateDone": "Tack for betyget",
     "rateError": "Kunde inte skicka betyget.",
     "rateAggregate": "{average} · {count} betyg",
+    "statsCheckIns": "{count} incheckningar",
+    "statsRatings": "{average} snitt · {count} betyg",
     "moreActions": "Fler åtgärder",
     "share": "Dela",
     "copyLink": "Kopiera länk",

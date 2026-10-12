@@ -29,6 +29,7 @@ import { getPublicEvent } from '@/lib/events';
 import { ensureIdentity } from '@/lib/identity';
 import { fetchProfile, updateProfile } from '@/lib/profile';
 import { fetchRatingStatus, submitRating } from '@/lib/ratings';
+import { fetchEventStats } from '@/lib/stats';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space, typography } from '@/theme/tokens';
 
@@ -78,6 +79,11 @@ export default function EventDetailScreen() {
   const ratingStatus = useQuery({
     queryKey: ['rating-status', id, identity.data?.userId],
     queryFn: () => fetchRatingStatus(identity.data ?? null, id!),
+    enabled: typeof id === 'string' && id.length > 0,
+  });
+  const eventStats = useQuery({
+    queryKey: ['event-stats', id],
+    queryFn: () => fetchEventStats(id!),
     enabled: typeof id === 'string' && id.length > 0,
   });
   const rate = useMutation({
@@ -300,7 +306,24 @@ export default function EventDetailScreen() {
                 ))}
               </View>
 
-              {ratingStatus.data?.aggregate.count ? (
+              {eventStats.data &&
+              (eventStats.data.numCheckins > 0 || eventStats.data.numRatings > 0) ? (
+                <View style={{ gap: space.xs }}>
+                  {eventStats.data.numCheckins > 0 ? (
+                    <AppText variant="caption">
+                      {t('events.statsCheckIns', { count: eventStats.data.numCheckins })}
+                    </AppText>
+                  ) : null}
+                  {eventStats.data.numRatings > 0 ? (
+                    <AppText variant="caption">
+                      {t('events.statsRatings', {
+                        average: eventStats.data.ratingAverage ?? '–',
+                        count: eventStats.data.numRatings,
+                      })}
+                    </AppText>
+                  ) : null}
+                </View>
+              ) : ratingStatus.data?.aggregate.count ? (
                 <AppText variant="caption">
                   {t('events.rateAggregate', {
                     average: ratingStatus.data.aggregate.average ?? '–',

@@ -122,6 +122,7 @@ export function createMemoryRatingServices(
         type: 'rating.created',
         eventId,
         userId,
+        score: row.score,
       });
       return {
         id: row.id,

@@ -74,7 +74,7 @@ Closed beta around week 15, store launch around week 19.
 ## Phase 5 — Ratings + stats (weeks 13–15)
 
 - [x] Rating window and "How was it?" prompt; comments for named profiles only, visible to publisher/admin
-- [ ] Stats counters, nightly reconciliation, stats on user, event and publisher pages
+- [x] Stats counters, nightly reconciliation, stats on user, event and publisher pages
 - **Exit:** stats match a recompute from source tables.
 
 ## Phase 6 — Beta + hardening (weeks 15–19)

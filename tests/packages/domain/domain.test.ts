@@ -81,6 +81,33 @@ describe('event content', () => {
   });
 });
 
+describe('stats', () => {
+  it('averages scores to one decimal', async () => {
+    const { averageFromScores, roundRatingAverage, ratingAverage } = await import(
+      '../../../packages/domain/src/stats'
+    );
+    expect(averageFromScores([])).toBe(null);
+    expect(averageFromScores([5, 4])).toBe(4.5);
+    expect(roundRatingAverage(4.66)).toBe(4.7);
+    expect(ratingAverage(2, 9)).toBe(4.5);
+  });
+
+  it('builds calendar bucket keys', async () => {
+    const { bucketKeys, applyStatMutation } = await import(
+      '../../../packages/domain/src/stats'
+    );
+    const keys = bucketKeys('numCheckins', new Date('2026-01-07T12:00:00.000Z'), 'UTC');
+    expect(keys).toEqual([
+      'numCheckins',
+      'numCheckins-2026-01-07',
+      'numCheckins-w02',
+      'numCheckins-2026-m01',
+      'numCheckins-2026',
+    ]);
+    expect(applyStatMutation(1, { key: 'x', remove: 3 })).toBe(-2);
+  });
+});
+
 describe('publishing', () => {
   it('hides events from unverified publishers', () => {
     expect(statusOnPublish({ origin: 'native', publisherVerified: false })).toBe(

@@ -12,7 +12,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { AppLink } from '@/components/app-link';
-import { api, throwIfError } from '@/lib/api';
+import { API_URL, api, throwIfError } from '@/lib/api';
 import { DigitalCodePanel } from './digital-code-panel';
 import { EventContentPanel } from './event-content-panel';
 import {
@@ -20,6 +20,7 @@ import {
   readManagedEventForm,
   type EventMode,
 } from './managed-event-fields';
+
 
 const styles: Record<string, SxProps<Theme>> = {
   actions: {
@@ -57,6 +58,61 @@ export function EditEventForm() {
           params: { path: { id: eventId } },
         }),
       ),
+    retry: false,
+  });
+
+  const publisherStats = useQuery({
+    queryKey: ['publisher-stats', publisherId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      for (const key of [
+        'numPublishedEvents',
+        'numCheckins',
+        'numRatings',
+        'totalRatingValue',
+      ]) {
+        params.append('key', key);
+      }
+      const res = await fetch(`${API_URL}/stats/publisher/${publisherId}?${params}`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`stats_${res.status}`);
+      const body = (await res.json()) as { items: { key: string; value: number }[] };
+      const map = Object.fromEntries((body.items ?? []).map((i) => [i.key, i.value]));
+      const numRatings = map.numRatings ?? 0;
+      const total = map.totalRatingValue ?? 0;
+      return {
+        numPublishedEvents: map.numPublishedEvents ?? 0,
+        numCheckins: map.numCheckins ?? 0,
+        numRatings,
+        ratingAverage: numRatings > 0 ? Math.round((total / numRatings) * 10) / 10 : null,
+      };
+    },
+    retry: false,
+  });
+
+  const eventStats = useQuery({
+    queryKey: ['event-stats', eventId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      for (const key of ['numCheckins', 'numRatings', 'totalRatingValue']) {
+        params.append('key', key);
+      }
+      const res = await fetch(`${API_URL}/stats/event/${eventId}?${params}`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`stats_${res.status}`);
+      const body = (await res.json()) as { items: { key: string; value: number }[] };
+      const map = Object.fromEntries((body.items ?? []).map((i) => [i.key, i.value]));
+      const numRatings = map.numRatings ?? 0;
+      const total = map.totalRatingValue ?? 0;
+      return {
+        numCheckins: map.numCheckins ?? 0,
+        numRatings,
+        ratingAverage: numRatings > 0 ? Math.round((total / numRatings) * 10) / 10 : null,
+      };
+    },
+    enabled: eventQuery.data?.status === 'published',
     retry: false,
   });
 
@@ -165,6 +221,25 @@ export function EditEventForm() {
         <Typography variant="body2" color="text.secondary">
           {t('currentStatus')}: {t(`status.${event.status}`)}
         </Typography>
+        {publisherStats.data ? (
+          <Typography variant="body2" color="text.secondary">
+            {t('publisherStatsLine', {
+              published: publisherStats.data.numPublishedEvents,
+              checkIns: publisherStats.data.numCheckins,
+              average: publisherStats.data.ratingAverage ?? '–',
+              ratings: publisherStats.data.numRatings,
+            })}
+          </Typography>
+        ) : null}
+        {eventStats.data ? (
+          <Typography variant="body2" color="text.secondary">
+            {t('eventStatsLine', {
+              checkIns: eventStats.data.numCheckins,
+              average: eventStats.data.ratingAverage ?? '–',
+              ratings: eventStats.data.numRatings,
+            })}
+          </Typography>
+        ) : null}
       </Stack>
       <Stack component="form" onSubmit={save} spacing={2}>
         <ManagedEventFields

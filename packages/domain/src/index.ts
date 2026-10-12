@@ -10,4 +10,5 @@ export * from './digital-codes';
 export * from './preferences';
 export * from './profile';
 export * from './regions';
+export * from './stats';
 export type { EventMode, EventStatus } from './types';

@@ -425,6 +425,28 @@ export const ratings = pgTable(
   ],
 );
 
+export const statsSourceType = pgEnum('stats_source_type', ['user', 'event', 'publisher']);
+
+/**
+ * Polymorphic counters. Historical buckets use key suffixes
+ * (`numCheckins-2026-01-01`, `numCheckins-w01`, `numCheckins-2026-m01`, `numCheckins-2026`).
+ */
+export const stats = pgTable(
+  'stats',
+  {
+    sourceType: statsSourceType('source_type').notNull(),
+    sourceId: uuid('source_id').notNull(),
+    key: text('key').notNull(),
+    value: doublePrecision('value').notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.sourceType, t.sourceId, t.key] }),
+    index('stats_source_idx').on(t.sourceType, t.sourceId),
+  ],
+);
+
 /** Maps, schedules, info and files — attendee visibility gated by check-in. */
 export const eventContent = pgTable(
   'event_content',

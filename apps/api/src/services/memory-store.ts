@@ -186,6 +186,8 @@ export type MemoryStore = {
   checkIns: MemoryCheckIn[];
   eventContent: MemoryEventContent[];
   ratings: MemoryRating[];
+  /** EAV stats: `${sourceType}:${sourceId}:${key}` → value. */
+  stats: Map<string, { value: number; createdAt: Date; updatedAt: Date }>;
 };
 
 /** Fixed UUIDs matching packages/db seed migration for regions. */
@@ -230,5 +232,6 @@ export function createMemoryStore(): MemoryStore {
     checkIns: [],
     eventContent: [],
     ratings: [],
+    stats: new Map(),
   };
 }

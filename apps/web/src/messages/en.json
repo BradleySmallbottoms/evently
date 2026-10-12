@@ -123,6 +123,8 @@
     "contentDelete": "Delete",
     "contentEmpty": "No content yet.",
     "contentError": "Could not manage event content.",
+    "publisherStatsLine": "Publisher: {published} published · {checkIns} check-ins · {average} avg ({ratings} ratings)",
+    "eventStatsLine": "This event: {checkIns} check-ins · {average} avg ({ratings} ratings)",
     "status": {
       "draft": "Draft",
       "awaiting_verification": "Awaiting verification",
@@ -144,6 +146,7 @@
     "status": "Status",
     "noDescription": "No description yet.",
     "coordinates": "Coordinates",
+    "statsLine": "{checkIns} check-ins · {average} avg ({ratings} ratings)",
     "status": {
       "draft": "Draft",
       "awaiting_verification": "Awaiting verification",

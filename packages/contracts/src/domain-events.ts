@@ -11,6 +11,11 @@ export const DomainEvent = z.discriminatedUnion('type', [
     changedFields: z.array(z.string()),
   }),
   z.object({ type: z.literal('checkin.created'), eventId: Id, userId: Id }),
-  z.object({ type: z.literal('rating.created'), eventId: Id, userId: Id }),
+  z.object({
+    type: z.literal('rating.created'),
+    eventId: Id,
+    userId: Id,
+    score: z.number().int().min(1).max(5),
+  }),
 ]);
 export type DomainEvent = z.infer<typeof DomainEvent>;

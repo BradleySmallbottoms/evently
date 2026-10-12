@@ -123,6 +123,8 @@
     "contentDelete": "Ta bort",
     "contentEmpty": "Inget innehåll ännu.",
     "contentError": "Kunde inte hantera evenemangsinnehåll.",
+    "publisherStatsLine": "Arrangör: {published} publicerade · {checkIns} incheckningar · {average} snitt ({ratings} betyg)",
+    "eventStatsLine": "Detta evenemang: {checkIns} incheckningar · {average} snitt ({ratings} betyg)",
     "status": {
       "draft": "Utkast",
       "awaiting_verification": "Vantar pa verifiering",
@@ -144,6 +146,7 @@
     "status": "Status",
     "noDescription": "Ingen beskrivning annu.",
     "coordinates": "Koordinater",
+    "statsLine": "{checkIns} incheckningar · {average} snitt ({ratings} betyg)",
     "status": {
       "draft": "Utkast",
       "awaiting_verification": "Vantar pa verifiering",

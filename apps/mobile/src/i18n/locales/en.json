@@ -86,6 +86,8 @@
     "rateDone": "Thanks for rating",
     "rateError": "Could not submit rating.",
     "rateAggregate": "{average} · {count} ratings",
+    "statsCheckIns": "{count} check-ins",
+    "statsRatings": "{average} avg · {count} ratings",
     "moreActions": "More actions",
     "share": "Share",
     "copyLink": "Copy link",

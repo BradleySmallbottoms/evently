@@ -7,6 +7,8 @@ import { createDb, resolveDatabaseUrl } from '@local-events/db';
 import { processMessage, type HandlerContext } from './handlers';
 import { createExpoPushClient } from './notify/expo-push';
 import { initSentry, Sentry } from './sentry';
+import { createDbStatsWriter, createHttpStatsWriter } from './stats/apply';
+import { reconcileAllStats } from './stats/recompute';
 
 initSentry('worker');
 
@@ -14,7 +16,11 @@ const queueUrl = process.env.DOMAIN_EVENTS_QUEUE_URL?.trim();
 const region = process.env.AWS_REGION ?? 'eu-north-1';
 const waitTimeSeconds = Number(process.env.SQS_WAIT_TIME_SECONDS ?? 20);
 const maxMessages = Number(process.env.SQS_MAX_MESSAGES ?? 10);
+/** Default 24h; set 0 to disable nightly stats reconciliation. */
+const statsReconcileMs = Number(process.env.STATS_RECONCILE_MS ?? 86_400_000);
 const databaseUrl = resolveDatabaseUrl();
+const statsApiUrl = process.env.STATS_API_URL?.trim() || process.env.API_URL?.trim();
+const statsWorkerToken = process.env.STATS_WORKER_TOKEN?.trim();
 const sqsEndpoint =
   process.env.AWS_ENDPOINT_URL_SQS?.trim() || process.env.AWS_ENDPOINT_URL?.trim() || undefined;
 
@@ -35,9 +41,16 @@ function createSqsClient(): SQSClient {
 
 function buildHandlerContext(): HandlerContext {
   if (!databaseUrl) return {};
+  const db = createDb(databaseUrl);
+  const stats =
+    statsApiUrl && statsWorkerToken
+      ? createHttpStatsWriter(statsApiUrl, statsWorkerToken)
+      : createDbStatsWriter(db);
   return {
+    db,
+    stats,
     notify: {
-      db: createDb(databaseUrl),
+      db,
       expo: createExpoPushClient(),
     },
   };
@@ -91,9 +104,27 @@ async function main() {
       region,
       endpoint: sqsEndpoint ?? 'aws',
       notify: Boolean(ctx.notify),
+      stats: Boolean(ctx.stats),
+      statsViaHttp: Boolean(statsApiUrl && statsWorkerToken),
+      statsReconcileMs,
       queueConfigured: true,
     }),
   );
+
+  if (ctx.db && ctx.stats && statsReconcileMs > 0) {
+    const runReconcile = async () => {
+      try {
+        const result = await reconcileAllStats(ctx.db!, ctx.stats);
+        console.log(JSON.stringify({ statsReconcile: result }));
+      } catch (err) {
+        Sentry.captureException(err);
+        console.error('stats reconcile failed', err);
+      }
+    };
+    void runReconcile();
+    setInterval(() => void runReconcile(), statsReconcileMs);
+  }
+
   for (;;) {
     try {
       await pollOnce(client, ctx);

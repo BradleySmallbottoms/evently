@@ -186,6 +186,7 @@ export function createDbRatingServices(
         type: 'rating.created',
         eventId,
         userId,
+        score: inserted.score,
       });
 
       return {
