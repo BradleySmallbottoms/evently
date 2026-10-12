@@ -67,7 +67,7 @@ export function registerMeRoutes(
     },
     responses: {
       200: {
-        description: 'Replaced interest categories',
+        description: 'Replaced interest tags',
         content: { 'application/json': { schema: ReplaceUserInterestsResponse } },
       },
       400: {

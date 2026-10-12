@@ -16,7 +16,7 @@ export type PreferenceErrorCode =
   | 'not_found'
   | 'invalid_area'
   | 'area_limit'
-  | 'unknown_category'
+  | 'unknown_tag'
   | 'unknown_region'
   | 'invalid_display_name'
   | 'name_required';

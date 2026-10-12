@@ -3,6 +3,7 @@ import {
   DEFAULT_QUIET_HOURS,
   type QuietHoursPrefs,
 } from '@local-events/domain';
+import { isRunningInExpoGo } from 'expo';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
@@ -32,29 +33,46 @@ async function writeLastToken(token: string): Promise<void> {
   await SecureStore.setItemAsync(LAST_TOKEN_KEY, token);
 }
 
-/** Remote pushes are silent; never show the Expo payload as an OS alert. */
+/** Remote pushes stay silent. Scheduled reminders are shown. */
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: false,
-    shouldShowList: false,
-    shouldPlaySound: false,
-    shouldSetBadge: true,
-  }),
+  handleNotification: async (notification) => {
+    const show = notification.request.content.data?.kind === 'reminder';
+    return {
+      shouldShowBanner: show,
+      shouldShowList: show,
+      shouldPlaySound: show,
+      shouldSetBadge: true,
+    };
+  },
 });
 
 export async function ensureAndroidNotificationChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL, {
-    name: 'Events',
-    importance: Notifications.AndroidImportance.DEFAULT,
-  });
+  try {
+    await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL, {
+      name: 'Events',
+      importance: Notifications.AndroidImportance.DEFAULT,
+    });
+  } catch (err) {
+    // Expo Go does not ship the Android notification channel module. Permission
+    // can still be requested; local alerts use the default channel.
+    console.warn(
+      'notification channel setup failed',
+      err instanceof Error ? err.message : 'unknown error',
+    );
+  }
 }
 
 /**
- * Request notification permission and register the Expo push token with the API.
- * No-ops on web or when permission is denied. Skips the PUT when the token is unchanged.
+ * Register the Expo push token with the API when notification permission is granted.
+ * Pass `{ request: true }` only from onboarding Activate and reminders; every other
+ * caller leaves the default and returns without prompting.
+ * No-ops on web, when permission is denied, or when the stored token is unchanged.
  */
-export async function registerPushToken(identity: StoredIdentity): Promise<void> {
+export async function registerPushToken(
+  identity: StoredIdentity,
+  options: { request?: boolean } = {},
+): Promise<void> {
   if (Platform.OS === 'web') return;
 
   await ensureAndroidNotificationChannel();
@@ -62,22 +80,32 @@ export async function registerPushToken(identity: StoredIdentity): Promise<void>
   const { status: existing } = await Notifications.getPermissionsAsync();
   let status = existing;
   if (existing !== 'granted') {
+    if (!options.request) return;
     const asked = await Notifications.requestPermissionsAsync();
     status = asked.status;
   }
   if (status !== 'granted') return;
 
+  // Remote push tokens are unavailable in Android Expo Go (the call throws) and
+  // without an EAS project id. The OS permission above is still the Activate result.
+  if (isRunningInExpoGo() && Platform.OS === 'android') return;
+
   const projectId =
     Constants.easConfig?.projectId ??
     (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas
       ?.projectId;
-  const token = projectId
-    ? (
-        await Notifications.getExpoPushTokenAsync({
-          projectId,
-        })
-      ).data
-    : (await Notifications.getExpoPushTokenAsync()).data;
+  if (!projectId) return;
+
+  let token: string;
+  try {
+    token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  } catch (err) {
+    console.warn(
+      'push token registration failed',
+      err instanceof Error ? err.message : 'unknown error',
+    );
+    return;
+  }
 
   if ((await readLastToken()) === token) return;
 
@@ -112,7 +140,7 @@ export type SilentPushHandlers = {
  * local OS notification when under daily cap and outside quiet hours.
  */
 export function subscribeSilentPushHandlers(handlers: SilentPushHandlers): () => void {
-  if (Platform.OS === 'web') return () => {};
+  if (Platform.OS === 'web') return () => { };
 
   const sub = Notifications.addNotificationReceivedListener((notification) => {
     void (async () => {

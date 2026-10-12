@@ -8,6 +8,10 @@ Read before larger changes:
 - `docs/project-description.md` — scope, architecture, data model, key flows, security rules
 - `docs/build-plan.md` — phases and checklists (what to build next)
 - `docs/decisions.md` — settled decisions; don't re-litigate them silently
+- `DESIGN.md` — visual and interaction source of truth for `apps/mobile` and `apps/web`.
+  Read it before any UI work in those apps.
+- `docs/reference-app.png` — look-and-feel reference when building UI in `apps/mobile` and
+  `apps/web`. Open the image and match it; do not rely on a written summary alone.
 
 ## Commands (run from the repo root)
 
@@ -171,21 +175,28 @@ Docs
 
 ### Frontend UI (required)
 
+**Design references (`apps/mobile`, `apps/web`)** — required on every UI change in those apps.
+Read `DESIGN.md` and follow it. It is the source of truth for visual and interaction decisions
+(color tokens, type, spacing, shape, screens, copy tone). Reuse its tokens and components.
+Open `docs/reference-app.png` and match its look and feel: layout, photography, hierarchy,
+warmth, density, and corner treatment. When the written spec and the image disagree on feel,
+prefer the image for atmosphere and `DESIGN.md` for tokens and rules. `apps/admin` does not
+follow this consumer visual language.
+
 1. **Admin and web (`apps/admin`, `apps/web`)** — always use the **MUI** skill before building
    or changing UI. Read `.agents/skills/mui/SKILL.md` (and
    `.agents/skills/mui/resources/` as needed). Use stock `@mui/material` with typed `sx` /
    theme tokens; Next App Router via `@mui/material-nextjs/v16-appRouter`. Do not use
-   Gluestack, UniWind, React Native Paper, or `react-native-web` in these apps.
+   Gluestack, UniWind, React Native Paper, or `react-native-web` in these apps. On `apps/web`,
+   implement with MUI but take color, type, spacing, and hierarchy from `DESIGN.md` and
+   `docs/reference-app.png`.
 
 2. **Mobile (`apps/mobile`)** — always use the **expo-ui** skill (and **expo-native-ui** for
    layout/HIG). Read `.agents/skills/expo-ui/SKILL.md` before building or changing UI.
    Prefer `@expo/ui` for sheets, pickers, menus, toggles; SwiftUI (`@expo/ui/swift-ui`) for
    ConfirmationDialog, ContextMenu, DatePicker, Alert/popups (in `src/components/**/*.ios.tsx`,
    never under `app/`). Custom RN components for everything else. Do not use React Native
-   Paper or MUI. Strive for the look and feel of
-   [Events Booking Mobile App](https://dribbble.com/shots/25922019-Events-Booking-Mobile-App)
-   (soft canvas, coral accent, large continuous corner radii, hero event cards, clear
-   location/search/category header, sticky primary CTA on detail).
+   Paper or MUI. Look and feel come from `DESIGN.md` and `docs/reference-app.png`.
 
 ### Frontend component placement (required)
 

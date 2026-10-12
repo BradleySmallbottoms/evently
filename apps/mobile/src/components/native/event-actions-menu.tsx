@@ -1,6 +1,6 @@
 import { BottomSheet, Column, Host, Text } from '@expo/ui';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { colors } from '@/theme/colors';
@@ -14,6 +14,7 @@ type Props = {
   onShare: () => void;
   onCopyLink: () => void;
   onReport: () => void;
+  buttonStyle?: StyleProp<ViewStyle>;
 };
 
 /** Universal BottomSheet fallback for event overflow actions (Android / web). */
@@ -25,6 +26,7 @@ export function EventActionsMenu({
   onShare,
   onCopyLink,
   onReport,
+  buttonStyle,
 }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -36,10 +38,13 @@ export function EventActionsMenu({
   return (
     <>
       <CircleIconButton
+        plain
+        tintColor={colors.ink as string}
         sf="ellipsis"
         md="more-horiz"
         accessibilityLabel={accessibilityLabel}
         onPress={() => setOpen(true)}
+        style={buttonStyle}
       />
       <Host style={{ position: 'absolute', width: 0, height: 0 }}>
         <BottomSheet isPresented={open} onDismiss={() => setOpen(false)}>

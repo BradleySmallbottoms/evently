@@ -43,7 +43,7 @@ Closed beta around week 15, store launch around week 19.
 ## Phase 2 — Publishers + events (weeks 2–6)
 
 - [x] Publisher profiles; owner/editor members with email invites
-- [x] Event CRUD (physical + digital), categories (sv/en names); image upload to S3 deferred
+- [x] Event CRUD (physical + digital), tags from the Visit Söderhamn vocabulary; image upload to S3 deferred
 - [x] Unverified publishers: events stored as `awaiting_verification`, released on verification
 - [x] Public event pages on web; list and map views in the app
 - [x] Web sign-in by pairing code (app generates code → web exchanges for httpOnly cookie)
@@ -56,7 +56,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Interests, saved areas (radius and polygon)
 - [x] Region suggestions + region subscriptions (municipality boundaries seeded into `regions`)
 - [x] Push token registration; SQS + worker wired up
-- [x] Geo matching; silent Expo after inbox insert; client-side quiet hours + 5/day OS-notification cap; 90-day inbox retention
+- [x] Geo matching; silent Expo after inbox insert; client-side quiet hours + 5/day OS-notification cap; 90-day inbox retention. Events without a point stay in the list and off the map, and they do not match nearby push
 - [x] Publisher and event subscriptions (follow API + publisher merge on publish; event.updated debounce later)
 - [x] Notification inbox: persist every matched notification; `GET /me/notifications`; mobile notifications window lists inbox rows
 - [x] Quiet hours deferral: during the window store only (no immediate Expo); after the window ends, one aggregate Expo push; preferences UI to enable/disable (defaults 22:00–08:00)
@@ -65,6 +65,8 @@ Closed beta around week 15, store launch around week 19.
 ## Phase 4 — Check-in + attendee content (weeks 10–13)
 
 - [x] Geofence check-in (`validateGeoCheckIn`) — venue QR fallback still open
+- [x] Check-in is optional per event (admin toggle). When on, the publisher adds text and links
+      that unlock after check-in
 - [x] Venue QR fallback (uses digital codes)
 - [x] Rotating digital codes with QR
 - [x] Profile prompt at first check-in (named or anonymous) + optional recovery email
@@ -77,6 +79,16 @@ Closed beta around week 15, store launch around week 19.
 - [x] Stats counters, nightly reconciliation, stats on user, event and publisher pages
 - **Exit:** stats match a recompute from source tables.
 
+## Discovery extras — saves, lists, price, links
+
+- [x] Optional price on events (minor units, currency) and on ingestion
+- [x] Typed event links (`tickets`, `registration`, `info`), one or many per event
+- [x] Saved events in the database: `GET/PUT/DELETE /me/saved-events`
+- [x] Custom lists: `GET/POST/PATCH/DELETE /me/lists` and list membership
+- [x] Public event list filters: text, tag, price, sort
+- [x] Public events include the organizer name
+- **Exit:** the app can save an event, keep a list, show a price, and open a ticket or registration link.
+
 ## Phase 6 — Beta + hardening (weeks 15–19)
 
 - [ ] TestFlight and Play internal testing
@@ -88,26 +100,32 @@ Closed beta around week 15, store launch around week 19.
 ## Parallel track — Admin console (from week 4)
 
 - [x] Admin login (password + TOTP) + publisher verification queue
-- [ ] Entity CRUD (events, users, remaining publisher fields)
-- [ ] Moderation queue for ratings and suspicious check-ins; user bans
-- [ ] Data-source management with run history and a manual run button
-- [ ] Review queue for imported events; publisher mapping queue (re-map a temporary publisher to an
+- [x] Entity CRUD (events, users, remaining publisher fields)
+- [x] Moderation queue for ratings and suspicious check-ins; user bans
+- [x] Data-source management with run history and a manual run button
+- [x] Review queue for imported events; publisher mapping queue (re-map a temporary publisher to an
       existing one, moving its events, or fill in its details)
-- [ ] Audit log viewer
+- [x] Audit log viewer
 
 ## Parallel track — Data workers (from week 6)
 
 - [x] `ingest` package: `IncomingEvent`, adapter interface, content hash, dedupe pre-check
 - [x] Runner with an example fixture adapter
-- [ ] Persist: publisher resolution via `publisher_aliases`, dedupe, upsert, `external_refs`,
-      `ingestion_runs`, domain events to SQS, raw payloads to S3
-- [ ] Fargate task definition + EventBridge Scheduler schedules in CDK
-- [ ] First 2–3 real sources (official API or ICS feed before any HTML scraping) — list pending
+- [x] Persist: publisher resolution via `publisher_aliases`, dedupe, upsert, `external_refs`,
+      `ingestion_runs`. Published imports enqueue domain events; review imports stay `in_review`
+- [x] Raw ingestion payloads to S3 (`raw/<slug>/<runId>`; no-op when `RAW_INGESTION_BUCKET` unset)
+- [x] Fargate task definition + EventBridge Scheduler schedules in CDK
+- [x] First real source: Visit Söderhamn adapter (Citybreak, Evenemang only, one event per occasion)
+- [x] Event images: copy into public assets (Garage locally, S3 + CloudFront in AWS) and link via
+      `event_images`
+- [x] Remaining launch-area sources (generic `ics-feed` adapter + seed; configure `feedUrl` per
+      calendar — Visit Gävle has no public ICS yet)
 - **Exit:** sources run on schedule unattended, and an imported event notifies users exactly like a
   native one.
 
 ## Future — paid plans (not scheduled)
 
-Stripe Billing on the web workspace, plan picker and upgrade flow, featured placements on the start
-page, enforcement of plan limits, admin tools for plans and refunds. Entitlement checks already
-exist (`packages/domain/src/entitlements.ts`), so this is mostly billing and UI.
+Stripe Billing on the web workspace, plan picker and upgrade flow, paid featured placements on the
+start page, enforcement of plan limits, admin tools for plans and refunds. Admins can already mark
+an event featured so it sorts first on the home page. Entitlement checks already exist
+(`packages/domain/src/entitlements.ts`), so the rest is mostly billing and UI.

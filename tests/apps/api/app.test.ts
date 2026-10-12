@@ -43,7 +43,7 @@ describe('public api', () => {
     expect(doc.paths['/me/interests']).toBeDefined();
     expect(doc.paths['/me/areas']).toBeDefined();
     expect(doc.paths['/regions/lookup']).toBeDefined();
-    expect(doc.paths['/categories']).toBeDefined();
+    expect(doc.paths['/tags']).toBeDefined();
     expect(doc.paths['/events']).toBeDefined();
     expect(doc.paths['/publishers/{publisherId}/events']).toBeDefined();
     expect(doc.paths['/manage/events/{id}']).toBeDefined();
@@ -89,6 +89,44 @@ describe('identity + sessions', () => {
       body: JSON.stringify({ deviceCredential: 'not-a-real-credential' }),
     });
     expect(bad.status).toBe(401);
+  });
+
+  it('rejects sessions for banned users', async () => {
+    const { createMemoryStore } = await import('../../../apps/api/src/services/memory-store');
+    const store = createMemoryStore();
+    const auth = createMemoryAuthServices({ now: () => new Date() }, store);
+    const app = createApp({ auth });
+
+    const created = await app.request('/v1/identities', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ platform: 'ios', locale: 'sv' }),
+    });
+    expect(created.status).toBe(201);
+    const identity = (await created.json()) as {
+      userId: string;
+      deviceCredential: string;
+      sessionToken: string;
+    };
+
+    const user = store.users.get(identity.userId)!;
+    user.bannedAt = new Date('2026-06-01T00:00:00.000Z');
+    user.banReason = 'abuse';
+
+    const session = await app.request('/v1/sessions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ deviceCredential: identity.deviceCredential }),
+    });
+    expect(session.status).toBe(403);
+    expect(await session.json()).toMatchObject({
+      error: { code: 'user_banned' },
+    });
+
+    const prefs = await app.request('/v1/me/preferences', {
+      headers: { authorization: `Bearer ${identity.sessionToken}` },
+    });
+    expect(prefs.status).toBe(403);
   });
 });
 

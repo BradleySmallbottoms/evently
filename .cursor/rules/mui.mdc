@@ -8,6 +8,10 @@ alwaysApply: true
 When building or changing UI in `apps/admin` or `apps/web`, always read and follow
 `.agents/skills/mui/SKILL.md` (and `.agents/skills/mui/resources/` as needed).
 
+For `apps/web`, also read `DESIGN.md` and open `docs/reference-app.png` before building UI.
+Implement with MUI; take color, type, spacing, hierarchy, and look and feel from those
+references. `apps/admin` does not follow that consumer visual language.
+
 Patterns:
 
 - Prefer stock `@mui/material` components (Button, TextField, Stack, Card, etc.)

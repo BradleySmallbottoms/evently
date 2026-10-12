@@ -60,6 +60,16 @@ describe('admin api', () => {
     expect(doc.paths['/admin/login/totp']).toBeDefined();
     expect(doc.paths['/publishers']).toBeDefined();
     expect(doc.paths['/publishers/{id}/verify']).toBeDefined();
+    expect(doc.paths['/publishers/{id}/map']).toBeDefined();
+    expect(doc.paths['/publishers/{id}/complete']).toBeDefined();
+    expect(doc.paths['/events']).toBeDefined();
+    expect(doc.paths['/events/{id}']).toBeDefined();
+    expect(doc.paths['/tags']).toBeDefined();
+    expect(doc.paths['/events/{id}/approve']).toBeDefined();
+    expect(doc.paths['/events/{id}/reject']).toBeDefined();
+    expect(doc.paths['/data-sources']).toBeDefined();
+    expect(doc.paths['/data-sources/{id}/runs']).toBeDefined();
+    expect(doc.paths['/data-sources/{id}/run']).toBeDefined();
   });
 
   it('rejects publisher list without session', async () => {
@@ -111,10 +121,10 @@ describe('admin api', () => {
     expect(list.status).toBe(200);
     expect(((await list.json()) as { items: unknown[] }).items).toHaveLength(1);
 
-    const verify = await app.request(
-      '/v1/publishers/22222222-2222-4222-8222-222222222201/verify',
-      { method: 'POST', headers: { cookie } },
-    );
+    const verify = await app.request('/v1/publishers/22222222-2222-4222-8222-222222222201/verify', {
+      method: 'POST',
+      headers: { cookie },
+    });
     expect(verify.status).toBe(200);
     expect(await verify.json()).toMatchObject({
       verified: true,
@@ -127,6 +137,277 @@ describe('admin api', () => {
         eventId: '33333333-3333-4333-8333-333333333301',
       },
     ]);
+  });
+
+  it('approves and rejects imported events in review', async () => {
+    const { auth } = await seededAuth();
+    const eventStore = {
+      publishers: new Map([
+        [
+          '22222222-2222-4222-8222-222222222201',
+          { id: '22222222-2222-4222-8222-222222222201', name: 'Imported Band' },
+        ],
+      ]),
+      events: new Map([
+        [
+          '44444444-4444-4444-8444-444444444401',
+          {
+            id: '44444444-4444-4444-8444-444444444401',
+            publisherId: '22222222-2222-4222-8222-222222222201',
+            title: 'Concert',
+            mode: 'physical' as const,
+            status: 'in_review',
+            origin: 'imported' as const,
+            startsAt: '2026-07-01T18:00:00.000Z',
+            endsAt: '2026-07-01T21:00:00.000Z',
+            venueName: 'Arena',
+            sourceUrl: 'https://example.com',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+      ]),
+    };
+    const domainEvents = createMemoryDomainEventPublisher();
+    const { createMemoryAdminEventServices } =
+      await import('../../../apps/admin-api/src/services/events');
+    const app = createApp({
+      auth,
+      events: createMemoryAdminEventServices(eventStore, { domainEvents }),
+    });
+    const cookie = await loginSession(app);
+
+    const list = await app.request('/v1/events?status=in_review', { headers: { cookie } });
+    expect(list.status).toBe(200);
+    expect(((await list.json()) as { items: unknown[] }).items).toHaveLength(1);
+
+    const approve = await app.request('/v1/events/44444444-4444-4444-8444-444444444401/approve', {
+      method: 'POST',
+      headers: { cookie },
+    });
+    expect(approve.status).toBe(200);
+    expect(await approve.json()).toMatchObject({ status: 'published' });
+    expect(eventStore.events.get('44444444-4444-4444-8444-444444444401')?.status).toBe('published');
+    expect(domainEvents.events).toEqual([
+      { type: 'event.published', eventId: '44444444-4444-4444-8444-444444444401' },
+    ]);
+  });
+
+  it('reads and edits an event, and rejects an incomplete digital event', async () => {
+    const { auth } = await seededAuth();
+    const tagId = '55555555-5555-4555-8555-555555555501';
+    const eventStore = {
+      publishers: new Map([
+        [
+          '22222222-2222-4222-8222-222222222201',
+          { id: '22222222-2222-4222-8222-222222222201', name: 'Hall' },
+        ],
+      ]),
+      tags: new Map([
+        [
+          tagId,
+          {
+            id: tagId,
+            slug: 'idrott-tavlingar',
+            name: 'Idrott & Tävlingar',
+          },
+        ],
+      ]),
+      events: new Map([
+        [
+          '44444444-4444-4444-8444-444444444401',
+          {
+            id: '44444444-4444-4444-8444-444444444401',
+            publisherId: '22222222-2222-4222-8222-222222222201',
+            title: 'Concert',
+            description: 'Live',
+            mode: 'physical' as const,
+            status: 'published',
+            origin: 'native' as const,
+            startsAt: '2026-07-01T16:00:00.000Z',
+            endsAt: '2026-07-01T19:00:00.000Z',
+            timezone: 'Europe/Stockholm',
+            venueName: 'Arena',
+            location: { lat: 61.3, lng: 17.05 },
+            sourceUrl: null,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+        [
+          '66666666-6666-4666-8666-666666666601',
+          {
+              id: '66666666-6666-4666-8666-666666666601',
+              publisherId: '22222222-2222-4222-8222-222222222201',
+              title: 'Stream',
+              description: null,
+              mode: 'digital' as const,
+              status: 'published',
+              origin: 'native' as const,
+              startsAt: '2026-07-02T16:00:00.000Z',
+              endsAt: '2026-07-02T19:00:00.000Z',
+              timezone: 'Europe/Stockholm',
+              venueName: null,
+              location: null,
+              onlineUrl: null,
+              sourceUrl: null,
+              createdAt: '2026-01-01T00:00:00.000Z',
+              updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+      ]),
+    };
+    const domainEvents = createMemoryDomainEventPublisher();
+    const { createMemoryAdminEventServices } =
+      await import('../../../apps/admin-api/src/services/events');
+    const app = createApp({
+      auth,
+      events: createMemoryAdminEventServices(eventStore, { domainEvents }),
+    });
+    const cookie = await loginSession(app);
+
+    const missing = await app.request('/v1/events/44444444-4444-4444-8444-444444444401');
+    expect(missing.status).toBe(401);
+
+    const detail = await app.request('/v1/events/44444444-4444-4444-8444-444444444401', {
+      headers: { cookie },
+    });
+    expect(detail.status).toBe(200);
+    expect(await detail.json()).toMatchObject({
+      title: 'Concert',
+      description: 'Live',
+      location: { lat: 61.3, lng: 17.05 },
+    });
+
+    const tags = await app.request('/v1/tags', { headers: { cookie } });
+    expect(tags.status).toBe(200);
+    expect(await tags.json()).toMatchObject({ items: [{ slug: 'idrott-tavlingar' }] });
+
+    const patched = await app.request('/v1/events/44444444-4444-4444-8444-444444444401', {
+      method: 'PATCH',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Concert (updated)',
+        venueName: 'New hall',
+        tagIds: [tagId],
+        links: [{ type: 'tickets', url: 'https://tickets.example/c', label: 'Tickets' }],
+      }),
+    });
+    expect(patched.status).toBe(200);
+    expect(await patched.json()).toMatchObject({
+      title: 'Concert (updated)',
+      venueName: 'New hall',
+      tagIds: [tagId],
+      links: [{ type: 'tickets', url: 'https://tickets.example/c', label: 'Tickets' }],
+    });
+    expect(domainEvents.events).toEqual([
+      {
+        type: 'event.updated',
+        eventId: '44444444-4444-4444-8444-444444444401',
+        changedFields: ['title', 'venueName', 'tagIds', 'links'],
+      },
+    ]);
+
+    const digital = await app.request('/v1/events/44444444-4444-4444-8444-444444444401', {
+      method: 'PATCH',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'digital', onlineUrl: null }),
+    });
+    expect(digital.status).toBe(400);
+    expect(await digital.json()).toMatchObject({ error: { code: 'online_url_required' } });
+    expect(eventStore.events.get('44444444-4444-4444-8444-444444444401')?.mode).toBe('physical');
+
+    const featured = await app.request('/v1/events/66666666-6666-4666-8666-666666666601', {
+      method: 'PATCH',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ featured: true, checkInEnabled: true }),
+    });
+    expect(featured.status).toBe(200);
+    expect(await featured.json()).toMatchObject({
+      featured: true,
+      checkInEnabled: true,
+      mode: 'digital',
+      onlineUrl: null,
+    });
+    expect(domainEvents.events.at(-1)).toEqual({
+      type: 'event.updated',
+      eventId: '66666666-6666-4666-8666-666666666601',
+      changedFields: ['featured', 'checkInEnabled'],
+    });
+
+    const backwards = await app.request('/v1/events/44444444-4444-4444-8444-444444444401', {
+      method: 'PATCH',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ endsAt: '2026-07-01T15:00:00.000Z' }),
+    });
+    expect(backwards.status).toBe(400);
+    expect(await backwards.json()).toMatchObject({ error: { code: 'invalid_event' } });
+
+    const cancelled = await app.request('/v1/events/44444444-4444-4444-8444-444444444401', {
+      method: 'PATCH',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'cancelled' }),
+    });
+    expect(cancelled.status).toBe(200);
+    expect(await cancelled.json()).toMatchObject({
+      status: 'cancelled',
+      title: 'Concert (updated)',
+    });
+
+    const unknown = await app.request('/v1/events/44444444-4444-4444-8444-444444444499', {
+      headers: { cookie },
+    });
+    expect(unknown.status).toBe(404);
+  });
+
+  it('lists audit log and bans a user', async () => {
+    const { auth } = await seededAuth();
+    const { createMemoryAdminAuditServices } =
+      await import('../../../apps/admin-api/src/services/audit');
+    const { createMemoryAdminModerationServices } =
+      await import('../../../apps/admin-api/src/services/moderation');
+    const audit = createMemoryAdminAuditServices({ entries: [] });
+    const moderation = createMemoryAdminModerationServices(
+      {
+        users: new Map([
+          [
+            'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            {
+              id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+              displayName: 'Pat',
+              recoveryEmail: null,
+              isPublic: false,
+              bannedAt: null,
+              banReason: null,
+              createdAt: '2026-01-01T00:00:00.000Z',
+              lastSeenAt: null,
+            },
+          ],
+        ]),
+        ratings: new Map(),
+        checkIns: new Map(),
+      },
+      { audit },
+    );
+    const app = createApp({ auth, audit, moderation });
+    const cookie = await loginSession(app);
+
+    const empty = await app.request('/v1/audit-log', { headers: { cookie } });
+    expect(empty.status).toBe(200);
+    expect(((await empty.json()) as { items: unknown[] }).items).toHaveLength(0);
+
+    const ban = await app.request('/v1/users/cccccccc-cccc-4ccc-8ccc-cccccccccccc/ban', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ reason: 'spam' }),
+    });
+    expect(ban.status).toBe(200);
+    expect(await ban.json()).toMatchObject({ bannedAt: expect.any(String), banReason: 'spam' });
+
+    const log = await app.request('/v1/audit-log', { headers: { cookie } });
+    expect(log.status).toBe(200);
+    const items = ((await log.json()) as { items: { action: string }[] }).items;
+    expect(items.some((i) => i.action === 'user.ban')).toBe(true);
   });
 
   it('enrolls TOTP on first login when secret is unset', async () => {
@@ -162,8 +443,6 @@ describe('admin api', () => {
       body: JSON.stringify({ token: setup.setupToken, code }),
     });
     expect(confirm.status).toBe(200);
-    expect(store.admins.get('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')?.totpSecret).toBe(
-      setup.secret,
-    );
+    expect(store.admins.get('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')?.totpSecret).toBe(setup.secret);
   });
 });

@@ -50,6 +50,7 @@ export * from './check-ins';
 export * from './devices';
 export * from './domain-events';
 export * from './events';
+export * from './library';
 export * from './event-content';
 export * from './notifications';
 export * from './preferences';

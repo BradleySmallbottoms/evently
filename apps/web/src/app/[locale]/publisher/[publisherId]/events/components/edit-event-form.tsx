@@ -2,8 +2,10 @@
 
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
@@ -46,8 +48,8 @@ export function EditEventForm() {
   const [mode, setMode] = useState<EventMode>('physical');
 
   const categories = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => throwIfError(await api.GET('/categories')),
+    queryKey: ['tags'],
+    queryFn: async () => throwIfError(await api.GET('/tags')),
   });
 
   const eventQuery = useQuery({
@@ -117,6 +119,20 @@ export function EditEventForm() {
   });
 
   const event = eventQuery.data;
+  const [attendeeText, setAttendeeText] = useState('');
+  const [attendeeLinks, setAttendeeLinks] = useState<{ url: string; label: string }[]>([
+    { url: '', label: '' },
+  ]);
+  const [attendeeEventId, setAttendeeEventId] = useState<string | null>(null);
+  if (event && attendeeEventId !== event.id) {
+    setAttendeeEventId(event.id);
+    setAttendeeText(event.attendeeText ?? '');
+    setAttendeeLinks(
+      event.attendeeLinks.length > 0
+        ? event.attendeeLinks.map((link) => ({ url: link.url, label: link.label ?? '' }))
+        : [{ url: '', label: '' }],
+    );
+  }
   useEffect(() => {
     if (event) setMode(event.mode);
   }, [event]);
@@ -142,7 +158,19 @@ export function EditEventForm() {
             location: fields.location ?? null,
             geofenceRadiusM: fields.geofenceRadiusM ?? null,
             onlineUrl: fields.onlineUrl ?? null,
-            categoryIds: fields.categoryIds,
+            tagIds: fields.tagIds,
+            ...(event?.checkInEnabled
+              ? {
+                  attendeeText: attendeeText.trim() || null,
+                  attendeeLinks: attendeeLinks
+                    .map((link) => ({ url: link.url.trim(), label: link.label.trim() }))
+                    .filter((link) => link.url)
+                    .map((link) => ({
+                      url: link.url,
+                      ...(link.label ? { label: link.label } : {}),
+                    })),
+                }
+              : {}),
           },
         }),
       );
@@ -261,9 +289,71 @@ export function EditEventForm() {
             lng: event.location?.lng,
             geofenceRadiusM: event.geofenceRadiusM,
             onlineUrl: event.onlineUrl,
-            categoryIds: event.categoryIds,
+            tagIds: event.tagIds,
           }}
         />
+        {event.checkInEnabled ? (
+          <Stack spacing={2}>
+            <Typography variant="h6" component="h2">
+              {t('attendeeTitle')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t('attendeeHelp')}
+            </Typography>
+            <TextField
+              label={t('attendeeText')}
+              value={attendeeText}
+              onChange={(e) => setAttendeeText(e.target.value)}
+              multiline
+              minRows={3}
+              fullWidth
+            />
+            {attendeeLinks.map((link, index) => (
+              <Stack key={index} direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <TextField
+                  label={t('attendeeLinkUrl')}
+                  value={link.url}
+                  onChange={(e) =>
+                    setAttendeeLinks((current) =>
+                      current.map((item, i) => (i === index ? { ...item, url: e.target.value } : item)),
+                    )
+                  }
+                  fullWidth
+                />
+                <TextField
+                  label={t('attendeeLinkLabel')}
+                  value={link.label}
+                  onChange={(e) =>
+                    setAttendeeLinks((current) =>
+                      current.map((item, i) =>
+                        i === index ? { ...item, label: e.target.value } : item,
+                      ),
+                    )
+                  }
+                  fullWidth
+                />
+                <IconButton
+                  aria-label={t('attendeeLinkRemove')}
+                  onClick={() =>
+                    setAttendeeLinks((current) =>
+                      current.length === 1
+                        ? [{ url: '', label: '' }]
+                        : current.filter((_, i) => i !== index),
+                    )
+                  }
+                >
+                  ×
+                </IconButton>
+              </Stack>
+            ))}
+            <Button
+              type="button"
+              onClick={() => setAttendeeLinks((current) => [...current, { url: '', label: '' }])}
+            >
+              {t('attendeeLinkAdd')}
+            </Button>
+          </Stack>
+        ) : null}
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="success">{notice}</Alert>}
         <Stack sx={styles.actions}>
@@ -298,8 +388,12 @@ export function EditEventForm() {
           </Link>
         </Stack>
       </Stack>
-      <DigitalCodePanel eventId={eventId} published={event.status === 'published'} />
-      <EventContentPanel eventId={eventId} />
+      {event.checkInEnabled ? (
+        <>
+          <DigitalCodePanel eventId={eventId} published={event.status === 'published'} />
+          <EventContentPanel eventId={eventId} />
+        </>
+      ) : null}
     </Stack>
   );
 }

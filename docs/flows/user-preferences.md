@@ -1,6 +1,6 @@
 # User interests & saved areas
 
-App users (device credential → session token) persist interest categories and notification/search
+App users (device credential → session token) persist interest tags and notification/search
 areas. Mobile sends `Authorization: Bearer <sessionToken>`; web pairing can use the app-user cookie.
 
 ## Sequence
@@ -18,13 +18,13 @@ sequenceDiagram
   API->>DB: INSERT users, devices, sessions
   API-->>Mobile: deviceCredential + sessionToken
 
-  Mobile->>API: GET /categories
-  API-->>Mobile: Category list
+  Mobile->>API: GET /tags
+  API-->>Mobile: Tag list
 
   User->>Mobile: Pick interests + radius
   Mobile->>API: PUT /me/interests<br/>Authorization: Bearer session
   API->>DB: Require user session<br/>REPLACE user_interests
-  API-->>Mobile: { categoryIds }
+  API-->>Mobile: { tagIds }
 
   Mobile->>API: POST /me/areas<br/>{ name, center, radiusM }
   Note over API: Or polygon ring<br/>(center/radius cleared)

@@ -18,7 +18,8 @@ export type CheckInErrorCode =
   | 'outside_geofence'
   | 'already_checked_in'
   | 'invalid_code'
-  | 'not_revealed';
+  | 'not_revealed'
+  | 'check_in_disabled';
 
 export class CheckInError extends Error {
   constructor(readonly code: CheckInErrorCode) {

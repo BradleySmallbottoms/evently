@@ -6,22 +6,18 @@ import { Pressable, ScrollView, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
-import { api, throwIfError } from '@/lib/api';
-import { resolveEventQueryPoint } from '@/lib/events';
+import { listTags, resolveEventQueryPoint } from '@/lib/events';
 import { ensureIdentity } from '@/lib/identity';
 import {
   createCircleArea,
   getPreferences,
   replaceInterests,
   updateCircleArea,
-  updateQuietHours,
 } from '@/lib/preferences';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
 const RADIUS_PRESETS = [5_000, 15_000, 50_000] as const;
-const DEFAULT_QUIET_START = 22 * 60;
-const DEFAULT_QUIET_END = 8 * 60;
 
 export function PreferencesForm() {
   const { t, i18n } = useTranslation();
@@ -30,7 +26,6 @@ export function PreferencesForm() {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [radiusM, setRadiusM] = useState<(typeof RADIUS_PRESETS)[number]>(15_000);
-  const [quietHoursEnabled, setQuietHoursEnabled] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
@@ -39,9 +34,9 @@ export function PreferencesForm() {
     queryFn: () => ensureIdentity(locale),
   });
 
-  const categories = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => throwIfError(await api.GET('/categories')),
+  const tags = useQuery({
+    queryKey: ['tags', 'upcoming'],
+    queryFn: listTags,
   });
 
   const preferences = useQuery({
@@ -52,12 +47,11 @@ export function PreferencesForm() {
 
   useEffect(() => {
     if (!preferences.data || hydrated) return;
-    setSelected(new Set(preferences.data.categoryIds));
+    setSelected(new Set(preferences.data.tagIds));
     const circle = preferences.data.areas.find((a) => a.radiusM != null);
     if (circle?.radiusM && RADIUS_PRESETS.includes(circle.radiusM as (typeof RADIUS_PRESETS)[number])) {
       setRadiusM(circle.radiusM as (typeof RADIUS_PRESETS)[number]);
     }
-    setQuietHoursEnabled(preferences.data.quietHours.enabled);
     setHydrated(true);
   }, [preferences.data, hydrated]);
 
@@ -66,11 +60,6 @@ export function PreferencesForm() {
       const id = identity.data;
       if (!id) throw new Error('missing_identity');
       await replaceInterests(id, [...selected]);
-      await updateQuietHours(id, {
-        enabled: quietHoursEnabled,
-        startMin: DEFAULT_QUIET_START,
-        endMin: DEFAULT_QUIET_END,
-      });
       const point = await resolveEventQueryPoint();
       const existingCircle = preferences.data?.areas.find((a) => a.center && a.radiusM != null);
       if (existingCircle) {
@@ -97,7 +86,7 @@ export function PreferencesForm() {
     onError: () => setError(t('preferences.saveError')),
   });
 
-  const categoryItems = categories.data?.items ?? [];
+  const categoryItems = tags.data?.items ?? [];
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.xl, paddingBottom: space.xxxl }}>
@@ -111,7 +100,7 @@ export function PreferencesForm() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
           {categoryItems.map((cat) => {
             const on = selected.has(cat.id);
-            const label = locale === 'en' ? cat.nameEn : cat.nameSv;
+            const label = cat.name;
             return (
               <Pressable
                 key={cat.id}
@@ -135,7 +124,7 @@ export function PreferencesForm() {
               >
                 <AppText
                   variant="label"
-                  style={{ color: on ? '#FFFFFF' : colors.ink, fontWeight: '600' }}
+                  style={{ color: colors.ink, fontWeight: '600' }}
                 >
                   {label}
                 </AppText>
@@ -167,46 +156,9 @@ export function PreferencesForm() {
               >
                 <AppText
                   variant="label"
-                  style={{ color: on ? '#FFFFFF' : colors.ink, fontWeight: '600' }}
+                  style={{ color: colors.ink, fontWeight: '600' }}
                 >
                   {t('preferences.radiusKm', { km: r / 1000 })}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      <View style={{ gap: space.md }}>
-        <AppText variant="subtitle">{t('preferences.quietHoursTitle')}</AppText>
-        <AppText variant="caption">{t('preferences.quietHoursHint')}</AppText>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-          {(
-            [
-              { on: true, label: t('preferences.quietHoursOn') },
-              { on: false, label: t('preferences.quietHoursOff') },
-            ] as const
-          ).map((opt) => {
-            const selectedOpt = quietHoursEnabled === opt.on;
-            return (
-              <Pressable
-                key={opt.label}
-                onPress={() => setQuietHoursEnabled(opt.on)}
-                style={{
-                  paddingHorizontal: space.lg,
-                  paddingVertical: space.sm + 2,
-                  borderRadius: radius.pill,
-                  borderCurve: 'continuous',
-                  backgroundColor: selectedOpt ? colors.accent : (colors.card as string),
-                  borderWidth: selectedOpt ? 0 : 1,
-                  borderColor: colors.line,
-                }}
-              >
-                <AppText
-                  variant="label"
-                  style={{ color: selectedOpt ? '#FFFFFF' : colors.ink, fontWeight: '600' }}
-                >
-                  {opt.label}
                 </AppText>
               </Pressable>
             );
@@ -223,7 +175,7 @@ export function PreferencesForm() {
       <PrimaryButton
         label={t('preferences.save')}
         loading={save.isPending}
-        disabled={selected.size === 0 || identity.isPending || categories.isPending}
+        disabled={selected.size === 0 || identity.isPending || tags.isPending}
         onPress={() => save.mutate()}
       />
     </ScrollView>

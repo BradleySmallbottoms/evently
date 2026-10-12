@@ -1,35 +1,44 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { useTranslation } from 'react-i18next';
-import { useColorScheme } from 'react-native';
 
-import { brand, Colors } from '@/constants/theme';
+import { brand } from '@/constants/theme';
+import { useHasUnreadNotifications } from '@/lib/use-unread-notifications';
 
 export default function AppTabs() {
   const { t } = useTranslation();
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' || !scheme ? 'light' : scheme];
+  const hasUnread = useHasUnreadNotifications();
 
   return (
     <NativeTabs
-      backgroundColor={colors.background}
+      backgroundColor={brand.background}
+      badgeBackgroundColor={brand.error}
       indicatorColor={brand.accentSoft}
-      tintColor={brand.accent}
-      labelStyle={{ selected: { color: brand.accent }, default: { color: colors.textSecondary } }}
+      tintColor={brand.primary}
+      labelStyle={{ selected: { color: brand.primary }, default: { color: brand.textSecondary } }}
     >
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>{t('tabs.list')}</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
+        <NativeTabs.Trigger.Icon sf="house" md="home" />
       </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="map">
-        <NativeTabs.Trigger.Label>{t('tabs.map')}</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
+      <NativeTabs.Trigger name="search">
+        <NativeTabs.Trigger.Label>{t('tabs.search')}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="magnifyingglass" md="search" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="events">
+        <NativeTabs.Trigger.Label>{t('tabs.events')}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="calendar" md="event" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="saved">
+        <NativeTabs.Trigger.Label>{t('tabs.saved')}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="heart" md="favorite_border" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger
+        name="profile"
+        accessibilityLabel={hasUnread ? t('tabs.profileUnread') : t('tabs.profile')}
+      >
+        <NativeTabs.Trigger.Label>{t('tabs.profile')}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="person" md="person" />
+        {hasUnread ? <NativeTabs.Trigger.Badge /> : null}
       </NativeTabs.Trigger>
     </NativeTabs>
   );

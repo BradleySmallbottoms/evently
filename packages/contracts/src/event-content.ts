@@ -26,6 +26,15 @@ export const EventContentListResponse = z.object({
   items: z.array(EventContentItem),
   /** True when the caller has checked in (attendee-only rows included). */
   checkedIn: z.boolean(),
+  /** Publisher text. Null until the caller has checked in on an event with check-in enabled. */
+  attendeeText: z.string().nullable(),
+  attendeeLinks: z.array(
+    z.object({
+      id: Id,
+      url: z.url(),
+      label: z.string().nullable(),
+    }),
+  ),
 });
 export type EventContentListResponse = z.infer<typeof EventContentListResponse>;
 

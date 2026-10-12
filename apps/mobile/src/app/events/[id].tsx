@@ -1,40 +1,52 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Clipboard from 'expo-clipboard';
-import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Alert, ScrollView, Share, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+  Alert,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  TextInput,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ConfirmAction } from '@/components/native/confirm-action';
 import { EventActionsMenu } from '@/components/native/event-actions-menu';
 import { ProfilePromptSheet } from '@/components/native/profile-prompt-sheet';
 import { RatingSheet } from '@/components/native/rating-sheet';
+import { ReminderPicker } from '@/components/native/reminder-picker';
 import { AppText } from '@/components/ui/app-text';
+import { DateBox } from '@/components/ui/date-box';
+import { EventImage } from '@/components/ui/event-image';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { TagPills } from '@/components/ui/tag-pills';
 import { MaxContentWidth } from '@/constants/theme';
-import {
-  fetchCheckInStatus,
-  performCodeCheckIn,
-  performGeoCheckIn,
-} from '@/lib/check-in';
-import {
-  fetchEventContent,
-  readCachedEventContent,
-} from '@/lib/event-content';
-import { getPublicEvent } from '@/lib/events';
+import { getPublicEvent, listTags, namesForTagIds } from '@/lib/events';
+import { fetchCheckInStatus, performCodeCheckIn, performGeoCheckIn } from '@/lib/check-in';
+import { fetchEventContent, readCachedEventContent } from '@/lib/event-content';
+import { dateBadge, formatPrice, primaryAction, safeHttpUrl } from '@/lib/event-format';
 import { ensureIdentity } from '@/lib/identity';
+import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { fetchProfile, updateProfile } from '@/lib/profile';
 import { fetchRatingStatus, submitRating } from '@/lib/ratings';
+import { cancelEventReminder, eventReminderSlots, scheduleEventReminders } from '@/lib/reminders';
+import {
+  canOfferEventReminder,
+  upcomingReminderSlots,
+  type ReminderSlot,
+} from '@/lib/reminder-times';
 import { fetchEventStats } from '@/lib/stats';
 import { colors } from '@/theme/colors';
-import { radius, shadow, space, typography } from '@/theme/tokens';
-
-const HERO =
-  'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&q=80';
+import { radius, shadow, space } from '@/theme/tokens';
 
 export default function EventDetailScreen() {
   const { t, i18n } = useTranslation();
@@ -47,6 +59,8 @@ export default function EventDetailScreen() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [ratingOpen, setRatingOpen] = useState(false);
   const [code, setCode] = useState('');
+  const [reminderNotice, setReminderNotice] = useState<string | null>(null);
+  const [reminderOpen, setReminderOpen] = useState(false);
 
   const identity = useQuery({
     queryKey: ['identity', locale],
@@ -58,10 +72,20 @@ export default function EventDetailScreen() {
     queryFn: () => getPublicEvent(id),
     enabled: typeof id === 'string' && id.length > 0,
   });
+  const reminder = useQuery({
+    queryKey: ['event-reminder', id],
+    queryFn: () => eventReminderSlots(id!),
+    enabled: typeof id === 'string' && id.length > 0,
+  });
+  const reminderOn = (reminder.data?.length ?? 0) > 0;
   const checkInStatus = useQuery({
     queryKey: ['check-in-status', id, identity.data?.userId],
     queryFn: () => fetchCheckInStatus(identity.data!, id!),
-    enabled: identity.isSuccess && typeof id === 'string' && id.length > 0,
+    enabled:
+      identity.isSuccess &&
+      typeof id === 'string' &&
+      id.length > 0 &&
+      event.data?.checkInEnabled === true,
   });
   const content = useQuery({
     queryKey: ['event-content', id, identity.data?.userId, checkInStatus.data?.checkedIn],
@@ -70,21 +94,39 @@ export default function EventDetailScreen() {
         return await fetchEventContent(identity.data ?? null, id!);
       } catch {
         const cached = await readCachedEventContent(id!);
-        if (cached) return { items: cached, checkedIn: true, fromCache: true as const };
+        if (cached) {
+          return {
+            items: cached.items,
+            checkedIn: true,
+            fromCache: true as const,
+            attendeeText: cached.attendeeText,
+            attendeeLinks: cached.attendeeLinks,
+          };
+        }
         throw new Error('content_unavailable');
       }
     },
-    enabled: typeof id === 'string' && id.length > 0,
+    enabled: typeof id === 'string' && id.length > 0 && event.data?.checkInEnabled === true,
   });
   const ratingStatus = useQuery({
     queryKey: ['rating-status', id, identity.data?.userId],
     queryFn: () => fetchRatingStatus(identity.data ?? null, id!),
     enabled: typeof id === 'string' && id.length > 0,
   });
+  const saved = useQuery({
+    queryKey: ['saved-events', identity.data?.userId],
+    enabled: identity.isSuccess,
+    queryFn: () => listSavedEvents(identity.data!),
+  });
+  const isSaved = saved.data?.items.some((item) => item.id === id) ?? false;
   const eventStats = useQuery({
     queryKey: ['event-stats', id],
     queryFn: () => fetchEventStats(id!),
     enabled: typeof id === 'string' && id.length > 0,
+  });
+  const tags = useQuery({
+    queryKey: ['tags', 'upcoming'],
+    queryFn: listTags,
   });
   const rate = useMutation({
     mutationFn: (input: { score: number; comment?: string | null }) =>
@@ -97,6 +139,76 @@ export default function EventDetailScreen() {
       Alert.alert(t('events.rateHowWasIt'), t('events.rateError'));
     },
   });
+  const saveReminder = useMutation({
+    mutationFn: async (slots: ReminderSlot[]) => {
+      if (!event.data) return 'none' as const;
+      return scheduleEventReminders({
+        eventId: event.data.id,
+        title: event.data.title,
+        startsAt: event.data.startsAt,
+        bodies: {
+          day: t('events.remindDay'),
+          hour: t('events.remindHour'),
+          start: t('events.remindStart'),
+        },
+        slots,
+      });
+    },
+    onSuccess: async (result) => {
+      setReminderOpen(false);
+      if (result === 'scheduled') {
+        await queryClient.invalidateQueries({ queryKey: ['event-reminder', id] });
+      }
+      const message =
+        result === 'scheduled'
+          ? t('events.remindSet')
+          : result === 'permission'
+            ? t('events.remindPermission')
+            : result === 'none'
+              ? t('events.remindNone')
+              : t('events.remindWeb');
+      setReminderNotice(message);
+      if (Platform.OS !== 'web' && result !== 'scheduled') {
+        Alert.alert(t('events.remindMe'), message);
+      }
+    },
+  });
+  const clearReminder = useMutation({
+    mutationFn: async () => {
+      if (!event.data) return;
+      await cancelEventReminder(event.data.id);
+    },
+    onSuccess: async () => {
+      setReminderOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ['event-reminder', id] });
+      setReminderNotice(t('events.remindCleared'));
+    },
+  });
+
+  function openReminderPicker() {
+    if (!event.data) return;
+    if (!canOfferEventReminder(new Date(event.data.startsAt), new Date())) return;
+    const upcoming = upcomingReminderSlots(new Date(event.data.startsAt), new Date());
+    if (upcoming.length === 0) {
+      setReminderNotice(t('events.remindNone'));
+      if (Platform.OS !== 'web') Alert.alert(t('events.remindMe'), t('events.remindNone'));
+      return;
+    }
+    setReminderOpen(true);
+  }
+
+  const reminderOptions = useMemo(() => {
+    if (!event.data || !reminderOpen) return [];
+    const labels = {
+      day: t('events.remindDayOption'),
+      hour: t('events.remindHourOption'),
+      start: t('events.remindStartOption'),
+    } as const;
+    return upcomingReminderSlots(new Date(event.data.startsAt), new Date()).map((slot) => ({
+      slot: slot.slot,
+      label: labels[slot.slot],
+    }));
+  }, [event.data, reminderOpen, t]);
   async function afterCheckIn() {
     await queryClient.invalidateQueries({ queryKey: ['check-in-status', id] });
     await queryClient.invalidateQueries({ queryKey: ['event-content', id] });
@@ -145,6 +257,13 @@ export default function EventDetailScreen() {
     },
   });
 
+  function toggleSaved() {
+    if (!identity.data || typeof id !== 'string') return;
+    void (isSaved ? unsaveEvent(identity.data, id) : saveEvent(identity.data, id)).then(() =>
+      queryClient.invalidateQueries({ queryKey: ['saved-events'] }),
+    );
+  }
+
   async function shareEvent() {
     if (!event.data) return;
     await Share.share({ message: `${event.data.title}` });
@@ -158,66 +277,101 @@ export default function EventDetailScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
       <ScrollView
-        style={{ flex: 1, width: '100%', maxWidth: MaxContentWidth }}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingBottom: 140, gap: space.xl }}
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: MaxContentWidth,
+          backgroundColor: colors.canvas,
+        }}
+        contentInsetAdjustmentBehavior="never"
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingBottom: Math.max(insets.bottom, space.xl),
+        }}
       >
-        <View style={{ height: 320, backgroundColor: colors.accentSoft }}>
-          <Image source={{ uri: HERO }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+        <View style={{ height: 400, backgroundColor: colors.accentSoft }}>
+          {event.data ? (
+            <EventImage
+              imageUrl={event.data.imageUrl}
+              tags={namesForTagIds(event.data.tagIds, tags.data?.items)}
+            />
+          ) : null}
           <View
             pointerEvents="none"
             style={{
               position: 'absolute',
               left: 0,
               right: 0,
-              bottom: 0,
-              height: 140,
+              top: 0,
+              height: 120,
               experimental_backgroundImage:
-                'linear-gradient(to bottom, rgba(20,20,20,0) 0%, rgba(20,20,20,0.55) 100%)',
+                'linear-gradient(to bottom, rgba(20,20,20,0.38) 0%, rgba(20,20,20,0) 100%)',
             }}
           />
           <View
             style={{
               position: 'absolute',
-              top: Math.max(insets.top, space.lg),
-              left: space.xl,
-              right: space.xl,
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
+              top: insets.top + space.sm,
+              left: space.lg,
             }}
           >
-            <CircleIconButton
-              sf="chevron.left"
-              md="chevron-left"
+            <Pressable
+              accessibilityRole="button"
               accessibilityLabel={t('events.back')}
-              onPress={() => router.back()}
-            />
-            <View
-              style={{
-                backgroundColor: 'rgba(20,20,20,0.35)',
-                borderRadius: radius.pill,
-                paddingHorizontal: space.md,
-                paddingVertical: space.xs + 2,
+              onPress={() => {
+                if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
+                router.back();
               }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 2,
+                minHeight: 44,
+                paddingLeft: space.sm,
+                paddingRight: space.md,
+                borderRadius: radius.pill,
+                backgroundColor: colors.card,
+                opacity: pressed ? 0.88 : 1,
+                boxShadow: shadow.soft,
+              })}
             >
-              <AppText variant="label" style={{ color: '#FFFFFF', fontWeight: '700' }}>
-                {t('events.details')}
+              {Platform.OS === 'ios' ? (
+                <SymbolView name={'chevron.left' as never} size={16} tintColor={colors.ink} />
+              ) : (
+                <MaterialIcons name="chevron-left" size={20} color={colors.ink} />
+              )}
+              <AppText style={{ fontSize: 15, fontWeight: '600', color: colors.ink }}>
+                {t('events.back')}
               </AppText>
-            </View>
-            <EventActionsMenu
-              accessibilityLabel={t('events.moreActions')}
-              shareLabel={t('events.share')}
-              copyLinkLabel={t('events.copyLink')}
-              reportLabel={t('events.report')}
-              onShare={() => void shareEvent()}
-              onCopyLink={() => void copyLink()}
-              onReport={() => setReportOpen(true)}
-            />
+            </Pressable>
           </View>
         </View>
 
-        <View style={{ paddingHorizontal: space.xl, gap: space.lg, marginTop: -space.xxl }}>
+        {event.data ? (
+          <View
+            style={{
+              marginTop: -100,
+              paddingHorizontal: space.xl,
+              zIndex: 2,
+              alignSelf: 'flex-start',
+            }}
+          >
+            <DateBox badge={dateBadge(event.data.startsAt, locale)} />
+          </View>
+        ) : null}
+
+        <View
+          style={{
+            flexGrow: 1,
+            backgroundColor: colors.canvas,
+            marginTop: event.data ? -space.xxl : 0,
+            zIndex: 1,
+            borderTopLeftRadius: radius.lg,
+            borderTopRightRadius: radius.lg,
+            borderCurve: 'continuous',
+            overflow: 'hidden',
+          }}
+        >
           {event.isPending && <AppText variant="caption">{t('events.loading')}</AppText>}
           {event.isError && (
             <AppText variant="caption" style={{ color: colors.danger }}>
@@ -228,168 +382,260 @@ export default function EventDetailScreen() {
             <>
               <View
                 style={{
-                  backgroundColor: colors.card as string,
-                  borderRadius: radius.lg,
+                  flexGrow: 1,
+                  backgroundColor: colors.canvas,
+                  borderTopLeftRadius: radius.lg,
+                  borderTopRightRadius: radius.lg,
                   borderCurve: 'continuous',
-                  padding: space.xl,
-                  gap: space.md,
-                  boxShadow: shadow.card,
+                  gap: space.lg,
+                  paddingHorizontal: space.lg,
+                  paddingTop: 36,
+                  paddingBottom: space.xxl,
                 }}
               >
-                <AppText variant="hero">{event.data.title}</AppText>
-                <InfoRow
-                  icon="calendar"
-                  title={t('events.when')}
-                  value={`${new Date(event.data.startsAt).toLocaleString(locale)} – ${new Date(
-                    event.data.endsAt,
-                  ).toLocaleString(locale)}`}
-                />
-                <InfoRow
-                  icon={event.data.mode === 'physical' ? 'mappin.and.ellipse' : 'link'}
-                  title={event.data.mode === 'physical' ? t('events.venue') : t('events.online')}
-                  value={
-                    event.data.mode === 'physical'
-                      ? (event.data.venueName ?? t('events.missingVenue'))
-                      : (event.data.onlineUrl ?? t('events.missingUrl'))
-                  }
-                />
-              </View>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
+                  <AppText
+                    style={{
+                      flex: 1,
+                      fontSize: 22,
+                      lineHeight: 28,
+                      fontWeight: '700',
+                      color: colors.ink,
+                    }}
+                  >
+                    {event.data.title}
+                  </AppText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <CircleIconButton
+                      plain
+                      tintColor={isSaved ? (colors.accent as string) : (colors.ink as string)}
+                      sf={isSaved ? 'heart.fill' : 'heart'}
+                      md={isSaved ? 'favorite' : 'favorite-border'}
+                      accessibilityLabel={isSaved ? t('events.unfavorite') : t('events.favorite')}
+                      onPress={toggleSaved}
+                      style={{ width: 32, height: 32 }}
+                    />
+                    <CircleIconButton
+                      plain
+                      tintColor={colors.ink as string}
+                      sf="square.and.arrow.up"
+                      md="share"
+                      accessibilityLabel={t('events.share')}
+                      onPress={() => void shareEvent()}
+                      style={{ width: 32, height: 32 }}
+                    />
+                    <EventActionsMenu
+                      accessibilityLabel={t('events.moreActions')}
+                      shareLabel={t('events.share')}
+                      copyLinkLabel={t('events.copyLink')}
+                      reportLabel={t('events.report')}
+                      onShare={() => void shareEvent()}
+                      onCopyLink={() => void copyLink()}
+                      onReport={() => setReportOpen(true)}
+                      buttonStyle={{ width: 32, height: 32 }}
+                    />
+                  </View>
+                </View>
 
-              <View
-                style={{
-                  backgroundColor: colors.card as string,
-                  borderRadius: radius.lg,
-                  borderCurve: 'continuous',
-                  padding: space.xl,
-                  gap: space.sm,
-                  boxShadow: shadow.soft,
-                }}
-              >
-                <AppText variant="subtitle">{t('events.description')}</AppText>
-                <AppText variant="body">
-                  {event.data.description ?? t('events.noDescription')}
-                </AppText>
-              </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                  <DetailIcon
+                    sf={event.data.mode === 'physical' ? 'mappin' : 'link'}
+                    md={event.data.mode === 'physical' ? 'location-on' : 'link'}
+                  />
+                  <AppText variant="body" style={{ flex: 1, color: colors.ink }}>
+                    {event.data.mode === 'physical'
+                      ? [event.data.venueName, event.data.publisherName]
+                          .filter(Boolean)
+                          .join(' · ') || t('events.missingVenue')
+                      : (event.data.onlineUrl ?? event.data.publisherName)}
+                  </AppText>
+                </View>
 
-              <View
-                style={{
-                  backgroundColor: colors.card as string,
-                  borderRadius: radius.lg,
-                  borderCurve: 'continuous',
-                  padding: space.xl,
-                  gap: space.md,
-                  boxShadow: shadow.soft,
-                }}
-              >
-                <AppText variant="subtitle">{t('events.contentTitle')}</AppText>
-                {'fromCache' in (content.data ?? {}) && (content.data as { fromCache?: boolean }).fromCache ? (
-                  <AppText variant="caption">{t('events.contentCached')}</AppText>
+                <TagPills tags={namesForTagIds(event.data.tagIds, tags.data?.items)} />
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
+                  <View
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, flex: 1 }}
+                  >
+                    <DetailIcon sf="calendar" md="event" />
+                    <AppText variant="caption" style={{ color: colors.ink, flexShrink: 1 }}>
+                      {new Date(event.data.startsAt).toLocaleDateString(locale, {
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </AppText>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                    <DetailIcon sf="clock" md="schedule" />
+                    <AppText variant="caption" style={{ color: colors.ink }}>
+                      {`${new Date(event.data.startsAt).toLocaleTimeString(locale, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })} – ${new Date(event.data.endsAt).toLocaleTimeString(locale, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}`}
+                    </AppText>
+                  </View>
+                </View>
+
+                {formatPrice(
+                  event.data.priceAmount,
+                  event.data.currency,
+                  locale,
+                  t('events.free'),
+                ) ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                    <DetailIcon sf="tag" md="local-offer" />
+                    <AppText variant="caption" style={{ color: colors.ink }}>
+                      {formatPrice(
+                        event.data.priceAmount,
+                        event.data.currency,
+                        locale,
+                        t('events.free'),
+                      )}
+                    </AppText>
+                  </View>
                 ) : null}
-                {content.isPending && <AppText variant="caption">{t('events.loading')}</AppText>}
-                {content.data && content.data.items.length === 0 ? (
-                  <AppText variant="caption">
-                    {content.data.checkedIn
-                      ? t('events.contentEmpty')
-                      : t('events.contentLocked')}
+
+                {event.data.description ? (
+                  <AppText variant="body" style={{ color: colors.ink }}>
+                    {event.data.description}
                   </AppText>
                 ) : null}
-                {content.data?.items.map((item) => (
-                  <View key={item.id} style={{ gap: 4 }}>
-                    <AppText variant="subtitle">{item.title}</AppText>
-                    {item.body ? <AppText variant="body">{item.body}</AppText> : null}
-                    {item.url ? (
-                      <AppText variant="caption" style={{ color: colors.accent }}>
-                        {item.url}
+
+                {(() => {
+                  const action = primaryAction(event.data.links, event.data.onlineUrl);
+                  const url = action ? safeHttpUrl(action.url) : null;
+                  if (!action || !url) return null;
+                  const label =
+                    action.label ??
+                    (action.kind === 'tickets'
+                      ? t('events.linkTickets')
+                      : action.kind === 'registration'
+                        ? t('events.linkRegistration')
+                        : action.kind === 'online'
+                          ? t('events.linkOnline')
+                          : t('events.linkInfo'));
+                  return <PrimaryButton label={label} onPress={() => void Linking.openURL(url)} />;
+                })()}
+
+                {event.data.checkInEnabled ? (
+                  <View style={{ gap: space.sm }}>
+                    <AppText variant="subtitle">{t('events.contentTitle')}</AppText>
+                    {'fromCache' in (content.data ?? {}) &&
+                    (content.data as { fromCache?: boolean }).fromCache ? (
+                      <AppText variant="caption">{t('events.contentCached')}</AppText>
+                    ) : null}
+                    {content.isPending && (
+                      <AppText variant="caption">{t('events.loading')}</AppText>
+                    )}
+                    {content.data && !content.data.checkedIn ? (
+                      <AppText variant="caption">{t('events.contentLocked')}</AppText>
+                    ) : null}
+                    {content.data?.checkedIn && content.data.attendeeText ? (
+                      <AppText variant="body">{content.data.attendeeText}</AppText>
+                    ) : null}
+                    {content.data?.checkedIn
+                      ? content.data.attendeeLinks.map((link) => (
+                          <PrimaryButton
+                            key={link.id}
+                            label={link.label || t('events.linkInfo')}
+                            onPress={() => void Linking.openURL(link.url)}
+                          />
+                        ))
+                      : null}
+                    {content.data?.items.map((item) => (
+                      <View key={item.id} style={{ gap: 4 }}>
+                        <AppText variant="subtitle">{item.title}</AppText>
+                        {item.body ? <AppText variant="body">{item.body}</AppText> : null}
+                        {item.url ? (
+                          <AppText variant="caption" style={{ color: colors.accent }}>
+                            {item.url}
+                          </AppText>
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+
+                {eventStats.data &&
+                (eventStats.data.numCheckins > 0 || eventStats.data.numRatings > 0) ? (
+                  <View style={{ gap: space.xs }}>
+                    {eventStats.data.numCheckins > 0 ? (
+                      <AppText variant="caption">
+                        {t('events.statsCheckIns', { count: eventStats.data.numCheckins })}
+                      </AppText>
+                    ) : null}
+                    {eventStats.data.numRatings > 0 ? (
+                      <AppText variant="caption">
+                        {t('events.statsRatings', {
+                          average: eventStats.data.ratingAverage ?? '–',
+                          count: eventStats.data.numRatings,
+                        })}
                       </AppText>
                     ) : null}
                   </View>
-                ))}
-              </View>
+                ) : ratingStatus.data?.aggregate.count ? (
+                  <AppText variant="caption">
+                    {t('events.rateAggregate', {
+                      average: ratingStatus.data.aggregate.average ?? '–',
+                      count: ratingStatus.data.aggregate.count,
+                    })}
+                  </AppText>
+                ) : null}
 
-              {eventStats.data &&
-              (eventStats.data.numCheckins > 0 || eventStats.data.numRatings > 0) ? (
-                <View style={{ gap: space.xs }}>
-                  {eventStats.data.numCheckins > 0 ? (
-                    <AppText variant="caption">
-                      {t('events.statsCheckIns', { count: eventStats.data.numCheckins })}
-                    </AppText>
-                  ) : null}
-                  {eventStats.data.numRatings > 0 ? (
-                    <AppText variant="caption">
-                      {t('events.statsRatings', {
-                        average: eventStats.data.ratingAverage ?? '–',
-                        count: eventStats.data.numRatings,
-                      })}
-                    </AppText>
-                  ) : null}
-                </View>
-              ) : ratingStatus.data?.aggregate.count ? (
-                <AppText variant="caption">
-                  {t('events.rateAggregate', {
-                    average: ratingStatus.data.aggregate.average ?? '–',
-                    count: ratingStatus.data.aggregate.count,
-                  })}
-                </AppText>
-              ) : null}
-            </>
-          )}
-        </View>
-      </ScrollView>
-
-      {event.data ? (
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            paddingHorizontal: space.xl,
-            paddingTop: space.md,
-            paddingBottom: Math.max(insets.bottom, space.lg),
-            alignItems: 'center',
-          }}
-        >
-          <View
-            style={{
-              width: '100%',
-              maxWidth: MaxContentWidth,
-              backgroundColor: colors.card as string,
-              borderRadius: radius.xl,
-              borderCurve: 'continuous',
-              padding: space.md,
-              boxShadow: shadow.card,
-            }}
-          >
-            {ratingStatus.data?.canRate ? (
-              <PrimaryButton
-                label={t('events.rateHowWasIt')}
-                onPress={() => setRatingOpen(true)}
-              />
-            ) : ratingStatus.data?.hasRated ? (
-              <PrimaryButton label={t('events.rateDone')} disabled />
-            ) : checkInStatus.data?.checkedIn ? (
-              <PrimaryButton label={t('events.checkInDone')} disabled />
-            ) : event.data.mode === 'physical' ? (
-              <View style={{ gap: space.md }}>
-                <PrimaryButton
-                  label={
-                    checkInStatus.isError
-                      ? t('events.checkInError')
-                      : checkInStatus.isLoading
-                        ? t('events.loading')
-                        : checkInStatus.data?.open
-                          ? t('events.checkIn')
-                          : t('events.checkInClosed')
-                  }
-                  loading={checkIn.isPending || checkInStatus.isLoading}
-                  disabled={
-                    checkInStatus.isError ||
-                    !checkInStatus.data?.open ||
-                    !identity.data
-                  }
-                  onPress={() => checkIn.mutate()}
-                />
-                {checkInStatus.data?.codeActive && checkInStatus.data.open ? (
+                {ratingStatus.data?.canRate ? (
+                  <PrimaryButton
+                    label={t('events.rateHowWasIt')}
+                    onPress={() => setRatingOpen(true)}
+                  />
+                ) : ratingStatus.data?.hasRated ? (
+                  <PrimaryButton label={t('events.rateDone')} disabled />
+                ) : !event.data.checkInEnabled ? (
+                  canOfferEventReminder(new Date(event.data.startsAt), new Date()) ? (
+                    <PrimaryButton
+                      label={reminderOn ? t('events.remindMeOn') : t('events.remindMe')}
+                      loading={saveReminder.isPending || clearReminder.isPending}
+                      onPress={openReminderPicker}
+                    />
+                  ) : null
+                ) : checkInStatus.data?.checkedIn ? (
+                  <PrimaryButton label={t('events.checkInDone')} disabled />
+                ) : event.data.mode === 'physical' ? (
+                  <View style={{ gap: space.md }}>
+                    <PrimaryButton
+                      label={
+                        checkInStatus.isError
+                          ? t('events.checkInError')
+                          : checkInStatus.isLoading
+                            ? t('events.loading')
+                            : checkInStatus.data?.open
+                              ? t('events.checkIn')
+                              : t('events.checkInClosed')
+                      }
+                      loading={checkIn.isPending || checkInStatus.isLoading}
+                      disabled={
+                        checkInStatus.isError || !checkInStatus.data?.open || !identity.data
+                      }
+                      onPress={() => checkIn.mutate()}
+                    />
+                    {checkInStatus.data?.codeActive && checkInStatus.data.open ? (
+                      <CodeCheckInFields
+                        code={code}
+                        onChangeCode={setCode}
+                        loading={codeCheckIn.isPending}
+                        disabled={!identity.data}
+                        onSubmit={() => codeCheckIn.mutate()}
+                        hint={t('events.checkInCodeHint')}
+                        placeholder={t('events.checkInCodePlaceholder')}
+                        submitLabel={t('events.checkInWithCode')}
+                      />
+                    ) : null}
+                  </View>
+                ) : checkInStatus.data?.codeActive && checkInStatus.data.open ? (
                   <CodeCheckInFields
                     code={code}
                     onChangeCode={setCode}
@@ -400,25 +646,19 @@ export default function EventDetailScreen() {
                     placeholder={t('events.checkInCodePlaceholder')}
                     submitLabel={t('events.checkInWithCode')}
                   />
+                ) : canOfferEventReminder(new Date(event.data.startsAt), new Date()) ? (
+                  <PrimaryButton
+                    label={reminderOn ? t('events.remindMeOn') : t('events.remindMe')}
+                    loading={saveReminder.isPending || clearReminder.isPending}
+                    onPress={openReminderPicker}
+                  />
                 ) : null}
+                {reminderNotice ? <AppText variant="caption">{reminderNotice}</AppText> : null}
               </View>
-            ) : checkInStatus.data?.codeActive && checkInStatus.data.open ? (
-              <CodeCheckInFields
-                code={code}
-                onChangeCode={setCode}
-                loading={codeCheckIn.isPending}
-                disabled={!identity.data}
-                onSubmit={() => codeCheckIn.mutate()}
-                hint={t('events.checkInCodeHint')}
-                placeholder={t('events.checkInCodePlaceholder')}
-                submitLabel={t('events.checkInWithCode')}
-              />
-            ) : (
-              <PrimaryButton label={t('events.remindMe')} />
-            )}
-          </View>
+            </>
+          )}
         </View>
-      ) : null}
+      </ScrollView>
 
       <ConfirmAction
         title={t('events.reportTitle')}
@@ -457,6 +697,20 @@ export default function EventDetailScreen() {
         }
       />
 
+      <ReminderPicker
+        isPresented={reminderOpen}
+        onDismiss={() => setReminderOpen(false)}
+        title={t('events.remindMe')}
+        body={t('events.remindChoose')}
+        options={reminderOptions}
+        activeSlots={reminder.data ?? []}
+        saveLabel={t('events.remindSave')}
+        clearLabel={t('events.remindClear')}
+        saving={saveReminder.isPending || clearReminder.isPending}
+        onSave={(slots) => saveReminder.mutate(slots)}
+        onClear={reminderOn ? () => clearReminder.mutate() : undefined}
+      />
+
       <RatingSheet
         isPresented={ratingOpen}
         onDismiss={() => setRatingOpen(false)}
@@ -466,9 +720,7 @@ export default function EventDetailScreen() {
         commentPlaceholder={t('events.rateCommentPlaceholder')}
         submitLabel={t('events.rateSubmit')}
         saving={rate.isPending}
-        onSubmit={(score, comment) =>
-          rate.mutate({ score, comment: comment || null })
-        }
+        onSubmit={(score, comment) => rate.mutate({ score, comment: comment || null })}
       />
     </View>
   );
@@ -498,7 +750,14 @@ function CodeCheckInFields({
       <AppText variant="caption">{hint}</AppText>
       <TextInput
         value={code}
-        onChangeText={(v) => onChangeCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
+        onChangeText={(v) =>
+          onChangeCode(
+            v
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, '')
+              .slice(0, 8),
+          )
+        }
         placeholder={placeholder}
         placeholderTextColor={colors.inkFaint}
         autoCapitalize="characters"
@@ -509,7 +768,6 @@ function CodeCheckInFields({
           borderCurve: 'continuous',
           paddingHorizontal: space.lg,
           paddingVertical: space.md,
-          fontFamily: typography.familyRegular,
           fontSize: 18,
           letterSpacing: 4,
           color: colors.ink,
@@ -526,35 +784,10 @@ function CodeCheckInFields({
   );
 }
 
-function InfoRow({ icon, title, value }: { icon: string; title: string; value: string }) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        gap: space.md,
-        alignItems: 'center',
-        backgroundColor: colors.canvas,
-        borderRadius: radius.md,
-        borderCurve: 'continuous',
-        padding: space.lg,
-      }}
-    >
-      <View
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: radius.pill,
-          backgroundColor: colors.accentSoft,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <SymbolView name={icon as never} size={18} tintColor={colors.accent} />
-      </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <AppText variant="caption">{title}</AppText>
-        <AppText variant="subtitle">{value}</AppText>
-      </View>
-    </View>
+function DetailIcon({ sf, md }: { sf: string; md: keyof typeof MaterialIcons.glyphMap }) {
+  return process.env.EXPO_OS === 'ios' ? (
+    <SymbolView name={sf as never} size={16} tintColor={colors.inkMuted} />
+  ) : (
+    <MaterialIcons name={md} size={16} color={colors.inkMuted} />
   );
 }

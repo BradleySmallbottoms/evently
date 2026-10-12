@@ -1,0 +1,284 @@
+import { IncomingEvent, type SourceRunContext } from '../../../packages/ingest/src/index';
+import { afterEach, describe, expect, it } from 'vitest';
+import fixture from '../../../apps/data-workers/src/sources/visit-soderhamn/fixture.json' with { type: 'json' };
+import {
+  visitSoderhamn,
+  type VisitProduct,
+  type VisitRaw,
+} from '../../../apps/data-workers/src/sources/visit-soderhamn';
+
+const raw = fixture as VisitRaw;
+
+function ctx(
+  config: Record<string, unknown> = {},
+  fetchImpl?: SourceRunContext['fetch'],
+): {
+  ctx: SourceRunContext;
+  logs: string[];
+} {
+  const logs: string[] = [];
+  return {
+    logs,
+    ctx: {
+      sourceSlug: 'visit-soderhamn',
+      config,
+      fetch:
+        fetchImpl ??
+        (async () => {
+          throw new Error('unexpected fetch');
+        }),
+      log: (message, data) => logs.push(JSON.stringify({ message, ...data })),
+    },
+  };
+}
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+describe('visit-soderhamn map', () => {
+  const { ctx: mapCtx } = ctx();
+  const events = visitSoderhamn.map(raw, mapCtx);
+
+  it('emits one event per occasion and parses as IncomingEvent', () => {
+    expect(events).toHaveLength(3);
+    for (const event of events) expect(IncomingEvent.safeParse(event).success).toBe(true);
+    expect(events.map((event) => event.externalId)).toEqual([
+      'cbis:2678865:2025-01-31T19:00:00:2025-01-31T21:00:00',
+      'cbis:2682743:2024-12-14T12:00:00:2024-12-14T15:00:00',
+      'cbis:2682743:2024-12-15T12:00:00:2024-12-15T15:00:00',
+    ]);
+    expect(events[1]?.links).toEqual([
+      {
+        type: 'info',
+        url: 'https://www.facebook.com/events/1761578234599074/1761578251265739/',
+      },
+      { type: 'info', url: 'https://www.foreningensm.se/' },
+    ]);
+  });
+
+  it('maps the bandy match with a Stockholm winter offset', () => {
+    const bandy = events[0]!;
+    expect(bandy.title).toBe('Broberg/Söderhamn Bandy - Edsbyns IF');
+    expect(bandy.startsAt).toBe('2025-01-31T19:00:00+01:00');
+    expect(bandy.endsAt).toBe('2025-01-31T21:00:00+01:00');
+    expect(bandy.timezone).toBe('Europe/Stockholm');
+    expect(bandy.venueName).toBe('Helsingehus Arena, Hällåsen');
+    expect(bandy.address).toBe('Hällåsen, 826 40 Söderhamn, Sweden');
+    expect(bandy.location).toEqual({ lat: 61.2887228674144, lng: 17.0729084004415 });
+    expect(bandy.sourceUrl).toBe('https://brobergsoderhamn.se/');
+    expect(bandy.links).toEqual([
+      { type: 'tickets', url: 'https://brobergsoderhamn.ticketco.events/se/sv' },
+      { type: 'info', url: 'https://brobergsoderhamn.se/' },
+    ]);
+    expect(bandy.organizerKey).toBe('kansli@brobergsoderhamn.se');
+    expect(bandy.organizerName).toBe('Kansliet, Broberg/Söderhamn Bandy');
+    expect(bandy.categoryHints).toEqual(['Idrott & Tävlingar', 'Bandy & Innebandy', 'Tävlingar']);
+    expect(bandy.tags).toEqual([
+      { externalId: 'visit-soderhamn:30192', name: 'Idrott & Tävlingar' },
+      { externalId: 'visit-soderhamn:30194', name: 'Bandy & Innebandy' },
+      { externalId: 'visit-soderhamn:30203', name: 'Tävlingar' },
+    ]);
+    expect(bandy.imageUrl).toBe('https://images.citybreakcdn.com/image.aspx?ImageId=10290222');
+    expect(bandy.description).toContain('inomhusarena för bandy');
+  });
+
+  it('collects categories under Evenemang as tags', () => {
+    expect(visitSoderhamn.tags?.(raw, mapCtx)).toEqual([
+      { externalId: 'visit-soderhamn:30182', name: 'Högtider' },
+      { externalId: 'visit-soderhamn:30184', name: 'Jul & Nyår' },
+      { externalId: 'visit-soderhamn:30192', name: 'Idrott & Tävlingar' },
+      { externalId: 'visit-soderhamn:30194', name: 'Bandy & Innebandy' },
+      { externalId: 'visit-soderhamn:30203', name: 'Tävlingar' },
+      { externalId: 'visit-soderhamn:30216', name: 'Mässor & Utställningar' },
+      { externalId: 'visit-soderhamn:30224', name: 'Utställning' },
+    ]);
+  });
+
+  it('uses a summer offset', () => {
+    const product: VisitProduct = {
+      ...raw.products[0]!,
+      Occasions: [{ Start: '2026-07-01T19:00:00', End: '2026-07-01T21:00:00' }],
+    };
+    const [event] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
+    expect(event?.startsAt).toBe('2026-07-01T19:00:00+02:00');
+    expect(event?.endsAt).toBe('2026-07-01T21:00:00+02:00');
+  });
+
+  it('drops products with no occasion or no source url', () => {
+    const withoutUrl: VisitProduct = {
+      ...raw.products[0]!,
+      Information: raw.products[0]!.Information?.filter(
+        (item) => item.Id !== 125 && item.Id !== 110,
+      ),
+    };
+    const withoutOccasions: VisitProduct = { ...raw.products[1]!, Occasions: [] };
+    const mapped = visitSoderhamn.map(
+      { categories: [], products: [withoutUrl, withoutOccasions] },
+      mapCtx,
+    );
+    expect(mapped).toEqual([]);
+  });
+
+  it('falls back to the source name when the product has no contact', () => {
+    const product: VisitProduct = {
+      ...raw.products[0]!,
+      Information: raw.products[0]!.Information?.filter(
+        (item) => item.Id !== 160 && item.Id !== 161,
+      ),
+    };
+    const [event] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
+    expect(event?.organizerKey).toBe('visit-soderhamn');
+    expect(event?.organizerName).toBeUndefined();
+  });
+
+  it('stores a price when the description states one', () => {
+    const product: VisitProduct = {
+      ...raw.products[0]!,
+      Information: raw.products[0]!.Information?.map((item) =>
+        item.Id === 102 ? { ...item, Value: 'Avgift: 1600 kr, faktureras' } : item,
+      ),
+    };
+    const [event] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
+    expect(event?.priceAmount).toBe(160_000);
+    expect(event?.currency).toBe('SEK');
+  });
+});
+
+describe('visit-soderhamn fetch', () => {
+  const previous = process.env.VISIT_SODERHAMN_API_KEY;
+
+  afterEach(() => {
+    if (previous === undefined) delete process.env.VISIT_SODERHAMN_API_KEY;
+    else process.env.VISIT_SODERHAMN_API_KEY = previous;
+  });
+
+  it('pages categories before products and does not log the continue token', async () => {
+    process.env.VISIT_SODERHAMN_API_KEY = 'test-key';
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const { ctx: fetchCtx, logs } = ctx({}, async (input, init) => {
+      const url = String(input);
+      calls.push({ url, init });
+      if (url.endsWith('/raw/category/getpaged/20')) {
+        return json({
+          ContinueToken: 'tok+en==',
+          TotalResults: 2,
+          Result: [{ Id: 30084, Name: 'Visit Söderhamn', Path: [30084] }],
+        });
+      }
+      if (url.includes('/raw/category/getnext/')) {
+        return json({
+          TotalResults: 2,
+          Result: [{ Id: 30172, Name: 'Evenemang', Path: [30084, 30099, 30172] }],
+        });
+      }
+      if (url.endsWith('/product')) {
+        return json({
+          TotalResults: 1,
+          Result: [raw.products[0]],
+        });
+      }
+      return json({ message: 'unexpected' }, 404);
+    });
+
+    const fetched = await visitSoderhamn.fetchRaw(fetchCtx);
+    expect(fetched.categories.map((category) => category.Id)).toEqual([30084, 30172]);
+    expect(fetched.products).toHaveLength(1);
+    expect(calls.map((call) => call.url)).toEqual([
+      'https://cbis-rest-api.citybreak.com/v1/api/raw/category/getpaged/20',
+      'https://cbis-rest-api.citybreak.com/v1/api/raw/category/getnext/tok%2Ben%3D%3D',
+      'https://cbis-rest-api.citybreak.com/v1/api/product',
+    ]);
+    const productCall = calls[2]!;
+    expect(productCall.init?.method).toBe('POST');
+    expect(productCall.init?.body).toBe(
+      JSON.stringify({ Categories: [30172], Page: 0, PageSize: 20 }),
+    );
+    expect(new Headers(productCall.init?.headers).get('ApiKey')).toBe('test-key');
+    expect(new Headers(productCall.init?.headers).get('Accept-Language')).toBe('sv-se');
+    expect(logs.join('\n')).not.toContain('tok+en==');
+    expect(logs.join('\n')).not.toContain('tok%2Ben%3D%3D');
+    expect(logs.join('\n')).not.toContain('test-key');
+  });
+
+  it('refuses to fetch products when Evenemang is missing from the tree', async () => {
+    process.env.VISIT_SODERHAMN_API_KEY = 'test-key';
+    const { ctx: fetchCtx } = ctx({}, async () =>
+      json({ TotalResults: 1, Result: [{ Id: 30086, Name: 'Bo', Path: [30084, 30086] }] }),
+    );
+    await expect(visitSoderhamn.fetchRaw(fetchCtx)).rejects.toThrow(/30172/);
+  });
+
+  it('pages products until TotalResults is covered', async () => {
+    process.env.VISIT_SODERHAMN_API_KEY = 'test-key';
+    const bodies: unknown[] = [];
+    const { ctx: fetchCtx } = ctx({ pageSize: 1 }, async (input, init) => {
+      const url = String(input);
+      if (url.endsWith('/raw/category/getpaged/1')) {
+        return json({
+          TotalResults: 1,
+          Result: [{ Id: 30172, Name: 'Evenemang', Path: [30172] }],
+        });
+      }
+      if (url.endsWith('/product')) {
+        const body = JSON.parse(String(init?.body));
+        bodies.push(body);
+        const page = body.Page as number;
+        return json({
+          TotalResults: 2,
+          Result: [raw.products[page]],
+        });
+      }
+      return json({ message: 'unexpected' }, 404);
+    });
+
+    const fetched = await visitSoderhamn.fetchRaw(fetchCtx);
+    expect(bodies).toEqual([
+      { Categories: [30172], Page: 0, PageSize: 1 },
+      { Categories: [30172], Page: 1, PageSize: 1 },
+    ]);
+    expect(fetched.products.map((product) => product.Id)).toEqual([
+      raw.products[0]!.Id,
+      raw.products[1]!.Id,
+    ]);
+  });
+
+  it('fails when a later product page is empty before TotalResults', async () => {
+    process.env.VISIT_SODERHAMN_API_KEY = 'test-key';
+    const { ctx: fetchCtx } = ctx({ pageSize: 1 }, async (input, init) => {
+      const url = String(input);
+      if (url.endsWith('/raw/category/getpaged/1')) {
+        return json({ TotalResults: 1, Result: [{ Id: 30172, Name: 'Evenemang' }] });
+      }
+      const body = JSON.parse(String(init?.body));
+      if (body.Page === 0) return json({ TotalResults: 2, Result: [raw.products[0]] });
+      return json({ TotalResults: 2, Result: [] });
+    });
+    await expect(visitSoderhamn.fetchRaw(fetchCtx)).rejects.toThrow(/incomplete \(1 of 2\)/);
+  });
+
+  it('refuses a base URL that is not the Citybreak host', async () => {
+    process.env.VISIT_SODERHAMN_API_KEY = 'test-key';
+    let fetched = false;
+    const { ctx: fetchCtx } = ctx(
+      { baseUrl: 'http://169.254.169.254/latest/meta-data' },
+      async () => {
+        fetched = true;
+        return json({});
+      },
+    );
+    await expect(visitSoderhamn.fetchRaw(fetchCtx)).rejects.toThrow(
+      /cbis-rest-api\.citybreak\.com/,
+    );
+    expect(fetched).toBe(false);
+  });
+
+  it('requires the API key from the environment', async () => {
+    delete process.env.VISIT_SODERHAMN_API_KEY;
+    const { ctx: fetchCtx } = ctx();
+    await expect(visitSoderhamn.fetchRaw(fetchCtx)).rejects.toThrow(/VISIT_SODERHAMN_API_KEY/);
+  });
+});

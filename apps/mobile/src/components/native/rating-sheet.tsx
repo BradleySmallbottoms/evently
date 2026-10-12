@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
-import { radius, space, typography } from '@/theme/tokens';
+import { radius, space } from '@/theme/tokens';
 
 type Props = {
   isPresented: boolean;
@@ -55,7 +55,7 @@ export function RatingSheet({
                   textStyle={{
                     fontSize: 16,
                     fontWeight: '700',
-                    color: n <= score ? '#FFFFFF' : (colors.ink as string),
+                    color: n <= score ? colors.primary : (colors.ink as string),
                   }}
                 >
                   {String(n)}
@@ -75,8 +75,7 @@ export function RatingSheet({
               borderRadius: radius.md,
               padding: space.md,
               minHeight: 72,
-              fontFamily: typography.familyRegular,
-              fontSize: 15,
+              fontSize: 16,
               color: colors.ink as string,
             }}
           />
@@ -91,7 +90,7 @@ export function RatingSheet({
               opacity: saving ? 0.5 : 1,
             }}
           >
-            <Text textStyle={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>
+            <Text textStyle={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>
               {submitLabel}
             </Text>
           </Pressable>

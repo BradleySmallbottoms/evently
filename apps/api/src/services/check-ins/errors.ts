@@ -14,6 +14,7 @@ const MESSAGES: Record<CheckInErrorCode, string> = {
   already_checked_in: 'Already checked in',
   invalid_code: 'Invalid or expired check-in code',
   not_revealed: 'Check-in code has not been started yet',
+  check_in_disabled: 'Check-in is not enabled for this event',
 };
 
 const STATUS: Record<CheckInErrorCode, 400 | 401 | 403 | 404 | 409> = {
@@ -28,6 +29,7 @@ const STATUS: Record<CheckInErrorCode, 400 | 401 | 403 | 404 | 409> = {
   already_checked_in: 409,
   invalid_code: 400,
   not_revealed: 400,
+  check_in_disabled: 400,
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

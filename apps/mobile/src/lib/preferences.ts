@@ -11,11 +11,11 @@ export async function getPreferences(identity: StoredIdentity) {
   );
 }
 
-export async function replaceInterests(identity: StoredIdentity, categoryIds: string[]) {
+export async function replaceInterests(identity: StoredIdentity, tagIds: string[]) {
   return throwIfError(
     await api.PUT('/me/interests', {
       headers: authHeaders(identity),
-      body: { categoryIds },
+      body: { tagIds },
     }),
   );
 }

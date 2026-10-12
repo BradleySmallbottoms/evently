@@ -1,6 +1,10 @@
 import { serve } from '@hono/node-server';
 import { createDb, resolveDatabaseUrl } from '@local-events/db';
 import { createApp } from './app';
+import {
+  createDbAdminAuditServices,
+  createMemoryAdminAuditServices,
+} from './services/audit';
 import { createDbAdminAuthServices } from './services/auth/db';
 import {
   createAdminMemoryAuthStore,
@@ -8,6 +12,18 @@ import {
 } from './services/auth/memory';
 import { createMemoryDomainEventPublisher } from './services/domain-events/memory';
 import { createSqsDomainEventPublisher } from './services/domain-events/sqs';
+import {
+  createDbAdminDataSourceServices,
+  createMemoryAdminDataSourceServices,
+} from './services/data-sources';
+import {
+  createDbAdminEventServices,
+  createMemoryAdminEventServices,
+} from './services/events';
+import {
+  createDbAdminModerationServices,
+  createMemoryAdminModerationServices,
+} from './services/moderation';
 import {
   createDbAdminPublisherServices,
   createMemoryAdminPublisherServices,
@@ -35,22 +51,38 @@ const corsOrigin =
     : corsOriginList;
 
 const authStore = createAdminMemoryAuthStore();
-const {
-  auth,
-  publishers,
-} = (() => {
+const { auth, publishers, events, dataSources, audit, moderation } = (() => {
   if (databaseUrl) {
     const db = createDb(databaseUrl);
+    const auditSvc = createDbAdminAuditServices(db);
     return {
       auth: createDbAdminAuthServices(db),
       publishers: createDbAdminPublisherServices(db, { domainEvents }),
+      events: createDbAdminEventServices(db, { domainEvents, audit: auditSvc }),
+      dataSources: createDbAdminDataSourceServices(db),
+      audit: auditSvc,
+      moderation: createDbAdminModerationServices(db, { audit: auditSvc }),
     };
   }
+  const auditSvc = createMemoryAdminAuditServices();
   return {
     auth: createMemoryAdminAuthServices(authStore),
     publishers: createMemoryAdminPublisherServices(
       { publishers: new Map(), events: new Map() },
       { domainEvents },
+    ),
+    events: createMemoryAdminEventServices(
+      { publishers: new Map(), events: new Map() },
+      { audit: auditSvc },
+    ),
+    dataSources: createMemoryAdminDataSourceServices({
+      sources: new Map(),
+      runs: new Map(),
+    }),
+    audit: auditSvc,
+    moderation: createMemoryAdminModerationServices(
+      { users: new Map(), ratings: new Map(), checkIns: new Map() },
+      { audit: auditSvc },
     ),
   };
 })();
@@ -82,7 +114,15 @@ if (bootstrapEmail && bootstrapPassword && auth.ensureBootstrapAdmin) {
 
 serve(
   {
-    fetch: createApp({ auth, publishers, corsOrigin }).fetch,
+    fetch: createApp({
+      auth,
+      publishers,
+      events,
+      dataSources,
+      audit,
+      moderation,
+      corsOrigin,
+    }).fetch,
     port,
   },
   (info) => {

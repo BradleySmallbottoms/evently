@@ -1,7 +1,8 @@
 import type {
-  Category,
+  Tag,
   CreateEventRequest,
   Event,
+  ManagedEvent,
   PublicEventListQuery,
   UpdateEventRequest,
 } from '@local-events/contracts';
@@ -14,12 +15,12 @@ export type EventErrorCode =
   | 'forbidden'
   | 'not_found'
   | 'invalid_event'
-  | 'location_required'
   | 'online_url_required'
   | 'cannot_edit'
   | 'cannot_publish'
   | 'cannot_cancel'
-  | 'limit_reached';
+  | 'limit_reached'
+  | 'check_in_disabled';
 
 export class EventError extends Error {
   constructor(readonly code: EventErrorCode) {
@@ -29,7 +30,7 @@ export class EventError extends Error {
 }
 
 export type EventServices = {
-  listCategories: () => Promise<Category[]>;
+  listTags: (query?: { upcoming?: boolean }) => Promise<Tag[]>;
   listPublisherEvents: (input: {
     sessionToken: string | undefined;
     publisherId: string;
@@ -44,24 +45,20 @@ export type EventServices = {
     eventId: string;
     /** When true, only published events are returned (public surface). */
     publicOnly: boolean;
-  }) => Promise<Event>;
+  }) => Promise<Event | ManagedEvent>;
   updateEvent: (input: {
     sessionToken: string | undefined;
     eventId: string;
     body: UpdateEventRequest;
-  }) => Promise<Event>;
-  publishEvent: (input: {
-    sessionToken: string | undefined;
-    eventId: string;
-  }) => Promise<Event>;
-  cancelEvent: (input: {
-    sessionToken: string | undefined;
-    eventId: string;
-  }) => Promise<Event>;
+  }) => Promise<ManagedEvent>;
+  publishEvent: (input: { sessionToken: string | undefined; eventId: string }) => Promise<Event>;
+  cancelEvent: (input: { sessionToken: string | undefined; eventId: string }) => Promise<Event>;
   listPublicEvents: (query: PublicEventListQuery) => Promise<Event[]>;
 };
 
 export type EventEnv = {
   now: () => Date;
   domainEvents?: DomainEventPublisher;
+  /** Garage or CloudFront origin. Event image keys are appended to this. */
+  assetsPublicBaseUrl?: string;
 };

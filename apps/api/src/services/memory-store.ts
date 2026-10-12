@@ -1,5 +1,5 @@
-import type { Category, Event } from '@local-events/contracts';
-import { SEED_CATEGORIES } from './events/seed-categories';
+import type { Event, Tag } from '@local-events/contracts';
+import { SEED_TAGS } from '@local-events/db';
 
 export type MemoryUser = {
   id: string;
@@ -13,6 +13,8 @@ export type MemoryUser = {
   quietHoursStartMin: number;
   quietHoursEndMin: number;
   quietHoursEnabled: boolean;
+  bannedAt: Date | null;
+  banReason: string | null;
 };
 export type MemoryDevice = {
   id: string;
@@ -67,7 +69,7 @@ export type MemoryPublisherInvite = {
 };
 export type MemoryUserInterest = {
   userId: string;
-  categoryId: string;
+  tagId: string;
   createdAt: Date;
 };
 export type MemoryUserArea = {
@@ -103,9 +105,18 @@ export type MemoryToken = {
   usedAt: Date | null;
 };
 
+export type MemoryAttendeeLink = {
+  id: string;
+  url: string;
+  label: string | null;
+  position: number;
+};
+
 export type MemoryEventRow = Event & {
   startsAtDate: Date;
   endsAtDate: Date;
+  attendeeText?: string | null;
+  attendeeLinks?: MemoryAttendeeLink[];
 };
 
 /** Shared in-memory tables for auth + events + admin tests. */
@@ -157,6 +168,25 @@ export type MemoryEventContent = {
   createdAt: Date;
 };
 
+export type MemorySavedEvent = {
+  userId: string;
+  eventId: string;
+  createdAt: Date;
+};
+
+export type MemoryEventList = {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: Date;
+};
+
+export type MemoryEventListItem = {
+  listId: string;
+  eventId: string;
+  createdAt: Date;
+};
+
 export type MemoryRating = {
   id: string;
   userId: string;
@@ -164,6 +194,7 @@ export type MemoryRating = {
   score: number;
   comment: string | null;
   createdAt: Date;
+  hiddenAt: Date | null;
 };
 
 export type MemoryStore = {
@@ -178,8 +209,11 @@ export type MemoryStore = {
   userAreas: Map<string, MemoryUserArea>;
   regions: Map<string, MemoryRegion>;
   tokens: Map<string, MemoryToken>;
-  categories: Map<string, Category>;
+  tags: Map<string, Tag>;
   events: Map<string, MemoryEventRow>;
+  savedEvents: MemorySavedEvent[];
+  eventLists: MemoryEventList[];
+  eventListItems: MemoryEventListItem[];
   subscriptions: MemorySubscription[];
   notifications: Map<string, MemoryNotification>;
   digitalCodes: Map<string, MemoryDigitalCode>;
@@ -195,8 +229,8 @@ export const SEED_REGION_SODERHAMN_ID = '22222222-2222-4222-8222-222222222201';
 export const SEED_REGION_GAVLEBORG_ID = '22222222-2222-4222-8222-222222222202';
 
 export function createMemoryStore(): MemoryStore {
-  const categories = new Map<string, Category>();
-  for (const c of SEED_CATEGORIES) categories.set(c.id, c);
+  const tags = new Map<string, Tag>();
+  for (const tag of SEED_TAGS) tags.set(tag.id, { id: tag.id, slug: tag.slug, name: tag.name });
   const regions = new Map<string, MemoryRegion>();
   regions.set(SEED_REGION_SODERHAMN_ID, {
     id: SEED_REGION_SODERHAMN_ID,
@@ -224,8 +258,11 @@ export function createMemoryStore(): MemoryStore {
     userAreas: new Map(),
     regions,
     tokens: new Map(),
-    categories,
+    tags,
     events: new Map(),
+    savedEvents: [],
+    eventLists: [],
+    eventListItems: [],
     subscriptions: [],
     notifications: new Map(),
     digitalCodes: new Map(),

@@ -1,5 +1,7 @@
 import { App } from 'aws-cdk-lib';
 import { DataStack } from '../lib/data-stack';
+import { DataWorkersStack } from '../lib/data-workers-stack';
+import { EdgeStack } from '../lib/edge-stack';
 import { NetworkStack } from '../lib/network-stack';
 import { ServicesStack } from '../lib/services-stack';
 
@@ -22,15 +24,30 @@ const data = new DataStack(app, `${prefix}-data`, {
   vpc: network.vpc,
   appSecurityGroup: network.appSecurityGroup,
 });
-new ServicesStack(app, `${prefix}-services`, {
+const edge = new EdgeStack(app, `${prefix}-edge`, {
+  env,
+  envName,
+  publicAssetsBucket: data.publicAssetsBucket,
+});
+const services = new ServicesStack(app, `${prefix}-services`, {
   env,
   envName,
   vpc: network.vpc,
   appSecurityGroup: network.appSecurityGroup,
   data,
   imageTag,
+  assetsPublicBaseUrl: edge.assetsPublicBaseUrl,
 });
 
-// Next stacks (see docs/build-plan.md):
-// DataWorkersStack Fargate task definitions + EventBridge Scheduler schedules per source
-// EdgeStack        CloudFront + WAF (public), WAF IP allowlist (admin)
+new DataWorkersStack(app, `${prefix}-data-workers`, {
+  env,
+  envName,
+  vpc: network.vpc,
+  appSecurityGroup: network.appSecurityGroup,
+  data,
+  cluster: services.cluster,
+  taskRole: services.taskRole,
+  imageTag,
+});
+
+// Next: WAF on the public CloudFront distribution, and an IP allowlist in front of admin.

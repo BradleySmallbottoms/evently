@@ -90,11 +90,11 @@ test('publisher event flow is visible in web workspace', async ({ page, request,
     },
   ]);
 
-  const categoriesRes = await request.get(`${API}/v1/categories`);
-  expect(categoriesRes.ok()).toBeTruthy();
-  const categories = (await categoriesRes.json()) as { items: { id: string }[] };
-  const categoryId = categories.items[0]?.id;
-  expect(categoryId).toBeTruthy();
+  const tagsRes = await request.get(`${API}/v1/tags`);
+  expect(tagsRes.ok()).toBeTruthy();
+  const tags = (await tagsRes.json()) as { items: { id: string }[] };
+  const tagId = tags.items[0]?.id;
+  expect(tagId).toBeTruthy();
 
   const createRes = await request.post(
     `${API}/v1/publishers/${registered.publisherId}/events`,
@@ -108,7 +108,7 @@ test('publisher event flow is visible in web workspace', async ({ page, request,
         endsAt: `${tsPlusMinutes(120)}:00.000Z`,
         venueName: 'Soderhamn Centrum',
         location: { lat: 61.3037, lng: 17.0592 },
-        categoryIds: [categoryId],
+        tagIds: [tagId],
       },
     },
   );

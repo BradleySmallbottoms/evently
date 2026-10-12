@@ -3,9 +3,10 @@ import { createApp } from '../../../apps/api/src/app';
 import { createMemoryAuthServices } from '../../../apps/api/src/services/auth/memory';
 import { createMemoryPreferenceServices } from '../../../apps/api/src/services/preferences/memory';
 import { createMemoryStore } from '../../../apps/api/src/services/memory-store';
+import { SEED_TAGS } from '../../../packages/db/src/seed-tags';
 
-const MUSIC = '11111111-1111-4111-8111-111111111101';
-const CULTURE = '11111111-1111-4111-8111-111111111102';
+const SPORT = SEED_TAGS[2]!.id;
+const BANDY = SEED_TAGS[3]!.id;
 
 async function createUserSession(app: ReturnType<typeof createApp>) {
   const created = await app.request('/v1/identities', {
@@ -42,7 +43,7 @@ describe('user preferences', () => {
     const empty = await app.request('/v1/me/preferences', { headers: authHeader });
     expect(empty.status).toBe(200);
     expect(await empty.json()).toEqual({
-      categoryIds: [],
+      tagIds: [],
       areas: [],
       quietHours: {
         enabled: true,
@@ -55,10 +56,10 @@ describe('user preferences', () => {
     const interests = await app.request('/v1/me/interests', {
       method: 'PUT',
       headers: { ...authHeader, 'content-type': 'application/json' },
-      body: JSON.stringify({ categoryIds: [MUSIC, CULTURE] }),
+      body: JSON.stringify({ tagIds: [SPORT, BANDY] }),
     });
     expect(interests.status).toBe(200);
-    expect(await interests.json()).toEqual({ categoryIds: [MUSIC, CULTURE] });
+    expect(await interests.json()).toEqual({ tagIds: [SPORT, BANDY] });
 
     const circle = await app.request('/v1/me/areas', {
       method: 'POST',
@@ -92,10 +93,10 @@ describe('user preferences', () => {
 
     const prefs = await app.request('/v1/me/preferences', { headers: authHeader });
     const prefsBody = (await prefs.json()) as {
-      categoryIds: string[];
+      tagIds: string[];
       areas: { id: string }[];
     };
-    expect(prefsBody.categoryIds).toEqual([MUSIC, CULTURE]);
+    expect(prefsBody.tagIds).toEqual([SPORT, BANDY]);
     expect(prefsBody.areas).toHaveLength(2);
 
     const patched = await app.request(`/v1/me/areas/${circleBody.id}`, {
@@ -118,7 +119,7 @@ describe('user preferences', () => {
     });
   });
 
-  it('rejects unauthenticated and unknown categories', async () => {
+  it('rejects unauthenticated and unknown tags', async () => {
     const app = createApp();
     const unauth = await app.request('/v1/me/preferences');
     expect(unauth.status).toBe(401);
@@ -130,10 +131,10 @@ describe('user preferences', () => {
         authorization: `Bearer ${session.sessionToken}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ categoryIds: ['00000000-0000-4000-8000-000000000099'] }),
+      body: JSON.stringify({ tagIds: ['00000000-0000-4000-8000-000000000099'] }),
     });
     expect(bad.status).toBe(400);
-    expect(await bad.json()).toMatchObject({ error: { code: 'unknown_category' } });
+    expect(await bad.json()).toMatchObject({ error: { code: 'unknown_tag' } });
   });
 
   it('rejects cross-user area mutations', async () => {

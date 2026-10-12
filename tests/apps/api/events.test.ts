@@ -4,8 +4,8 @@ import { createApp } from '../../../apps/api/src/app';
 import { createMemoryAuthServices } from '../../../apps/api/src/services/auth/memory';
 import { createMemoryDomainEventPublisher } from '../../../apps/api/src/services/domain-events/memory';
 import { createMemoryEventServices, releaseAwaitingEventsInStore } from '../../../apps/api/src/services/events/memory';
-import { SEED_CATEGORIES } from '../../../apps/api/src/services/events/seed-categories';
-import { createMemoryStore } from '../../../apps/api/src/services/memory-store';
+import { SEED_TAGS } from '../../../packages/db/src/seed-tags';
+import { createMemoryStore, type MemoryEventRow } from '../../../apps/api/src/services/memory-store';
 
 async function registerAndLogin(app: ReturnType<typeof createApp>, email: string) {
   const registered = await app.request('/v1/publishers/register', {
@@ -45,15 +45,53 @@ const physicalBody = {
   startsAt: '2026-12-01T18:00:00.000Z',
   endsAt: '2026-12-01T21:00:00.000Z',
   location: { lat: 61.3037, lng: 17.0592 },
-  categoryIds: [SEED_CATEGORIES[0]!.id],
+  tagIds: [SEED_TAGS[0]!.id],
 };
 
 describe('events', () => {
-  it('lists seeded categories', async () => {
-    const res = await createApp().request('/v1/categories');
+  it('lists seeded tags', async () => {
+    const res = await createApp().request('/v1/tags');
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { items: { slug: string }[] };
-    expect(body.items.some((c) => c.slug === 'music')).toBe(true);
+    const body = (await res.json()) as { items: { slug: string; name: string }[] };
+    expect(body.items.some((tag) => tag.slug === 'idrott-tavlingar' && tag.name === 'Idrott & Tävlingar')).toBe(
+      true,
+    );
+  });
+
+  it('upcoming=true returns tags on published events that have not ended', async () => {
+    const store = createMemoryStore();
+    const now = new Date('2026-06-15T12:00:00.000Z');
+    const auth = createMemoryAuthServices(
+      { includeVerificationToken: true, now: () => now },
+      store,
+    );
+    const events = createMemoryEventServices(auth, { now: () => now }, store);
+    const app = createApp({ auth, events });
+    const { publisherId, cookie } = await registerAndLogin(app, 'tags-upcoming@example.com');
+
+    const created = await app.request(`/v1/publishers/${publisherId}/events`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify(physicalBody),
+    });
+    expect(created.status).toBe(201);
+    const draft = (await created.json()) as { id: string };
+    const row = store.events.get(draft.id);
+    if (!row) throw new Error('missing event');
+
+    const before = await app.request('/v1/tags?upcoming=true');
+    expect(before.status).toBe(200);
+    expect(await before.json()).toEqual({ items: [] });
+
+    row.status = 'published';
+    const upcoming = await app.request('/v1/tags?upcoming=true');
+    const upcomingBody = (await upcoming.json()) as { items: { id: string }[] };
+    expect(upcomingBody.items.map((tag) => tag.id)).toEqual([SEED_TAGS[0]!.id]);
+
+    row.endsAt = '2026-06-01T12:00:00.000Z';
+    row.endsAtDate = new Date(row.endsAt);
+    const ended = await app.request('/v1/tags?upcoming=true');
+    expect(await ended.json()).toEqual({ items: [] });
   });
 
   it('creates a draft, publishes as awaiting_verification, then releases on verify', async () => {
@@ -220,5 +258,68 @@ describe('events', () => {
     expect(body.title).toBe('Uppdaterad titel');
     expect(body.mode).toBe('digital');
     expect(body.onlineUrl).toBe('https://example.com/live');
+  });
+
+  it('lists featured published events before later starts', async () => {
+    const store = createMemoryStore();
+    const auth = createMemoryAuthServices(store);
+    const app = createApp({
+      auth,
+      events: createMemoryEventServices(auth, { now: () => new Date() }, store),
+    });
+    const featuredId = '11111111-1111-4111-8111-111111111401';
+    const soonerId = '11111111-1111-4111-8111-111111111402';
+    const base = {
+      publisherId: '11111111-1111-4111-8111-111111111403',
+      description: null,
+      mode: 'physical' as const,
+      status: 'published' as const,
+      origin: 'native' as const,
+      timezone: 'Europe/Stockholm',
+      venueName: 'Hall',
+      location: { lat: 61.3037, lng: 17.0592 },
+      geofenceRadiusM: 100,
+      onlineUrl: null,
+      priceAmount: null,
+      currency: 'SEK',
+      publisherName: 'Hall',
+      links: [],
+      imageUrl: null,
+      tagIds: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    function row(
+      id: string,
+      title: string,
+      startsAt: string,
+      featured: boolean,
+    ): MemoryEventRow {
+      return {
+        ...base,
+        id,
+        title,
+        startsAt,
+        endsAt: startsAt,
+        featured,
+        checkInEnabled: false,
+        startsAtDate: new Date(startsAt),
+        endsAtDate: new Date(startsAt),
+      };
+    }
+    store.events.set(
+      soonerId,
+      row(soonerId, 'Sooner', '2026-12-02T18:00:00.000Z', false),
+    );
+    store.events.set(
+      featuredId,
+      row(featuredId, 'Featured later', '2026-12-20T18:00:00.000Z', true),
+    );
+
+    const listed = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000');
+    expect(listed.status).toBe(200);
+    const items = (await listed.json()) as { items: { id: string; featured: boolean }[] };
+    expect(items.items.map((item) => item.id)).toEqual([featuredId, soonerId]);
+    expect(items.items[0]?.featured).toBe(true);
   });
 });

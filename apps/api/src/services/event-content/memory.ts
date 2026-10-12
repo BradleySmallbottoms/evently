@@ -85,7 +85,19 @@ export function createMemoryEventContentServices(
         (r) => r.eventId === eventId && canViewEventContent(r.visibility, checkedIn),
       );
       const items = await Promise.all(visible.map((r) => toItem(r, true)));
-      return { items, checkedIn };
+      const unlocked = checkedIn && event.checkInEnabled;
+      return {
+        items,
+        checkedIn,
+        attendeeText: unlocked ? (event.attendeeText ?? null) : null,
+        attendeeLinks: unlocked
+          ? (event.attendeeLinks ?? []).map((link) => ({
+              id: link.id,
+              url: link.url,
+              label: link.label,
+            }))
+          : [],
+      };
     },
 
     async listManaged(publisherSessionToken, eventId) {

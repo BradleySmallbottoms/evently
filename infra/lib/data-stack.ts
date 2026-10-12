@@ -121,7 +121,7 @@ export class DataStack extends Stack {
 
     this.publicAssetsBucket = new s3.Bucket(this, 'PublicAssets', {
       ...bucketDefaults,
-      bucketName: undefined, // let CloudFormation name it; CloudFront will front this later
+      bucketName: undefined, // CloudFormation names it; EdgeStack puts CloudFront in front
     });
 
     this.privateFilesBucket = new s3.Bucket(this, 'PrivateFiles', {

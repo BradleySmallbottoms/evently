@@ -5,7 +5,7 @@ import { createMemoryAuthServices } from '../../../apps/api/src/services/auth/me
 import { createMemoryCheckInServices } from '../../../apps/api/src/services/check-ins/memory';
 import { createMemoryEventContentServices } from '../../../apps/api/src/services/event-content/memory';
 import { createMemoryEventServices } from '../../../apps/api/src/services/events/memory';
-import { SEED_CATEGORIES } from '../../../apps/api/src/services/events/seed-categories';
+import { SEED_TAGS } from '../../../packages/db/src/seed-tags';
 import { createMemoryStore } from '../../../apps/api/src/services/memory-store';
 
 async function createUserSession(app: ReturnType<typeof createApp>) {
@@ -75,7 +75,7 @@ describe('event content', () => {
         endsAt: '2026-06-15T21:00:00.000Z',
         location: { lat: 61.3037, lng: 17.0592 },
         geofenceRadiusM: 100,
-        categoryIds: [SEED_CATEGORIES[0]!.id],
+        tagIds: [SEED_TAGS[0]!.id],
       }),
     });
     const draft = (await created.json()) as { id: string };
@@ -84,6 +84,8 @@ describe('event content', () => {
       headers: { cookie },
     });
     const eventId = draft.id;
+    const published = store.events.get(eventId);
+    if (published) published.checkInEnabled = true;
 
     const addPublic = await app.request(`/v1/manage/events/${eventId}/content`, {
       method: 'POST',

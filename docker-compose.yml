@@ -1,4 +1,4 @@
-# Local dependencies: PostgreSQL + PostGIS, Valkey, and ElasticMQ (SQS-compatible).
+# Local dependencies: PostgreSQL + PostGIS, Valkey, ElasticMQ (SQS), and Garage (S3).
 # Official postgis/postgis is amd64-only; imresamu/postgis is the multi-arch mirror
 # (arm64 Macs included). Same tags as postgis/postgis — bump together when updating.
 services:
@@ -28,5 +28,38 @@ services:
       - '9325:9325' # stats / queue UI
     volumes:
       - ./infra/local/elasticmq.conf:/opt/elasticmq.conf:ro
+  # S3 stand-in for public event images. Same AWS SDK client as prod; S3_ENDPOINT
+  # points here (see .env.example). Keys below are local-only, like the Postgres password.
+  # After the first start, allow anonymous website reads:
+  #   docker compose exec garage /garage bucket website --allow local-events-assets
+  garage:
+    image: dxflrs/garage:v2.4.1
+    command: ['/garage', 'server', '--single-node', '--default-bucket']
+    environment:
+      GARAGE_DEFAULT_ACCESS_KEY: GK11111111111111111111111111111111
+      GARAGE_DEFAULT_SECRET_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      GARAGE_DEFAULT_BUCKET: local-events-assets
+    ports:
+      - '3900:3900' # S3 API
+      - '3902:3902' # website (http://local-events-assets.localhost:3902)
+    volumes:
+      - ./infra/local/garage.toml:/etc/garage.toml:ro
+      - garagedata:/var/lib/garage
+  # Browse local buckets. Talks to Garage's admin API on the compose network.
+  # http://localhost:3909
+  garage-webui:
+    image: khairul169/garage-webui:1.1.0
+    depends_on:
+      - garage
+    ports:
+      - '3909:3909'
+    volumes:
+      - ./infra/local/garage.toml:/etc/garage.toml:ro
+    environment:
+      API_BASE_URL: http://garage:3903
+      API_ADMIN_KEY: local-dev-admin-token
+      S3_ENDPOINT_URL: http://garage:3900
+      S3_REGION: garage
 volumes:
   pgdata:
+  garagedata:

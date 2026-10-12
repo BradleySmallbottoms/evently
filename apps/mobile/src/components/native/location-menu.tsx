@@ -1,5 +1,5 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { BottomSheet, Column, Host, Text } from '@expo/ui';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -9,7 +9,7 @@ import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
 type Props = {
-  eyebrow: string;
+  eyebrow?: string;
   locationLabel: string;
   title: string;
   message: string;
@@ -35,16 +35,19 @@ export function LocationMenu({
 
   return (
     <>
-      <Pressable onPress={() => setOpen(true)}>
-        <View style={{ gap: 2 }}>
-          <AppText variant="caption">{eyebrow}</AppText>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <AppText variant="subtitle">{locationLabel}</AppText>
-            <SymbolView
-              name={'chevron.down' as never}
-              size={12}
-              tintColor={colors.inkMuted as string}
-            />
+      <Pressable onPress={() => setOpen(true)} style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%' }}>
+        <View style={{ gap: eyebrow ? 2 : 0, maxWidth: '100%' }}>
+          {eyebrow ? (
+            <AppText variant="caption" numberOfLines={1}>
+              {eyebrow}
+            </AppText>
+          ) : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+            <MaterialIcons name="my-location" size={16} color={colors.ink} />
+            <AppText variant="subtitle" numberOfLines={1} style={{ flexShrink: 1 }}>
+              {locationLabel}
+            </AppText>
+            <MaterialIcons name="expand-more" size={16} color={colors.inkMuted} />
           </View>
         </View>
       </Pressable>

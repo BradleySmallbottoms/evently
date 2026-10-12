@@ -1277,7 +1277,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            categoryIds: string[];
+                            tagIds: string[];
                             areas: {
                                 /** Format: uuid */
                                 id: string;
@@ -1353,19 +1353,19 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        categoryIds: string[];
+                        tagIds: string[];
                     };
                 };
             };
             responses: {
-                /** @description Replaced interest categories */
+                /** @description Replaced interest tags */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
-                            categoryIds: string[];
+                            tagIds: string[];
                         };
                     };
                 };
@@ -2246,6 +2246,728 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/saved-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Published events saved by the current user */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                publisherId: string;
+                                title: string;
+                                description: string | null;
+                                /** @enum {string} */
+                                mode: "physical" | "digital";
+                                /** @enum {string} */
+                                status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                /** @enum {string} */
+                                origin: "native" | "imported";
+                                /** Format: date-time */
+                                startsAt: string;
+                                /** Format: date-time */
+                                endsAt: string;
+                                timezone: string;
+                                venueName: string | null;
+                                location: {
+                                    lat: number;
+                                    lng: number;
+                                } | null;
+                                geofenceRadiusM: number | null;
+                                /** Format: uri */
+                                onlineUrl: string | null;
+                                priceAmount: number | null;
+                                currency: string;
+                                publisherName: string;
+                                links: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** @enum {string} */
+                                    type: "tickets" | "registration" | "info";
+                                    /** Format: uri */
+                                    url: string;
+                                    label: string | null;
+                                    position: number;
+                                }[];
+                                /** Format: uri */
+                                imageUrl: string | null;
+                                tagIds: string[];
+                                featured: boolean;
+                                checkInEnabled: boolean;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/saved-events/{eventId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    eventId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Event saved */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Event is not published */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    eventId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Event unsaved */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Save not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/lists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Custom lists for the current user */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                /** Format: uuid */
+                                id: string;
+                                name: string;
+                                /** Format: date-time */
+                                createdAt: string;
+                                events: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** Format: uuid */
+                                    publisherId: string;
+                                    title: string;
+                                    description: string | null;
+                                    /** @enum {string} */
+                                    mode: "physical" | "digital";
+                                    /** @enum {string} */
+                                    status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                    /** @enum {string} */
+                                    origin: "native" | "imported";
+                                    /** Format: date-time */
+                                    startsAt: string;
+                                    /** Format: date-time */
+                                    endsAt: string;
+                                    timezone: string;
+                                    venueName: string | null;
+                                    location: {
+                                        lat: number;
+                                        lng: number;
+                                    } | null;
+                                    geofenceRadiusM: number | null;
+                                    /** Format: uri */
+                                    onlineUrl: string | null;
+                                    priceAmount: number | null;
+                                    currency: string;
+                                    publisherName: string;
+                                    links: {
+                                        /** Format: uuid */
+                                        id: string;
+                                        /** @enum {string} */
+                                        type: "tickets" | "registration" | "info";
+                                        /** Format: uri */
+                                        url: string;
+                                        label: string | null;
+                                        position: number;
+                                    }[];
+                                    /** Format: uri */
+                                    imageUrl: string | null;
+                                    tagIds: string[];
+                                    featured: boolean;
+                                    checkInEnabled: boolean;
+                                    /** Format: date-time */
+                                    createdAt: string;
+                                    /** Format: date-time */
+                                    updatedAt: string;
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        name: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description List created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            name: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                            events: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                publisherId: string;
+                                title: string;
+                                description: string | null;
+                                /** @enum {string} */
+                                mode: "physical" | "digital";
+                                /** @enum {string} */
+                                status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                /** @enum {string} */
+                                origin: "native" | "imported";
+                                /** Format: date-time */
+                                startsAt: string;
+                                /** Format: date-time */
+                                endsAt: string;
+                                timezone: string;
+                                venueName: string | null;
+                                location: {
+                                    lat: number;
+                                    lng: number;
+                                } | null;
+                                geofenceRadiusM: number | null;
+                                /** Format: uri */
+                                onlineUrl: string | null;
+                                priceAmount: number | null;
+                                currency: string;
+                                publisherName: string;
+                                links: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** @enum {string} */
+                                    type: "tickets" | "registration" | "info";
+                                    /** Format: uri */
+                                    url: string;
+                                    label: string | null;
+                                    position: number;
+                                }[];
+                                /** Format: uri */
+                                imageUrl: string | null;
+                                tagIds: string[];
+                                featured: boolean;
+                                checkInEnabled: boolean;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description List limit reached */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/lists/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description List not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        name: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description List renamed */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            name: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                            events: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                publisherId: string;
+                                title: string;
+                                description: string | null;
+                                /** @enum {string} */
+                                mode: "physical" | "digital";
+                                /** @enum {string} */
+                                status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                /** @enum {string} */
+                                origin: "native" | "imported";
+                                /** Format: date-time */
+                                startsAt: string;
+                                /** Format: date-time */
+                                endsAt: string;
+                                timezone: string;
+                                venueName: string | null;
+                                location: {
+                                    lat: number;
+                                    lng: number;
+                                } | null;
+                                geofenceRadiusM: number | null;
+                                /** Format: uri */
+                                onlineUrl: string | null;
+                                priceAmount: number | null;
+                                currency: string;
+                                publisherName: string;
+                                links: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** @enum {string} */
+                                    type: "tickets" | "registration" | "info";
+                                    /** Format: uri */
+                                    url: string;
+                                    label: string | null;
+                                    position: number;
+                                }[];
+                                /** Format: uri */
+                                imageUrl: string | null;
+                                tagIds: string[];
+                                featured: boolean;
+                                checkInEnabled: boolean;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description List not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/me/lists/{id}/events/{eventId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    eventId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Event added to the list */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description List or event not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description List item limit reached */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    eventId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Event removed from the list */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description List or item not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/regions/lookup": {
         parameters: {
             query?: never;
@@ -2293,7 +3015,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/categories": {
+    "/tags": {
         parameters: {
             query?: never;
             header?: never;
@@ -2302,14 +3024,16 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    upcoming?: "true" | "false";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description Event categories */
+                /** @description Event tags. Pass upcoming=true to keep tags that have a published event still to come. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2320,10 +3044,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 slug: string;
-                                /** Format: uuid */
-                                parentId: string | null;
-                                nameSv: string;
-                                nameEn: string;
+                                name: string;
                             }[];
                         };
                     };
@@ -2389,7 +3110,24 @@ export interface paths {
                                 geofenceRadiusM: number | null;
                                 /** Format: uri */
                                 onlineUrl: string | null;
-                                categoryIds: string[];
+                                priceAmount: number | null;
+                                currency: string;
+                                publisherName: string;
+                                links: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** @enum {string} */
+                                    type: "tickets" | "registration" | "info";
+                                    /** Format: uri */
+                                    url: string;
+                                    label: string | null;
+                                    position: number;
+                                }[];
+                                /** Format: uri */
+                                imageUrl: string | null;
+                                tagIds: string[];
+                                featured: boolean;
+                                checkInEnabled: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -2445,8 +3183,19 @@ export interface paths {
                         geofenceRadiusM?: number;
                         /** Format: uri */
                         onlineUrl?: string;
+                        priceAmount?: number | null;
+                        /** @default SEK */
+                        currency?: string;
                         /** @default [] */
-                        categoryIds?: string[];
+                        links?: {
+                            /** @enum {string} */
+                            type: "tickets" | "registration" | "info";
+                            /** Format: uri */
+                            url: string;
+                            label?: string;
+                        }[];
+                        /** @default [] */
+                        tagIds?: string[];
                     };
                 };
             };
@@ -2483,7 +3232,24 @@ export interface paths {
                             geofenceRadiusM: number | null;
                             /** Format: uri */
                             onlineUrl: string | null;
-                            categoryIds: string[];
+                            priceAmount: number | null;
+                            currency: string;
+                            publisherName: string;
+                            links: {
+                                /** Format: uuid */
+                                id: string;
+                                /** @enum {string} */
+                                type: "tickets" | "registration" | "info";
+                                /** Format: uri */
+                                url: string;
+                                label: string | null;
+                                position: number;
+                            }[];
+                            /** Format: uri */
+                            imageUrl: string | null;
+                            tagIds: string[];
+                            featured: boolean;
+                            checkInEnabled: boolean;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -2542,6 +3308,10 @@ export interface paths {
                     radiusM?: number;
                     from?: string;
                     to?: string;
+                    q?: string;
+                    tagId?: string;
+                    sort?: "soonest" | "distance";
+                    price?: "free" | "paid";
                     limit?: number;
                 };
                 header?: never;
@@ -2583,7 +3353,24 @@ export interface paths {
                                 geofenceRadiusM: number | null;
                                 /** Format: uri */
                                 onlineUrl: string | null;
-                                categoryIds: string[];
+                                priceAmount: number | null;
+                                currency: string;
+                                publisherName: string;
+                                links: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** @enum {string} */
+                                    type: "tickets" | "registration" | "info";
+                                    /** Format: uri */
+                                    url: string;
+                                    label: string | null;
+                                    position: number;
+                                }[];
+                                /** Format: uri */
+                                imageUrl: string | null;
+                                tagIds: string[];
+                                featured: boolean;
+                                checkInEnabled: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -2652,7 +3439,24 @@ export interface paths {
                             geofenceRadiusM: number | null;
                             /** Format: uri */
                             onlineUrl: string | null;
-                            categoryIds: string[];
+                            priceAmount: number | null;
+                            currency: string;
+                            publisherName: string;
+                            links: {
+                                /** Format: uuid */
+                                id: string;
+                                /** @enum {string} */
+                                type: "tickets" | "registration" | "info";
+                                /** Format: uri */
+                                url: string;
+                                label: string | null;
+                                position: number;
+                            }[];
+                            /** Format: uri */
+                            imageUrl: string | null;
+                            tagIds: string[];
+                            featured: boolean;
+                            checkInEnabled: boolean;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -2734,11 +3538,36 @@ export interface paths {
                             geofenceRadiusM: number | null;
                             /** Format: uri */
                             onlineUrl: string | null;
-                            categoryIds: string[];
+                            priceAmount: number | null;
+                            currency: string;
+                            publisherName: string;
+                            links: {
+                                /** Format: uuid */
+                                id: string;
+                                /** @enum {string} */
+                                type: "tickets" | "registration" | "info";
+                                /** Format: uri */
+                                url: string;
+                                label: string | null;
+                                position: number;
+                            }[];
+                            /** Format: uri */
+                            imageUrl: string | null;
+                            tagIds: string[];
+                            featured: boolean;
+                            checkInEnabled: boolean;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
                             updatedAt: string;
+                            attendeeText: string | null;
+                            attendeeLinks: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uri */
+                                url: string;
+                                label: string | null;
+                            }[];
                         };
                     };
                 };
@@ -2806,7 +3635,22 @@ export interface paths {
                         geofenceRadiusM?: number | null;
                         /** Format: uri */
                         onlineUrl?: string | null;
-                        categoryIds?: string[];
+                        priceAmount?: number | null;
+                        currency?: string;
+                        links?: {
+                            /** @enum {string} */
+                            type: "tickets" | "registration" | "info";
+                            /** Format: uri */
+                            url: string;
+                            label?: string;
+                        }[];
+                        tagIds?: string[];
+                        attendeeText?: string | null;
+                        attendeeLinks?: {
+                            /** Format: uri */
+                            url: string;
+                            label?: string;
+                        }[];
                     };
                 };
             };
@@ -2843,11 +3687,36 @@ export interface paths {
                             geofenceRadiusM: number | null;
                             /** Format: uri */
                             onlineUrl: string | null;
-                            categoryIds: string[];
+                            priceAmount: number | null;
+                            currency: string;
+                            publisherName: string;
+                            links: {
+                                /** Format: uuid */
+                                id: string;
+                                /** @enum {string} */
+                                type: "tickets" | "registration" | "info";
+                                /** Format: uri */
+                                url: string;
+                                label: string | null;
+                                position: number;
+                            }[];
+                            /** Format: uri */
+                            imageUrl: string | null;
+                            tagIds: string[];
+                            featured: boolean;
+                            checkInEnabled: boolean;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
                             updatedAt: string;
+                            attendeeText: string | null;
+                            attendeeLinks: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uri */
+                                url: string;
+                                label: string | null;
+                            }[];
                         };
                     };
                 };
@@ -2935,7 +3804,24 @@ export interface paths {
                             geofenceRadiusM: number | null;
                             /** Format: uri */
                             onlineUrl: string | null;
-                            categoryIds: string[];
+                            priceAmount: number | null;
+                            currency: string;
+                            publisherName: string;
+                            links: {
+                                /** Format: uuid */
+                                id: string;
+                                /** @enum {string} */
+                                type: "tickets" | "registration" | "info";
+                                /** Format: uri */
+                                url: string;
+                                label: string | null;
+                                position: number;
+                            }[];
+                            /** Format: uri */
+                            imageUrl: string | null;
+                            tagIds: string[];
+                            featured: boolean;
+                            checkInEnabled: boolean;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3031,7 +3917,24 @@ export interface paths {
                             geofenceRadiusM: number | null;
                             /** Format: uri */
                             onlineUrl: string | null;
-                            categoryIds: string[];
+                            priceAmount: number | null;
+                            currency: string;
+                            publisherName: string;
+                            links: {
+                                /** Format: uuid */
+                                id: string;
+                                /** @enum {string} */
+                                type: "tickets" | "registration" | "info";
+                                /** Format: uri */
+                                url: string;
+                                label: string | null;
+                                position: number;
+                            }[];
+                            /** Format: uri */
+                            imageUrl: string | null;
+                            tagIds: string[];
+                            featured: boolean;
+                            checkInEnabled: boolean;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3592,6 +4495,14 @@ export interface paths {
                                 createdAt: string;
                             }[];
                             checkedIn: boolean;
+                            attendeeText: string | null;
+                            attendeeLinks: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uri */
+                                url: string;
+                                label: string | null;
+                            }[];
                         };
                     };
                 };

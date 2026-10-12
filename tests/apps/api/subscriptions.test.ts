@@ -4,7 +4,7 @@ import { createMemoryAuthServices } from '../../../apps/api/src/services/auth/me
 import { createMemoryEventServices } from '../../../apps/api/src/services/events/memory';
 import { createMemoryStore } from '../../../apps/api/src/services/memory-store';
 import { createMemorySubscriptionServices } from '../../../apps/api/src/services/subscriptions/memory';
-import { SEED_CATEGORIES } from '../../../apps/api/src/services/events/seed-categories';
+import { SEED_TAGS } from '../../../packages/db/src/seed-tags';
 import { PUBLISHER_SESSION_COOKIE } from '../../../packages/auth/src/index';
 
 async function createUserSession(app: ReturnType<typeof createApp>) {
@@ -128,7 +128,7 @@ describe('subscriptions', () => {
         startsAt: '2026-12-01T18:00:00.000Z',
         endsAt: '2026-12-01T21:00:00.000Z',
         location: { lat: 61.3037, lng: 17.0592 },
-        categoryIds: [SEED_CATEGORIES[0]!.id],
+        tagIds: [SEED_TAGS[0]!.id],
       }),
     });
     const draft = (await created.json()) as { id: string };

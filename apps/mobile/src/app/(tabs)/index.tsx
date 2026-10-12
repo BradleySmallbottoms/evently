@@ -2,9 +2,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, View } from 'react-native';
 
-import { DateFilter } from '@/components/native/date-filter';
 import { LocationMenu } from '@/components/native/location-menu';
 import { NotificationsSheet } from '@/components/native/notifications-sheet';
 import {
@@ -13,25 +12,17 @@ import {
 } from '@/components/native/pairing-sheet';
 import { RegionSuggestionSheet } from '@/components/native/region-suggestion-sheet';
 import { AppText } from '@/components/ui/app-text';
-import { CategoryChips } from '@/components/ui/category-chips';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { EventCard } from '@/components/ui/event-card';
+import { EventListItem } from '@/components/ui/event-list-item';
 import { SearchBar } from '@/components/ui/search-bar';
+import { TagFilters } from '@/components/ui/tag-filters';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { api, throwIfError } from '@/lib/api';
-import {
-  FALLBACK_CENTER,
-  listPublicEvents,
-  resolveEventQueryPoint,
-  type EventQueryPoint,
-} from '@/lib/events';
-import {
-  ensureIdentity,
-  loadStoredIdentity,
-  refreshIdentitySession,
-} from '@/lib/identity';
+import { listPublicEvents, listTags, namesForTagIds } from '@/lib/events';
+import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
-import { getPreferences, primaryCircleArea } from '@/lib/preferences';
+import { useDiscoveryPoint } from '@/lib/use-discovery-point';
 import { subscribeSilentPushHandlers } from '@/lib/push-notifications';
 import {
   acceptRegionSuggestion,
@@ -40,6 +31,8 @@ import {
   recordRegionDecline,
   type RegionSuggestion,
 } from '@/lib/region-suggestion';
+import { dateBadge } from '@/lib/event-format';
+import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
@@ -49,10 +42,7 @@ export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
 
-  const [search, setSearch] = useState('');
-  const [categoryId, setCategoryId] = useState('all');
-  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
-  const [filterDate, setFilterDate] = useState(() => new Date());
+  const [tagId, setTagId] = useState('all');
   const [locationOpen, setLocationOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [pairingOpen, setPairingOpen] = useState(false);
@@ -66,40 +56,22 @@ export default function HomeScreen() {
   const [regionSuggestion, setRegionSuggestion] = useState<RegionSuggestion | null>(null);
   const [regionSheetOpen, setRegionSheetOpen] = useState(false);
 
-  const identity = useQuery({
-    queryKey: ['identity', locale],
-    queryFn: () => ensureIdentity(locale),
-    retry: 1,
-  });
-  const preferences = useQuery({
-    queryKey: ['preferences', identity.data?.userId],
-    enabled: identity.isSuccess,
-    queryFn: () => getPreferences(identity.data!),
-    retry: false,
-  });
-  const savedArea = primaryCircleArea(preferences.data?.areas ?? []);
-  const point = useQuery({
-    queryKey: [
-      'event-query-point',
-      useFallbackCenter,
-      savedArea?.lat,
-      savedArea?.lng,
-      savedArea?.radiusM,
-    ],
-    queryFn: async (): Promise<EventQueryPoint> => {
-      if (useFallbackCenter) return { ...FALLBACK_CENTER };
-      if (savedArea) return savedArea;
-      return resolveEventQueryPoint();
-    },
-    // Public discovery must work even if anonymous identity creation fails.
-    enabled: !identity.isPending && (identity.isError || !preferences.isLoading),
-    retry: false,
+  const { identity, preferences, point } = useDiscoveryPoint(useFallbackCenter);
+  const tags = useQuery({
+    queryKey: ['tags', 'upcoming'],
+    queryFn: listTags,
   });
   const events = useQuery({
     queryKey: ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM],
     queryFn: () => listPublicEvents(point.data!),
     enabled: point.isSuccess,
   });
+  const saved = useQuery({
+    queryKey: ['saved-events', identity.data?.userId],
+    enabled: identity.isSuccess,
+    queryFn: () => listSavedEvents(identity.data!),
+  });
+  const savedIds = new Set((saved.data?.items ?? []).map((item) => item.id));
   const inbox = useQuery({
     queryKey: ['notifications', identity.data?.userId],
     enabled: identity.isSuccess,
@@ -143,29 +115,14 @@ export default function HomeScreen() {
     };
   }, [identity.isSuccess, preferences.isSuccess, preferences.data?.areas]);
 
-  const categories = useMemo(
-    () => [
-      { id: 'all', label: t('events.categoryAll') },
-      { id: 'physical', label: t('events.categoryPhysical') },
-      { id: 'digital', label: t('events.categoryDigital') },
-    ],
-    [t],
-  );
-
-  const filtered = useMemo(() => {
+  const { featured, coming } = useMemo(() => {
     const items = events.data?.items ?? [];
-    const q = search.trim().toLowerCase();
-    const dayStart = new Date(filterDate);
-    dayStart.setHours(0, 0, 0, 0);
-    return items.filter((event) => {
-      if (categoryId === 'physical' && event.mode !== 'physical') return false;
-      if (categoryId === 'digital' && event.mode !== 'digital') return false;
-      // From the selected day onward (day picker is a lower bound, not a single day).
-      if (new Date(event.startsAt).getTime() < dayStart.getTime()) return false;
-      if (!q) return true;
-      return event.title.toLowerCase().includes(q);
-    });
-  }, [events.data?.items, search, categoryId, filterDate]);
+    const visible = items.filter((event) => tagId === 'all' || event.tagIds.includes(tagId));
+    return {
+      featured: visible.filter((event) => event.featured),
+      coming: visible.filter((event) => !event.featured),
+    };
+  }, [events.data?.items, tagId]);
 
   async function generatePairingCode() {
     setPairingPending(true);
@@ -243,6 +200,14 @@ export default function HomeScreen() {
     }
   }
 
+  function toggleSave(eventId: string) {
+    if (!identity.data) return;
+    const next = savedIds.has(eventId)
+      ? unsaveEvent(identity.data, eventId)
+      : saveEvent(identity.data, eventId);
+    void next.then(() => queryClient.invalidateQueries({ queryKey: ['saved-events'] }));
+  }
+
   const locationLabel = useFallbackCenter
     ? t('events.locationSoderhamn')
     : t('events.locationNearby');
@@ -251,13 +216,13 @@ export default function HomeScreen() {
     <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
       <FlatList
         style={{ flex: 1, width: '100%', maxWidth: MaxContentWidth }}
-        data={filtered}
+        data={coming}
         keyExtractor={(item) => item.id}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
-            refreshing={(events.isFetching || identity.isFetching) && !events.isPending}
+            refreshing={events.isRefetching || identity.isRefetching}
             onRefresh={() => {
               void identity.refetch();
               void point.refetch();
@@ -277,11 +242,15 @@ export default function HomeScreen() {
                 paddingHorizontal: space.xl,
                 flexDirection: 'row',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                gap: space.md,
               }}
             >
+              <AppText variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {t('home.title')}
+              </AppText>
+              <View style={{ flexShrink: 1, minWidth: 0, marginLeft: 'auto', maxWidth: '58%' }}>
               <LocationMenu
-                eyebrow={t('events.currentLocation')}
+                // eyebrow={t('events.currentLocation')}
                 locationLabel={locationLabel}
                 title={t('events.locationPickerTitle')}
                 message={t('events.locationPickerMessage')}
@@ -298,49 +267,70 @@ export default function HomeScreen() {
                   void point.refetch();
                 }}
               />
-              <View style={{ flexDirection: 'row', gap: space.sm }}>
-                <CircleIconButton
-                  sf="slider.horizontal.3"
-                  md="tune"
-                  accessibilityLabel={t('preferences.open')}
-                  onPress={() => router.push('/preferences')}
-                />
-                <CircleIconButton
-                  sf="qrcode"
-                  md="qr-code"
-                  accessibilityLabel={t('events.pairingTitle')}
-                  onPress={() => setPairingOpen(true)}
-                />
-                <CircleIconButton
-                  sf="bell"
-                  md="notifications"
-                  badge={(inbox.data?.unreadCount ?? 0) > 0}
-                  accessibilityLabel={t('events.notifications')}
-                  onPress={() => setNotificationsOpen(true)}
-                />
               </View>
             </View>
 
             <View style={{ paddingHorizontal: space.xl, gap: space.sm }}>
-              <AppText variant="hero">{t('events.listTitle')}</AppText>
-              <AppText variant="caption">{t('events.listSubtitle')}</AppText>
               <SearchBar
-                value={search}
-                onChangeText={setSearch}
+                value=""
+                onChangeText={() => {}}
                 placeholder={t('events.searchPlaceholder')}
-              />
-              <DateFilter
-                label={t('events.filterDate')}
-                value={filterDate}
-                onChange={setFilterDate}
+                onPress={() =>
+                  router.navigate({ pathname: '/(tabs)/search', params: { focus: String(Date.now()) } })
+                }
               />
             </View>
 
-            <CategoryChips
-              items={categories}
-              selectedId={categoryId}
-              onSelect={setCategoryId}
-            />
+            <TagFilters tags={tags.data?.items ?? []} selectedId={tagId} onSelect={setTagId} />
+
+            {featured.length > 0 ? (
+              <View style={{ gap: space.md }}>
+                <View
+                  style={{
+                    paddingHorizontal: space.xl,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <AppText variant="subtitle">{t('events.featuredSection')}</AppText>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => router.push('/(tabs)/events')}
+                  >
+                    <AppText variant="label" style={{ color: colors.info }}>
+                      {t('events.seeAll')}
+                    </AppText>
+                  </Pressable>
+                </View>
+                {featured.map((item) => (
+                  <View key={item.id} style={{ paddingHorizontal: space.xl }}>
+                    <EventCard
+                      title={item.title}
+                      when={new Date(item.startsAt).toLocaleString(locale)}
+                      where={
+                        item.mode === 'physical'
+                          ? (item.venueName ?? t('events.missingVenue'))
+                          : (item.onlineUrl ?? t('events.missingUrl'))
+                      }
+                      tags={namesForTagIds(item.tagIds, tags.data?.items)}
+                      imageUrl={item.imageUrl}
+                      priceAmount={item.priceAmount}
+                      dateBadge={dateBadge(item.startsAt, locale)}
+                      saved={savedIds.has(item.id)}
+                      onSavePress={() => toggleSave(item.id)}
+                      onPress={() => router.push(`/events/${item.id}`)}
+                    />
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {coming.length > 0 ? (
+              <AppText variant="subtitle" style={{ paddingHorizontal: space.xl }}>
+                {t('events.coming')}
+              </AppText>
+            ) : null}
 
             {identity.isPending && (
               <AppText variant="caption" style={{ paddingHorizontal: space.xl }}>
@@ -352,7 +342,7 @@ export default function HomeScreen() {
                 {t('home.identityError')}
               </AppText>
             )}
-            {(point.isLoading || events.isLoading) && (
+            {events.isPending && (
               <AppText variant="caption" style={{ paddingHorizontal: space.xl }}>
                 {t('events.loading')}
               </AppText>
@@ -365,12 +355,12 @@ export default function HomeScreen() {
           </View>
         }
         extraData={{
-          favorites,
+          savedIds: [...savedIds],
           eventsStatus: events.status,
           identityStatus: identity.status,
         }}
         ListEmptyComponent={
-          events.isSuccess ? (
+          events.isSuccess && featured.length === 0 ? (
             <AppText variant="body" style={{ paddingHorizontal: space.xl }}>
               {t('events.empty')}
             </AppText>
@@ -378,19 +368,17 @@ export default function HomeScreen() {
         }
         renderItem={({ item }) => (
           <View style={{ paddingHorizontal: space.xl }}>
-            <EventCard
+            <EventListItem
               title={item.title}
-              when={`${new Date(item.startsAt).toLocaleString(locale)}`}
               where={
                 item.mode === 'physical'
-                  ? `${t('events.venue')}: ${item.venueName ?? t('events.missingVenue')}`
-                  : `${t('events.online')}: ${item.onlineUrl ?? t('events.missingUrl')}`
+                  ? (item.venueName ?? t('events.missingVenue'))
+                  : (item.onlineUrl ?? t('events.missingUrl'))
               }
-              mode={item.mode}
-              favorited={!!favorites[item.id]}
-              onFavoritePress={() =>
-                setFavorites((prev) => ({ ...prev, [item.id]: !prev[item.id] }))
-              }
+              tags={namesForTagIds(item.tagIds, tags.data?.items)}
+              imageUrl={item.imageUrl}
+              priceAmount={item.priceAmount}
+              dateBadge={dateBadge(item.startsAt, locale)}
               onPress={() => router.push(`/events/${item.id}`)}
             />
           </View>

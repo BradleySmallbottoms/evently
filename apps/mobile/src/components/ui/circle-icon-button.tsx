@@ -13,12 +13,24 @@ type Props = {
   md: keyof typeof MaterialIcons.glyphMap;
   onPress?: () => void;
   badge?: boolean;
+  /** Icon only, no circular fill. Use on photos. */
+  plain?: boolean;
+  tintColor?: string;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel: string;
 };
 
-export function CircleIconButton({ sf, md, onPress, badge, style, accessibilityLabel }: Props) {
-  const tint = colors.ink as string;
+export function CircleIconButton({
+  sf,
+  md,
+  onPress,
+  badge,
+  plain,
+  tintColor,
+  style,
+  accessibilityLabel,
+}: Props) {
+  const tint = tintColor ?? (plain ? '#FFFFFF' : (colors.ink as string));
 
   return (
     <Pressable
@@ -29,16 +41,23 @@ export function CircleIconButton({ sf, md, onPress, badge, style, accessibilityL
         onPress?.();
       }}
       style={[
-        {
-          width: 46,
-          height: 46,
-          borderRadius: radius.pill,
-          backgroundColor: 'rgba(255,255,255,0.96)',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: shadow.soft,
-          borderCurve: 'continuous',
-        },
+        plain
+          ? {
+              width: 44,
+              height: 44,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }
+          : {
+              width: 46,
+              height: 46,
+              borderRadius: radius.pill,
+              backgroundColor: 'rgba(255,255,255,0.96)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: shadow.soft,
+              borderCurve: 'continuous' as const,
+            },
         style,
       ]}
     >

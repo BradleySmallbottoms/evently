@@ -6,7 +6,7 @@ import {
   canRate,
   RATING_WINDOW_DAYS,
 } from '@local-events/domain';
-import { and, avg, count, eq } from 'drizzle-orm';
+import { and, avg, count, eq, isNull } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
@@ -43,7 +43,7 @@ export function createDbRatingServices(
         count: count(),
       })
       .from(schema.ratings)
-      .where(eq(schema.ratings.eventId, eventId));
+      .where(and(eq(schema.ratings.eventId, eventId), isNull(schema.ratings.hiddenAt)));
     const n = Number(row?.count ?? 0);
     const average =
       row?.average == null || n === 0 ? null : Math.round(Number(row.average) * 10) / 10;
@@ -229,7 +229,7 @@ export function createDbRatingServices(
         })
         .from(schema.ratings)
         .leftJoin(schema.users, eq(schema.users.id, schema.ratings.userId))
-        .where(eq(schema.ratings.eventId, eventId));
+        .where(and(eq(schema.ratings.eventId, eventId), isNull(schema.ratings.hiddenAt)));
       return {
         items: rows.map((r) => ({
           id: r.id,

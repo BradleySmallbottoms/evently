@@ -15,14 +15,18 @@ export interface ServicesStackProps extends StackProps {
   data: DataStack;
   /** Container image tag pushed by CI (defaults to latest). */
   imageTag?: string;
+  /** CloudFront (or local Garage website) origin for public event images. No trailing slash. */
+  assetsPublicBaseUrl: string;
 }
 
 /**
  * ECS Fargate services for the public API, admin API and SQS worker, plus ALBs and ECR repos.
- * CloudFront / WAF land in a later EdgeStack.
+ * Public event images are served from `assetsPublicBaseUrl` (CloudFront). WAF is still later.
  */
 export class ServicesStack extends Stack {
   readonly cluster: ecs.Cluster;
+  readonly taskRole: iam.Role;
+  readonly executionRole: iam.Role;
   readonly apiRepository: ecr.Repository;
   readonly adminApiRepository: ecr.Repository;
   readonly workerRepository: ecr.Repository;
@@ -50,9 +54,7 @@ export class ServicesStack extends Stack {
 
     this.cluster = new ecs.Cluster(this, 'Cluster', {
       vpc: props.vpc,
-      containerInsightsV2: isProd
-        ? ecs.ContainerInsights.ENABLED
-        : ecs.ContainerInsights.DISABLED,
+      containerInsightsV2: isProd ? ecs.ContainerInsights.ENABLED : ecs.ContainerInsights.DISABLED,
       clusterName: `local-events-${props.envName}`,
     });
 
@@ -75,9 +77,10 @@ export class ServicesStack extends Stack {
       lifecycleRules: [{ maxImageCount: isProd ? 20 : 10 }],
     });
 
-    const taskRole = new iam.Role(this, 'TaskRole', {
+    this.taskRole = new iam.Role(this, 'TaskRole', {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
     });
+    const taskRole = this.taskRole;
     props.data.domainEventsQueue.grantSendMessages(taskRole);
     props.data.domainEventsQueue.grantConsumeMessages(taskRole);
     props.data.publicAssetsBucket.grantReadWrite(taskRole);
@@ -86,14 +89,13 @@ export class ServicesStack extends Stack {
     props.data.dbSecret.grantRead(taskRole);
     props.data.appSecrets.grantRead(taskRole);
 
-    const executionRole = new iam.Role(this, 'ExecutionRole', {
+    this.executionRole = new iam.Role(this, 'ExecutionRole', {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
       managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName(
-          'service-role/AmazonECSTaskExecutionRolePolicy',
-        ),
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonECSTaskExecutionRolePolicy'),
       ],
     });
+    const executionRole = this.executionRole;
     props.data.dbSecret.grantRead(executionRole);
     props.data.appSecrets.grantRead(executionRole);
 
@@ -116,11 +118,14 @@ export class ServicesStack extends Stack {
       VALKEY_URL: `redis://${props.data.valkeyEndpoint}:${props.data.valkeyPort}`,
       DOMAIN_EVENTS_QUEUE_URL: props.data.domainEventsQueue.queueUrl,
       PUBLIC_ASSETS_BUCKET: props.data.publicAssetsBucket.bucketName,
+      ASSETS_PUBLIC_BASE_URL: props.assetsPublicBaseUrl,
       PRIVATE_FILES_BUCKET: props.data.privateFilesBucket.bucketName,
       RAW_INGESTION_BUCKET: props.data.rawIngestionBucket.bucketName,
       SENTRY_ENVIRONMENT: props.envName,
       // Reflect request Origin until EdgeStack pins known web hosts (credentials CORS).
-      ...(props.envName !== 'prod' ? { CORS_ORIGINS: '*', INCLUDE_VERIFICATION_TOKEN: 'true' } : {}),
+      ...(props.envName !== 'prod'
+        ? { CORS_ORIGINS: '*', INCLUDE_VERIFICATION_TOKEN: 'true' }
+        : {}),
     };
 
     const cpu = isProd ? 512 : 256;

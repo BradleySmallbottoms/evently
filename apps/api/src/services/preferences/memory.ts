@@ -66,21 +66,21 @@ export function createMemoryPreferenceServices(
   env: PreferenceEnv = { now: () => new Date() },
   store: MemoryStore = createMemoryStore(),
 ): PreferenceServices {
-  const { userInterests, userAreas, categories, regions } = store;
+  const { userInterests, userAreas, tags, regions } = store;
 
   return {
     async getPreferences(sessionToken) {
       const { userId } = await auth.requireUserSession(sessionToken);
       const user = store.users.get(userId);
       if (!user) throw new PreferenceError('unauthorized');
-      const categoryIds = userInterests
+      const tagIds = userInterests
         .filter((i) => i.userId === userId)
-        .map((i) => i.categoryId);
+        .map((i) => i.tagId);
       const areas = [...userAreas.values()]
         .filter((a) => a.userId === userId)
         .map(toUserArea);
       return {
-        categoryIds,
+        tagIds,
         areas,
         quietHours: {
           enabled: user.quietHoursEnabled,
@@ -141,18 +141,18 @@ export function createMemoryPreferenceServices(
 
     async replaceInterests(sessionToken, input) {
       const { userId } = await auth.requireUserSession(sessionToken);
-      for (const id of input.categoryIds) {
-        if (!categories.has(id)) throw new PreferenceError('unknown_category');
+      for (const id of input.tagIds) {
+        if (!tags.has(id)) throw new PreferenceError('unknown_tag');
       }
       const kept = userInterests.filter((i) => i.userId !== userId);
       userInterests.length = 0;
       userInterests.push(...kept);
       const now = env.now();
-      const unique = [...new Set(input.categoryIds)];
-      for (const categoryId of unique) {
-        userInterests.push({ userId, categoryId, createdAt: now });
+      const unique = [...new Set(input.tagIds)];
+      for (const tagId of unique) {
+        userInterests.push({ userId, tagId, createdAt: now });
       }
-      return { categoryIds: unique };
+      return { tagIds: unique };
     },
 
     async listAreas(sessionToken) {

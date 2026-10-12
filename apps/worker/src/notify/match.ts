@@ -20,7 +20,7 @@ export type PublishedEventForNotify = {
   status: string;
   publisherId: string;
   hasLocation: boolean;
-  categoryIds: string[];
+  tagIds: string[];
 };
 
 export async function loadPublishedEvent(
@@ -40,16 +40,16 @@ export async function loadPublishedEvent(
     .limit(1);
   if (!row) return null;
   const cats = await db
-    .select({ categoryId: schema.eventCategories.categoryId })
-    .from(schema.eventCategories)
-    .where(eq(schema.eventCategories.eventId, eventId));
+    .select({ tagId: schema.eventTags.tagId })
+    .from(schema.eventTags)
+    .where(eq(schema.eventTags.eventId, eventId));
   return {
     id: row.id,
     title: row.title,
     status: row.status,
     publisherId: row.publisherId,
     hasLocation: row.location != null,
-    categoryIds: cats.map((c) => c.categoryId),
+    tagIds: cats.map((c) => c.tagId),
   };
 }
 
@@ -65,8 +65,8 @@ export async function findNearbyMatchedUsers(
   const rows = await db.execute(sql`
     SELECT DISTINCT u.id AS user_id
     FROM events e
-    INNER JOIN event_categories ec ON ec.event_id = e.id
-    INNER JOIN user_interests ui ON ui.category_id = ec.category_id
+    INNER JOIN event_tags et ON et.event_id = e.id
+    INNER JOIN user_interests ui ON ui.tag_id = et.tag_id
     INNER JOIN users u ON u.id = ui.user_id
     INNER JOIN user_areas ua
       ON ua.user_id = u.id

@@ -35,9 +35,11 @@ export const exampleFixture = defineAdapter<RawItem[]>({
       venueName: item.venue,
       location: { lat: item.lat, lng: item.lng },
       sourceUrl: item.url,
+      links: [{ type: 'info', url: item.url }],
       organizerKey: item.organizer.id,
       organizerName: item.organizer.name,
       categoryHints: item.tags,
+      tags: [],
     }));
   },
 });

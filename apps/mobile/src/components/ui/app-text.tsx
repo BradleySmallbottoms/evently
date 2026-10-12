@@ -1,37 +1,16 @@
 import { Text as RNText, type TextProps } from 'react-native';
 
 import { colors } from '@/theme/colors';
-import { typography } from '@/theme/tokens';
 
 type Variant = 'hero' | 'title' | 'subtitle' | 'body' | 'caption' | 'label';
 
 const variantStyle: Record<Variant, object> = {
-  hero: { fontFamily: typography.familyBold, fontSize: 30, lineHeight: 36, letterSpacing: -0.4, color: colors.ink },
-  title: { fontFamily: typography.familyBold, fontSize: 22, lineHeight: 28, color: colors.ink },
-  subtitle: {
-    fontFamily: typography.familySemi,
-    fontSize: 16,
-    lineHeight: 22,
-    color: colors.ink,
-  },
-  body: {
-    fontFamily: typography.familyRegular,
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.ink,
-  },
-  caption: {
-    fontFamily: typography.familyRegular,
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.inkMuted,
-  },
-  label: {
-    fontFamily: typography.familySemi,
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.inkMuted,
-  },
+  hero: { fontSize: 32, lineHeight: 36, fontWeight: '700', color: colors.ink },
+  title: { fontSize: 28, lineHeight: 34, fontWeight: '700', color: colors.ink },
+  subtitle: { fontSize: 17, lineHeight: 23, fontWeight: '600', color: colors.ink },
+  body: { fontSize: 16, lineHeight: 24, fontWeight: '400', color: colors.ink },
+  caption: { fontSize: 13, lineHeight: 18, fontWeight: '400', color: colors.inkMuted },
+  label: { fontSize: 13, lineHeight: 18, fontWeight: '600', color: colors.inkMuted },
 };
 
 export function AppText({

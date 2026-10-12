@@ -7,12 +7,14 @@ export interface RunSummary {
   valid: number;
   invalid: { externalId: string | undefined; issues: string }[];
   hashes: string[];
+  events: IncomingEvent[];
+  /** Tag vocabulary from the source, upserted before events are linked. */
+  tags: { externalId: string; name: string }[];
+  /** Unmapped adapter payload — stored to S3 as `raw/<slug>/<runId>`. */
+  raw: unknown;
 }
 
-/**
- * Runs one source: fetch → map → validate. Persisting (publisher resolution, dedupe, upsert,
- * domain events to SQS, ingestion_runs row) is added in the data-workers track of the build plan.
- */
+/** Fetch, map and validate one source. Persistence is `persistSource`. */
 export async function runSource(
   slug: string,
   config: Record<string, unknown> = {},
@@ -44,6 +46,9 @@ export async function runSource(
     valid: 0,
     invalid: [],
     hashes: [],
+    events: [],
+    tags: adapter.tags?.(raw, ctx) ?? [],
+    raw,
   };
 
   for (const item of mapped) {
@@ -51,6 +56,7 @@ export async function runSource(
     if (parsed.success) {
       summary.valid++;
       summary.hashes.push(contentHash(parsed.data));
+      summary.events.push(parsed.data);
     } else {
       summary.invalid.push({ externalId: item.externalId, issues: parsed.error.message });
     }

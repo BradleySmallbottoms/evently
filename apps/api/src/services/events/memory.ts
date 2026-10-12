@@ -1,6 +1,8 @@
 import type {
   CreateEventRequest,
   Event,
+  EventLink,
+  ManagedEvent,
   PublicEventListQuery,
   UpdateEventRequest,
 } from '@local-events/contracts';
@@ -10,6 +12,7 @@ import {
   canPublishAnother,
   canPublishEvent,
   entitlementsFor,
+  matchesListPrice,
   releaseOnVerification,
   shouldEnqueueNotifications,
   statusOnPublish,
@@ -23,27 +26,56 @@ import { AuthError } from '../auth/types';
 import { createMemoryStore, type MemoryEventRow, type MemoryStore } from '../memory-store';
 import { EventError, type EventEnv, type EventServices } from './types';
 
-function haversineM(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number },
-): number {
+function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6_371_000;
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(b.lat - a.lat);
   const dLng = toRad(b.lng - a.lng);
   const lat1 = toRad(a.lat);
   const lat2 = toRad(b.lat);
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-function toEvent(row: MemoryEventRow): Event {
-  const { startsAtDate: _s, endsAtDate: _e, ...event } = row;
+function toManaged(row: MemoryEventRow): ManagedEvent {
+  const {
+    startsAtDate: _starts,
+    endsAtDate: _ends,
+    attendeeText,
+    attendeeLinks,
+    ...event
+  } = row;
+  return {
+    ...event,
+    attendeeText: attendeeText ?? null,
+    attendeeLinks: (attendeeLinks ?? []).map((link) => ({
+      id: link.id,
+      url: link.url,
+      label: link.label,
+    })),
+  };
+}
+
+function toPublic(row: MemoryEventRow): Event {
+  const { attendeeText: _text, attendeeLinks: _links, ...event } = toManaged(row);
   return event;
 }
 
-function assertFields(mode: Event['mode'], location: Event['location'], onlineUrl: Event['onlineUrl']) {
+function linksFromInput(links: CreateEventRequest['links']): EventLink[] {
+  return links.map((link, position) => ({
+    id: randomUUID(),
+    type: link.type,
+    url: link.url,
+    label: link.label ?? null,
+    position,
+  }));
+}
+
+function assertFields(
+  mode: Event['mode'],
+  location: Event['location'],
+  onlineUrl: Event['onlineUrl'],
+) {
   const check = validateEventFields({ mode, location, onlineUrl });
   if (!check.ok) throw new EventError(check.reason);
 }
@@ -54,7 +86,7 @@ export function createMemoryEventServices(
   store: MemoryStore = createMemoryStore(),
 ): EventServices {
   const domainEvents = env.domainEvents ?? createMemoryDomainEventPublisher();
-  const { categories, events, publishers } = store;
+  const { tags, events, publishers } = store;
 
   async function requireMember(sessionToken: string | undefined, publisherId: string) {
     try {
@@ -66,15 +98,23 @@ export function createMemoryEventServices(
   }
 
   return {
-    async listCategories() {
-      return [...categories.values()];
+    async listTags(query) {
+      const items = [...tags.values()];
+      if (!query?.upcoming) return items;
+      const now = env.now();
+      const active = new Set<string>();
+      for (const event of events.values()) {
+        if (event.status !== 'published' || event.endsAtDate < now) continue;
+        for (const tagId of event.tagIds) active.add(tagId);
+      }
+      return items.filter((tag) => active.has(tag.id));
     },
 
     async listPublisherEvents({ sessionToken, publisherId }) {
       await requireMember(sessionToken, publisherId);
       return [...events.values()]
         .filter((e) => e.publisherId === publisherId)
-        .map(toEvent)
+        .map(toPublic)
         .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
     },
 
@@ -83,8 +123,8 @@ export function createMemoryEventServices(
       const location = body.location ?? null;
       const onlineUrl = body.onlineUrl ?? null;
       assertFields(body.mode, location, onlineUrl);
-      for (const id of body.categoryIds) {
-        if (!categories.has(id)) throw new EventError('invalid_event');
+      for (const id of body.tagIds) {
+        if (!tags.has(id)) throw new EventError('invalid_event');
       }
       const now = env.now();
       const id = randomUUID();
@@ -103,14 +143,23 @@ export function createMemoryEventServices(
         location,
         geofenceRadiusM: body.geofenceRadiusM ?? (body.mode === 'physical' ? 100 : null),
         onlineUrl,
-        categoryIds: [...body.categoryIds],
+        priceAmount: body.priceAmount ?? null,
+        currency: body.currency,
+        publisherName: publishers.get(publisherId)?.name ?? '',
+        links: linksFromInput(body.links),
+        imageUrl: null,
+        tagIds: [...body.tagIds],
+        featured: false,
+        checkInEnabled: false,
+        attendeeText: null,
+        attendeeLinks: [],
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),
         startsAtDate: new Date(body.startsAt),
         endsAtDate: new Date(body.endsAt),
       };
       events.set(id, row);
-      return toEvent(row);
+      return toPublic(row);
     },
 
     async getEvent({ sessionToken, eventId, publicOnly }) {
@@ -118,10 +167,10 @@ export function createMemoryEventServices(
       if (!row) throw new EventError('not_found');
       if (publicOnly) {
         if (row.status !== 'published') throw new EventError('not_found');
-        return toEvent(row);
+        return toPublic(row);
       }
       await requireMember(sessionToken, row.publisherId);
-      return toEvent(row);
+      return toManaged(row);
     },
 
     async updateEvent({ sessionToken, eventId, body }) {
@@ -146,16 +195,31 @@ export function createMemoryEventServices(
       if (body.location !== undefined) row.location = body.location;
       if (body.geofenceRadiusM !== undefined) row.geofenceRadiusM = body.geofenceRadiusM;
       if (body.onlineUrl !== undefined) row.onlineUrl = body.onlineUrl;
-      if (body.categoryIds !== undefined) {
-        for (const id of body.categoryIds) {
-          if (!categories.has(id)) throw new EventError('invalid_event');
+      if (body.priceAmount !== undefined) row.priceAmount = body.priceAmount;
+      if (body.currency !== undefined) row.currency = body.currency;
+      if (body.links) row.links = linksFromInput(body.links);
+      if (body.tagIds !== undefined) {
+        for (const id of body.tagIds) {
+          if (!tags.has(id)) throw new EventError('invalid_event');
         }
-        row.categoryIds = [...body.categoryIds];
+        row.tagIds = [...body.tagIds];
+      }
+      if (body.attendeeText !== undefined || body.attendeeLinks !== undefined) {
+        if (!row.checkInEnabled) throw new EventError('check_in_disabled');
+      }
+      if (body.attendeeText !== undefined) row.attendeeText = body.attendeeText;
+      if (body.attendeeLinks !== undefined) {
+        row.attendeeLinks = body.attendeeLinks.map((link, position) => ({
+          id: randomUUID(),
+          url: link.url,
+          label: link.label ?? null,
+          position,
+        }));
       }
       if (row.endsAtDate <= row.startsAtDate) throw new EventError('invalid_event');
       assertFields(row.mode, row.location, row.onlineUrl);
       row.updatedAt = env.now().toISOString();
-      return toEvent(row);
+      return toManaged(row);
     },
 
     async publishEvent({ sessionToken, eventId }) {
@@ -188,7 +252,7 @@ export function createMemoryEventServices(
           eventId: row.id,
         });
       }
-      return toEvent(row);
+      return toPublic(row);
     },
 
     async cancelEvent({ sessionToken, eventId }) {
@@ -198,38 +262,60 @@ export function createMemoryEventServices(
       if (!canCancelEvent(row.status)) throw new EventError('cannot_cancel');
       row.status = 'cancelled';
       row.updatedAt = env.now().toISOString();
-      return toEvent(row);
+      return toPublic(row);
     },
 
     async listPublicEvents(query: PublicEventListQuery) {
       const from = query.from ? new Date(query.from) : undefined;
       const to = query.to ? new Date(query.to) : undefined;
       const center = { lat: query.lat, lng: query.lng };
-      return [...events.values()]
+      const q = query.q?.toLowerCase();
+      const matched = [...events.values()]
         .filter((e) => e.status === 'published')
-        .filter((e) => e.mode === 'digital' || e.location)
-        .filter((e) => {
-          if (e.mode === 'digital') return true;
-          return haversineM(center, e.location!) <= query.radiusM;
-        })
+        .filter((e) => !e.location || haversineM(center, e.location) <= query.radiusM)
         .filter((e) => !from || e.endsAtDate >= from)
         .filter((e) => !to || e.startsAtDate <= to)
-        .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
-        .slice(0, query.limit)
-        .map(toEvent);
+        .filter((e) => !query.tagId || e.tagIds.includes(query.tagId))
+        .filter((e) => {
+          if (query.price === 'free' || query.price === 'paid') {
+            return matchesListPrice(e.priceAmount, query.price);
+          }
+          return true;
+        })
+        .filter((e) => {
+          if (!q) return true;
+          const publisher = publishers.get(e.publisherId)?.name.toLowerCase() ?? '';
+          return (
+            e.title.toLowerCase().includes(q) ||
+            (e.venueName?.toLowerCase().includes(q) ?? false) ||
+            publisher.includes(q) ||
+            e.publisherName.toLowerCase().includes(q)
+          );
+        });
+      matched.sort((a, b) => {
+        if (a.featured !== b.featured) return a.featured ? -1 : 1;
+        if (query.sort === 'distance') {
+          const da = a.location ? haversineM(center, a.location) : Number.POSITIVE_INFINITY;
+          const db = b.location ? haversineM(center, b.location) : Number.POSITIVE_INFINITY;
+          if (da !== db) return da - db;
+        }
+        return a.startsAt.localeCompare(b.startsAt);
+      });
+      return matched.slice(0, query.limit).map(toPublic);
     },
   };
 }
 
 /** Admin helper used by memory admin services. */
-export function releaseAwaitingEventsInStore(store: MemoryStore, publisherId: string, now: Date): number {
+export function releaseAwaitingEventsInStore(
+  store: MemoryStore,
+  publisherId: string,
+  now: Date,
+): number {
   let released = 0;
   for (const row of store.events.values()) {
     if (row.publisherId !== publisherId) continue;
-    const next = releaseOnVerification(
-      { status: row.status, endsAt: row.endsAtDate },
-      now,
-    );
+    const next = releaseOnVerification({ status: row.status, endsAt: row.endsAtDate }, now);
     if (next !== row.status) {
       row.status = next;
       row.updatedAt = now.toISOString();

@@ -19,7 +19,7 @@ type Challenge =
   | { status: 'totp_required'; challengeToken: string }
   | { status: 'totp_setup'; setupToken: string; otpauthUrl: string; secret: string };
 
-const TOTP_AUTO_SUBMIT_MS = 1000;
+const TOTP_AUTO_SUBMIT_MS = 500;
 
 const styles: Record<string, SxProps<Theme>> = {
   screen: {

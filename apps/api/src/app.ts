@@ -21,6 +21,8 @@ import { createMemoryRegionServices } from './services/regions/memory';
 import type { RegionServices } from './services/regions/types';
 import { createMemoryStatsServices } from './services/stats/memory';
 import type { StatsServices } from './services/stats/types';
+import { createMemoryLibraryServices } from './services/library/memory';
+import type { LibraryServices } from './services/library/types';
 import { createMemorySubscriptionServices } from './services/subscriptions/memory';
 import type { SubscriptionServices } from './services/subscriptions/types';
 import { createMemoryStore } from './services/memory-store';
@@ -32,6 +34,7 @@ export type CreateAppOptions = {
   preferences?: PreferenceServices;
   regions?: RegionServices;
   subscriptions?: SubscriptionServices;
+  library?: LibraryServices;
   checkIns?: CheckInServices;
   notifications?: NotificationServices;
   eventContent?: EventContentServices;
@@ -45,6 +48,8 @@ export type CreateAppOptions = {
     | string
     | string[]
     | ((origin: string) => string | null | undefined | Promise<string | null | undefined>);
+  /** Local Garage website origin. Used only to proxy images phones cannot reach. */
+  assetsPublicBaseUrl?: string;
 };
 
 /**
@@ -64,6 +69,7 @@ export function createApp(options: CreateAppOptions = {}) {
   const regions = options.regions ?? createMemoryRegionServices(store);
   const subscriptions =
     options.subscriptions ?? createMemorySubscriptionServices(auth, store);
+  const library = options.library ?? createMemoryLibraryServices(auth, store);
   const checkIns = options.checkIns ?? createMemoryCheckInServices(auth, {}, store);
   const notifications =
     options.notifications ?? createMemoryNotificationServices(auth, store);
@@ -102,18 +108,23 @@ export function createApp(options: CreateAppOptions = {}) {
     Sentry.captureException(err);
     return c.json({ error: { code: 'internal_error', message: 'Internal server error' } }, 500);
   });
-  registerRoutes(api, {
-    auth,
-    events,
-    preferences,
-    regions,
-    subscriptions,
-    checkIns,
-    notifications,
-    eventContent,
-    ratings,
-    stats,
-  });
+  registerRoutes(
+    api,
+    {
+      auth,
+      events,
+      preferences,
+      regions,
+      subscriptions,
+      library,
+      checkIns,
+      notifications,
+      eventContent,
+      ratings,
+      stats,
+    },
+    { assetsPublicBaseUrl: options.assetsPublicBaseUrl },
+  );
   api.doc('/openapi.json', {
     openapi: '3.1.0',
     info: { title: 'Local Events public API', version: `${API_VERSION}.0.0` },

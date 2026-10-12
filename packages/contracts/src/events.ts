@@ -17,19 +17,73 @@ const EventStatus = z.enum([
 ]);
 const EventOrigin = z.enum(['native', 'imported']);
 
-export const Category = z.object({
+export const Tag = z.object({
   id: Id,
   slug: z.string(),
-  parentId: Id.nullable(),
-  nameSv: z.string(),
-  nameEn: z.string(),
+  name: z.string(),
 });
-export type Category = z.infer<typeof Category>;
+export type Tag = z.infer<typeof Tag>;
 
-export const CategoryListResponse = z.object({
-  items: z.array(Category),
+export const TagListResponse = z.object({
+  items: z.array(Tag),
 });
-export type CategoryListResponse = z.infer<typeof CategoryListResponse>;
+export type TagListResponse = z.infer<typeof TagListResponse>;
+
+export const TagListQuery = z.object({
+  /**
+   * When `true`, only tags on a published event that has not ended.
+   * Omitted returns the full vocabulary (publisher forms and interests).
+   */
+  upcoming: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => value === 'true'),
+});
+export type TagListQuery = z.infer<typeof TagListQuery>;
+
+export const EventLinkType = z.enum(['tickets', 'registration', 'info']);
+export type EventLinkType = z.infer<typeof EventLinkType>;
+
+/** Web links only. `z.url()` also accepts `javascript:` and other schemes. */
+export const HttpUrl = z.url({ protocol: /^https?$/ });
+
+export const EventLink = z.object({
+  id: Id,
+  type: EventLinkType,
+  url: HttpUrl,
+  label: z.string().nullable(),
+  position: z.number().int().nonnegative(),
+});
+export type EventLink = z.infer<typeof EventLink>;
+
+export const EventLinkInput = z.object({
+  type: EventLinkType,
+  url: HttpUrl,
+  label: z.string().trim().min(1).max(80).optional(),
+});
+export type EventLinkInput = z.infer<typeof EventLinkInput>;
+
+/** Link shown only after check-in. */
+export const AttendeeLink = z.object({
+  id: Id,
+  url: HttpUrl,
+  label: z.string().nullable(),
+});
+export type AttendeeLink = z.infer<typeof AttendeeLink>;
+
+export const AttendeeLinkInput = z.object({
+  url: HttpUrl,
+  label: z.string().trim().min(1).max(80).optional(),
+});
+export type AttendeeLinkInput = z.infer<typeof AttendeeLinkInput>;
+
+/** Minor units. Null is unknown; 0 is free. */
+export const PriceAmount = z.number().int().min(0).max(10_000_000);
+export const CurrencyCode = z
+  .string()
+  .trim()
+  .length(3)
+  .transform((value) => value.toUpperCase());
 
 export const Event = z.object({
   id: Id,
@@ -45,12 +99,29 @@ export const Event = z.object({
   venueName: z.string().nullable(),
   location: GeoPointSchema.nullable(),
   geofenceRadiusM: z.number().int().nullable(),
-  onlineUrl: z.url().nullable(),
-  categoryIds: z.array(Id),
+  onlineUrl: HttpUrl.nullable(),
+  /** Minor units. Null when unknown; 0 when free. */
+  priceAmount: z.number().int().nonnegative().nullable(),
+  currency: z.string(),
+  publisherName: z.string(),
+  links: z.array(EventLink),
+  /** Hero image. Null when the event has none or the public asset host is unset. */
+  imageUrl: z.url().nullable(),
+  tagIds: z.array(Id),
+  featured: z.boolean(),
+  /** When false, the event has no check-in and no attendee-only text or links. */
+  checkInEnabled: z.boolean(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
 export type Event = z.infer<typeof Event>;
+
+/** Publisher view. Attendee text and links are omitted from the public event. */
+export const ManagedEvent = Event.extend({
+  attendeeText: z.string().nullable(),
+  attendeeLinks: z.array(AttendeeLink),
+});
+export type ManagedEvent = z.infer<typeof ManagedEvent>;
 
 export const CreateEventRequest = z
   .object({
@@ -63,8 +134,11 @@ export const CreateEventRequest = z
     venueName: z.string().trim().max(200).optional(),
     location: GeoPointSchema.optional(),
     geofenceRadiusM: z.number().int().min(10).max(5000).optional(),
-    onlineUrl: z.url().optional(),
-    categoryIds: z.array(Id).max(20).default([]),
+    onlineUrl: HttpUrl.optional(),
+    priceAmount: PriceAmount.nullable().optional(),
+    currency: CurrencyCode.optional().default('SEK'),
+    links: z.array(EventLinkInput).max(10).optional().default([]),
+    tagIds: z.array(Id).max(20).default([]),
   })
   .refine((b) => new Date(b.endsAt) > new Date(b.startsAt), {
     message: 'endsAt must be after startsAt',
@@ -83,8 +157,14 @@ export const UpdateEventRequest = z
     venueName: z.string().trim().max(200).nullable().optional(),
     location: GeoPointSchema.nullable().optional(),
     geofenceRadiusM: z.number().int().min(10).max(5000).nullable().optional(),
-    onlineUrl: z.url().nullable().optional(),
-    categoryIds: z.array(Id).max(20).optional(),
+    onlineUrl: HttpUrl.nullable().optional(),
+    priceAmount: PriceAmount.nullable().optional(),
+    currency: CurrencyCode.optional(),
+    links: z.array(EventLinkInput).max(10).optional(),
+    tagIds: z.array(Id).max(20).optional(),
+    /** Extra text unlocked by check-in. Rejected unless an admin enabled check-in. */
+    attendeeText: z.string().trim().max(10_000).nullable().optional(),
+    attendeeLinks: z.array(AttendeeLinkInput).max(10).optional(),
   })
   .refine(
     (b) => {
@@ -109,6 +189,12 @@ export const PublicEventListQuery = z.object({
   radiusM: z.coerce.number().int().min(100).max(200_000).optional().default(50_000),
   from: z.iso.datetime().optional(),
   to: z.iso.datetime().optional(),
+  /** Matches title, venue, or organizer name. */
+  q: z.string().trim().min(1).max(200).optional(),
+  tagId: Id.optional(),
+  sort: z.enum(['soonest', 'distance']).optional().default('soonest'),
+  /** `free` is amount 0 or unknown; `paid` is amount > 0. */
+  price: z.enum(['free', 'paid']).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
 });
 export type PublicEventListQuery = z.infer<typeof PublicEventListQuery>;

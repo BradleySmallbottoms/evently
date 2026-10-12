@@ -1,4 +1,4 @@
-import type { Event, PublicEventListQuery, UpdateEventRequest } from '@local-events/contracts';
+import type { Event, EventLink, EventLinkInput, ManagedEvent, PublicEventListQuery, UpdateEventRequest } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { pointEwkt, schema } from '@local-events/db';
 import {
@@ -7,12 +7,13 @@ import {
   canPublishAnother,
   canPublishEvent,
   entitlementsFor,
+  publicAssetUrl,
   releaseOnVerification,
   shouldEnqueueNotifications,
   statusOnPublish,
   validateEventFields,
 } from '@local-events/domain';
-import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
@@ -35,6 +36,12 @@ type LocRow = {
   lng: number | null;
   geofenceRadiusM: number | null;
   onlineUrl: string | null;
+  priceAmount: number | null;
+  currency: string;
+  publisherName: string;
+  featured: boolean;
+  checkInEnabled: boolean;
+  attendeeText: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -48,7 +55,13 @@ function assertFields(
   if (!check.ok) throw new EventError(check.reason);
 }
 
-function mapEvent(row: LocRow, categoryIds: string[]): Event {
+function mapEvent(
+  row: LocRow,
+  tagIds: string[],
+  imageKey: string | null,
+  links: EventLink[],
+  baseUrl: string | undefined,
+): Event {
   return {
     id: row.id,
     publisherId: row.publisherId,
@@ -64,10 +77,35 @@ function mapEvent(row: LocRow, categoryIds: string[]): Event {
     location: row.lat != null && row.lng != null ? { lat: row.lat, lng: row.lng } : null,
     geofenceRadiusM: row.geofenceRadiusM,
     onlineUrl: row.onlineUrl,
-    categoryIds,
+    priceAmount: row.priceAmount,
+    currency: row.currency,
+    publisherName: row.publisherName,
+    links,
+    imageUrl: publicAssetUrl(baseUrl, imageKey),
+    tagIds,
+    featured: row.featured,
+    checkInEnabled: row.checkInEnabled,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+type StoredLink = EventLink & { audience: 'public' | 'attendees' };
+
+function publicLinks(links: StoredLink[]): EventLink[] {
+  return links
+    .filter((link) => link.audience !== 'attendees')
+    .map(({ audience: _audience, ...link }) => link);
+}
+
+function attendeeLinksOf(links: StoredLink[]): ManagedEvent['attendeeLinks'] {
+  return links
+    .filter((link) => link.audience === 'attendees')
+    .map((link) => ({ id: link.id, url: link.url, label: link.label }));
+}
+
+function likePattern(q: string): string {
+  return `%${q.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
 }
 
 const eventSelect = {
@@ -86,6 +124,12 @@ const eventSelect = {
   lng: sql<number | null>`ST_X(${schema.events.location}::geometry)`,
   geofenceRadiusM: schema.events.geofenceRadiusM,
   onlineUrl: schema.events.onlineUrl,
+  priceAmount: schema.events.priceAmount,
+  currency: schema.events.currency,
+  publisherName: schema.publishers.name,
+  featured: schema.events.featured,
+  checkInEnabled: schema.events.checkInEnabled,
+  attendeeText: schema.events.attendeeText,
   createdAt: schema.events.createdAt,
   updatedAt: schema.events.updatedAt,
 };
@@ -96,7 +140,14 @@ export function createDbEventServices(
   env: EventEnv = { now: () => new Date() },
 ): EventServices {
   const domainEvents = env.domainEvents ?? createMemoryDomainEventPublisher();
-  const { events, eventCategories, categories } = schema;
+  const { events, eventTags, eventImages, eventLinks, tags, publishers } = schema;
+
+  function selectEvents() {
+    return db
+      .select(eventSelect)
+      .from(events)
+      .innerJoin(publishers, eq(events.publisherId, publishers.id));
+  }
 
   async function requireMember(sessionToken: string | undefined, publisherId: string) {
     try {
@@ -107,58 +158,156 @@ export function createDbEventServices(
     }
   }
 
-  async function categoryIdsFor(eventId: string): Promise<string[]> {
+  async function tagIdsFor(eventId: string): Promise<string[]> {
     const rows = await db
-      .select({ categoryId: eventCategories.categoryId })
-      .from(eventCategories)
-      .where(eq(eventCategories.eventId, eventId));
-    return rows.map((r) => r.categoryId);
+      .select({ tagId: eventTags.tagId })
+      .from(eventTags)
+      .where(eq(eventTags.eventId, eventId));
+    return rows.map((r) => r.tagId);
   }
 
-  async function loadEvent(eventId: string): Promise<Event | null> {
-    const [row] = await db.select(eventSelect).from(events).where(eq(events.id, eventId)).limit(1);
-    if (!row) return null;
-    return mapEvent(row, await categoryIdsFor(eventId));
+  async function imageKeyFor(eventId: string): Promise<string | null> {
+    const [row] = await db
+      .select({ s3Key: eventImages.s3Key })
+      .from(eventImages)
+      .where(and(eq(eventImages.eventId, eventId), eq(eventImages.role, 'main')))
+      .limit(1);
+    return row?.s3Key ?? null;
   }
 
-  async function replaceCategories(eventId: string, categoryIds: string[]) {
-    if (categoryIds.length > 0) {
-      const found = await db
-        .select({ id: categories.id })
-        .from(categories)
-        .where(inArray(categories.id, categoryIds));
-      if (found.length !== categoryIds.length) throw new EventError('invalid_event');
+  function toEvent(
+    row: LocRow,
+    tagIds: string[],
+    imageKey: string | null,
+    links: EventLink[],
+  ): Event {
+    return mapEvent(row, tagIds, imageKey, links, env.assetsPublicBaseUrl);
+  }
+
+  async function linksFor(eventIds: string[]): Promise<Map<string, StoredLink[]>> {
+    const grouped = new Map<string, StoredLink[]>();
+    if (eventIds.length === 0) return grouped;
+    const rows = await db
+      .select({
+        id: eventLinks.id,
+        eventId: eventLinks.eventId,
+        type: eventLinks.type,
+        url: eventLinks.url,
+        label: eventLinks.label,
+        position: eventLinks.position,
+        audience: eventLinks.audience,
+      })
+      .from(eventLinks)
+      .where(inArray(eventLinks.eventId, eventIds))
+      .orderBy(asc(eventLinks.position));
+    for (const row of rows) {
+      const list = grouped.get(row.eventId) ?? [];
+      list.push({
+        id: row.id,
+        type: row.type,
+        url: row.url,
+        label: row.label,
+        position: row.position,
+        audience: row.audience,
+      });
+      grouped.set(row.eventId, list);
     }
-    await db.delete(eventCategories).where(eq(eventCategories.eventId, eventId));
-    if (categoryIds.length > 0) {
-      await db.insert(eventCategories).values(
-        categoryIds.map((categoryId) => ({ eventId, categoryId })),
-      );
+    return grouped;
+  }
+
+  async function replacePublicLinks(eventId: string, links: EventLinkInput[]) {
+    await db
+      .delete(eventLinks)
+      .where(and(eq(eventLinks.eventId, eventId), eq(eventLinks.audience, 'public')));
+    if (links.length === 0) return;
+    await db.insert(eventLinks).values(
+      links.map((link, position) => ({
+        eventId,
+        type: link.type,
+        url: link.url,
+        label: link.label ?? null,
+        position,
+        audience: 'public' as const,
+      })),
+    );
+  }
+
+  async function replaceAttendeeLinks(
+    eventId: string,
+    links: NonNullable<UpdateEventRequest['attendeeLinks']>,
+  ) {
+    await db
+      .delete(eventLinks)
+      .where(and(eq(eventLinks.eventId, eventId), eq(eventLinks.audience, 'attendees')));
+    if (links.length === 0) return;
+    await db.insert(eventLinks).values(
+      links.map((link, position) => ({
+        eventId,
+        type: 'info' as const,
+        url: link.url,
+        label: link.label ?? null,
+        position,
+        audience: 'attendees' as const,
+      })),
+    );
+  }
+
+  async function loadEvent(eventId: string): Promise<ManagedEvent | null> {
+    const [row] = await selectEvents().where(eq(events.id, eventId)).limit(1);
+    if (!row) return null;
+    const stored = (await linksFor([eventId])).get(eventId) ?? [];
+    return {
+      ...toEvent(row, await tagIdsFor(eventId), await imageKeyFor(eventId), publicLinks(stored)),
+      attendeeText: row.attendeeText,
+      attendeeLinks: attendeeLinksOf(stored),
+    };
+  }
+
+  async function replaceTags(eventId: string, tagIds: string[]) {
+    if (tagIds.length > 0) {
+      const found = await db
+        .select({ id: tags.id })
+        .from(tags)
+        .where(inArray(tags.id, tagIds));
+      if (found.length !== tagIds.length) throw new EventError('invalid_event');
+    }
+    await db.delete(eventTags).where(eq(eventTags.eventId, eventId));
+    if (tagIds.length > 0) {
+      await db
+        .insert(eventTags)
+        .values(tagIds.map((tagId) => ({ eventId, tagId })));
     }
   }
 
   return {
-    async listCategories() {
-      const rows = await db.select().from(categories);
+    async listTags(query) {
+      const rows = query?.upcoming
+        ? await db
+            .selectDistinct({ id: tags.id, slug: tags.slug, name: tags.name })
+            .from(tags)
+            .innerJoin(eventTags, eq(eventTags.tagId, tags.id))
+            .innerJoin(events, eq(events.id, eventTags.eventId))
+            .where(and(eq(events.status, 'published'), gte(events.endsAt, env.now())))
+            .orderBy(asc(tags.slug))
+        : await db.select().from(tags).orderBy(asc(tags.slug));
       return rows.map((r) => ({
         id: r.id,
         slug: r.slug,
-        parentId: r.parentId,
-        nameSv: r.nameSv,
-        nameEn: r.nameEn,
+        name: r.name,
       }));
     },
 
     async listPublisherEvents({ sessionToken, publisherId }) {
       await requireMember(sessionToken, publisherId);
-      const rows = await db
-        .select(eventSelect)
-        .from(events)
+      const rows = await selectEvents()
         .where(eq(events.publisherId, publisherId))
         .orderBy(events.startsAt);
+      const links = await linksFor(rows.map((row) => row.id));
       const result: Event[] = [];
       for (const row of rows) {
-        result.push(mapEvent(row, await categoryIdsFor(row.id)));
+        result.push(
+          toEvent(row, await tagIdsFor(row.id), await imageKeyFor(row.id), publicLinks(links.get(row.id) ?? [])),
+        );
       }
       return result;
     },
@@ -186,15 +335,19 @@ export function createDbEventServices(
           location: location ? pointEwkt(location) : null,
           geofenceRadiusM: body.geofenceRadiusM ?? (body.mode === 'physical' ? 100 : null),
           onlineUrl: onlineUrl ?? null,
+          priceAmount: body.priceAmount ?? null,
+          currency: body.currency,
           createdAt: now,
           updatedAt: now,
         })
         .returning({ id: events.id });
       if (!row) throw new Error('failed to create event');
-      await replaceCategories(row.id, body.categoryIds);
+      await replaceTags(row.id, body.tagIds);
+      await replacePublicLinks(row.id, body.links);
       const created = await loadEvent(row.id);
       if (!created) throw new Error('failed to load event');
-      return created;
+      const { attendeeText: _text, attendeeLinks: _links, ...pub } = created;
+      return pub;
     },
 
     async getEvent({ sessionToken, eventId, publicOnly }) {
@@ -202,13 +355,18 @@ export function createDbEventServices(
       if (!event) throw new EventError('not_found');
       if (publicOnly) {
         if (event.status !== 'published') throw new EventError('not_found');
-        return event;
+        const { attendeeText: _text, attendeeLinks: _links, ...pub } = event;
+        return pub;
       }
       await requireMember(sessionToken, event.publisherId);
       return event;
     },
 
-    async updateEvent({ sessionToken, eventId, body }: {
+    async updateEvent({
+      sessionToken,
+      eventId,
+      body,
+    }: {
       sessionToken: string | undefined;
       eventId: string;
       body: UpdateEventRequest;
@@ -219,10 +377,8 @@ export function createDbEventServices(
       if (!canEditEvent(existing.status)) throw new EventError('cannot_edit');
 
       const mode = body.mode ?? existing.mode;
-      const location =
-        body.location !== undefined ? body.location : existing.location;
-      const onlineUrl =
-        body.onlineUrl !== undefined ? body.onlineUrl : existing.onlineUrl;
+      const location = body.location !== undefined ? body.location : existing.location;
+      const onlineUrl = body.onlineUrl !== undefined ? body.onlineUrl : existing.onlineUrl;
       const startsAt = body.startsAt ?? existing.startsAt;
       const endsAt = body.endsAt ?? existing.endsAt;
       if (new Date(endsAt) <= new Date(startsAt)) throw new EventError('invalid_event');
@@ -242,11 +398,24 @@ export function createDbEventServices(
           geofenceRadiusM:
             body.geofenceRadiusM !== undefined ? body.geofenceRadiusM : existing.geofenceRadiusM,
           onlineUrl,
+          priceAmount: body.priceAmount !== undefined ? body.priceAmount : existing.priceAmount,
+          currency: body.currency ?? existing.currency,
           updatedAt: env.now(),
         })
         .where(eq(events.id, eventId));
 
-      if (body.categoryIds) await replaceCategories(eventId, body.categoryIds);
+      if (body.tagIds) await replaceTags(eventId, body.tagIds);
+      if (body.attendeeText !== undefined || body.attendeeLinks !== undefined) {
+        if (!existing.checkInEnabled) throw new EventError('check_in_disabled');
+      }
+      if (body.attendeeText !== undefined) {
+        await db
+          .update(events)
+          .set({ attendeeText: body.attendeeText, updatedAt: env.now() })
+          .where(eq(events.id, eventId));
+      }
+      if (body.links) await replacePublicLinks(eventId, body.links);
+      if (body.attendeeLinks) await replaceAttendeeLinks(eventId, body.attendeeLinks);
       const updated = await loadEvent(eventId);
       if (!updated) throw new EventError('not_found');
       return updated;
@@ -280,10 +449,7 @@ export function createDbEventServices(
         origin: 'native',
         publisherVerified: access.publisherVerified,
       });
-      await db
-        .update(events)
-        .set({ status, updatedAt: now })
-        .where(eq(events.id, eventId));
+      await db.update(events).set({ status, updatedAt: now }).where(eq(events.id, eventId));
       const published = await loadEvent(eventId);
       if (!published) throw new EventError('not_found');
       if (shouldEnqueueNotifications(published.status)) {
@@ -317,11 +483,40 @@ export function createDbEventServices(
       const filters = [eq(events.status, 'published')];
       if (from) filters.push(gte(events.endsAt, from));
       if (to) filters.push(lte(events.startsAt, to));
+      if (query.q) {
+        const pattern = likePattern(query.q);
+        const match = or(
+          ilike(events.title, pattern),
+          ilike(events.venueName, pattern),
+          ilike(publishers.name, pattern),
+        );
+        if (match) filters.push(match);
+      }
+      if (query.tagId) {
+        filters.push(sql`exists (
+          select 1 from ${eventTags}
+          where ${eventTags.eventId} = ${events.id}
+            and ${eventTags.tagId} = ${query.tagId}
+        )`);
+      }
+      if (query.price === 'free') {
+        const free = or(isNull(events.priceAmount), eq(events.priceAmount, 0));
+        if (free) filters.push(free);
+      }
+      if (query.price === 'paid') filters.push(sql`${events.priceAmount} > 0`);
 
-      // Digital events (no location) always match; physical must be within radius.
-      const rows = await db
-        .select(eventSelect)
-        .from(events)
+      const distanceOrder =
+        query.sort === 'distance'
+          ? [
+              desc(events.featured),
+              sql`${events.location} IS NULL`,
+              sql`ST_Distance(${events.location}, ST_GeogFromText(${point}))`,
+              asc(events.startsAt),
+            ]
+          : [desc(events.featured), asc(events.startsAt)];
+
+      // No point: included in the list, omitted from the map. A point must be inside the radius.
+      const rows = await selectEvents()
         .where(
           and(
             ...filters,
@@ -335,12 +530,15 @@ export function createDbEventServices(
             )`,
           ),
         )
-        .orderBy(events.startsAt)
+        .orderBy(...distanceOrder)
         .limit(query.limit);
 
+      const links = await linksFor(rows.map((row) => row.id));
       const result: Event[] = [];
       for (const row of rows) {
-        result.push(mapEvent(row, await categoryIdsFor(row.id)));
+        result.push(
+          toEvent(row, await tagIdsFor(row.id), await imageKeyFor(row.id), publicLinks(links.get(row.id) ?? [])),
+        );
       }
       return result;
     },

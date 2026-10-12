@@ -54,11 +54,13 @@ export function createDbCheckInServices(
         lat: sql<number | null>`ST_Y(${schema.events.location}::geometry)`,
         lng: sql<number | null>`ST_X(${schema.events.location}::geometry)`,
         hasLocation: sql<boolean>`${schema.events.location} IS NOT NULL`,
+        checkInEnabled: schema.events.checkInEnabled,
       })
       .from(schema.events)
       .where(eq(schema.events.id, eventId))
       .limit(1);
     if (!row || row.status !== 'published') throw new CheckInError('not_found');
+    if (!row.checkInEnabled) throw new CheckInError('check_in_disabled');
     return row;
   }
 

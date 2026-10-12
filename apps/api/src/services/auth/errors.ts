@@ -17,6 +17,7 @@ const MESSAGES: Record<AuthErrorCode, string> = {
   invite_pending: 'An invite is already pending for this email',
   member_limit: 'Publisher member limit reached',
   invite_email_mismatch: 'Signed-in email does not match the invite',
+  user_banned: 'User is banned',
 };
 
 const STATUS: Record<AuthErrorCode, 400 | 401 | 403 | 409> = {
@@ -34,6 +35,7 @@ const STATUS: Record<AuthErrorCode, 400 | 401 | 403 | 409> = {
   invite_pending: 409,
   member_limit: 403,
   invite_email_mismatch: 403,
+  user_banned: 403,
 };
 
 /**

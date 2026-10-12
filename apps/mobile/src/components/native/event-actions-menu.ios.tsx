@@ -1,7 +1,9 @@
 import { Host } from '@expo/ui';
 import { Button, ContextMenu, Divider, RNHostView } from '@expo/ui/swift-ui';
+import type { StyleProp, ViewStyle } from 'react-native';
 
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
+import { colors } from '@/theme/colors';
 
 type Props = {
   accessibilityLabel: string;
@@ -11,6 +13,7 @@ type Props = {
   onShare: () => void;
   onCopyLink: () => void;
   onReport: () => void;
+  buttonStyle?: StyleProp<ViewStyle>;
 };
 
 /** SwiftUI context menu for event detail overflow actions (iOS only). */
@@ -22,6 +25,7 @@ export function EventActionsMenu({
   onShare,
   onCopyLink,
   onReport,
+  buttonStyle,
 }: Props) {
   return (
     <Host matchContents>
@@ -29,9 +33,12 @@ export function EventActionsMenu({
         <ContextMenu.Trigger>
           <RNHostView matchContents>
             <CircleIconButton
+              plain
+              tintColor={colors.ink as string}
               sf="ellipsis"
               md="more-horiz"
               accessibilityLabel={accessibilityLabel}
+              style={buttonStyle}
             />
           </RNHostView>
         </ContextMenu.Trigger>

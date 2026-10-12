@@ -1,0 +1,25 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Local Events//ICS fixture//EN
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+UID:fixture-concert-2026-07-01@example.com
+DTSTAMP:20260101T120000Z
+DTSTART:20260701T180000
+DTEND:20260701T210000
+SUMMARY:Sommarkonsert i Söderhamn
+DESCRIPTION:Öppen utomhuskonsert vid hamnen.
+LOCATION:Söderhamns hamn
+URL:https://example.com/events/sommarkonsert
+ORGANIZER;CN=Kultur Söderhamn:mailto:kultur@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:fixture-market-2026-08-15@example.com
+DTSTAMP:20260101T120000Z
+DTSTART:20260815T100000
+DTEND:20260815T150000
+SUMMARY:Bondens marknad
+LOCATION:Torget\, Söderhamn
+URL:https://example.com/events/marknad
+END:VEVENT
+END:VCALENDAR

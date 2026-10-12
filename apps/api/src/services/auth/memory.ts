@@ -103,6 +103,8 @@ export function createMemoryAuthServices(
         quietHoursStartMin: 22 * 60,
         quietHoursEndMin: 8 * 60,
         quietHoursEnabled: true,
+        bannedAt: null,
+        banReason: null,
       });
       devices.set(deviceId, {
         id: deviceId,
@@ -139,6 +141,8 @@ export function createMemoryAuthServices(
         (d) => d.credentialHash === credentialHash && !d.revokedAt,
       );
       if (!device) throw new AuthError('invalid_credentials');
+      const user = users.get(device.userId);
+      if (user?.bannedAt) throw new AuthError('user_banned');
 
       const now = env.now();
       const sessionToken = generateSessionToken();
@@ -437,6 +441,8 @@ export function createMemoryAuthServices(
           s.expiresAt > env.now(),
       );
       if (!session) throw new AuthError('unauthorized');
+      const user = users.get(session.subjectId);
+      if (user?.bannedAt) throw new AuthError('user_banned');
       return { userId: session.subjectId };
     },
 

@@ -31,7 +31,7 @@ export const UserArea = z.object({
 export type UserArea = z.infer<typeof UserArea>;
 
 export const UserPreferencesResponse = z.object({
-  categoryIds: z.array(Id),
+  tagIds: z.array(Id),
   areas: z.array(UserArea),
   quietHours: z.object({
     enabled: z.boolean(),
@@ -43,12 +43,12 @@ export const UserPreferencesResponse = z.object({
 export type UserPreferencesResponse = z.infer<typeof UserPreferencesResponse>;
 
 export const ReplaceUserInterestsRequest = z.object({
-  categoryIds: z.array(Id).max(50),
+  tagIds: z.array(Id).max(50),
 });
 export type ReplaceUserInterestsRequest = z.infer<typeof ReplaceUserInterestsRequest>;
 
 export const ReplaceUserInterestsResponse = z.object({
-  categoryIds: z.array(Id),
+  tagIds: z.array(Id),
 });
 export type ReplaceUserInterestsResponse = z.infer<typeof ReplaceUserInterestsResponse>;
 

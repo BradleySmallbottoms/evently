@@ -10,11 +10,13 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import { useHasUnreadNotifications } from '@/lib/use-unread-notifications';
 import { brand } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
 
 export default function AppTabs() {
   const { t } = useTranslation();
+  const hasUnread = useHasUnreadNotifications();
   return (
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
@@ -23,8 +25,22 @@ export default function AppTabs() {
           <TabTrigger name="index" href="/" asChild>
             <TabButton>{t('tabs.list')}</TabButton>
           </TabTrigger>
-          <TabTrigger name="map" href="/map" asChild>
-            <TabButton>{t('tabs.map')}</TabButton>
+          <TabTrigger name="search" href="/search" asChild>
+            <TabButton>{t('tabs.search')}</TabButton>
+          </TabTrigger>
+          <TabTrigger name="events" href="/events" asChild>
+            <TabButton>{t('tabs.events')}</TabButton>
+          </TabTrigger>
+          <TabTrigger name="saved" href="/saved" asChild>
+            <TabButton>{t('tabs.saved')}</TabButton>
+          </TabTrigger>
+          <TabTrigger name="profile" href="/profile" asChild>
+            <TabButton
+              showBadge={hasUnread}
+              accessibilityLabel={hasUnread ? t('tabs.profileUnread') : t('tabs.profile')}
+            >
+              {t('tabs.profile')}
+            </TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>
@@ -32,10 +48,17 @@ export default function AppTabs() {
   );
 }
 
-function TabButton({ children, isFocused, onPress }: TabTriggerSlotProps) {
+function TabButton({
+  children,
+  isFocused,
+  onPress,
+  showBadge,
+  accessibilityLabel,
+}: TabTriggerSlotProps & { showBadge?: boolean }) {
   return (
     <Pressable
       accessibilityRole="tab"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: !!isFocused }}
       onPress={onPress}
       style={{
@@ -43,15 +66,32 @@ function TabButton({ children, isFocused, onPress }: TabTriggerSlotProps) {
         paddingVertical: space.sm,
         borderRadius: radius.pill,
         borderCurve: 'continuous',
-        backgroundColor: isFocused ? brand.accent : 'transparent',
+        backgroundColor: isFocused ? brand.accentSoft : 'transparent',
       }}
     >
-      <AppText
-        variant="label"
-        style={{ color: isFocused ? '#FFFFFF' : brand.ink, fontWeight: '700' }}
-      >
-        {children}
-      </AppText>
+      <View>
+        <AppText
+          variant="label"
+          style={{ color: isFocused ? brand.primary : brand.ink, fontWeight: '700' }}
+        >
+          {children}
+        </AppText>
+        {showBadge ? (
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: -10,
+              width: 8,
+              height: 8,
+              borderRadius: radius.pill,
+              backgroundColor: brand.error,
+            }}
+          />
+        ) : null}
+      </View>
     </Pressable>
   );
 }

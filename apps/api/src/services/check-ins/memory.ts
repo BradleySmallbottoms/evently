@@ -50,6 +50,7 @@ export function createMemoryCheckInServices(
   function loadPublished(eventId: string) {
     const row = store.events.get(eventId);
     if (!row || row.status !== 'published') throw new CheckInError('not_found');
+    if (!row.checkInEnabled) throw new CheckInError('check_in_disabled');
     return row;
   }
 

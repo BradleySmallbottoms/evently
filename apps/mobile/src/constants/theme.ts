@@ -3,18 +3,18 @@ import { space } from '@/theme/tokens';
 
 export const Colors = {
   light: {
-    text: brand.ink,
-    background: brand.canvas,
-    backgroundElement: brand.card,
+    text: brand.text,
+    background: brand.background,
+    backgroundElement: brand.surface,
     backgroundSelected: brand.accentSoft,
-    textSecondary: brand.inkMuted,
+    textSecondary: brand.textSecondary,
   },
   dark: {
-    text: '#F5F5F5',
-    background: '#121212',
-    backgroundElement: '#1E1E1E',
-    backgroundSelected: '#3A241C',
-    textSecondary: '#B0B0B0',
+    text: brand.text,
+    background: brand.background,
+    backgroundElement: brand.surface,
+    backgroundSelected: brand.accentSoft,
+    textSecondary: brand.textSecondary,
   },
 } as const;
 

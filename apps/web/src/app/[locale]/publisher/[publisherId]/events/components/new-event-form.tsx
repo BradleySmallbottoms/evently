@@ -28,8 +28,8 @@ export function NewEventForm() {
   const [mode, setMode] = useState<EventMode>('physical');
 
   const categories = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => throwIfError(await api.GET('/categories')),
+    queryKey: ['tags'],
+    queryFn: async () => throwIfError(await api.GET('/tags')),
   });
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -51,7 +51,7 @@ export function NewEventForm() {
           location: fields.location,
           geofenceRadiusM: fields.geofenceRadiusM,
           onlineUrl: fields.onlineUrl,
-          categoryIds: fields.categoryIds,
+          tagIds: fields.tagIds,
         },
       });
       const created = throwIfError(result);

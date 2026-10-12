@@ -32,7 +32,9 @@ export function createMemoryRatingServices(
       if (!event || event.status !== 'published') throw new RatingError('not_found');
       const opensAt = event.endsAtDate;
       const closesAt = new Date(opensAt.getTime() + RATING_WINDOW_DAYS * 86_400_000);
-      const eventScores = store.ratings.filter((r) => r.eventId === eventId);
+      const eventScores = store.ratings.filter(
+        (r) => r.eventId === eventId && !r.hiddenAt,
+      );
       const agg = aggregate(eventScores.map((r) => r.score));
 
       let hasRated = false;
@@ -116,6 +118,7 @@ export function createMemoryRatingServices(
         score: input.score,
         comment,
         createdAt,
+        hiddenAt: null as Date | null,
       };
       store.ratings.push(row);
       await enqueueDomainEvent(domainEvents, {
@@ -145,7 +148,7 @@ export function createMemoryRatingServices(
         }
         throw err;
       }
-      const rows = store.ratings.filter((r) => r.eventId === eventId);
+      const rows = store.ratings.filter((r) => r.eventId === eventId && !r.hiddenAt);
       return {
         items: rows.map((r) => {
           const user = store.users.get(r.userId);

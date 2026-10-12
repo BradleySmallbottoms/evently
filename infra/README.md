@@ -10,13 +10,22 @@ pnpm --filter @local-events/infra deploy -c env=dev -c imageTag=$(git rev-parse 
 
 ## Stacks
 
-| Stack        | Contents                                                                 |
-| ------------ | ------------------------------------------------------------------------ |
-| `network`    | VPC (public / private / isolated), NAT                                   |
-| `data`       | RDS PostgreSQL 16 (PostGIS extension), Valkey, S3, SQS + DLQ, secrets    |
-| `services`   | ECR, ECS cluster, Fargate (api / admin-api / worker), public + admin ALB |
+| Stack          | Contents                                                                          |
+| -------------- | --------------------------------------------------------------------------------- |
+| `network`      | VPC (public / private / isolated), NAT                                           |
+| `data`         | RDS PostgreSQL 16 (PostGIS extension), Valkey, S3, SQS + DLQ, secrets            |
+| `services`     | ECR, ECS cluster, Fargate (api / admin-api / worker), public + admin ALB         |
+| `data-workers` | ECR, Fargate task definition (256 CPU / 512 MiB), EventBridge Scheduler per source |
+| `edge`         | CloudFront (origin access control) in front of the public assets bucket          |
 
-Still planned: `DataWorkersStack` (EventBridge schedules), `EdgeStack` (CloudFront + WAF).
+Still planned: WAF on the public distribution, and an IP allowlist in front of admin.
+Local object storage is Garage (`pnpm db:up`). Dev keys in Compose are local-only. See `.env.example`.
+
+Scheduled ingestion uses EventBridge Scheduler → `EcsRunFargateTask` on the shared ECS
+cluster. Each schedule passes `SOURCE_SLUG` via ECS `ContainerOverrides` (default: `visit-soderhamn`
+every 6 hours). Add slugs via `KNOWN_DATA_WORKER_SOURCE_SLUGS` / `sourceSchedules` in
+`DataWorkersStack`. Source API keys (e.g. `VISIT_SODERHAMN_API_KEY`) must live in Secrets Manager
+(`local-events/<env>/app`) and be mapped in the task definition when you wire them.
 
 Non-prod API tasks set `CORS_ORIGINS=*` (reflect Origin; required with credentialed cookies) and
 `INCLUDE_VERIFICATION_TOKEN=true` until SES sends verification links. Tighten both before prod.

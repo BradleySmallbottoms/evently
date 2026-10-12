@@ -29,7 +29,7 @@ describe('handleEventPublished', () => {
       status: 'published',
       publisherId: '11111111-1111-4111-8111-111111111204',
       hasLocation: true,
-      categoryIds: ['cat'],
+      tagIds: ['cat'],
     });
     vi.spyOn(match, 'findNearbyMatchedUsers').mockResolvedValue([{ userId: USER_ID }]);
     vi.spyOn(match, 'findPublisherSubscriberUsers').mockResolvedValue([]);
@@ -82,7 +82,7 @@ describe('handleEventPublished', () => {
       status: 'published',
       publisherId: '11111111-1111-4111-8111-111111111204',
       hasLocation: true,
-      categoryIds: ['cat'],
+      tagIds: ['cat'],
     });
     vi.spyOn(match, 'findNearbyMatchedUsers').mockResolvedValue([{ userId: USER_ID }]);
     vi.spyOn(match, 'findPublisherSubscriberUsers').mockResolvedValue([]);
@@ -114,7 +114,7 @@ describe('handleEventPublished', () => {
       status: 'published',
       publisherId: '11111111-1111-4111-8111-111111111204',
       hasLocation: true,
-      categoryIds: ['cat'],
+      tagIds: ['cat'],
     });
     vi.spyOn(match, 'findNearbyMatchedUsers').mockResolvedValue([{ userId: USER_ID }]);
     vi.spyOn(match, 'findPublisherSubscriberUsers').mockResolvedValue([]);
@@ -145,7 +145,7 @@ describe('handleEventPublished', () => {
       status: 'published',
       publisherId: '11111111-1111-4111-8111-111111111204',
       hasLocation: false,
-      categoryIds: ['cat'],
+      tagIds: ['cat'],
     });
     const findNearby = vi.spyOn(match, 'findNearbyMatchedUsers');
     vi.spyOn(match, 'findPublisherSubscriberUsers').mockResolvedValue([]);
@@ -164,7 +164,7 @@ describe('handleEventPublished', () => {
       status: 'published',
       publisherId: '11111111-1111-4111-8111-111111111204',
       hasLocation: true,
-      categoryIds: ['cat'],
+      tagIds: ['cat'],
     });
     vi.spyOn(match, 'findNearbyMatchedUsers').mockResolvedValue([{ userId: USER_ID }]);
     vi.spyOn(match, 'findPublisherSubscriberUsers').mockResolvedValue([]);

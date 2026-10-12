@@ -4,17 +4,21 @@ import Animated from 'react-native-reanimated';
 
 import { AppText } from '@/components/ui/app-text';
 import { colors } from '@/theme/colors';
-import { radius, shadow, space } from '@/theme/tokens';
+import { radius, space } from '@/theme/tokens';
 
 type Props = {
   label: string;
   onPress?: () => void;
   loading?: boolean;
   disabled?: boolean;
+  /** Override the default brand accent (e.g. per-step onboarding colors). */
+  color?: string;
   style?: StyleProp<ViewStyle>;
 };
 
-export function PrimaryButton({ label, onPress, loading, disabled, style }: Props) {
+export function PrimaryButton({ label, onPress, loading, disabled, color, style }: Props) {
+  const backgroundColor = color ?? colors.accent;
+  const labelColor = colors.primary;
   return (
     <Pressable
       accessibilityRole="button"
@@ -28,15 +32,15 @@ export function PrimaryButton({ label, onPress, loading, disabled, style }: Prop
         <Animated.View
           style={[
             {
-              backgroundColor: colors.accent,
+              backgroundColor,
               borderRadius: radius.xl,
               borderCurve: 'continuous',
-              paddingVertical: space.lg + 2,
+              paddingVertical: space.lg,
               paddingHorizontal: space.xxl,
               alignItems: 'center',
               justifyContent: 'center',
+              minHeight: 52,
               opacity: disabled || loading ? 0.5 : 1,
-              boxShadow: shadow.cta,
               transform: [{ scale: pressed ? 0.97 : 1 }],
               transitionProperty: 'transform',
               transitionDuration: 120,
@@ -45,9 +49,9 @@ export function PrimaryButton({ label, onPress, loading, disabled, style }: Prop
           ]}
         >
           {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={labelColor} />
           ) : (
-            <AppText variant="subtitle" style={{ color: '#FFFFFF', fontWeight: '700' }}>
+            <AppText variant="subtitle" style={{ color: labelColor, fontWeight: '700' }}>
               {label}
             </AppText>
           )}

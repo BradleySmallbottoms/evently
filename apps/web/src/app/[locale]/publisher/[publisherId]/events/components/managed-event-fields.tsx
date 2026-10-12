@@ -25,19 +25,18 @@ export type ManagedEventFieldValues = {
   lng?: number | null;
   geofenceRadiusM?: number | null;
   onlineUrl?: string | null;
-  categoryIds?: string[];
+  tagIds?: string[];
 };
 
-export type CategoryOption = {
+export type TagOption = {
   id: string;
-  nameSv: string;
-  nameEn: string;
+  name: string;
 };
 
 type Props = {
   mode: EventMode;
   onModeChange: (mode: EventMode) => void;
-  categories: CategoryOption[] | undefined;
+  categories: TagOption[] | undefined;
   categoriesLoading: boolean;
   categoriesError: boolean;
   values?: ManagedEventFieldValues;
@@ -177,21 +176,21 @@ export function ManagedEventFields({
 
       <FormControl fullWidth disabled={categoriesLoading || categoriesError}>
         <InputLabel id="categories-label" shrink>
-          {t('categories')}
+          {t('tags')}
         </InputLabel>
         <Select
           labelId="categories-label"
-          name="categoryIds"
-          label={t('categories')}
+          name="tagIds"
+          label={t('tags')}
           multiple
           native
-          defaultValue={values?.categoryIds ?? []}
+          defaultValue={values?.tagIds ?? []}
           inputProps={{ id: categoriesInputId }}
           sx={{ minHeight: 160 }}
         >
           {categories?.map((cat) => (
             <option key={cat.id} value={cat.id}>
-              {cat.nameSv} / {cat.nameEn}
+              {cat.name}
             </option>
           ))}
         </Select>
@@ -212,7 +211,7 @@ export function readManagedEventForm(formData: FormData): {
   location: { lat: number; lng: number } | undefined;
   geofenceRadiusM: number | undefined;
   onlineUrl: string | undefined;
-  categoryIds: string[];
+  tagIds: string[];
 } {
   const mode: EventMode =
     String(formData.get('mode') ?? 'physical') === 'digital' ? 'digital' : 'physical';
@@ -235,6 +234,6 @@ export function readManagedEventForm(formData: FormData): {
       mode === 'physical' && radiusRaw ? Math.round(Number(radiusRaw)) : undefined,
     onlineUrl:
       mode === 'digital' ? String(formData.get('onlineUrl') ?? '').trim() || undefined : undefined,
-    categoryIds: formData.getAll('categoryIds').map(String),
+    tagIds: formData.getAll('tagIds').map(String),
   };
 }

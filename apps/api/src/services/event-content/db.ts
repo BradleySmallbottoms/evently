@@ -6,7 +6,7 @@ import type {
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import { canViewEventContent } from '@local-events/domain';
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { createMemoryContentUrlSigner } from './signer';
@@ -63,6 +63,8 @@ export function createDbEventContentServices(
         id: schema.events.id,
         publisherId: schema.events.publisherId,
         status: schema.events.status,
+        checkInEnabled: schema.events.checkInEnabled,
+        attendeeText: schema.events.attendeeText,
       })
       .from(schema.events)
       .where(eq(schema.events.id, eventId))
@@ -112,7 +114,29 @@ export function createDbEventContentServices(
         .where(eq(schema.eventContent.eventId, eventId));
       const visible = rows.filter((r) => canViewEventContent(r.visibility, checkedIn));
       const items = await Promise.all(visible.map((r) => toItem(r, true)));
-      return { items, checkedIn };
+      const attendeeLinks =
+        checkedIn && event.checkInEnabled
+          ? await db
+              .select({
+                id: schema.eventLinks.id,
+                url: schema.eventLinks.url,
+                label: schema.eventLinks.label,
+              })
+              .from(schema.eventLinks)
+              .where(
+                and(
+                  eq(schema.eventLinks.eventId, eventId),
+                  eq(schema.eventLinks.audience, 'attendees'),
+                ),
+              )
+              .orderBy(asc(schema.eventLinks.position))
+          : [];
+      return {
+        items,
+        checkedIn,
+        attendeeText: checkedIn && event.checkInEnabled ? event.attendeeText : null,
+        attendeeLinks,
+      };
     },
 
     async listManaged(publisherSessionToken, eventId) {

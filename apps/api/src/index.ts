@@ -21,6 +21,8 @@ import { createDbPreferenceServices } from './services/preferences/db';
 import { createMemoryPreferenceServices } from './services/preferences/memory';
 import { createDbRegionServices } from './services/regions/db';
 import { createMemoryRegionServices } from './services/regions/memory';
+import { createDbLibraryServices } from './services/library/db';
+import { createMemoryLibraryServices } from './services/library/memory';
 import { createDbSubscriptionServices } from './services/subscriptions/db';
 import { createMemorySubscriptionServices } from './services/subscriptions/memory';
 import { createMemoryStore } from './services/memory-store';
@@ -52,7 +54,10 @@ const includeVerificationToken =
 
 const databaseUrl = resolveDatabaseUrl();
 const authEnv = { includeVerificationToken, now: () => new Date() };
-const eventEnv = { now: () => new Date() };
+const eventEnv = {
+  now: () => new Date(),
+  assetsPublicBaseUrl: process.env.ASSETS_PUBLIC_BASE_URL?.trim() || undefined,
+};
 
 const preferenceEnv = { now: () => new Date() };
 const queueUrl = process.env.DOMAIN_EVENTS_QUEUE_URL?.trim();
@@ -69,6 +74,7 @@ const {
   preferences,
   regions,
   subscriptions,
+  library,
   checkIns,
   notifications,
   eventContent,
@@ -84,6 +90,7 @@ const {
       preferences: createDbPreferenceServices(db, authServices, preferenceEnv),
       regions: createDbRegionServices(db),
       subscriptions: createDbSubscriptionServices(db, authServices),
+      library: createDbLibraryServices(db, authServices, eventEnv),
       checkIns: createDbCheckInServices(db, authServices, checkInEnv),
       notifications: createDbNotificationServices(db, authServices),
       eventContent: createDbEventContentServices(db, authServices, contentEnv),
@@ -102,6 +109,7 @@ const {
     preferences: createMemoryPreferenceServices(authServices, preferenceEnv, store),
     regions: createMemoryRegionServices(store),
     subscriptions: createMemorySubscriptionServices(authServices, store),
+    library: createMemoryLibraryServices(authServices, store),
     checkIns: createMemoryCheckInServices(authServices, checkInEnv, store),
     notifications: createMemoryNotificationServices(authServices, store),
     eventContent: createMemoryEventContentServices(authServices, contentEnv, store),
@@ -126,12 +134,14 @@ serve(
       preferences,
       regions,
       subscriptions,
+      library,
       checkIns,
       notifications,
       eventContent,
       ratings,
       stats,
       corsOrigin,
+      assetsPublicBaseUrl: eventEnv.assetsPublicBaseUrl,
     }).fetch,
     port,
   },

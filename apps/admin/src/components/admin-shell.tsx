@@ -57,8 +57,23 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </Typography>
           {me.data ? (
             <>
+              <Button component={Link} href="/events" color="inherit">
+                {t('navEvents')}
+              </Button>
+              <Button component={Link} href="/events/manage" color="inherit">
+                {t('navEventCatalog')}
+              </Button>
               <Button component={Link} href="/publishers" color="inherit">
                 {t('navPublishers')}
+              </Button>
+              <Button component={Link} href="/moderation" color="inherit">
+                {t('navModeration')}
+              </Button>
+              <Button component={Link} href="/data-sources" color="inherit">
+                {t('navDataSources')}
+              </Button>
+              <Button component={Link} href="/audit-log" color="inherit">
+                {t('navAuditLog')}
               </Button>
               <Typography variant="body2" color="text.secondary" sx={{ mx: 1 }}>
                 {me.data.email}

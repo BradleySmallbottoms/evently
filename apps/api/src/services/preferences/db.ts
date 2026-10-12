@@ -101,7 +101,7 @@ export function createDbPreferenceServices(
   auth: AuthServices,
   _env: PreferenceEnv = { now: () => new Date() },
 ): PreferenceServices {
-  const { userInterests, userAreas, categories, regions, users } = schema;
+  const { userInterests, userAreas, tags, regions, users } = schema;
 
   async function areasForUser(userId: string): Promise<UserArea[]> {
     const rows = await db
@@ -126,11 +126,11 @@ export function createDbPreferenceServices(
         .limit(1);
       if (!user) throw new PreferenceError('unauthorized');
       const interestRows = await db
-        .select({ categoryId: userInterests.categoryId })
+        .select({ tagId: userInterests.tagId })
         .from(userInterests)
         .where(eq(userInterests.userId, userId));
       return {
-        categoryIds: interestRows.map((r) => r.categoryId),
+        tagIds: interestRows.map((r) => r.tagId),
         areas: await areasForUser(userId),
         quietHours: {
           enabled: user.quietHoursEnabled,
@@ -237,24 +237,24 @@ export function createDbPreferenceServices(
 
     async replaceInterests(sessionToken, input) {
       const { userId } = await auth.requireUserSession(sessionToken);
-      const unique = [...new Set(input.categoryIds)];
+      const unique = [...new Set(input.tagIds)];
       if (unique.length > 0) {
         const found = await db
-          .select({ id: categories.id })
-          .from(categories)
-          .where(inArray(categories.id, unique));
-        if (found.length !== unique.length) throw new PreferenceError('unknown_category');
+          .select({ id: tags.id })
+          .from(tags)
+          .where(inArray(tags.id, unique));
+        if (found.length !== unique.length) throw new PreferenceError('unknown_tag');
       }
 
       await db.transaction(async (tx) => {
         await tx.delete(userInterests).where(eq(userInterests.userId, userId));
         if (unique.length > 0) {
           await tx.insert(userInterests).values(
-            unique.map((categoryId) => ({ userId, categoryId })),
+            unique.map((tagId) => ({ userId, tagId })),
           );
         }
       });
-      return { categoryIds: unique };
+      return { tagIds: unique };
     },
 
     async listAreas(sessionToken) {

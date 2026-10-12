@@ -3,6 +3,7 @@ import postgres from 'postgres';
 import * as schema from './schema';
 
 export { schema };
+export { SEED_TAGS, visitTagExternalId, visitTagId, type SeedTag } from './seed-tags';
 export {
   pointEwkt,
   polygonEwkt,

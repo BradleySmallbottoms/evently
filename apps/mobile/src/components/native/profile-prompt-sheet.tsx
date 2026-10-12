@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
-import { radius, space, typography } from '@/theme/tokens';
+import { radius, space } from '@/theme/tokens';
 
 type Props = {
   isPresented: boolean;
@@ -80,7 +80,7 @@ export function ProfilePromptSheet({
               opacity: saving || name.trim().length < 2 ? 0.5 : 1,
             }}
           >
-            <Text textStyle={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>
+            <Text textStyle={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>
               {saveNamedLabel}
             </Text>
           </Pressable>
@@ -108,7 +108,6 @@ const inputStyle = {
   borderRadius: radius.md,
   paddingHorizontal: space.lg,
   paddingVertical: space.md,
-  fontFamily: typography.familyRegular,
   fontSize: 16,
   color: colors.ink as string,
 };

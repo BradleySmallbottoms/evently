@@ -30,7 +30,7 @@ remain.
 corepack enable
 pnpm install
 cp .env.example .env
-pnpm db:up          # Postgres + PostGIS + Valkey + ElasticMQ (local SQS) in Docker
+pnpm db:up          # Postgres + PostGIS + Valkey + ElasticMQ (local SQS) + Garage (local S3)
 pnpm db:migrate     # apply packages/db/migrations
 pnpm typecheck
 pnpm test
@@ -54,10 +54,70 @@ Operational and product facts that bite during local development. **Update this 
 a diagram under [`docs/flows/`](docs/flows/README.md) when the feature has complex client→API→DB
 calls) in the same change as every new major feature.**
 
+### Visit Söderhamn import
+
+- First external source is the Citybreak API used by Visit Söderhamn. The worker loads the category
+  tree, then products in **Evenemang** (category `30172`) only. Each occasion becomes its own event.
+  Categories under Evenemang are stored as tags (`external_id` `visit-soderhamn:{id}`) and attached
+  to the imported event. `GET /v1/tags` is that list. The mobile app always calls it with
+  `?upcoming=true`, which keeps only tags on a published event that has not ended. Publishers
+  and admin still load the full list.
+  A fresh database is seeded with the seven tags from the local fixture; a live run adds the rest.
+- Set `VISIT_SODERHAMN_API_KEY` before a live run. The key is not stored in `data_sources.config`.
+  The seeded row stays **disabled**, so nothing runs it on a timer. A manual run still saves.
+  Flow: [docs/flows/visit-soderhamn.md](docs/flows/visit-soderhamn.md).
+- `pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn` writes events as
+  `in_review` under a temporary publisher per contact email. They do not show up in the public
+  list until an admin publishes them.   The same run again skips unchanged events. A booking link
+  (`Bokningslänk`) is stored as a `tickets` link. The event link and website are `info` links.
+  Every source also stores http(s) links found in the description (tickets, registration, or info).
+  A price is stored only when the description says gratis or states an amount in kr
+  (öre). An event with no price is treated as free in the list filter. Cards show
+  a known price as `100kr`.
+- Hero images are copied into Garage when `PUBLIC_ASSETS_BUCKET` is set (`pnpm db:up`). The public
+  API returns `imageUrl` only when `ASSETS_PUBLIC_BASE_URL` is set. After the first Garage start,
+  allow anonymous reads once:
+  `docker compose exec garage /garage bucket website --allow local-events-assets`.
+  Objects are then `http://local-events-assets.localhost:3902/events/{eventId}/main`.
+  A phone running Expo Go cannot open `*.localhost`. The app rewrites those image
+  URLs to `GET /v1/assets/…` on the API host, and the API fetches Garage. The phone
+  still needs `EXPO_PUBLIC_API_URL` set to this computer's LAN address.
+  Browse the buckets at `http://localhost:3909` (Garage Web UI).
+  In AWS the same key is served from CloudFront (`ASSETS_PUBLIC_BASE_URL`).
+
+### Check-in
+
+- Check-in is off on an event until an admin turns it on in the event editor. The publisher can
+  then add extra text and links. Attendees see those only after they check in
+  (`GET /v1/events/{id}/content`). A later import does not clear the flag or that text.
+  Flow: [docs/flows/attendee-content.md](docs/flows/attendee-content.md).
+
+### Featured events
+
+- Admins set `featured` on an event in the catalog editor. Published featured events sort first on
+  `GET /v1/events` and the mobile home page. Imports do not write the flag, so a later sync leaves
+  it set. Paid placements (slot, dates, plan quota) are still a later feature.
+  Flow: [docs/flows/admin-event-edit.md](docs/flows/admin-event-edit.md).
+
+### Saved events, lists, and links
+
+- A save is `PUT /v1/me/saved-events/{eventId}` for the device session. It is not a notification
+  follow (`/me/subscriptions`). Custom lists live at `/v1/me/lists` (20 lists, 100 events each).
+  Both are deleted with the user.
+- Tickets and registration are links on the event (`type` `tickets`, `registration`, or `info`).
+  Price is optional minor units: missing means unknown, `0` means free.
+  A later import that omits price, currency, online URL, or links leaves those fields as they are.
+  Flow: [docs/flows/saved-events.md](docs/flows/saved-events.md).
+
 ### Public events & publishers
 
 - Public `GET /v1/events` only returns **`status = published`**. Unverified publishers’ events stay
   `awaiting_verification` until an admin verifies the publisher (which releases upcoming events).
+- Admins open an event from **Events** (`/events/manage`) or import review. `GET/PATCH /v1/events/{id}`
+  on the admin API edits title, schedule, place, price, tags, links, and status. Saving a
+  published event enqueues `event.updated`. Changing status to `published` enqueues `event.published`.
+  A status-only cancel does not re-check place or online URL. Flow:
+  [docs/flows/admin-event-edit.md](docs/flows/admin-event-edit.md).
 - Empty mobile/web lists usually mean no published events nearby — not a broken client. Verify
   publishers via admin console (`apps/admin` → Publishers) or
   `POST /v1/publishers/{id}/verify` (admin session cookie / Bearer). Bootstrap first admin with
@@ -70,6 +130,11 @@ calls) in the same change as every new major feature.**
 
 ### Mobile location (especially Expo web)
 
+- First launch shows an **onboarding carousel** (welcome → notifications → location). Activate
+  requests the OS permission; Skip stores the choice and deferred **reminders** reappear after
+  every 5 app activations (one permission at a time). Reset app data clears this state.
+- Home event queries use **existing** location permission only (no prompt). Check-in and onboarding
+  / reminders own the permission request.
 - Resolving GPS can hang on web permission prompts. The app **times out** (≈2s on web) and falls
   back to Söderhamn so the events query can run. Switching tabs used to “fix” a hung prompt —
   that should no longer be required.
@@ -87,6 +152,10 @@ calls) in the same change as every new major feature.**
   `userId`. Only the device that created the code is remapped. Flow:
   [docs/flows/device-linking.md](docs/flows/device-linking.md).
 - App identity is a **device credential** in secure storage (localStorage on web), not the user id.
+  Onboarding creates it with `POST /v1/identities` before the notification prompt, and shows again
+  when that credential is missing. On the iOS Simulator set `EXPO_PUBLIC_API_URL` to
+  `http://127.0.0.1:3000/v1` (`localhost` resolves to IPv6 and the request fails). A physical phone
+  needs the Mac's LAN address.
 - Dev CORS defaults allow web `:3100` and Expo web `:8081` with credentials. Override with
   `CORS_ORIGINS`.
 - **Admin console host aliases:** prefer `http://localhost:3200`. Opening via an `/etc/hosts`
@@ -94,6 +163,15 @@ calls) in the same change as every new major feature.**
   otherwise `/_next` is 403 and the login form appears to do nothing. Session cookies are
   `SameSite=Lax` on the admin API host — keep the UI and `NEXT_PUBLIC_ADMIN_API_URL` on the
   same site (e.g. both `localhost`, or both `*.your-alias`) or the cookie will not stick.
+- **Admin queues:** `/events` reviews `in_review` imports (publish/reject); `/events/manage`
+  patches status. `/publishers` verifies, remaps/completes temporary publishers, and toggles
+  verified. `/moderation` hides ratings and bans users (banned users cannot create sessions or
+  use existing ones). `/audit-log` lists admin actions. Ingest raw payloads go to S3 as
+  `raw/<source>/<runId>` when `RAW_INGESTION_BUCKET` is set.
+- **Data workers:** `pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn`
+  (needs `data_sources` row + `VISIT_SODERHAMN_API_KEY`). Generic ICS calendars use slug
+  `ics-feed` with `config.feedUrl` (https). Review-trust sources stay silent until an admin
+  publishes from the review queue.
 
 ### Preferences (interests & areas)
 
@@ -109,8 +187,9 @@ calls) in the same change as every new major feature.**
 
 ### Push + domain events
 
-- Mobile calls `PUT /v1/me/push-token` with Bearer session + `deviceCredential` + Expo token after
-  identity is ready (no-op on web / denied permission).
+- Mobile calls `PUT /v1/me/push-token` with Bearer session + `deviceCredential` + Expo token once
+  identity is ready and again after a session refresh. The OS prompt happens only from onboarding
+  Activate and reminders. No-op on web, or when permission is still denied.
 - Local queues: `pnpm db:up` starts **ElasticMQ** (SQS-compatible) on `:9324` (UI `:9325`). Copy
   `DOMAIN_EVENTS_QUEUE_URL` / `AWS_ENDPOINT_URL_SQS` from `.env.example`. Queue definitions live in
   `infra/local/elasticmq.conf` (add new queues there as consumers appear).
@@ -142,6 +221,14 @@ calls) in the same change as every new major feature.**
 | Mobile web | 8081 |
 | E2E API    | 3090 |
 | E2E web    | 3190 |
+
+### Event reminders
+
+- **Påminn mig** on an event opens a picker for local notifications: the day before the
+  start, an hour before, and at the start. The user picks one or more of the times that are
+  still ahead. Tapping the button again opens the same picker, where the reminders can be
+  changed or removed. Nothing is stored on the server. On the web the button explains that
+  reminders belong in the phone app.
 
 ### Check-in
 
@@ -182,18 +269,18 @@ calls) in the same change as every new major feature.**
 
 ## Scripts
 
-| Command                                | What it does                                            |
-| -------------------------------------- | ------------------------------------------------------- |
-| `pnpm dev`                             | Runs every app's `dev` task through Turborepo           |
-| `pnpm build`                           | Builds all apps (esbuild bundles for the Node services) |
-| `pnpm typecheck`                       | TypeScript in every workspace                           |
-| `pnpm test`                            | Vitest in every workspace                               |
+| Command                                | What it does                                             |
+| -------------------------------------- | -------------------------------------------------------- |
+| `pnpm dev`                             | Runs every app's `dev` task through Turborepo            |
+| `pnpm build`                           | Builds all apps (esbuild bundles for the Node services)  |
+| `pnpm typecheck`                       | TypeScript in every workspace                            |
+| `pnpm test`                            | Vitest in every workspace                                |
 | `pnpm db:e2e:setup`                    | Create/migrate disposable `events_e2e` DB for Playwright |
-| `pnpm test:e2e`                        | Playwright smoke against `events_e2e` (ports 3090/3190) |
-| `pnpm format` / `pnpm format:check`    | Prettier                                                |
-| `pnpm db:up` / `pnpm db:down`          | Start/stop local Postgres + Valkey                      |
-| `pnpm db:generate` / `pnpm db:migrate` | Create / apply Drizzle migrations                       |
-| `pnpm api-client:generate`             | Export OpenAPI → `packages/api-client` types            |
+| `pnpm test:e2e`                        | Playwright smoke against `events_e2e` (ports 3090/3190)  |
+| `pnpm format` / `pnpm format:check`    | Prettier                                                 |
+| `pnpm db:up` / `pnpm db:down`          | Start/stop local Postgres, Valkey, ElasticMQ, and Garage |
+| `pnpm db:generate` / `pnpm db:migrate` | Create / apply Drizzle migrations                        |
+| `pnpm api-client:generate`             | Export OpenAPI → `packages/api-client` types             |
 
 ## Repository layout
 

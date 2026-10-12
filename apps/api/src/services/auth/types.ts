@@ -45,7 +45,8 @@ export type AuthErrorCode =
   | 'already_member'
   | 'invite_pending'
   | 'member_limit'
-  | 'invite_email_mismatch';
+  | 'invite_email_mismatch'
+  | 'user_banned';
 
 export class AuthError extends Error {
   constructor(readonly code: AuthErrorCode) {

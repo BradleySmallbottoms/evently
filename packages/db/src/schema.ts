@@ -62,8 +62,11 @@ export const notificationPushState = pgEnum('notification_push_state', [
 ]);
 export const subscriptionTarget = pgEnum('subscription_target', ['publisher', 'event']);
 export const checkInMethod = pgEnum('check_in_method', ['geo', 'code']);
+export const eventLinkAudience = pgEnum('event_link_audience', ['public', 'attendees']);
 export const eventContentKind = pgEnum('event_content_kind', ['map', 'schedule', 'info', 'file']);
 export const eventContentVisibility = pgEnum('event_content_visibility', ['public', 'attendees']);
+/** Outbound action on an event: buy tickets, register, or read more. */
+export const eventLinkType = pgEnum('event_link_type', ['tickets', 'registration', 'info']);
 
 // ---------- identity ----------
 export const users = pgTable('users', {
@@ -83,6 +86,9 @@ export const users = pgTable('users', {
   quietHoursStartMin: integer('quiet_hours_start_min').notNull().default(22 * 60),
   quietHoursEndMin: integer('quiet_hours_end_min').notNull().default(8 * 60),
   quietHoursEnabled: boolean('quiet_hours_enabled').notNull().default(true),
+  /** Set by admin moderation; banned users cannot create sessions or check in. */
+  bannedAt: timestamp('banned_at', { withTimezone: true }),
+  banReason: text('ban_reason'),
   createdAt: createdAt(),
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
 });
@@ -226,12 +232,15 @@ export const publisherInvites = pgTable(
 );
 
 // ---------- events ----------
-export const categories = pgTable('categories', {
+/**
+ * Flat tags. The launch vocabulary is the Visit Söderhamn category tree under Evenemang.
+ * `external_id` is the source key (`visit-soderhamn:30192`) so a later import updates the name.
+ */
+export const tags = pgTable('tags', {
   id: id(),
   slug: text('slug').notNull().unique(),
-  parentId: uuid('parent_id'),
-  nameSv: text('name_sv').notNull(),
-  nameEn: text('name_en').notNull(),
+  name: text('name').notNull(),
+  externalId: text('external_id').unique(),
 });
 
 /**
@@ -254,20 +263,20 @@ export const regions = pgTable(
   ],
 );
 
-/** Categories the user wants notifications for. */
+/** Tags the user wants nearby notifications for. */
 export const userInterests = pgTable(
   'user_interests',
   {
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    categoryId: uuid('category_id')
+    tagId: uuid('tag_id')
       .notNull()
-      .references(() => categories.id, { onDelete: 'cascade' }),
+      .references(() => tags.id, { onDelete: 'cascade' }),
     createdAt: createdAt(),
   },
   (t) => [
-    primaryKey({ columns: [t.userId, t.categoryId] }),
+    primaryKey({ columns: [t.userId, t.tagId] }),
     index('user_interests_user_id_idx').on(t.userId),
   ],
 );
@@ -322,6 +331,15 @@ export const events = pgTable(
     geofence: geographyPolygon('geofence'),
     geofenceRadiusM: integer('geofence_radius_m').default(100),
     onlineUrl: text('online_url'),
+    /** Minor currency units (öre for SEK). Null means unknown; 0 means free. */
+    priceAmount: integer('price_amount'),
+    currency: text('currency').notNull().default('SEK'),
+    /** Admin pick shown first on the home feed. Distinct from future paid placements. */
+    featured: boolean('featured').notNull().default(false),
+    /** Admin opt-in. When false, check-in and the text/links it unlocks are unavailable. */
+    checkInEnabled: boolean('check_in_enabled').notNull().default(false),
+    /** Extra text the publisher writes. Returned only after check-in. */
+    attendeeText: text('attendee_text'),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -331,17 +349,87 @@ export const events = pgTable(
   ],
 );
 
-export const eventCategories = pgTable(
-  'event_categories',
+export const eventTags = pgTable(
+  'event_tags',
   {
     eventId: uuid('event_id')
       .notNull()
       .references(() => events.id, { onDelete: 'cascade' }),
-    categoryId: uuid('category_id')
+    tagId: uuid('tag_id')
       .notNull()
-      .references(() => categories.id),
+      .references(() => tags.id, { onDelete: 'cascade' }),
   },
-  (t) => [primaryKey({ columns: [t.eventId, t.categoryId] })],
+  (t) => [
+    primaryKey({ columns: [t.eventId, t.tagId] }),
+    index('event_tags_tag_id_idx').on(t.tagId),
+  ],
+);
+
+/** One or more outbound links (tickets, registration, info) on an event. */
+export const eventLinks = pgTable(
+  'event_links',
+  {
+    id: id(),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    type: eventLinkType('type').notNull(),
+    url: text('url').notNull(),
+    label: text('label'),
+    /** `attendees` links are hidden until check-in. Imports only replace `public` links. */
+    audience: eventLinkAudience('audience').notNull().default('public'),
+    position: integer('position').notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index('event_links_event_position_idx').on(t.eventId, t.position)],
+);
+
+/** Bookmarks. Distinct from subscriptions, which are notification follows. */
+export const savedEvents = pgTable(
+  'saved_events',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.eventId] }),
+    index('saved_events_user_id_idx').on(t.userId),
+  ],
+);
+
+export const eventLists = pgTable(
+  'event_lists',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('event_lists_user_id_idx').on(t.userId)],
+);
+
+export const eventListItems = pgTable(
+  'event_list_items',
+  {
+    listId: uuid('list_id')
+      .notNull()
+      .references(() => eventLists.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.listId, t.eventId] }),
+    index('event_list_items_event_id_idx').on(t.eventId),
+  ],
 );
 
 /**
@@ -417,6 +505,8 @@ export const ratings = pgTable(
       .references(() => events.id, { onDelete: 'cascade' }),
     score: integer('score').notNull(),
     comment: text('comment'),
+    /** Soft-hide from public aggregates / publisher views after moderation. */
+    hiddenAt: timestamp('hidden_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [
@@ -445,6 +535,28 @@ export const stats = pgTable(
     primaryKey({ columns: [t.sourceType, t.sourceId, t.key] }),
     index('stats_source_idx').on(t.sourceType, t.sourceId),
   ],
+);
+
+/**
+ * Public event images in object storage. `s3_key` is the object key in the public
+ * assets bucket (Garage locally, S3 behind CloudFront in AWS). `source_url` is the
+ * upstream URL the importer copied, so an unchanged image is not downloaded again.
+ */
+export const eventImages = pgTable(
+  'event_images',
+  {
+    id: id(),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    /** `main` is the hero. More roles can share this table. */
+    role: text('role').notNull().default('main'),
+    s3Key: text('s3_key').notNull(),
+    sourceUrl: text('source_url'),
+    contentType: text('content_type').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('event_images_event_role_idx').on(t.eventId, t.role)],
 );
 
 /** Maps, schedules, info and files — attendee visibility gated by check-in. */
@@ -553,4 +665,26 @@ export const publisherAliases = pgTable(
     mappedAt: timestamp('mapped_at', { withTimezone: true }),
   },
   (t) => [primaryKey({ columns: [t.sourceId, t.externalOrganizerKey] })],
+);
+
+/**
+ * Every admin write (and optionally source-run side effects).
+ * `actor` is admin_users.id as text, or `system:<source>` for ingest.
+ */
+export const auditLog = pgTable(
+  'audit_log',
+  {
+    id: id(),
+    actor: text('actor').notNull(),
+    action: text('action').notNull(),
+    entityType: text('entity_type').notNull(),
+    entityId: text('entity_id').notNull(),
+    before: jsonb('before').$type<Record<string, unknown> | null>(),
+    after: jsonb('after').$type<Record<string, unknown> | null>(),
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('audit_log_at_idx').on(t.at),
+    index('audit_log_entity_idx').on(t.entityType, t.entityId),
+  ],
 );

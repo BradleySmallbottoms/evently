@@ -1,5 +1,6 @@
 import { Host } from '@expo/ui';
-import { Alert, Button, Text } from '@expo/ui/swift-ui';
+import { Alert, Button, RNHostView, Text } from '@expo/ui/swift-ui';
+import { View } from 'react-native';
 
 type Props = {
   title: string;
@@ -11,7 +12,10 @@ type Props = {
   onConfirm: () => void;
 };
 
-/** SwiftUI alert confirmation dialog (iOS). */
+/**
+ * SwiftUI alert confirmation (iOS). Alert must have a Trigger — EmptyView does not
+ * present `.alert` reliably, so we mount a 1×1 RN host as the anchor.
+ */
 export function ConfirmAction({
   title,
   message,
@@ -22,8 +26,13 @@ export function ConfirmAction({
   onConfirm,
 }: Props) {
   return (
-    <Host matchContents>
+    <Host style={{ position: 'absolute', width: 0, height: 0 }}>
       <Alert title={title} isPresented={isPresented} onIsPresentedChange={onIsPresentedChange}>
+        <Alert.Trigger>
+          <RNHostView matchContents>
+            <View style={{ width: 1, height: 1 }} collapsable={false} />
+          </RNHostView>
+        </Alert.Trigger>
         <Alert.Message>
           <Text>{message}</Text>
         </Alert.Message>

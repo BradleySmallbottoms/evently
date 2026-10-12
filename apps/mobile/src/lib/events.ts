@@ -38,7 +38,8 @@ export async function resolveEventQueryPoint(): Promise<EventQueryPoint> {
   try {
     return await withTimeout(
       (async (): Promise<EventQueryPoint> => {
-        const perm = await Location.requestForegroundPermissionsAsync();
+        // Do not prompt here — onboarding / reminders / check-in own the permission request.
+        const perm = await Location.getForegroundPermissionsAsync();
         if (perm.status !== 'granted') {
           return { ...FALLBACK_CENTER };
         }
@@ -58,7 +59,38 @@ export async function resolveEventQueryPoint(): Promise<EventQueryPoint> {
   }
 }
 
-export async function listPublicEvents(point: EventQueryPoint) {
+export async function listTags() {
+  return throwIfError(
+    await api.GET('/tags', {
+      params: { query: { upcoming: 'true' } },
+    }),
+  );
+}
+
+/** Tag labels in the event's tag order. Unknown ids are skipped. */
+export function namesForTagIds(
+  tagIds: string[],
+  tags: { id: string; name: string }[] | undefined,
+): string[] {
+  if (!tags?.length || tagIds.length === 0) return [];
+  const byId = new Map(tags.map((tag) => [tag.id, tag.name]));
+  return tagIds.flatMap((id) => {
+    const name = byId.get(id);
+    return name ? [name] : [];
+  });
+}
+
+export async function listPublicEvents(
+  point: EventQueryPoint,
+  filter?: {
+    q?: string;
+    tagId?: string;
+    from?: string;
+    to?: string;
+    price?: 'free' | 'paid';
+    sort?: 'soonest' | 'distance';
+  },
+) {
   return throwIfError(
     await api.GET('/events', {
       params: {
@@ -66,6 +98,12 @@ export async function listPublicEvents(point: EventQueryPoint) {
           lat: point.lat,
           lng: point.lng,
           radiusM: point.radiusM,
+          ...(filter?.q ? { q: filter.q } : {}),
+          ...(filter?.tagId ? { tagId: filter.tagId } : {}),
+          ...(filter?.from ? { from: filter.from } : {}),
+          ...(filter?.to ? { to: filter.to } : {}),
+          ...(filter?.price ? { price: filter.price } : {}),
+          ...(filter?.sort ? { sort: filter.sort } : {}),
         },
       },
     }),

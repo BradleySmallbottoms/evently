@@ -1939,7 +1939,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "categoryIds": {
+                    "tagIds": {
                       "type": "array",
                       "items": {
                         "type": "string",
@@ -2079,7 +2079,7 @@
                     }
                   },
                   "required": [
-                    "categoryIds",
+                    "tagIds",
                     "areas",
                     "quietHours"
                   ]
@@ -2129,7 +2129,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "categoryIds": {
+                  "tagIds": {
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -2139,7 +2139,7 @@
                   }
                 },
                 "required": [
-                  "categoryIds"
+                  "tagIds"
                 ]
               }
             }
@@ -2147,13 +2147,13 @@
         },
         "responses": {
           "200": {
-            "description": "Replaced interest categories",
+            "description": "Replaced interest tags",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "categoryIds": {
+                    "tagIds": {
                       "type": "array",
                       "items": {
                         "type": "string",
@@ -2162,7 +2162,7 @@
                     }
                   },
                   "required": [
-                    "categoryIds"
+                    "tagIds"
                   ]
                 }
               }
@@ -3839,6 +3839,1590 @@
         }
       }
     },
+    "/me/saved-events": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Published events saved by the current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "publisherId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "physical",
+                              "digital"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "awaiting_verification",
+                              "in_review",
+                              "published",
+                              "cancelled",
+                              "ended"
+                            ]
+                          },
+                          "origin": {
+                            "type": "string",
+                            "enum": [
+                              "native",
+                              "imported"
+                            ]
+                          },
+                          "startsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "timezone": {
+                            "type": "string"
+                          },
+                          "venueName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "location": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "lat": {
+                                "type": "number",
+                                "minimum": -90,
+                                "maximum": 90
+                              },
+                              "lng": {
+                                "type": "number",
+                                "minimum": -180,
+                                "maximum": 180
+                              }
+                            },
+                            "required": [
+                              "lat",
+                              "lng"
+                            ]
+                          },
+                          "geofenceRadiusM": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "onlineUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
+                          "priceAmount": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 0
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "publisherName": {
+                            "type": "string"
+                          },
+                          "links": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "tickets",
+                                    "registration",
+                                    "info"
+                                  ]
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "format": "uri"
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "position": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "type",
+                                "url",
+                                "label",
+                                "position"
+                              ]
+                            }
+                          },
+                          "imageUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
+                          "tagIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            }
+                          },
+                          "featured": {
+                            "type": "boolean"
+                          },
+                          "checkInEnabled": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "publisherId",
+                          "title",
+                          "description",
+                          "mode",
+                          "status",
+                          "origin",
+                          "startsAt",
+                          "endsAt",
+                          "timezone",
+                          "venueName",
+                          "location",
+                          "geofenceRadiusM",
+                          "onlineUrl",
+                          "priceAmount",
+                          "currency",
+                          "publisherName",
+                          "links",
+                          "imageUrl",
+                          "tagIds",
+                          "featured",
+                          "checkInEnabled",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/saved-events/{eventId}": {
+      "put": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "eventId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Event saved"
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event is not published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "eventId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Event unsaved"
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Save not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/lists": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Custom lists for the current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "events": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "publisherId": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "mode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "physical",
+                                    "digital"
+                                  ]
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "draft",
+                                    "awaiting_verification",
+                                    "in_review",
+                                    "published",
+                                    "cancelled",
+                                    "ended"
+                                  ]
+                                },
+                                "origin": {
+                                  "type": "string",
+                                  "enum": [
+                                    "native",
+                                    "imported"
+                                  ]
+                                },
+                                "startsAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "endsAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "timezone": {
+                                  "type": "string"
+                                },
+                                "venueName": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "location": {
+                                  "type": "object",
+                                  "nullable": true,
+                                  "properties": {
+                                    "lat": {
+                                      "type": "number",
+                                      "minimum": -90,
+                                      "maximum": 90
+                                    },
+                                    "lng": {
+                                      "type": "number",
+                                      "minimum": -180,
+                                      "maximum": 180
+                                    }
+                                  },
+                                  "required": [
+                                    "lat",
+                                    "lng"
+                                  ]
+                                },
+                                "geofenceRadiusM": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "onlineUrl": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "uri"
+                                },
+                                "priceAmount": {
+                                  "type": "integer",
+                                  "nullable": true,
+                                  "minimum": 0
+                                },
+                                "currency": {
+                                  "type": "string"
+                                },
+                                "publisherName": {
+                                  "type": "string"
+                                },
+                                "links": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                      },
+                                      "type": {
+                                        "type": "string",
+                                        "enum": [
+                                          "tickets",
+                                          "registration",
+                                          "info"
+                                        ]
+                                      },
+                                      "url": {
+                                        "type": "string",
+                                        "format": "uri"
+                                      },
+                                      "label": {
+                                        "type": "string",
+                                        "nullable": true
+                                      },
+                                      "position": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "type",
+                                      "url",
+                                      "label",
+                                      "position"
+                                    ]
+                                  }
+                                },
+                                "imageUrl": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "uri"
+                                },
+                                "tagIds": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  }
+                                },
+                                "featured": {
+                                  "type": "boolean"
+                                },
+                                "checkInEnabled": {
+                                  "type": "boolean"
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "publisherId",
+                                "title",
+                                "description",
+                                "mode",
+                                "status",
+                                "origin",
+                                "startsAt",
+                                "endsAt",
+                                "timezone",
+                                "venueName",
+                                "location",
+                                "geofenceRadiusM",
+                                "onlineUrl",
+                                "priceAmount",
+                                "currency",
+                                "publisherName",
+                                "links",
+                                "imageUrl",
+                                "tagIds",
+                                "featured",
+                                "checkInEnabled",
+                                "createdAt",
+                                "updatedAt"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "createdAt",
+                          "events"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "List created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "publisherId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "physical",
+                              "digital"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "awaiting_verification",
+                              "in_review",
+                              "published",
+                              "cancelled",
+                              "ended"
+                            ]
+                          },
+                          "origin": {
+                            "type": "string",
+                            "enum": [
+                              "native",
+                              "imported"
+                            ]
+                          },
+                          "startsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "timezone": {
+                            "type": "string"
+                          },
+                          "venueName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "location": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "lat": {
+                                "type": "number",
+                                "minimum": -90,
+                                "maximum": 90
+                              },
+                              "lng": {
+                                "type": "number",
+                                "minimum": -180,
+                                "maximum": 180
+                              }
+                            },
+                            "required": [
+                              "lat",
+                              "lng"
+                            ]
+                          },
+                          "geofenceRadiusM": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "onlineUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
+                          "priceAmount": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 0
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "publisherName": {
+                            "type": "string"
+                          },
+                          "links": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "tickets",
+                                    "registration",
+                                    "info"
+                                  ]
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "format": "uri"
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "position": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "type",
+                                "url",
+                                "label",
+                                "position"
+                              ]
+                            }
+                          },
+                          "imageUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
+                          "tagIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            }
+                          },
+                          "featured": {
+                            "type": "boolean"
+                          },
+                          "checkInEnabled": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "publisherId",
+                          "title",
+                          "description",
+                          "mode",
+                          "status",
+                          "origin",
+                          "startsAt",
+                          "endsAt",
+                          "timezone",
+                          "venueName",
+                          "location",
+                          "geofenceRadiusM",
+                          "onlineUrl",
+                          "priceAmount",
+                          "currency",
+                          "publisherName",
+                          "links",
+                          "imageUrl",
+                          "tagIds",
+                          "featured",
+                          "checkInEnabled",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "createdAt",
+                    "events"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "List limit reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/lists/{id}": {
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "List renamed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "publisherId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "physical",
+                              "digital"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "awaiting_verification",
+                              "in_review",
+                              "published",
+                              "cancelled",
+                              "ended"
+                            ]
+                          },
+                          "origin": {
+                            "type": "string",
+                            "enum": [
+                              "native",
+                              "imported"
+                            ]
+                          },
+                          "startsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "timezone": {
+                            "type": "string"
+                          },
+                          "venueName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "location": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "lat": {
+                                "type": "number",
+                                "minimum": -90,
+                                "maximum": 90
+                              },
+                              "lng": {
+                                "type": "number",
+                                "minimum": -180,
+                                "maximum": 180
+                              }
+                            },
+                            "required": [
+                              "lat",
+                              "lng"
+                            ]
+                          },
+                          "geofenceRadiusM": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "onlineUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
+                          "priceAmount": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 0
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "publisherName": {
+                            "type": "string"
+                          },
+                          "links": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "tickets",
+                                    "registration",
+                                    "info"
+                                  ]
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "format": "uri"
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "position": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "type",
+                                "url",
+                                "label",
+                                "position"
+                              ]
+                            }
+                          },
+                          "imageUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
+                          "tagIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            }
+                          },
+                          "featured": {
+                            "type": "boolean"
+                          },
+                          "checkInEnabled": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "publisherId",
+                          "title",
+                          "description",
+                          "mode",
+                          "status",
+                          "origin",
+                          "startsAt",
+                          "endsAt",
+                          "timezone",
+                          "venueName",
+                          "location",
+                          "geofenceRadiusM",
+                          "onlineUrl",
+                          "priceAmount",
+                          "currency",
+                          "publisherName",
+                          "links",
+                          "imageUrl",
+                          "tagIds",
+                          "featured",
+                          "checkInEnabled",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "createdAt",
+                    "events"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "List not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "List deleted"
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "List not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/lists/{id}/events/{eventId}": {
+      "put": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "eventId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Event added to the list"
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "List or event not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "List item limit reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "eventId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Event removed from the list"
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "List or item not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/regions/lookup": {
       "get": {
         "parameters": [
@@ -3913,11 +5497,25 @@
         }
       }
     },
-    "/categories": {
+    "/tags": {
       "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "upcoming",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Event categories",
+            "description": "Event tags. Pass upcoming=true to keep tags that have a published event still to come.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3935,24 +5533,14 @@
                           "slug": {
                             "type": "string"
                           },
-                          "parentId": {
-                            "type": "string",
-                            "nullable": true,
-                            "format": "uuid"
-                          },
-                          "nameSv": {
-                            "type": "string"
-                          },
-                          "nameEn": {
+                          "name": {
                             "type": "string"
                           }
                         },
                         "required": [
                           "id",
                           "slug",
-                          "parentId",
-                          "nameSv",
-                          "nameEn"
+                          "name"
                         ]
                       }
                     }
@@ -4077,12 +5665,73 @@
                             "nullable": true,
                             "format": "uri"
                           },
-                          "categoryIds": {
+                          "priceAmount": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 0
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "publisherName": {
+                            "type": "string"
+                          },
+                          "links": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "tickets",
+                                    "registration",
+                                    "info"
+                                  ]
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "format": "uri"
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "position": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "type",
+                                "url",
+                                "label",
+                                "position"
+                              ]
+                            }
+                          },
+                          "imageUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
+                          "tagIds": {
                             "type": "array",
                             "items": {
                               "type": "string",
                               "format": "uuid"
                             }
+                          },
+                          "featured": {
+                            "type": "boolean"
+                          },
+                          "checkInEnabled": {
+                            "type": "boolean"
                           },
                           "createdAt": {
                             "type": "string",
@@ -4108,7 +5757,14 @@
                           "location",
                           "geofenceRadiusM",
                           "onlineUrl",
-                          "categoryIds",
+                          "priceAmount",
+                          "currency",
+                          "publisherName",
+                          "links",
+                          "imageUrl",
+                          "tagIds",
+                          "featured",
+                          "checkInEnabled",
                           "createdAt",
                           "updatedAt"
                         ]
@@ -4235,7 +5891,50 @@
                     "type": "string",
                     "format": "uri"
                   },
-                  "categoryIds": {
+                  "priceAmount": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0,
+                    "maximum": 10000000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 3,
+                    "default": "SEK"
+                  },
+                  "links": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "tickets",
+                            "registration",
+                            "info"
+                          ]
+                        },
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "url"
+                      ]
+                    },
+                    "maxItems": 10,
+                    "default": []
+                  },
+                  "tagIds": {
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -4347,12 +6046,73 @@
                       "nullable": true,
                       "format": "uri"
                     },
-                    "categoryIds": {
+                    "priceAmount": {
+                      "type": "integer",
+                      "nullable": true,
+                      "minimum": 0
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "publisherName": {
+                      "type": "string"
+                    },
+                    "links": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "tickets",
+                              "registration",
+                              "info"
+                            ]
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "label": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "position": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "url",
+                          "label",
+                          "position"
+                        ]
+                      }
+                    },
+                    "imageUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "tagIds": {
                       "type": "array",
                       "items": {
                         "type": "string",
                         "format": "uuid"
                       }
+                    },
+                    "featured": {
+                      "type": "boolean"
+                    },
+                    "checkInEnabled": {
+                      "type": "boolean"
                     },
                     "createdAt": {
                       "type": "string",
@@ -4378,7 +6138,14 @@
                     "location",
                     "geofenceRadiusM",
                     "onlineUrl",
-                    "categoryIds",
+                    "priceAmount",
+                    "currency",
+                    "publisherName",
+                    "links",
+                    "imageUrl",
+                    "tagIds",
+                    "featured",
+                    "checkInEnabled",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -4505,6 +6272,50 @@
           },
           {
             "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "tagId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "soonest",
+                "distance"
+              ],
+              "default": "soonest"
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "free",
+                "paid"
+              ]
+            },
+            "required": false,
+            "name": "price",
+            "in": "query"
+          },
+          {
+            "schema": {
               "type": "integer",
               "minimum": 1,
               "maximum": 100,
@@ -4612,12 +6423,73 @@
                             "nullable": true,
                             "format": "uri"
                           },
-                          "categoryIds": {
+                          "priceAmount": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 0
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "publisherName": {
+                            "type": "string"
+                          },
+                          "links": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "tickets",
+                                    "registration",
+                                    "info"
+                                  ]
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "format": "uri"
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "position": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "type",
+                                "url",
+                                "label",
+                                "position"
+                              ]
+                            }
+                          },
+                          "imageUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
+                          "tagIds": {
                             "type": "array",
                             "items": {
                               "type": "string",
                               "format": "uuid"
                             }
+                          },
+                          "featured": {
+                            "type": "boolean"
+                          },
+                          "checkInEnabled": {
+                            "type": "boolean"
                           },
                           "createdAt": {
                             "type": "string",
@@ -4643,7 +6515,14 @@
                           "location",
                           "geofenceRadiusM",
                           "onlineUrl",
-                          "categoryIds",
+                          "priceAmount",
+                          "currency",
+                          "publisherName",
+                          "links",
+                          "imageUrl",
+                          "tagIds",
+                          "featured",
+                          "checkInEnabled",
                           "createdAt",
                           "updatedAt"
                         ]
@@ -4765,12 +6644,73 @@
                       "nullable": true,
                       "format": "uri"
                     },
-                    "categoryIds": {
+                    "priceAmount": {
+                      "type": "integer",
+                      "nullable": true,
+                      "minimum": 0
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "publisherName": {
+                      "type": "string"
+                    },
+                    "links": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "tickets",
+                              "registration",
+                              "info"
+                            ]
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "label": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "position": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "url",
+                          "label",
+                          "position"
+                        ]
+                      }
+                    },
+                    "imageUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "tagIds": {
                       "type": "array",
                       "items": {
                         "type": "string",
                         "format": "uuid"
                       }
+                    },
+                    "featured": {
+                      "type": "boolean"
+                    },
+                    "checkInEnabled": {
+                      "type": "boolean"
                     },
                     "createdAt": {
                       "type": "string",
@@ -4796,7 +6736,14 @@
                     "location",
                     "geofenceRadiusM",
                     "onlineUrl",
-                    "categoryIds",
+                    "priceAmount",
+                    "currency",
+                    "publisherName",
+                    "links",
+                    "imageUrl",
+                    "tagIds",
+                    "featured",
+                    "checkInEnabled",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -4942,12 +6889,73 @@
                       "nullable": true,
                       "format": "uri"
                     },
-                    "categoryIds": {
+                    "priceAmount": {
+                      "type": "integer",
+                      "nullable": true,
+                      "minimum": 0
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "publisherName": {
+                      "type": "string"
+                    },
+                    "links": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "tickets",
+                              "registration",
+                              "info"
+                            ]
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "label": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "position": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "url",
+                          "label",
+                          "position"
+                        ]
+                      }
+                    },
+                    "imageUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "tagIds": {
                       "type": "array",
                       "items": {
                         "type": "string",
                         "format": "uuid"
                       }
+                    },
+                    "featured": {
+                      "type": "boolean"
+                    },
+                    "checkInEnabled": {
+                      "type": "boolean"
                     },
                     "createdAt": {
                       "type": "string",
@@ -4956,6 +6964,35 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "attendeeText": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "attendeeLinks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "label": {
+                            "type": "string",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "url",
+                          "label"
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -4973,9 +7010,18 @@
                     "location",
                     "geofenceRadiusM",
                     "onlineUrl",
-                    "categoryIds",
+                    "priceAmount",
+                    "currency",
+                    "publisherName",
+                    "links",
+                    "imageUrl",
+                    "tagIds",
+                    "featured",
+                    "checkInEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "attendeeText",
+                    "attendeeLinks"
                   ]
                 }
               }
@@ -5128,13 +7174,80 @@
                     "nullable": true,
                     "format": "uri"
                   },
-                  "categoryIds": {
+                  "priceAmount": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0,
+                    "maximum": 10000000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 3
+                  },
+                  "links": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "tickets",
+                            "registration",
+                            "info"
+                          ]
+                        },
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "url"
+                      ]
+                    },
+                    "maxItems": 10
+                  },
+                  "tagIds": {
                     "type": "array",
                     "items": {
                       "type": "string",
                       "format": "uuid"
                     },
                     "maxItems": 20
+                  },
+                  "attendeeText": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 10000
+                  },
+                  "attendeeLinks": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        }
+                      },
+                      "required": [
+                        "url"
+                      ]
+                    },
+                    "maxItems": 10
                   }
                 }
               }
@@ -5233,12 +7346,73 @@
                       "nullable": true,
                       "format": "uri"
                     },
-                    "categoryIds": {
+                    "priceAmount": {
+                      "type": "integer",
+                      "nullable": true,
+                      "minimum": 0
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "publisherName": {
+                      "type": "string"
+                    },
+                    "links": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "tickets",
+                              "registration",
+                              "info"
+                            ]
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "label": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "position": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "url",
+                          "label",
+                          "position"
+                        ]
+                      }
+                    },
+                    "imageUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "tagIds": {
                       "type": "array",
                       "items": {
                         "type": "string",
                         "format": "uuid"
                       }
+                    },
+                    "featured": {
+                      "type": "boolean"
+                    },
+                    "checkInEnabled": {
+                      "type": "boolean"
                     },
                     "createdAt": {
                       "type": "string",
@@ -5247,6 +7421,35 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "attendeeText": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "attendeeLinks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "label": {
+                            "type": "string",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "url",
+                          "label"
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -5264,9 +7467,18 @@
                     "location",
                     "geofenceRadiusM",
                     "onlineUrl",
-                    "categoryIds",
+                    "priceAmount",
+                    "currency",
+                    "publisherName",
+                    "links",
+                    "imageUrl",
+                    "tagIds",
+                    "featured",
+                    "checkInEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "attendeeText",
+                    "attendeeLinks"
                   ]
                 }
               }
@@ -5440,12 +7652,73 @@
                       "nullable": true,
                       "format": "uri"
                     },
-                    "categoryIds": {
+                    "priceAmount": {
+                      "type": "integer",
+                      "nullable": true,
+                      "minimum": 0
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "publisherName": {
+                      "type": "string"
+                    },
+                    "links": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "tickets",
+                              "registration",
+                              "info"
+                            ]
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "label": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "position": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "url",
+                          "label",
+                          "position"
+                        ]
+                      }
+                    },
+                    "imageUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "tagIds": {
                       "type": "array",
                       "items": {
                         "type": "string",
                         "format": "uuid"
                       }
+                    },
+                    "featured": {
+                      "type": "boolean"
+                    },
+                    "checkInEnabled": {
+                      "type": "boolean"
                     },
                     "createdAt": {
                       "type": "string",
@@ -5471,7 +7744,14 @@
                     "location",
                     "geofenceRadiusM",
                     "onlineUrl",
-                    "categoryIds",
+                    "priceAmount",
+                    "currency",
+                    "publisherName",
+                    "links",
+                    "imageUrl",
+                    "tagIds",
+                    "featured",
+                    "checkInEnabled",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -5647,12 +7927,73 @@
                       "nullable": true,
                       "format": "uri"
                     },
-                    "categoryIds": {
+                    "priceAmount": {
+                      "type": "integer",
+                      "nullable": true,
+                      "minimum": 0
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "publisherName": {
+                      "type": "string"
+                    },
+                    "links": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "tickets",
+                              "registration",
+                              "info"
+                            ]
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "label": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "position": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "url",
+                          "label",
+                          "position"
+                        ]
+                      }
+                    },
+                    "imageUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "tagIds": {
                       "type": "array",
                       "items": {
                         "type": "string",
                         "format": "uuid"
                       }
+                    },
+                    "featured": {
+                      "type": "boolean"
+                    },
+                    "checkInEnabled": {
+                      "type": "boolean"
                     },
                     "createdAt": {
                       "type": "string",
@@ -5678,7 +8019,14 @@
                     "location",
                     "geofenceRadiusM",
                     "onlineUrl",
-                    "categoryIds",
+                    "priceAmount",
+                    "currency",
+                    "publisherName",
+                    "links",
+                    "imageUrl",
+                    "tagIds",
+                    "featured",
+                    "checkInEnabled",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -6667,11 +9015,42 @@
                     },
                     "checkedIn": {
                       "type": "boolean"
+                    },
+                    "attendeeText": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "attendeeLinks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "label": {
+                            "type": "string",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "url",
+                          "label"
+                        ]
+                      }
                     }
                   },
                   "required": [
                     "items",
-                    "checkedIn"
+                    "checkedIn",
+                    "attendeeText",
+                    "attendeeLinks"
                   ]
                 }
               }

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { colors } from '@/theme/colors';
-import { radius, shadow, space } from '@/theme/tokens';
+import { radius, space } from '@/theme/tokens';
 
 export type CategoryChip = { id: string; label: string };
 
@@ -30,18 +30,16 @@ export function CategoryChips({ items, selectedId, onSelect }: Props) {
               onSelect(item.id);
             }}
             style={{
-              paddingHorizontal: space.lg + 2,
-              paddingVertical: space.sm + 4,
+              paddingHorizontal: space.lg,
+              paddingVertical: space.sm + 2,
               borderRadius: radius.pill,
               borderCurve: 'continuous',
-              backgroundColor: selected ? colors.accent : (colors.card as string),
-              boxShadow: selected ? shadow.cta : shadow.soft,
+              backgroundColor: selected ? colors.accentSoft : (colors.card as string),
+              borderWidth: 1,
+              borderColor: selected ? colors.accent : colors.line,
             }}
           >
-            <AppText
-              variant="label"
-              style={{ color: selected ? '#FFFFFF' : colors.ink, fontWeight: '600' }}
-            >
+            <AppText variant="label" style={{ color: colors.ink, fontWeight: '600' }}>
               {item.label}
             </AppText>
           </Pressable>

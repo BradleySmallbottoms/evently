@@ -20,6 +20,8 @@ export interface SourceAdapter<Raw = unknown> {
   kind: SourceKind;
   fetchRaw(ctx: SourceRunContext): Promise<Raw>;
   map(raw: Raw, ctx: SourceRunContext): IncomingEvent[] | Promise<IncomingEvent[]>;
+  /** Tag vocabulary from this payload. Persisted before events are tagged. */
+  tags?(raw: Raw, ctx: SourceRunContext): { externalId: string; name: string }[];
 }
 
 export function defineAdapter<Raw>(adapter: SourceAdapter<Raw>): SourceAdapter<Raw> {

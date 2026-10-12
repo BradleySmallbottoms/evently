@@ -4,7 +4,7 @@ import { createApp } from '../../../apps/api/src/app';
 import { createMemoryAuthServices } from '../../../apps/api/src/services/auth/memory';
 import { createMemoryCheckInServices } from '../../../apps/api/src/services/check-ins/memory';
 import { createMemoryEventServices } from '../../../apps/api/src/services/events/memory';
-import { SEED_CATEGORIES } from '../../../apps/api/src/services/events/seed-categories';
+import { SEED_TAGS } from '../../../packages/db/src/seed-tags';
 import { createMemoryStore } from '../../../apps/api/src/services/memory-store';
 import { createMemoryRatingServices } from '../../../apps/api/src/services/ratings/memory';
 import { createMemoryStatsServices } from '../../../apps/api/src/services/stats/memory';
@@ -70,7 +70,7 @@ describe('stats', () => {
         endsAt: '2026-06-15T21:00:00.000Z',
         location: { lat: 61.3037, lng: 17.0592 },
         geofenceRadiusM: 100,
-        categoryIds: [SEED_CATEGORIES[0]!.id],
+        tagIds: [SEED_TAGS[0]!.id],
       }),
     });
     const draft = (await created.json()) as { id: string };

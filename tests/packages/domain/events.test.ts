@@ -7,10 +7,10 @@ import {
 } from '../../../packages/domain/src/events';
 
 describe('validateEventFields', () => {
-  it('requires location for physical events', () => {
+  it('allows a physical event without a location', () => {
     expect(
       validateEventFields({ mode: 'physical', location: null, onlineUrl: null }),
-    ).toEqual({ ok: false, reason: 'location_required' });
+    ).toEqual({ ok: true });
     expect(
       validateEventFields({
         mode: 'physical',

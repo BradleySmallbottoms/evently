@@ -12,8 +12,8 @@ import {
 } from '@/components/native/map-event-sheet';
 import { AppText } from '@/components/ui/app-text';
 import { MaxContentWidth } from '@/constants/theme';
-import { listPublicEvents, resolveEventQueryPoint } from '@/lib/events';
-import { ensureIdentity } from '@/lib/identity';
+import { listPublicEvents } from '@/lib/events';
+import { useDiscoveryPoint } from '@/lib/use-discovery-point';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
 
@@ -24,17 +24,7 @@ export default function MapScreen() {
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const [selected, setSelected] = useState<MapEventSelection | null>(null);
 
-  const identity = useQuery({
-    queryKey: ['identity', locale],
-    queryFn: () => ensureIdentity(locale),
-    retry: 1,
-  });
-  const point = useQuery({
-    queryKey: ['event-query-point-map'],
-    queryFn: resolveEventQueryPoint,
-    enabled: identity.isSuccess,
-    retry: false,
-  });
+  const { point } = useDiscoveryPoint();
   const events = useQuery({
     queryKey: ['public-events-map', point.data?.lat, point.data?.lng, point.data?.radiusM],
     queryFn: () => listPublicEvents(point.data!),

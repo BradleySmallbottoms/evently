@@ -4,6 +4,7 @@ import {
   ErrorResponse,
   EventListResponse,
   EventResponse,
+  ManagedEvent,
   PublicEventListQuery,
   UpdateEventRequest,
 } from '@local-events/contracts';
@@ -134,7 +135,7 @@ export function registerEventRoutes(app: OpenAPIHono, events: EventServices): vo
     responses: {
       200: {
         description: 'Event for a publisher member (any status)',
-        content: { 'application/json': { schema: EventResponse } },
+        content: { 'application/json': { schema: ManagedEvent } },
       },
       401: {
         description: 'Unauthorized',
@@ -170,7 +171,7 @@ export function registerEventRoutes(app: OpenAPIHono, events: EventServices): vo
     responses: {
       200: {
         description: 'Event updated',
-        content: { 'application/json': { schema: EventResponse } },
+        content: { 'application/json': { schema: ManagedEvent } },
       },
       400: {
         description: 'Validation error',

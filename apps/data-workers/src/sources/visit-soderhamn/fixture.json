@@ -1,0 +1,316 @@
+{
+  "categories": [
+    {
+      "Id": 30084,
+      "Name": "Visit Söderhamn (Söderhamn Turistbyrå)",
+      "Path": [
+        30084
+      ]
+    },
+    {
+      "Id": 30172,
+      "Name": "Evenemang",
+      "Path": [
+        30084,
+        30099,
+        30172
+      ]
+    }
+  ],
+  "products": [
+    {
+      "Id": "cbis:2678865",
+      "Name": "Broberg/Söderhamn Bandy - Edsbyns IF",
+      "Categories": [
+        {
+          "Path": [
+            {
+              "Id": 30084,
+              "Section": "Visit Söderhamn (Söderhamn Turistbyrå)"
+            }
+          ]
+        },
+        {
+          "Path": [
+            {
+              "Id": 30084,
+              "Section": "Visit Söderhamn (Söderhamn Turistbyrå)"
+            },
+            {
+              "Id": 30099,
+              "Section": "Göra"
+            },
+            {
+              "Id": 30172,
+              "Section": "Evenemang"
+            },
+            {
+              "Id": 30192,
+              "Section": "Idrott & Tävlingar"
+            },
+            {
+              "Id": 30194,
+              "Section": "Bandy & Innebandy"
+            }
+          ]
+        },
+        {
+          "Path": [
+            {
+              "Id": 30084,
+              "Section": "Visit Söderhamn (Söderhamn Turistbyrå)"
+            },
+            {
+              "Id": 30099,
+              "Section": "Göra"
+            },
+            {
+              "Id": 30172,
+              "Section": "Evenemang"
+            },
+            {
+              "Id": 30192,
+              "Section": "Idrott & Tävlingar"
+            },
+            {
+              "Id": 30203,
+              "Section": "Tävlingar"
+            }
+          ]
+        }
+      ],
+      "Information": [
+        {
+          "Id": 117,
+          "Name": "Gatuadress 1",
+          "Value": "Hällåsen",
+          "Type": "String"
+        },
+        {
+          "Id": 120,
+          "Name": "Postnummer",
+          "Value": "826 40",
+          "Type": "String"
+        },
+        {
+          "Id": 121,
+          "Name": "Postadress",
+          "Value": "Söderhamn",
+          "Type": "String"
+        },
+        {
+          "Id": 160,
+          "Name": "Kontaktperson",
+          "Value": "Kansliet, Broberg/Söderhamn Bandy",
+          "Type": "String"
+        },
+        {
+          "Id": 161,
+          "Name": "E-post",
+          "Value": "kansli@brobergsoderhamn.se",
+          "Type": "String"
+        },
+        {
+          "Id": 99,
+          "Name": "Namn",
+          "Value": "Broberg/Söderhamn Bandy - Edsbyns IF",
+          "Type": "String"
+        },
+        {
+          "Id": 101,
+          "Name": "Ingress",
+          "Value": "Välkommen upp på Hällåsen och Helsingehus Arena och upplev elitseriebandy!",
+          "Type": "String"
+        },
+        {
+          "Id": 102,
+          "Name": "Beskrivning",
+          "Value": "Brobergs spelar sina hemmamatcher i en inomhusarena för bandy och lockar i snitt 1200 besökare per match. Temperaturen inomhus kommer ligga på ca -1 grad och vi kan garantera utmärkta förhållanden – varje match! Inne i arenan finns kiosker och souvenirshop som är öppna vid all…",
+          "Type": "String"
+        },
+        {
+          "Id": 110,
+          "Name": "Webbsida",
+          "Value": "https://brobergsoderhamn.se/",
+          "Type": "String"
+        },
+        {
+          "Id": 125,
+          "Name": "Evenemangslänk",
+          "Value": "https://brobergsoderhamn.se",
+          "Type": "String"
+        },
+        {
+          "Id": 126,
+          "Name": "Bokningslänk",
+          "Value": "https://brobergsoderhamn.ticketco.events/se/sv",
+          "Type": "String"
+        }
+      ],
+      "Position": {
+        "Longitude": 17.0729084004415,
+        "Latitude": 61.2887228674144
+      },
+      "Media": [
+        {
+          "Type": "MainImage",
+          "Url": "//images.citybreakcdn.com/image.aspx?ImageId=10290222"
+        }
+      ],
+      "Occasions": [
+        {
+          "Start": "2025-01-31T19:00:00",
+          "End": "2025-01-31T21:00:00",
+          "Arena": {
+            "Name": "Helsingehus Arena, Hällåsen",
+            "Id": "cbis:1882263"
+          }
+        }
+      ]
+    },
+    {
+      "Id": "cbis:2682743",
+      "Name": "Jul med Tomtefar, tomtemor och alla tomtenissar!",
+      "Categories": [
+        {
+          "Path": [
+            {
+              "Id": 30084,
+              "Section": "Visit Söderhamn (Söderhamn Turistbyrå)"
+            },
+            {
+              "Id": 30099,
+              "Section": "Göra"
+            },
+            {
+              "Id": 30172,
+              "Section": "Evenemang"
+            },
+            {
+              "Id": 30182,
+              "Section": "Högtider"
+            },
+            {
+              "Id": 30184,
+              "Section": "Jul & Nyår"
+            }
+          ]
+        },
+        {
+          "Path": [
+            {
+              "Id": 30084,
+              "Section": "Visit Söderhamn (Söderhamn Turistbyrå)"
+            },
+            {
+              "Id": 30099,
+              "Section": "Göra"
+            },
+            {
+              "Id": 30172,
+              "Section": "Evenemang"
+            },
+            {
+              "Id": 30216,
+              "Section": "Mässor & Utställningar"
+            },
+            {
+              "Id": 30224,
+              "Section": "Utställning"
+            }
+          ]
+        }
+      ],
+      "Information": [
+        {
+          "Id": 117,
+          "Name": "Gatuadress 1",
+          "Value": "Oxtorgsgatan 5",
+          "Type": "String"
+        },
+        {
+          "Id": 120,
+          "Name": "Postnummer",
+          "Value": "826 32",
+          "Type": "String"
+        },
+        {
+          "Id": 121,
+          "Name": "Postadress",
+          "Value": "Söderhamn",
+          "Type": "String"
+        },
+        {
+          "Id": 160,
+          "Name": "Kontaktperson",
+          "Value": "Föreningen Söderhamns Museum",
+          "Type": "String"
+        },
+        {
+          "Id": 161,
+          "Name": "E-post",
+          "Value": "info@foreningensm.se",
+          "Type": "String"
+        },
+        {
+          "Id": 99,
+          "Name": "Namn",
+          "Value": "Jul med Tomtefar, tomtemor och alla tomtenissar!",
+          "Type": "String"
+        },
+        {
+          "Id": 101,
+          "Name": "Ingress",
+          "Value": "Välkommen på julutställning på Söderhamns stadsmuseum!",
+          "Type": "String"
+        },
+        {
+          "Id": 102,
+          "Name": "Beskrivning",
+          "Value": "Föreningen Söderhamns Museum inbjuder till museet för att umgås med Tomtefar, tomtemor och alla tomtenissar!\r\n\r\nUtställningens öppettider:\r\n30/11-1/12 kl. 12.00-16.00\r\n7/12-8/12 kl. 12.00-15.00\r\n14/12-15/12 kl. 12.00-15.00\r\n\r\nTomtefar och hans nisse tar emot barnens önskelisto…",
+          "Type": "String"
+        },
+        {
+          "Id": 110,
+          "Name": "Webbsida",
+          "Value": "https://www.foreningensm.se/",
+          "Type": "String"
+        },
+        {
+          "Id": 125,
+          "Name": "Evenemangslänk",
+          "Value": "https://www.facebook.com/events/1761578234599074/1761578251265739/",
+          "Type": "String"
+        }
+      ],
+      "Position": {
+        "Longitude": 17.0444639,
+        "Latitude": 61.3010138
+      },
+      "Media": [
+        {
+          "Type": "MainImage",
+          "Url": "//images.citybreak.com/image.aspx?ImageId=10444741"
+        }
+      ],
+      "Occasions": [
+        {
+          "Start": "2024-12-14T12:00:00",
+          "End": "2024-12-14T15:00:00",
+          "Arena": {
+            "Name": "Söderhamns Stadsmuseum",
+            "Id": "cbis:249324"
+          }
+        },
+        {
+          "Start": "2024-12-15T12:00:00",
+          "End": "2024-12-15T15:00:00",
+          "Arena": {
+            "Name": "Söderhamns Stadsmuseum",
+            "Id": "cbis:249324"
+          }
+        }
+      ]
+    }
+  ]
+}

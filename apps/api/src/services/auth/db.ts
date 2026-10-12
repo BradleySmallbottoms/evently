@@ -183,6 +183,12 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
         .where(and(eq(devices.credentialHash, credentialHash), isNull(devices.revokedAt)))
         .limit(1);
       if (!device) throw new AuthError('invalid_credentials');
+      const [user] = await db
+        .select({ bannedAt: users.bannedAt })
+        .from(users)
+        .where(eq(users.id, device.userId))
+        .limit(1);
+      if (user?.bannedAt) throw new AuthError('user_banned');
 
       const now = env.now();
       const sessionToken = generateSessionToken();
@@ -545,8 +551,9 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
       const tokenHash = hashToken(sessionToken);
       const now = env.now();
       const [row] = await db
-        .select({ userId: sessions.subjectId })
+        .select({ userId: sessions.subjectId, bannedAt: users.bannedAt })
         .from(sessions)
+        .innerJoin(users, eq(users.id, sessions.subjectId))
         .where(
           and(
             eq(sessions.tokenHash, tokenHash),
@@ -557,6 +564,7 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
         )
         .limit(1);
       if (!row) throw new AuthError('unauthorized');
+      if (row.bannedAt) throw new AuthError('user_banned');
       return { userId: row.userId };
     },
 
