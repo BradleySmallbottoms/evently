@@ -1,4 +1,5 @@
 import type { Event, EventLink, EventLinkInput, ManagedEvent, PublicEventListQuery, UpdateEventRequest } from '@local-events/contracts';
+import { publicEventTagIds } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { pointEwkt, schema } from '@local-events/db';
 import {
@@ -492,11 +493,15 @@ export function createDbEventServices(
         );
         if (match) filters.push(match);
       }
-      if (query.tagId) {
+      const tagIds = publicEventTagIds(query);
+      if (tagIds.length > 0) {
         filters.push(sql`exists (
           select 1 from ${eventTags}
           where ${eventTags.eventId} = ${events.id}
-            and ${eventTags.tagId} = ${query.tagId}
+            and ${eventTags.tagId} in (${sql.join(
+              tagIds.map((id) => sql`${id}`),
+              sql`, `,
+            )})
         )`);
       }
       if (query.price === 'free') {
@@ -512,8 +517,9 @@ export function createDbEventServices(
               sql`${events.location} IS NULL`,
               sql`ST_Distance(${events.location}, ST_GeogFromText(${point}))`,
               asc(events.startsAt),
+              asc(events.id),
             ]
-          : [desc(events.featured), asc(events.startsAt)];
+          : [desc(events.featured), asc(events.startsAt), asc(events.id)];
 
       // No point: included in the list, omitted from the map. A point must be inside the radius.
       const rows = await selectEvents()
@@ -531,16 +537,19 @@ export function createDbEventServices(
           ),
         )
         .orderBy(...distanceOrder)
-        .limit(query.limit);
+        .limit(query.limit + 1)
+        .offset(query.offset);
 
-      const links = await linksFor(rows.map((row) => row.id));
-      const result: Event[] = [];
-      for (const row of rows) {
-        result.push(
+      const hasMore = rows.length > query.limit;
+      const pageRows = hasMore ? rows.slice(0, query.limit) : rows;
+      const links = await linksFor(pageRows.map((row) => row.id));
+      const items: Event[] = [];
+      for (const row of pageRows) {
+        items.push(
           toEvent(row, await tagIdsFor(row.id), await imageKeyFor(row.id), publicLinks(links.get(row.id) ?? [])),
         );
       }
-      return result;
+      return { items, nextOffset: hasMore ? query.offset + query.limit : null };
     },
   };
 }

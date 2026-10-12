@@ -183,6 +183,13 @@ export const EventListResponse = z.object({
 });
 export type EventListResponse = z.infer<typeof EventListResponse>;
 
+export const PublicEventListResponse = z.object({
+  items: z.array(Event),
+  /** Pass as `offset` to load the next page. Null on the last page. */
+  nextOffset: z.number().int().nonnegative().nullable(),
+});
+export type PublicEventListResponse = z.infer<typeof PublicEventListResponse>;
+
 export const PublicEventListQuery = z.object({
   lat: z.coerce.number().min(-90).max(90),
   lng: z.coerce.number().min(-180).max(180),
@@ -192,12 +199,30 @@ export const PublicEventListQuery = z.object({
   /** Matches title, venue, or organizer name. */
   q: z.string().trim().min(1).max(200).optional(),
   tagId: Id.optional(),
+  /** Comma-separated tag ids. An event matches when it has any of them. */
+  tagIds: z
+    .string()
+    .optional()
+    .refine((value) => tagIdList(value).length <= 50, 'tagIds accepts at most 50 ids')
+    .refine((value) => tagIdList(value).every((id) => z.uuid().safeParse(id).success), 'tagIds must be uuids'),
   sort: z.enum(['soonest', 'distance']).optional().default('soonest'),
   /** `free` is amount 0 or unknown; `paid` is amount > 0. */
   price: z.enum(['free', 'paid']).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+  offset: z.coerce.number().int().min(0).max(10_000).optional().default(0),
 });
 export type PublicEventListQuery = z.infer<typeof PublicEventListQuery>;
+
+/** Split a `tagIds` query value. Empty and omitted both mean no tag filter. */
+export function tagIdList(value: string | undefined): string[] {
+  if (!value) return [];
+  return [...new Set(value.split(',').map((part) => part.trim()).filter((part) => part.length > 0))];
+}
+
+/** Single `tagId` and comma-separated `tagIds`, deduped. */
+export function publicEventTagIds(query: { tagId?: string; tagIds?: string }): string[] {
+  return [...new Set([...(query.tagId ? [query.tagId] : []), ...tagIdList(query.tagIds)])];
+}
 
 export const PublisherSummaryAdmin = z.object({
   id: Id,

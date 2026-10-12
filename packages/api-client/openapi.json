@@ -6291,6 +6291,14 @@
           },
           {
             "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "tagIds",
+            "in": "query"
+          },
+          {
+            "schema": {
               "type": "string",
               "enum": [
                 "soonest",
@@ -6324,11 +6332,23 @@
             "required": false,
             "name": "limit",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "nullable": true,
+              "minimum": 0,
+              "maximum": 10000,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
           }
         ],
         "responses": {
           "200": {
-            "description": "Published events near a point",
+            "description": "Published events near a point, featured first then soonest start. Use offset to page.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6527,10 +6547,16 @@
                           "updatedAt"
                         ]
                       }
+                    },
+                    "nextOffset": {
+                      "type": "integer",
+                      "nullable": true,
+                      "minimum": 0
                     }
                   },
                   "required": [
-                    "items"
+                    "items",
+                    "nextOffset"
                   ]
                 }
               }

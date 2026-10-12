@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, TextInput, View } from 'react-native';
 
@@ -11,7 +11,8 @@ import { FilterDropdown } from '@/components/ui/filter-dropdown';
 import { SearchBar } from '@/components/ui/search-bar';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { dateBadge } from '@/lib/event-format';
-import { listPublicEvents, listTags, namesForTagIds } from '@/lib/events';
+import { listTags, namesForTagIds } from '@/lib/events';
+import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
 import { colors } from '@/theme/colors';
@@ -76,22 +77,25 @@ export default function SearchScreen() {
   const { identity, point } = useDiscoveryPoint(useFallbackCenter);
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
-    queryFn: listTags,
+    queryFn: () => listTags(),
   });
   const bounds = dateBounds(dateId);
-  const events = useQuery({
-    queryKey: ['search-events', point.data, q, tagId, price, dateId],
-    enabled: point.isSuccess,
-    queryFn: () =>
-      listPublicEvents(point.data!, {
-        q: q.trim() || undefined,
-        tagId: tagId === 'all' ? undefined : tagId,
-        price: price === 'any' ? undefined : price,
-        from: bounds.from,
-        to: bounds.to,
-        sort: 'soonest',
-      }),
-  });
+  const events = useInfinitePublicEvents(
+    point.data,
+    {
+      q: q.trim() || undefined,
+      tagId: tagId === 'all' ? undefined : tagId,
+      price: price === 'any' ? undefined : price,
+      from: bounds.from,
+      to: bounds.to,
+      sort: 'soonest',
+    },
+    ['search-events', point.data, q, tagId, price, dateId],
+  );
+  const eventItems = useMemo(
+    () => events.data?.pages.flatMap((page) => page.items) ?? [],
+    [events.data],
+  );
   const saved = useQuery({
     queryKey: ['saved-events', identity.data?.userId],
     enabled: identity.isSuccess,
@@ -134,8 +138,12 @@ export default function SearchScreen() {
         style={{ width: '100%', maxWidth: MaxContentWidth }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
-        data={events.data?.items ?? []}
+        data={eventItems}
         keyExtractor={(item) => item.id}
+        onEndReached={() => {
+          if (events.hasNextPage && !events.isFetchingNextPage) void events.fetchNextPage();
+        }}
+        onEndReachedThreshold={0.4}
         contentContainerStyle={{ paddingBottom: BottomTabInset + space.xxxl, gap: space.md }}
         ListHeaderComponent={
           <View style={{ gap: space.md, paddingTop: space.xl }}>
@@ -184,6 +192,13 @@ export default function SearchScreen() {
               />
             </View>
           </View>
+        }
+        ListFooterComponent={
+          events.isFetchingNextPage ? (
+            <AppText variant="caption" style={{ textAlign: 'center' }}>
+              {t('events.loadingMore')}
+            </AppText>
+          ) : null
         }
         ListEmptyComponent={
           events.isSuccess ? (

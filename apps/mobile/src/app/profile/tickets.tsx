@@ -21,7 +21,7 @@ export default function TicketsScreen() {
   const { point } = useDiscoveryPoint();
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
-    queryFn: listTags,
+    queryFn: () => listTags(),
   });
   const nearby = useQuery({
     queryKey: ['ticket-links', point.data?.lat, point.data?.lng, point.data?.radiusM],

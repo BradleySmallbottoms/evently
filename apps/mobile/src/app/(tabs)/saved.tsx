@@ -25,7 +25,7 @@ export default function SavedScreen() {
   const [segment, setSegment] = useState<'events' | 'lists'>('events');
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
-    queryFn: listTags,
+    queryFn: () => listTags(),
   });
   const identity = useQuery({
     queryKey: ['identity', locale],

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { krPriceLabel } from '@local-events/domain';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -28,12 +29,12 @@ import { DateBox } from '@/components/ui/date-box';
 import { EventImage } from '@/components/ui/event-image';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { PrimaryButton } from '@/components/ui/primary-button';
-import { TagPills } from '@/components/ui/tag-pills';
+import { TagPills, PricePill } from '@/components/ui/tag-pills';
 import { MaxContentWidth } from '@/constants/theme';
 import { getPublicEvent, listTags, namesForTagIds } from '@/lib/events';
 import { fetchCheckInStatus, performCodeCheckIn, performGeoCheckIn } from '@/lib/check-in';
 import { fetchEventContent, readCachedEventContent } from '@/lib/event-content';
-import { dateBadge, formatPrice, primaryAction, safeHttpUrl } from '@/lib/event-format';
+import { dateBadge, primaryAction, safeHttpUrl } from '@/lib/event-format';
 import { ensureIdentity } from '@/lib/identity';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { fetchProfile, updateProfile } from '@/lib/profile';
@@ -126,7 +127,7 @@ export default function EventDetailScreen() {
   });
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
-    queryFn: listTags,
+    queryFn: () => listTags(),
   });
   const rate = useMutation({
     mutationFn: (input: { score: number; comment?: string | null }) =>
@@ -274,6 +275,8 @@ export default function EventDetailScreen() {
     await Clipboard.setStringAsync(`localevents://events/${id}`);
   }
 
+  const priceLabel = krPriceLabel(event.data?.priceAmount);
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
       <ScrollView
@@ -394,17 +397,24 @@ export default function EventDetailScreen() {
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
-                  <AppText
-                    style={{
-                      flex: 1,
-                      fontSize: 22,
-                      lineHeight: 28,
-                      fontWeight: '700',
-                      color: colors.ink,
-                    }}
-                  >
-                    {event.data.title}
-                  </AppText>
+                  <View style={{ flex: 1 }}>
+                    <AppText
+                      style={{
+                        fontSize: 22,
+                        lineHeight: 28,
+                        fontWeight: '700',
+                        color: colors.ink,
+                        paddingRight: priceLabel ? 64 : 0,
+                      }}
+                    >
+                      {event.data.title}
+                    </AppText>
+                    {priceLabel ? (
+                      <View pointerEvents="none" style={{ position: 'absolute', top: 4, right: 0 }}>
+                        <PricePill label={priceLabel} />
+                      </View>
+                    ) : null}
+                  </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <CircleIconButton
                       plain
@@ -480,25 +490,6 @@ export default function EventDetailScreen() {
                     </AppText>
                   </View>
                 </View>
-
-                {formatPrice(
-                  event.data.priceAmount,
-                  event.data.currency,
-                  locale,
-                  t('events.free'),
-                ) ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                    <DetailIcon sf="tag" md="local-offer" />
-                    <AppText variant="caption" style={{ color: colors.ink }}>
-                      {formatPrice(
-                        event.data.priceAmount,
-                        event.data.currency,
-                        locale,
-                        t('events.free'),
-                      )}
-                    </AppText>
-                  </View>
-                ) : null}
 
                 {event.data.description ? (
                   <AppText variant="body" style={{ color: colors.ink }}>

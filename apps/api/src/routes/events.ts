@@ -6,6 +6,7 @@ import {
   EventResponse,
   ManagedEvent,
   PublicEventListQuery,
+  PublicEventListResponse,
   UpdateEventRequest,
 } from '@local-events/contracts';
 import { z } from 'zod';
@@ -88,15 +89,15 @@ export function registerEventRoutes(app: OpenAPIHono, events: EventServices): vo
     request: { query: PublicEventListQuery },
     responses: {
       200: {
-        description: 'Published events near a point',
-        content: { 'application/json': { schema: EventListResponse } },
+        description: 'Published events near a point, featured first then soonest start. Use offset to page.',
+        content: { 'application/json': { schema: PublicEventListResponse } },
       },
     },
   });
   app.openapi(listPublicEvents, async (c) => {
     const query = c.req.valid('query');
-    const items = await events.listPublicEvents(query);
-    return c.json({ items }, 200);
+    const page = await events.listPublicEvents(query);
+    return c.json(page, 200);
   });
 
   const getPublicEvent = createRoute({

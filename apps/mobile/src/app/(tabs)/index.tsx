@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, Pressable, RefreshControl, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import { LocationMenu } from '@/components/native/location-menu';
 import { NotificationsSheet } from '@/components/native/notifications-sheet';
@@ -20,6 +20,7 @@ import { TagFilters } from '@/components/ui/tag-filters';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { api, throwIfError } from '@/lib/api';
 import { listPublicEvents, listTags, namesForTagIds } from '@/lib/events';
+import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
@@ -59,13 +60,21 @@ export default function HomeScreen() {
   const { identity, preferences, point } = useDiscoveryPoint(useFallbackCenter);
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
-    queryFn: listTags,
+    queryFn: () => listTags(),
   });
-  const events = useQuery({
-    queryKey: ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM],
-    queryFn: () => listPublicEvents(point.data!),
-    enabled: point.isSuccess,
+  const events = useInfinitePublicEvents(
+    point.data,
+    { tagId: tagId === 'all' ? undefined : tagId, sort: 'soonest' },
+    ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM, tagId],
+  );
+  const preferredTagIds = preferences.data?.tagIds ?? [];
+  const forYou = useQuery({
+    queryKey: ['for-you', point.data?.lat, point.data?.lng, point.data?.radiusM, preferredTagIds],
+    enabled: point.isSuccess && preferredTagIds.length > 0,
+    queryFn: () =>
+      listPublicEvents(point.data!, { tagIds: preferredTagIds, limit: 12, sort: 'soonest' }),
   });
+  const forYouItems = forYou.data?.items ?? [];
   const saved = useQuery({
     queryKey: ['saved-events', identity.data?.userId],
     enabled: identity.isSuccess,
@@ -116,13 +125,12 @@ export default function HomeScreen() {
   }, [identity.isSuccess, preferences.isSuccess, preferences.data?.areas]);
 
   const { featured, coming } = useMemo(() => {
-    const items = events.data?.items ?? [];
-    const visible = items.filter((event) => tagId === 'all' || event.tagIds.includes(tagId));
+    const items = events.data?.pages.flatMap((page) => page.items) ?? [];
     return {
-      featured: visible.filter((event) => event.featured),
-      coming: visible.filter((event) => !event.featured),
+      featured: items.filter((event) => event.featured),
+      coming: items.filter((event) => !event.featured),
     };
-  }, [events.data?.items, tagId]);
+  }, [events.data]);
 
   async function generatePairingCode() {
     setPairingPending(true);
@@ -220,18 +228,24 @@ export default function HomeScreen() {
         keyExtractor={(item) => item.id}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
+        onEndReached={() => {
+          if (events.hasNextPage && !events.isFetchingNextPage) void events.fetchNextPage();
+        }}
+        onEndReachedThreshold={0.4}
         refreshControl={
           <RefreshControl
-            refreshing={events.isRefetching || identity.isRefetching}
+            refreshing={(events.isRefetching && !events.isFetchingNextPage) || identity.isRefetching}
             onRefresh={() => {
               void identity.refetch();
               void point.refetch();
               void events.refetch();
+              void forYou.refetch();
             }}
             tintColor={colors.accent}
           />
         }
         contentContainerStyle={{
+          flexGrow: 1,
           paddingBottom: BottomTabInset + space.xxxl,
           gap: space.lg,
         }}
@@ -282,6 +296,53 @@ export default function HomeScreen() {
             </View>
 
             <TagFilters tags={tags.data?.items ?? []} selectedId={tagId} onSelect={setTagId} />
+
+            {forYouItems.length > 0 ? (
+              <View style={{ gap: space.md }}>
+                <View
+                  style={{
+                    paddingHorizontal: space.xl,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <AppText variant="subtitle">{t('events.forYou')}</AppText>
+                  <Pressable accessibilityRole="button" onPress={() => router.push('/for-you')}>
+                    <AppText variant="label" style={{ color: colors.info }}>
+                      {t('events.viewAll')}
+                    </AppText>
+                  </Pressable>
+                </View>
+                <ScrollView
+                  horizontal
+                  nestedScrollEnabled
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: space.md, paddingHorizontal: space.xl }}
+                >
+                  {forYouItems.map((item) => (
+                    <View key={item.id} style={{ width: 280 }}>
+                      <EventCard
+                        title={item.title}
+                        when={new Date(item.startsAt).toLocaleString(locale)}
+                        where={
+                          item.mode === 'physical'
+                            ? (item.venueName ?? t('events.missingVenue'))
+                            : (item.onlineUrl ?? t('events.missingUrl'))
+                        }
+                        tags={namesForTagIds(item.tagIds, tags.data?.items)}
+                        imageUrl={item.imageUrl}
+                        priceAmount={item.priceAmount}
+                        dateBadge={dateBadge(item.startsAt, locale)}
+                        saved={savedIds.has(item.id)}
+                        onSavePress={() => toggleSave(item.id)}
+                        onPress={() => router.push(`/events/${item.id}`)}
+                      />
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
 
             {featured.length > 0 ? (
               <View style={{ gap: space.md }}>
@@ -342,11 +403,6 @@ export default function HomeScreen() {
                 {t('home.identityError')}
               </AppText>
             )}
-            {events.isPending && (
-              <AppText variant="caption" style={{ paddingHorizontal: space.xl }}>
-                {t('events.loading')}
-              </AppText>
-            )}
             {events.isError && (
               <AppText variant="caption" style={{ paddingHorizontal: space.xl, color: colors.danger }}>
                 {t('events.loadError')}
@@ -359,8 +415,19 @@ export default function HomeScreen() {
           eventsStatus: events.status,
           identityStatus: identity.status,
         }}
+        ListFooterComponent={
+          events.isFetchingNextPage ? (
+            <AppText variant="caption" style={{ paddingHorizontal: space.xl, textAlign: 'center' }}>
+              {t('events.loadingMore')}
+            </AppText>
+          ) : null
+        }
         ListEmptyComponent={
-          events.isSuccess && featured.length === 0 ? (
+          events.isPending && !events.data ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator accessibilityLabel={t('events.loading')} color={colors.ink} />
+            </View>
+          ) : events.isSuccess && !events.isPlaceholderData && featured.length === 0 ? (
             <AppText variant="body" style={{ paddingHorizontal: space.xl }}>
               {t('events.empty')}
             </AppText>

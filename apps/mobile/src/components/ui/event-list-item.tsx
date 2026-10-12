@@ -7,7 +7,7 @@ import { Pressable, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import { DateBox } from '@/components/ui/date-box';
 import { EventImage } from '@/components/ui/event-image';
-import { TagPills } from '@/components/ui/tag-pills';
+import { PricePill, TagPills } from '@/components/ui/tag-pills';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
@@ -35,6 +35,7 @@ export function EventListItem({
   onSavePress,
 }: Props) {
   const { t } = useTranslation();
+  const priceLabel = krPriceLabel(priceAmount);
   return (
     <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'center' }}>
       <Pressable
@@ -58,13 +59,24 @@ export function EventListItem({
         {dateBadge ? <DateBox badge={dateBadge} compact /> : null}
       </View>
       <View style={{ flex: 1, gap: space.xs }}>
-        <AppText variant="subtitle" numberOfLines={2}>
-          {title}
-        </AppText>
+        <View>
+          <AppText
+            variant="subtitle"
+            numberOfLines={2}
+            style={{ paddingRight: priceLabel ? 58 : 0 }}
+          >
+            {title}
+          </AppText>
+          {priceLabel ? (
+            <View pointerEvents="none" style={{ position: 'absolute', top: 2, right: 0 }}>
+              <PricePill label={priceLabel} />
+            </View>
+          ) : null}
+        </View>
         <AppText variant="caption" numberOfLines={1}>
           {where}
         </AppText>
-        <TagPills tags={tags} limit={3} priceLabel={krPriceLabel(priceAmount)} />
+        <TagPills tags={tags} limit={3} />
       </View>
       </Pressable>
       {onSavePress ? (

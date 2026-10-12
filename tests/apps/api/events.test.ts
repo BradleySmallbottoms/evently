@@ -316,10 +316,58 @@ describe('events', () => {
       row(featuredId, 'Featured later', '2026-12-20T18:00:00.000Z', true),
     );
 
+    const taggedId = '11111111-1111-4111-8111-111111111404';
+    const tagId = SEED_TAGS[0]!.id;
+    store.events.get(featuredId)!.tagIds = [tagId];
+    store.events.set(taggedId, {
+      ...row(taggedId, 'Tagged sooner', '2026-12-10T18:00:00.000Z', false),
+      tagIds: [tagId],
+    });
+
     const listed = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000');
     expect(listed.status).toBe(200);
-    const items = (await listed.json()) as { items: { id: string; featured: boolean }[] };
-    expect(items.items.map((item) => item.id)).toEqual([featuredId, soonerId]);
+    const items = (await listed.json()) as { items: { id: string; featured: boolean }[]; nextOffset: number | null };
+    expect(items.items.map((item) => item.id)).toEqual([featuredId, soonerId, taggedId]);
     expect(items.items[0]?.featured).toBe(true);
+    expect(items.nextOffset).toBeNull();
+
+    const first = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&limit=1');
+    const firstBody = (await first.json()) as { items: { id: string }[]; nextOffset: number | null };
+    expect(firstBody.items.map((item) => item.id)).toEqual([featuredId]);
+    expect(firstBody.nextOffset).toBe(1);
+
+    const second = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&limit=1&offset=1');
+    const secondBody = (await second.json()) as { items: { id: string }[]; nextOffset: number | null };
+    expect(secondBody.items.map((item) => item.id)).toEqual([soonerId]);
+    expect(secondBody.nextOffset).toBe(2);
+
+    const tagged = await app.request(
+      `/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&tagId=${tagId}&limit=1`,
+    );
+    const taggedBody = (await tagged.json()) as { items: { id: string }[]; nextOffset: number | null };
+    expect(taggedBody.items.map((item) => item.id)).toEqual([featuredId]);
+    expect(taggedBody.nextOffset).toBe(1);
+
+    const taggedNext = await app.request(
+      `/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&tagId=${tagId}&limit=1&offset=1`,
+    );
+    const taggedNextBody = (await taggedNext.json()) as { items: { id: string }[]; nextOffset: number | null };
+    expect(taggedNextBody.items.map((item) => item.id)).toEqual([taggedId]);
+    expect(taggedNextBody.nextOffset).toBeNull();
+
+    const otherTagId = SEED_TAGS[1]!.id;
+    store.events.get(soonerId)!.tagIds = [otherTagId];
+    const either = await app.request(
+      `/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&tagIds=${tagId},${otherTagId}`,
+    );
+    const eitherBody = (await either.json()) as { items: { id: string }[] };
+    expect(either.status).toBe(200);
+    expect(eitherBody.items.map((item) => item.id)).toEqual([featuredId, soonerId, taggedId]);
+
+    const onlyOther = await app.request(
+      `/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&tagIds=${otherTagId}`,
+    );
+    const onlyOtherBody = (await onlyOther.json()) as { items: { id: string }[] };
+    expect(onlyOtherBody.items.map((item) => item.id)).toEqual([soonerId]);
   });
 });

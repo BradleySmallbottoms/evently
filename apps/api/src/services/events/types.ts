@@ -4,6 +4,7 @@ import type {
   Event,
   ManagedEvent,
   PublicEventListQuery,
+  PublicEventListResponse,
   UpdateEventRequest,
 } from '@local-events/contracts';
 import type { DomainEventPublisher } from '../domain-events/types';
@@ -53,7 +54,7 @@ export type EventServices = {
   }) => Promise<ManagedEvent>;
   publishEvent: (input: { sessionToken: string | undefined; eventId: string }) => Promise<Event>;
   cancelEvent: (input: { sessionToken: string | undefined; eventId: string }) => Promise<Event>;
-  listPublicEvents: (query: PublicEventListQuery) => Promise<Event[]>;
+  listPublicEvents: (query: PublicEventListQuery) => Promise<PublicEventListResponse>;
 };
 
 export type EventEnv = {

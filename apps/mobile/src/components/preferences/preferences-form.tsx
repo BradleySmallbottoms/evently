@@ -35,8 +35,8 @@ export function PreferencesForm() {
   });
 
   const tags = useQuery({
-    queryKey: ['tags', 'upcoming'],
-    queryFn: listTags,
+    queryKey: ['tags', 'all'],
+    queryFn: () => listTags({ upcoming: false }),
   });
 
   const preferences = useQuery({

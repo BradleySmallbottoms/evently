@@ -59,10 +59,13 @@ export async function resolveEventQueryPoint(): Promise<EventQueryPoint> {
   }
 }
 
-export async function listTags() {
+export async function listTags(options?: { upcoming?: boolean }) {
+  const upcoming = options?.upcoming !== false;
   return throwIfError(
     await api.GET('/tags', {
-      params: { query: { upcoming: 'true' } },
+      params: {
+        query: upcoming ? { upcoming: 'true' } : {},
+      },
     }),
   );
 }
@@ -80,15 +83,20 @@ export function namesForTagIds(
   });
 }
 
+export const PUBLIC_EVENT_PAGE_SIZE = 20;
+
 export async function listPublicEvents(
   point: EventQueryPoint,
   filter?: {
     q?: string;
     tagId?: string;
+    tagIds?: string[];
     from?: string;
     to?: string;
     price?: 'free' | 'paid';
     sort?: 'soonest' | 'distance';
+    offset?: number;
+    limit?: number;
   },
 ) {
   return throwIfError(
@@ -100,10 +108,13 @@ export async function listPublicEvents(
           radiusM: point.radiusM,
           ...(filter?.q ? { q: filter.q } : {}),
           ...(filter?.tagId ? { tagId: filter.tagId } : {}),
+          ...(filter?.tagIds?.length ? { tagIds: filter.tagIds.join(',') } : {}),
           ...(filter?.from ? { from: filter.from } : {}),
           ...(filter?.to ? { to: filter.to } : {}),
           ...(filter?.price ? { price: filter.price } : {}),
           ...(filter?.sort ? { sort: filter.sort } : {}),
+          ...(filter?.offset ? { offset: filter.offset } : {}),
+          ...(filter?.limit ? { limit: filter.limit } : {}),
         },
       },
     }),

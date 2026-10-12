@@ -7,7 +7,7 @@ import { Pressable, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import { DateBox } from '@/components/ui/date-box';
 import { EventImage } from '@/components/ui/event-image';
-import { TagPills } from '@/components/ui/tag-pills';
+import { PricePill, TagPills } from '@/components/ui/tag-pills';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
 
@@ -15,7 +15,6 @@ type Props = {
   title: string;
   when: string;
   where: string;
-  priceLabel?: string | null;
   tags?: string[];
   imageUrl?: string | null;
   priceAmount?: number | null;
@@ -39,6 +38,7 @@ export function EventCard({
   onSavePress,
 }: Props) {
   const { t } = useTranslation();
+  const priceLabel = krPriceLabel(priceAmount);
 
   return (
     <View
@@ -112,17 +112,33 @@ export function EventCard({
                 </AppText>
               </View>
             ) : null}
-            <AppText
-              numberOfLines={2}
-              style={{ color: '#FFFFFF', fontSize: 20, lineHeight: 24, fontWeight: '700' }}
-            >
-              {title}
-            </AppText>
+            <View>
+              <AppText
+                numberOfLines={2}
+                style={{
+                  color: '#FFFFFF',
+                  fontSize: 20,
+                  lineHeight: 24,
+                  fontWeight: '700',
+                  paddingRight: priceLabel ? 58 : 0,
+                }}
+              >
+                {title}
+              </AppText>
+              {priceLabel ? (
+                <View
+                  pointerEvents="none"
+                  style={{ position: 'absolute', top: 2, right: 0 }}
+                >
+                  <PricePill label={priceLabel} />
+                </View>
+              ) : null}
+            </View>
             <AppText variant="caption" numberOfLines={1} style={{ color: 'rgba(255,255,255,0.92)' }}>
               {where}
             </AppText>
           </View>
-          <TagPills tags={tags} limit={3} priceLabel={krPriceLabel(priceAmount)} />
+          <TagPills tags={tags} limit={3} />
         </View>
       </Pressable>
       {onSavePress ? (

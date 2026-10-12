@@ -59,9 +59,9 @@ calls) in the same change as every new major feature.**
 - First external source is the Citybreak API used by Visit Söderhamn. The worker loads the category
   tree, then products in **Evenemang** (category `30172`) only. Each occasion becomes its own event.
   Categories under Evenemang are stored as tags (`external_id` `visit-soderhamn:{id}`) and attached
-  to the imported event. `GET /v1/tags` is that list. The mobile app always calls it with
-  `?upcoming=true`, which keeps only tags on a published event that has not ended. Publishers
-  and admin still load the full list.
+  to the imported event. `GET /v1/tags` is that list. The mobile home and search call it with
+  `?upcoming=true`, which keeps only tags on a published event that has not ended. Choosing
+  preferred tags loads the full list. Publishers and admin do too.
   A fresh database is seeded with the seven tags from the local fixture; a live run adds the rest.
 - Set `VISIT_SODERHAMN_API_KEY` before a live run. The key is not stored in `data_sources.config`.
   The seeded row stays **disabled**, so nothing runs it on a timer. A manual run still saves.
@@ -94,9 +94,14 @@ calls) in the same change as every new major feature.**
 
 ### Featured events
 
-- Admins set `featured` on an event in the catalog editor. Published featured events sort first on
-  `GET /v1/events` and the mobile home page. Imports do not write the flag, so a later sync leaves
-  it set. Paid placements (slot, dates, plan quota) are still a later feature.
+- Admins set `featured` on an event in the catalog editor. `GET /v1/events` sorts featured events
+  first, then by start time. `tagId` or comma-separated `tagIds` keeps events that have any of
+  those tags, and `offset` plus `nextOffset` page the list. The mobile home, search, and events
+  lists pass the selected tag and load the next page at the end of the scroll. When the user has
+  preferred tags, the home page shows a For you carousel of nearby events with any of those tags.
+  The featured row stays hidden when that page set has no featured events.
+  Imports do not write the flag, so a later sync leaves it set. Paid placements (slot, dates, plan
+  quota) are still a later feature.
   Flow: [docs/flows/admin-event-edit.md](docs/flows/admin-event-edit.md).
 
 ### Saved events, lists, and links

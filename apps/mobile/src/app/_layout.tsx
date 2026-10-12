@@ -135,6 +135,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="map" />
             <Stack.Screen name="events/[id]" />
+            <Stack.Screen name="for-you" />
             <Stack.Screen name="preferences/index" />
           </Stack>
           {reminder ? (

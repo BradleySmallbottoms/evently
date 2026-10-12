@@ -1,10 +1,11 @@
-import type {
-  CreateEventRequest,
-  Event,
-  EventLink,
-  ManagedEvent,
-  PublicEventListQuery,
-  UpdateEventRequest,
+import {
+  publicEventTagIds,
+  type CreateEventRequest,
+  type Event,
+  type EventLink,
+  type ManagedEvent,
+  type PublicEventListQuery,
+  type UpdateEventRequest,
 } from '@local-events/contracts';
 import {
   canCancelEvent,
@@ -275,7 +276,10 @@ export function createMemoryEventServices(
         .filter((e) => !e.location || haversineM(center, e.location) <= query.radiusM)
         .filter((e) => !from || e.endsAtDate >= from)
         .filter((e) => !to || e.startsAtDate <= to)
-        .filter((e) => !query.tagId || e.tagIds.includes(query.tagId))
+        .filter((e) => {
+          const tagIds = publicEventTagIds(query);
+          return tagIds.length === 0 || e.tagIds.some((id) => tagIds.includes(id));
+        })
         .filter((e) => {
           if (query.price === 'free' || query.price === 'paid') {
             return matchesListPrice(e.priceAmount, query.price);
@@ -299,9 +303,14 @@ export function createMemoryEventServices(
           const db = b.location ? haversineM(center, b.location) : Number.POSITIVE_INFINITY;
           if (da !== db) return da - db;
         }
-        return a.startsAt.localeCompare(b.startsAt);
+        const byDate = a.startsAt.localeCompare(b.startsAt);
+        if (byDate !== 0) return byDate;
+        return a.id.localeCompare(b.id);
       });
-      return matched.slice(0, query.limit).map(toPublic);
+      const page = matched.slice(query.offset, query.offset + query.limit + 1);
+      const hasMore = page.length > query.limit;
+      const items = (hasMore ? page.slice(0, query.limit) : page).map(toPublic);
+      return { items, nextOffset: hasMore ? query.offset + query.limit : null };
     },
   };
 }

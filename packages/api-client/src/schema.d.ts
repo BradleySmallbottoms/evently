@@ -3310,9 +3310,11 @@ export interface paths {
                     to?: string;
                     q?: string;
                     tagId?: string;
+                    tagIds?: string;
                     sort?: "soonest" | "distance";
                     price?: "free" | "paid";
                     limit?: number;
+                    offset?: number | null;
                 };
                 header?: never;
                 path?: never;
@@ -3320,7 +3322,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Published events near a point */
+                /** @description Published events near a point, featured first then soonest start. Use offset to page. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -3376,6 +3378,7 @@ export interface paths {
                                 /** Format: date-time */
                                 updatedAt: string;
                             }[];
+                            nextOffset: number | null;
                         };
                     };
                 };

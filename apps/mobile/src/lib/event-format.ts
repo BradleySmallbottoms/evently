@@ -6,24 +6,6 @@ export type EventLink = {
   label?: string | null;
 };
 
-export function formatPrice(
-  amount: number | null | undefined,
-  currency: string | null | undefined,
-  locale: string,
-  freeLabel: string,
-): string | null {
-  if (amount == null) return null;
-  if (amount === 0) return freeLabel;
-  try {
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: currency || 'SEK',
-    }).format(amount / 100);
-  } catch {
-    return `${amount / 100} ${currency || 'SEK'}`;
-  }
-}
-
 export function dateBadge(iso: string, locale: string) {
   const date = new Date(iso);
   const withoutPeriod = (value: string) => value.replace(/\./g, '').trim();

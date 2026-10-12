@@ -28,8 +28,8 @@ export default function FavoriteCategoriesScreen() {
     queryFn: () => ensureIdentity(locale),
   });
   const tags = useQuery({
-    queryKey: ['tags', 'upcoming'],
-    queryFn: listTags,
+    queryKey: ['tags', 'all'],
+    queryFn: () => listTags({ upcoming: false }),
   });
   const preferences = useQuery({
     queryKey: ['preferences', identity.data?.userId],
