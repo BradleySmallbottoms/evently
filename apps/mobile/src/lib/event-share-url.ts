@@ -35,10 +35,38 @@ export function buildEventWebUrl(
 
 /**
  * One text item for the share sheet.
- * iOS Copy, Messenger, and Facebook keep the first text item and drop a
- * separate URL, so the link has to live in this string.
+ * Some targets only accept text, so the event link has to live in this string.
  */
 export function eventShareMessage(title: string, url: string): string {
   const trimmed = title.trim();
   return trimmed ? `${trimmed}\n${url}` : url;
+}
+
+export type EventShareContent = {
+  title?: string;
+  message?: string;
+  /** iOS share sheet link. Android's share API ignores this field. */
+  url?: string;
+};
+
+/**
+ * Payload for the OS share sheet.
+ * iOS shows an app only when it accepts every item. A text message plus a URL
+ * hides link-only apps (Facebook, Messenger). Share the URL alone there.
+ * Android ignores `url` and lists every app that accepts the message text.
+ */
+export function eventShareContent(
+  title: string,
+  url: string,
+  platform: 'ios' | 'android' | 'web',
+): EventShareContent {
+  const trimmedTitle = title.trim();
+  if (platform === 'ios') {
+    return { url };
+  }
+  const message = eventShareMessage(trimmedTitle, url);
+  if (platform === 'android') {
+    return { title: trimmedTitle || undefined, message };
+  }
+  return { title: trimmedTitle || undefined, message, url };
 }

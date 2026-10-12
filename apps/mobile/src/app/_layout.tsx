@@ -1,4 +1,5 @@
 import '@/i18n';
+import '@/lib/inbox-push-task';
 
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,6 +9,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { InboxPushSync } from '@/components/inbox-push-sync';
 import { ReminderNotificationLink } from '@/components/reminder-notification-link';
 import { OnboardingCarousel } from '@/components/onboarding/onboarding-carousel';
 import { PermissionReminder } from '@/components/onboarding/permission-reminder';
@@ -58,9 +60,7 @@ export default function RootLayout() {
     void (async () => {
       const state = await loadOnboardingState();
       if (cancelled) return;
-      const reconciled = state.completed
-        ? await reconcileGrantedPermissions(state)
-        : state;
+      const reconciled = state.completed ? await reconcileGrantedPermissions(state) : state;
       if (cancelled) return;
       const identity = await loadStoredIdentity();
       if (cancelled) return;
@@ -130,6 +130,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider value={navTheme}>
           <AnimatedSplashOverlay />
+          <InboxPushSync />
           <ReminderNotificationLink />
           <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
             <Stack.Screen name="(tabs)" />

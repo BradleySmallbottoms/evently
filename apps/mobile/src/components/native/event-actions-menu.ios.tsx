@@ -13,6 +13,9 @@ type Props = {
   onShare: () => void;
   onCopyLink: () => void;
   onReport: () => void;
+  /** Shown only while a reminder can still be set or changed. */
+  remindLabel?: string;
+  onRemind?: () => void;
   buttonStyle?: StyleProp<ViewStyle>;
 };
 
@@ -25,6 +28,8 @@ export function EventActionsMenu({
   onShare,
   onCopyLink,
   onReport,
+  remindLabel,
+  onRemind,
   buttonStyle,
 }: Props) {
   return (
@@ -52,6 +57,15 @@ export function EventActionsMenu({
             label={shareLabel}
           />
           <Button systemImage="link" onPress={onCopyLink} label={copyLinkLabel} />
+          {remindLabel && onRemind ? (
+            <Button
+              systemImage="bell"
+              onPress={() => {
+                setTimeout(onRemind, 300);
+              }}
+              label={remindLabel}
+            />
+          ) : null}
           <Divider />
           <Button
             systemImage="exclamationmark.triangle"

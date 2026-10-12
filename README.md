@@ -220,8 +220,11 @@ calls) in the same change as every new major feature.**
   `{ type: 'event.published', eventId }` best-effort after the DB write. Without
   `DOMAIN_EVENTS_QUEUE_URL`, APIs keep events in-process and the worker idles.
 - Worker fan-out: nearby (areas ∩ interests) + publisher followers → always insert
-  `notifications` inbox row → silent Expo push (data + badge). Quiet hours + 5/day OS-notification
-  cap are enforced on the mobile client (local notification vs badge only). Inbox list/badge via
+  `notifications` inbox row → silent Expo push (data + badge, no alert). The icon badge updates
+  from that payload. A banner is a local notification the app posts from a headless task, and
+  only outside quiet hours, under the 5/day cap, and when the app is not in the foreground.
+  iOS needs `enableBackgroundRemoteNotifications` (a new native build) or the task never runs
+  and you only see the badge. Inbox list/badge via
   `GET /me/notifications` (`unreadCount`). Rows older than 90 days are purged. Toggle quiet hours
   with `PUT /me/quiet-hours`. Follow via `POST /v1/me/subscriptions`. Needs `DATABASE_URL` on the
   worker. Flow: [docs/flows/push-and-domain-events.md](docs/flows/push-and-domain-events.md).

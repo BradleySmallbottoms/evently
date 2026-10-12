@@ -1,8 +1,4 @@
-import {
-  DEFAULT_NOTIFICATION_TIMEZONE,
-  DEFAULT_QUIET_HOURS,
-  type QuietHoursPrefs,
-} from '@local-events/domain';
+import { DEFAULT_NOTIFICATION_TIMEZONE, type QuietHoursPrefs } from '@local-events/domain';
 import { isRunningInExpoGo } from 'expo';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
@@ -12,13 +8,21 @@ import { Platform } from 'react-native';
 import { api, throwIfError } from './api';
 import type { StoredIdentity } from './identity';
 import {
+  cacheNotificationPresentationPrefs,
   decideOsNotificationPresentation,
+  defaultQuietHours,
+  loadCachedPresentationPrefs,
   localNotificationCopy,
   recordPresentedOsNotification,
 } from './notification-presentation';
 
 const LAST_TOKEN_KEY = 'le.expoPushToken';
-const ANDROID_CHANNEL = 'events';
+const ANDROID_CHANNEL = 'inbox';
+const presentedInboxIds = new Set<string>();
+
+function pushDebug(step: string, detail: Record<string, unknown> = {}): void {
+  console.log('PUSH received', JSON.stringify({ pushDebug: { step, ...detail } }));
+}
 
 async function readLastToken(): Promise<string | null> {
   if (Platform.OS === 'web') return globalThis.localStorage?.getItem(LAST_TOKEN_KEY) ?? null;
@@ -33,10 +37,26 @@ async function writeLastToken(token: string): Promise<void> {
   await SecureStore.setItemAsync(LAST_TOKEN_KEY, token);
 }
 
-/** Remote pushes stay silent. Scheduled reminders are shown. */
+/**
+ * Reminders and notifications that already have alert text are shown.
+ * Silent inbox pushes have no title; the headless task posts a local notification instead.
+ */
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
-    const show = notification.request.content.data?.kind === 'reminder';
+    const data = notification.request.content.data ?? {};
+    const show =
+      data.kind === 'reminder' ||
+      data.kind === 'local_inbox' ||
+      Boolean(notification.request.content.title);
+    pushDebug('received', {
+      kind: typeof data.kind === 'string' ? data.kind : null,
+      title:
+        notification.request.content.title ?? (typeof data.title === 'string' ? data.title : null),
+      body: notification.request.content.body ?? (typeof data.body === 'string' ? data.body : null),
+      identifier: notification.request.identifier,
+      showBanner: show,
+    });
+
     return {
       shouldShowBanner: show,
       shouldShowList: show,
@@ -51,7 +71,7 @@ export async function ensureAndroidNotificationChannel(): Promise<void> {
   try {
     await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL, {
       name: 'Events',
-      importance: Notifications.AndroidImportance.DEFAULT,
+      importance: Notifications.AndroidImportance.HIGH,
     });
   } catch (err) {
     // Expo Go does not ship the Android notification channel module. Permission
@@ -92,8 +112,7 @@ export async function registerPushToken(
 
   const projectId =
     Constants.easConfig?.projectId ??
-    (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas
-      ?.projectId;
+    (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId;
   if (!projectId) return;
 
   let token: string;
@@ -139,53 +158,97 @@ export type SilentPushHandlers = {
 };
 
 /**
- * Listen for silent inbox pushes. Updates callers (badge/list) and may post a
- * local OS notification when under daily cap and outside quiet hours.
+ * Post a local banner for a silent inbox push when outside quiet hours, under
+ * the daily cap, and the app is not in the foreground.
+ */
+export async function presentSilentInboxNotification(
+  data: InboxPushData,
+  overrides?: { quietHours?: QuietHoursPrefs | null; locale?: string },
+): Promise<boolean> {
+  if (data.kind !== 'inbox') return false;
+  const id = data.notificationId?.trim();
+  if (id) {
+    if (presentedInboxIds.has(id)) return false;
+    presentedInboxIds.add(id);
+  }
+
+  try {
+    const cached =
+      overrides?.quietHours && overrides.locale ? null : await loadCachedPresentationPrefs();
+    const quiet = overrides?.quietHours ?? cached?.quietHours ?? defaultQuietHours();
+    const locale = overrides?.locale ?? cached?.locale ?? 'sv';
+    const present = await decideOsNotificationPresentation({ quietHours: quiet });
+    pushDebug('present', { present, notificationId: id ?? null });
+    if (!present) {
+      if (id) presentedInboxIds.delete(id);
+      return false;
+    }
+
+    await ensureAndroidNotificationChannel();
+    const title =
+      (typeof data.title === 'string' && data.title.trim()) || data.eventTitle?.trim() || 'Event';
+    const bodyFromPush = typeof data.body === 'string' ? data.body.trim() : '';
+    const copy = bodyFromPush
+      ? { title, body: bodyFromPush }
+      : localNotificationCopy(locale, title, data.reason ?? 'nearby');
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: copy.title,
+        body: copy.body,
+        sound: true,
+        data: {
+          kind: 'local_inbox',
+          notificationId: data.notificationId ?? '',
+          eventId: data.eventId ?? '',
+          reason: data.reason ?? 'nearby',
+        },
+        ...(Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL } : {}),
+      },
+      trigger: null,
+    });
+    await recordPresentedOsNotification(quiet.timezone || DEFAULT_NOTIFICATION_TIMEZONE);
+    return true;
+  } catch (err) {
+    if (id) presentedInboxIds.delete(id);
+    console.warn(
+      'local inbox notification failed',
+      err instanceof Error ? err.message : 'unknown error',
+    );
+    return false;
+  }
+}
+
+/**
+ * Foreground listener for silent inbox pushes. Refreshes callers and may post
+ * a local banner. Background and terminated delivery is handled by the headless task.
  */
 export function subscribeSilentPushHandlers(handlers: SilentPushHandlers): () => void {
-  if (Platform.OS === 'web') return () => { };
+  if (Platform.OS === 'web') return () => {};
 
   const sub = Notifications.addNotificationReceivedListener((notification) => {
     void (async () => {
       const data = (notification.request.content.data ?? {}) as InboxPushData;
+      pushDebug('listener', {
+        kind: data.kind ?? null,
+        title: data.title ?? data.eventTitle ?? null,
+        reason: data.reason ?? null,
+        notificationId: data.notificationId ?? null,
+      });
       if (data.kind !== 'inbox') {
         handlers.onInboxPing(data);
         return;
       }
       handlers.onInboxPing(data);
 
-      const quiet =
-        handlers.getQuietHours() ??
-        ({
-          enabled: true,
-          timezone: DEFAULT_NOTIFICATION_TIMEZONE,
-          startMin: DEFAULT_QUIET_HOURS.startMin,
-          endMin: DEFAULT_QUIET_HOURS.endMin,
-        } satisfies QuietHoursPrefs);
+      if (notification.request.content.title) {
+        pushDebug('present', { present: false, reason: 'remote_alert' });
+        return;
+      }
 
-      const present = await decideOsNotificationPresentation({ quietHours: quiet });
-      if (!present) return;
-
-      const title = (typeof data.title === 'string' && data.title.trim()) || data.eventTitle?.trim() || 'Event';
-      const bodyFromPush = typeof data.body === 'string' ? data.body.trim() : '';
-      const copy = bodyFromPush
-        ? { title, body: bodyFromPush }
-        : localNotificationCopy(handlers.getLocale(), title, data.reason ?? 'nearby');
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: copy.title,
-          body: copy.body,
-          data: {
-            kind: 'local_inbox',
-            notificationId: data.notificationId ?? '',
-            eventId: data.eventId ?? '',
-            reason: data.reason ?? 'nearby',
-          },
-          ...(Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL } : {}),
-        },
-        trigger: null,
-      });
-      await recordPresentedOsNotification(quiet.timezone || DEFAULT_NOTIFICATION_TIMEZONE);
+      const quietHours = handlers.getQuietHours();
+      const locale = handlers.getLocale();
+      await cacheNotificationPresentationPrefs({ locale, quietHours });
+      await presentSilentInboxNotification(data, { quietHours, locale });
     })();
   });
 

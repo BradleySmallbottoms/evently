@@ -90,8 +90,8 @@ Add plugins and permission texts to `apps/mobile/app.json` (adjust wording; Swed
     "name": "Local Events",
     "slug": "local-events",
     "scheme": "localevents",
-    "ios": { "bundleIdentifier": "se.example.localevents" },
-    "android": { "package": "se.example.localevents" },
+    "ios": { "bundleIdentifier": "se.candybanana.lcly" },
+    "android": { "package": "se.candybanana.lcly" },
     "plugins": [
       [
         "expo-location",

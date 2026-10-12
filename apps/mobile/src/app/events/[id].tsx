@@ -290,6 +290,9 @@ export default function EventDetailScreen() {
   }
 
   const priceLabel = krPriceLabel(event.data?.priceAmount);
+  const offerReminder = event.data
+    ? canOfferEventReminder(new Date(event.data.startsAt), new Date())
+    : false;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
@@ -381,8 +384,9 @@ export default function EventDetailScreen() {
                 onPress={toggleSaved}
               />
               <CircleIconButton
-                sf="square.and.arrow.up"
-                md="share"
+                sf="arrowshape.turn.up.right"
+                md="shortcut"
+                iconSize={22}
                 accessibilityLabel={t('events.share')}
                 onPress={() => void shareEvent()}
               />
@@ -464,6 +468,14 @@ export default function EventDetailScreen() {
                       onShare={() => void shareEvent()}
                       onCopyLink={() => void copyLink()}
                       onReport={() => setReportOpen(true)}
+                      remindLabel={
+                        offerReminder
+                          ? reminderOn
+                            ? t('events.remindMeOn')
+                            : t('events.remindMe')
+                          : undefined
+                      }
+                      onRemind={offerReminder ? openReminderPicker : undefined}
                       buttonStyle={{ width: 32, height: 32 }}
                     />
                   </View>
@@ -607,15 +619,7 @@ export default function EventDetailScreen() {
                   />
                 ) : ratingStatus.data?.hasRated ? (
                   <PrimaryButton label={t('events.rateDone')} disabled />
-                ) : !event.data.checkInEnabled ? (
-                  canOfferEventReminder(new Date(event.data.startsAt), new Date()) ? (
-                    <PrimaryButton
-                      label={reminderOn ? t('events.remindMeOn') : t('events.remindMe')}
-                      loading={saveReminder.isPending || clearReminder.isPending}
-                      onPress={openReminderPicker}
-                    />
-                  ) : null
-                ) : checkInStatus.data?.checkedIn ? (
+                ) : event.data.checkInEnabled && checkInStatus.data?.checkedIn ? (
                   <PrimaryButton label={t('events.checkInDone')} disabled />
                 ) : event.data.mode === 'physical' ? (
                   <View style={{ gap: space.md }}>
@@ -658,12 +662,6 @@ export default function EventDetailScreen() {
                     hint={t('events.checkInCodeHint')}
                     placeholder={t('events.checkInCodePlaceholder')}
                     submitLabel={t('events.checkInWithCode')}
-                  />
-                ) : canOfferEventReminder(new Date(event.data.startsAt), new Date()) ? (
-                  <PrimaryButton
-                    label={reminderOn ? t('events.remindMeOn') : t('events.remindMe')}
-                    loading={saveReminder.isPending || clearReminder.isPending}
-                    onPress={openReminderPicker}
                   />
                 ) : null}
                 {reminderNotice ? <AppText variant="caption">{reminderNotice}</AppText> : null}

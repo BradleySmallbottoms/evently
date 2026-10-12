@@ -1,9 +1,9 @@
 import * as Clipboard from 'expo-clipboard';
 import { Platform, Share } from 'react-native';
 
-import { buildEventWebUrl, eventShareMessage } from './event-share-url';
+import { buildEventWebUrl, eventShareContent } from './event-share-url';
 
-export { buildEventWebUrl, eventShareMessage, webBaseUrl } from './event-share-url';
+export { buildEventWebUrl, eventShareContent, eventShareMessage, webBaseUrl } from './event-share-url';
 
 export type ShareEventResult = 'shared' | 'copied' | 'dismissed';
 
@@ -18,7 +18,7 @@ function isAbortError(error: unknown): boolean {
 
 /**
  * Opens the OS share sheet (Messages, Messenger, Facebook, Mail, Copy, …)
- * with the public event URL in the shared text.
+ * with the public event link.
  * On web, uses the browser share sheet, then the clipboard.
  */
 export async function shareEventLink(input: {
@@ -26,13 +26,18 @@ export async function shareEventLink(input: {
   eventId: string;
 }): Promise<ShareEventResult> {
   const url = buildEventWebUrl(input.eventId);
-  const message = eventShareMessage(input.title, url);
+  const platform = Platform.OS === 'android' ? 'android' : Platform.OS === 'web' ? 'web' : 'ios';
+  const content = eventShareContent(input.title, url, platform);
 
-  if (Platform.OS === 'web') {
+  if (platform === 'web') {
     const nav = typeof navigator !== 'undefined' ? navigator : undefined;
     if (nav && typeof nav.share === 'function') {
       try {
-        await nav.share({ title: input.title, text: input.title, url });
+        await nav.share({
+          title: content.title,
+          text: content.message,
+          url: content.url ?? url,
+        });
         return 'shared';
       } catch (error) {
         if (isAbortError(error)) return 'dismissed';
@@ -44,8 +49,10 @@ export async function shareEventLink(input: {
 
   const present = () =>
     Share.share(
-      Platform.OS === 'android' ? { title: input.title, message } : { message },
-      { subject: input.title },
+      platform === 'android'
+        ? { title: content.title, message: content.message ?? url }
+        : { url: content.url ?? url },
+      { subject: input.title, dialogTitle: input.title },
     );
 
   try {

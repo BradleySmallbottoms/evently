@@ -64,6 +64,10 @@ with the earliest copy plus “And N more…”.
   token exists).
 - Mobile may post a local OS notification only outside quiet hours, under the 5/day cap, and
   when the app is not in the foreground.
+- That local banner is posted from a headless task (`expo-task-manager`), because a data-only
+  push does not show a system banner. iOS delivers it only when `UIBackgroundModes` includes
+  `remote-notification` (`enableBackgroundRemoteNotifications` on the expo-notifications plugin).
+  That plist value needs a new native build.
 
 ## Retention
 

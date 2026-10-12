@@ -450,7 +450,7 @@ async function deliverBundleToUser(
   try {
     tickets = await deps.expo.send(messages);
   } catch (err) {
-    console.error('silent expo push failed; inbox rows kept', err);
+    console.error('expo push failed; inbox rows kept', err);
     pushDebug({
       step: 'expo_send_error',
       userId: input.userId,

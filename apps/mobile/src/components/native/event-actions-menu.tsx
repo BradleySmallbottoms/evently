@@ -14,6 +14,9 @@ type Props = {
   onShare: () => void;
   onCopyLink: () => void;
   onReport: () => void;
+  /** Shown only while a reminder can still be set or changed. */
+  remindLabel?: string;
+  onRemind?: () => void;
   buttonStyle?: StyleProp<ViewStyle>;
 };
 
@@ -26,6 +29,8 @@ export function EventActionsMenu({
   onShare,
   onCopyLink,
   onReport,
+  remindLabel,
+  onRemind,
   buttonStyle,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -57,6 +62,15 @@ export function EventActionsMenu({
               }}
             />
             <ActionRow label={copyLinkLabel} onPress={() => run(onCopyLink)} />
+            {remindLabel && onRemind ? (
+              <ActionRow
+                label={remindLabel}
+                onPress={() => {
+                  setOpen(false);
+                  setTimeout(onRemind, 300);
+                }}
+              />
+            ) : null}
             <ActionRow label={reportLabel} danger onPress={() => run(onReport)} />
           </Column>
         </BottomSheet>

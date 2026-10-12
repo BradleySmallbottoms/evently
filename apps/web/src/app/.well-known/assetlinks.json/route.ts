@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-const ANDROID_PACKAGE = process.env.ANDROID_PACKAGE ?? 'se.example.localevents';
+const ANDROID_PACKAGE = process.env.ANDROID_PACKAGE ?? 'se.candybanana.lcly';
 
 /**
  * Android App Links Digital Asset Links.

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-const IOS_BUNDLE_ID = process.env.IOS_BUNDLE_ID ?? 'se.example.localevents';
+const IOS_BUNDLE_ID = process.env.IOS_BUNDLE_ID ?? 'se.candybanana.lcly';
 
 /**
  * Apple Universal Links association.

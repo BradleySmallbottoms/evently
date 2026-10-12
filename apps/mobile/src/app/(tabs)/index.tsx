@@ -2,14 +2,18 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  View,
+} from 'react-native';
 
 import { LocationMenu } from '@/components/native/location-menu';
 import { NotificationsSheet } from '@/components/native/notifications-sheet';
-import {
-  PairingSheet,
-  type PairingSheetTab,
-} from '@/components/native/pairing-sheet';
+import { PairingSheet, type PairingSheetTab } from '@/components/native/pairing-sheet';
 import { RegionSuggestionSheet } from '@/components/native/region-suggestion-sheet';
 import { AppText } from '@/components/ui/app-text';
 import { EventCard } from '@/components/ui/event-card';
@@ -23,7 +27,6 @@ import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
-import { subscribeSilentPushHandlers } from '@/lib/push-notifications';
 import {
   acceptRegionSuggestion,
   bumpRegionActivity,
@@ -95,16 +98,6 @@ export default function HomeScreen() {
   useEffect(() => {
     void bumpRegionActivity();
   }, []);
-
-  useEffect(() => {
-    return subscribeSilentPushHandlers({
-      getQuietHours: () => preferences.data?.quietHours,
-      getLocale: () => locale,
-      onInboxPing: () => {
-        void queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      },
-    });
-  }, [preferences.data?.quietHours, locale, queryClient]);
 
   useEffect(() => {
     if (!identity.isSuccess || !preferences.isSuccess) return;
@@ -223,12 +216,7 @@ export default function HomeScreen() {
   async function refreshHome() {
     setRefreshing(true);
     try {
-      await Promise.all([
-        identity.refetch(),
-        point.refetch(),
-        events.refetch(),
-        forYou.refetch(),
-      ]);
+      await Promise.all([identity.refetch(), point.refetch(), events.refetch(), forYou.refetch()]);
     } finally {
       setRefreshing(false);
     }
@@ -278,24 +266,24 @@ export default function HomeScreen() {
                 {t('home.title')}
               </AppText>
               <View style={{ flexShrink: 1, minWidth: 0, marginLeft: 'auto', maxWidth: '58%' }}>
-              <LocationMenu
-                // eyebrow={t('events.currentLocation')}
-                locationLabel={locationLabel}
-                title={t('events.locationPickerTitle')}
-                message={t('events.locationPickerMessage')}
-                useNearbyLabel={t('events.useNearby')}
-                useFallbackLabel={t('events.useSoderhamn')}
-                isPresented={locationOpen}
-                onIsPresentedChange={setLocationOpen}
-                onUseNearby={() => {
-                  setUseFallbackCenter(false);
-                  void point.refetch();
-                }}
-                onUseFallback={() => {
-                  setUseFallbackCenter(true);
-                  void point.refetch();
-                }}
-              />
+                <LocationMenu
+                  // eyebrow={t('events.currentLocation')}
+                  locationLabel={locationLabel}
+                  title={t('events.locationPickerTitle')}
+                  message={t('events.locationPickerMessage')}
+                  useNearbyLabel={t('events.useNearby')}
+                  useFallbackLabel={t('events.useSoderhamn')}
+                  isPresented={locationOpen}
+                  onIsPresentedChange={setLocationOpen}
+                  onUseNearby={() => {
+                    setUseFallbackCenter(false);
+                    void point.refetch();
+                  }}
+                  onUseFallback={() => {
+                    setUseFallbackCenter(true);
+                    void point.refetch();
+                  }}
+                />
               </View>
             </View>
 
@@ -305,7 +293,10 @@ export default function HomeScreen() {
                 onChangeText={() => {}}
                 placeholder={t('events.searchPlaceholder')}
                 onPress={() =>
-                  router.navigate({ pathname: '/(tabs)/search', params: { focus: String(Date.now()) } })
+                  router.navigate({
+                    pathname: '/(tabs)/search',
+                    params: { focus: String(Date.now()) },
+                  })
                 }
               />
             </View>
@@ -414,12 +405,18 @@ export default function HomeScreen() {
               </AppText>
             )}
             {identity.isError && (
-              <AppText variant="caption" style={{ paddingHorizontal: space.xl, color: colors.danger }}>
+              <AppText
+                variant="caption"
+                style={{ paddingHorizontal: space.xl, color: colors.danger }}
+              >
                 {t('home.identityError')}
               </AppText>
             )}
             {events.isError && (
-              <AppText variant="caption" style={{ paddingHorizontal: space.xl, color: colors.danger }}>
+              <AppText
+                variant="caption"
+                style={{ paddingHorizontal: space.xl, color: colors.danger }}
+              >
                 {t('events.loadError')}
               </AppText>
             )}

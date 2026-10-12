@@ -19,3 +19,4 @@ minimumReleaseAgeExclude:
   - expo-dev-client@57.0.20
   - expo-dev-launcher@57.0.21
   - expo-dev-menu@57.0.20
+  - expo-updates@57.0.26

@@ -155,7 +155,7 @@
     "online": "Online",
     "missingVenue": "Plats ej angiven",
     "missingUrl": "Lank saknas",
-    "status": "Status",
+    "statusLabel": "Status",
     "noDescription": "Ingen beskrivning annu.",
     "coordinates": "Koordinater",
     "statsLine": "{checkIns} incheckningar · {average} snitt ({ratings} betyg)",

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildEventWebUrl,
+  eventShareContent,
   eventShareMessage,
   webBaseUrl,
 } from '../../../apps/mobile/src/lib/event-share-url';
@@ -34,6 +35,15 @@ describe('event-share', () => {
     const url = 'https://events.example.com/events/abc-123';
     expect(eventShareMessage('Jazz på Bryggan', url)).toBe(`Jazz på Bryggan\n${url}`);
     expect(eventShareMessage('  ', url)).toBe(url);
+  });
+
+  it('shares the event link on iOS and Android', () => {
+    const url = 'https://events.example.com/events/abc-123';
+    const ios = eventShareContent('Jazz på Bryggan', url, 'ios');
+    const android = eventShareContent('Jazz på Bryggan', url, 'android');
+    expect(ios).toEqual({ url });
+    expect(android.message).toContain(url);
+    expect(android.url).toBeUndefined();
   });
 
   it('throws outside development when the env URL is missing', () => {

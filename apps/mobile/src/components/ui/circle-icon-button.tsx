@@ -16,6 +16,8 @@ type Props = {
   /** Icon only, no circular fill. Use on photos. */
   plain?: boolean;
   tintColor?: string;
+  /** Glyph size. Defaults to 20 on iOS and 22 elsewhere. */
+  iconSize?: number;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel: string;
 };
@@ -27,6 +29,7 @@ export function CircleIconButton({
   badge,
   plain,
   tintColor,
+  iconSize,
   style,
   accessibilityLabel,
 }: Props) {
@@ -62,9 +65,9 @@ export function CircleIconButton({
       ]}
     >
       {process.env.EXPO_OS === 'ios' ? (
-        <SymbolView name={sf as never} size={20} tintColor={tint} />
+        <SymbolView name={sf as never} size={iconSize ?? 20} tintColor={tint} />
       ) : (
-        <MaterialIcons name={md} size={22} color={tint} />
+        <MaterialIcons name={md} size={iconSize ?? 22} color={tint} />
       )}
       {badge ? (
         <View

@@ -155,7 +155,7 @@
     "online": "Online",
     "missingVenue": "Venue not specified",
     "missingUrl": "Link not provided",
-    "status": "Status",
+    "statusLabel": "Status",
     "noDescription": "No description yet.",
     "coordinates": "Coordinates",
     "statsLine": "{checkIns} check-ins · {average} avg ({ratings} ratings)",
