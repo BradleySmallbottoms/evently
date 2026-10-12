@@ -12,7 +12,6 @@ import {
 } from '@/components/native/pairing-sheet';
 import { RegionSuggestionSheet } from '@/components/native/region-suggestion-sheet';
 import { AppText } from '@/components/ui/app-text';
-import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { EventCard } from '@/components/ui/event-card';
 import { EventListItem } from '@/components/ui/event-list-item';
 import { SearchBar } from '@/components/ui/search-bar';
@@ -56,6 +55,7 @@ export default function HomeScreen() {
   const [useFallbackCenter, setUseFallbackCenter] = useState(false);
   const [regionSuggestion, setRegionSuggestion] = useState<RegionSuggestion | null>(null);
   const [regionSheetOpen, setRegionSheetOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const { identity, preferences, point } = useDiscoveryPoint(useFallbackCenter);
   const tags = useQuery({
@@ -81,6 +81,10 @@ export default function HomeScreen() {
     queryFn: () => listSavedEvents(identity.data!),
   });
   const savedIds = new Set((saved.data?.items ?? []).map((item) => item.id));
+  const savedIdKey = useMemo(
+    () => (saved.data?.items ?? []).map((item) => item.id).join('\n'),
+    [saved.data],
+  );
   const inbox = useQuery({
     queryKey: ['notifications', identity.data?.userId],
     enabled: identity.isSuccess,
@@ -216,6 +220,20 @@ export default function HomeScreen() {
     void next.then(() => queryClient.invalidateQueries({ queryKey: ['saved-events'] }));
   }
 
+  async function refreshHome() {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        identity.refetch(),
+        point.refetch(),
+        events.refetch(),
+        forYou.refetch(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   const locationLabel = useFallbackCenter
     ? t('events.locationSoderhamn')
     : t('events.locationNearby');
@@ -234,12 +252,9 @@ export default function HomeScreen() {
         onEndReachedThreshold={0.4}
         refreshControl={
           <RefreshControl
-            refreshing={(events.isRefetching && !events.isFetchingNextPage) || identity.isRefetching}
+            refreshing={refreshing}
             onRefresh={() => {
-              void identity.refetch();
-              void point.refetch();
-              void events.refetch();
-              void forYou.refetch();
+              void refreshHome();
             }}
             tintColor={colors.accent}
           />
@@ -410,11 +425,7 @@ export default function HomeScreen() {
             )}
           </View>
         }
-        extraData={{
-          savedIds: [...savedIds],
-          eventsStatus: events.status,
-          identityStatus: identity.status,
-        }}
+        extraData={savedIdKey}
         ListFooterComponent={
           events.isFetchingNextPage ? (
             <AppText variant="caption" style={{ paddingHorizontal: space.xl, textAlign: 'center' }}>
@@ -467,7 +478,9 @@ export default function HomeScreen() {
               ? t('events.notificationReasonPublisher')
               : n.reason === 'event'
                 ? t('events.notificationReasonEvent')
-                : t('events.notificationReasonNearby'),
+                : n.reason === 'broadcast'
+                  ? t('events.notificationReasonBroadcast')
+                  : t('events.notificationReasonNearby'),
           eventId: n.eventId,
         }))}
         onOpenEvent={(eventId) => {

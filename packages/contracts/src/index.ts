@@ -53,6 +53,7 @@ export * from './events';
 export * from './library';
 export * from './event-content';
 export * from './notifications';
+export * from './push-messages';
 export * from './preferences';
 export * from './profile';
 export * from './ratings';

@@ -2,6 +2,7 @@ import type { Db } from '@local-events/db';
 import { pointEwkt, schema } from '@local-events/db';
 import { slugifyPublisherName, tagSlug } from '@local-events/domain';
 import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { upsertEventPushDraft } from './push-messages/drafts';
 import type { ImportedEventWrite, IngestStore, NearbyEvent } from './store';
 
 const NEAR_MS = 30 * 60 * 1000;
@@ -343,6 +344,9 @@ export function createDbIngestStore(db: Db): IngestStore {
             contentType: input.contentType,
           },
         });
+    },
+    async upsertPushDraft(input) {
+      await upsertEventPushDraft(db, input);
     },
   };
 }

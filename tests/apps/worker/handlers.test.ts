@@ -4,10 +4,10 @@ import { processMessage } from '../../../apps/worker/src/handlers';
 const EVENT_ID = '11111111-1111-4111-8111-111111111101';
 
 describe('processMessage', () => {
-  it('fails closed when notify deps are missing', async () => {
+  it('handles event.published without notify deps (stats optional)', async () => {
     await expect(
       processMessage(JSON.stringify({ type: 'event.published', eventId: EVENT_ID })),
-    ).rejects.toThrow('notify_unavailable');
+    ).resolves.toBe('event.published');
   });
   it('rejects unknown types', async () => {
     await expect(processMessage(JSON.stringify({ type: 'nope' }))).rejects.toThrow();

@@ -28,6 +28,10 @@ import {
   createDbAdminPublisherServices,
   createMemoryAdminPublisherServices,
 } from './services/publishers';
+import {
+  createDbAdminPushMessageServices,
+  createMemoryAdminPushMessageServices,
+} from './services/push-messages';
 import { initSentry } from './sentry';
 
 initSentry('admin-api');
@@ -51,7 +55,7 @@ const corsOrigin =
     : corsOriginList;
 
 const authStore = createAdminMemoryAuthStore();
-const { auth, publishers, events, dataSources, audit, moderation } = (() => {
+const { auth, publishers, events, dataSources, audit, moderation, pushMessages } = (() => {
   if (databaseUrl) {
     const db = createDb(databaseUrl);
     const auditSvc = createDbAdminAuditServices(db);
@@ -62,6 +66,7 @@ const { auth, publishers, events, dataSources, audit, moderation } = (() => {
       dataSources: createDbAdminDataSourceServices(db),
       audit: auditSvc,
       moderation: createDbAdminModerationServices(db, { audit: auditSvc }),
+      pushMessages: createDbAdminPushMessageServices(db),
     };
   }
   const auditSvc = createMemoryAdminAuditServices();
@@ -84,6 +89,7 @@ const { auth, publishers, events, dataSources, audit, moderation } = (() => {
       { users: new Map(), ratings: new Map(), checkIns: new Map() },
       { audit: auditSvc },
     ),
+    pushMessages: createMemoryAdminPushMessageServices(),
   };
 })();
 
@@ -121,6 +127,7 @@ serve(
       dataSources,
       audit,
       moderation,
+      pushMessages,
       corsOrigin,
     }).fetch,
     port,

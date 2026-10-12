@@ -118,8 +118,13 @@ export async function reconcileGrantedPermissions(
   return next;
 }
 
+/**
+ * Ask for OS notification permission. Token upload is best-effort and must not
+ * block onboarding — Expo push registration / API calls can hang on simulators
+ * or when the API is briefly unreachable.
+ */
 export async function requestNotificationPermission(
-  identity: StoredIdentity,
+  identity: StoredIdentity | null,
 ): Promise<PermissionChoice> {
   if (Platform.OS === 'web') {
     // Web push registration is not wired; treat Activate as acknowledged so we
@@ -127,8 +132,20 @@ export async function requestNotificationPermission(
     return 'granted';
   }
   try {
-    await registerPushToken(identity, { request: true });
-    const { status } = await Notifications.getPermissionsAsync();
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let status = existing;
+    if (existing !== 'granted') {
+      const asked = await Notifications.requestPermissionsAsync();
+      status = asked.status;
+    }
+    if (status === 'granted' && identity) {
+      void registerPushToken(identity).catch((err) => {
+        console.warn(
+          'push token registration failed',
+          err instanceof Error ? err.message : 'unknown error',
+        );
+      });
+    }
     return status === 'granted' ? 'granted' : 'denied';
   } catch {
     try {

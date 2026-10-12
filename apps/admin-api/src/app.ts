@@ -33,6 +33,10 @@ import {
   type AdminMemoryStore,
   type AdminPublisherServices,
 } from './services/publishers';
+import {
+  createMemoryAdminPushMessageServices,
+  type AdminPushMessageServices,
+} from './services/push-messages';
 import { Sentry } from './sentry';
 
 export type CreateAdminAppOptions = {
@@ -42,6 +46,7 @@ export type CreateAdminAppOptions = {
   dataSources?: AdminDataSourceServices;
   audit?: AdminAuditServices;
   moderation?: AdminModerationServices;
+  pushMessages?: AdminPushMessageServices;
   authStore?: AdminMemoryAuthStore;
   publisherStore?: AdminMemoryStore;
   eventStore?: AdminEventMemoryStore;
@@ -87,6 +92,7 @@ export function createApp(options: CreateAdminAppOptions = {}) {
       { users: new Map(), ratings: new Map(), checkIns: new Map() },
       { audit },
     );
+  const pushMessages = options.pushMessages ?? createMemoryAdminPushMessageServices();
 
   app.onError((err, c) => {
     Sentry.captureException(err);
@@ -113,7 +119,7 @@ export function createApp(options: CreateAdminAppOptions = {}) {
     Sentry.captureException(err);
     return c.json({ error: { code: 'internal_error', message: 'Internal server error' } }, 500);
   });
-  registerRoutes(api, { auth, publishers, events, dataSources, audit, moderation });
+  registerRoutes(api, { auth, publishers, events, dataSources, audit, moderation, pushMessages });
   api.doc('/openapi.json', {
     openapi: '3.1.0',
     info: { title: 'Local Events admin API', version: `${API_VERSION}.0.0` },

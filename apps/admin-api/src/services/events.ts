@@ -9,7 +9,7 @@ import type {
   EventLink,
 } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
-import { pointEwkt, schema } from '@local-events/db';
+import { cancelOpenPushMessages, pointEwkt, schema } from '@local-events/db';
 import {
   canApproveImportedEvent,
   canRejectImportedEvent,
@@ -20,6 +20,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { AdminAuditServices } from './audit';
 import { noopAudit } from './audit';
 import { createMemoryDomainEventPublisher } from './domain-events/memory';
+import { upsertEventPushDraft } from './push-drafts/drafts';
 import { enqueueDomainEvent, type DomainEventPublisher } from './domain-events/types';
 
 export class AdminEventError extends Error {
@@ -665,7 +666,13 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
     },
     async approve(eventId, actor) {
       const [row] = await db
-        .select({ id: schema.events.id, status: schema.events.status })
+        .select({
+          id: schema.events.id,
+          status: schema.events.status,
+          title: schema.events.title,
+          origin: schema.events.origin,
+          publisherId: schema.events.publisherId,
+        })
         .from(schema.events)
         .where(eq(schema.events.id, eventId))
         .limit(1);
@@ -677,6 +684,19 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .where(and(eq(schema.events.id, eventId), eq(schema.events.status, 'in_review')))
         .returning({ id: schema.events.id });
       if (!updated[0]) return null;
+      const [publisher] = await db
+        .select({ verified: schema.publishers.verified })
+        .from(schema.publishers)
+        .where(eq(schema.publishers.id, row.publisherId))
+        .limit(1);
+      await upsertEventPushDraft(db, {
+        eventId,
+        eventTitle: row.title,
+        publisherVerified: publisher?.verified ?? false,
+        origin: row.origin,
+        sourceTrust: 'review',
+        now: at,
+      });
       if (shouldEnqueueNotifications('published')) {
         await enqueueDomainEvent(domainEvents, { type: 'event.published', eventId });
       }
@@ -704,6 +724,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .where(and(eq(schema.events.id, eventId), eq(schema.events.status, 'in_review')))
         .returning({ id: schema.events.id });
       if (!updated[0]) return null;
+      await cancelOpenPushMessages(db, eventId, at);
       await audit.write({
         actor,
         action: 'event.reject',
@@ -760,6 +781,26 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .where(eq(schema.events.id, eventId));
       if (body.tagIds) await replaceTags(eventId, body.tagIds);
       if (body.links) await replaceLinks(eventId, body.links);
+      if (nextStatus === 'cancelled' && existing.status !== 'cancelled') {
+        await cancelOpenPushMessages(db, eventId, at);
+      } else if (
+        nextStatus === 'published' ||
+        nextStatus === 'awaiting_verification' ||
+        nextStatus === 'in_review'
+      ) {
+        const [publisher] = await db
+          .select({ verified: schema.publishers.verified })
+          .from(schema.publishers)
+          .where(eq(schema.publishers.id, existing.publisherId))
+          .limit(1);
+        await upsertEventPushDraft(db, {
+          eventId,
+          eventTitle: body.title ?? existing.title,
+          publisherVerified: publisher?.verified ?? false,
+          origin: existing.origin,
+          now: at,
+        });
+      }
       if (nextStatus === 'published' && existing.status !== 'published') {
         await enqueueDomainEvent(domainEvents, { type: 'event.published', eventId });
       } else if (

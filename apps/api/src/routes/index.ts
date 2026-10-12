@@ -10,6 +10,7 @@ import type { RegionServices } from '../services/regions/types';
 import type { StatsServices } from '../services/stats/types';
 import type { LibraryServices } from '../services/library/types';
 import type { SubscriptionServices } from '../services/subscriptions/types';
+import type { PublisherPushMessageServices } from '../services/push-messages/publisher';
 import { registerAssetRoutes } from './assets';
 import { registerTagRoutes } from './tags';
 import { registerCheckInRoutes } from './check-ins';
@@ -20,6 +21,7 @@ import { registerLibraryRoutes } from './library';
 import { registerMeRoutes } from './me';
 import { registerPairingRoutes } from './pairing';
 import { registerPublisherRoutes } from './publishers';
+import { registerPublisherPushMessageRoutes } from './push-messages';
 import { registerRatingRoutes } from './ratings';
 import { registerRegionRoutes } from './regions';
 import { registerSessionRoutes } from './sessions';
@@ -38,6 +40,7 @@ export type ApiRouteServices = {
   eventContent: EventContentServices;
   ratings: RatingServices;
   stats: StatsServices;
+  pushMessages: PublisherPushMessageServices;
 };
 
 /**
@@ -60,6 +63,7 @@ export function registerRoutes(
   registerAssetRoutes(app, options.assetsPublicBaseUrl);
   registerTagRoutes(app, services.events);
   registerEventRoutes(app, services.events);
+  registerPublisherPushMessageRoutes(app, services.pushMessages);
   registerCheckInRoutes(app, services.checkIns);
   registerEventContentRoutes(app, services.eventContent);
   registerRatingRoutes(app, services.ratings);

@@ -43,6 +43,7 @@ export function EditEventForm() {
   const [pendingSave, setPendingSave] = useState(false);
   const [pendingPublish, setPendingPublish] = useState(false);
   const [pendingCancel, setPendingCancel] = useState(false);
+  const [pendingNotify, setPendingNotify] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [mode, setMode] = useState<EventMode>('physical');
@@ -60,6 +61,24 @@ export function EditEventForm() {
           params: { path: { id: eventId } },
         }),
       ),
+    retry: false,
+  });
+
+  const pushDraft = useQuery({
+    queryKey: ['event-push-draft', eventId],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/manage/events/${eventId}/push-message`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('push_draft_load_failed');
+      return (await res.json()) as {
+        pushMessage: {
+          id: string;
+          status: string;
+        } | null;
+      };
+    },
+    enabled: Boolean(eventId),
     retry: false,
   });
 
@@ -225,6 +244,27 @@ export function EditEventForm() {
     }
   }
 
+  async function notifyAgain() {
+    setPendingNotify(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`${API_URL}/manage/events/${eventId}/push-message`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error('notify_failed');
+      await pushDraft.refetch();
+      setNotice(t('notifyAgainCreated'));
+    } catch {
+      setError(t('notifyAgainError'));
+    } finally {
+      setPendingNotify(false);
+    }
+  }
+
   if (eventQuery.isPending) {
     return (
       <Typography variant="body2" color="text.secondary">
@@ -356,6 +396,17 @@ export function EditEventForm() {
         ) : null}
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="success">{notice}</Alert>}
+        {pushDraft.data?.pushMessage ? (
+          <Alert severity="info">
+            {t('pushDraftStatus', { status: pushDraft.data.pushMessage.status })}
+          </Alert>
+        ) : null}
+        {!pushDraft.data?.pushMessage &&
+        (event.status === 'published' ||
+          event.status === 'awaiting_verification' ||
+          event.status === 'in_review') ? (
+          <Alert severity="info">{t('notifyAgainHint')}</Alert>
+        ) : null}
         <Stack sx={styles.actions}>
           <Button type="submit" variant="contained" disabled={pendingSave}>
             {t('saveChanges')}
@@ -368,6 +419,20 @@ export function EditEventForm() {
             disabled={pendingPublish}
           >
             {t('publish')}
+          </Button>
+          <Button
+            type="button"
+            variant="outlined"
+            onClick={notifyAgain}
+            disabled={
+              pendingNotify ||
+              Boolean(pushDraft.data?.pushMessage) ||
+              event.status === 'draft' ||
+              event.status === 'cancelled' ||
+              event.status === 'ended'
+            }
+          >
+            {t('notifyAgain')}
           </Button>
           <Button
             type="button"

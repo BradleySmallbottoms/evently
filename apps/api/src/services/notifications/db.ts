@@ -8,7 +8,7 @@ export function createDbNotificationServices(
   db: Db,
   auth: AuthServices,
 ): NotificationServices {
-  const { notifications, events } = schema;
+  const { notifications, events, pushMessages } = schema;
 
   return {
     async listNotifications(sessionToken) {
@@ -18,6 +18,8 @@ export function createDbNotificationServices(
           id: notifications.id,
           eventId: notifications.eventId,
           eventTitle: events.title,
+          pushTitleSv: pushMessages.titleSv,
+          pushTitleEn: pushMessages.titleEn,
           reason: notifications.reason,
           pushState: notifications.pushState,
           createdAt: notifications.sentAt,
@@ -25,7 +27,8 @@ export function createDbNotificationServices(
           readAt: notifications.readAt,
         })
         .from(notifications)
-        .innerJoin(events, eq(events.id, notifications.eventId))
+        .leftJoin(events, eq(events.id, notifications.eventId))
+        .leftJoin(pushMessages, eq(pushMessages.id, notifications.pushMessageId))
         .where(eq(notifications.userId, userId))
         .orderBy(desc(notifications.sentAt))
         .limit(100);
@@ -39,7 +42,7 @@ export function createDbNotificationServices(
         items: rows.map((r) => ({
           id: r.id,
           eventId: r.eventId,
-          eventTitle: r.eventTitle,
+          eventTitle: r.eventTitle ?? r.pushTitleSv ?? r.pushTitleEn ?? 'Notification',
           reason: r.reason,
           pushState: r.pushState,
           createdAt: r.createdAt.toISOString(),

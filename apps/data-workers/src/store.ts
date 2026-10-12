@@ -66,6 +66,15 @@ export interface IngestStore {
   tagIdsForExternalIds(externalIds: string[]): Promise<string[]>;
   insertImported(input: ImportedEventWrite): Promise<string>;
   updateImported(eventId: string, input: ImportedEventWrite): Promise<void>;
+  /** Optional: create/refresh push draft for imported events. */
+  upsertPushDraft?(input: {
+    eventId: string;
+    eventTitle: string;
+    publisherVerified: boolean;
+    origin: 'imported';
+    sourceTrust: SourceTrust;
+    publisherIsTemporary: boolean;
+  }): Promise<void>;
   linkExisting(input: {
     sourceId: string;
     externalId: string;

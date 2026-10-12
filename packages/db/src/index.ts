@@ -11,6 +11,15 @@ export {
   geographyPolygon,
   geographyMultiPolygon,
 } from './postgis';
+export {
+  approveOpenPushMessagesForPublisher,
+  cancelOpenPushMessages,
+  findLatestSentPushMessage,
+  findOpenPushMessage,
+  insertPushMessage,
+  updatePushMessage,
+  type PushMessageRow,
+} from './push-messages';
 
 /**
  * Prefer DATABASE_URL. In ECS we inject discrete DB_* fields from the RDS secret

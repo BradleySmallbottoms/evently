@@ -13,6 +13,7 @@ import {
   type OnboardingState,
   type PermissionKind,
 } from '@/lib/onboarding';
+import { registerPushToken } from '@/lib/push-notifications';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
 
@@ -43,9 +44,18 @@ export function PermissionReminder({ kind, state, onDone }: Props) {
     try {
       let next = state;
       if (kind === 'notifications') {
-        const identity = await ensureIdentity(locale);
-        const choice = await requestNotificationPermission(identity);
+        const choice = await requestNotificationPermission(null);
         next = await setPermissionChoice(next, 'notifications', choice);
+        if (choice === 'granted') {
+          void ensureIdentity(locale)
+            .then((identity) => registerPushToken(identity))
+            .catch((err) => {
+              console.warn(
+                'push token registration failed',
+                err instanceof Error ? err.message : 'unknown error',
+              );
+            });
+        }
       } else {
         const choice = await requestLocationPermission();
         next = await setPermissionChoice(next, 'location', choice);

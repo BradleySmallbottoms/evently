@@ -66,6 +66,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <Button component={Link} href="/publishers" color="inherit">
                 {t('navPublishers')}
               </Button>
+              <Button component={Link} href="/push-messages" color="inherit">
+                {t('navPushMessages')}
+              </Button>
               <Button component={Link} href="/moderation" color="inherit">
                 {t('navModeration')}
               </Button>

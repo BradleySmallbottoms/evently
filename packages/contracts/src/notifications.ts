@@ -5,12 +5,13 @@ const Id = z.uuid();
 export const NotificationPushState = z.enum(['pending', 'sent', 'aggregated']);
 export type NotificationPushState = z.infer<typeof NotificationPushState>;
 
-export const NotificationReason = z.enum(['nearby', 'publisher', 'event']);
+export const NotificationReason = z.enum(['nearby', 'publisher', 'event', 'broadcast']);
 export type NotificationReason = z.infer<typeof NotificationReason>;
 
 export const NotificationItem = z.object({
   id: Id,
-  eventId: Id,
+  /** Null for admin broadcasts with no linked event. */
+  eventId: Id.nullable(),
   eventTitle: z.string(),
   reason: NotificationReason,
   pushState: NotificationPushState,

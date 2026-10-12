@@ -13,7 +13,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Share,
   TextInput,
   View,
 } from 'react-native';
@@ -45,6 +44,8 @@ import {
   upcomingReminderSlots,
   type ReminderSlot,
 } from '@/lib/reminder-times';
+import { shareEventLink } from '@/lib/event-share';
+import { buildEventWebUrl } from '@/lib/event-share-url';
 import { fetchEventStats } from '@/lib/stats';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
@@ -266,13 +267,26 @@ export default function EventDetailScreen() {
   }
 
   async function shareEvent() {
-    if (!event.data) return;
-    await Share.share({ message: `${event.data.title}` });
+    if (!event.data || typeof id !== 'string') return;
+    try {
+      const result = await shareEventLink({ title: event.data.title, eventId: id });
+      if (result === 'copied') {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert(t('events.share'), t('events.linkCopied'));
+      }
+    } catch {
+      Alert.alert(t('events.share'), t('events.shareLinkError'));
+    }
   }
 
   async function copyLink() {
-    if (!id) return;
-    await Clipboard.setStringAsync(`localevents://events/${id}`);
+    if (typeof id !== 'string') return;
+    try {
+      await Clipboard.setStringAsync(buildEventWebUrl(id));
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert(t('events.copyLink'), t('events.shareLinkError'));
+    }
   }
 
   const priceLabel = krPriceLabel(event.data?.priceAmount);
@@ -348,6 +362,32 @@ export default function EventDetailScreen() {
               </AppText>
             </Pressable>
           </View>
+          {event.data ? (
+            <View
+              style={{
+                position: 'absolute',
+                top: insets.top + space.sm,
+                right: space.lg,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: space.sm,
+              }}
+            >
+              <CircleIconButton
+                tintColor={isSaved ? (colors.accent as string) : undefined}
+                sf={isSaved ? 'heart.fill' : 'heart'}
+                md={isSaved ? 'favorite' : 'favorite-border'}
+                accessibilityLabel={isSaved ? t('events.unfavorite') : t('events.favorite')}
+                onPress={toggleSaved}
+              />
+              <CircleIconButton
+                sf="square.and.arrow.up"
+                md="share"
+                accessibilityLabel={t('events.share')}
+                onPress={() => void shareEvent()}
+              />
+            </View>
+          ) : null}
         </View>
 
         {event.data ? (
@@ -416,24 +456,6 @@ export default function EventDetailScreen() {
                     ) : null}
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <CircleIconButton
-                      plain
-                      tintColor={isSaved ? (colors.accent as string) : (colors.ink as string)}
-                      sf={isSaved ? 'heart.fill' : 'heart'}
-                      md={isSaved ? 'favorite' : 'favorite-border'}
-                      accessibilityLabel={isSaved ? t('events.unfavorite') : t('events.favorite')}
-                      onPress={toggleSaved}
-                      style={{ width: 32, height: 32 }}
-                    />
-                    <CircleIconButton
-                      plain
-                      tintColor={colors.ink as string}
-                      sf="square.and.arrow.up"
-                      md="share"
-                      accessibilityLabel={t('events.share')}
-                      onPress={() => void shareEvent()}
-                      style={{ width: 32, height: 32 }}
-                    />
                     <EventActionsMenu
                       accessibilityLabel={t('events.moreActions')}
                       shareLabel={t('events.share')}

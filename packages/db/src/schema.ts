@@ -50,6 +50,7 @@ export const notificationReason = pgEnum('notification_reason', [
   'nearby',
   'publisher',
   'event',
+  'broadcast',
 ]);
 /**
  * Silent Expo delivery state for an inbox row.
@@ -59,6 +60,29 @@ export const notificationPushState = pgEnum('notification_push_state', [
   'pending',
   'sent',
   'aggregated',
+]);
+/** Lifecycle of an admin-reviewed (or auto-approved) outbound push before inbox fan-out. */
+export const pushMessageStatus = pgEnum('push_message_status', [
+  'pending',
+  'approved',
+  'sending',
+  'sent',
+  'rejected',
+  'cancelled',
+]);
+/** Event-tied fan-out vs admin broadcast. */
+export const pushMessageKind = pgEnum('push_message_kind', ['event', 'broadcast']);
+/** Who should receive the push when it is sent. */
+export const pushAudience = pgEnum('push_audience', [
+  'event_match',
+  'everyone',
+  'tag_interest',
+]);
+/** Per-user delivery of a push message (supports deferral / aggregation). */
+export const pushDeliveryStatus = pgEnum('push_delivery_status', [
+  'pending',
+  'deferred',
+  'sent',
 ]);
 export const subscriptionTarget = pgEnum('subscription_target', ['publisher', 'event']);
 export const checkInMethod = pgEnum('check_in_method', ['geo', 'code']);
@@ -579,7 +603,72 @@ export const eventContent = pgTable(
 );
 
 /**
- * Notification inbox — every match is stored; unique (user, event, reason) for SQS retries.
+ * Outbound push draft — approved (or auto-approved) before the worker fans out.
+ * Inbox rows are created only when the message is actually sent.
+ */
+export const pushMessages = pgTable(
+  'push_messages',
+  {
+    id: id(),
+    /** Null for admin broadcasts that are not tied to one event. */
+    eventId: uuid('event_id').references(() => events.id, { onDelete: 'cascade' }),
+    kind: pushMessageKind('kind').notNull().default('event'),
+    audience: pushAudience('audience').notNull().default('event_match'),
+    /** Required when audience = tag_interest. */
+    audienceTagId: uuid('audience_tag_id').references(() => tags.id, { onDelete: 'set null' }),
+    status: pushMessageStatus('status').notNull().default('pending'),
+    titleSv: text('title_sv').notNull(),
+    bodySv: text('body_sv').notNull(),
+    titleEn: text('title_en').notNull(),
+    bodyEn: text('body_en').notNull(),
+    /** Null = send as soon as approved and (for event kind) the event is published. */
+    sendAt: timestamp('send_at', { withTimezone: true }),
+    /** True when an admin/publisher edited copy; event edits no longer overwrite defaults. */
+    copyEdited: boolean('copy_edited').notNull().default(false),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    approvedByAdminId: uuid('approved_by_admin_id').references(() => adminUsers.id, {
+      onDelete: 'set null',
+    }),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('push_messages_event_id_idx').on(t.eventId),
+    index('push_messages_status_send_at_idx').on(t.status, t.sendAt),
+    index('push_messages_kind_idx').on(t.kind),
+  ],
+);
+
+/**
+ * Per-user delivery state for a push message (deferral / aggregation).
+ */
+export const pushMessageDeliveries = pgTable(
+  'push_message_deliveries',
+  {
+    pushMessageId: uuid('push_message_id')
+      .notNull()
+      .references(() => pushMessages.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: pushDeliveryStatus('status').notNull().default('pending'),
+    deferredUntilMessageId: uuid('deferred_until_message_id').references(() => pushMessages.id, {
+      onDelete: 'set null',
+    }),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pushMessageId, t.userId] }),
+    index('push_message_deliveries_user_status_idx').on(t.userId, t.status),
+    index('push_message_deliveries_deferred_idx').on(t.deferredUntilMessageId),
+  ],
+);
+
+/**
+ * Notification inbox — written only when a push message is sent.
+ * Unique (user, push_message, reason) so later update messages can notify again.
  * Quiet hours + daily OS-notification cap are client-side. `sentAt` = inbox accept time;
  * silent Expo delivery is tracked via `pushState` / `pushedAt`. Rows older than 90 days
  * are purged by the worker.
@@ -591,9 +680,11 @@ export const notifications = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    eventId: uuid('event_id')
-      .notNull()
-      .references(() => events.id, { onDelete: 'cascade' }),
+    /** Null for admin broadcasts with no linked event. */
+    eventId: uuid('event_id').references(() => events.id, { onDelete: 'cascade' }),
+    pushMessageId: uuid('push_message_id').references(() => pushMessages.id, {
+      onDelete: 'set null',
+    }),
     reason: notificationReason('reason').notNull(),
     /** Inbox accept time (daily-cap bucketing). Historical name; not “Expo sent”. */
     sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
@@ -602,9 +693,14 @@ export const notifications = pgTable(
     readAt: timestamp('read_at', { withTimezone: true }),
   },
   (t) => [
-    uniqueIndex('notifications_user_event_reason_idx').on(t.userId, t.eventId, t.reason),
+    uniqueIndex('notifications_user_push_message_reason_idx').on(
+      t.userId,
+      t.pushMessageId,
+      t.reason,
+    ),
     index('notifications_user_sent_at_idx').on(t.userId, t.sentAt),
     index('notifications_push_state_idx').on(t.pushState, t.sentAt),
+    index('notifications_event_id_idx').on(t.eventId),
   ],
 );
 

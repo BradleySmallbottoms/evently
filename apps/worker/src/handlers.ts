@@ -2,8 +2,7 @@ import { DomainEvent as DomainEventSchema, type DomainEvent } from '@local-event
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import { eq } from 'drizzle-orm';
-import type { HandlePublishedDeps } from './notify/handle-published';
-import { handleEventPublished } from './notify/handle-published';
+import type { HandleDuePushDeps } from './notify/handle-due-push';
 import {
   applyCheckInStats,
   applyPublishedStats,
@@ -15,11 +14,13 @@ import {
  * Domain events arrive from SQS. Each type has one handler; handlers must be idempotent
  * because SQS delivers at least once. Stats use incremental adds — nightly reconcile
  * resets lifetime keys from source tables.
+ * Push fan-out runs on a poll of approved `push_messages` (see handleDuePushMessages).
  */
 export type { DomainEvent };
 
 export type HandlerContext = {
-  notify?: HandlePublishedDeps;
+  /** Used for inbox purge on publish and by the due-push poller. */
+  notify?: HandleDuePushDeps;
   db?: Db;
   stats?: StatsWriter;
   now?: () => Date;
@@ -43,17 +44,16 @@ export const handlers: {
   [K in DomainEvent['type']]: Handler<Extract<DomainEvent, { type: K }>>;
 } = {
   'event.published': async (e, ctx) => {
-    if (!ctx.notify) {
-      throw new Error('notify_unavailable');
-    }
-    const result = await handleEventPublished(e.eventId, ctx.notify);
-    console.log(JSON.stringify({ handled: e.type, eventId: e.eventId, ...result }));
+    const now = ctx.now?.() ?? new Date();
+    // Inbox purge runs on the due-push poller; keep publish handler stats-only.
+    console.log(JSON.stringify({ handled: e.type, eventId: e.eventId }));
 
     if (!ctx.stats) return;
-    const db = ctx.db ?? ctx.notify.db;
+    const db = ctx.db ?? ctx.notify?.db;
+    if (!db) return;
     const publisherId = await publisherIdFor(db, e.eventId);
     if (publisherId) {
-      await applyPublishedStats(ctx.stats, publisherId, ctx.now?.() ?? new Date());
+      await applyPublishedStats(ctx.stats, publisherId, now);
     }
   },
   'event.updated': async (_e) => {

@@ -26,7 +26,7 @@ export type QuietHoursPrefs = {
   endMin: number;
 };
 
-export type NotificationReason = 'nearby' | 'publisher' | 'event';
+export type NotificationReason = 'nearby' | 'publisher' | 'event' | 'broadcast';
 
 /**
  * Empty interests mean the user has not opted into any tag — no nearby pushes.
@@ -124,7 +124,9 @@ export function eventNotificationCopy(
           ? 'A followed publisher posted a new event'
           : reason === 'event'
             ? 'An event you follow was updated'
-            : 'A new event near you',
+            : reason === 'broadcast'
+              ? 'A message from Local Events'
+              : 'A new event near you',
     };
   }
   return {
@@ -134,6 +136,8 @@ export function eventNotificationCopy(
         ? 'En följd arrangör publicerade ett evenemang'
         : reason === 'event'
           ? 'Ett evenemang du följer uppdaterades'
-          : 'Ett nytt evenemang nära dig',
+          : reason === 'broadcast'
+            ? 'Ett meddelande från Local Events'
+            : 'Ett nytt evenemang nära dig',
   };
 }

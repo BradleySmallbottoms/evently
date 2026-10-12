@@ -217,6 +217,16 @@ async function saveOne(
     }
     await store.updateImported(existing.eventId, write);
     await attachImage(store, existing.eventId, event, images);
+    if (store.upsertPushDraft) {
+      await store.upsertPushDraft({
+        eventId: existing.eventId,
+        eventTitle: event.title,
+        publisherVerified: !publisher.isTemporary && source.trust === 'auto_publish',
+        origin: 'imported',
+        sourceTrust: source.trust,
+        publisherIsTemporary: publisher.isTemporary,
+      });
+    }
     if (existing.status === 'published') {
       await emitDomainEvent(enqueue, {
         type: 'event.updated',
@@ -243,6 +253,16 @@ async function saveOne(
 
   const eventId = await store.insertImported(write);
   await attachImage(store, eventId, event, images);
+  if (store.upsertPushDraft) {
+    await store.upsertPushDraft({
+      eventId,
+      eventTitle: event.title,
+      publisherVerified: !publisher.isTemporary && source.trust === 'auto_publish',
+      origin: 'imported',
+      sourceTrust: source.trust,
+      publisherIsTemporary: publisher.isTemporary,
+    });
+  }
   if (shouldEnqueueNotifications(write.status)) {
     await emitDomainEvent(enqueue, { type: 'event.published', eventId });
   }

@@ -85,6 +85,16 @@ calls) in the same change as every new major feature.**
   Browse the buckets at `http://localhost:3909` (Garage Web UI).
   In AWS the same key is served from CloudFront (`ASSETS_PUBLIC_BASE_URL`).
 
+### Event share links
+
+- Mobile share uses the OS sheet with `EXPO_PUBLIC_WEB_URL/events/{id}` (default local web
+  `http://localhost:3100`). Copy link uses the same URL.
+- Opening that HTTPS URL in the installed app needs Universal / App Links: set
+  `EXPO_PUBLIC_WEB_URL` to the https production host (rebuild native so
+  `associatedDomains` / `intentFilters` apply), and on web set `APPLE_TEAM_ID` plus
+  `ANDROID_SHA256_CERT_FINGERPRINTS` so `/.well-known/apple-app-site-association` and
+  `/.well-known/assetlinks.json` are served.
+
 ### Check-in
 
 - Check-in is off on an event until an admin turns it on in the event editor. The publisher can
@@ -118,6 +128,14 @@ calls) in the same change as every new major feature.**
 
 - Public `GET /v1/events` only returns **`status = published`**. Unverified publishers’ events stay
   `awaiting_verification` until an admin verifies the publisher (which releases upcoming events).
+- **Push drafts:** publishing creates a `push_messages` row. Trusted publishers auto-approve;
+  others need admin approval under **Pushes**. After a send, publishers can **Notify again**
+  (`POST /v1/manage/events/{id}/push-message`). Admins can schedule **broadcasts**
+  (`POST /v1/push-messages/broadcast`) to everyone or users with a favorite tag. The worker
+  sends approved due messages (optional `send_at`); inbox rows appear only then. Per-user
+  aggregation within 10 minutes combines alerts. Audience estimate:
+  `GET /v1/push-messages/{id}/audience`. Flow:
+  [docs/flows/push-and-domain-events.md](docs/flows/push-and-domain-events.md).
 - Admins open an event from **Events** (`/events/manage`) or import review. `GET/PATCH /v1/events/{id}`
   on the admin API edits title, schedule, place, price, tags, links, and status. Saving a
   published event enqueues `event.updated`. Changing status to `published` enqueues `event.published`.

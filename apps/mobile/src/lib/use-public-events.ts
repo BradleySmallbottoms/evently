@@ -29,5 +29,8 @@ export function useInfinitePublicEvents(
       }),
     getNextPageParam: (lastPage) => lastPage.nextOffset ?? undefined,
     placeholderData: keepPreviousData,
+    // Repeat visits (another tag press) reuse this result instead of refetching
+    // and swapping the list again when the response arrives.
+    staleTime: 60_000,
   });
 }

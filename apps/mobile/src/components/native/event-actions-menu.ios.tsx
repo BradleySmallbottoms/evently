@@ -43,7 +43,14 @@ export function EventActionsMenu({
           </RNHostView>
         </ContextMenu.Trigger>
         <ContextMenu.Items>
-          <Button systemImage="square.and.arrow.up" onPress={onShare} label={shareLabel} />
+          <Button
+            systemImage="square.and.arrow.up"
+            onPress={() => {
+              // Let the context menu finish dismissing before the share sheet.
+              setTimeout(onShare, 300);
+            }}
+            label={shareLabel}
+          />
           <Button systemImage="link" onPress={onCopyLink} label={copyLinkLabel} />
           <Divider />
           <Button

@@ -9,6 +9,7 @@ export * from './event-links';
 export * from './tags';
 export * from './event-content';
 export * from './notifications';
+export * from './push-messages';
 export * from './digital-codes';
 export * from './preferences';
 export * from './price';

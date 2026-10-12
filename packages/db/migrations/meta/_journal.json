@@ -176,6 +176,20 @@
       "when": 1792200000000,
       "tag": "0024_yellow_big_bertha",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792300000000,
+      "tag": "0025_pale_runaways",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792400000000,
+      "tag": "0026_productive_loners",
+      "breakpoints": true
     }
   ]
 }

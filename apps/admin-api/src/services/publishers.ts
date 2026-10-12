@@ -9,7 +9,7 @@ import type {
   VerifyPublisherResponse,
 } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
-import { schema } from '@local-events/db';
+import { approveOpenPushMessagesForPublisher, schema } from '@local-events/db';
 import { releaseOnVerification, shouldEnqueueNotifications } from '@local-events/domain';
 import { and, count, eq, ne, asc } from 'drizzle-orm';
 import { createMemoryDomainEventPublisher } from './domain-events/memory';
@@ -306,6 +306,7 @@ export function createDbAdminPublisherServices(
           }
         }
       }
+      await approveOpenPushMessagesForPublisher(db, publisherId, at);
 
       return { id: publisherId, verified: true as const, releasedEventCount };
     },

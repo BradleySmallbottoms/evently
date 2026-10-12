@@ -410,6 +410,62 @@ describe('admin api', () => {
     expect(items.some((i) => i.action === 'user.ban')).toBe(true);
   });
 
+  it('creates an approved broadcast for everyone', async () => {
+    const { auth } = await seededAuth();
+    const app = createApp({ auth });
+    const cookie = await loginSession(app);
+
+    const create = await app.request('/v1/push-messages/broadcast', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        titleSv: 'Hej',
+        bodySv: 'Ett meddelande',
+        titleEn: 'Hi',
+        bodyEn: 'A message',
+        audience: 'everyone',
+        sendAt: null,
+      }),
+    });
+    expect(create.status).toBe(201);
+    const row = (await create.json()) as {
+      kind: string;
+      audience: string;
+      status: string;
+      eventId: string | null;
+    };
+    expect(row).toMatchObject({
+      kind: 'broadcast',
+      audience: 'everyone',
+      status: 'approved',
+      eventId: null,
+    });
+
+    const list = await app.request('/v1/push-messages', { headers: { cookie } });
+    expect(list.status).toBe(200);
+    const items = ((await list.json()) as { items: { kind: string }[] }).items;
+    expect(items.some((i) => i.kind === 'broadcast')).toBe(true);
+  });
+
+  it('rejects tag_interest broadcast without audienceTagId', async () => {
+    const { auth } = await seededAuth();
+    const app = createApp({ auth });
+    const cookie = await loginSession(app);
+
+    const create = await app.request('/v1/push-messages/broadcast', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        titleSv: 'Hej',
+        bodySv: 'Ett meddelande',
+        titleEn: 'Hi',
+        bodyEn: 'A message',
+        audience: 'tag_interest',
+      }),
+    });
+    expect(create.status).toBe(400);
+  });
+
   it('enrolls TOTP on first login when secret is unset', async () => {
     const store = createAdminMemoryAuthStore();
     store.admins.set('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', {

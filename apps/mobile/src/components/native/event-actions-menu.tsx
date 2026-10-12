@@ -49,7 +49,13 @@ export function EventActionsMenu({
       <Host style={{ position: 'absolute', width: 0, height: 0 }}>
         <BottomSheet isPresented={open} onDismiss={() => setOpen(false)}>
           <Column spacing={8}>
-            <ActionRow label={shareLabel} onPress={() => run(onShare)} />
+            <ActionRow
+              label={shareLabel}
+              onPress={() => {
+                setOpen(false);
+                setTimeout(onShare, 300);
+              }}
+            />
             <ActionRow label={copyLinkLabel} onPress={() => run(onCopyLink)} />
             <ActionRow label={reportLabel} danger onPress={() => run(onReport)} />
           </Column>

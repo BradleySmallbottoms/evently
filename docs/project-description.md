@@ -262,7 +262,9 @@ starter subset; the rest is added phase by phase.
 | `check_ins`                 | id, user_id, event_id, method (geo / code), lat, lng, accuracy_m, device_flags, created_at                                                                                                                                                            | Unique on (user, event); geo check-in via `POST /v1/events/{id}/check-ins`                                                                                          |
 | `ratings`                   | user_id, event_id, score 1–5, comment, created_at                                                                                                                                                                                                     | Requires a check-in; comment only from named profiles                                                                                                               |
 | `digital_codes`             | event_id, secret, revealed_at, rotation_s                                                                                                                                                                                                             | Secret seeds rotating codes; never sent to attendees                                                                                                                |
-| `notifications`             | id, user_id, event_id, reason (nearby / publisher / event), sent_at (inbox accept time), push_state (pending / sent / aggregated legacy), pushed_at (nullable), read_at (nullable)                                                                    | Inbox for every match + silent Expo delivery; unique (user, event, reason). Cap/quiet hours are client-side. Purged after 90 days                                   |
+| `push_messages`             | id, event_id (nullable for broadcasts), kind (event / broadcast), audience (event_match / everyone / tag_interest), audience_tag_id, status (pending / approved / sending / sent / rejected / cancelled), title/body sv+en, send_at, copy_edited, approved_at, approved_by_admin_id, sent_at | Draft before fan-out; trusted publishers auto-approve; admin broadcasts auto-approve; worker sends when due |
+| `push_message_deliveries`   | push_message_id, user_id, status (pending / deferred / sent), deferred_until_message_id, sent_at                                                                                                                                                  | Per-user delivery + 10-minute aggregation                                                                                                                           |
+| `notifications`             | id, user_id, event_id (nullable for broadcasts), push_message_id, reason (nearby / publisher / event / broadcast), sent_at (inbox accept time), push_state (pending / sent / aggregated legacy), pushed_at (nullable), read_at (nullable)                                                 | Inbox written only when a push message is sent; unique (user, push_message, reason). Cap/quiet hours are client-side. Purged after 90 days                           |
 | `data_sources`              | id, slug, kind (api / feed / scraper), schedule, config, trust (auto_publish / review), enabled                                                                                                                                                       | One row per source; secrets referenced, not stored                                                                                                                  |
 | `ingestion_runs`            | id, source_id, started_at, finished_at, status, fetched, created, updated, skipped, error                                                                                                                                                             | Run history shown in admin                                                                                                                                          |
 | `external_refs`             | source_id, external_id, event_id, content_hash, last_seen_at                                                                                                                                                                                          | Unique on (source, external_id); unchanged hash = skip                                                                                                              |
@@ -273,6 +275,16 @@ starter subset; the rest is added phase by phase.
 
 Every write that matters emits a domain event (`event.published`, `event.updated`,
 `checkin.created`, `rating.created`) onto SQS; the worker handles notifications and stats.
+
+### Share an event
+
+1. On the event detail screen the user taps Share (or Copy link in the overflow menu).
+2. Share opens the OS share sheet with the public web URL
+   (`{EXPO_PUBLIC_WEB_URL}/events/{id}`) so Messages, Messenger, Facebook, Mail, and Copy all
+   receive the same link. Copy link writes that URL to the clipboard.
+3. Recipients who have the app installed open the HTTPS URL via Universal Links (iOS) or App Links
+   (Android) into `/events/[id]`. Others land on the Next.js public event page. Locale-prefixed
+   web paths (`/en/events/…`, `/sv/events/…`) redirect to the same native route.
 
 ### Identity and sign-in
 
@@ -297,21 +309,19 @@ Any linked device can be revoked.
 
 ### New event near me
 
-1. Publisher publishes. From an unverified publisher the event is stored as
-   `awaiting_verification` and nothing is enqueued; otherwise the API enqueues `event.published`.
-2. The worker finds matching users in one PostGIS query: active notify area covers the event
-   point (`ST_Covers` on polygon/region, `ST_DWithin` on circle), interests overlap (empty
-   interests → no nearby push). Events without a point are skipped here.
-3. Dedupe against `notifications` only (unique user + event + reason). Publisher followers merge
-   in with nearby (nearby wins when both match). Fan-out capped at 500 candidates per path.
-4. Insert a `notifications` inbox row for every match (visible in the app notifications window via
-   `GET /me/notifications`, including `unreadCount` for the badge).
-5. Always send a **silent/data Expo push** to devices with tokens (no alert title/body; includes
-   badge + payload). Mark `push_state = sent` on Expo accept. Inbox rows are kept even if push
-   fails. Quiet hours and the 5/day OS-notification cap are enforced **on the client** (optional
-   local OS notification); opening the app always shows the full retained inbox.
-6. Worker purges inbox rows older than 90 days. Expo sends in batches of 100; clear tokens on
-   `DeviceNotRegistered`. Receipt polling later.
+1. Publisher submits/publishes. The API creates a `push_messages` draft (auto-approved for trusted
+   publishers; otherwise `pending`). Unverified publishers still get `awaiting_verification` on
+   the event. `event.published` is enqueued for stats when status is `published`.
+2. An admin approves the draft (or it was auto-approved) and may set `send_at`.
+3. The worker polls due approved messages whose event is `published`. It matches users: active
+   notify area covers the event point, interests overlap (empty interests → no nearby). Events
+   without a point skip nearby. Publisher followers merge in (nearby wins). Cap 500 per path.
+4. Per-user aggregation: if another matching approved message is due within 10 minutes, defer
+   and later send one silent push with the earliest copy plus “And N more…”.
+5. Insert `notifications` inbox rows only at send time (unique user + push_message + reason).
+   Silent Expo push to devices with tokens; quiet hours and the 5/day OS cap stay on the client.
+6. After a message is sent, a publisher may create a new draft for an update. Edits before send
+   update the open draft.
 
 Areas are saved places, not live tracking.
 

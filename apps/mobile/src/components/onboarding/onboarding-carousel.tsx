@@ -27,6 +27,7 @@ import {
   type OnboardingState,
   type PermissionKind,
 } from '@/lib/onboarding';
+import { registerPushToken } from '@/lib/push-notifications';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
@@ -106,10 +107,20 @@ export function OnboardingCarousel({ onFinished }: Props) {
     try {
       let current = await ensureState();
       if (kind === 'notifications') {
-        const identity = await ensureUser();
-        if (!identity) return;
-        const choice = await requestNotificationPermission(identity);
+        // Ask the OS first so Activate never waits on API / Expo push registration.
+        const choice = await requestNotificationPermission(null);
         current = await setPermissionChoice(current, 'notifications', choice);
+        if (choice === 'granted') {
+          void ensureUser().then((identity) => {
+            if (!identity) return;
+            void registerPushToken(identity).catch((err) => {
+              console.warn(
+                'push token registration failed',
+                err instanceof Error ? err.message : 'unknown error',
+              );
+            });
+          });
+        }
       } else {
         const choice = await requestLocationPermission();
         current = await setPermissionChoice(current, 'location', choice);
@@ -118,6 +129,9 @@ export function OnboardingCarousel({ onFinished }: Props) {
       const stepIndex = STEPS.findIndex((step) => step.id === kind);
       if (stepIndex >= 0 && stepIndex < STEPS.length - 1) goTo(stepIndex + 1);
       else await finish(current);
+    } catch (err) {
+      console.warn('onboarding activate failed', err);
+      setError(t('home.identityError'));
     } finally {
       setBusy(false);
     }
@@ -240,7 +254,12 @@ function StepFrame({
 }) {
   return (
     <View style={styles.step}>
-      <Image source={image} style={StyleSheet.absoluteFill} contentFit="cover" />
+      <Image
+        pointerEvents="none"
+        source={image}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+      />
       <View
         style={[
           styles.content,

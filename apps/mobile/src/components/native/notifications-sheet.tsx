@@ -8,7 +8,7 @@ export type NotificationRow = {
   id: string;
   title: string;
   subtitle: string;
-  eventId: string;
+  eventId: string | null;
 };
 
 type Props = {
@@ -51,7 +51,10 @@ export function NotificationsSheet({
                 {items.map((item) => (
                   <Pressable
                     key={item.id}
-                    onPress={() => onOpenEvent(item.eventId)}
+                    onPress={() => {
+                      if (item.eventId) onOpenEvent(item.eventId);
+                    }}
+                    disabled={!item.eventId}
                     style={{ gap: 4 }}
                   >
                     <Text textStyle={{ fontSize: 16, fontWeight: '600' }}>{item.title}</Text>

@@ -1,7 +1,7 @@
 import type { Event, EventLink, EventLinkInput, ManagedEvent, PublicEventListQuery, UpdateEventRequest } from '@local-events/contracts';
 import { publicEventTagIds } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
-import { pointEwkt, schema } from '@local-events/db';
+import { cancelOpenPushMessages, pointEwkt, schema } from '@local-events/db';
 import {
   canCancelEvent,
   canEditEvent,
@@ -19,6 +19,7 @@ import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
 import { enqueueDomainEvent } from '../domain-events/types';
+import { upsertEventPushDraft } from '../push-messages/drafts';
 import { EventError, type EventEnv, type EventServices } from './types';
 
 type LocRow = {
@@ -374,7 +375,7 @@ export function createDbEventServices(
     }) {
       const existing = await loadEvent(eventId);
       if (!existing) throw new EventError('not_found');
-      await requireMember(sessionToken, existing.publisherId);
+      const access = await requireMember(sessionToken, existing.publisherId);
       if (!canEditEvent(existing.status)) throw new EventError('cannot_edit');
 
       const mode = body.mode ?? existing.mode;
@@ -419,6 +420,19 @@ export function createDbEventServices(
       if (body.attendeeLinks) await replaceAttendeeLinks(eventId, body.attendeeLinks);
       const updated = await loadEvent(eventId);
       if (!updated) throw new EventError('not_found');
+      if (
+        updated.status === 'published' ||
+        updated.status === 'awaiting_verification' ||
+        updated.status === 'in_review'
+      ) {
+        await upsertEventPushDraft(db, {
+          eventId: updated.id,
+          eventTitle: updated.title,
+          publisherVerified: access.publisherVerified,
+          origin: updated.origin,
+          now: env.now(),
+        });
+      }
       return updated;
     },
 
@@ -453,6 +467,13 @@ export function createDbEventServices(
       await db.update(events).set({ status, updatedAt: now }).where(eq(events.id, eventId));
       const published = await loadEvent(eventId);
       if (!published) throw new EventError('not_found');
+      await upsertEventPushDraft(db, {
+        eventId: published.id,
+        eventTitle: published.title,
+        publisherVerified: access.publisherVerified,
+        origin: 'native',
+        now,
+      });
       if (shouldEnqueueNotifications(published.status)) {
         await enqueueDomainEvent(domainEvents, {
           type: 'event.published',
@@ -467,10 +488,12 @@ export function createDbEventServices(
       if (!existing) throw new EventError('not_found');
       await requireMember(sessionToken, existing.publisherId);
       if (!canCancelEvent(existing.status)) throw new EventError('cannot_cancel');
+      const now = env.now();
       await db
         .update(events)
-        .set({ status: 'cancelled', updatedAt: env.now() })
+        .set({ status: 'cancelled', updatedAt: now })
         .where(eq(events.id, eventId));
+      await cancelOpenPushMessages(db, eventId, now);
       const cancelled = await loadEvent(eventId);
       if (!cancelled) throw new EventError('not_found');
       return cancelled;

@@ -60,7 +60,11 @@ Closed beta around week 15, store launch around week 19.
 - [x] Publisher and event subscriptions (follow API + publisher merge on publish; event.updated debounce later)
 - [x] Notification inbox: persist every matched notification; `GET /me/notifications`; mobile notifications window lists inbox rows
 - [x] Quiet hours deferral: during the window store only (no immediate Expo); after the window ends, one aggregate Expo push; preferences UI to enable/disable (defaults 22:00–08:00)
-- **Exit:** publishing an event inserts an inbox row and a silent push within one minute; outside quiet hours (and under the client cap) the phone may show a local OS notification; the in-app notifications window always lists API inbox rows (incl. during quiet hours).
+- [x] Push message drafts: create on submit, update on edit before send, new draft after send; admin approve / trusted auto-approve; optional `send_at`; worker sends due approved messages; inbox only at send
+- [x] Per-user push aggregation within 10 minutes (defer + “And N more…”)
+- [x] Admin push editor with audience estimate (nearby / followers / unique / with token)
+- [x] Publisher “Notify again” after a send; admin broadcast composer (everyone / favorite tag) with schedule
+- **Exit:** publishing drafts a push message; after approval (or auto-approve) and `send_at`, the worker inserts inbox rows and a silent push; aggregation prevents back-to-back OS alerts; admin can preview audience and schedule general broadcasts.
 
 ## Phase 4 — Check-in + attendee content (weeks 10–13)
 
@@ -87,6 +91,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Custom lists: `GET/POST/PATCH/DELETE /me/lists` and list membership
 - [x] Public event list filters: text, tag, price, sort
 - [x] Public events include the organizer name
+- [x] Share event via OS sheet (web URL); Universal / App Links association routes on web
 - **Exit:** the app can save an event, keep a list, show a price, and open a ticket or registration link.
 
 ## Phase 6 — Beta + hardening (weeks 15–19)

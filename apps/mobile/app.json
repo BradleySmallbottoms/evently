@@ -48,6 +48,14 @@
         }
       ],
       "expo-notifications",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "enableSceneSupport": true
+          }
+        }
+      ],
       "expo-secure-store",
       "expo-localization",
       "@sentry/react-native"
@@ -55,6 +63,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2cb01254-cd16-4063-970d-f4a1fac279f4"
+      }
+    },
+    "owner": "candybananaab"
   }
 }

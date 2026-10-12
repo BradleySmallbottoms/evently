@@ -1,5 +1,5 @@
 import type { Event, Tag } from '@local-events/contracts';
-import { SEED_TAGS } from '@local-events/db';
+import { SEED_TAGS, type PushMessageRow } from '@local-events/db';
 
 export type MemoryUser = {
   id: string;
@@ -216,6 +216,7 @@ export type MemoryStore = {
   eventListItems: MemoryEventListItem[];
   subscriptions: MemorySubscription[];
   notifications: Map<string, MemoryNotification>;
+  pushMessages?: Map<string, PushMessageRow>;
   digitalCodes: Map<string, MemoryDigitalCode>;
   checkIns: MemoryCheckIn[];
   eventContent: MemoryEventContent[];
@@ -265,6 +266,7 @@ export function createMemoryStore(): MemoryStore {
     eventListItems: [],
     subscriptions: [],
     notifications: new Map(),
+    pushMessages: new Map(),
     digitalCodes: new Map(),
     checkIns: [],
     eventContent: [],

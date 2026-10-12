@@ -25,6 +25,8 @@ import { createDbLibraryServices } from './services/library/db';
 import { createMemoryLibraryServices } from './services/library/memory';
 import { createDbSubscriptionServices } from './services/subscriptions/db';
 import { createMemorySubscriptionServices } from './services/subscriptions/memory';
+import { createMemoryPublisherPushMessageServices } from './services/push-messages/memory';
+import { createDbPublisherPushMessageServices } from './services/push-messages/publisher';
 import { createMemoryStore } from './services/memory-store';
 import { initSentry } from './sentry';
 
@@ -80,6 +82,7 @@ const {
   eventContent,
   ratings,
   stats,
+  pushMessages,
 } = (() => {
   if (databaseUrl) {
     const db = createDb(databaseUrl);
@@ -98,6 +101,7 @@ const {
       stats: createDbStatsServices(db, authServices, {
         workerToken: process.env.STATS_WORKER_TOKEN?.trim(),
       }),
+      pushMessages: createDbPublisherPushMessageServices(db, authServices),
     };
   }
   const store = createMemoryStore();
@@ -115,6 +119,7 @@ const {
     eventContent: createMemoryEventContentServices(authServices, contentEnv, store),
     ratings: createMemoryRatingServices(authServices, checkInEnv, store),
     stats: createMemoryStatsServices(authServices, store, { workerToken: statsWorkerToken }),
+    pushMessages: createMemoryPublisherPushMessageServices(authServices, store),
   };
 })();
 
@@ -140,6 +145,7 @@ serve(
       eventContent,
       ratings,
       stats,
+      pushMessages,
       corsOrigin,
       assetsPublicBaseUrl: eventEnv.assetsPublicBaseUrl,
     }).fetch,

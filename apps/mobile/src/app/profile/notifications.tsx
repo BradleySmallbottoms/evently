@@ -145,12 +145,16 @@ export default function NotificationsScreen() {
                   ? t('events.notificationReasonPublisher')
                   : item.reason === 'event'
                     ? t('events.notificationReasonEvent')
-                    : t('events.notificationReasonNearby');
+                    : item.reason === 'broadcast'
+                      ? t('events.notificationReasonBroadcast')
+                      : t('events.notificationReasonNearby');
               return (
                 <Pressable
                   key={item.id}
                   accessibilityRole="button"
-                  onPress={() => router.push(`/events/${item.eventId}`)}
+                  onPress={() => {
+                    if (item.eventId) router.push(`/events/${item.eventId}`);
+                  }}
                   style={{
                     backgroundColor: colors.card as string,
                     borderRadius: radius.lg,

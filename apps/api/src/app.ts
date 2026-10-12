@@ -25,6 +25,11 @@ import { createMemoryLibraryServices } from './services/library/memory';
 import type { LibraryServices } from './services/library/types';
 import { createMemorySubscriptionServices } from './services/subscriptions/memory';
 import type { SubscriptionServices } from './services/subscriptions/types';
+import {
+  createEmptyPublisherPushMessageServices,
+  createMemoryPublisherPushMessageServices,
+} from './services/push-messages/memory';
+import type { PublisherPushMessageServices } from './services/push-messages/publisher';
 import { createMemoryStore } from './services/memory-store';
 import { Sentry } from './sentry';
 
@@ -40,6 +45,7 @@ export type CreateAppOptions = {
   eventContent?: EventContentServices;
   ratings?: RatingServices;
   stats?: StatsServices;
+  pushMessages?: PublisherPushMessageServices;
   /**
    * Origins allowed for credentialed CORS (web publisher login).
    * Pass a string list, or a function that returns the reflected Origin (never bare `*`).
@@ -79,6 +85,11 @@ export function createApp(options: CreateAppOptions = {}) {
   const stats =
     options.stats ??
     createMemoryStatsServices(auth, store, { workerToken: 'test-stats-worker-token' });
+  const pushMessages =
+    options.pushMessages ??
+    (options.auth
+      ? createEmptyPublisherPushMessageServices()
+      : createMemoryPublisherPushMessageServices(auth, store));
   const app = new OpenAPIHono();
 
   app.onError((err, c) => {
@@ -122,6 +133,7 @@ export function createApp(options: CreateAppOptions = {}) {
       eventContent,
       ratings,
       stats,
+      pushMessages,
     },
     { assetsPublicBaseUrl: options.assetsPublicBaseUrl },
   );

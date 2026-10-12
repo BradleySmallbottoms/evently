@@ -127,6 +127,9 @@ export type InboxPushData = {
   eventId?: string;
   reason?: string;
   eventTitle?: string;
+  title?: string;
+  body?: string;
+  moreCount?: number;
 };
 
 export type SilentPushHandlers = {
@@ -163,8 +166,11 @@ export function subscribeSilentPushHandlers(handlers: SilentPushHandlers): () =>
       const present = await decideOsNotificationPresentation({ quietHours: quiet });
       if (!present) return;
 
-      const title = data.eventTitle?.trim() || 'Event';
-      const copy = localNotificationCopy(handlers.getLocale(), title, data.reason ?? 'nearby');
+      const title = (typeof data.title === 'string' && data.title.trim()) || data.eventTitle?.trim() || 'Event';
+      const bodyFromPush = typeof data.body === 'string' ? data.body.trim() : '';
+      const copy = bodyFromPush
+        ? { title, body: bodyFromPush }
+        : localNotificationCopy(handlers.getLocale(), title, data.reason ?? 'nearby');
       await Notifications.scheduleNotificationAsync({
         content: {
           title: copy.title,

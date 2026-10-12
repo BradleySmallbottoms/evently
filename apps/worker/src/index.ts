@@ -5,6 +5,7 @@ import {
 } from '@aws-sdk/client-sqs';
 import { createDb, resolveDatabaseUrl } from '@local-events/db';
 import { processMessage, type HandlerContext } from './handlers';
+import { handleDuePushMessages } from './notify/handle-due-push';
 import { createExpoPushClient } from './notify/expo-push';
 import { initSentry, Sentry } from './sentry';
 import { createHttpStatsWriter } from './stats/apply';
@@ -18,6 +19,8 @@ const waitTimeSeconds = Number(process.env.SQS_WAIT_TIME_SECONDS ?? 20);
 const maxMessages = Number(process.env.SQS_MAX_MESSAGES ?? 10);
 /** Default 24h; set 0 to disable nightly stats reconciliation. */
 const statsReconcileMs = Number(process.env.STATS_RECONCILE_MS ?? 86_400_000);
+/** Poll approved push_messages for due delivery. */
+const pushPollMs = Number(process.env.PUSH_POLL_MS ?? 30_000);
 const databaseUrl = resolveDatabaseUrl();
 /** Public API base including version prefix, e.g. http://localhost:3000/v1 */
 const statsApiUrl = process.env.STATS_API_URL?.trim() || process.env.API_URL?.trim();
@@ -126,6 +129,23 @@ async function main() {
     };
     void runReconcile();
     setInterval(() => void runReconcile(), statsReconcileMs);
+  }
+
+  if (ctx.notify && pushPollMs > 0) {
+    const notify = ctx.notify;
+    const runDuePush = async () => {
+      try {
+        const result = await handleDuePushMessages(notify);
+        if (result.claimed > 0 || result.orphans > 0) {
+          console.log(JSON.stringify({ duePush: result }));
+        }
+      } catch (err) {
+        Sentry.captureException(err);
+        console.error('due push poll failed', err);
+      }
+    };
+    void runDuePush();
+    setInterval(() => void runDuePush(), pushPollMs);
   }
 
   for (;;) {
