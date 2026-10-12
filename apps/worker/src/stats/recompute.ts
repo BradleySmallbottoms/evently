@@ -2,10 +2,10 @@ import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import type { StatMutation } from '@local-events/domain';
 import { and, count, eq, inArray, sum } from 'drizzle-orm';
-import { createDbStatsWriter, type StatsWriter } from './apply';
+import type { StatsWriter } from './apply';
 
 /**
- * Nightly lifetime-key reconcile from source tables (`value` ops).
+ * Nightly lifetime-key reconcile from source tables (`value` ops via API writer).
  * Historical day/week/month buckets are not rebuilt.
  */
 
@@ -22,7 +22,7 @@ async function setValue(
 
 export async function reconcileAllStats(
   db: Db,
-  writer: StatsWriter = createDbStatsWriter(db),
+  writer: StatsWriter,
 ): Promise<{ users: number; events: number; publishers: number }> {
   const userIds = new Set<string>();
   for (const row of await db

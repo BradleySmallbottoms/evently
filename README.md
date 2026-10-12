@@ -158,8 +158,9 @@ calls) in the same change as every new major feature.**
   aggregate only; comments need named profile and appear on
   `GET /manage/events/{id}/ratings`. Flow: [docs/flows/ratings.md](docs/flows/ratings.md).
 - Stats: single EAV `stats` table. Worker expands lifetime + day/week/month/year keys and
-  `PUT`s `{key, add|remove|value}` (`STATS_WORKER_TOKEN`). Nightly `STATS_RECONCILE_MS`
-  (default 24h) resets lifetime keys from source tables. Read via
+  always `PUT`s via the API (`STATS_API_URL`/`API_URL` + `STATS_WORKER_TOKEN`) — never
+  writes `stats` directly. Nightly `STATS_RECONCILE_MS` (default 24h) resets lifetime keys
+  from source tables (reads DB, writes via API). Read via
   `GET /stats/{sourceType}/{sourceId}?key=numCheckins&key=…`. Averages =
   `totalRatingValue / numRatings`. Flow: [docs/flows/stats.md](docs/flows/stats.md).
 

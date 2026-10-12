@@ -7,7 +7,7 @@ import { createDb, resolveDatabaseUrl } from '@local-events/db';
 import { processMessage, type HandlerContext } from './handlers';
 import { createExpoPushClient } from './notify/expo-push';
 import { initSentry, Sentry } from './sentry';
-import { createDbStatsWriter, createHttpStatsWriter } from './stats/apply';
+import { createHttpStatsWriter } from './stats/apply';
 import { reconcileAllStats } from './stats/recompute';
 
 initSentry('worker');
@@ -19,6 +19,7 @@ const maxMessages = Number(process.env.SQS_MAX_MESSAGES ?? 10);
 /** Default 24h; set 0 to disable nightly stats reconciliation. */
 const statsReconcileMs = Number(process.env.STATS_RECONCILE_MS ?? 86_400_000);
 const databaseUrl = resolveDatabaseUrl();
+/** Public API base including version prefix, e.g. http://localhost:3000/v1 */
 const statsApiUrl = process.env.STATS_API_URL?.trim() || process.env.API_URL?.trim();
 const statsWorkerToken = process.env.STATS_WORKER_TOKEN?.trim();
 const sqsEndpoint =
@@ -41,14 +42,15 @@ function createSqsClient(): SQSClient {
 
 function buildHandlerContext(): HandlerContext {
   if (!databaseUrl) return {};
+  if (!statsApiUrl || !statsWorkerToken) {
+    throw new Error(
+      'STATS_API_URL (or API_URL) and STATS_WORKER_TOKEN are required; worker must PUT stats via the API',
+    );
+  }
   const db = createDb(databaseUrl);
-  const stats =
-    statsApiUrl && statsWorkerToken
-      ? createHttpStatsWriter(statsApiUrl, statsWorkerToken)
-      : createDbStatsWriter(db);
   return {
     db,
-    stats,
+    stats: createHttpStatsWriter(statsApiUrl, statsWorkerToken),
     notify: {
       db,
       expo: createExpoPushClient(),
@@ -105,16 +107,17 @@ async function main() {
       endpoint: sqsEndpoint ?? 'aws',
       notify: Boolean(ctx.notify),
       stats: Boolean(ctx.stats),
-      statsViaHttp: Boolean(statsApiUrl && statsWorkerToken),
       statsReconcileMs,
       queueConfigured: true,
     }),
   );
 
   if (ctx.db && ctx.stats && statsReconcileMs > 0) {
+    const db = ctx.db;
+    const stats = ctx.stats;
     const runReconcile = async () => {
       try {
-        const result = await reconcileAllStats(ctx.db!, ctx.stats);
+        const result = await reconcileAllStats(db, stats);
         console.log(JSON.stringify({ statsReconcile: result }));
       } catch (err) {
         Sentry.captureException(err);

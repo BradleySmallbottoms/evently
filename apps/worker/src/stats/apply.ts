@@ -1,12 +1,8 @@
-import type { Db } from '@local-events/db';
-import { schema } from '@local-events/db';
 import {
-  applyStatMutation,
   bucketMutations,
   type StatMutation,
   type StatsSourceType,
 } from '@local-events/domain';
-import { and, eq, inArray } from 'drizzle-orm';
 
 export type StatsWriter = {
   put(
@@ -16,48 +12,7 @@ export type StatsWriter = {
   ): Promise<void>;
 };
 
-/** Apply mutations as-is (no bucket expansion) — same semantics as API PUT. */
-export function createDbStatsWriter(db: Db, now: () => Date = () => new Date()): StatsWriter {
-  return {
-    async put(sourceType, sourceId, mutations) {
-      if (mutations.length === 0) return;
-      const at = now();
-      const keys = [...new Set(mutations.map((m) => m.key))];
-      const existing = await db
-        .select()
-        .from(schema.stats)
-        .where(
-          and(
-            eq(schema.stats.sourceType, sourceType),
-            eq(schema.stats.sourceId, sourceId),
-            inArray(schema.stats.key, keys),
-          ),
-        );
-      const byKey = new Map(existing.map((r) => [r.key, r.value as number]));
-
-      for (const op of mutations) {
-        const nextValue = applyStatMutation(byKey.get(op.key), op);
-        byKey.set(op.key, nextValue);
-        await db
-          .insert(schema.stats)
-          .values({
-            sourceType,
-            sourceId,
-            key: op.key,
-            value: nextValue,
-            createdAt: at,
-            updatedAt: at,
-          })
-          .onConflictDoUpdate({
-            target: [schema.stats.sourceType, schema.stats.sourceId, schema.stats.key],
-            set: { value: nextValue, updatedAt: at },
-          });
-      }
-    },
-  };
-}
-
-/** HTTP PUT to the public API (worker bearer token). */
+/** HTTP PUT to the public API (worker bearer token). Stats never write the DB from the worker. */
 export function createHttpStatsWriter(baseUrl: string, workerToken: string): StatsWriter {
   const root = baseUrl.replace(/\/$/, '');
   return {
