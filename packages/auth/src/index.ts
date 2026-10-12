@@ -49,6 +49,10 @@ export async function verifyPassword(password: string, passwordHash: string): Pr
 export const APP_SESSION_TTL_SECONDS = 60 * 60;
 /** Publisher web cookie sessions. */
 export const PUBLISHER_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+/** Admin console cookie sessions. */
+export const ADMIN_SESSION_TTL_SECONDS = 8 * 60 * 60;
+/** Short-lived token between password check and TOTP / enroll. */
+export const ADMIN_CHALLENGE_TTL_SECONDS = 5 * 60;
 /** Email verification link lifetime. */
 export const EMAIL_VERIFICATION_TTL_SECONDS = 24 * 60 * 60;
 /** Publisher member invite lifetime. */
@@ -56,6 +60,16 @@ export const PUBLISHER_INVITE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export const PUBLISHER_SESSION_COOKIE = 'le_publisher_session';
 export const APP_USER_SESSION_COOKIE = 'le_user_session';
+export const ADMIN_SESSION_COOKIE = 'le_admin_session';
+
+export {
+  generateTotpCode,
+  generateTotpSecret,
+  totpOtpauthUrl,
+  verifyTotpCode,
+  TOTP_DIGITS,
+  TOTP_STEP_SECONDS,
+} from './totp';
 
 /** Crockford-style alphabet without 0/O, 1/I/L, U to avoid misreads when typed by hand. */
 const PAIRING_ALPHABET = '23456789ABCDEFGHJKMNPQRSTVWXYZ';

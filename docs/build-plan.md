@@ -87,7 +87,8 @@ Closed beta around week 15, store launch around week 19.
 
 ## Parallel track — Admin console (from week 4)
 
-- [ ] Entity CRUD, publisher verification queue
+- [x] Admin login (password + TOTP) + publisher verification queue
+- [ ] Entity CRUD (events, users, remaining publisher fields)
 - [ ] Moderation queue for ratings and suspicious check-ins; user bans
 - [ ] Data-source management with run history and a manual run button
 - [ ] Review queue for imported events; publisher mapping queue (re-map a temporary publisher to an

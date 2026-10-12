@@ -1,6 +1,39 @@
 {
   "App": {
     "name": "Admin",
-    "tagline": "Internal console for Local Events."
+    "tagline": "Internal console for Local Events.",
+    "navPublishers": "Publishers",
+    "navLogin": "Sign in",
+    "logout": "Sign out",
+    "loading": "Loading…"
+  },
+  "Login": {
+    "title": "Admin sign-in",
+    "email": "Email",
+    "password": "Password",
+    "totpCode": "Authenticator code",
+    "continue": "Continue",
+    "confirmTotp": "Confirm code",
+    "setupTitle": "Set up authenticator",
+    "setupHint": "Scan the QR code with your authenticator app, then enter the 6-digit code it shows.",
+    "qrAlt": "Authenticator QR code",
+    "errorCredentials": "Invalid email or password.",
+    "errorTotp": "Invalid authenticator code.",
+    "errorExpired": "Login expired — start again.",
+    "errorGeneric": "Something went wrong."
+  },
+  "Publishers": {
+    "title": "Publisher verification",
+    "empty": "No unverified publishers.",
+    "name": "Name",
+    "slug": "Slug",
+    "type": "Type",
+    "origin": "Origin",
+    "created": "Created",
+    "verify": "Verify",
+    "verifying": "Verifying…",
+    "verifiedNotice": "Verified. Released {count} events.",
+    "loadError": "Could not load publishers.",
+    "needLogin": "Sign in to manage publishers."
   }
 }

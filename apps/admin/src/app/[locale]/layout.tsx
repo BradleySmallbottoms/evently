@@ -4,9 +4,11 @@ import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { Roboto } from 'next/font/google';
 import { notFound } from 'next/navigation';
+import { AdminShell } from '@/components/admin-shell';
 import { SentryProvider } from '@/components/sentry-provider';
 import { ThemeRegistry } from '@/components/theme-registry';
 import { routing } from '@/i18n/routing';
+import { QueryProvider } from '@/lib/query-provider';
 import './globals.css';
 
 const roboto = Roboto({
@@ -38,7 +40,11 @@ export default async function LocaleLayout({
         <AppRouterCacheProvider>
           <ThemeRegistry>
             <NextIntlClientProvider messages={messages}>
-              <SentryProvider>{children}</SentryProvider>
+              <SentryProvider>
+                <QueryProvider>
+                  <AdminShell>{children}</AdminShell>
+                </QueryProvider>
+              </SentryProvider>
             </NextIntlClientProvider>
           </ThemeRegistry>
         </AppRouterCacheProvider>

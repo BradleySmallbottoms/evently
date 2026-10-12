@@ -3,12 +3,15 @@ import {
   generateDeviceCredential,
   generateEmailToken,
   generatePairingCode,
+  generateTotpCode,
+  generateTotpSecret,
   hashPassword,
   hashToken,
   normalizePairingCode,
   PAIRING_CODE_LENGTH,
   tokenMatchesHash,
   verifyPassword,
+  verifyTotpCode,
 } from '../../../packages/auth/src/index';
 
 describe('device credentials', () => {
@@ -44,5 +47,16 @@ describe('passwords', () => {
 describe('email tokens', () => {
   it('are unique opaque values', () => {
     expect(generateEmailToken()).not.toBe(generateEmailToken());
+  });
+});
+
+describe('totp', () => {
+  it('verifies current and adjacent steps', () => {
+    const secret = generateTotpSecret();
+    const at = Date.parse('2026-06-15T12:00:00.000Z');
+    const code = generateTotpCode(secret, at);
+    expect(verifyTotpCode(secret, code, at)).toBe(true);
+    expect(verifyTotpCode(secret, code, at + 30_000)).toBe(true);
+    expect(verifyTotpCode(secret, '000000', at)).toBe(false);
   });
 });

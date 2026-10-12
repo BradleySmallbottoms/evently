@@ -1,5 +1,5 @@
 import { Host } from '@expo/ui';
-import { Button, ConfirmationDialog } from '@expo/ui/swift-ui';
+import { Button, ConfirmationDialog, RNHostView, Text } from '@expo/ui/swift-ui';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, View } from 'react-native';
 
@@ -39,21 +39,25 @@ export function LocationMenu({
         onIsPresentedChange={onIsPresentedChange}
       >
         <ConfirmationDialog.Trigger>
-          <Pressable onPress={() => onIsPresentedChange(true)}>
-            <View style={{ gap: 2 }}>
-              <AppText variant="caption">{eyebrow}</AppText>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <AppText variant="subtitle">{locationLabel}</AppText>
-                <SymbolView
-                  name={'chevron.down' as never}
-                  size={12}
-                  tintColor={colors.inkMuted as string}
-                />
+          <RNHostView matchContents>
+            <Pressable onPress={() => onIsPresentedChange(true)}>
+              <View style={{ gap: 2 }}>
+                <AppText variant="caption">{eyebrow}</AppText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <AppText variant="subtitle">{locationLabel}</AppText>
+                  <SymbolView
+                    name={'chevron.down' as never}
+                    size={12}
+                    tintColor={colors.inkMuted as string}
+                  />
+                </View>
               </View>
-            </View>
-          </Pressable>
+            </Pressable>
+          </RNHostView>
         </ConfirmationDialog.Trigger>
-        <ConfirmationDialog.Message>{message}</ConfirmationDialog.Message>
+        <ConfirmationDialog.Message>
+          <Text>{message}</Text>
+        </ConfirmationDialog.Message>
         <ConfirmationDialog.Actions>
           <Button
             onPress={() => {

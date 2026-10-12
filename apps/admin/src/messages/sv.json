@@ -1,6 +1,39 @@
 {
   "App": {
     "name": "Admin",
-    "tagline": "Intern konsol för Lokala evenemang."
+    "tagline": "Intern konsol för Local Events.",
+    "navPublishers": "Arrangörer",
+    "navLogin": "Logga in",
+    "logout": "Logga ut",
+    "loading": "Laddar…"
+  },
+  "Login": {
+    "title": "Admin-inloggning",
+    "email": "E-post",
+    "password": "Lösenord",
+    "totpCode": "Autentiseringskod",
+    "continue": "Fortsätt",
+    "confirmTotp": "Bekräfta kod",
+    "setupTitle": "Konfigurera autentiseringsapp",
+    "setupHint": "Skanna QR-koden med din autentiseringsapp och ange sedan den 6-siffriga koden.",
+    "qrAlt": "QR-kod för autentiseringsapp",
+    "errorCredentials": "Fel e-post eller lösenord.",
+    "errorTotp": "Ogiltig autentiseringskod.",
+    "errorExpired": "Inloggningen gick ut — börja om.",
+    "errorGeneric": "Något gick fel."
+  },
+  "Publishers": {
+    "title": "Verifiering av arrangörer",
+    "empty": "Inga overifierade arrangörer.",
+    "name": "Namn",
+    "slug": "Slug",
+    "type": "Typ",
+    "origin": "Ursprung",
+    "created": "Skapad",
+    "verify": "Verifiera",
+    "verifying": "Verifierar…",
+    "verifiedNotice": "Verifierad. Släppte {count} evenemang.",
+    "loadError": "Kunde inte hämta arrangörer.",
+    "needLogin": "Logga in för att hantera arrangörer."
   }
 }

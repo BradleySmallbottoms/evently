@@ -1,5 +1,5 @@
 import { Host } from '@expo/ui';
-import { Alert, Button } from '@expo/ui/swift-ui';
+import { Alert, Button, Text } from '@expo/ui/swift-ui';
 
 type Props = {
   title: string;
@@ -24,7 +24,9 @@ export function ConfirmAction({
   return (
     <Host matchContents>
       <Alert title={title} isPresented={isPresented} onIsPresentedChange={onIsPresentedChange}>
-        <Alert.Message>{message}</Alert.Message>
+        <Alert.Message>
+          <Text>{message}</Text>
+        </Alert.Message>
         <Alert.Actions>
           <Button role="cancel" onPress={() => onIsPresentedChange(false)} label={cancelLabel} />
           <Button

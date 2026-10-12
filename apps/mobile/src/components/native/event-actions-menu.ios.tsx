@@ -1,5 +1,5 @@
 import { Host } from '@expo/ui';
-import { Button, ContextMenu, Divider } from '@expo/ui/swift-ui';
+import { Button, ContextMenu, Divider, RNHostView } from '@expo/ui/swift-ui';
 
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 
@@ -27,7 +27,13 @@ export function EventActionsMenu({
     <Host matchContents>
       <ContextMenu>
         <ContextMenu.Trigger>
-          <CircleIconButton sf="ellipsis" md="more-horiz" accessibilityLabel={accessibilityLabel} />
+          <RNHostView matchContents>
+            <CircleIconButton
+              sf="ellipsis"
+              md="more-horiz"
+              accessibilityLabel={accessibilityLabel}
+            />
+          </RNHostView>
         </ContextMenu.Trigger>
         <ContextMenu.Items>
           <Button systemImage="square.and.arrow.up" onPress={onShare} label={shareLabel} />

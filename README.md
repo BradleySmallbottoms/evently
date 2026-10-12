@@ -59,7 +59,9 @@ calls) in the same change as every new major feature.**
 - Public `GET /v1/events` only returns **`status = published`**. Unverified publishers’ events stay
   `awaiting_verification` until an admin verifies the publisher (which releases upcoming events).
 - Empty mobile/web lists usually mean no published events nearby — not a broken client. Verify
-  publishers via admin-api `POST /v1/publishers/{id}/verify` in local/dev.
+  publishers via admin console (`apps/admin` → Publishers) or
+  `POST /v1/publishers/{id}/verify` (admin session cookie / Bearer). Bootstrap first admin with
+  `ADMIN_BOOTSTRAP_EMAIL` + `ADMIN_BOOTSTRAP_PASSWORD`; enroll TOTP on first login.
 - Fallback discovery point is **Söderhamn** (`61.3037, 17.0592`, 50 km).
 - **Publisher profiles / invites:** owners `GET`/`PATCH /v1/publishers/{id}`, list members, create
   email invites (`POST …/invites`). Invitee signs in with the invited email and
@@ -87,6 +89,11 @@ calls) in the same change as every new major feature.**
 - App identity is a **device credential** in secure storage (localStorage on web), not the user id.
 - Dev CORS defaults allow web `:3100` and Expo web `:8081` with credentials. Override with
   `CORS_ORIGINS`.
+- **Admin console host aliases:** prefer `http://localhost:3200`. Opening via an `/etc/hosts`
+  alias requires `ALLOWED_DEV_ORIGINS` (admin Next config) and matching `ADMIN_CORS_ORIGINS`,
+  otherwise `/_next` is 403 and the login form appears to do nothing. Session cookies are
+  `SameSite=Lax` on the admin API host — keep the UI and `NEXT_PUBLIC_ADMIN_API_URL` on the
+  same site (e.g. both `localhost`, or both `*.your-alias`) or the cookie will not stick.
 
 ### Preferences (interests & areas)
 

@@ -202,11 +202,11 @@ packages, packages never import apps.
 
 ```
 /apps
-  mobile/        Expo app (iOS + Android)                     — not created yet, see apps/README.md
-  web/           Next.js public web app + publisher workspace — not created yet
-  admin/         Next.js admin console                        — not created yet
+  mobile/        Expo app (iOS + Android)
+  web/           Next.js public web app + publisher workspace
+  admin/         Next.js admin console (login + publisher verification)
   api/           Public REST API (Hono)
-  admin-api/     Admin REST API (Hono)
+  admin-api/     Admin REST API (Hono; password + TOTP)
   worker/        SQS consumers + scheduled jobs
   data-workers/  Ingestion runner, one container image
     src/sources/   one adapter per source (fetch → map)

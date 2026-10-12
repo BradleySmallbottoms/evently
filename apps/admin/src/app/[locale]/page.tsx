@@ -1,5 +1,6 @@
+import Typography from '@mui/material/Typography';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { AdminHome } from './components/admin-home';
+import { Link } from '@/i18n/navigation';
 
 export default async function AdminHomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -7,10 +8,18 @@ export default async function AdminHomePage({ params }: { params: Promise<{ loca
   const t = await getTranslations('App');
 
   return (
-    <AdminHome
-      name={t('name')}
-      tagline={t('tagline')}
-      apiUrl={process.env.NEXT_PUBLIC_ADMIN_API_URL ?? 'http://localhost:3001'}
-    />
+    <>
+      <Typography variant="h3" component="h1" gutterBottom>
+        {t('name')}
+      </Typography>
+      <Typography color="text.secondary" sx={{ mb: 2 }}>
+        {t('tagline')}
+      </Typography>
+      <Typography>
+        <Link href="/publishers">{t('navPublishers')}</Link>
+        {' · '}
+        <Link href="/login">{t('navLogin')}</Link>
+      </Typography>
+    </>
   );
 }
