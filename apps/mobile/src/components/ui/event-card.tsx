@@ -84,7 +84,7 @@ export function EventCard({
         />
         {dateBadge ? (
           <View style={{ position: 'absolute', left: space.md, top: space.md }}>
-            <DateBox badge={dateBadge} />
+            <DateBox shadow={true} badge={dateBadge} />
           </View>
         ) : null}
         <View

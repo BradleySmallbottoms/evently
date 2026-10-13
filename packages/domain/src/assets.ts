@@ -56,3 +56,22 @@ export function publicAssetUrl(
     .join('/');
   return `${trimmed}/${path}`;
 }
+
+const galleryRole = /^gallery-(\d+)$/;
+
+/** Public URLs for `gallery-N` rows, lowest N first. The hero role is ignored. */
+export function publicGalleryUrls(
+  base: string | undefined,
+  images: readonly { role: string; s3Key: string }[],
+): string[] {
+  return images
+    .flatMap((image) => {
+      const match = galleryRole.exec(image.role);
+      if (!match) return [];
+      const url = publicAssetUrl(base, image.s3Key);
+      if (!url) return [];
+      return [{ index: Number(match[1]), url }];
+    })
+    .sort((a, b) => a.index - b.index)
+    .map((image) => image.url);
+}

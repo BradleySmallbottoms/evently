@@ -94,6 +94,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] "I'm coming" (`GET/PUT/DELETE /me/coming-events`) and `sort=popular` from `numSaved` + `numComing`
 - [x] Public events include the organizer name
 - [x] Share event via OS sheet (web URL); Universal / App Links association routes on web
+- [x] Event detail gallery: `imageUrls` on event payloads; the mobile hero swipes when there is more than one photo
 - **Exit:** the app can save an event, keep a list, show a price, and open a ticket or registration link.
 
 ## Phase 6 — Beta + hardening (weeks 15–19)
@@ -135,6 +136,6 @@ Closed beta around week 15, store launch around week 19.
 
 Stripe Billing on the web workspace, plan picker and upgrade flow, paid featured placements on the
 start page, enforcement of plan limits, admin tools for plans and refunds. Admins can already mark
-an event featured so it sorts first on the home page. The home For you carousel leaves those
+an event featured so it sorts first on the home page. For you leaves those
 events out. Entitlement checks already exist
 (`packages/domain/src/entitlements.ts`), so the rest is mostly billing and UI.

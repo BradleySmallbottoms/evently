@@ -1,6 +1,7 @@
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
   AdminBanUserRequest,
+  AdminEventReportListResponse,
   AdminRatingModerationListResponse,
   AdminSuspiciousCheckInListResponse,
   AdminUserListResponse,
@@ -185,6 +186,29 @@ export function registerModerationRoutes(
     try {
       await auth.requireSession(readAdminSessionToken(c));
       return c.json({ items: await moderation.listSuspiciousCheckIns() }, 200);
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
+  const eventReports = createRoute({
+    method: 'get',
+    path: '/moderation/event-reports',
+    responses: {
+      200: {
+        description: 'User reports of published events',
+        content: { 'application/json': { schema: AdminEventReportListResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(eventReports, async (c) => {
+    try {
+      await auth.requireSession(readAdminSessionToken(c));
+      return c.json({ items: await moderation.listEventReports() }, 200);
     } catch (err) {
       return adminAuthErrorResponse(c, err);
     }

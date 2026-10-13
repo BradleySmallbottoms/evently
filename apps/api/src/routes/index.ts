@@ -6,6 +6,7 @@ import type { EventServices } from '../services/events/types';
 import type { NotificationServices } from '../services/notifications/types';
 import type { PreferenceServices } from '../services/preferences/types';
 import type { RatingServices } from '../services/ratings/types';
+import type { ReportServices } from '../services/reports/types';
 import type { RegionServices } from '../services/regions/types';
 import type { StatsServices } from '../services/stats/types';
 import type { LibraryServices } from '../services/library/types';
@@ -23,6 +24,7 @@ import { registerPairingRoutes } from './pairing';
 import { registerPublisherRoutes } from './publishers';
 import { registerPublisherPushMessageRoutes } from './push-messages';
 import { registerRatingRoutes } from './ratings';
+import { registerReportRoutes } from './reports';
 import { registerRegionRoutes } from './regions';
 import { registerSessionRoutes } from './sessions';
 import { registerStatsRoutes } from './stats';
@@ -39,6 +41,7 @@ export type ApiRouteServices = {
   notifications: NotificationServices;
   eventContent: EventContentServices;
   ratings: RatingServices;
+  reports: ReportServices;
   stats: StatsServices;
   pushMessages: PublisherPushMessageServices;
 };
@@ -67,5 +70,6 @@ export function registerRoutes(
   registerCheckInRoutes(app, services.checkIns);
   registerEventContentRoutes(app, services.eventContent);
   registerRatingRoutes(app, services.ratings);
+  registerReportRoutes(app, services.reports);
   registerStatsRoutes(app, services.stats);
 }

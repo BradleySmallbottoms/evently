@@ -285,6 +285,7 @@ describe('events', () => {
       publisherName: 'Hall',
       links: [],
       imageUrl: null,
+      imageUrls: [],
       tagIds: [],
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
@@ -405,6 +406,7 @@ describe('events', () => {
         publisherName: 'Hall',
         links: [],
         imageUrl: null,
+        imageUrls: [],
         tagIds: [],
         featured: id === quietId,
         checkInEnabled: false,
@@ -435,5 +437,54 @@ describe('events', () => {
     const detail = await app.request(`/v1/events/${bothId}`);
     expect(detail.status).toBe(200);
     expect(await detail.json()).toMatchObject({ id: bothId, numSaved: 2, numComing: 2 });
+  });
+
+  it('returns gallery photos after the hero', async () => {
+    const store = createMemoryStore();
+    const auth = createMemoryAuthServices(store);
+    const app = createApp({
+      auth,
+      events: createMemoryEventServices(auth, { now: () => new Date() }, store),
+    });
+    const id = '11111111-1111-4111-8111-111111111421';
+    const at = '2026-06-01T18:00:00.000Z';
+    store.events.set(id, {
+      id,
+      publisherId: '11111111-1111-4111-8111-111111111403',
+      title: 'Gallery night',
+      description: null,
+      mode: 'physical',
+      status: 'published',
+      origin: 'native',
+      startsAt: at,
+      endsAt: at,
+      timezone: 'Europe/Stockholm',
+      venueName: 'Hall',
+      location: { lat: 61.3037, lng: 17.0592 },
+      geofenceRadiusM: 100,
+      onlineUrl: null,
+      priceAmount: null,
+      currency: 'SEK',
+      publisherName: 'Hall',
+      links: [],
+      imageUrl: 'https://images.example/hero.jpg',
+      imageUrls: ['https://images.example/two.jpg', 'https://images.example/three.jpg'],
+      tagIds: [],
+      featured: false,
+      checkInEnabled: false,
+      numSaved: 0,
+      numComing: 0,
+      createdAt: at,
+      updatedAt: at,
+      startsAtDate: new Date(at),
+      endsAtDate: new Date(at),
+    });
+
+    const detail = await app.request(`/v1/events/${id}`);
+    expect(detail.status).toBe(200);
+    expect(await detail.json()).toMatchObject({
+      imageUrl: 'https://images.example/hero.jpg',
+      imageUrls: ['https://images.example/two.jpg', 'https://images.example/three.jpg'],
+    });
   });
 });

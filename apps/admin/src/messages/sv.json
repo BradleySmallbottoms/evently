@@ -121,6 +121,8 @@
     "comment": "Kommentar",
     "hide": "Dölj",
     "hidden": "Dold",
+    "reportsTitle": "Rapporterade evenemang",
+    "reportsEmpty": "Inga rapporter.",
     "checkInsTitle": "Misstänkta incheckningar",
     "checkInsEmpty": "Inga misstänkta incheckningar.",
     "method": "Metod",

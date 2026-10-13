@@ -26,6 +26,7 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Region suggestions                                     | [region-suggestions.md](./region-suggestions.md)         |
 | Push token, nearby match, subscriptions (SQS → worker) | [push-and-domain-events.md](./push-and-domain-events.md) |
 | Physical geofence check-in                             | [geo-check-in.md](./geo-check-in.md)                     |
+| For you                                                | [for-you.md](./for-you.md)                               |
 | Rotating digital code / venue QR check-in              | [digital-code-check-in.md](./digital-code-check-in.md)   |
 | Profile prompt at first check-in                       | [profile-at-check-in.md](./profile-at-check-in.md)       |
 | Attendee content (signed URLs)                         | [attendee-content.md](./attendee-content.md)             |

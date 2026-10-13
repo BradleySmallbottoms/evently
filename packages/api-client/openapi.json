@@ -4077,6 +4077,13 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "imageUrls": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uri"
+                            }
+                          },
                           "tagIds": {
                             "type": "array",
                             "items": {
@@ -4127,6 +4134,7 @@
                           "publisherName",
                           "links",
                           "imageUrl",
+                          "imageUrls",
                           "tagIds",
                           "featured",
                           "checkInEnabled",
@@ -4490,6 +4498,13 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "imageUrls": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uri"
+                            }
+                          },
                           "tagIds": {
                             "type": "array",
                             "items": {
@@ -4540,6 +4555,7 @@
                           "publisherName",
                           "links",
                           "imageUrl",
+                          "imageUrls",
                           "tagIds",
                           "featured",
                           "checkInEnabled",
@@ -4919,6 +4935,13 @@
                                   "nullable": true,
                                   "format": "uri"
                                 },
+                                "imageUrls": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "format": "uri"
+                                  }
+                                },
                                 "tagIds": {
                                   "type": "array",
                                   "items": {
@@ -4969,6 +4992,7 @@
                                 "publisherName",
                                 "links",
                                 "imageUrl",
+                                "imageUrls",
                                 "tagIds",
                                 "featured",
                                 "checkInEnabled",
@@ -5212,6 +5236,13 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "imageUrls": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uri"
+                            }
+                          },
                           "tagIds": {
                             "type": "array",
                             "items": {
@@ -5262,6 +5293,7 @@
                           "publisherName",
                           "links",
                           "imageUrl",
+                          "imageUrls",
                           "tagIds",
                           "featured",
                           "checkInEnabled",
@@ -5542,6 +5574,13 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "imageUrls": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uri"
+                            }
+                          },
                           "tagIds": {
                             "type": "array",
                             "items": {
@@ -5592,6 +5631,7 @@
                           "publisherName",
                           "links",
                           "imageUrl",
+                          "imageUrls",
                           "tagIds",
                           "featured",
                           "checkInEnabled",
@@ -6257,6 +6297,13 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "imageUrls": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uri"
+                            }
+                          },
                           "tagIds": {
                             "type": "array",
                             "items": {
@@ -6307,6 +6354,7 @@
                           "publisherName",
                           "links",
                           "imageUrl",
+                          "imageUrls",
                           "tagIds",
                           "featured",
                           "checkInEnabled",
@@ -6648,6 +6696,13 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "imageUrls": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uri"
+                      }
+                    },
                     "tagIds": {
                       "type": "array",
                       "items": {
@@ -6698,6 +6753,7 @@
                     "publisherName",
                     "links",
                     "imageUrl",
+                    "imageUrls",
                     "tagIds",
                     "featured",
                     "checkInEnabled",
@@ -7056,6 +7112,13 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "imageUrls": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uri"
+                            }
+                          },
                           "tagIds": {
                             "type": "array",
                             "items": {
@@ -7106,6 +7169,7 @@
                           "publisherName",
                           "links",
                           "imageUrl",
+                          "imageUrls",
                           "tagIds",
                           "featured",
                           "checkInEnabled",
@@ -7293,6 +7357,13 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "imageUrls": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uri"
+                      }
+                    },
                     "tagIds": {
                       "type": "array",
                       "items": {
@@ -7343,6 +7414,7 @@
                     "publisherName",
                     "links",
                     "imageUrl",
+                    "imageUrls",
                     "tagIds",
                     "featured",
                     "checkInEnabled",
@@ -7548,6 +7620,13 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "imageUrls": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uri"
+                      }
+                    },
                     "tagIds": {
                       "type": "array",
                       "items": {
@@ -7627,6 +7706,7 @@
                     "publisherName",
                     "links",
                     "imageUrl",
+                    "imageUrls",
                     "tagIds",
                     "featured",
                     "checkInEnabled",
@@ -8015,6 +8095,13 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "imageUrls": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uri"
+                      }
+                    },
                     "tagIds": {
                       "type": "array",
                       "items": {
@@ -8094,6 +8181,7 @@
                     "publisherName",
                     "links",
                     "imageUrl",
+                    "imageUrls",
                     "tagIds",
                     "featured",
                     "checkInEnabled",
@@ -8331,6 +8419,13 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "imageUrls": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uri"
+                      }
+                    },
                     "tagIds": {
                       "type": "array",
                       "items": {
@@ -8381,6 +8476,7 @@
                     "publisherName",
                     "links",
                     "imageUrl",
+                    "imageUrls",
                     "tagIds",
                     "featured",
                     "checkInEnabled",
@@ -8616,6 +8712,13 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "imageUrls": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uri"
+                      }
+                    },
                     "tagIds": {
                       "type": "array",
                       "items": {
@@ -8666,6 +8769,7 @@
                     "publisherName",
                     "links",
                     "imageUrl",
+                    "imageUrls",
                     "tagIds",
                     "featured",
                     "checkInEnabled",
@@ -9191,6 +9295,90 @@
           },
           "404": {
             "description": "Event not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/check-ins": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Newest check-ins for the current user, including ended events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "eventId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "publisherId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "tagIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "eventId",
+                          "publisherId",
+                          "tagIds",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing session",
             "content": {
               "application/json": {
                 "schema": {
@@ -11414,6 +11602,171 @@
           },
           "404": {
             "description": "Event not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{eventId}/reports": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "eventId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "This user already reported the event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "eventId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "eventId",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Report stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "eventId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "eventId",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Banned user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found or not published",
             "content": {
               "application/json": {
                 "schema": {

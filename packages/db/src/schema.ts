@@ -545,6 +545,29 @@ export const digitalCodes = pgTable('digital_codes', {
   createdAt: createdAt(),
 });
 
+/**
+ * A signed-in user flagging a published listing. One row per user and event.
+ * Cascades when the user or the event is deleted.
+ */
+export const eventReports = pgTable(
+  'event_reports',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('event_reports_user_event_idx').on(t.userId, t.eventId),
+    index('event_reports_event_id_idx').on(t.eventId),
+    index('event_reports_created_at_idx').on(t.createdAt),
+  ],
+);
+
 export const ratings = pgTable(
   'ratings',
   {

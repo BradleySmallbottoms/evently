@@ -1,4 +1,9 @@
-import { deviceAssetUrl, publicAssetUrl, safeAssetKey } from '../../../packages/domain/src/assets';
+import {
+  deviceAssetUrl,
+  publicAssetUrl,
+  publicGalleryUrls,
+  safeAssetKey,
+} from '../../../packages/domain/src/assets';
 import { describe, expect, it } from 'vitest';
 
 describe('publicAssetUrl', () => {
@@ -30,6 +35,31 @@ describe('deviceAssetUrl', () => {
   it('leaves CloudFront URLs alone', () => {
     const url = 'https://d111.cloudfront.net/events/abc/main';
     expect(deviceAssetUrl(url, 'http://192.168.4.235:3000/v1')).toBe(url);
+  });
+});
+
+describe('publicGalleryUrls', () => {
+  const base = 'https://d111.cloudfront.net';
+
+  it('returns gallery roles in numeric order and skips the hero', () => {
+    expect(
+      publicGalleryUrls(base, [
+        { role: 'gallery-2', s3Key: 'events/abc/gallery-2' },
+        { role: 'main', s3Key: 'events/abc/main' },
+        { role: 'gallery-10', s3Key: 'events/abc/gallery-10' },
+        { role: 'gallery-1', s3Key: 'events/abc/gallery-1' },
+      ]),
+    ).toEqual([
+      'https://d111.cloudfront.net/events/abc/gallery-1',
+      'https://d111.cloudfront.net/events/abc/gallery-2',
+      'https://d111.cloudfront.net/events/abc/gallery-10',
+    ]);
+  });
+
+  it('returns nothing when the public origin is unset', () => {
+    expect(publicGalleryUrls(undefined, [{ role: 'gallery-1', s3Key: 'events/abc/gallery-1' }])).toEqual(
+      [],
+    );
   });
 });
 

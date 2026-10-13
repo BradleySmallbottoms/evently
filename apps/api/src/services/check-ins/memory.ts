@@ -9,6 +9,7 @@ import {
   DIGITAL_CODE_SLOT_SECONDS,
   digitalCheckInQrPayload,
   digitalCodeSlot,
+  FOR_YOU_RECENT_LIMIT,
   validateCodeCheckIn,
   validateGeoCheckIn,
 } from '@local-events/domain';
@@ -98,6 +99,28 @@ export function createMemoryCheckInServices(
   }
 
   return {
+    async listMine(sessionToken) {
+      const { userId } = await requireUser(sessionToken);
+      const rows = checkIns
+        .filter((row) => row.userId === userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, FOR_YOU_RECENT_LIMIT);
+      return {
+        items: rows.flatMap((row) => {
+          const event = store.events.get(row.eventId);
+          if (!event) return [];
+          return [
+            {
+              eventId: row.eventId,
+              publisherId: event.publisherId,
+              tagIds: event.tagIds,
+              createdAt: row.createdAt.toISOString(),
+            },
+          ];
+        }),
+      };
+    },
+
     async getStatus(sessionToken, eventId) {
       const { userId } = await requireUser(sessionToken);
       const row = loadPublished(eventId);

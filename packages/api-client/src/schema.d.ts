@@ -2368,6 +2368,7 @@ export interface paths {
                                 }[];
                                 /** Format: uri */
                                 imageUrl: string | null;
+                                imageUrls: string[];
                                 tagIds: string[];
                                 featured: boolean;
                                 checkInEnabled: boolean;
@@ -2579,6 +2580,7 @@ export interface paths {
                                 }[];
                                 /** Format: uri */
                                 imageUrl: string | null;
+                                imageUrls: string[];
                                 tagIds: string[];
                                 featured: boolean;
                                 checkInEnabled: boolean;
@@ -2796,6 +2798,7 @@ export interface paths {
                                     }[];
                                     /** Format: uri */
                                     imageUrl: string | null;
+                                    imageUrls: string[];
                                     tagIds: string[];
                                     featured: boolean;
                                     checkInEnabled: boolean;
@@ -2895,6 +2898,7 @@ export interface paths {
                                 }[];
                                 /** Format: uri */
                                 imageUrl: string | null;
+                                imageUrls: string[];
                                 tagIds: string[];
                                 featured: boolean;
                                 checkInEnabled: boolean;
@@ -3074,6 +3078,7 @@ export interface paths {
                                 }[];
                                 /** Format: uri */
                                 imageUrl: string | null;
+                                imageUrls: string[];
                                 tagIds: string[];
                                 featured: boolean;
                                 checkInEnabled: boolean;
@@ -3402,6 +3407,7 @@ export interface paths {
                                 }[];
                                 /** Format: uri */
                                 imageUrl: string | null;
+                                imageUrls: string[];
                                 tagIds: string[];
                                 featured: boolean;
                                 checkInEnabled: boolean;
@@ -3526,6 +3532,7 @@ export interface paths {
                             }[];
                             /** Format: uri */
                             imageUrl: string | null;
+                            imageUrls: string[];
                             tagIds: string[];
                             featured: boolean;
                             checkInEnabled: boolean;
@@ -3651,6 +3658,7 @@ export interface paths {
                                 }[];
                                 /** Format: uri */
                                 imageUrl: string | null;
+                                imageUrls: string[];
                                 tagIds: string[];
                                 featured: boolean;
                                 checkInEnabled: boolean;
@@ -3740,6 +3748,7 @@ export interface paths {
                             }[];
                             /** Format: uri */
                             imageUrl: string | null;
+                            imageUrls: string[];
                             tagIds: string[];
                             featured: boolean;
                             checkInEnabled: boolean;
@@ -3841,6 +3850,7 @@ export interface paths {
                             }[];
                             /** Format: uri */
                             imageUrl: string | null;
+                            imageUrls: string[];
                             tagIds: string[];
                             featured: boolean;
                             checkInEnabled: boolean;
@@ -3992,6 +4002,7 @@ export interface paths {
                             }[];
                             /** Format: uri */
                             imageUrl: string | null;
+                            imageUrls: string[];
                             tagIds: string[];
                             featured: boolean;
                             checkInEnabled: boolean;
@@ -4111,6 +4122,7 @@ export interface paths {
                             }[];
                             /** Format: uri */
                             imageUrl: string | null;
+                            imageUrls: string[];
                             tagIds: string[];
                             featured: boolean;
                             checkInEnabled: boolean;
@@ -4226,6 +4238,7 @@ export interface paths {
                             }[];
                             /** Format: uri */
                             imageUrl: string | null;
+                            imageUrls: string[];
                             tagIds: string[];
                             featured: boolean;
                             checkInEnabled: boolean;
@@ -4487,6 +4500,65 @@ export interface paths {
                 };
                 /** @description Event not found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/check-ins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Newest check-ins for the current user, including ended events */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                /** Format: uuid */
+                                eventId: string;
+                                /** Format: uuid */
+                                publisherId: string;
+                                tagIds: string[];
+                                /** Format: date-time */
+                                createdAt: string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Missing session */
+                401: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -5685,6 +5757,108 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    eventId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description This user already reported the event */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            eventId: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                        };
+                    };
+                };
+                /** @description Report stored */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            eventId: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                        };
+                    };
+                };
+                /** @description Missing session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Banned user */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Event not found or not published */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;

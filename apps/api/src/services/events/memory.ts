@@ -157,6 +157,7 @@ export function createMemoryEventServices(
         publisherName: publishers.get(publisherId)?.name ?? '',
         links: linksFromInput(body.links),
         imageUrl: null,
+        imageUrls: [],
         tagIds: [...body.tagIds],
         featured: false,
         checkInEnabled: false,

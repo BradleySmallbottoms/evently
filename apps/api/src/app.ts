@@ -17,6 +17,8 @@ import { createMemoryPreferenceServices } from './services/preferences/memory';
 import type { PreferenceServices } from './services/preferences/types';
 import { createMemoryRatingServices } from './services/ratings/memory';
 import type { RatingServices } from './services/ratings/types';
+import { createMemoryReportServices } from './services/reports/memory';
+import type { ReportServices } from './services/reports/types';
 import { createMemoryRegionServices } from './services/regions/memory';
 import type { RegionServices } from './services/regions/types';
 import { createMemoryStatsServices } from './services/stats/memory';
@@ -44,6 +46,7 @@ export type CreateAppOptions = {
   notifications?: NotificationServices;
   eventContent?: EventContentServices;
   ratings?: RatingServices;
+  reports?: ReportServices;
   stats?: StatsServices;
   pushMessages?: PublisherPushMessageServices;
   /**
@@ -82,6 +85,7 @@ export function createApp(options: CreateAppOptions = {}) {
   const eventContent =
     options.eventContent ?? createMemoryEventContentServices(auth, {}, store);
   const ratings = options.ratings ?? createMemoryRatingServices(auth, {}, store);
+  const reports = options.reports ?? createMemoryReportServices(auth, store);
   const stats =
     options.stats ??
     createMemoryStatsServices(auth, store, { workerToken: 'test-stats-worker-token' });
@@ -132,6 +136,7 @@ export function createApp(options: CreateAppOptions = {}) {
       notifications,
       eventContent,
       ratings,
+      reports,
       stats,
       pushMessages,
     },

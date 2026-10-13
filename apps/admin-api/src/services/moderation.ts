@@ -1,5 +1,6 @@
 import type {
   AdminBanUserRequest,
+  AdminEventReportListResponse,
   AdminRatingModerationListResponse,
   AdminSuspiciousCheckInListResponse,
   AdminUserListResponse,
@@ -22,6 +23,7 @@ export type AdminModerationServices = {
   listRatings: () => Promise<AdminRatingModerationListResponse['items']>;
   hideRating: (ratingId: string, actor: string) => Promise<{ id: string } | null>;
   listSuspiciousCheckIns: () => Promise<AdminSuspiciousCheckInListResponse['items']>;
+  listEventReports: () => Promise<AdminEventReportListResponse['items']>;
 };
 
 export type AdminModerationEnv = {
@@ -92,6 +94,16 @@ export function createMemoryAdminModerationServices(
         createdAt: string;
       }
     >;
+    eventReports?: Map<
+      string,
+      {
+        id: string;
+        userId: string;
+        eventId: string;
+        eventTitle: string;
+        createdAt: string;
+      }
+    >;
   },
   env: AdminModerationEnv = {},
 ): AdminModerationServices {
@@ -157,6 +169,9 @@ export function createMemoryAdminModerationServices(
           (c.accuracyM != null && c.accuracyM > 200) ||
           Object.keys(c.deviceFlags).length > 0,
       );
+    },
+    async listEventReports() {
+      return [...(store.eventReports?.values() ?? [])];
     },
   };
 }
@@ -326,6 +341,27 @@ export function createDbAdminModerationServices(
         method: r.method,
         accuracyM: r.accuracyM,
         deviceFlags: (r.deviceFlags as Record<string, unknown>) ?? {},
+        createdAt: r.createdAt.toISOString(),
+      }));
+    },
+    async listEventReports() {
+      const rows = await db
+        .select({
+          id: schema.eventReports.id,
+          userId: schema.eventReports.userId,
+          eventId: schema.eventReports.eventId,
+          eventTitle: schema.events.title,
+          createdAt: schema.eventReports.createdAt,
+        })
+        .from(schema.eventReports)
+        .innerJoin(schema.events, eq(schema.eventReports.eventId, schema.events.id))
+        .orderBy(desc(schema.eventReports.createdAt))
+        .limit(100);
+      return rows.map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        eventId: r.eventId,
+        eventTitle: r.eventTitle,
         createdAt: r.createdAt.toISOString(),
       }));
     },

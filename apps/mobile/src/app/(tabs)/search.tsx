@@ -172,6 +172,7 @@ export default function SearchScreen() {
                   title={t('events.locationPickerTitle')}
                   message={t('events.locationPickerMessage')}
                   options={locationOptions}
+                  selectedId={placeId}
                   radiusM={radiusM}
                   onRadiusChange={(next) => {
                     void setDiscoveryRadiusM(next);

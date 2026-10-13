@@ -121,6 +121,8 @@
     "comment": "Comment",
     "hide": "Hide",
     "hidden": "Hidden",
+    "reportsTitle": "Event reports",
+    "reportsEmpty": "No event reports.",
     "checkInsTitle": "Suspicious check-ins",
     "checkInsEmpty": "No suspicious check-ins.",
     "method": "Method",

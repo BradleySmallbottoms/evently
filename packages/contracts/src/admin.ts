@@ -242,6 +242,20 @@ export const AdminSuspiciousCheckInListResponse = z.object({
 });
 export type AdminSuspiciousCheckInListResponse = z.infer<typeof AdminSuspiciousCheckInListResponse>;
 
+export const AdminEventReportItem = z.object({
+  id: Id,
+  userId: Id,
+  eventId: Id,
+  eventTitle: z.string(),
+  createdAt: z.iso.datetime(),
+});
+export type AdminEventReportItem = z.infer<typeof AdminEventReportItem>;
+
+export const AdminEventReportListResponse = z.object({
+  items: z.array(AdminEventReportItem),
+});
+export type AdminEventReportListResponse = z.infer<typeof AdminEventReportListResponse>;
+
 export const AdminEventListItem = z.object({
   id: Id,
   publisherId: Id,

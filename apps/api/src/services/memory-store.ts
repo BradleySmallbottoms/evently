@@ -189,6 +189,13 @@ export type MemoryEventListItem = {
   createdAt: Date;
 };
 
+export type MemoryEventReport = {
+  id: string;
+  userId: string;
+  eventId: string;
+  createdAt: Date;
+};
+
 export type MemoryRating = {
   id: string;
   userId: string;
@@ -229,6 +236,7 @@ export type MemoryStore = {
   digitalCodes: Map<string, MemoryDigitalCode>;
   checkIns: MemoryCheckIn[];
   eventContent: MemoryEventContent[];
+  eventReports: MemoryEventReport[];
   ratings: MemoryRating[];
   /** EAV stats: `${sourceType}:${sourceId}:${key}` → value. */
   stats: Map<string, { value: number; createdAt: Date; updatedAt: Date }>;
@@ -291,6 +299,7 @@ export function createMemoryStore(): MemoryStore {
     digitalCodes: new Map(),
     checkIns: [],
     eventContent: [],
+    eventReports: [],
     ratings: [],
     stats: new Map(),
   };

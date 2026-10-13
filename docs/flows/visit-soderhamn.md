@@ -10,7 +10,9 @@ already in the database links `external_refs` and does not overwrite that event.
 are not sent to the notification queue. When `RAW_INGESTION_BUCKET` is set, the raw fetch is
 stored at `raw/<slug>/<runId>`. A main image is copied into the public assets bucket
 (`events/<eventId>/main`) and linked in `event_images`. Further images from linked pages are stored
-as `gallery-1`, `gallery-2`, and so on. A failed image download does not fail the event. A failed
+as `gallery-1`, `gallery-2`, and so on. `GET /v1/events/{id}` returns the hero as `imageUrl` and
+those gallery keys as `imageUrls`, lowest number first. The mobile event screen swipes through
+them when more than one photo is present. A failed image download does not fail the event. A failed
 page crawl leaves the previous gallery rows in place. Locally that bucket is Garage; in AWS it is S3 behind CloudFront.
 
 Category paging uses a continue token that embeds the API key. The worker must not log that token.

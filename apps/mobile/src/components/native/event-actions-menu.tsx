@@ -14,6 +14,19 @@ type Props = {
   onShare: () => void;
   onCopyLink: () => void;
   onReport: () => void;
+  /** Save / interested. Omitted on list cards. */
+  interestedLabel?: string;
+  interestedOn?: boolean;
+  onInterested?: () => void;
+  comingLabel?: string;
+  comingOn?: boolean;
+  onComing?: () => void;
+  /** Physical events that have coordinates. */
+  directionsLabel?: string;
+  onDirections?: () => void;
+  followLabel?: string;
+  following?: boolean;
+  onFollow?: () => void;
   /** Shown only while a reminder can still be set or changed. */
   remindLabel?: string;
   onRemind?: () => void;
@@ -29,6 +42,14 @@ export function EventActionsMenu({
   onShare,
   onCopyLink,
   onReport,
+  interestedLabel,
+  onInterested,
+  comingLabel,
+  onComing,
+  directionsLabel,
+  onDirections,
+  followLabel,
+  onFollow,
   remindLabel,
   onRemind,
   buttonStyle,
@@ -54,6 +75,12 @@ export function EventActionsMenu({
       <Host style={{ position: 'absolute', width: 0, height: 0 }}>
         <BottomSheet isPresented={open} onDismiss={() => setOpen(false)}>
           <Column spacing={8}>
+            {interestedLabel && onInterested ? (
+              <ActionRow label={interestedLabel} onPress={() => run(onInterested)} />
+            ) : null}
+            {comingLabel && onComing ? (
+              <ActionRow label={comingLabel} onPress={() => run(onComing)} />
+            ) : null}
             <ActionRow
               label={shareLabel}
               onPress={() => {
@@ -61,6 +88,18 @@ export function EventActionsMenu({
                 setTimeout(onShare, 300);
               }}
             />
+            {directionsLabel && onDirections ? (
+              <ActionRow
+                label={directionsLabel}
+                onPress={() => {
+                  setOpen(false);
+                  setTimeout(onDirections, 300);
+                }}
+              />
+            ) : null}
+            {followLabel && onFollow ? (
+              <ActionRow label={followLabel} onPress={() => run(onFollow)} />
+            ) : null}
             <ActionRow label={copyLinkLabel} onPress={() => run(onCopyLink)} />
             {remindLabel && onRemind ? (
               <ActionRow

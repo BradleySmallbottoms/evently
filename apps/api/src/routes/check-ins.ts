@@ -1,6 +1,7 @@
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
   CheckIn,
+  CheckInHistoryResponse,
   CheckInStatusResponse,
   CreateCodeCheckInRequest,
   CreateGeoCheckInRequest,
@@ -18,6 +19,28 @@ import type { CheckInServices } from '../services/check-ins/types';
 const EventIdParam = z.object({ eventId: z.uuid() });
 
 export function registerCheckInRoutes(app: OpenAPIHono, checkIns: CheckInServices): void {
+  const history = createRoute({
+    method: 'get',
+    path: '/me/check-ins',
+    responses: {
+      200: {
+        description: 'Newest check-ins for the current user, including ended events',
+        content: { 'application/json': { schema: CheckInHistoryResponse } },
+      },
+      401: {
+        description: 'Missing session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(history, async (c) => {
+    try {
+      return c.json(await checkIns.listMine(readUserSessionToken(c)), 200);
+    } catch (err) {
+      return checkInErrorResponse(c, err);
+    }
+  });
+
   const status = createRoute({
     method: 'get',
     path: '/events/{eventId}/check-in',

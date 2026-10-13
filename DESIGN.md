@@ -283,7 +283,9 @@ The event detail screen should answer: what is it, when is it, where is
 it, what does it cost, and how do I attend?
 
 Recommended structure: 1. Large hero image with back, save, and share
-controls, and a date box on the photo just above the detail card.
+controls, and a date box on the photo just above the detail card. When
+the event has more than one photo, the hero is a horizontal gallery:
+swipe between photos, with page dots on the image above the detail card.
 2. Event title with the overflow menu beside it, then category chips.
 3. Date and time. Then "Your plan": Interested (the save) and I'm coming,
 as two pills. A selected pill is filled dark. The line under them says

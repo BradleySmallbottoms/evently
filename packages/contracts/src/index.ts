@@ -57,6 +57,7 @@ export * from './push-messages';
 export * from './preferences';
 export * from './profile';
 export * from './ratings';
+export * from './reports';
 export * from './regions';
 export * from './stats';
 export * from './subscriptions';

@@ -43,6 +43,12 @@ type CheckInRow = {
   createdAt: string;
 };
 
+type EventReportRow = {
+  id: string;
+  eventTitle: string;
+  createdAt: string;
+};
+
 export function ModerationPanel() {
   const t = useTranslations('Moderation');
   const tApp = useTranslations('App');
@@ -62,6 +68,11 @@ export function ModerationPanel() {
   const checkIns = useQuery({
     queryKey: ['admin-moderation-check-ins'],
     queryFn: () => adminFetch<{ items: CheckInRow[] }>('/moderation/check-ins'),
+    retry: false,
+  });
+  const eventReports = useQuery({
+    queryKey: ['admin-moderation-event-reports'],
+    queryFn: () => adminFetch<{ items: EventReportRow[] }>('/moderation/event-reports'),
     retry: false,
   });
 
@@ -101,7 +112,7 @@ export function ModerationPanel() {
     );
   }
 
-  if (users.isError || ratings.isError || checkIns.isError) {
+  if (users.isError || ratings.isError || checkIns.isError || eventReports.isError) {
     return <Alert severity="error">{t('loadError')}</Alert>;
   }
 
@@ -225,6 +236,33 @@ export function ModerationPanel() {
                       </Button>
                     )}
                   </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : null}
+      </Stack>
+
+      <Stack spacing={2}>
+        <Typography variant="h5" component="h2">
+          {t('reportsTitle')}
+        </Typography>
+        {(eventReports.data?.items ?? []).length === 0 && !eventReports.isLoading ? (
+          <Typography color="text.secondary">{t('reportsEmpty')}</Typography>
+        ) : null}
+        {(eventReports.data?.items ?? []).length > 0 ? (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>{t('event')}</TableCell>
+                <TableCell>{t('at')}</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {(eventReports.data?.items ?? []).map((report) => (
+                <TableRow key={report.id}>
+                  <TableCell>{report.eventTitle}</TableCell>
+                  <TableCell>{new Date(report.createdAt).toLocaleString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

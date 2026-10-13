@@ -25,7 +25,7 @@ import { ReminderPicker } from '@/components/native/reminder-picker';
 import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
 import { DateBox } from '@/components/ui/date-box';
-import { EventImage } from '@/components/ui/event-image';
+import { EventHeroGallery } from '@/components/ui/event-hero-gallery';
 import { EventPlan } from '@/components/ui/event-plan';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -53,11 +53,14 @@ import {
   upcomingReminderSlots,
   type ReminderSlot,
 } from '@/lib/reminder-times';
+import { directionsUrl } from '@/lib/directions';
 import { shareEventLink } from '@/lib/event-share';
 import { buildEventWebUrl } from '@/lib/event-share-url';
+import { reportEvent } from '@/lib/reports';
+import { followTarget, listSubscriptions, unfollowTarget } from '@/lib/subscriptions';
 import { fetchEventStats } from '@/lib/stats';
 import { colors } from '@/theme/colors';
-import { radius, space } from '@/theme/tokens';
+import { radius, shadow, space } from '@/theme/tokens';
 
 export default function EventDetailScreen() {
   const { t, i18n } = useTranslation();
@@ -136,6 +139,15 @@ export default function EventDetailScreen() {
     queryFn: () => listComingEvents(identity.data!),
   });
   const isComing = coming.data?.items.some((item) => item.id === id) ?? false;
+  const subscriptions = useQuery({
+    queryKey: ['subscriptions', identity.data?.userId],
+    enabled: identity.isSuccess,
+    queryFn: () => listSubscriptions(identity.data!),
+  });
+  const followingPublisher =
+    subscriptions.data?.items.some(
+      (item) => item.targetType === 'publisher' && item.targetId === event.data?.publisherId,
+    ) ?? false;
   const eventStats = useQuery({
     queryKey: ['event-stats', id],
     queryFn: () => fetchEventStats(id!),
@@ -228,6 +240,7 @@ export default function EventDetailScreen() {
   }, [event.data, reminderOpen, t]);
   async function afterCheckIn() {
     await queryClient.invalidateQueries({ queryKey: ['check-in-status', id] });
+    await queryClient.invalidateQueries({ queryKey: ['my-check-ins'] });
     await queryClient.invalidateQueries({ queryKey: ['event-content', id] });
     const current = await queryClient.fetchQuery({
       queryKey: ['profile', identity.data?.userId],
@@ -288,6 +301,38 @@ export default function EventDetailScreen() {
       .catch(() => Alert.alert(t('events.planTitle'), t('events.planError')));
   }
 
+  function toggleFollow() {
+    if (!identity.data || !event.data) return;
+    const publisherId = event.data.publisherId;
+    const next = followingPublisher
+      ? unfollowTarget(identity.data, 'publisher', publisherId)
+      : followTarget(identity.data, 'publisher', publisherId);
+    void next
+      .then(() => queryClient.invalidateQueries({ queryKey: ['subscriptions'] }))
+      .catch(() => Alert.alert(t('events.organizer'), t('events.followError')));
+  }
+
+  async function submitReport() {
+    if (typeof id !== 'string') return;
+    try {
+      const who = identity.data ?? (await ensureIdentity(locale));
+      await reportEvent(who, id);
+      Alert.alert(t('events.reportTitle'), t('events.reportSent'));
+    } catch {
+      Alert.alert(t('events.reportTitle'), t('events.reportError'));
+    }
+  }
+
+  async function openDirections() {
+    const location = event.data?.location;
+    if (!location) return;
+    try {
+      await Linking.openURL(directionsUrl(location.lat, location.lng, Platform.OS));
+    } catch {
+      Alert.alert(t('events.directions'), t('events.directionsError'));
+    }
+  }
+
   async function shareEvent() {
     if (!event.data || typeof id !== 'string') return;
     try {
@@ -325,6 +370,7 @@ export default function EventDetailScreen() {
           maxWidth: MaxContentWidth,
           backgroundColor: colors.canvas,
         }}
+        directionalLockEnabled
         contentInsetAdjustmentBehavior="never"
         contentContainerStyle={{
           flexGrow: 1,
@@ -333,8 +379,9 @@ export default function EventDetailScreen() {
       >
         <View style={{ height: 400, backgroundColor: colors.accentSoft }}>
           {event.data ? (
-            <EventImage
+            <EventHeroGallery
               imageUrl={event.data.imageUrl}
+              imageUrls={event.data.imageUrls}
               tags={namesForTagIds(event.data.tagIds, tags.data?.items)}
             />
           ) : null}
@@ -397,7 +444,7 @@ export default function EventDetailScreen() {
               alignSelf: 'flex-start',
             }}
           >
-            <DateBox badge={dateBadge(event.data.startsAt, locale)} />
+            <DateBox shadow={true} badge={dateBadge(event.data.startsAt, locale)} />
           </View>
         ) : null}
 
@@ -462,12 +509,42 @@ export default function EventDetailScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <EventActionsMenu
                         accessibilityLabel={t('events.moreActions')}
+                        interestedLabel={
+                          isSaved ? t('events.removeInterest') : t('events.saveInterested')
+                        }
+                        interestedOn={isSaved}
+                        onInterested={toggleSaved}
+                        comingLabel={isComing ? t('events.removeComing') : t('events.planComing')}
+                        comingOn={isComing}
+                        onComing={toggleComing}
                         shareLabel={t('events.share')}
                         copyLinkLabel={t('events.copyLink')}
                         reportLabel={t('events.report')}
                         onShare={() => void shareEvent()}
                         onCopyLink={() => void copyLink()}
                         onReport={() => setReportOpen(true)}
+                        directionsLabel={
+                          event.data.mode === 'physical' && event.data.location
+                            ? t('events.directions')
+                            : undefined
+                        }
+                        onDirections={
+                          event.data.mode === 'physical' && event.data.location
+                            ? () => void openDirections()
+                            : undefined
+                        }
+                        followLabel={
+                          event.data.publisherName
+                            ? t(
+                                followingPublisher
+                                  ? 'events.unfollowPublisher'
+                                  : 'events.followPublisher',
+                                { name: event.data.publisherName },
+                              )
+                            : undefined
+                        }
+                        following={followingPublisher}
+                        onFollow={event.data.publisherName ? toggleFollow : undefined}
                         remindLabel={
                           offerReminder
                             ? reminderOn
@@ -711,7 +788,10 @@ export default function EventDetailScreen() {
         cancelLabel={t('events.cancel')}
         isPresented={reportOpen}
         onIsPresentedChange={setReportOpen}
-        onConfirm={() => setReportOpen(false)}
+        onConfirm={() => {
+          setReportOpen(false);
+          void submitReport();
+        }}
       />
 
       <ProfilePromptSheet

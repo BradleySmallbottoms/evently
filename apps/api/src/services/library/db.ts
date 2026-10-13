@@ -1,7 +1,12 @@
 import type { DomainEvent, Event, EventLink, UserEventList } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
-import { canAddListItem, canCreateAnotherList, publicAssetUrl } from '@local-events/domain';
+import {
+  canAddListItem,
+  canCreateAnotherList,
+  publicAssetUrl,
+  publicGalleryUrls,
+} from '@local-events/domain';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
@@ -40,6 +45,7 @@ function mapRow(
   row: LocRow,
   tagIds: string[],
   imageUrl: string | null,
+  imageUrls: string[],
   links: EventLink[],
 ): Event {
   return {
@@ -62,6 +68,7 @@ function mapRow(
     publisherName: row.publisherName,
     links,
     imageUrl,
+    imageUrls,
     tagIds,
     featured: row.featured,
     checkInEnabled: row.checkInEnabled,
@@ -161,23 +168,29 @@ export function createDbLibraryServices(
         .from(eventTags)
         .where(inArray(eventTags.eventId, ids)),
       db
-        .select({ eventId: eventImages.eventId, s3Key: eventImages.s3Key })
+        .select({
+          eventId: eventImages.eventId,
+          role: eventImages.role,
+          s3Key: eventImages.s3Key,
+        })
         .from(eventImages)
-        .where(and(inArray(eventImages.eventId, ids), eq(eventImages.role, 'main'))),
+        .where(inArray(eventImages.eventId, ids)),
       db
         .select()
         .from(eventLinks)
         .where(inArray(eventLinks.eventId, ids))
         .orderBy(asc(eventLinks.position)),
     ]);
-    return rows.map((row) =>
-      mapRow(
+    return rows.map((row) => {
+      const pictures = images.filter((item) => item.eventId === row.id);
+      return mapRow(
         row,
         categories.filter((item) => item.eventId === row.id).map((item) => item.tagId),
         publicAssetUrl(
           env.assetsPublicBaseUrl,
-          images.find((item) => item.eventId === row.id)?.s3Key ?? null,
+          pictures.find((item) => item.role === 'main')?.s3Key ?? null,
         ),
+        publicGalleryUrls(env.assetsPublicBaseUrl, pictures),
         links
           .filter((item) => item.eventId === row.id && item.audience !== 'attendees')
           .map((item) => ({
@@ -187,8 +200,8 @@ export function createDbLibraryServices(
             label: item.label,
             position: item.position,
           })),
-      ),
-    );
+      );
+    });
   }
 
   async function loadPublished(eventIds: string[]): Promise<Map<string, Event>> {

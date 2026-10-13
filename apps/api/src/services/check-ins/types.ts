@@ -1,5 +1,6 @@
 import type {
   CheckIn,
+  CheckInHistoryResponse,
   CheckInStatusResponse,
   CreateCodeCheckInRequest,
   CreateGeoCheckInRequest,
@@ -34,6 +35,8 @@ export type CheckInEnv = {
 };
 
 export type CheckInServices = {
+  /** Newest check-ins for the signed-in user, including events that have ended. */
+  listMine: (sessionToken: string | undefined) => Promise<CheckInHistoryResponse>;
   getStatus: (
     sessionToken: string | undefined,
     eventId: string,

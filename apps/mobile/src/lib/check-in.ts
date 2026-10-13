@@ -52,3 +52,12 @@ export async function performCodeCheckIn(
     }),
   );
 }
+
+/** Newest check-ins, newest first, including events that have already ended. */
+export async function listMyCheckIns(identity: StoredIdentity) {
+  return throwIfError(
+    await api.GET('/me/check-ins', {
+      headers: { Authorization: `Bearer ${identity.sessionToken}` },
+    }),
+  );
+}

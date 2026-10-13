@@ -1,4 +1,4 @@
-import { BottomSheet, Column, Host, Text } from '@expo/ui';
+import { BottomSheet, Host, Text } from '@expo/ui';
 import { TextInput, useWindowDimensions, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/ui/primary-button';

@@ -79,7 +79,9 @@ calls) in the same change as every new major feature.**
   event's links (the API links and http(s) links in the description) and reads `og:image` and
   `<img>` URLs. The Citybreak image stays the hero. When it is missing, the hero is the first
   og:image, then the first page image. Further crawled images are stored as `gallery-1`,
-  `gallery-2`, and so on. The public API still returns only the hero. After the first Garage start,
+  `gallery-2`, and so on. Event payloads return the hero as `imageUrl` and the rest as
+  `imageUrls`, in that order. The event screen swipes through them when there is more than one.
+  After the first Garage start,
   allow anonymous reads once:
   `docker compose exec garage /garage bucket website --allow local-events-assets`.
   Objects are then `http://local-events-assets.localhost:3902/events/{eventId}/main`.
@@ -296,10 +298,19 @@ calls) in the same change as every new major feature.**
 - First check-in profile: `GET/PUT /v1/me/profile` — named (`displayName` + public) or anonymous;
   optional `recoveryEmail` stored unverified. Mobile prompts when `profileChosen` is false.
   Flow: [docs/flows/profile-at-check-in.md](docs/flows/profile-at-check-in.md).
+- Check-in history: `GET /v1/me/check-ins` returns the newest check-ins for the signed-in user,
+  including events that have ended, with each event's publisher and tags.
+- **For you** on home uses that history plus the latest saves and "I'm coming" marks, and publishers
+  the user follows. It lists upcoming events in the selected area of a similar type, then narrows
+  them with any selected home tags. Featured events are left out. The same event can also sit in
+  the upcoming list. Flow: [docs/flows/for-you.md](docs/flows/for-you.md).
 - Attendee content: publisher CRUD on `/manage/events/{id}/content`; attendees
   `GET /events/{id}/content` (attendee-only rows after check-in). File `s3Key` → short-lived signed
   URL (memory signer in dev). Mobile caches checked-in payloads offline.
   Flow: [docs/flows/attendee-content.md](docs/flows/attendee-content.md).
+- Event reports: `POST /events/{id}/reports` with the user session. One row per user and
+  published event; a repeat returns the existing report. Admins list them at
+  `GET /moderation/event-reports`.
 - Ratings: `GET/POST /events/{id}/rating(s)` after check-in from `ends_at` → +14 days. Public
   aggregate only; comments need named profile and appear on
   `GET /manage/events/{id}/ratings`. Flow: [docs/flows/ratings.md](docs/flows/ratings.md).

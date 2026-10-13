@@ -9,6 +9,7 @@ import {
   canPublishEvent,
   entitlementsFor,
   publicAssetUrl,
+  publicGalleryUrls,
   releaseOnVerification,
   shouldEnqueueNotifications,
   statusOnPublish,
@@ -63,6 +64,7 @@ function mapEvent(
   row: LocRow,
   tagIds: string[],
   imageKey: string | null,
+  gallery: readonly { role: string; s3Key: string }[],
   links: EventLink[],
   baseUrl: string | undefined,
 ): Event {
@@ -86,6 +88,7 @@ function mapEvent(
     publisherName: row.publisherName,
     links,
     imageUrl: publicAssetUrl(baseUrl, imageKey),
+    imageUrls: publicGalleryUrls(baseUrl, gallery),
     tagIds,
     featured: row.featured,
     checkInEnabled: row.checkInEnabled,
@@ -185,22 +188,34 @@ export function createDbEventServices(
     return rows.map((r) => r.tagId);
   }
 
-  async function imageKeyFor(eventId: string): Promise<string | null> {
-    const [row] = await db
-      .select({ s3Key: eventImages.s3Key })
+  async function imagesFor(eventIds: string[]) {
+    const grouped = new Map<string, { main: string | null; gallery: { role: string; s3Key: string }[] }>();
+    for (const id of eventIds) grouped.set(id, { main: null, gallery: [] });
+    if (eventIds.length === 0) return grouped;
+    const rows = await db
+      .select({
+        eventId: eventImages.eventId,
+        role: eventImages.role,
+        s3Key: eventImages.s3Key,
+      })
       .from(eventImages)
-      .where(and(eq(eventImages.eventId, eventId), eq(eventImages.role, 'main')))
-      .limit(1);
-    return row?.s3Key ?? null;
+      .where(inArray(eventImages.eventId, eventIds));
+    for (const row of rows) {
+      const entry = grouped.get(row.eventId) ?? { main: null, gallery: [] };
+      if (row.role === 'main') entry.main = row.s3Key;
+      entry.gallery.push({ role: row.role, s3Key: row.s3Key });
+      grouped.set(row.eventId, entry);
+    }
+    return grouped;
   }
 
   function toEvent(
     row: LocRow,
     tagIds: string[],
-    imageKey: string | null,
+    images: { main: string | null; gallery: { role: string; s3Key: string }[] },
     links: EventLink[],
   ): Event {
-    return mapEvent(row, tagIds, imageKey, links, env.assetsPublicBaseUrl);
+    return mapEvent(row, tagIds, images.main, images.gallery, links, env.assetsPublicBaseUrl);
   }
 
   async function linksFor(eventIds: string[]): Promise<Map<string, StoredLink[]>> {
@@ -275,8 +290,9 @@ export function createDbEventServices(
     const [row] = await selectEvents().where(eq(events.id, eventId)).limit(1);
     if (!row) return null;
     const stored = (await linksFor([eventId])).get(eventId) ?? [];
+    const images = (await imagesFor([eventId])).get(eventId) ?? { main: null, gallery: [] };
     return {
-      ...toEvent(row, await tagIdsFor(eventId), await imageKeyFor(eventId), publicLinks(stored)),
+      ...toEvent(row, await tagIdsFor(eventId), images, publicLinks(stored)),
       attendeeText: row.attendeeText,
       attendeeLinks: attendeeLinksOf(stored),
     };
@@ -321,11 +337,17 @@ export function createDbEventServices(
       const rows = await selectEvents()
         .where(eq(events.publisherId, publisherId))
         .orderBy(events.startsAt);
-      const links = await linksFor(rows.map((row) => row.id));
+      const ids = rows.map((row) => row.id);
+      const [links, images] = await Promise.all([linksFor(ids), imagesFor(ids)]);
       const result: Event[] = [];
       for (const row of rows) {
         result.push(
-          toEvent(row, await tagIdsFor(row.id), await imageKeyFor(row.id), publicLinks(links.get(row.id) ?? [])),
+          toEvent(
+            row,
+            await tagIdsFor(row.id),
+            images.get(row.id) ?? { main: null, gallery: [] },
+            publicLinks(links.get(row.id) ?? []),
+          ),
         );
       }
       return result;
@@ -586,11 +608,17 @@ export function createDbEventServices(
 
       const hasMore = rows.length > query.limit;
       const pageRows = hasMore ? rows.slice(0, query.limit) : rows;
-      const links = await linksFor(pageRows.map((row) => row.id));
+      const ids = pageRows.map((row) => row.id);
+      const [links, images] = await Promise.all([linksFor(ids), imagesFor(ids)]);
       const items: Event[] = [];
       for (const row of pageRows) {
         items.push(
-          toEvent(row, await tagIdsFor(row.id), await imageKeyFor(row.id), publicLinks(links.get(row.id) ?? [])),
+          toEvent(
+            row,
+            await tagIdsFor(row.id),
+            images.get(row.id) ?? { main: null, gallery: [] },
+            publicLinks(links.get(row.id) ?? []),
+          ),
         );
       }
       return { items, nextOffset: hasMore ? query.offset + query.limit : null };

@@ -79,7 +79,7 @@ export function PopularNow({ locale, items, onShowAll, onPress }: Props) {
               >
                 <EventImage imageUrl={item.imageUrl} tags={item.tags} />
                 <View style={{ position: 'absolute', top: space.sm, left: space.sm }}>
-                  <DateBox badge={dateBadge(item.startsAt, locale)} compact />
+                  <DateBox shadow={true} badge={dateBadge(item.startsAt, locale)} compact />
                 </View>
               </Pressable>
             ))

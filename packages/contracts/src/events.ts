@@ -107,6 +107,8 @@ export const Event = z.object({
   links: z.array(EventLink),
   /** Hero image. Null when the event has none or the public asset host is unset. */
   imageUrl: z.url().nullable(),
+  /** Photos after the hero, `gallery-1` then `gallery-2`, and so on. Empty when there are none. */
+  imageUrls: z.array(z.url()),
   tagIds: z.array(Id),
   featured: z.boolean(),
   /** When false, the event has no check-in and no attendee-only text or links. */

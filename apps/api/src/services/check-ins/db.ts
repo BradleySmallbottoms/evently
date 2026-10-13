@@ -11,10 +11,11 @@ import {
   DIGITAL_CODE_SLOT_SECONDS,
   digitalCheckInQrPayload,
   digitalCodeSlot,
+  FOR_YOU_RECENT_LIMIT,
   validateCodeCheckIn,
   validateGeoCheckIn,
 } from '@local-events/domain';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
@@ -144,6 +145,45 @@ export function createDbCheckInServices(
   }
 
   return {
+    async listMine(sessionToken) {
+      const { userId } = await requireUser(sessionToken);
+      const rows = await db
+        .select({
+          eventId: schema.checkIns.eventId,
+          publisherId: schema.events.publisherId,
+          createdAt: schema.checkIns.createdAt,
+        })
+        .from(schema.checkIns)
+        .innerJoin(schema.events, eq(schema.events.id, schema.checkIns.eventId))
+        .where(eq(schema.checkIns.userId, userId))
+        .orderBy(desc(schema.checkIns.createdAt))
+        .limit(FOR_YOU_RECENT_LIMIT);
+      if (rows.length === 0) return { items: [] };
+      const tagRows = await db
+        .select({ eventId: schema.eventTags.eventId, tagId: schema.eventTags.tagId })
+        .from(schema.eventTags)
+        .where(
+          inArray(
+            schema.eventTags.eventId,
+            rows.map((row) => row.eventId),
+          ),
+        );
+      const tagsByEvent = new Map<string, string[]>();
+      for (const tag of tagRows) {
+        const list = tagsByEvent.get(tag.eventId) ?? [];
+        list.push(tag.tagId);
+        tagsByEvent.set(tag.eventId, list);
+      }
+      return {
+        items: rows.map((row) => ({
+          eventId: row.eventId,
+          publisherId: row.publisherId,
+          tagIds: tagsByEvent.get(row.eventId) ?? [],
+          createdAt: row.createdAt.toISOString(),
+        })),
+      };
+    },
+
     async getStatus(sessionToken, eventId) {
       const { userId } = await requireUser(sessionToken);
       const row = await loadPublished(eventId);

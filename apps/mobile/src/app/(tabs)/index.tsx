@@ -24,7 +24,7 @@ import { PopularNow } from '@/components/ui/popular-now';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { api, throwIfError } from '@/lib/api';
 import { listPublicEvents, listTags, namesForTagIds } from '@/lib/events';
-import { FOR_YOU_HOME_FETCH, forYouHomeItems } from '@/lib/for-you-home';
+import { useForYouEvents } from '@/lib/use-for-you';
 import { eventListFreshness } from '@/lib/query-client';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { loadHomeTagIds, saveHomeTagIds } from '@/lib/home-tag-selection';
@@ -84,23 +84,6 @@ export default function HomeScreen() {
     { tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined, sort: 'soonest' },
     ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM, selectedTagKey],
   );
-  const preferredTagIds = preferences.data?.tagIds ?? [];
-  const preferredTagKey = [...preferredTagIds].sort().join('\n');
-  // Preferences must settle first so an empty interest list does not flash,
-  // then get replaced. A pull-to-refresh used to be the only fetch: the query
-  // stayed disabled until interest tags existed, and refetch() ignores that.
-  const preferencesSettled = preferences.isSuccess || preferences.isError || identity.isError;
-  const forYou = useQuery({
-    queryKey: ['for-you', point.data?.lat, point.data?.lng, point.data?.radiusM, preferredTagKey],
-    ...eventListFreshness,
-    enabled: point.data != null && preferencesSettled,
-    queryFn: () =>
-      listPublicEvents(point.data!, {
-        tagIds: preferredTagIds.length > 0 ? preferredTagIds : undefined,
-        limit: FOR_YOU_HOME_FETCH,
-        sort: 'soonest',
-      }),
-  });
   const popular = useQuery({
     queryKey: ['popular-events', point.data?.lat, point.data?.lng, point.data?.radiusM],
     ...eventListFreshness,
@@ -137,6 +120,7 @@ export default function HomeScreen() {
 
   function changeHomeTags(ids: string[]) {
     setTagDraft(ids);
+    queryClient.setQueryData(['home-tag-ids'], ids);
     void saveHomeTagIds(ids);
   }
 
@@ -229,10 +213,13 @@ export default function HomeScreen() {
   // A place change keeps the previous page visible. Those featured ids belong
   // to the old place, so skip them only after this place's list has settled.
   const forYouReady = (events.isSuccess && !events.isPlaceholderData) || events.isError;
-  const forYouItems = useMemo(
-    () => forYouHomeItems(forYou.data?.items ?? [], forYouReady ? featuredIds : new Set()),
-    [forYouReady, forYou.data, featuredIds],
-  );
+  const forYou = useForYouEvents({
+    point: point.data,
+    identity: identity.isSuccess ? identity.data : undefined,
+    tagsReady: storedTagIds.isSuccess,
+    selectedTagIds,
+    featuredIds: forYouReady ? featuredIds : new Set(),
+  });
 
   async function generatePairingCode() {
     setPairingPending(true);
@@ -392,6 +379,7 @@ export default function HomeScreen() {
                   title={t('events.locationPickerTitle')}
                   message={t('events.locationPickerMessage')}
                   options={locationOptions}
+                  selectedId={placeId}
                   radiusM={radiusM}
                   onRadiusChange={(next) => {
                     void setDiscoveryRadiusM(next);
@@ -411,7 +399,7 @@ export default function HomeScreen() {
               onChange={changeHomeTags}
             />
 
-            {forYouItems.length > 0 ? (
+            {forYou.items.length > 0 ? (
               <View style={{ gap: space.md }}>
                 <View
                   style={{
@@ -434,7 +422,7 @@ export default function HomeScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ gap: space.md, paddingHorizontal: space.xl }}
                 >
-                  {forYouItems.map((item) => (
+                  {forYou.items.map((item) => (
                     <View key={item.id} style={{ width: 280 }}>
                       <EventCard
                         title={item.title}

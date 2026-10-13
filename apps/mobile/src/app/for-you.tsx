@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,8 +11,9 @@ import { EventListItem } from '@/components/ui/event-list-item';
 import { MaxContentWidth } from '@/constants/theme';
 import { dateBadge } from '@/lib/event-format';
 import { listTags, namesForTagIds } from '@/lib/events';
-import { useInfinitePublicEvents } from '@/lib/use-public-events';
+import { loadHomeTagIds } from '@/lib/home-tag-selection';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
+import { useForYouEvents } from '@/lib/use-for-you';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
@@ -22,35 +22,32 @@ export default function ForYouScreen() {
   const insets = useSafeAreaInsets();
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
-  const { point, preferences } = useDiscoveryPoint();
-  const preferredTagIds = preferences.data?.tagIds ?? [];
-  const preferredTagKey = [...preferredTagIds].sort().join('\n');
-  const preferencesSettled = preferences.isSuccess || preferences.isError;
+  const { point, identity } = useDiscoveryPoint();
+  const storedTagIds = useQuery({
+    queryKey: ['home-tag-ids'],
+    queryFn: loadHomeTagIds,
+    staleTime: Infinity,
+  });
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
     queryFn: () => listTags(),
   });
-  const events = useInfinitePublicEvents(
-    preferencesSettled ? point.data : undefined,
-    { tagIds: preferredTagIds.length > 0 ? preferredTagIds : undefined, sort: 'soonest' },
-    ['for-you-all', point.data?.lat, point.data?.lng, point.data?.radiusM, preferredTagKey],
-  );
-  const eventItems = useMemo(
-    () => events.data?.pages.flatMap((page) => page.items) ?? [],
-    [events.data],
-  );
+  const forYou = useForYouEvents({
+    point: point.data,
+    identity: identity.isSuccess ? identity.data : undefined,
+    tagsReady: storedTagIds.isSuccess,
+    selectedTagIds: storedTagIds.data ?? [],
+    featuredIds: new Set(),
+    limit: 100,
+  });
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center', paddingTop: insets.top }}>
       <FlatList
         style={{ width: '100%', maxWidth: MaxContentWidth }}
         contentInsetAdjustmentBehavior="automatic"
-        data={eventItems}
+        data={forYou.items}
         keyExtractor={(item) => item.id}
-        onEndReached={() => {
-          if (events.hasNextPage && !events.isFetchingNextPage) void events.fetchNextPage();
-        }}
-        onEndReachedThreshold={0.4}
         contentContainerStyle={{
           flexGrow: 1,
           paddingBottom: insets.bottom + space.xxxl,
@@ -66,13 +63,8 @@ export default function ForYouScreen() {
             </AppText>
           </View>
         }
-        ListFooterComponent={
-          events.isFetchingNextPage ? (
-            <ActivityIndicator color={colors.ink} />
-          ) : null
-        }
         ListEmptyComponent={
-          events.isLoading ? (
+          forYou.isLoading ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <ActivityIndicator accessibilityLabel={t('events.loading')} color={colors.ink} />
             </View>

@@ -10,6 +10,8 @@ import { createMemoryEventContentServices } from './services/event-content/memor
 import { createDbEventServices } from './services/events/db';
 import { createMemoryEventServices } from './services/events/memory';
 import { createDbRatingServices } from './services/ratings/db';
+import { createDbReportServices } from './services/reports/db';
+import { createMemoryReportServices } from './services/reports/memory';
 import { createMemoryRatingServices } from './services/ratings/memory';
 import { createDbStatsServices } from './services/stats/db';
 import { createMemoryStatsServices } from './services/stats/memory';
@@ -81,6 +83,7 @@ const {
   notifications,
   eventContent,
   ratings,
+  reports,
   stats,
   pushMessages,
 } = (() => {
@@ -98,6 +101,7 @@ const {
       notifications: createDbNotificationServices(db, authServices),
       eventContent: createDbEventContentServices(db, authServices, contentEnv),
       ratings: createDbRatingServices(db, authServices, checkInEnv),
+      reports: createDbReportServices(db, authServices),
       stats: createDbStatsServices(db, authServices, {
         workerToken: process.env.STATS_WORKER_TOKEN?.trim(),
       }),
@@ -118,6 +122,7 @@ const {
     notifications: createMemoryNotificationServices(authServices, store),
     eventContent: createMemoryEventContentServices(authServices, contentEnv, store),
     ratings: createMemoryRatingServices(authServices, checkInEnv, store),
+    reports: createMemoryReportServices(authServices, store),
     stats: createMemoryStatsServices(authServices, store, { workerToken: statsWorkerToken }),
     pushMessages: createMemoryPublisherPushMessageServices(authServices, store),
   };
@@ -144,6 +149,7 @@ serve(
       notifications,
       eventContent,
       ratings,
+      reports,
       stats,
       pushMessages,
       corsOrigin,

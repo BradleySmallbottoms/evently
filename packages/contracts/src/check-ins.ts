@@ -21,6 +21,19 @@ export const CreateCodeCheckInRequest = z.object({
 });
 export type CreateCodeCheckInRequest = z.infer<typeof CreateCodeCheckInRequest>;
 
+export const CheckInHistoryItem = z.object({
+  eventId: Id,
+  publisherId: Id,
+  tagIds: z.array(Id),
+  createdAt: z.iso.datetime(),
+});
+export type CheckInHistoryItem = z.infer<typeof CheckInHistoryItem>;
+
+export const CheckInHistoryResponse = z.object({
+  items: z.array(CheckInHistoryItem),
+});
+export type CheckInHistoryResponse = z.infer<typeof CheckInHistoryResponse>;
+
 export const CheckIn = z.object({
   id: Id,
   eventId: Id,

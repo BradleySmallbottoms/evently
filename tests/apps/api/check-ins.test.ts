@@ -80,6 +80,7 @@ describe('geo check-in', () => {
   it('documents OpenAPI paths', async () => {
     const res = await createApp().request('/v1/openapi.json');
     const doc = (await res.json()) as { paths: Record<string, unknown> };
+    expect(doc.paths['/me/check-ins']).toBeDefined();
     expect(doc.paths['/events/{eventId}/check-in']).toBeDefined();
     expect(doc.paths['/events/{eventId}/check-ins']).toBeDefined();
     expect(doc.paths['/events/{eventId}/check-ins/code']).toBeDefined();
@@ -145,6 +146,12 @@ describe('geo check-in', () => {
       }),
     });
     expect(again.status).toBe(409);
+
+    const history = await app.request('/v1/me/check-ins', { headers: authHeader });
+    expect(history.status).toBe(200);
+    expect(await history.json()).toMatchObject({
+      items: [{ eventId, tagIds: [SEED_TAGS[0]!.id] }],
+    });
   });
 
   it('rejects outside geofence and poor accuracy', async () => {

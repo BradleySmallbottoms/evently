@@ -14,6 +14,8 @@ import { DateBox } from '@/components/ui/date-box';
 import { EventImage } from '@/components/ui/event-image';
 import { PricePill, TagPills } from '@/components/ui/tag-pills';
 import { buildEventWebUrl, shareEventLink } from '@/lib/event-share';
+import { ensureIdentity } from '@/lib/identity';
+import { reportEvent } from '@/lib/reports';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
 
@@ -129,8 +131,19 @@ export function EventListItem({
 }
 
 function ListOverflow({ eventId, title }: { eventId: string; title: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [reportOpen, setReportOpen] = useState(false);
+  const locale = i18n.language === 'en' ? 'en' : 'sv';
+
+  async function onReport() {
+    try {
+      const identity = await ensureIdentity(locale);
+      await reportEvent(identity, eventId);
+      Alert.alert(t('events.reportTitle'), t('events.reportSent'));
+    } catch {
+      Alert.alert(t('events.reportTitle'), t('events.reportError'));
+    }
+  }
 
   async function onShare() {
     try {
@@ -172,7 +185,10 @@ function ListOverflow({ eventId, title }: { eventId: string; title: string }) {
         cancelLabel={t('events.cancel')}
         isPresented={reportOpen}
         onIsPresentedChange={setReportOpen}
-        onConfirm={() => setReportOpen(false)}
+        onConfirm={() => {
+          setReportOpen(false);
+          void onReport();
+        }}
       />
     </>
   );
