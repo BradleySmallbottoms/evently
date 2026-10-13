@@ -382,21 +382,7 @@ export default function HomeScreen() {
                 />
               </View>
             </View>
-
-            <View style={{ paddingHorizontal: space.xl, gap: space.sm }}>
-              <SearchBar
-                value=""
-                onChangeText={() => {}}
-                placeholder={t('events.searchPlaceholder')}
-                onPress={() =>
-                  router.navigate({
-                    pathname: '/(tabs)/search',
-                    params: { focus: String(Date.now()) },
-                  })
-                }
-              />
-            </View>
-
+            
             <TagFilters
               tags={tags.data?.items ?? []}
               selectedIds={selectedTagIds}

@@ -8,10 +8,8 @@ export const HOME_TAG_GROUPS = [
       'festival',
       'soderhamns-kulturfestival',
       'spelmansstamma',
-      'dans',
       'show',
       'fest',
-      'film-teater',
       'bingo',
     ],
   },
@@ -37,6 +35,8 @@ export const HOME_TAG_GROUPS = [
   {
     id: 'culture',
     slugs: [
+      'dans',
+      'film-teater',
       'utstallning',
       'massor-utstallningar',
       'massa',

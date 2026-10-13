@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, TextInput, View } from 'react-native';
 
+import { LocationMenu } from '@/components/native/location-menu';
 import { AppText } from '@/components/ui/app-text';
 import { EmptyState } from '@/components/ui/empty-state';
 import { EventListItem } from '@/components/ui/event-list-item';
@@ -63,6 +64,7 @@ export default function SearchScreen() {
   const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
+  const [locationOpen, setLocationOpen] = useState(false);
   const [q, setQ] = useState('');
   const [tagId, setTagId] = useState('all');
   const [price, setPrice] = useState<'any' | 'free' | 'paid'>('any');
@@ -114,13 +116,15 @@ export default function SearchScreen() {
     { id: 'all', label: t('events.categoryAll') },
     ...(tags.data?.items ?? []).map((tag) => ({ id: tag.id, label: tag.name })),
   ];
-  const placeOptions = [
+  const locationOptions = [
     { id: NEARBY_PLACE_ID, label: t('events.locationNearby') },
     ...(preferences.data?.areas ?? []).flatMap((area) => {
       if (!queryPointForArea(area) || !area.name.trim()) return [];
       return [{ id: area.id, label: area.name }];
     }),
   ];
+  const locationLabel =
+    locationOptions.find((option) => option.id === placeId)?.label ?? t('events.locationNearby');
   const priceOptions = [
     { id: 'any', label: t('events.priceAny') },
     { id: 'free', label: t('events.free') },
@@ -149,10 +153,32 @@ export default function SearchScreen() {
         onEndReachedThreshold={0.4}
         contentContainerStyle={{ paddingBottom: BottomTabInset + space.xxxl, gap: space.md }}
         ListHeaderComponent={
-          <View style={{ gap: space.md, paddingTop: space.xl }}>
-            <AppText variant="title" style={{ paddingHorizontal: space.xl }}>
-              {t('tabs.search')}
-            </AppText>
+          <View style={{ gap: space.md, paddingTop: space.sm }}>
+            <View
+              style={{
+                paddingHorizontal: space.xl,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: space.md,
+              }}
+            >
+              <AppText variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {t('home.title')}
+              </AppText>
+              <View style={{ flexShrink: 1, minWidth: 0, marginLeft: 'auto', maxWidth: '58%' }}>
+                <LocationMenu
+                  locationLabel={locationLabel}
+                  title={t('events.locationPickerTitle')}
+                  message={t('events.locationPickerMessage')}
+                  options={locationOptions}
+                  isPresented={locationOpen}
+                  onIsPresentedChange={setLocationOpen}
+                  onSelect={(id) => {
+                    setDiscoveryPlaceId(id);
+                  }}
+                />
+              </View>
+            </View>
             <View style={{ paddingHorizontal: space.xl }}>
               <SearchBar
                 inputRef={inputRef}
@@ -180,14 +206,6 @@ export default function SearchScreen() {
                 value={tagId}
                 options={tagOptions}
                 onChange={setTagId}
-              />
-              <FilterDropdown
-                label={t('events.filterPlaceLabel')}
-                value={
-                  placeOptions.some((option) => option.id === placeId) ? placeId : NEARBY_PLACE_ID
-                }
-                options={placeOptions}
-                onChange={setDiscoveryPlaceId}
               />
               <FilterDropdown
                 label={t('events.price')}
@@ -224,15 +242,7 @@ export default function SearchScreen() {
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
               dateBadge={dateBadge(item.startsAt, locale)}
-              saved={savedIds.has(item.id)}
               onPress={() => router.push(`/events/${item.id}`)}
-              onSavePress={() => {
-                if (!identity.data) return;
-                const next = savedIds.has(item.id)
-                  ? unsaveEvent(identity.data, item.id)
-                  : saveEvent(identity.data, item.id);
-                void next.then(() => queryClient.invalidateQueries({ queryKey: ['saved-events'] }));
-              }}
             />
           </View>
         )}

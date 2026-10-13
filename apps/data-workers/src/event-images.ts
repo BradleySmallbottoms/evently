@@ -2,6 +2,7 @@ import { PutObjectCommand, type S3Client } from '@aws-sdk/client-s3';
 import { s3ClientFromEnv } from './s3-client';
 
 const MAX_BYTES = 8 * 1024 * 1024;
+const MAX_IMAGE_REDIRECTS = 3;
 
 export interface StoredEventImage {
   s3Key: string;
@@ -78,19 +79,34 @@ export async function copyEventImage(input: {
   fetchImpl?: typeof fetch;
   put: (body: Uint8Array, contentType: string, key: string) => Promise<void>;
 }): Promise<StoredEventImage | null> {
-  if (!isPublicHttpsImageUrl(input.sourceUrl)) return null;
   const fetchImpl = input.fetchImpl ?? fetch;
-  let response: Response;
-  try {
-    response = await fetchImpl(input.sourceUrl, {
-      headers: { 'user-agent': 'LocalEventsBot/0.1 (+contact: set-me@example.com)' },
-      redirect: 'manual',
-      signal: AbortSignal.timeout(20_000),
-    });
-  } catch {
-    return null;
+  let current = input.sourceUrl;
+  let response: Response | undefined;
+  for (let hop = 0; hop <= MAX_IMAGE_REDIRECTS; hop += 1) {
+    if (!isPublicHttpsImageUrl(current)) return null;
+    try {
+      response = await fetchImpl(current, {
+        headers: { 'user-agent': 'LocalEventsBot/0.1 (+contact: set-me@example.com)' },
+        redirect: 'manual',
+        signal: AbortSignal.timeout(20_000),
+      });
+    } catch {
+      return null;
+    }
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      if (!location) return null;
+      try {
+        current = new URL(location, current).href;
+      } catch {
+        return null;
+      }
+      response = undefined;
+      continue;
+    }
+    break;
   }
-  if (!response.ok) return null;
+  if (!response?.ok) return null;
   const contentType = (response.headers.get('content-type') ?? 'image/jpeg').split(';')[0]!.trim();
   if (!contentType.startsWith('image/')) return null;
   const body = new Uint8Array(await response.arrayBuffer());

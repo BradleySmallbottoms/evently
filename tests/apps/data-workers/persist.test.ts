@@ -338,6 +338,35 @@ describe('event images', () => {
     );
     expect(store.images.map((image) => image.role)).toEqual(['main', 'gallery-1']);
   });
+
+  it('gives main to the next image when the preferred hero cannot be copied', async () => {
+    const store = createMemoryIngestStore();
+    const puts: { sourceUrl: string; role?: string }[] = [];
+    await saveIncomingEvents(
+      store,
+      source,
+      [
+        {
+          ...bandy,
+          imageUrl: 'https://images.example/og.jpg',
+          imageUrls: ['https://images.example/photo.jpg', 'https://images.example/two.jpg'],
+        },
+      ],
+      enqueue,
+      {
+        put: async ({ sourceUrl, role }) => {
+          puts.push({ sourceUrl, role });
+          if (sourceUrl.endsWith('/og.jpg')) return null;
+          return { s3Key: `events/pending/${role ?? 'main'}`, contentType: 'image/jpeg' };
+        },
+      },
+    );
+    expect(puts.map((put) => put.role)).toEqual(['main', 'main', 'gallery-1']);
+    expect(store.images.map((image) => image.role)).toEqual(['main', 'gallery-1']);
+    expect(store.images.find((image) => image.role === 'main')?.sourceUrl).toBe(
+      'https://images.example/photo.jpg',
+    );
+  });
 });
 
 describe('persistSource', () => {

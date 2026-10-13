@@ -51,7 +51,7 @@ export default function SavedScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
       <FlatList
-        style={{ width: '100%', maxWidth: MaxContentWidth }}
+        style={{ flex: 1, width: '100%', maxWidth: MaxContentWidth }}
         contentInsetAdjustmentBehavior="automatic"
         data={segment === 'events' ? events : listRows}
         keyExtractor={(item, index) =>
@@ -59,10 +59,19 @@ export default function SavedScreen() {
         }
         contentContainerStyle={{ paddingBottom: BottomTabInset + space.xxxl, gap: space.md }}
         ListHeaderComponent={
-          <View style={{ gap: space.md, paddingTop: space.xl }}>
-            <AppText variant="title" style={{ paddingHorizontal: space.xl }}>
-              {t('saved.title')}
-            </AppText>
+          <View style={{ gap: space.md, paddingTop: space.sm }}>
+            <View
+              style={{
+                paddingHorizontal: space.xl,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: space.md,
+              }}
+            >
+              <AppText variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {t('home.title')}
+              </AppText>
+            </View>
             <CategoryChips
               items={[
                 { id: 'events', label: t('saved.events') },

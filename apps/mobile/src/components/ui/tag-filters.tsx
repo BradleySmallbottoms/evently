@@ -62,7 +62,7 @@ export function TagFilters({ tags, selectedIds, onChange }: Props) {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: space.lg, paddingHorizontal: space.xl }}
+        contentContainerStyle={{ gap: space.xs, paddingHorizontal: space.xl }}
       >
         {groups.map((group) => {
           const style = GROUP_STYLE[group.id];
