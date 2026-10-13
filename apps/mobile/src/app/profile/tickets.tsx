@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { EventListItem } from '@/components/ui/event-list-item';
 import { dateBadge } from '@/lib/event-format';
 import { listPublicEvents, listTags, namesForTagIds } from '@/lib/events';
+import { eventListFreshness } from '@/lib/query-client';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
@@ -26,6 +27,7 @@ export default function TicketsScreen() {
   });
   const nearby = useQuery({
     queryKey: ['ticket-links', point.data?.lat, point.data?.lng, point.data?.radiusM],
+    ...eventListFreshness,
     enabled: point.isSuccess,
     queryFn: () => listPublicEvents(point.data!),
   });

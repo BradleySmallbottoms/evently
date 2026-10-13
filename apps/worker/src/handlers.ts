@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import type { HandleDuePushDeps } from './notify/handle-due-push';
 import {
   applyCheckInStats,
+  applyEngagementStats,
   applyPublishedStats,
   applyRatingStats,
   type StatsWriter,
@@ -69,6 +70,34 @@ export const handlers: {
       ctx.now?.() ?? new Date(),
     );
     console.log(JSON.stringify({ handled: e.type, eventId: e.eventId, userId: e.userId }));
+  },
+  'event.saved': async (e, ctx) => {
+    if (!ctx.stats) throw new Error('stats_unavailable');
+    await applyEngagementStats(ctx.stats, 'numSaved', 'add', e.eventId, ctx.now?.() ?? new Date());
+  },
+  'event.unsaved': async (e, ctx) => {
+    if (!ctx.stats) throw new Error('stats_unavailable');
+    await applyEngagementStats(ctx.stats, 'numSaved', 'remove', e.eventId, ctx.now?.() ?? new Date());
+  },
+  'event.coming': async (e, ctx) => {
+    if (!ctx.stats) throw new Error('stats_unavailable');
+    await applyEngagementStats(
+      ctx.stats,
+      'numComing',
+      'add',
+      e.eventId,
+      ctx.now?.() ?? new Date(),
+    );
+  },
+  'event.coming_cleared': async (e, ctx) => {
+    if (!ctx.stats) throw new Error('stats_unavailable');
+    await applyEngagementStats(
+      ctx.stats,
+      'numComing',
+      'remove',
+      e.eventId,
+      ctx.now?.() ?? new Date(),
+    );
   },
   'rating.created': async (e, ctx) => {
     if (!ctx.stats || !ctx.db) throw new Error('stats_unavailable');

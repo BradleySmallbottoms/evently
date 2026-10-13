@@ -1,16 +1,19 @@
-import type { Event, UserEventList } from '@local-events/contracts';
+import type { DomainEvent, Event, UserEventList } from '@local-events/contracts';
 import { canAddListItem, canCreateAnotherList } from '@local-events/domain';
 import { randomUUID } from 'node:crypto';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
+import { createMemoryDomainEventPublisher } from '../domain-events/memory';
+import { enqueueDomainEvent, type DomainEventPublisher } from '../domain-events/types';
 import {
   createMemoryStore,
+  memoryEventEngagement,
   type MemoryEventRow,
   type MemoryStore,
 } from '../memory-store';
 import { LibraryError, type LibraryServices } from './types';
 
-function asEvent(row: MemoryEventRow): Event {
+function asEvent(row: MemoryEventRow, store: MemoryStore): Event {
   const {
     startsAtDate: _starts,
     endsAtDate: _ends,
@@ -18,15 +21,28 @@ function asEvent(row: MemoryEventRow): Event {
     attendeeLinks: _links,
     ...event
   } = row;
-  return event;
+  return { ...event, ...memoryEventEngagement(store, row.id) };
 }
 
 export function createMemoryLibraryServices(
   auth: AuthServices,
   store: MemoryStore = createMemoryStore(),
-  now: () => Date = () => new Date(),
+  env: { now?: () => Date; domainEvents?: DomainEventPublisher } = {},
 ): LibraryServices {
-  const { events, savedEvents, eventLists, eventListItems } = store;
+  const now = env.now ?? (() => new Date());
+  const domainEvents = env.domainEvents ?? createMemoryDomainEventPublisher();
+  const { events, savedEvents, comingEvents, eventLists, eventListItems } = store;
+
+  async function emit(
+    type: Extract<
+      DomainEvent,
+      { type: 'event.saved' | 'event.unsaved' | 'event.coming' | 'event.coming_cleared' }
+    >['type'],
+    eventId: string,
+    userId: string,
+  ) {
+    await enqueueDomainEvent(domainEvents, { type, eventId, userId });
+  }
 
   async function requireUser(sessionToken: string | undefined) {
     try {
@@ -40,7 +56,7 @@ export function createMemoryLibraryServices(
   function publishedEvent(eventId: string): Event {
     const row = events.get(eventId);
     if (!row || row.status !== 'published') throw new LibraryError('invalid_event');
-    return asEvent(row);
+    return asEvent(row, store);
   }
 
   function requireList(userId: string, listId: string) {
@@ -59,7 +75,7 @@ export function createMemoryLibraryServices(
       createdAt: list.createdAt.toISOString(),
       events: items.flatMap((item) => {
         const row = events.get(item.eventId);
-        return row && row.status === 'published' ? [asEvent(row)] : [];
+        return row && row.status === 'published' ? [asEvent(row, store)] : [];
       }),
     };
   }
@@ -72,7 +88,7 @@ export function createMemoryLibraryServices(
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         .flatMap((row) => {
           const event = events.get(row.eventId);
-          return event && event.status === 'published' ? [asEvent(event)] : [];
+          return event && event.status === 'published' ? [asEvent(event, store)] : [];
         });
       return { items };
     },
@@ -82,6 +98,7 @@ export function createMemoryLibraryServices(
       publishedEvent(eventId);
       if (savedEvents.some((row) => row.userId === userId && row.eventId === eventId)) return;
       savedEvents.push({ userId, eventId, createdAt: now() });
+      await emit('event.saved', eventId, userId);
     },
 
     async unsaveEvent(sessionToken, eventId) {
@@ -89,6 +106,37 @@ export function createMemoryLibraryServices(
       const index = savedEvents.findIndex((row) => row.userId === userId && row.eventId === eventId);
       if (index < 0) throw new LibraryError('not_found');
       savedEvents.splice(index, 1);
+      await emit('event.unsaved', eventId, userId);
+    },
+
+    async listComing(sessionToken) {
+      const { userId } = await requireUser(sessionToken);
+      const items = comingEvents
+        .filter((row) => row.userId === userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .flatMap((row) => {
+          const event = events.get(row.eventId);
+          return event && event.status === 'published' ? [asEvent(event, store)] : [];
+        });
+      return { items };
+    },
+
+    async markComing(sessionToken, eventId) {
+      const { userId } = await requireUser(sessionToken);
+      publishedEvent(eventId);
+      if (comingEvents.some((row) => row.userId === userId && row.eventId === eventId)) return;
+      comingEvents.push({ userId, eventId, createdAt: now() });
+      await emit('event.coming', eventId, userId);
+    },
+
+    async clearComing(sessionToken, eventId) {
+      const { userId } = await requireUser(sessionToken);
+      const index = comingEvents.findIndex(
+        (row) => row.userId === userId && row.eventId === eventId,
+      );
+      if (index < 0) throw new LibraryError('not_found');
+      comingEvents.splice(index, 1);
+      await emit('event.coming_cleared', eventId, userId);
     },
 
     async listLists(sessionToken) {

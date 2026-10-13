@@ -243,22 +243,22 @@ describe('admin api', () => {
         [
           '66666666-6666-4666-8666-666666666601',
           {
-              id: '66666666-6666-4666-8666-666666666601',
-              publisherId: '22222222-2222-4222-8222-222222222201',
-              title: 'Stream',
-              description: null,
-              mode: 'digital' as const,
-              status: 'published',
-              origin: 'native' as const,
-              startsAt: '2026-07-02T16:00:00.000Z',
-              endsAt: '2026-07-02T19:00:00.000Z',
-              timezone: 'Europe/Stockholm',
-              venueName: null,
-              location: null,
-              onlineUrl: null,
-              sourceUrl: null,
-              createdAt: '2026-01-01T00:00:00.000Z',
-              updatedAt: '2026-01-01T00:00:00.000Z',
+            id: '66666666-6666-4666-8666-666666666601',
+            publisherId: '22222222-2222-4222-8222-222222222201',
+            title: 'Stream',
+            description: null,
+            mode: 'digital' as const,
+            status: 'published',
+            origin: 'native' as const,
+            startsAt: '2026-07-02T16:00:00.000Z',
+            endsAt: '2026-07-02T19:00:00.000Z',
+            timezone: 'Europe/Stockholm',
+            venueName: null,
+            location: null,
+            onlineUrl: null,
+            sourceUrl: null,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
           },
         ],
       ]),
@@ -519,10 +519,104 @@ describe('admin api', () => {
     const again = await app.request('/v1/push-messages/event', {
       method: 'POST',
       headers: { cookie, 'content-type': 'application/json' },
-      body: JSON.stringify({ eventId, audience: 'area' }),
+      body: JSON.stringify({
+        eventId,
+        audience: 'area',
+        sendAt: '2026-06-19T18:00:00.000Z',
+        titleSv: 'Påminnelse',
+        bodySv: 'Imorgon',
+        titleEn: 'Reminder',
+        bodyEn: 'Tomorrow',
+      }),
     });
-    expect(again.status).toBe(409);
-    expect(await again.json()).toMatchObject({ error: { code: 'push_draft_exists' } });
+    expect(again.status).toBe(201);
+    const second = (await again.json()) as PushMessage;
+    expect(second.id).not.toBe(row.id);
+    expect(second.sendAt).toBe('2026-06-19T18:00:00.000Z');
+  });
+
+  it('creates every notification in an approved marketing plan', async () => {
+    const { auth } = await seededAuth();
+    const eventId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    const draftId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+    const events = new Map<string, AdminPushEventRef>([
+      [
+        eventId,
+        {
+          id: eventId,
+          title: 'Jazzkväll',
+          status: 'published',
+          publisherId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+          publisherName: 'Folkets hus',
+        },
+      ],
+      [
+        draftId,
+        {
+          id: draftId,
+          title: 'Utkast',
+          status: 'draft',
+          publisherId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+          publisherName: 'Folkets hus',
+        },
+      ],
+    ]);
+    const pushMessages = createMemoryAdminPushMessageServices({ events });
+    const app = createApp({ auth, pushMessages });
+    const cookie = await loginSession(app);
+
+    const create = await app.request('/v1/push-messages/event-plan', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        eventId,
+        audience: 'area_and_tag',
+        notifications: [
+          {
+            titleSv: 'Jazzkväll',
+            bodySv: 'Börjar om en vecka',
+            titleEn: 'Jazzkväll',
+            bodyEn: 'Starts in a week',
+            sendAt: '2026-06-13T18:00:00.000Z',
+          },
+          {
+            titleSv: 'Jazzkväll',
+            bodySv: 'Börjar imorgon',
+            titleEn: 'Jazzkväll',
+            bodyEn: 'Starts tomorrow',
+            sendAt: '2026-06-19T18:00:00.000Z',
+          },
+        ],
+      }),
+    });
+    expect(create.status).toBe(201);
+    const body = (await create.json()) as { items: PushMessage[] };
+    expect(body.items).toHaveLength(2);
+    expect(body.items.map((item) => item.sendAt).sort()).toEqual([
+      '2026-06-13T18:00:00.000Z',
+      '2026-06-19T18:00:00.000Z',
+    ]);
+    expect(body.items.every((item) => item.status === 'approved' && item.copyEdited)).toBe(true);
+
+    const unpublished = await app.request('/v1/push-messages/event-plan', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        eventId: draftId,
+        audience: 'area',
+        notifications: [
+          {
+            titleSv: 'A',
+            bodySv: 'B',
+            titleEn: 'A',
+            bodyEn: 'B',
+            sendAt: '2026-06-13T18:00:00.000Z',
+          },
+        ],
+      }),
+    });
+    expect(unpublished.status).toBe(400);
+    expect(await unpublished.json()).toMatchObject({ error: { code: 'event_not_published' } });
   });
 
   it('rejects event notifications for missing or unpublished events', async () => {
@@ -673,7 +767,10 @@ describe('admin api', () => {
     }
     const pushMessages = createMemoryAdminPushMessageServices({
       items: new Map([
-        [sentId, { ...row(sentId, 'sent', eventId, '2026-06-02T12:00:00.000Z'), titleSv: 'Skickad' }],
+        [
+          sentId,
+          { ...row(sentId, 'sent', eventId, '2026-06-02T12:00:00.000Z'), titleSv: 'Skickad' },
+        ],
         [sendingId, row(sendingId, 'sending', eventId, null)],
         [draftId, row(draftId, 'approved', eventId, null)],
         [otherSentId, row(otherSentId, 'sent', otherEventId, '2026-06-03T12:00:00.000Z')],
@@ -691,7 +788,13 @@ describe('admin api', () => {
     });
     expect(list.status).toBe(200);
     const body = (await list.json()) as {
-      items: { id: string; status: string; recipientCount: number; sentAt: string | null; titleSv: string }[];
+      items: {
+        id: string;
+        status: string;
+        recipientCount: number;
+        sentAt: string | null;
+        titleSv: string;
+      }[];
     };
     expect(body.items.map((item) => item.id)).toEqual([sendingId, sentId]);
     expect(body.items[0]).toMatchObject({ status: 'sending', recipientCount: 0, sentAt: null });

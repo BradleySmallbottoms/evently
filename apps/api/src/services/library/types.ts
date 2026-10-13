@@ -13,6 +13,9 @@ export type LibraryServices = {
   listSaved: (sessionToken: string | undefined) => Promise<{ items: Event[] }>;
   saveEvent: (sessionToken: string | undefined, eventId: string) => Promise<void>;
   unsaveEvent: (sessionToken: string | undefined, eventId: string) => Promise<void>;
+  listComing: (sessionToken: string | undefined) => Promise<{ items: Event[] }>;
+  markComing: (sessionToken: string | undefined, eventId: string) => Promise<void>;
+  clearComing: (sessionToken: string | undefined, eventId: string) => Promise<void>;
   listLists: (sessionToken: string | undefined) => Promise<{ items: UserEventList[] }>;
   createList: (
     sessionToken: string | undefined,

@@ -61,6 +61,7 @@ interface StoredRun {
 
 interface StoredImage {
   eventId: string;
+  role: string;
   s3Key: string;
   sourceUrl: string | null;
   contentType: string;
@@ -225,7 +226,10 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         }
         let slug = tagSlug(incomingTag.name);
         if (slugs.has(slug)) {
-          const suffix = incomingTag.externalId.replace(/[^a-z0-9]+/gi, '').slice(-8).toLowerCase();
+          const suffix = incomingTag.externalId
+            .replace(/[^a-z0-9]+/gi, '')
+            .slice(-8)
+            .toLowerCase();
           slug = `${slug}-${suffix}`.slice(0, 80);
         }
         slugs.add(slug);
@@ -286,12 +290,18 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       ref.contentHash = contentHash;
       ref.lastSeenAt = new Date();
     },
-    async findEventImage(eventId) {
-      const image = images.find((item) => item.eventId === eventId);
+    async findEventImage(eventId, role = 'main') {
+      const image = images.find((item) => item.eventId === eventId && item.role === role);
       return image ? { sourceUrl: image.sourceUrl, s3Key: image.s3Key } : null;
     },
+    async listEventImages(eventId) {
+      return images
+        .filter((item) => item.eventId === eventId)
+        .map((item) => ({ role: item.role, sourceUrl: item.sourceUrl, s3Key: item.s3Key }));
+    },
     async saveEventImage(input) {
-      const image = images.find((item) => item.eventId === input.eventId);
+      const role = input.role ?? 'main';
+      const image = images.find((item) => item.eventId === input.eventId && item.role === role);
       if (image) {
         image.s3Key = input.s3Key;
         image.sourceUrl = input.sourceUrl;
@@ -300,10 +310,19 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       }
       images.push({
         eventId: input.eventId,
+        role,
         s3Key: input.s3Key,
         sourceUrl: input.sourceUrl,
         contentType: input.contentType,
       });
+    },
+    async deleteEventImages(eventId, roles) {
+      const drop = new Set(roles.filter((role) => role.startsWith('gallery-')));
+      if (drop.size === 0) return;
+      for (let index = images.length - 1; index >= 0; index -= 1) {
+        const image = images[index];
+        if (image && image.eventId === eventId && drop.has(image.role)) images.splice(index, 1);
+      }
     },
   };
   return store;

@@ -303,6 +303,8 @@ describe('events', () => {
         endsAt: startsAt,
         featured,
         checkInEnabled: false,
+        numSaved: 0,
+        numComing: 0,
         startsAtDate: new Date(startsAt),
         endsAtDate: new Date(startsAt),
       };
@@ -369,5 +371,69 @@ describe('events', () => {
     );
     const onlyOtherBody = (await onlyOther.json()) as { items: { id: string }[] };
     expect(onlyOtherBody.items.map((item) => item.id)).toEqual([soonerId]);
+  });
+
+  it('sorts popular events by saves plus coming marks', async () => {
+    const store = createMemoryStore();
+    const auth = createMemoryAuthServices(store);
+    const app = createApp({
+      auth,
+      events: createMemoryEventServices(auth, { now: () => new Date() }, store),
+    });
+    const quietId = '11111111-1111-4111-8111-111111111411';
+    const savedId = '11111111-1111-4111-8111-111111111412';
+    const bothId = '11111111-1111-4111-8111-111111111413';
+    const at = new Date('2026-06-01T00:00:00.000Z');
+    function put(id: string, title: string, startsAt: string) {
+      store.events.set(id, {
+        id,
+        publisherId: '11111111-1111-4111-8111-111111111403',
+        title,
+        description: null,
+        mode: 'physical',
+        status: 'published',
+        origin: 'native',
+        startsAt,
+        endsAt: startsAt,
+        timezone: 'Europe/Stockholm',
+        venueName: 'Hall',
+        location: { lat: 61.3037, lng: 17.0592 },
+        geofenceRadiusM: 100,
+        onlineUrl: null,
+        priceAmount: null,
+        currency: 'SEK',
+        publisherName: 'Hall',
+        links: [],
+        imageUrl: null,
+        tagIds: [],
+        featured: id === quietId,
+        checkInEnabled: false,
+        numSaved: 0,
+        numComing: 0,
+        createdAt: at.toISOString(),
+        updatedAt: at.toISOString(),
+        startsAtDate: new Date(startsAt),
+        endsAtDate: new Date(startsAt),
+      });
+    }
+    put(quietId, 'Featured but quiet', '2026-12-01T18:00:00.000Z');
+    put(savedId, 'Saved once', '2026-12-02T18:00:00.000Z');
+    put(bothId, 'Saved and coming', '2026-12-20T18:00:00.000Z');
+    store.stats.set(`event:${savedId}:numSaved`, { value: 1, createdAt: at, updatedAt: at });
+    store.stats.set(`event:${bothId}:numSaved`, { value: 2, createdAt: at, updatedAt: at });
+    store.stats.set(`event:${bothId}:numComing`, { value: 2, createdAt: at, updatedAt: at });
+
+    const listed = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&sort=popular');
+    expect(listed.status).toBe(200);
+    const body = (await listed.json()) as {
+      items: { id: string; numSaved: number; numComing: number; featured: boolean }[];
+    };
+    expect(body.items.map((item) => item.id)).toEqual([bothId, savedId]);
+    expect(body.items[0]).toMatchObject({ numSaved: 2, numComing: 2, featured: false });
+    expect(body.items[1]).toMatchObject({ numSaved: 1, numComing: 0 });
+
+    const detail = await app.request(`/v1/events/${bothId}`);
+    expect(detail.status).toBe(200);
+    expect(await detail.json()).toMatchObject({ id: bothId, numSaved: 2, numComing: 2 });
   });
 });

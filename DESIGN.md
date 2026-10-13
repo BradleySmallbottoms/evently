@@ -243,9 +243,14 @@ the notification prompt.
 Purpose: make it easy to find something appealing with minimal effort.
 
 Recommended order: 1. Greeting or concise screen title. 2. Current
-location selector. 3. Search field. 4. Horizontal category shortcuts:
-Music, Theatre, Fitness, Museum, Outdoors, Food & Drink. 5. Featured
-event card. 6. "Popular nearby" or "Trending this week". 7. "This
+location selector. 3. Search field. 4. Horizontal category shortcuts: Music, Sports, Culture, Family,
+Holidays, and Other. A control under the shortcuts opens those groups,
+and each group expands to its tags. The chosen tags stay on the device. 5. Featured
+event card. 6. "Popular right now": a grid of three rows and two or
+three columns, filled from nearby events people have saved or marked
+coming (`sort=popular`, up to nine). Each tile is only a photo and
+a date, and opens that event. The section stays hidden when none
+qualify. "See all" opens the wider list. 7. "This
 weekend" or date-based collections. 8. Optional personalized
 recommendations.
 
@@ -280,7 +285,9 @@ it, what does it cost, and how do I attend?
 Recommended structure: 1. Large hero image with back, save, and share
 controls, and a date box on the photo just above the detail card.
 2. Event title with the overflow menu beside it, then category chips.
-3. Date and time. 4. Venue
+3. Date and time. Then "Your plan": Interested (the save) and I'm coming,
+as two pills. A selected pill is filled dark. The line under them says
+the answer can be changed anytime. 4. Venue
 and location, with a map preview or directions action where supported.
 5. Price or admission details. 6. Description and accessibility
 information, if available. 7. Organizer information. 8. Primary action:
@@ -291,7 +298,8 @@ Rules: - Use a persistent bottom CTA when the main action should remain
 accessible. - Clearly distinguish external ticket links from in-app
 actions. - Do not fabricate availability, prices, venue details, or
 event data. - Show the event's local date and time clearly. - Make
-saving and unsaving an event immediate and reversible.
+saving and unsaving an event immediate and reversible. Interested is
+that save. I'm coming is separate, and both can be on at once.
 
 ### 8.5 Saved Events
 

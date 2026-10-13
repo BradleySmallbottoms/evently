@@ -14,10 +14,18 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
-import { defaultPushMessageCopy } from '@local-events/domain';
+import {
+  defaultPushMessageCopy,
+  offsetBeforeEventStart,
+  reminderPushCopy,
+} from '@local-events/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import {
+  PushScheduleOffsetSelect,
+  type ScheduleOffsetChoice,
+} from '@/components/push-schedule-offset';
 import { Link, useRouter } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -48,6 +56,7 @@ export function EventPushComposer({ initialEventId }: { initialEventId?: string 
   const [titleEn, setTitleEn] = useState('');
   const [bodyEn, setBodyEn] = useState('');
   const [sendAt, setSendAt] = useState('');
+  const [offset, setOffset] = useState<ScheduleOffsetChoice>('custom');
   const [error, setError] = useState<string | null>(null);
   const [filledFor, setFilledFor] = useState<string | null>(null);
 
@@ -58,15 +67,48 @@ export function EventPushComposer({ initialEventId }: { initialEventId?: string 
 
   const selected = (events.data?.items ?? []).find((event) => event.id === eventId) ?? null;
 
-  useEffect(() => {
-    if (!selected || filledFor === selected.id) return;
-    const copy = defaultPushMessageCopy(selected.title);
+  if (selected && filledFor !== selected.id) {
+    const copy =
+      offset === 'custom'
+        ? defaultPushMessageCopy(selected.title)
+        : reminderPushCopy(selected.title, offset);
     setTitleSv(copy.titleSv);
     setBodySv(copy.bodySv);
     setTitleEn(copy.titleEn);
     setBodyEn(copy.bodyEn);
+    if (offset !== 'custom') {
+      const at = offsetBeforeEventStart(new Date(selected.startsAt), offset);
+      const pad = (value: number) => String(value).padStart(2, '0');
+      setSendAt(
+        `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`,
+      );
+    }
     setFilledFor(selected.id);
-  }, [filledFor, selected]);
+  }
+
+  function applyOffset(next: ScheduleOffsetChoice, event = selected) {
+    setOffset(next);
+    if (next === 'custom' || !event) return;
+    const at = offsetBeforeEventStart(new Date(event.startsAt), next);
+    const pad = (value: number) => String(value).padStart(2, '0');
+    setSendAt(
+      `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`,
+    );
+    const defaults = defaultPushMessageCopy(event.title);
+    const previous = offset === 'custom' ? null : reminderPushCopy(event.title, offset);
+    const same = (copy: { titleSv: string; bodySv: string; titleEn: string; bodyEn: string }) =>
+      titleSv === copy.titleSv &&
+      bodySv === copy.bodySv &&
+      titleEn === copy.titleEn &&
+      bodyEn === copy.bodyEn;
+    if (same(defaults) || (previous && same(previous))) {
+      const copy = reminderPushCopy(event.title, next);
+      setTitleSv(copy.titleSv);
+      setBodySv(copy.bodySv);
+      setTitleEn(copy.titleEn);
+      setBodyEn(copy.bodyEn);
+    }
+  }
 
   const create = useMutation({
     mutationFn: () =>
@@ -199,11 +241,20 @@ export function EventPushComposer({ initialEventId }: { initialEventId?: string 
           multiline
           minRows={2}
         />
+        <PushScheduleOffsetSelect
+          id="event-push-offset"
+          value={offset}
+          disabled={!selected}
+          onChange={(next) => applyOffset(next)}
+        />
         <TextField
           label={t('sendAt')}
           type="datetime-local"
           value={sendAt}
-          onChange={(e) => setSendAt(e.target.value)}
+          onChange={(e) => {
+            setSendAt(e.target.value);
+            setOffset('custom');
+          }}
           fullWidth
           helperText={t('eventSendAtHint')}
           slotProps={{ inputLabel: { shrink: true } }}

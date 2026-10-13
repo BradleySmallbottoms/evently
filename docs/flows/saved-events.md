@@ -10,6 +10,7 @@ sequenceDiagram
   App->>API: PUT /v1/me/saved-events/{eventId}
   Note over API: Session token, published event only
   API->>DB: insert saved_events
+  API->>API: enqueue event.saved (only when the row is new)
   App->>API: GET /v1/me/saved-events
   API->>DB: saved_events join published events
   API-->>App: event rows

@@ -68,14 +68,18 @@ calls) in the same change as every new major feature.**
   Flow: [docs/flows/visit-soderhamn.md](docs/flows/visit-soderhamn.md).
 - `pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn` writes events as
   `in_review` under a temporary publisher per contact email. They do not show up in the public
-  list until an admin publishes them.   The same run again skips unchanged events. A booking link
+  list until an admin publishes them. The same run again skips unchanged events. A booking link
   (`Bokningslänk`) is stored as a `tickets` link. The event link and website are `info` links.
   Every source also stores http(s) links found in the description (tickets, registration, or info).
   A price is stored only when the description says gratis or states an amount in kr
   (öre). An event with no price is treated as free in the list filter. Cards show
   a known price as `100kr`.
 - Hero images are copied into Garage when `PUBLIC_ASSETS_BUCKET` is set (`pnpm db:up`). The public
-  API returns `imageUrl` only when `ASSETS_PUBLIC_BASE_URL` is set. After the first Garage start,
+  API returns `imageUrl` only when `ASSETS_PUBLIC_BASE_URL` is set. Visit Söderhamn follows each
+  event's links (the API links and http(s) links in the description) and reads `og:image` and
+  `<img>` URLs. The Citybreak image stays the hero. When it is missing, the hero is the first
+  og:image, then the first page image. Further crawled images are stored as `gallery-1`,
+  `gallery-2`, and so on. The public API still returns only the hero. After the first Garage start,
   allow anonymous reads once:
   `docker compose exec garage /garage bucket website --allow local-events-assets`.
   Objects are then `http://local-events-assets.localhost:3902/events/{eventId}/main`.
@@ -116,13 +120,18 @@ calls) in the same change as every new major feature.**
 
 ### Saved events, lists, and links
 
-- A save is `PUT /v1/me/saved-events/{eventId}` for the device session. It is not a notification
-  follow (`/me/subscriptions`). Custom lists live at `/v1/me/lists` (20 lists, 100 events each).
-  Both are deleted with the user.
+- A save is `PUT /v1/me/saved-events/{eventId}` for the device session. That bookmark is "I'm
+  interested." It is not a notification follow (`/me/subscriptions`). "I'm coming" is
+  `PUT /v1/me/coming-events/{eventId}` and does not notify anyone. The first insert and a delete
+  emit a domain event; the worker updates `numSaved` or `numComing` (lifetime plus calendar
+  buckets). `GET /v1/events?sort=popular` orders by those two lifetime counts added together and
+  skips a total of 0. Event responses include both counts. Custom lists live at `/v1/me/lists`
+  (20 lists, 100 events each). Saves, coming marks, and lists are deleted with the user.
 - Tickets and registration are links on the event (`type` `tickets`, `registration`, or `info`).
   Price is optional minor units: missing means unknown, `0` means free.
   A later import that omits price, currency, online URL, or links leaves those fields as they are.
-  Flow: [docs/flows/saved-events.md](docs/flows/saved-events.md).
+  Flow: [docs/flows/saved-events.md](docs/flows/saved-events.md),
+  [docs/flows/event-coming.md](docs/flows/event-coming.md).
 
 ### Public events & publishers
 
@@ -130,8 +139,10 @@ calls) in the same change as every new major feature.**
   `awaiting_verification` until an admin verifies the publisher (which releases upcoming events).
 - **Push drafts:** publishing creates a `push_messages` row. Trusted publishers auto-approve;
   others need admin approval under **Pushes**. After a send, publishers can **Notify again**
-  (`POST /v1/manage/events/{id}/push-message`). Admins can schedule the same kind of notification
+  (`POST /v1/manage/events/{id}/push-message`). Admins can schedule several reminders
   for a published event (`POST /v1/push-messages/event` on the admin API; approved on create).
+  A marketing plan on the event page is stored only after approval
+  (`POST /v1/push-messages/event-plan`). The publisher still has a single open draft.
   The audience is either anyone whose saved notify area covers the event, or only those who
   also share an interest tag. Publisher followers are not included. They can also schedule **broadcasts**
   (`POST /v1/push-messages/broadcast`) to everyone or users with a favorite tag. The worker
@@ -295,7 +306,8 @@ calls) in the same change as every new major feature.**
   always `PUT`s via the API (`STATS_API_URL`/`API_URL` + `STATS_WORKER_TOKEN`) — never
   writes `stats` directly. Nightly `STATS_RECONCILE_MS` (default 24h) resets lifetime keys
   from source tables (reads DB, writes via API). Read via
-  `GET /stats/{sourceType}/{sourceId}?key=numCheckins&key=…`. Averages =
+  `GET /stats/{sourceType}/{sourceId}?key=numCheckins&key=…`. Saves and coming marks use
+  `numSaved` and `numComing`. Averages =
   `totalRatingValue / numRatings`. Flow: [docs/flows/stats.md](docs/flows/stats.md).
 
 ### E2E vs local data

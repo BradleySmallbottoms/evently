@@ -15,7 +15,7 @@ export const TRAVEL_DISTANCE_STOPS_M: readonly number[] = [
 /** Snap a stored or chosen distance onto a slider stop. */
 export function resolveTravelDistanceM(value: number | null | undefined): number {
   const raw = value == null || !Number.isFinite(value) ? DEFAULT_TRAVEL_DISTANCE_M : value;
-  let best: number = TRAVEL_DISTANCE_STOPS_M[0];
+  let best = TRAVEL_DISTANCE_STOPS_M[0] ?? DEFAULT_TRAVEL_DISTANCE_M;
   let bestDelta = Infinity;
   for (const stop of TRAVEL_DISTANCE_STOPS_M) {
     const delta = Math.abs(stop - raw);

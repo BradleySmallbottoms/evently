@@ -3,7 +3,7 @@ import '@/lib/inbox-push-task';
 
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -23,6 +23,7 @@ import {
 import { loadStoredIdentity } from '@/lib/identity';
 import { clearAppIconBadge } from '@/lib/push-notifications';
 import { refreshDeviceLocation, startDeviceLocation } from '@/lib/device-location';
+import { createAppQueryClient, subscribeQueryFocus } from '@/lib/query-client';
 import { initSentry } from '@/lib/sentry';
 import { brand } from '@/theme/colors';
 
@@ -30,7 +31,7 @@ initSentry();
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => createAppQueryClient());
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [reminder, setReminder] = useState<PermissionKind | null>(null);
@@ -47,6 +48,8 @@ export default function RootLayout() {
   useEffect(() => {
     void SplashScreen.hideAsync();
   }, []);
+
+  useEffect(() => subscribeQueryFocus(AppState, Platform.OS), []);
 
   const countActivation = useCallback(async (state: OnboardingState) => {
     if (!state.completed || countedThisForegroundRef.current) return;

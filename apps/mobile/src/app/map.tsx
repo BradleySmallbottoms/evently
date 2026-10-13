@@ -13,6 +13,7 @@ import {
 import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
 import { listPublicEvents } from '@/lib/events';
+import { eventListFreshness } from '@/lib/query-client';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
@@ -27,6 +28,7 @@ export default function MapScreen() {
   const { point } = useDiscoveryPoint();
   const events = useQuery({
     queryKey: ['public-events-map', point.data?.lat, point.data?.lng, point.data?.radiusM],
+    ...eventListFreshness,
     queryFn: () => listPublicEvents(point.data!),
     enabled: point.isSuccess,
   });

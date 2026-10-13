@@ -1,5 +1,6 @@
 import type { Ref } from 'react';
 import { SymbolView } from 'expo-symbols';
+import { useTranslation } from 'react-i18next';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
@@ -31,6 +32,7 @@ const barStyle = {
 };
 
 export function SearchBar({ value, onChangeText, placeholder, autoFocus, inputRef, onPress }: Props) {
+  const { t } = useTranslation();
   if (onPress) {
     return (
       <Pressable accessibilityRole="button" accessibilityLabel={placeholder} onPress={onPress}>
@@ -59,6 +61,16 @@ export function SearchBar({ value, onChangeText, placeholder, autoFocus, inputRe
           padding: 0,
         }}
       />
+      {value.length > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('events.searchClear')}
+          hitSlop={8}
+          onPress={() => onChangeText('')}
+        >
+          <SymbolView name={'xmark.circle.fill' as never} size={18} tintColor={colors.inkFaint} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }

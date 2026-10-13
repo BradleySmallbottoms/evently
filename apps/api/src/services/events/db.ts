@@ -43,6 +43,8 @@ type LocRow = {
   publisherName: string;
   featured: boolean;
   checkInEnabled: boolean;
+  numSaved: number;
+  numComing: number;
   attendeeText: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -87,6 +89,8 @@ function mapEvent(
     tagIds,
     featured: row.featured,
     checkInEnabled: row.checkInEnabled,
+    numSaved: Number(row.numSaved ?? 0),
+    numComing: Number(row.numComing ?? 0),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -104,6 +108,17 @@ function attendeeLinksOf(links: StoredLink[]): ManagedEvent['attendeeLinks'] {
   return links
     .filter((link) => link.audience === 'attendees')
     .map((link) => ({ id: link.id, url: link.url, label: link.label }));
+}
+
+/** Lifetime `stats` value for this event. Missing row is 0. */
+function lifetimeStat(key: 'numSaved' | 'numComing') {
+  return sql<number>`coalesce((
+    select ${schema.stats.value}
+    from ${schema.stats}
+    where ${schema.stats.sourceType} = 'event'
+      and ${schema.stats.sourceId} = ${schema.events.id}
+      and ${schema.stats.key} = ${key}
+  ), 0)`;
 }
 
 function likePattern(q: string): string {
@@ -131,6 +146,8 @@ const eventSelect = {
   publisherName: schema.publishers.name,
   featured: schema.events.featured,
   checkInEnabled: schema.events.checkInEnabled,
+  numSaved: lifetimeStat('numSaved'),
+  numComing: lifetimeStat('numComing'),
   attendeeText: schema.events.attendeeText,
   createdAt: schema.events.createdAt,
   updatedAt: schema.events.updatedAt,
@@ -533,16 +550,20 @@ export function createDbEventServices(
       }
       if (query.price === 'paid') filters.push(sql`${events.priceAmount} > 0`);
 
+      const engagement = sql<number>`(${lifetimeStat('numSaved')}) + (${lifetimeStat('numComing')})`;
+      if (query.sort === 'popular') filters.push(sql`${engagement} >= 1`);
       const distanceOrder =
-        query.sort === 'distance'
-          ? [
-              desc(events.featured),
-              sql`${events.location} IS NULL`,
-              sql`ST_Distance(${events.location}, ST_GeogFromText(${point}))`,
-              asc(events.startsAt),
-              asc(events.id),
-            ]
-          : [desc(events.featured), asc(events.startsAt), asc(events.id)];
+        query.sort === 'popular'
+          ? [desc(engagement), asc(events.startsAt), asc(events.id)]
+          : query.sort === 'distance'
+            ? [
+                desc(events.featured),
+                sql`${events.location} IS NULL`,
+                sql`ST_Distance(${events.location}, ST_GeogFromText(${point}))`,
+                asc(events.startsAt),
+                asc(events.id),
+              ]
+            : [desc(events.featured), asc(events.startsAt), asc(events.id)];
 
       // No point: included in the list, omitted from the map. A point must be inside the radius.
       const rows = await selectEvents()

@@ -89,7 +89,8 @@ export function registerEventRoutes(app: OpenAPIHono, events: EventServices): vo
     request: { query: PublicEventListQuery },
     responses: {
       200: {
-        description: 'Published events near a point, featured first then soonest start. Use offset to page.',
+        description:
+          'Published events near a point. Default order is featured first, then soonest. sort=popular orders by saves plus coming marks (at least 1) and then soonest. Use offset to page.',
         content: { 'application/json': { schema: PublicEventListResponse } },
       },
     },

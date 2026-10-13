@@ -84,11 +84,20 @@ export interface IngestStore {
   touchRef(sourceId: string, externalId: string): Promise<void>;
   /** Record a new hash on an existing ref without changing which event it points at. */
   noteRef(sourceId: string, externalId: string, contentHash: string): Promise<void>;
-  findEventImage(eventId: string): Promise<{ sourceUrl: string | null; s3Key: string } | null>;
+  findEventImage(
+    eventId: string,
+    role?: string,
+  ): Promise<{ sourceUrl: string | null; s3Key: string } | null>;
+  listEventImages(
+    eventId: string,
+  ): Promise<{ role: string; sourceUrl: string | null; s3Key: string }[]>;
   saveEventImage(input: {
     eventId: string;
+    role?: string;
     s3Key: string;
     sourceUrl: string;
     contentType: string;
   }): Promise<void>;
+  /** Removes gallery rows. Never removes the hero (`main`). */
+  deleteEventImages(eventId: string, roles: string[]): Promise<void>;
 }

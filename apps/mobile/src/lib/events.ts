@@ -95,7 +95,7 @@ export async function listPublicEvents(
     from?: string;
     to?: string;
     price?: 'free' | 'paid';
-    sort?: 'soonest' | 'distance';
+    sort?: 'soonest' | 'distance' | 'popular';
     offset?: number;
     limit?: number;
   },

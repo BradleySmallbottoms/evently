@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   canComment,
   canRate,
+  eventEngagement,
+  isPopularEvent,
   releaseOnVerification,
   resolveTravelDistanceM,
   shouldSuggestRegion,
@@ -233,5 +235,14 @@ describe('shouldSuggestRegion', () => {
   it('uses the profile travel distance', () => {
     expect(shouldSuggestRegion({ ...base, travelDistanceM: 50_000 })).toBe(false);
     expect(shouldSuggestRegion({ ...base, travelDistanceM: 10_000 })).toBe(true);
+  });
+});
+
+describe('event engagement', () => {
+  it('adds saves and coming marks, and ignores a zero total', () => {
+    expect(eventEngagement(2, 3)).toBe(5);
+    expect(isPopularEvent(0, 0)).toBe(false);
+    expect(isPopularEvent(0, 1)).toBe(true);
+    expect(isPopularEvent(1, 0)).toBe(true);
   });
 });

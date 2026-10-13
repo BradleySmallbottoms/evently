@@ -6,11 +6,7 @@ import { persistSource, saveIncomingEvents } from '../../../apps/data-workers/sr
 import type { SourceRecord } from '../../../apps/data-workers/src/store';
 import { describe, expect, it } from 'vitest';
 
-const BANDY_TAGS = [
-  visitTagId(30192),
-  visitTagId(30194),
-  visitTagId(30203),
-];
+const BANDY_TAGS = [visitTagId(30192), visitTagId(30194), visitTagId(30203)];
 
 const source: SourceRecord = {
   id: '33333333-3333-4333-8333-333333333301',
@@ -298,6 +294,49 @@ describe('event images', () => {
     expect(counts.created).toBe(1);
     expect(store.events).toHaveLength(1);
     expect(store.images).toHaveLength(0);
+  });
+
+  it('stores crawled images after the hero and drops a gallery image that disappeared', async () => {
+    const store = createMemoryIngestStore();
+    const puts: { sourceUrl: string; role?: string }[] = [];
+    const images = {
+      put: async ({ sourceUrl, role }: { eventId: string; sourceUrl: string; role?: string }) => {
+        puts.push({ sourceUrl, role });
+        return { s3Key: `events/pending/${role ?? 'main'}`, contentType: 'image/jpeg' };
+      },
+    };
+    const withImages = {
+      ...bandy,
+      imageUrl: 'https://images.example/api.jpg',
+      imageUrls: ['https://images.example/og.jpg', 'https://images.example/photo.jpg'],
+    };
+    await saveIncomingEvents(store, source, [withImages], enqueue, images);
+    expect(puts.map((put) => put.sourceUrl)).toEqual([
+      'https://images.example/api.jpg',
+      'https://images.example/og.jpg',
+      'https://images.example/photo.jpg',
+    ]);
+    expect(store.images.map((image) => image.role)).toEqual(['main', 'gallery-1', 'gallery-2']);
+
+    puts.length = 0;
+    await saveIncomingEvents(
+      store,
+      source,
+      [{ ...withImages, imageUrls: ['https://images.example/og.jpg'] }],
+      enqueue,
+      images,
+    );
+    expect(puts).toEqual([]);
+    expect(store.images.map((image) => image.role)).toEqual(['main', 'gallery-1']);
+
+    await saveIncomingEvents(
+      store,
+      source,
+      [{ ...withImages, imageUrls: undefined }],
+      enqueue,
+      images,
+    );
+    expect(store.images.map((image) => image.role)).toEqual(['main', 'gallery-1']);
   });
 });
 

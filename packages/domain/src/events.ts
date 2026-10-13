@@ -73,6 +73,18 @@ export function canAddListItem(currentCount: number): boolean {
   return currentCount < MAX_EVENTS_PER_LIST;
 }
 
+/**
+ * Lifetime saves plus "I'm coming" marks. Someone who did both counts twice.
+ * `sort=popular` uses this, and drops events below 1.
+ */
+export function eventEngagement(numSaved: number, numComing: number): number {
+  return numSaved + numComing;
+}
+
+export function isPopularEvent(numSaved: number, numComing: number): boolean {
+  return eventEngagement(numSaved, numComing) >= 1;
+}
+
 export function canCancelEvent(status: string): boolean {
   return (
     status === 'draft' ||

@@ -59,6 +59,27 @@ export async function reconcileAllStats(
     .from(schema.ratings)) {
     eventIds.add(row.eventId);
   }
+  for (const row of await db
+    .selectDistinct({ eventId: schema.savedEvents.eventId })
+    .from(schema.savedEvents)) {
+    eventIds.add(row.eventId);
+  }
+  for (const row of await db
+    .selectDistinct({ eventId: schema.comingEvents.eventId })
+    .from(schema.comingEvents)) {
+    eventIds.add(row.eventId);
+  }
+  for (const row of await db
+    .selectDistinct({ eventId: schema.stats.sourceId })
+    .from(schema.stats)
+    .where(
+      and(
+        eq(schema.stats.sourceType, 'event'),
+        inArray(schema.stats.key, ['numSaved', 'numComing']),
+      ),
+    )) {
+    eventIds.add(row.eventId);
+  }
 
   for (const eventId of eventIds) {
     const [checkIns] = await db
@@ -72,9 +93,19 @@ export async function reconcileAllStats(
       })
       .from(schema.ratings)
       .where(eq(schema.ratings.eventId, eventId));
+    const [saved] = await db
+      .select({ n: count() })
+      .from(schema.savedEvents)
+      .where(eq(schema.savedEvents.eventId, eventId));
+    const [coming] = await db
+      .select({ n: count() })
+      .from(schema.comingEvents)
+      .where(eq(schema.comingEvents.eventId, eventId));
     await setValue(writer, 'event', eventId, 'numCheckins', Number(checkIns?.n ?? 0));
     await setValue(writer, 'event', eventId, 'numRatings', Number(ratingRow?.n ?? 0));
     await setValue(writer, 'event', eventId, 'totalRatingValue', Number(ratingRow?.total ?? 0));
+    await setValue(writer, 'event', eventId, 'numSaved', Number(saved?.n ?? 0));
+    await setValue(writer, 'event', eventId, 'numComing', Number(coming?.n ?? 0));
   }
 
   const publishedEvents = await db

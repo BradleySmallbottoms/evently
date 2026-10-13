@@ -119,9 +119,24 @@ export const CreateAdminEventPushMessageRequest = CreateEventPushMessageRequest.
   /** `area` = saved notify area covers the event. `area_and_tag` also requires a shared interest. */
   audience: z.enum(['area', 'area_and_tag']),
 });
-export type CreateAdminEventPushMessageRequest = z.infer<
-  typeof CreateAdminEventPushMessageRequest
->;
+export type CreateAdminEventPushMessageRequest = z.infer<typeof CreateAdminEventPushMessageRequest>;
+
+const AdminEventPushPlanItem = z.object({
+  titleSv: z.string().min(1).max(200),
+  bodySv: z.string().min(1).max(500),
+  titleEn: z.string().min(1).max(200),
+  bodyEn: z.string().min(1).max(500),
+  sendAt: z.iso.datetime(),
+});
+
+/** Admin approves a reviewed marketing plan. Every item is created approved. */
+export const CreateAdminEventPushPlanRequest = z.object({
+  eventId: Id,
+  /** Shared audience for every notification in the plan. */
+  audience: z.enum(['area', 'area_and_tag']),
+  notifications: z.array(AdminEventPushPlanItem).min(1).max(8),
+});
+export type CreateAdminEventPushPlanRequest = z.infer<typeof CreateAdminEventPushPlanRequest>;
 
 export const CreateBroadcastPushMessageRequest = z
   .object({

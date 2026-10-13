@@ -89,6 +89,80 @@ export function registerLibraryRoutes(app: OpenAPIHono, library: LibraryServices
     }
   });
 
+  const listComing = createRoute({
+    method: 'get',
+    path: '/me/coming-events',
+    responses: {
+      200: {
+        description: 'Published events the current user marked as coming',
+        content: { 'application/json': { schema: EventListResponse } },
+      },
+      401: {
+        description: 'Missing or invalid user session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(listComing, async (c) => {
+    try {
+      return c.json(await library.listComing(readUserSessionToken(c)), 200);
+    } catch (err) {
+      return libraryErrorResponse(c, err);
+    }
+  });
+
+  const markComing = createRoute({
+    method: 'put',
+    path: '/me/coming-events/{eventId}',
+    request: { params: EventIdParam },
+    responses: {
+      204: { description: 'Event marked as coming' },
+      401: {
+        description: 'Missing or invalid user session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Event is not published',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(markComing, async (c) => {
+    try {
+      const { eventId } = c.req.valid('param');
+      await library.markComing(readUserSessionToken(c), eventId);
+      return c.body(null, 204);
+    } catch (err) {
+      return libraryErrorResponse(c, err);
+    }
+  });
+
+  const clearComing = createRoute({
+    method: 'delete',
+    path: '/me/coming-events/{eventId}',
+    request: { params: EventIdParam },
+    responses: {
+      204: { description: 'Coming mark removed' },
+      401: {
+        description: 'Missing or invalid user session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Coming mark not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(clearComing, async (c) => {
+    try {
+      const { eventId } = c.req.valid('param');
+      await library.clearComing(readUserSessionToken(c), eventId);
+      return c.body(null, 204);
+    } catch (err) {
+      return libraryErrorResponse(c, err);
+    }
+  });
+
   const listLists = createRoute({
     method: 'get',
     path: '/me/lists',

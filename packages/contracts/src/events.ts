@@ -111,6 +111,10 @@ export const Event = z.object({
   featured: z.boolean(),
   /** When false, the event has no check-in and no attendee-only text or links. */
   checkInEnabled: z.boolean(),
+  /** Lifetime saves. 0 when the stats row is missing. */
+  numSaved: z.number().int().nonnegative(),
+  /** Lifetime "I'm coming" marks. 0 when the stats row is missing. */
+  numComing: z.number().int().nonnegative(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -203,9 +207,9 @@ export const PublicEventListQuery = z.object({
   tagIds: z
     .string()
     .optional()
-    .refine((value) => tagIdList(value).length <= 50, 'tagIds accepts at most 50 ids')
+    .refine((value) => tagIdList(value).length <= 100, 'tagIds accepts at most 100 ids')
     .refine((value) => tagIdList(value).every((id) => z.uuid().safeParse(id).success), 'tagIds must be uuids'),
-  sort: z.enum(['soonest', 'distance']).optional().default('soonest'),
+  sort: z.enum(['soonest', 'distance', 'popular']).optional().default('soonest'),
   /** `free` is amount 0 or unknown; `paid` is amount > 0. */
   price: z.enum(['free', 'paid']).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),

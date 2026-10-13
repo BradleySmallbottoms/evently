@@ -20,10 +20,13 @@ import { EventCard } from '@/components/ui/event-card';
 import { EventListItem } from '@/components/ui/event-list-item';
 import { SearchBar } from '@/components/ui/search-bar';
 import { TagFilters } from '@/components/ui/tag-filters';
+import { PopularNow } from '@/components/ui/popular-now';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { api, throwIfError } from '@/lib/api';
 import { listPublicEvents, listTags, namesForTagIds } from '@/lib/events';
+import { eventListFreshness } from '@/lib/query-client';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
+import { loadHomeTagIds, saveHomeTagIds } from '@/lib/home-tag-selection';
 import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
 import { queryPointForArea } from '@/lib/area-point';
@@ -48,7 +51,6 @@ export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
 
-  const [tagId, setTagId] = useState('all');
   const [locationOpen, setLocationOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [pairingOpen, setPairingOpen] = useState(false);
@@ -67,18 +69,40 @@ export default function HomeScreen() {
     queryKey: ['tags', 'upcoming'],
     queryFn: () => listTags(),
   });
+  const storedTagIds = useQuery({
+    queryKey: ['home-tag-ids'],
+    queryFn: loadHomeTagIds,
+    staleTime: Infinity,
+  });
+  const [tagDraft, setTagDraft] = useState<string[] | null>(null);
+  const selectedTagIds = tagDraft ?? storedTagIds.data ?? [];
+  const selectedTagKey = [...selectedTagIds].sort().join('\n');
   const events = useInfinitePublicEvents(
-    point.data,
-    { tagId: tagId === 'all' ? undefined : tagId, sort: 'soonest' },
-    ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM, tagId],
+    storedTagIds.isSuccess ? point.data : undefined,
+    { tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined, sort: 'soonest' },
+    ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM, selectedTagKey],
   );
   const preferredTagIds = preferences.data?.tagIds ?? [];
   const forYou = useQuery({
     queryKey: ['for-you', point.data?.lat, point.data?.lng, point.data?.radiusM, preferredTagIds],
+    ...eventListFreshness,
     enabled: point.isSuccess && preferredTagIds.length > 0,
     queryFn: () =>
       listPublicEvents(point.data!, { tagIds: preferredTagIds, limit: 12, sort: 'soonest' }),
   });
+  const popular = useQuery({
+    queryKey: ['popular-events', point.data?.lat, point.data?.lng, point.data?.radiusM],
+    ...eventListFreshness,
+    enabled: point.isSuccess,
+    queryFn: () => listPublicEvents(point.data!, { sort: 'popular', limit: 9 }),
+  });
+  const popularItems = (popular.data?.items ?? []).map((item) => ({
+    id: item.id,
+    title: item.title,
+    startsAt: item.startsAt,
+    imageUrl: item.imageUrl,
+    tags: namesForTagIds(item.tagIds, tags.data?.items),
+  }));
   const forYouItems = forYou.data?.items ?? [];
   const saved = useQuery({
     queryKey: ['saved-events', identity.data?.userId],
@@ -100,6 +124,11 @@ export default function HomeScreen() {
   useEffect(() => {
     void bumpRegionActivity();
   }, []);
+
+  function changeHomeTags(ids: string[]) {
+    setTagDraft(ids);
+    void saveHomeTagIds(ids);
+  }
 
   const lastRegionEval = useRef<{
     lat: number;
@@ -275,7 +304,14 @@ export default function HomeScreen() {
     setRefreshing(true);
     try {
       await refreshDeviceLocation();
-      await Promise.all([identity.refetch(), point.refetch(), events.refetch(), forYou.refetch()]);
+      await Promise.all([
+        identity.refetch(),
+        point.refetch(),
+        tags.refetch(),
+        events.refetch(),
+        forYou.refetch(),
+        popular.refetch(),
+      ]);
     } finally {
       setRefreshing(false);
     }
@@ -361,7 +397,11 @@ export default function HomeScreen() {
               />
             </View>
 
-            <TagFilters tags={tags.data?.items ?? []} selectedId={tagId} onSelect={setTagId} />
+            <TagFilters
+              tags={tags.data?.items ?? []}
+              selectedIds={selectedTagIds}
+              onChange={changeHomeTags}
+            />
 
             {forYouItems.length > 0 ? (
               <View style={{ gap: space.md }}>
@@ -452,6 +492,13 @@ export default function HomeScreen() {
                 ))}
               </View>
             ) : null}
+
+            <PopularNow
+              locale={locale}
+              items={popularItems}
+              onShowAll={() => router.push('/(tabs)/events')}
+              onPress={(id) => router.push(`/events/${id}`)}
+            />
 
             {coming.length > 0 ? (
               <AppText variant="subtitle" style={{ paddingHorizontal: space.xl }}>

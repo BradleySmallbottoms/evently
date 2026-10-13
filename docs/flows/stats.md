@@ -8,7 +8,8 @@ itself). The API applies the body as-is (no further key expansion). Averages use
 reads source tables and resets **lifetime** keys via API `value` ops.
 
 Key examples: `numCheckins`, `numCheckins-2026-01-07`, `numCheckins-w02`,
-`numCheckins-2026-m01`, `numCheckins-2026`.
+`numCheckins-2026-m01`, `numCheckins-2026`. Saves and coming marks use the same buckets
+on `numSaved` and `numComing`. Week keys have no year (`numSaved-w42`).
 
 ```mermaid
 sequenceDiagram

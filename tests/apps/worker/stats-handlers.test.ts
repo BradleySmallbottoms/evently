@@ -89,4 +89,46 @@ describe('stats domain event handlers', () => {
       expect.arrayContaining([expect.objectContaining({ key: 'numPublishedEvents', add: 1 })]),
     );
   });
+
+  it('adds and removes numSaved and numComing buckets', async () => {
+    const stats = { put };
+    const now = () => new Date('2026-06-15T12:00:00.000Z');
+    const eventId = '11111111-1111-4111-8111-111111111111';
+    const userId = '22222222-2222-4222-8222-222222222222';
+
+    await processMessage(JSON.stringify({ type: 'event.saved', eventId, userId }), { stats, now });
+    const saved = put.mock.calls.find((call) => call[0] === 'event');
+    expect(saved?.[2]?.some((m: { key: string; add?: number }) => m.key === 'numSaved' && m.add === 1)).toBe(
+      true,
+    );
+    expect(saved?.[2]?.some((m: { key: string }) => m.key.startsWith('numSaved-w'))).toBe(true);
+
+    put.mockClear();
+    await processMessage(JSON.stringify({ type: 'event.unsaved', eventId, userId }), { stats, now });
+    const unsaved = put.mock.calls.find((call) => call[0] === 'event');
+    expect(
+      unsaved?.[2]?.some((m: { key: string; remove?: number }) => m.key === 'numSaved' && m.remove === 1),
+    ).toBe(true);
+
+    put.mockClear();
+    await processMessage(JSON.stringify({ type: 'event.coming', eventId, userId }), { stats, now });
+    const interested = put.mock.calls.find((call) => call[0] === 'event');
+    expect(
+      interested?.[2]?.some(
+        (m: { key: string; add?: number }) => m.key === 'numComing' && m.add === 1,
+      ),
+    ).toBe(true);
+
+    put.mockClear();
+    await processMessage(JSON.stringify({ type: 'event.coming_cleared', eventId, userId }), {
+      stats,
+      now,
+    });
+    const cleared = put.mock.calls.find((call) => call[0] === 'event');
+    expect(
+      cleared?.[2]?.some(
+        (m: { key: string; remove?: number }) => m.key === 'numComing' && m.remove === 1,
+      ),
+    ).toBe(true);
+  });
 });

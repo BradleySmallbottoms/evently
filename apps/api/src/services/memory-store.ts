@@ -199,6 +199,12 @@ export type MemoryRating = {
   hiddenAt: Date | null;
 };
 
+export type MemoryComingEvent = {
+  userId: string;
+  eventId: string;
+  createdAt: Date;
+};
+
 export type MemoryStore = {
   users: Map<string, MemoryUser>;
   devices: Map<string, MemoryDevice>;
@@ -214,6 +220,7 @@ export type MemoryStore = {
   tags: Map<string, Tag>;
   events: Map<string, MemoryEventRow>;
   savedEvents: MemorySavedEvent[];
+  comingEvents: MemoryComingEvent[];
   eventLists: MemoryEventList[];
   eventListItems: MemoryEventListItem[];
   subscriptions: MemorySubscription[];
@@ -226,6 +233,17 @@ export type MemoryStore = {
   /** EAV stats: `${sourceType}:${sourceId}:${key}` → value. */
   stats: Map<string, { value: number; createdAt: Date; updatedAt: Date }>;
 };
+
+/** Lifetime engagement stored the same way as the stats table (`event:{id}:numSaved`). */
+export function memoryEventEngagement(
+  store: Pick<MemoryStore, 'stats'>,
+  eventId: string,
+): { numSaved: number; numComing: number } {
+  return {
+    numSaved: store.stats.get(`event:${eventId}:numSaved`)?.value ?? 0,
+    numComing: store.stats.get(`event:${eventId}:numComing`)?.value ?? 0,
+  };
+}
 
 /** Fixed UUIDs matching packages/db seed migration for regions. */
 export const SEED_REGION_SODERHAMN_ID = '22222222-2222-4222-8222-222222222201';
@@ -264,6 +282,7 @@ export function createMemoryStore(): MemoryStore {
     tags,
     events: new Map(),
     savedEvents: [],
+    comingEvents: [],
     eventLists: [],
     eventListItems: [],
     subscriptions: [],

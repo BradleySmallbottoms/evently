@@ -9,7 +9,11 @@ export interface StoredEventImage {
 }
 
 export interface EventImageUploader {
-  put(input: { eventId: string; sourceUrl: string }): Promise<StoredEventImage | null>;
+  put(input: {
+    eventId: string;
+    sourceUrl: string;
+    role?: string;
+  }): Promise<StoredEventImage | null>;
 }
 
 export const noopEventImageUploader: EventImageUploader = {
@@ -18,8 +22,11 @@ export const noopEventImageUploader: EventImageUploader = {
   },
 };
 
-export function eventImageKey(eventId: string): string {
-  return `events/${eventId}/main`;
+const IMAGE_ROLE = /^(?:main|gallery-(?:[1-9]|1[0-2]))$/;
+
+export function eventImageKey(eventId: string, role = 'main'): string {
+  if (!IMAGE_ROLE.test(role)) throw new Error('Invalid event image role');
+  return `events/${eventId}/${role}`;
 }
 
 /** Remote hero URLs only. Refuses http, localhost, and private addresses. */
@@ -67,6 +74,7 @@ export function isPublicHttpsImageUrl(sourceUrl: string): boolean {
 export async function copyEventImage(input: {
   eventId: string;
   sourceUrl: string;
+  role?: string;
   fetchImpl?: typeof fetch;
   put: (body: Uint8Array, contentType: string, key: string) => Promise<void>;
 }): Promise<StoredEventImage | null> {
@@ -87,7 +95,7 @@ export async function copyEventImage(input: {
   if (!contentType.startsWith('image/')) return null;
   const body = new Uint8Array(await response.arrayBuffer());
   if (body.byteLength === 0 || body.byteLength > MAX_BYTES) return null;
-  const s3Key = eventImageKey(input.eventId);
+  const s3Key = eventImageKey(input.eventId, input.role ?? 'main');
   await input.put(body, contentType, s3Key);
   return { s3Key, contentType };
 }
@@ -99,10 +107,11 @@ export function createS3EventImageUploader(options: {
 }): EventImageUploader {
   const client = options.client ?? s3ClientFromEnv();
   return {
-    async put({ eventId, sourceUrl }) {
+    async put({ eventId, sourceUrl, role }) {
       return copyEventImage({
         eventId,
         sourceUrl,
+        role,
         fetchImpl: options.fetchImpl,
         put: async (body, contentType, key) => {
           await client.send(

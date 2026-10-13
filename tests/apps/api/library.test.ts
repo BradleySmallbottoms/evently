@@ -5,6 +5,7 @@ import { createApp } from '../../../apps/api/src/app';
 import { createMemoryAuthServices } from '../../../apps/api/src/services/auth/memory';
 import { createMemoryEventServices } from '../../../apps/api/src/services/events/memory';
 import { SEED_TAGS } from '../../../packages/db/src/seed-tags';
+import { createMemoryDomainEventPublisher } from '../../../apps/api/src/services/domain-events/memory';
 import { createMemoryLibraryServices } from '../../../apps/api/src/services/library/memory';
 import { createMemoryStore } from '../../../apps/api/src/services/memory-store';
 
@@ -100,6 +101,8 @@ describe('saved events and lists', () => {
     const doc = (await res.json()) as { paths: Record<string, unknown> };
     expect(doc.paths['/me/saved-events']).toBeDefined();
     expect(doc.paths['/me/saved-events/{eventId}']).toBeDefined();
+    expect(doc.paths['/me/coming-events']).toBeDefined();
+    expect(doc.paths['/me/coming-events/{eventId}']).toBeDefined();
     expect(doc.paths['/me/lists']).toBeDefined();
     expect(doc.paths['/me/lists/{id}/events/{eventId}']).toBeDefined();
   });
@@ -136,6 +139,56 @@ describe('saved events and lists', () => {
     expect(((await empty.json()) as { items: unknown[] }).items).toHaveLength(0);
     const gone = await app.request(`/v1/me/saved-events/${eventId}`, { method: 'DELETE', headers });
     expect(gone.status).toBe(404);
+  });
+
+  it('marks coming once and emits a stats event only when the row changes', async () => {
+    const store = createMemoryStore();
+    const auth = createMemoryAuthServices({ includeVerificationToken: true, now: () => new Date() }, store);
+    const events = createMemoryEventServices(auth, { now: () => new Date() }, store);
+    const domainEvents = createMemoryDomainEventPublisher();
+    const library = createMemoryLibraryServices(auth, store, { domainEvents });
+    const app = createApp({ auth, events, library });
+    const eventId = await publishEvent(app, store);
+    const session = await createUserSession(app);
+    const headers = { authorization: `Bearer ${session.sessionToken}` };
+
+    const marked = await app.request(`/v1/me/coming-events/${eventId}`, { method: 'PUT', headers });
+    expect(marked.status).toBe(204);
+    const again = await app.request(`/v1/me/coming-events/${eventId}`, { method: 'PUT', headers });
+    expect(again.status).toBe(204);
+    expect(domainEvents.events.filter((event) => event.type === 'event.coming')).toHaveLength(1);
+
+    const list = await app.request('/v1/me/coming-events', { headers });
+    expect(((await list.json()) as { items: { id: string }[] }).items.map((item) => item.id)).toEqual([
+      eventId,
+    ]);
+
+    const removed = await app.request(`/v1/me/coming-events/${eventId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    expect(removed.status).toBe(204);
+    expect(domainEvents.events.at(-1)).toMatchObject({ type: 'event.coming_cleared', eventId });
+    const empty = await app.request('/v1/me/coming-events', { headers });
+    expect(((await empty.json()) as { items: unknown[] }).items).toHaveLength(0);
+  });
+
+  it('emits a save event only for a new bookmark', async () => {
+    const store = createMemoryStore();
+    const auth = createMemoryAuthServices({ includeVerificationToken: true, now: () => new Date() }, store);
+    const events = createMemoryEventServices(auth, { now: () => new Date() }, store);
+    const domainEvents = createMemoryDomainEventPublisher();
+    const library = createMemoryLibraryServices(auth, store, { domainEvents });
+    const app = createApp({ auth, events, library });
+    const eventId = await publishEvent(app, store);
+    const session = await createUserSession(app);
+    const headers = { authorization: `Bearer ${session.sessionToken}` };
+
+    await app.request(`/v1/me/saved-events/${eventId}`, { method: 'PUT', headers });
+    await app.request(`/v1/me/saved-events/${eventId}`, { method: 'PUT', headers });
+    expect(domainEvents.events.filter((event) => event.type === 'event.saved')).toHaveLength(1);
+    await app.request(`/v1/me/saved-events/${eventId}`, { method: 'DELETE', headers });
+    expect(domainEvents.events.at(-1)).toMatchObject({ type: 'event.unsaved', eventId });
   });
 
   it('creates a list, adds the event, and enforces the list cap', async () => {

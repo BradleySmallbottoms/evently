@@ -6,16 +6,19 @@ const OPEN_STATUSES = ['pending', 'approved', 'sending', 'rejected'] as const;
 
 export type PushMessageRow = typeof schema.pushMessages.$inferSelect;
 
-export async function findOpenPushMessage(
-  db: Db,
-  eventId: string,
-): Promise<PushMessageRow | null> {
+/**
+ * The publisher's single open draft (`event_match`).
+ * Admin reminders use `area` / `area_and_tag` and stay out of this lookup,
+ * so editing an event does not overwrite a scheduled marketing plan.
+ */
+export async function findOpenPushMessage(db: Db, eventId: string): Promise<PushMessageRow | null> {
   const [row] = await db
     .select()
     .from(schema.pushMessages)
     .where(
       and(
         eq(schema.pushMessages.eventId, eventId),
+        eq(schema.pushMessages.audience, 'event_match'),
         inArray(schema.pushMessages.status, [...OPEN_STATUSES]),
       ),
     )
@@ -30,9 +33,7 @@ export async function findLatestSentPushMessage(
   const [row] = await db
     .select()
     .from(schema.pushMessages)
-    .where(
-      and(eq(schema.pushMessages.eventId, eventId), eq(schema.pushMessages.status, 'sent')),
-    )
+    .where(and(eq(schema.pushMessages.eventId, eventId), eq(schema.pushMessages.status, 'sent')))
     .orderBy(desc(schema.pushMessages.sentAt))
     .limit(1);
   return row ?? null;

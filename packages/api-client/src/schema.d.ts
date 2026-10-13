@@ -2371,6 +2371,8 @@ export interface paths {
                                 tagIds: string[];
                                 featured: boolean;
                                 checkInEnabled: boolean;
+                                numSaved: number;
+                                numComing: number;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -2513,6 +2515,217 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/coming-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Published events the current user marked as coming */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                publisherId: string;
+                                title: string;
+                                description: string | null;
+                                /** @enum {string} */
+                                mode: "physical" | "digital";
+                                /** @enum {string} */
+                                status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                /** @enum {string} */
+                                origin: "native" | "imported";
+                                /** Format: date-time */
+                                startsAt: string;
+                                /** Format: date-time */
+                                endsAt: string;
+                                timezone: string;
+                                venueName: string | null;
+                                location: {
+                                    lat: number;
+                                    lng: number;
+                                } | null;
+                                geofenceRadiusM: number | null;
+                                /** Format: uri */
+                                onlineUrl: string | null;
+                                priceAmount: number | null;
+                                currency: string;
+                                publisherName: string;
+                                links: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** @enum {string} */
+                                    type: "tickets" | "registration" | "info";
+                                    /** Format: uri */
+                                    url: string;
+                                    label: string | null;
+                                    position: number;
+                                }[];
+                                /** Format: uri */
+                                imageUrl: string | null;
+                                tagIds: string[];
+                                featured: boolean;
+                                checkInEnabled: boolean;
+                                numSaved: number;
+                                numComing: number;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/coming-events/{eventId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    eventId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Event marked as coming */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Event is not published */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    eventId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Coming mark removed */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Coming mark not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/lists": {
         parameters: {
             query?: never;
@@ -2586,6 +2799,8 @@ export interface paths {
                                     tagIds: string[];
                                     featured: boolean;
                                     checkInEnabled: boolean;
+                                    numSaved: number;
+                                    numComing: number;
                                     /** Format: date-time */
                                     createdAt: string;
                                     /** Format: date-time */
@@ -2683,6 +2898,8 @@ export interface paths {
                                 tagIds: string[];
                                 featured: boolean;
                                 checkInEnabled: boolean;
+                                numSaved: number;
+                                numComing: number;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -2860,6 +3077,8 @@ export interface paths {
                                 tagIds: string[];
                                 featured: boolean;
                                 checkInEnabled: boolean;
+                                numSaved: number;
+                                numComing: number;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -3186,6 +3405,8 @@ export interface paths {
                                 tagIds: string[];
                                 featured: boolean;
                                 checkInEnabled: boolean;
+                                numSaved: number;
+                                numComing: number;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -3308,6 +3529,8 @@ export interface paths {
                             tagIds: string[];
                             featured: boolean;
                             checkInEnabled: boolean;
+                            numSaved: number;
+                            numComing: number;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3369,7 +3592,7 @@ export interface paths {
                     q?: string;
                     tagId?: string;
                     tagIds?: string;
-                    sort?: "soonest" | "distance";
+                    sort?: "soonest" | "distance" | "popular";
                     price?: "free" | "paid";
                     limit?: number;
                     offset?: number | null;
@@ -3380,7 +3603,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Published events near a point, featured first then soonest start. Use offset to page. */
+                /** @description Published events near a point. Default order is featured first, then soonest. sort=popular orders by saves plus coming marks (at least 1) and then soonest. Use offset to page. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -3431,6 +3654,8 @@ export interface paths {
                                 tagIds: string[];
                                 featured: boolean;
                                 checkInEnabled: boolean;
+                                numSaved: number;
+                                numComing: number;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -3518,6 +3743,8 @@ export interface paths {
                             tagIds: string[];
                             featured: boolean;
                             checkInEnabled: boolean;
+                            numSaved: number;
+                            numComing: number;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3617,6 +3844,8 @@ export interface paths {
                             tagIds: string[];
                             featured: boolean;
                             checkInEnabled: boolean;
+                            numSaved: number;
+                            numComing: number;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3766,6 +3995,8 @@ export interface paths {
                             tagIds: string[];
                             featured: boolean;
                             checkInEnabled: boolean;
+                            numSaved: number;
+                            numComing: number;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3883,6 +4114,8 @@ export interface paths {
                             tagIds: string[];
                             featured: boolean;
                             checkInEnabled: boolean;
+                            numSaved: number;
+                            numComing: number;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3996,6 +4229,8 @@ export interface paths {
                             tagIds: string[];
                             featured: boolean;
                             checkInEnabled: boolean;
+                            numSaved: number;
+                            numComing: number;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */

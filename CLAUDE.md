@@ -126,6 +126,9 @@ Product invariants (enforced in domain, tested)
 - Imported events from temporary publishers or review-trust sources go to `in_review`.
 - Only checked-in users rate, once, within 14 days after the end. Public sees aggregates only.
   Anonymous users can score but not comment.
+- A save is the interested bookmark. "I'm coming" is a separate row. Popularity is `numSaved` +
+  `numComing` on the event stats (a person who did both counts twice). Events with a total of 0 are
+  omitted from `sort=popular`.
 - No background location in v1. While the app is in use, location is read when it becomes active
   and watched until it backgrounds. Region suggestions run on the device and send nothing unless saved.
   A dismiss, including skipping the onboarding area step, stays quiet near that place for 7 days;

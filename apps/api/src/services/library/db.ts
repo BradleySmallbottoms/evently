@@ -1,10 +1,12 @@
-import type { Event, EventLink, UserEventList } from '@local-events/contracts';
+import type { DomainEvent, Event, EventLink, UserEventList } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import { canAddListItem, canCreateAnotherList, publicAssetUrl } from '@local-events/domain';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
+import { createMemoryDomainEventPublisher } from '../domain-events/memory';
+import { enqueueDomainEvent, type DomainEventPublisher } from '../domain-events/types';
 import { LibraryError, type LibraryServices } from './types';
 
 type LocRow = {
@@ -28,6 +30,8 @@ type LocRow = {
   publisherName: string;
   featured: boolean;
   checkInEnabled: boolean;
+  numSaved: number;
+  numComing: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -61,19 +65,56 @@ function mapRow(
     tagIds,
     featured: row.featured,
     checkInEnabled: row.checkInEnabled,
+    numSaved: Number(row.numSaved ?? 0),
+    numComing: Number(row.numComing ?? 0),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
+function lifetimeStat(key: 'numSaved' | 'numComing') {
+  return sql<number>`coalesce((
+    select ${schema.stats.value}
+    from ${schema.stats}
+    where ${schema.stats.sourceType} = 'event'
+      and ${schema.stats.sourceId} = ${schema.events.id}
+      and ${schema.stats.key} = ${key}
+  ), 0)`;
+}
+
 export function createDbLibraryServices(
   db: Db,
   auth: AuthServices,
-  env: { now?: () => Date; assetsPublicBaseUrl?: string } = {},
+  env: {
+    now?: () => Date;
+    assetsPublicBaseUrl?: string;
+    domainEvents?: DomainEventPublisher;
+  } = {},
 ): LibraryServices {
   const now = env.now ?? (() => new Date());
-  const { events, publishers, eventTags, eventImages, eventLinks, savedEvents, eventLists, eventListItems } =
-    schema;
+  const domainEvents = env.domainEvents ?? createMemoryDomainEventPublisher();
+  const {
+    events,
+    publishers,
+    eventTags,
+    eventImages,
+    eventLinks,
+    savedEvents,
+    comingEvents,
+    eventLists,
+    eventListItems,
+  } = schema;
+
+  async function emit(
+    type: Extract<
+      DomainEvent,
+      { type: 'event.saved' | 'event.unsaved' | 'event.coming' | 'event.coming_cleared' }
+    >['type'],
+    eventId: string,
+    userId: string,
+  ) {
+    await enqueueDomainEvent(domainEvents, { type, eventId, userId });
+  }
 
   async function requireUser(sessionToken: string | undefined) {
     try {
@@ -105,6 +146,8 @@ export function createDbLibraryServices(
     publisherName: publishers.name,
     featured: events.featured,
     checkInEnabled: events.checkInEnabled,
+    numSaved: lifetimeStat('numSaved'),
+    numComing: lifetimeStat('numComing'),
     createdAt: events.createdAt,
     updatedAt: events.updatedAt,
   };
@@ -216,10 +259,12 @@ export function createDbLibraryServices(
     async saveEvent(sessionToken, eventId) {
       const { userId } = await requireUser(sessionToken);
       await requirePublished(eventId);
-      await db
+      const inserted = await db
         .insert(savedEvents)
         .values({ userId, eventId, createdAt: now() })
-        .onConflictDoNothing();
+        .onConflictDoNothing()
+        .returning({ eventId: savedEvents.eventId });
+      if (inserted.length > 0) await emit('event.saved', eventId, userId);
     },
 
     async unsaveEvent(sessionToken, eventId) {
@@ -229,6 +274,44 @@ export function createDbLibraryServices(
         .where(and(eq(savedEvents.userId, userId), eq(savedEvents.eventId, eventId)))
         .returning({ eventId: savedEvents.eventId });
       if (removed.length === 0) throw new LibraryError('not_found');
+      await emit('event.unsaved', eventId, userId);
+    },
+
+    async listComing(sessionToken) {
+      const { userId } = await requireUser(sessionToken);
+      const rows = await db
+        .select({ eventId: comingEvents.eventId })
+        .from(comingEvents)
+        .where(eq(comingEvents.userId, userId))
+        .orderBy(desc(comingEvents.createdAt));
+      const byId = await loadPublished(rows.map((row) => row.eventId));
+      return {
+        items: rows.flatMap((row) => {
+          const event = byId.get(row.eventId);
+          return event ? [event] : [];
+        }),
+      };
+    },
+
+    async markComing(sessionToken, eventId) {
+      const { userId } = await requireUser(sessionToken);
+      await requirePublished(eventId);
+      const inserted = await db
+        .insert(comingEvents)
+        .values({ userId, eventId, createdAt: now() })
+        .onConflictDoNothing()
+        .returning({ eventId: comingEvents.eventId });
+      if (inserted.length > 0) await emit('event.coming', eventId, userId);
+    },
+
+    async clearComing(sessionToken, eventId) {
+      const { userId } = await requireUser(sessionToken);
+      const removed = await db
+        .delete(comingEvents)
+        .where(and(eq(comingEvents.userId, userId), eq(comingEvents.eventId, eventId)))
+        .returning({ eventId: comingEvents.eventId });
+      if (removed.length === 0) throw new LibraryError('not_found');
+      await emit('event.coming_cleared', eventId, userId);
     },
 
     async listLists(sessionToken) {

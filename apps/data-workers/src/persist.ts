@@ -70,10 +70,7 @@ export async function persistSource(
         }),
       );
     }
-    await store.upsertTags([
-      ...run.tags,
-      ...run.events.flatMap((event) => event.tags),
-    ]);
+    await store.upsertTags([...run.tags, ...run.events.flatMap((event) => event.tags)]);
     const saved = await saveIncomingEvents(store, source, run.events, enqueue, images);
     const problems = [
       ...run.invalid.map((item) => item.issues),
@@ -129,33 +126,58 @@ export async function saveIncomingEvents(
   return counts;
 }
 
-async function attachImage(
+function imageSources(event: IncomingEvent): string[] {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  for (const url of [event.imageUrl, ...(event.imageUrls ?? [])]) {
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    urls.push(url);
+  }
+  return urls.slice(0, 9);
+}
+
+async function attachImages(
   store: IngestStore,
   eventId: string,
   event: IncomingEvent,
   images: EventImageUploader,
 ): Promise<void> {
-  if (!event.imageUrl) return;
-  const current = await store.findEventImage(eventId);
-  if (current?.sourceUrl === event.imageUrl) return;
-  try {
-    const stored = await images.put({ eventId, sourceUrl: event.imageUrl });
-    if (!stored) return;
-    await store.saveEventImage({
-      eventId,
-      s3Key: stored.s3Key,
-      sourceUrl: event.imageUrl,
-      contentType: stored.contentType,
-    });
-  } catch (err) {
-    console.warn(
-      JSON.stringify({
+  const urls = imageSources(event);
+  const roles: string[] = [];
+  for (let index = 0; index < urls.length; index += 1) {
+    const role = index === 0 ? 'main' : `gallery-${index}`;
+    const sourceUrl = urls[index]!;
+    roles.push(role);
+    const current = await store.findEventImage(eventId, role);
+    if (current?.sourceUrl === sourceUrl) continue;
+    try {
+      const stored = await images.put({ eventId, sourceUrl, role });
+      if (!stored) continue;
+      await store.saveEventImage({
         eventId,
-        message: 'event image upload failed',
-        error: err instanceof Error ? err.message : String(err),
-      }),
-    );
+        role,
+        s3Key: stored.s3Key,
+        sourceUrl,
+        contentType: stored.contentType,
+      });
+    } catch (err) {
+      console.warn(
+        JSON.stringify({
+          eventId,
+          message: 'event image upload failed',
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    }
   }
+  // A missing imageUrls means the crawl did not finish. Leave earlier gallery rows.
+  if (!event.imageUrls) return;
+  const existing = await store.listEventImages(eventId);
+  const stale = existing
+    .map((image) => image.role)
+    .filter((role) => role.startsWith('gallery-') && !roles.includes(role));
+  if (stale.length > 0) await store.deleteEventImages(eventId, stale);
 }
 
 async function saveOne(
@@ -204,7 +226,7 @@ async function saveOne(
   if (existing) {
     if (existing.contentHash === write.contentHash) {
       await store.touchRef(source.id, event.externalId);
-      await attachImage(store, existing.eventId, event, images);
+      await attachImages(store, existing.eventId, event, images);
       return 'skipped';
     }
     if (existing.status === 'cancelled' || existing.status === 'ended') {
@@ -216,7 +238,7 @@ async function saveOne(
       return 'skipped';
     }
     await store.updateImported(existing.eventId, write);
-    await attachImage(store, existing.eventId, event, images);
+    await attachImages(store, existing.eventId, event, images);
     if (store.upsertPushDraft) {
       await store.upsertPushDraft({
         eventId: existing.eventId,
@@ -252,7 +274,7 @@ async function saveOne(
   }
 
   const eventId = await store.insertImported(write);
-  await attachImage(store, eventId, event, images);
+  await attachImages(store, eventId, event, images);
   if (store.upsertPushDraft) {
     await store.upsertPushDraft({
       eventId,

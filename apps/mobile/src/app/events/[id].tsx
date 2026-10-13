@@ -26,16 +26,25 @@ import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
 import { DateBox } from '@/components/ui/date-box';
 import { EventImage } from '@/components/ui/event-image';
+import { EventPlan } from '@/components/ui/event-plan';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TagPills, PricePill } from '@/components/ui/tag-pills';
 import { MaxContentWidth } from '@/constants/theme';
 import { getPublicEvent, listTags, namesForTagIds } from '@/lib/events';
+import { eventListFreshness } from '@/lib/query-client';
 import { fetchCheckInStatus, performCodeCheckIn, performGeoCheckIn } from '@/lib/check-in';
 import { fetchEventContent, readCachedEventContent } from '@/lib/event-content';
 import { dateBadge, primaryAction, safeHttpUrl } from '@/lib/event-format';
 import { ensureIdentity } from '@/lib/identity';
-import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
+import {
+  clearComing,
+  listComingEvents,
+  listSavedEvents,
+  markComing,
+  saveEvent,
+  unsaveEvent,
+} from '@/lib/library';
 import { fetchProfile, updateProfile } from '@/lib/profile';
 import { fetchRatingStatus, submitRating } from '@/lib/ratings';
 import { cancelEventReminder, eventReminderSlots, scheduleEventReminders } from '@/lib/reminders';
@@ -70,6 +79,7 @@ export default function EventDetailScreen() {
   });
   const event = useQuery({
     queryKey: ['public-event', id],
+    ...eventListFreshness,
     queryFn: () => getPublicEvent(id),
     enabled: typeof id === 'string' && id.length > 0,
   });
@@ -120,6 +130,12 @@ export default function EventDetailScreen() {
     queryFn: () => listSavedEvents(identity.data!),
   });
   const isSaved = saved.data?.items.some((item) => item.id === id) ?? false;
+  const coming = useQuery({
+    queryKey: ['coming-events', identity.data?.userId],
+    enabled: identity.isSuccess,
+    queryFn: () => listComingEvents(identity.data!),
+  });
+  const isComing = coming.data?.items.some((item) => item.id === id) ?? false;
   const eventStats = useQuery({
     queryKey: ['event-stats', id],
     queryFn: () => fetchEventStats(id!),
@@ -260,9 +276,16 @@ export default function EventDetailScreen() {
 
   function toggleSaved() {
     if (!identity.data || typeof id !== 'string') return;
-    void (isSaved ? unsaveEvent(identity.data, id) : saveEvent(identity.data, id)).then(() =>
-      queryClient.invalidateQueries({ queryKey: ['saved-events'] }),
-    );
+    void (isSaved ? unsaveEvent(identity.data, id) : saveEvent(identity.data, id))
+      .then(() => queryClient.invalidateQueries({ queryKey: ['saved-events'] }))
+      .catch(() => Alert.alert(t('events.planTitle'), t('events.planError')));
+  }
+
+  function toggleComing() {
+    if (!identity.data || typeof id !== 'string') return;
+    void (isComing ? clearComing(identity.data, id) : markComing(identity.data, id))
+      .then(() => queryClient.invalidateQueries({ queryKey: ['coming-events'] }))
+      .catch(() => Alert.alert(t('events.planTitle'), t('events.planError')));
   }
 
   async function shareEvent() {
@@ -495,6 +518,17 @@ export default function EventDetailScreen() {
                     </AppText>
                   </View>
                 </View>
+
+                <EventPlan
+                  title={t('events.planTitle')}
+                  interestedLabel={t('events.planInterested')}
+                  comingLabel={t('events.planComing')}
+                  hint={t('events.planHint')}
+                  interested={isSaved}
+                  coming={isComing}
+                  onInterestedPress={toggleSaved}
+                  onComingPress={toggleComing}
+                />
 
                 {event.data.description ? (
                   <AppText variant="body" style={{ color: colors.ink }}>

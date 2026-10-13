@@ -432,6 +432,28 @@ export const savedEvents = pgTable(
   ],
 );
 
+/**
+ * "I'm coming" marks. A save (`saved_events`) is the interested bookmark.
+ * This row is a plan to attend, not a follow.
+ */
+export const comingEvents = pgTable(
+  'coming_events',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.eventId] }),
+    index('coming_events_user_id_idx').on(t.userId),
+    index('coming_events_event_id_idx').on(t.eventId),
+  ],
+);
+
 export const eventLists = pgTable(
   'event_lists',
   {
@@ -550,6 +572,7 @@ export const statsSourceType = pgEnum('stats_source_type', ['user', 'event', 'pu
 /**
  * Polymorphic counters. Historical buckets use key suffixes
  * (`numCheckins-2026-01-01`, `numCheckins-w01`, `numCheckins-2026-m01`, `numCheckins-2026`).
+ * Saves and "I'm coming" marks use `numSaved` and `numComing` the same way.
  */
 export const stats = pgTable(
   'stats',

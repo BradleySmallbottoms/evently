@@ -83,7 +83,55 @@ describe('visit-soderhamn map', () => {
       { externalId: 'visit-soderhamn:30203', name: 'Tävlingar' },
     ]);
     expect(bandy.imageUrl).toBe('https://images.citybreakcdn.com/image.aspx?ImageId=10290222');
+    expect(bandy.imageUrls).toBeUndefined();
     expect(bandy.description).toContain('inomhusarena för bandy');
+  });
+
+  it('keeps the API image and stores crawled page images beside it', () => {
+    const [event] = visitSoderhamn.map(
+      {
+        categories: [],
+        products: [raw.products[0]!],
+        crawledImages: {
+          [raw.products[0]!.Id]: ['https://cdn.example/og.jpg', 'https://cdn.example/photo.jpg'],
+        },
+      },
+      mapCtx,
+    );
+    expect(event?.imageUrl).toBe('https://images.citybreakcdn.com/image.aspx?ImageId=10290222');
+    expect(event?.imageUrls).toEqual([
+      'https://cdn.example/og.jpg',
+      'https://cdn.example/photo.jpg',
+    ]);
+  });
+
+  it('uses an og image when the API has no media', () => {
+    const product: VisitProduct = { ...raw.products[0]!, Media: [] };
+    const [event] = visitSoderhamn.map(
+      {
+        categories: [],
+        products: [product],
+        crawledImages: {
+          [product.Id]: ['https://cdn.example/og.jpg', 'https://cdn.example/photo.jpg'],
+        },
+      },
+      mapCtx,
+    );
+    expect(event?.imageUrl).toBe('https://cdn.example/og.jpg');
+    expect(event?.imageUrls).toEqual(['https://cdn.example/photo.jpg']);
+  });
+
+  it('leaves the hero alone when every linked page failed', () => {
+    const [event] = visitSoderhamn.map(
+      {
+        categories: [],
+        products: [raw.products[0]!],
+        crawledImages: { [raw.products[0]!.Id]: null },
+      },
+      mapCtx,
+    );
+    expect(event?.imageUrl).toBe('https://images.citybreakcdn.com/image.aspx?ImageId=10290222');
+    expect(event?.imageUrls).toBeUndefined();
   });
 
   it('collects categories under Evenemang as tags', () => {
@@ -187,7 +235,7 @@ describe('visit-soderhamn fetch', () => {
     const fetched = await visitSoderhamn.fetchRaw(fetchCtx);
     expect(fetched.categories.map((category) => category.Id)).toEqual([30084, 30172]);
     expect(fetched.products).toHaveLength(1);
-    expect(calls.map((call) => call.url)).toEqual([
+    expect(calls.map((call) => call.url).slice(0, 3)).toEqual([
       'https://cbis-rest-api.citybreak.com/v1/api/raw/category/getpaged/20',
       'https://cbis-rest-api.citybreak.com/v1/api/raw/category/getnext/tok%2Ben%3D%3D',
       'https://cbis-rest-api.citybreak.com/v1/api/product',
@@ -274,6 +322,66 @@ describe('visit-soderhamn fetch', () => {
       /cbis-rest-api\.citybreak\.com/,
     );
     expect(fetched).toBe(false);
+  });
+
+  it('follows event links and prefers an og image when the API has no media', async () => {
+    process.env.VISIT_SODERHAMN_API_KEY = 'test-key';
+    const product: VisitProduct = {
+      ...raw.products[0]!,
+      Media: [],
+      Information: raw.products[0]!.Information?.map((item) =>
+        item.Id === 102 ? { ...item, Value: 'Program: https://example.com/program' } : item,
+      ),
+    };
+    const calls: { url: string; apiKey: string | null }[] = [];
+    const html = `<!doctype html><html><head>
+      <meta property="og:image" content="https://cdn.example/og.jpg">
+      <meta property="og:image" content="//cdn.example/second.jpg">
+    </head><body>
+      <img src="https://cdn.example/photo.jpg" width="1200" height="800">
+      <img src="/favicon.png" width="16" height="16">
+      <img src="https://cdn.example/og.jpg">
+    </body></html>`;
+    const { ctx: fetchCtx } = ctx({}, async (input, init) => {
+      const url = String(input);
+      calls.push({ url, apiKey: new Headers(init?.headers).get('ApiKey') });
+      if (url.endsWith('/raw/category/getpaged/20')) {
+        return json({
+          TotalResults: 1,
+          Result: [{ Id: 30172, Name: 'Evenemang', Path: [30172] }],
+        });
+      }
+      if (url.endsWith('/product')) return json({ TotalResults: 1, Result: [product] });
+      if (url === 'https://brobergsoderhamn.se/') {
+        return new Response(html, { status: 200, headers: { 'content-type': 'text/html' } });
+      }
+      if (url === 'https://example.com/program') {
+        return new Response(
+          '<html><img src="https://cdn.example/parsed.jpg" width="400" height="300"></html>',
+          {
+            status: 200,
+            headers: { 'content-type': 'text/html' },
+          },
+        );
+      }
+      return json({ message: 'no page' }, 404);
+    });
+
+    const fetched = await visitSoderhamn.fetchRaw(fetchCtx);
+    const [event] = visitSoderhamn.map(fetched, fetchCtx);
+    expect(event?.imageUrl).toBe('https://cdn.example/og.jpg');
+    expect(event?.imageUrls).toEqual([
+      'https://cdn.example/second.jpg',
+      'https://cdn.example/photo.jpg',
+      'https://cdn.example/parsed.jpg',
+    ]);
+    const pages = calls.filter((call) => !call.url.includes('citybreak.com'));
+    expect(pages.map((call) => call.url)).toEqual([
+      'https://brobergsoderhamn.ticketco.events/se/sv',
+      'https://brobergsoderhamn.se/',
+      'https://example.com/program',
+    ]);
+    expect(pages.every((call) => call.apiKey === null)).toBe(true);
   });
 
   it('requires the API key from the environment', async () => {

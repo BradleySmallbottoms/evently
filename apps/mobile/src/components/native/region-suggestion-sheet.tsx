@@ -76,82 +76,82 @@ export function RegionSuggestionSheet({
       >
         <SheetBody>
           <View style={{ width: contentWidth, gap: space.lg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: radius.pill,
-                backgroundColor: colors.accentSoft,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <MaterialIcons name="place" size={24} color={colors.primary} />
-            </View>
-            <AppText
-              variant="subtitle"
-              style={{ flex: 1, flexShrink: 1, fontSize: 22, lineHeight: 28 }}
-            >
-              {title}
-            </AppText>
-          </View>
-          <AppText style={{ width: contentWidth, color: colors.inkMuted, lineHeight: 22 }}>
-            {message}
-          </AppText>
-          <View style={{ gap: space.sm }}>
-            <PrimaryButton
-              label={saveNotifyLabel}
-              onPress={() => {
-                closedByAction.current = true;
-                onIsPresentedChange(false);
-                onSaveNotify();
-              }}
-            />
-            <Pressable
-              accessibilityRole="button"
-              onPress={runAction(onSaveQuiet)}
-              style={({ pressed }) => ({
-                minHeight: 52,
-                borderRadius: radius.xl,
-                borderCurve: 'continuous',
-                borderWidth: 1.5,
-                borderColor: colors.line,
-                backgroundColor: pressed ? colors.canvas : colors.card,
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingVertical: space.md,
-                paddingHorizontal: space.lg,
-              })}
-            >
-              <AppText variant="subtitle" style={{ fontWeight: '700', textAlign: 'center' }}>
-                {saveQuietLabel}
-              </AppText>
-            </Pressable>
-          </View>
-          <View style={{ gap: space.xs, alignItems: 'center' }}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={runAction(onNotNow)}
-              style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: space.md }}
-            >
-              <AppText variant="subtitle" style={{ fontWeight: '600' }}>
-                {notNowLabel}
-              </AppText>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={runAction(onNever)}
-              style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: space.md }}
-            >
-              <AppText
-                variant="caption"
-                style={{ fontWeight: '600', textAlign: 'center', color: colors.inkMuted }}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: radius.pill,
+                  backgroundColor: colors.accentSoft,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
-                {neverLabel}
+                <MaterialIcons name="place" size={24} color={colors.primary} />
+              </View>
+              <AppText
+                variant="subtitle"
+                style={{ flex: 1, flexShrink: 1, fontSize: 22, lineHeight: 28 }}
+              >
+                {title}
               </AppText>
-            </Pressable>
-          </View>
+            </View>
+            <AppText style={{ width: contentWidth, color: colors.inkMuted, lineHeight: 22 }}>
+              {message}
+            </AppText>
+            <View style={{ gap: space.sm }}>
+              <PrimaryButton
+                label={saveNotifyLabel}
+                onPress={() => {
+                  closedByAction.current = true;
+                  onIsPresentedChange(false);
+                  onSaveNotify();
+                }}
+              />
+              <Pressable
+                accessibilityRole="button"
+                onPress={runAction(onSaveQuiet)}
+                style={({ pressed }) => ({
+                  minHeight: 52,
+                  borderRadius: radius.xl,
+                  borderCurve: 'continuous',
+                  borderWidth: 1.5,
+                  borderColor: colors.line,
+                  backgroundColor: pressed ? colors.canvas : colors.card,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: space.md,
+                  paddingHorizontal: space.lg,
+                })}
+              >
+                <AppText variant="subtitle" style={{ fontWeight: '700', textAlign: 'center' }}>
+                  {saveQuietLabel}
+                </AppText>
+              </Pressable>
+            </View>
+            <View style={{ gap: space.xs, alignItems: 'center' }}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={runAction(onNotNow)}
+                style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: space.md }}
+              >
+                <AppText variant="subtitle" style={{ fontWeight: '600' }}>
+                  {notNowLabel}
+                </AppText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={runAction(onNever)}
+                style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: space.md }}
+              >
+                <AppText
+                  variant="caption"
+                  style={{ fontWeight: '600', textAlign: 'center', color: colors.inkMuted }}
+                >
+                  {neverLabel}
+                </AppText>
+              </Pressable>
+            </View>
           </View>
         </SheetBody>
       </BottomSheet>

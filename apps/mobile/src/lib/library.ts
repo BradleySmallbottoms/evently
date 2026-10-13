@@ -29,6 +29,30 @@ export async function unsaveEvent(identity: StoredIdentity, eventId: string) {
   );
 }
 
+export async function listComingEvents(identity: StoredIdentity) {
+  return throwIfError(
+    await api.GET('/me/coming-events', { headers: auth(identity) }),
+  );
+}
+
+export async function markComing(identity: StoredIdentity, eventId: string) {
+  throwIfError(
+    await api.PUT('/me/coming-events/{eventId}', {
+      params: { path: { eventId } },
+      headers: auth(identity),
+    }),
+  );
+}
+
+export async function clearComing(identity: StoredIdentity, eventId: string) {
+  throwIfError(
+    await api.DELETE('/me/coming-events/{eventId}', {
+      params: { path: { eventId } },
+      headers: auth(identity),
+    }),
+  );
+}
+
 export async function listEventLists(identity: StoredIdentity) {
   return throwIfError(await api.GET('/me/lists', { headers: auth(identity) }));
 }

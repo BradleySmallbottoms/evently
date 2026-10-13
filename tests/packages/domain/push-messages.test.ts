@@ -6,7 +6,11 @@ import {
   canCreateNewPushDraft,
   isAdminEventPushAudience,
   defaultPushMessageCopy,
+  DEFAULT_MARKETING_PUSH_PLAN,
   initialPushMessageStatus,
+  marketingPushPlan,
+  offsetBeforeEventStart,
+  reminderPushCopy,
   isWithinAggregationWindow,
   pickPrimaryPushMessage,
   shouldAutoApprovePushMessage,
@@ -15,12 +19,10 @@ import {
 
 describe('push-messages domain', () => {
   it('auto-approves verified native and mapped auto_publish imports', () => {
-    expect(
-      shouldAutoApprovePushMessage({ publisherVerified: true, origin: 'native' }),
-    ).toBe(true);
-    expect(
-      shouldAutoApprovePushMessage({ publisherVerified: false, origin: 'native' }),
-    ).toBe(false);
+    expect(shouldAutoApprovePushMessage({ publisherVerified: true, origin: 'native' })).toBe(true);
+    expect(shouldAutoApprovePushMessage({ publisherVerified: false, origin: 'native' })).toBe(
+      false,
+    );
     expect(
       shouldAutoApprovePushMessage({
         publisherVerified: false,
@@ -43,6 +45,21 @@ describe('push-messages domain', () => {
     expect(statusAfterDraftEdit({ current: 'approved', autoApprove: false })).toBe('pending');
     expect(statusAfterDraftEdit({ current: 'approved', autoApprove: true })).toBe('approved');
     expect(statusAfterDraftEdit({ current: 'sent', autoApprove: false })).toBe('sent');
+  });
+
+  it('builds reminder times and the standard marketing plan', () => {
+    const start = new Date('2026-06-20T18:00:00.000Z');
+    expect(offsetBeforeEventStart(start, 'week').toISOString()).toBe('2026-06-13T18:00:00.000Z');
+    expect(offsetBeforeEventStart(start, 'day').toISOString()).toBe('2026-06-19T18:00:00.000Z');
+    expect(offsetBeforeEventStart(start, 'hour').toISOString()).toBe('2026-06-20T17:00:00.000Z');
+    const week = reminderPushCopy('Jazzkväll', 'week');
+    expect(week.titleSv).toBe('Jazzkväll');
+    expect(week.bodySv).toContain('vecka');
+    expect(week.bodyEn).toContain('week');
+    expect(DEFAULT_MARKETING_PUSH_PLAN).toBe('single');
+    expect(marketingPushPlan('single')?.offsets).toEqual(['day']);
+    expect(marketingPushPlan('standard')?.offsets).toEqual(['week', 'day']);
+    expect(marketingPushPlan('full')?.offsets).toEqual(['week', 'day', 'hour']);
   });
 
   it('builds default bilingual copy and aggregation lines', () => {

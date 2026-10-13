@@ -2,6 +2,7 @@ import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
   ApprovePushMessageRequest,
   CreateAdminEventPushMessageRequest,
+  CreateAdminEventPushPlanRequest,
   CreateBroadcastPushMessageRequest,
   ErrorResponse,
   PushMessage,
@@ -70,10 +71,7 @@ export function registerPushMessageRoutes(
   app.openapi(listSentForEvent, async (c) => {
     try {
       await auth.requireSession(readAdminSessionToken(c));
-      return c.json(
-        { items: await pushMessages.listSentForEvent(c.req.valid('param').id) },
-        200,
-      );
+      return c.json({ items: await pushMessages.listSentForEvent(c.req.valid('param').id) }, 200);
     } catch (err) {
       return adminAuthErrorResponse(c, err);
     }
@@ -320,10 +318,6 @@ export function registerPushMessageRoutes(
         description: 'Event not found',
         content: { 'application/json': { schema: ErrorResponse } },
       },
-      409: {
-        description: 'An open notification already exists for this event',
-        content: { 'application/json': { schema: ErrorResponse } },
-      },
     },
   });
   app.openapi(createEventPush, async (c) => {
@@ -343,15 +337,56 @@ export function registerPushMessageRoutes(
             400,
           );
         }
-        if (err instanceof Error && err.message === 'push_draft_exists') {
+        throw err;
+      }
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
+  const createEventPushPlan = createRoute({
+    method: 'post',
+    path: '/push-messages/event-plan',
+    request: {
+      body: {
+        content: { 'application/json': { schema: CreateAdminEventPushPlanRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        description: 'Reviewed plan created and approved',
+        content: { 'application/json': { schema: PushMessageListResponse } },
+      },
+      400: {
+        description: 'Event is not published',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Event not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(createEventPushPlan, async (c) => {
+    try {
+      const session = await auth.requireSession(readAdminSessionToken(c));
+      const body = c.req.valid('json');
+      try {
+        const items = await pushMessages.createEventPushPlan(body, session.adminId);
+        return c.json({ items }, 201);
+      } catch (err) {
+        if (err instanceof Error && err.message === 'event_not_found') {
+          return c.json({ error: { code: 'event_not_found', message: 'Event not found' } }, 404);
+        }
+        if (err instanceof Error && err.message === 'event_not_published') {
           return c.json(
-            {
-              error: {
-                code: 'push_draft_exists',
-                message: 'An open notification already exists for this event',
-              },
-            },
-            409,
+            { error: { code: 'event_not_published', message: 'Event must be published' } },
+            400,
           );
         }
         throw err;

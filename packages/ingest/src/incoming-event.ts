@@ -49,6 +49,11 @@ export const IncomingEvent = z.object({
     .max(20)
     .default([]),
   imageUrl: z.url().optional(),
+  /**
+   * Extra images from crawled event pages, og:image first. The hero stays `imageUrl`.
+   * An empty list means the crawl ran and found nothing else.
+   */
+  imageUrls: z.array(z.url()).max(8).optional(),
 });
 export type IncomingEvent = z.infer<typeof IncomingEvent>;
 

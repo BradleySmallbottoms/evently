@@ -1,5 +1,6 @@
-import { priceAmountFromText } from '@local-events/domain';
+import { mergeImportedLinks, priceAmountFromText } from '@local-events/domain';
 import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
+import { crawlLinkImages } from './page-images';
 
 /**
  * Visit Söderhamn via the Citybreak CBIS API.
@@ -51,6 +52,11 @@ export interface VisitProduct {
 export interface VisitRaw {
   categories: VisitCategory[];
   products: VisitProduct[];
+  /**
+   * Images found by following each product's links. Og images come first.
+   * `null` means every page fetch failed. Missing means the product had no links.
+   */
+  crawledImages?: Record<string, string[] | null>;
 }
 
 interface VisitConfig {
@@ -268,7 +274,10 @@ function productTags(
 }
 
 /** Categories under Evenemang, from the tree and from product paths. */
-export function visitTags(raw: VisitRaw, eventCategoryId: number): { externalId: string; name: string }[] {
+export function visitTags(
+  raw: VisitRaw,
+  eventCategoryId: number,
+): { externalId: string; name: string }[] {
   const byExternal = new Map<string, string>();
   for (const category of raw.categories) {
     if (category.Id === eventCategoryId) continue;
@@ -338,6 +347,37 @@ function stockholmOffsetMinutes(instant: Date): number {
   return Math.round((asUtc - instant.getTime()) / 60_000);
 }
 
+function linksForProduct(product: VisitProduct): string[] {
+  const description = textField(product, DESCRIPTION) ?? textField(product, INGRESS);
+  return (mergeImportedLinks(productLinks(product), description) ?? []).map((link) => link.url);
+}
+
+function canMapProduct(product: VisitProduct): boolean {
+  const title = textField(product, NAME) ?? product.Name?.trim();
+  const sourceUrl = asUrl(textField(product, EVENT_LINK)) ?? asUrl(textField(product, WEBSITE));
+  return Boolean(
+    title && sourceUrl && (product.Occasions ?? []).some((occasion) => occasion.Start),
+  );
+}
+
+/**
+ * Citybreak media stays the hero. A crawled og:image fills in when that media is
+ * missing, then any other page image. `imageUrls` is omitted when the crawl did not run.
+ */
+export function picturesFor(
+  apiImage: string | undefined,
+  crawled: string[] | null | undefined,
+): { imageUrl?: string; imageUrls?: string[] } {
+  if (crawled == null) return apiImage ? { imageUrl: apiImage } : {};
+  const extras = crawled.filter((url) => url !== apiImage);
+  const image = apiImage ?? extras[0];
+  const imageUrls = apiImage ? extras : extras.slice(1);
+  return {
+    ...(image ? { imageUrl: image } : {}),
+    imageUrls,
+  };
+}
+
 function productLinks(product: VisitProduct): NonNullable<IncomingEvent['links']> {
   const links: NonNullable<IncomingEvent['links']> = [];
   const seen = new Set<string>();
@@ -352,7 +392,11 @@ function productLinks(product: VisitProduct): NonNullable<IncomingEvent['links']
   return links;
 }
 
-function mapProduct(product: VisitProduct, eventCategoryId: number): IncomingEvent[] {
+function mapProduct(
+  product: VisitProduct,
+  eventCategoryId: number,
+  crawled: string[] | null | undefined,
+): IncomingEvent[] {
   const title = textField(product, NAME) ?? product.Name?.trim();
   const sourceUrl = asUrl(textField(product, EVENT_LINK)) ?? asUrl(textField(product, WEBSITE));
   const links = productLinks(product);
@@ -365,7 +409,7 @@ function mapProduct(product: VisitProduct, eventCategoryId: number): IncomingEve
   const lat = product.Position?.Latitude;
   const lng = product.Position?.Longitude;
   const location = typeof lat === 'number' && typeof lng === 'number' ? { lat, lng } : undefined;
-  const image = imageUrl(product);
+  const pictures = picturesFor(imageUrl(product), crawled);
   const tags = productTags(product, eventCategoryId);
   const events: IncomingEvent[] = [];
   for (const occasion of product.Occasions ?? []) {
@@ -389,7 +433,7 @@ function mapProduct(product: VisitProduct, eventCategoryId: number): IncomingEve
       ...(contact || email ? { organizerName: contact ?? email } : {}),
       categoryHints: tags.map((tag) => tag.name),
       tags,
-      ...(image ? { imageUrl: image } : {}),
+      ...pictures,
     });
   }
   return events;
@@ -406,11 +450,19 @@ export const visitSoderhamn = defineAdapter<VisitRaw>({
       throw new Error(`Visit category ${cfg.eventCategoryId} was not in the category tree`);
     }
     const products = await fetchProducts(ctx, cfg, key);
-    return { categories, products };
+    const crawledImages = await crawlLinkImages(
+      ctx,
+      products
+        .filter(canMapProduct)
+        .map((product) => ({ id: product.Id, urls: linksForProduct(product) })),
+    );
+    return { categories, products, crawledImages };
   },
   map(raw, ctx) {
     const { eventCategoryId } = visitConfig(ctx.config);
-    return raw.products.flatMap((product) => mapProduct(product, eventCategoryId));
+    return raw.products.flatMap((product) =>
+      mapProduct(product, eventCategoryId, raw.crawledImages?.[product.Id]),
+    );
   },
   tags(raw, ctx) {
     return visitTags(raw, visitConfig(ctx.config).eventCategoryId);

@@ -13,6 +13,8 @@ import {
   canPublishAnother,
   canPublishEvent,
   entitlementsFor,
+  eventEngagement,
+  isPopularEvent,
   matchesListPrice,
   releaseOnVerification,
   shouldEnqueueNotifications,
@@ -24,7 +26,12 @@ import { enqueueDomainEvent } from '../domain-events/types';
 import { randomUUID } from 'node:crypto';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
-import { createMemoryStore, type MemoryEventRow, type MemoryStore } from '../memory-store';
+import {
+  createMemoryStore,
+  memoryEventEngagement,
+  type MemoryEventRow,
+  type MemoryStore,
+} from '../memory-store';
 import { EventError, type EventEnv, type EventServices } from './types';
 
 function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -38,7 +45,7 @@ function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: numb
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-function toManaged(row: MemoryEventRow): ManagedEvent {
+function toManaged(row: MemoryEventRow, store: MemoryStore): ManagedEvent {
   const {
     startsAtDate: _starts,
     endsAtDate: _ends,
@@ -48,6 +55,7 @@ function toManaged(row: MemoryEventRow): ManagedEvent {
   } = row;
   return {
     ...event,
+    ...memoryEventEngagement(store, row.id),
     attendeeText: attendeeText ?? null,
     attendeeLinks: (attendeeLinks ?? []).map((link) => ({
       id: link.id,
@@ -57,8 +65,8 @@ function toManaged(row: MemoryEventRow): ManagedEvent {
   };
 }
 
-function toPublic(row: MemoryEventRow): Event {
-  const { attendeeText: _text, attendeeLinks: _links, ...event } = toManaged(row);
+function toPublic(row: MemoryEventRow, store: MemoryStore): Event {
+  const { attendeeText: _text, attendeeLinks: _links, ...event } = toManaged(row, store);
   return event;
 }
 
@@ -115,7 +123,7 @@ export function createMemoryEventServices(
       await requireMember(sessionToken, publisherId);
       return [...events.values()]
         .filter((e) => e.publisherId === publisherId)
-        .map(toPublic)
+        .map((row) => toPublic(row, store))
         .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
     },
 
@@ -152,6 +160,8 @@ export function createMemoryEventServices(
         tagIds: [...body.tagIds],
         featured: false,
         checkInEnabled: false,
+        numSaved: 0,
+        numComing: 0,
         attendeeText: null,
         attendeeLinks: [],
         createdAt: now.toISOString(),
@@ -160,7 +170,7 @@ export function createMemoryEventServices(
         endsAtDate: new Date(body.endsAt),
       };
       events.set(id, row);
-      return toPublic(row);
+      return toPublic(row, store);
     },
 
     async getEvent({ sessionToken, eventId, publicOnly }) {
@@ -168,10 +178,10 @@ export function createMemoryEventServices(
       if (!row) throw new EventError('not_found');
       if (publicOnly) {
         if (row.status !== 'published') throw new EventError('not_found');
-        return toPublic(row);
+        return toPublic(row, store);
       }
       await requireMember(sessionToken, row.publisherId);
-      return toManaged(row);
+      return toManaged(row, store);
     },
 
     async updateEvent({ sessionToken, eventId, body }) {
@@ -220,7 +230,7 @@ export function createMemoryEventServices(
       if (row.endsAtDate <= row.startsAtDate) throw new EventError('invalid_event');
       assertFields(row.mode, row.location, row.onlineUrl);
       row.updatedAt = env.now().toISOString();
-      return toManaged(row);
+      return toManaged(row, store);
     },
 
     async publishEvent({ sessionToken, eventId }) {
@@ -253,7 +263,7 @@ export function createMemoryEventServices(
           eventId: row.id,
         });
       }
-      return toPublic(row);
+      return toPublic(row, store);
     },
 
     async cancelEvent({ sessionToken, eventId }) {
@@ -263,7 +273,7 @@ export function createMemoryEventServices(
       if (!canCancelEvent(row.status)) throw new EventError('cannot_cancel');
       row.status = 'cancelled';
       row.updatedAt = env.now().toISOString();
-      return toPublic(row);
+      return toPublic(row, store);
     },
 
     async listPublicEvents(query: PublicEventListQuery) {
@@ -295,8 +305,28 @@ export function createMemoryEventServices(
             publisher.includes(q) ||
             e.publisherName.toLowerCase().includes(q)
           );
+        })
+        .filter((e) => {
+          if (query.sort !== 'popular') return true;
+          const counts = memoryEventEngagement(store, e.id);
+          return isPopularEvent(counts.numSaved, counts.numComing);
         });
       matched.sort((a, b) => {
+        if (query.sort === 'popular') {
+          const byCount =
+            eventEngagement(
+              memoryEventEngagement(store, b.id).numSaved,
+              memoryEventEngagement(store, b.id).numComing,
+            ) -
+            eventEngagement(
+              memoryEventEngagement(store, a.id).numSaved,
+              memoryEventEngagement(store, a.id).numComing,
+            );
+          if (byCount !== 0) return byCount;
+          const byDate = a.startsAt.localeCompare(b.startsAt);
+          if (byDate !== 0) return byDate;
+          return a.id.localeCompare(b.id);
+        }
         if (a.featured !== b.featured) return a.featured ? -1 : 1;
         if (query.sort === 'distance') {
           const da = a.location ? haversineM(center, a.location) : Number.POSITIVE_INFINITY;
@@ -309,7 +339,7 @@ export function createMemoryEventServices(
       });
       const page = matched.slice(query.offset, query.offset + query.limit + 1);
       const hasMore = page.length > query.limit;
-      const items = (hasMore ? page.slice(0, query.limit) : page).map(toPublic);
+      const items = (hasMore ? page.slice(0, query.limit) : page).map((row) => toPublic(row, store));
       return { items, nextOffset: hasMore ? query.offset + query.limit : null };
     },
   };

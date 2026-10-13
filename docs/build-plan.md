@@ -64,7 +64,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Per-user push aggregation within 10 minutes (defer + “And N more…”)
 - [x] Admin push editor with audience estimate (nearby / followers / unique / with token)
 - [x] Publisher “Notify again” after a send; admin broadcast composer (everyone / favorite tag) with schedule
-- [x] Admin event notification: schedule an approved push for a published event, choosing saved-area or saved-area-plus-interest (no followers), blocked while an open draft exists
+- [x] Admin event notification: schedule an approved push for a published event, choosing saved-area or saved-area-plus-interest (no followers). Several reminders can be scheduled; a marketing plan is created only after the admin approves the preview
 - **Exit:** publishing drafts a push message; after approval (or auto-approve) and `send_at`, the worker inserts inbox rows and a silent push; aggregation prevents back-to-back OS alerts; admin can preview audience and schedule general broadcasts.
 
 ## Phase 4 — Check-in + attendee content (weeks 10–13)
@@ -91,6 +91,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Saved events in the database: `GET/PUT/DELETE /me/saved-events`
 - [x] Custom lists: `GET/POST/PATCH/DELETE /me/lists` and list membership
 - [x] Public event list filters: text, tag, price, sort
+- [x] "I'm coming" (`GET/PUT/DELETE /me/coming-events`) and `sort=popular` from `numSaved` + `numComing`
 - [x] Public events include the organizer name
 - [x] Share event via OS sheet (web URL); Universal / App Links association routes on web
 - **Exit:** the app can save an event, keep a list, show a price, and open a ticket or registration link.
@@ -123,7 +124,8 @@ Closed beta around week 15, store launch around week 19.
 - [x] Fargate task definition + EventBridge Scheduler schedules in CDK
 - [x] First real source: Visit Söderhamn adapter (Citybreak, Evenemang only, one event per occasion)
 - [x] Event images: copy into public assets (Garage locally, S3 + CloudFront in AWS) and link via
-      `event_images`
+      `event_images`. Visit Söderhamn fills a missing hero from a linked page (`og:image`, then
+      `<img>`) and stores the other crawled images as gallery roles
 - [x] Remaining launch-area sources (generic `ics-feed` adapter + seed; configure `feedUrl` per
       calendar — Visit Gävle has no public ICS yet)
 - **Exit:** sources run on schedule unattended, and an imported event notifies users exactly like a

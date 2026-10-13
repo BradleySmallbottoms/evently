@@ -66,6 +66,16 @@ export async function applyRatingStats(
   await writer.put('publisher', input.publisherId, publisherOps);
 }
 
+export async function applyEngagementStats(
+  writer: StatsWriter,
+  baseKey: 'numSaved' | 'numComing',
+  mode: 'add' | 'remove',
+  eventId: string,
+  at: Date,
+): Promise<void> {
+  await writer.put('event', eventId, bucketMutations(baseKey, 1, mode, at));
+}
+
 export async function applyPublishedStats(
   writer: StatsWriter,
   publisherId: string,

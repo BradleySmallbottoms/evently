@@ -7,12 +7,7 @@ export const PUSH_AGGREGATION_WINDOW_MS = 10 * 60 * 1000;
 export const BROADCAST_MATCH_LIMIT = 5_000;
 
 export type PushMessageStatus =
-  | 'pending'
-  | 'approved'
-  | 'sending'
-  | 'sent'
-  | 'rejected'
-  | 'cancelled';
+  'pending' | 'approved' | 'sending' | 'sent' | 'rejected' | 'cancelled';
 
 /** Statuses that block creating a second open draft for the same event. */
 export const OPEN_PUSH_MESSAGE_STATUSES: readonly PushMessageStatus[] = [
@@ -83,6 +78,56 @@ export type PushMessageCopy = {
   titleEn: string;
   bodyEn: string;
 };
+
+/** How far before the event start a marketing reminder is sent. */
+export const PUSH_SCHEDULE_OFFSETS = ['week', 'day', 'hour'] as const;
+export type PushScheduleOffset = (typeof PUSH_SCHEDULE_OFFSETS)[number];
+
+const OFFSET_BEFORE_START_MS: Record<PushScheduleOffset, number> = {
+  week: 7 * 24 * 60 * 60 * 1000,
+  day: 24 * 60 * 60 * 1000,
+  hour: 60 * 60 * 1000,
+};
+
+/** Absolute send time for a reminder anchored to the event start. */
+export function offsetBeforeEventStart(startsAt: Date, offset: PushScheduleOffset): Date {
+  return new Date(startsAt.getTime() - OFFSET_BEFORE_START_MS[offset]);
+}
+
+/** Bilingual reminder copy. The title is the event name; the body says when it starts. */
+export function reminderPushCopy(eventTitle: string, offset: PushScheduleOffset): PushMessageCopy {
+  const body =
+    offset === 'week'
+      ? { sv: 'Börjar om en vecka', en: 'Starts in a week' }
+      : offset === 'day'
+        ? { sv: 'Börjar imorgon', en: 'Starts tomorrow' }
+        : { sv: 'Börjar om en timme', en: 'Starts in an hour' };
+  return {
+    titleSv: eventTitle,
+    bodySv: body.sv,
+    titleEn: eventTitle,
+    bodyEn: body.en,
+  };
+}
+
+/** Prebuilt marketing schedules. Single is the default. */
+export const MARKETING_PUSH_PLANS = [
+  { id: 'single', offsets: ['day'] },
+  { id: 'standard', offsets: ['week', 'day'] },
+  { id: 'countdown', offsets: ['day', 'hour'] },
+  { id: 'full', offsets: ['week', 'day', 'hour'] },
+] as const;
+
+export type MarketingPushPlanId = (typeof MARKETING_PUSH_PLANS)[number]['id'];
+
+export const DEFAULT_MARKETING_PUSH_PLAN: MarketingPushPlanId = 'single';
+
+/** Most notifications one admin approval may create for a single event. */
+export const MAX_ADMIN_EVENT_PUSH_PLAN = 8;
+
+export function marketingPushPlan(id: string) {
+  return MARKETING_PUSH_PLANS.find((plan) => plan.id === id) ?? null;
+}
 
 /** Default bilingual copy from the event title and nearby reason. */
 export function defaultPushMessageCopy(

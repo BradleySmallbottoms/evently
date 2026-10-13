@@ -225,7 +225,10 @@ export function createDbIngestStore(db: Db): IngestStore {
             .where(eq(tags.slug, slug))
             .limit(1);
           if (!taken) break;
-          const suffix = tag.externalId.replace(/[^a-z0-9]+/gi, '').slice(-8).toLowerCase();
+          const suffix = tag.externalId
+            .replace(/[^a-z0-9]+/gi, '')
+            .slice(-8)
+            .toLowerCase();
           slug = `${tagSlug(tag.name)}-${n === 2 ? suffix : `${suffix}-${n}`}`.slice(0, 80);
         }
         await db.insert(tags).values({ slug, name: tag.name, externalId: tag.externalId });
@@ -318,20 +321,31 @@ export function createDbIngestStore(db: Db): IngestStore {
         .set({ contentHash, lastSeenAt: new Date() })
         .where(and(eq(externalRefs.sourceId, sourceId), eq(externalRefs.externalId, externalId)));
     },
-    async findEventImage(eventId) {
+    async findEventImage(eventId, role = 'main') {
       const [row] = await db
         .select({ sourceUrl: eventImages.sourceUrl, s3Key: eventImages.s3Key })
         .from(eventImages)
-        .where(and(eq(eventImages.eventId, eventId), eq(eventImages.role, 'main')))
+        .where(and(eq(eventImages.eventId, eventId), eq(eventImages.role, role)))
         .limit(1);
       return row ?? null;
     },
+    async listEventImages(eventId) {
+      return db
+        .select({
+          role: eventImages.role,
+          sourceUrl: eventImages.sourceUrl,
+          s3Key: eventImages.s3Key,
+        })
+        .from(eventImages)
+        .where(eq(eventImages.eventId, eventId));
+    },
     async saveEventImage(input) {
+      const role = input.role ?? 'main';
       await db
         .insert(eventImages)
         .values({
           eventId: input.eventId,
-          role: 'main',
+          role,
           s3Key: input.s3Key,
           sourceUrl: input.sourceUrl,
           contentType: input.contentType,
@@ -344,6 +358,13 @@ export function createDbIngestStore(db: Db): IngestStore {
             contentType: input.contentType,
           },
         });
+    },
+    async deleteEventImages(eventId, roles) {
+      const gallery = roles.filter((role) => role.startsWith('gallery-'));
+      if (gallery.length === 0) return;
+      await db
+        .delete(eventImages)
+        .where(and(eq(eventImages.eventId, eventId), inArray(eventImages.role, gallery)));
     },
     async upsertPushDraft(input) {
       await upsertEventPushDraft(db, input);

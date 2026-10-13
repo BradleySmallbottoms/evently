@@ -22,6 +22,7 @@ const KNOWN_KEYS = [
   ...STORED_PROMPT_KEYS,
   'le.notificationsSeenCount',
   'le.discoveryPlaceId',
+  'le.homeTagIds',
 ] as const;
 
 async function removeItem(key: string): Promise<void> {

@@ -4090,6 +4090,14 @@
                           "checkInEnabled": {
                             "type": "boolean"
                           },
+                          "numSaved": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "numComing": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -4122,6 +4130,8 @@
                           "tagIds",
                           "featured",
                           "checkInEnabled",
+                          "numSaved",
+                          "numComing",
                           "createdAt",
                           "updatedAt"
                         ]
@@ -4295,6 +4305,419 @@
           },
           "404": {
             "description": "Save not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/coming-events": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Published events the current user marked as coming",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "publisherId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "physical",
+                              "digital"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "awaiting_verification",
+                              "in_review",
+                              "published",
+                              "cancelled",
+                              "ended"
+                            ]
+                          },
+                          "origin": {
+                            "type": "string",
+                            "enum": [
+                              "native",
+                              "imported"
+                            ]
+                          },
+                          "startsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "timezone": {
+                            "type": "string"
+                          },
+                          "venueName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "location": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "lat": {
+                                "type": "number",
+                                "minimum": -90,
+                                "maximum": 90
+                              },
+                              "lng": {
+                                "type": "number",
+                                "minimum": -180,
+                                "maximum": 180
+                              }
+                            },
+                            "required": [
+                              "lat",
+                              "lng"
+                            ]
+                          },
+                          "geofenceRadiusM": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "onlineUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
+                          "priceAmount": {
+                            "type": "integer",
+                            "nullable": true,
+                            "minimum": 0
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "publisherName": {
+                            "type": "string"
+                          },
+                          "links": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "tickets",
+                                    "registration",
+                                    "info"
+                                  ]
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "format": "uri"
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "position": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "type",
+                                "url",
+                                "label",
+                                "position"
+                              ]
+                            }
+                          },
+                          "imageUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
+                          "tagIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            }
+                          },
+                          "featured": {
+                            "type": "boolean"
+                          },
+                          "checkInEnabled": {
+                            "type": "boolean"
+                          },
+                          "numSaved": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "numComing": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "publisherId",
+                          "title",
+                          "description",
+                          "mode",
+                          "status",
+                          "origin",
+                          "startsAt",
+                          "endsAt",
+                          "timezone",
+                          "venueName",
+                          "location",
+                          "geofenceRadiusM",
+                          "onlineUrl",
+                          "priceAmount",
+                          "currency",
+                          "publisherName",
+                          "links",
+                          "imageUrl",
+                          "tagIds",
+                          "featured",
+                          "checkInEnabled",
+                          "numSaved",
+                          "numComing",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/coming-events/{eventId}": {
+      "put": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "eventId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Event marked as coming"
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event is not published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "eventId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Coming mark removed"
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Coming mark not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -4509,6 +4932,14 @@
                                 "checkInEnabled": {
                                   "type": "boolean"
                                 },
+                                "numSaved": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "numComing": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
                                 "createdAt": {
                                   "type": "string",
                                   "format": "date-time"
@@ -4541,6 +4972,8 @@
                                 "tagIds",
                                 "featured",
                                 "checkInEnabled",
+                                "numSaved",
+                                "numComing",
                                 "createdAt",
                                 "updatedAt"
                               ]
@@ -4792,6 +5225,14 @@
                           "checkInEnabled": {
                             "type": "boolean"
                           },
+                          "numSaved": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "numComing": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -4824,6 +5265,8 @@
                           "tagIds",
                           "featured",
                           "checkInEnabled",
+                          "numSaved",
+                          "numComing",
                           "createdAt",
                           "updatedAt"
                         ]
@@ -5112,6 +5555,14 @@
                           "checkInEnabled": {
                             "type": "boolean"
                           },
+                          "numSaved": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "numComing": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -5144,6 +5595,8 @@
                           "tagIds",
                           "featured",
                           "checkInEnabled",
+                          "numSaved",
+                          "numComing",
                           "createdAt",
                           "updatedAt"
                         ]
@@ -5817,6 +6270,14 @@
                           "checkInEnabled": {
                             "type": "boolean"
                           },
+                          "numSaved": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "numComing": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -5849,6 +6310,8 @@
                           "tagIds",
                           "featured",
                           "checkInEnabled",
+                          "numSaved",
+                          "numComing",
                           "createdAt",
                           "updatedAt"
                         ]
@@ -6198,6 +6661,14 @@
                     "checkInEnabled": {
                       "type": "boolean"
                     },
+                    "numSaved": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "numComing": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -6230,6 +6701,8 @@
                     "tagIds",
                     "featured",
                     "checkInEnabled",
+                    "numSaved",
+                    "numComing",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -6386,7 +6859,8 @@
               "type": "string",
               "enum": [
                 "soonest",
-                "distance"
+                "distance",
+                "popular"
               ],
               "default": "soonest"
             },
@@ -6432,7 +6906,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Published events near a point, featured first then soonest start. Use offset to page.",
+            "description": "Published events near a point. Default order is featured first, then soonest. sort=popular orders by saves plus coming marks (at least 1) and then soonest. Use offset to page.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6595,6 +7069,14 @@
                           "checkInEnabled": {
                             "type": "boolean"
                           },
+                          "numSaved": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "numComing": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -6627,6 +7109,8 @@
                           "tagIds",
                           "featured",
                           "checkInEnabled",
+                          "numSaved",
+                          "numComing",
                           "createdAt",
                           "updatedAt"
                         ]
@@ -6822,6 +7306,14 @@
                     "checkInEnabled": {
                       "type": "boolean"
                     },
+                    "numSaved": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "numComing": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -6854,6 +7346,8 @@
                     "tagIds",
                     "featured",
                     "checkInEnabled",
+                    "numSaved",
+                    "numComing",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -7067,6 +7561,14 @@
                     "checkInEnabled": {
                       "type": "boolean"
                     },
+                    "numSaved": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "numComing": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -7128,6 +7630,8 @@
                     "tagIds",
                     "featured",
                     "checkInEnabled",
+                    "numSaved",
+                    "numComing",
                     "createdAt",
                     "updatedAt",
                     "attendeeText",
@@ -7524,6 +8028,14 @@
                     "checkInEnabled": {
                       "type": "boolean"
                     },
+                    "numSaved": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "numComing": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -7585,6 +8097,8 @@
                     "tagIds",
                     "featured",
                     "checkInEnabled",
+                    "numSaved",
+                    "numComing",
                     "createdAt",
                     "updatedAt",
                     "attendeeText",
@@ -7830,6 +8344,14 @@
                     "checkInEnabled": {
                       "type": "boolean"
                     },
+                    "numSaved": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "numComing": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -7862,6 +8384,8 @@
                     "tagIds",
                     "featured",
                     "checkInEnabled",
+                    "numSaved",
+                    "numComing",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -8105,6 +8629,14 @@
                     "checkInEnabled": {
                       "type": "boolean"
                     },
+                    "numSaved": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "numComing": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -8137,6 +8669,8 @@
                     "tagIds",
                     "featured",
                     "checkInEnabled",
+                    "numSaved",
+                    "numComing",
                     "createdAt",
                     "updatedAt"
                   ]

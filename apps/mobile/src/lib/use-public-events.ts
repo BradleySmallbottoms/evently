@@ -1,6 +1,7 @@
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 
 import { listPublicEvents, PUBLIC_EVENT_PAGE_SIZE, type EventQueryPoint } from '@/lib/events';
+import { eventListFreshness } from '@/lib/query-client';
 
 type PublicEventFilter = {
   q?: string;
@@ -9,7 +10,7 @@ type PublicEventFilter = {
   from?: string;
   to?: string;
   price?: 'free' | 'paid';
-  sort?: 'soonest' | 'distance';
+  sort?: 'soonest' | 'distance' | 'popular';
 };
 
 export function useInfinitePublicEvents(
@@ -29,8 +30,8 @@ export function useInfinitePublicEvents(
       }),
     getNextPageParam: (lastPage) => lastPage.nextOffset ?? undefined,
     placeholderData: keepPreviousData,
-    // Repeat visits (another tag press) reuse this result instead of refetching
-    // and swapping the list again when the response arrives.
-    staleTime: 60_000,
+    // Another tag press reuses this list. After the stale window, a foreground
+    // refetches every loaded page in place.
+    ...eventListFreshness,
   });
 }

@@ -22,6 +22,8 @@ describe('copyEventImage', () => {
     expect(puts).toEqual([
       { key: `events/${EVENT_ID}/main`, contentType: 'image/jpeg', bytes: 10 },
     ]);
+    expect(eventImageKey(EVENT_ID, 'gallery-1')).toBe(`events/${EVENT_ID}/gallery-1`);
+    expect(() => eventImageKey(EVENT_ID, '../main')).toThrow(/role/);
   });
 
   it('does not fetch a private or non-https URL', async () => {

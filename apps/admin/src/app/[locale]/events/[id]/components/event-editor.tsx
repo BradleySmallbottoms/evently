@@ -12,6 +12,8 @@ import Paper from '@mui/material/Paper';
 import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
@@ -21,7 +23,8 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link as AppLink } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
-import { SentNotifications } from './sent-notifications';
+import { toDatetimeLocal, zonedLocalToIso } from '@/lib/zoned-datetime';
+import { EventNotifications } from './event-notifications';
 
 type EventMode = 'physical' | 'digital';
 type EventStatus =
@@ -102,55 +105,7 @@ const styles: Record<string, SxProps<Theme>> = {
   },
 };
 
-function zoneParts(date: Date, timeZone: string) {
-  const formatted = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(date);
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    formatted.find((part) => part.type === type)?.value ?? '';
-  return {
-    year: Number(get('year')),
-    month: Number(get('month')),
-    day: Number(get('day')),
-    hour: get('hour') === '24' ? 0 : Number(get('hour')),
-    minute: Number(get('minute')),
-    second: Number(get('second')),
-  };
-}
-
-function toDatetimeLocal(iso: string, timeZone: string): string {
-  const parts = zoneParts(new Date(iso), timeZone);
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}T${pad(parts.hour)}:${pad(parts.minute)}`;
-}
-
-function zonedLocalToIso(local: string, timeZone: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(local);
-  if (!match) throw new Error('invalid_datetime');
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const hour = Number(match[4]);
-  const minute = Number(match[5]);
-  const utcGuess = Date.UTC(year, month - 1, day, hour, minute);
-  const parts = zoneParts(new Date(utcGuess), timeZone);
-  const asUtc = Date.UTC(
-    parts.year,
-    parts.month - 1,
-    parts.day,
-    parts.hour,
-    parts.minute,
-    parts.second,
-  );
-  return new Date(utcGuess - (asUtc - utcGuess)).toISOString();
-}
+type EditorTab = 'info' | 'location' | 'notifications';
 
 function httpUrl(value: string | null): string | null {
   if (!value) return null;
@@ -198,11 +153,13 @@ export function EventEditor({ eventId }: { eventId: string }) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [tab, setTab] = useState<EditorTab>('info');
   if (eventKey !== eventId) {
     setEventKey(eventId);
     setDraft(null);
     setNotice(null);
     setFormError(null);
+    setTab('info');
   }
 
   const eventQuery = useQuery({
@@ -218,8 +175,7 @@ export function EventEditor({ eventId }: { eventId: string }) {
   });
 
   const form =
-    draft ??
-    (eventQuery.data && eventQuery.data.id === eventId ? toDraft(eventQuery.data) : null);
+    draft ?? (eventQuery.data && eventQuery.data.id === eventId ? toDraft(eventQuery.data) : null);
 
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
@@ -348,8 +304,19 @@ export function EventEditor({ eventId }: { eventId: string }) {
           : t('saveError')
       : null);
 
+  const saveButton = (
+    <Button
+      type="submit"
+      variant="contained"
+      disabled={save.isPending}
+      sx={{ alignSelf: 'flex-start' }}
+    >
+      {save.isPending ? t('saving') : t('save')}
+    </Button>
+  );
+
   return (
-    <Stack component="form" spacing={2} onSubmit={onSubmit}>
+    <Stack spacing={2}>
       <Button component={AppLink} href="/events/manage" sx={{ alignSelf: 'flex-start' }}>
         {t('back')}
       </Button>
@@ -371,280 +338,295 @@ export function EventEditor({ eventId }: { eventId: string }) {
           ) : null}
         </Typography>
       ) : null}
-      {event?.status === 'published' ? (
-        <Button
-          component={AppLink}
-          href={`/push-messages/event?eventId=${eventId}`}
-          variant="outlined"
-          sx={{ alignSelf: 'flex-start' }}
-        >
-          {t('notify')}
-        </Button>
-      ) : null}
-      <SentNotifications eventId={eventId} />
-      {notice ? <Alert severity="success">{notice}</Alert> : null}
-      {saveError ? <Alert severity="error">{saveError}</Alert> : null}
-      <TextField
-        label={t('name')}
-        required
-        fullWidth
-        value={form.title}
-        onChange={(e) => update('title', e.target.value)}
-      />
-      <TextField
-        label={t('description')}
-        fullWidth
-        multiline
-        minRows={4}
-        value={form.description}
-        onChange={(e) => update('description', e.target.value)}
-      />
-      <Stack sx={styles.grid2}>
-        <FormControl fullWidth>
-          <InputLabel id="event-mode-label">{t('mode')}</InputLabel>
-          <Select
-            labelId="event-mode-label"
-            label={t('mode')}
-            value={form.mode}
-            onChange={(e) => update('mode', e.target.value === 'digital' ? 'digital' : 'physical')}
-          >
-            <MenuItem value="physical">{t('modePhysical')}</MenuItem>
-            <MenuItem value="digital">{t('modeDigital')}</MenuItem>
-          </Select>
-        </FormControl>
-        <FormControl fullWidth>
-          <InputLabel id="event-status-label">{t('status')}</InputLabel>
-          <Select
-            labelId="event-status-label"
-            label={t('status')}
-            value={form.status}
-            onChange={(e) => update('status', e.target.value as EventStatus)}
-          >
-            {STATUSES.map((status) => (
-              <MenuItem key={status} value={status}>
-                {t(
-                  status === 'awaiting_verification'
-                    ? 'statusAwaiting'
-                    : status === 'in_review'
-                      ? 'statusInReview'
-                      : status === 'draft'
-                        ? 'statusDraft'
-                        : status === 'published'
-                          ? 'statusPublished'
-                          : status === 'cancelled'
-                            ? 'statusCancelled'
-                            : 'statusEnded',
-                )}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Stack>
-      <FormControlLabel
-        control={
-          <Switch
-            checked={form.featured}
-            onChange={(_event, checked) => update('featured', checked)}
-          />
-        }
-        label={t('featured')}
-      />
-      <FormControlLabel
-        control={
-          <Switch
-            checked={form.checkInEnabled}
-            onChange={(_event, checked) => update('checkInEnabled', checked)}
-          />
-        }
-        label={t('checkInEnabled')}
-      />
-      <Stack sx={styles.grid2}>
-        <TextField
-          label={t('startsAt')}
-          type="datetime-local"
-          required
-          fullWidth
-          value={form.startsAt}
-          onChange={(e) => update('startsAt', e.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
-        <TextField
-          label={t('endsAt')}
-          type="datetime-local"
-          required
-          fullWidth
-          value={form.endsAt}
-          onChange={(e) => update('endsAt', e.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
-      </Stack>
-      <TextField
-        label={t('timezone')}
-        required
-        fullWidth
-        value={form.timezone}
-        onChange={(e) => update('timezone', e.target.value)}
-        helperText={t('timezoneHint')}
-      />
-      {form.mode === 'physical' ? (
-        <Paper variant="outlined" sx={styles.section}>
-          <Typography variant="overline" color="text.secondary">
-            {t('physicalDetails')}
-          </Typography>
-          <TextField
-            label={t('venueName')}
-            fullWidth
-            value={form.venueName}
-            onChange={(e) => update('venueName', e.target.value)}
-          />
-          <Stack sx={styles.grid2}>
-            <TextField
-              label={t('latitude')}
-              fullWidth
-              value={form.lat}
-              onChange={(e) => update('lat', e.target.value)}
-              slotProps={{ htmlInput: { inputMode: 'decimal' } }}
-            />
-            <TextField
-              label={t('longitude')}
-              fullWidth
-              value={form.lng}
-              onChange={(e) => update('lng', e.target.value)}
-              slotProps={{ htmlInput: { inputMode: 'decimal' } }}
-            />
-          </Stack>
-          <TextField
-            label={t('geofenceRadiusM')}
-            fullWidth
-            value={form.geofenceRadiusM}
-            onChange={(e) => update('geofenceRadiusM', e.target.value)}
-            slotProps={{ htmlInput: { inputMode: 'numeric' } }}
-          />
-        </Paper>
-      ) : (
-        <TextField
-          label={t('onlineUrl')}
-          type="url"
-          required
-          fullWidth
-          value={form.onlineUrl}
-          onChange={(e) => update('onlineUrl', e.target.value)}
-        />
-      )}
-      <Stack sx={styles.grid2}>
-        <TextField
-          label={t('priceAmount')}
-          fullWidth
-          value={form.priceAmount}
-          onChange={(e) => update('priceAmount', e.target.value)}
-          helperText={t('priceHint')}
-          slotProps={{ htmlInput: { inputMode: 'numeric' } }}
-        />
-        <TextField
-          label={t('currency')}
-          fullWidth
-          value={form.currency}
-          onChange={(e) => update('currency', e.target.value)}
-          slotProps={{ htmlInput: { maxLength: 3 } }}
-        />
-      </Stack>
-      <FormControl fullWidth disabled={categories.isLoading || categories.isError}>
-        <InputLabel id="event-categories-label">{t('categories')}</InputLabel>
-        <Select
-          labelId="event-categories-label"
-          label={t('categories')}
-          multiple
-          value={form.tagIds}
-          onChange={(e) => {
-            const value = e.target.value;
-            update('tagIds', typeof value === 'string' ? value.split(',') : value);
-          }}
-        >
-          {(categories.data?.items ?? []).map((category) => (
-            <MenuItem key={category.id} value={category.id}>
-              {category.name}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <Paper variant="outlined" sx={styles.section}>
-        <Typography variant="overline" color="text.secondary">
-          {t('links')}
-        </Typography>
-        {form.links.map((link, index) => (
-          <Stack key={index} direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <FormControl sx={{ minWidth: 160 }}>
-              <InputLabel id={`link-type-${index}`}>{t('linkType')}</InputLabel>
-              <Select
-                labelId={`link-type-${index}`}
-                label={t('linkType')}
-                value={link.type}
-                onChange={(e) => {
-                  const type = e.target.value as LinkType;
-                  update(
-                    'links',
-                    form.links.map((item, i) => (i === index ? { ...item, type } : item)),
-                  );
-                }}
-              >
-                <MenuItem value="tickets">{t('linkTickets')}</MenuItem>
-                <MenuItem value="registration">{t('linkRegistration')}</MenuItem>
-                <MenuItem value="info">{t('linkInfo')}</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              label={t('linkUrl')}
-              fullWidth
-              value={link.url}
-              onChange={(e) =>
-                update(
-                  'links',
-                  form.links.map((item, i) =>
-                    i === index ? { ...item, url: e.target.value } : item,
-                  ),
-                )
-              }
-            />
-            <TextField
-              label={t('linkLabel')}
-              value={link.label}
-              onChange={(e) =>
-                update(
-                  'links',
-                  form.links.map((item, i) =>
-                    i === index ? { ...item, label: e.target.value } : item,
-                  ),
-                )
-              }
-            />
-            <IconButton
-              aria-label={t('removeLink')}
-              onClick={() =>
-                update(
-                  'links',
-                  form.links.filter((_, i) => i !== index),
-                )
-              }
-            >
-              ×
-            </IconButton>
-          </Stack>
-        ))}
-        <Button
-          type="button"
-          onClick={() => update('links', [...form.links, { type: 'info', url: '', label: '' }])}
-        >
-          {t('addLink')}
-        </Button>
-      </Paper>
-      <Button
-        type="submit"
-        variant="contained"
-        disabled={save.isPending}
-        sx={{ alignSelf: 'flex-start' }}
+      <Tabs
+        value={tab}
+        onChange={(_event, value: EditorTab) => setTab(value)}
+        aria-label={t('tabsLabel')}
       >
-        {save.isPending ? t('saving') : t('save')}
-      </Button>
+        <Tab value="info" label={t('tabInfo')} />
+        <Tab value="location" label={t('tabLocation')} />
+        <Tab value="notifications" label={t('tabNotifications')} />
+      </Tabs>
+      {tab === 'notifications' && event ? (
+        <EventNotifications
+          eventId={eventId}
+          title={event.title}
+          startsAt={event.startsAt}
+          timezone={event.timezone}
+          published={event.status === 'published'}
+        />
+      ) : (
+        <Stack component="form" spacing={2} onSubmit={onSubmit}>
+          {notice ? <Alert severity="success">{notice}</Alert> : null}
+          {saveError ? <Alert severity="error">{saveError}</Alert> : null}
+          {tab === 'info' ? (
+            <>
+              <TextField
+                label={t('name')}
+                required
+                fullWidth
+                value={form.title}
+                onChange={(e) => update('title', e.target.value)}
+              />
+              <TextField
+                label={t('description')}
+                fullWidth
+                multiline
+                minRows={4}
+                value={form.description}
+                onChange={(e) => update('description', e.target.value)}
+              />
+              <Stack sx={styles.grid2}>
+                <FormControl fullWidth>
+                  <InputLabel id="event-mode-label">{t('mode')}</InputLabel>
+                  <Select
+                    labelId="event-mode-label"
+                    label={t('mode')}
+                    value={form.mode}
+                    onChange={(e) =>
+                      update('mode', e.target.value === 'digital' ? 'digital' : 'physical')
+                    }
+                  >
+                    <MenuItem value="physical">{t('modePhysical')}</MenuItem>
+                    <MenuItem value="digital">{t('modeDigital')}</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth>
+                  <InputLabel id="event-status-label">{t('status')}</InputLabel>
+                  <Select
+                    labelId="event-status-label"
+                    label={t('status')}
+                    value={form.status}
+                    onChange={(e) => update('status', e.target.value as EventStatus)}
+                  >
+                    {STATUSES.map((status) => (
+                      <MenuItem key={status} value={status}>
+                        {t(
+                          status === 'awaiting_verification'
+                            ? 'statusAwaiting'
+                            : status === 'in_review'
+                              ? 'statusInReview'
+                              : status === 'draft'
+                                ? 'statusDraft'
+                                : status === 'published'
+                                  ? 'statusPublished'
+                                  : status === 'cancelled'
+                                    ? 'statusCancelled'
+                                    : 'statusEnded',
+                        )}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={form.featured}
+                    onChange={(_event, checked) => update('featured', checked)}
+                  />
+                }
+                label={t('featured')}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={form.checkInEnabled}
+                    onChange={(_event, checked) => update('checkInEnabled', checked)}
+                  />
+                }
+                label={t('checkInEnabled')}
+              />
+              <Stack sx={styles.grid2}>
+                <TextField
+                  label={t('startsAt')}
+                  type="datetime-local"
+                  required
+                  fullWidth
+                  value={form.startsAt}
+                  onChange={(e) => update('startsAt', e.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+                <TextField
+                  label={t('endsAt')}
+                  type="datetime-local"
+                  required
+                  fullWidth
+                  value={form.endsAt}
+                  onChange={(e) => update('endsAt', e.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+              </Stack>
+              <TextField
+                label={t('timezone')}
+                required
+                fullWidth
+                value={form.timezone}
+                onChange={(e) => update('timezone', e.target.value)}
+                helperText={t('timezoneHint')}
+              />
+              <Stack sx={styles.grid2}>
+                <TextField
+                  label={t('priceAmount')}
+                  fullWidth
+                  value={form.priceAmount}
+                  onChange={(e) => update('priceAmount', e.target.value)}
+                  helperText={t('priceHint')}
+                  slotProps={{ htmlInput: { inputMode: 'numeric' } }}
+                />
+                <TextField
+                  label={t('currency')}
+                  fullWidth
+                  value={form.currency}
+                  onChange={(e) => update('currency', e.target.value)}
+                  slotProps={{ htmlInput: { maxLength: 3 } }}
+                />
+              </Stack>
+              <FormControl fullWidth disabled={categories.isLoading || categories.isError}>
+                <InputLabel id="event-categories-label">{t('categories')}</InputLabel>
+                <Select
+                  labelId="event-categories-label"
+                  label={t('categories')}
+                  multiple
+                  value={form.tagIds}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    update('tagIds', typeof value === 'string' ? value.split(',') : value);
+                  }}
+                >
+                  {(categories.data?.items ?? []).map((category) => (
+                    <MenuItem key={category.id} value={category.id}>
+                      {category.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Paper variant="outlined" sx={styles.section}>
+                <Typography variant="overline" color="text.secondary">
+                  {t('links')}
+                </Typography>
+                {form.links.map((link, index) => (
+                  <Stack key={index} direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                    <FormControl sx={{ minWidth: 160 }}>
+                      <InputLabel id={`link-type-${index}`}>{t('linkType')}</InputLabel>
+                      <Select
+                        labelId={`link-type-${index}`}
+                        label={t('linkType')}
+                        value={link.type}
+                        onChange={(e) => {
+                          const type = e.target.value as LinkType;
+                          update(
+                            'links',
+                            form.links.map((item, i) => (i === index ? { ...item, type } : item)),
+                          );
+                        }}
+                      >
+                        <MenuItem value="tickets">{t('linkTickets')}</MenuItem>
+                        <MenuItem value="registration">{t('linkRegistration')}</MenuItem>
+                        <MenuItem value="info">{t('linkInfo')}</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <TextField
+                      label={t('linkUrl')}
+                      fullWidth
+                      value={link.url}
+                      onChange={(e) =>
+                        update(
+                          'links',
+                          form.links.map((item, i) =>
+                            i === index ? { ...item, url: e.target.value } : item,
+                          ),
+                        )
+                      }
+                    />
+                    <TextField
+                      label={t('linkLabel')}
+                      value={link.label}
+                      onChange={(e) =>
+                        update(
+                          'links',
+                          form.links.map((item, i) =>
+                            i === index ? { ...item, label: e.target.value } : item,
+                          ),
+                        )
+                      }
+                    />
+                    <IconButton
+                      aria-label={t('removeLink')}
+                      onClick={() =>
+                        update(
+                          'links',
+                          form.links.filter((_, i) => i !== index),
+                        )
+                      }
+                    >
+                      ×
+                    </IconButton>
+                  </Stack>
+                ))}
+                <Button
+                  type="button"
+                  onClick={() =>
+                    update('links', [...form.links, { type: 'info', url: '', label: '' }])
+                  }
+                >
+                  {t('addLink')}
+                </Button>
+              </Paper>
+              {saveButton}
+            </>
+          ) : (
+            <>
+              {form.mode === 'physical' ? (
+                <Paper variant="outlined" sx={styles.section}>
+                  <Typography variant="overline" color="text.secondary">
+                    {t('physicalDetails')}
+                  </Typography>
+                  <TextField
+                    label={t('venueName')}
+                    fullWidth
+                    value={form.venueName}
+                    onChange={(e) => update('venueName', e.target.value)}
+                  />
+                  <Stack sx={styles.grid2}>
+                    <TextField
+                      label={t('latitude')}
+                      fullWidth
+                      value={form.lat}
+                      onChange={(e) => update('lat', e.target.value)}
+                      slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+                    />
+                    <TextField
+                      label={t('longitude')}
+                      fullWidth
+                      value={form.lng}
+                      onChange={(e) => update('lng', e.target.value)}
+                      slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+                    />
+                  </Stack>
+                  <TextField
+                    label={t('geofenceRadiusM')}
+                    fullWidth
+                    value={form.geofenceRadiusM}
+                    onChange={(e) => update('geofenceRadiusM', e.target.value)}
+                    slotProps={{ htmlInput: { inputMode: 'numeric' } }}
+                  />
+                </Paper>
+              ) : (
+                <TextField
+                  label={t('onlineUrl')}
+                  type="url"
+                  required
+                  fullWidth
+                  value={form.onlineUrl}
+                  onChange={(e) => update('onlineUrl', e.target.value)}
+                />
+              )}
+              {saveButton}
+            </>
+          )}
+        </Stack>
+      )}
     </Stack>
   );
 }
