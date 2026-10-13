@@ -7,22 +7,41 @@ import { radius, space } from '@/theme/tokens';
 const CHIP_COLORS = [colors.secondarySoft, colors.accentSoft, colors.infoSoft] as const;
 
 /** Small colored labels, matching the reference event cards and detail chips. */
-export function TagPills({ tags, limit }: { tags: string[]; limit?: number }) {
+export function TagPills({
+  tags,
+  limit,
+  size = 'md',
+}: {
+  tags: string[];
+  limit?: number;
+  size?: 'sm' | 'md';
+}) {
   const visible = limit == null ? tags : tags.slice(0, limit);
   if (visible.length === 0) return null;
+  const small = size === 'sm';
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: small ? 6 : space.sm }}>
       {visible.map((tag, index) => (
         <View
           key={`${tag}-${index}`}
           style={{
+            flexShrink: 1,
             backgroundColor: CHIP_COLORS[index % CHIP_COLORS.length],
             borderRadius: radius.pill,
-            paddingHorizontal: space.sm,
-            paddingVertical: space.xs,
+            paddingHorizontal: small ? 8 : space.sm,
+            paddingVertical: small ? 2 : space.xs,
           }}
         >
-          <AppText variant="label" style={{ color: colors.ink }}>
+          <AppText
+            variant="label"
+            numberOfLines={1}
+            style={{
+              color: colors.ink,
+              fontSize: small ? 11 : undefined,
+              lineHeight: small ? 14 : undefined,
+              fontWeight: small ? '400' : undefined,
+            }}
+          >
             {tag}
           </AppText>
         </View>

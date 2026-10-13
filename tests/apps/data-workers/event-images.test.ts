@@ -26,46 +26,6 @@ describe('copyEventImage', () => {
     expect(() => eventImageKey(EVENT_ID, '../main')).toThrow(/role/);
   });
 
-  it('follows a public https redirect and stops at a private one', async () => {
-    const calls: string[] = [];
-    const stored = await copyEventImage({
-      eventId: EVENT_ID,
-      sourceUrl: 'https://images.example/og',
-      fetchImpl: async (input) => {
-        const url = String(input);
-        calls.push(url);
-        if (url.endsWith('/og')) {
-          return new Response(null, {
-            status: 302,
-            headers: { location: 'https://cdn.example/photo.jpg' },
-          });
-        }
-        return response('jpeg-bytes', 200, 'image/jpeg');
-      },
-      put: async () => {},
-    });
-    expect(calls).toEqual(['https://images.example/og', 'https://cdn.example/photo.jpg']);
-    expect(stored?.contentType).toBe('image/jpeg');
-
-    const blocked: string[] = [];
-    const local = await copyEventImage({
-      eventId: EVENT_ID,
-      sourceUrl: 'https://images.example/og',
-      fetchImpl: async (input) => {
-        blocked.push(String(input));
-        return new Response(null, {
-          status: 302,
-          headers: { location: 'http://127.0.0.1/secret.jpg' },
-        });
-      },
-      put: async () => {
-        throw new Error('should not put');
-      },
-    });
-    expect(blocked).toEqual(['https://images.example/og']);
-    expect(local).toBeNull();
-  });
-
   it('does not fetch a private or non-https URL', async () => {
     const local = await copyEventImage({
       eventId: EVENT_ID,

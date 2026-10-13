@@ -34,7 +34,7 @@ sequenceDiagram
   loop each event link, https only
     Runner->>Runner: GET the page<br/>og:image, then img
   end
-  Note over Runner: hero stays the Citybreak image<br/>if that image is missing, first og:image, then first img<br/>if that file cannot be copied, the next image that can is the hero<br/>further crawled images are gallery-1, gallery-2, …
+  Note over Runner: hero stays the Citybreak image<br/>if that image is missing, first og:image, then first img<br/>further crawled images are gallery-1, gallery-2, …
   Runner->>Store: PUT raw/visit-soderhamn/{runId}<br/>when RAW_INGESTION_BUCKET is set
   Runner->>DB: insert temporary publisher + publisher_aliases<br/>when the organizer key is new
   Runner->>DB: upsert tags from categories under Evenemang<br/>insert events (status in_review, origin imported)<br/>event_tags, external_refs

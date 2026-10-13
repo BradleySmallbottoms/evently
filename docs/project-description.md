@@ -90,7 +90,8 @@ How it is built:
 - **Billing later:** Stripe Billing with its customer portal, sold on the web workspace only.
   Confirm current app-store guidelines before launch.
 - **Featured events (v1):** admins set `events.featured`. Published featured events sort first
-  on the home page. This is separate from the later paid placement record (slot, date range, plan
+  on the home page. The home For you carousel skips events already in that row. The For you screen
+  still includes them. This is separate from the later paid placement record (slot, date range, plan
   quota), which labels promoted items.
 
 Open tension for the future: "push to nearby users" is the core user value, so gating it hard could

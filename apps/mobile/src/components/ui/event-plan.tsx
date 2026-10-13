@@ -94,7 +94,16 @@ export function EventPlan({
   onComingPress,
 }: Props) {
   return (
-    <View style={{ gap: space.md }}>
+    <View style={{
+      gap: space.md,
+      borderTopColor: colors.separator,
+      borderTopWidth: 1,
+      borderBottomColor: colors.separator,
+      borderBottomWidth: 1,
+      paddingVertical: space.md,
+      paddingHorizontal: space.lg,
+      backgroundColor: colors.accentSoft,
+    }}>
       <AppText variant="subtitle">{title}</AppText>
       <View style={{ flexDirection: 'row', gap: space.sm }}>
         <PlanButton

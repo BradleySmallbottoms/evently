@@ -72,14 +72,6 @@ export default function SavedScreen() {
                 {t('home.title')}
               </AppText>
             </View>
-            <CategoryChips
-              items={[
-                { id: 'events', label: t('saved.events') },
-                { id: 'lists', label: t('saved.lists') },
-              ]}
-              selectedId={segment}
-              onSelect={(id) => setSegment(id as 'events' | 'lists')}
-            />
           </View>
         }
         ListEmptyComponent={
@@ -104,6 +96,7 @@ export default function SavedScreen() {
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
               dateBadge={dateBadge(item.startsAt, locale)}
+              eventId={item.id}
               saved={segment === 'events'}
               onPress={() => router.push(`/events/${item.id}`)}
               onSavePress={

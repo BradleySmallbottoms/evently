@@ -24,14 +24,16 @@ export default function ForYouScreen() {
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const { point, preferences } = useDiscoveryPoint();
   const preferredTagIds = preferences.data?.tagIds ?? [];
+  const preferredTagKey = [...preferredTagIds].sort().join('\n');
+  const preferencesSettled = preferences.isSuccess || preferences.isError;
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
     queryFn: () => listTags(),
   });
   const events = useInfinitePublicEvents(
-    preferredTagIds.length > 0 ? point.data : undefined,
-    { tagIds: preferredTagIds, sort: 'soonest' },
-    ['for-you-all', point.data?.lat, point.data?.lng, point.data?.radiusM, preferredTagIds],
+    preferencesSettled ? point.data : undefined,
+    { tagIds: preferredTagIds.length > 0 ? preferredTagIds : undefined, sort: 'soonest' },
+    ['for-you-all', point.data?.lat, point.data?.lng, point.data?.radiusM, preferredTagKey],
   );
   const eventItems = useMemo(
     () => events.data?.pages.flatMap((page) => page.items) ?? [],
@@ -87,6 +89,7 @@ export default function ForYouScreen() {
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
               dateBadge={dateBadge(item.startsAt, locale)}
+              eventId={item.id}
               onPress={() => router.push(`/events/${item.id}`)}
             />
           </View>

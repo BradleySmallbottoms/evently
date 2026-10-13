@@ -24,6 +24,7 @@ import { PopularNow } from '@/components/ui/popular-now';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { api, throwIfError } from '@/lib/api';
 import { listPublicEvents, listTags, namesForTagIds } from '@/lib/events';
+import { FOR_YOU_HOME_FETCH, forYouHomeItems } from '@/lib/for-you-home';
 import { eventListFreshness } from '@/lib/query-client';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { loadHomeTagIds, saveHomeTagIds } from '@/lib/home-tag-selection';
@@ -83,12 +84,21 @@ export default function HomeScreen() {
     ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM, selectedTagKey],
   );
   const preferredTagIds = preferences.data?.tagIds ?? [];
+  const preferredTagKey = [...preferredTagIds].sort().join('\n');
+  // Preferences must settle first so an empty interest list does not flash,
+  // then get replaced. A pull-to-refresh used to be the only fetch: the query
+  // stayed disabled until interest tags existed, and refetch() ignores that.
+  const preferencesSettled = preferences.isSuccess || preferences.isError || identity.isError;
   const forYou = useQuery({
-    queryKey: ['for-you', point.data?.lat, point.data?.lng, point.data?.radiusM, preferredTagIds],
+    queryKey: ['for-you', point.data?.lat, point.data?.lng, point.data?.radiusM, preferredTagKey],
     ...eventListFreshness,
-    enabled: point.isSuccess && preferredTagIds.length > 0,
+    enabled: point.data != null && preferencesSettled,
     queryFn: () =>
-      listPublicEvents(point.data!, { tagIds: preferredTagIds, limit: 12, sort: 'soonest' }),
+      listPublicEvents(point.data!, {
+        tagIds: preferredTagIds.length > 0 ? preferredTagIds : undefined,
+        limit: FOR_YOU_HOME_FETCH,
+        sort: 'soonest',
+      }),
   });
   const popular = useQuery({
     queryKey: ['popular-events', point.data?.lat, point.data?.lng, point.data?.radiusM],
@@ -103,7 +113,6 @@ export default function HomeScreen() {
     imageUrl: item.imageUrl,
     tags: namesForTagIds(item.tagIds, tags.data?.items),
   }));
-  const forYouItems = forYou.data?.items ?? [];
   const saved = useQuery({
     queryKey: ['saved-events', identity.data?.userId],
     enabled: identity.isSuccess,
@@ -215,6 +224,14 @@ export default function HomeScreen() {
       coming: items.filter((event) => !event.featured),
     };
   }, [events.data]);
+  const featuredIds = useMemo(() => new Set(featured.map((event) => event.id)), [featured]);
+  // A place change keeps the previous page visible. Those featured ids belong
+  // to the old place, so skip them only after this place's list has settled.
+  const forYouReady = (events.isSuccess && !events.isPlaceholderData) || events.isError;
+  const forYouItems = useMemo(
+    () => forYouHomeItems(forYou.data?.items ?? [], forYouReady ? featuredIds : new Set()),
+    [forYouReady, forYou.data, featuredIds],
+  );
 
   async function generatePairingCode() {
     setPairingPending(true);
@@ -547,6 +564,7 @@ export default function HomeScreen() {
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
               dateBadge={dateBadge(item.startsAt, locale)}
+              eventId={item.id}
               onPress={() => router.push(`/events/${item.id}`)}
             />
           </View>

@@ -84,10 +84,6 @@ export default function SavedAreasScreen() {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ padding: space.xl, gap: space.xl, paddingBottom: space.xxxl }}
       >
-        <View style={{ gap: space.sm }}>
-          <AppText variant="title">{t('profile.areas')}</AppText>
-          <AppText variant="caption">{t('profile.areasHint')}</AppText>
-        </View>
         {identity.isError || preferences.isError ? (
           <AppText variant="caption" style={{ color: colors.danger }}>
             {t('profile.areasLoadError')}

@@ -112,7 +112,8 @@ calls) in the same change as every new major feature.**
   first, then by start time. `tagId` or comma-separated `tagIds` keeps events that have any of
   those tags, and `offset` plus `nextOffset` page the list. The mobile home, search, and events
   lists pass the selected tag and load the next page at the end of the scroll. When the user has
-  preferred tags, the home page shows a For you carousel of nearby events with any of those tags.
+  preferred tags, the home page shows a For you carousel of nearby events with any of those tags,
+  leaving out events already shown in the featured row. The For you screen still includes them.
   The featured row stays hidden when that page set has no featured events.
   Imports do not write the flag, so a later sync leaves it set. Paid placements (slot, dates, plan
   quota) are still a later feature.

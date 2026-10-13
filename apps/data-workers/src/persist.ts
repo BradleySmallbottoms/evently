@@ -144,28 +144,16 @@ async function attachImages(
   images: EventImageUploader,
 ): Promise<void> {
   const urls = imageSources(event);
-  const existingMain = urls.length > 0 ? await store.findEventImage(eventId, 'main') : null;
-  let heroAssigned = false;
-  let gallery = 1;
   const roles: string[] = [];
-  for (const sourceUrl of urls) {
-    if (heroAssigned && gallery > 12) break;
-    const role = heroAssigned ? `gallery-${gallery}` : 'main';
+  for (let index = 0; index < urls.length; index += 1) {
+    const role = index === 0 ? 'main' : `gallery-${index}`;
+    const sourceUrl = urls[index]!;
+    roles.push(role);
     const current = await store.findEventImage(eventId, role);
-    if (current?.sourceUrl === sourceUrl) {
-      roles.push(role);
-      if (role === 'main') heroAssigned = true;
-      else gallery += 1;
-      continue;
-    }
+    if (current?.sourceUrl === sourceUrl) continue;
     try {
       const stored = await images.put({ eventId, sourceUrl, role });
-      if (!stored) {
-        // A failed hero download must not consume `main`. The next image that
-        // saves takes it, unless a hero is already stored from an earlier run.
-        if (role === 'main' && existingMain?.sourceUrl) heroAssigned = true;
-        continue;
-      }
+      if (!stored) continue;
       await store.saveEventImage({
         eventId,
         role,
@@ -173,9 +161,6 @@ async function attachImages(
         sourceUrl,
         contentType: stored.contentType,
       });
-      roles.push(role);
-      if (role === 'main') heroAssigned = true;
-      else gallery += 1;
     } catch (err) {
       console.warn(
         JSON.stringify({
@@ -184,7 +169,6 @@ async function attachImages(
           error: err instanceof Error ? err.message : String(err),
         }),
       );
-      if (role === 'main' && existingMain?.sourceUrl) heroAssigned = true;
     }
   }
   // A missing imageUrls means the crawl did not finish. Leave earlier gallery rows.

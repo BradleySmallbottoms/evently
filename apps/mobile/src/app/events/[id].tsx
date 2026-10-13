@@ -429,94 +429,120 @@ export default function EventDetailScreen() {
                   borderTopRightRadius: radius.lg,
                   borderCurve: 'continuous',
                   gap: space.lg,
-                  paddingHorizontal: space.lg,
                   paddingTop: 36,
                   paddingBottom: space.xxl,
                 }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
-                  <View style={{ flex: 1 }}>
-                    <AppText
-                      style={{
-                        fontSize: 22,
-                        lineHeight: 28,
-                        fontWeight: '700',
-                        color: colors.ink,
-                        paddingRight: priceLabel ? 64 : 0,
-                      }}
-                    >
-                      {event.data.title}
-                    </AppText>
-                    {priceLabel ? (
-                      <View pointerEvents="none" style={{ position: 'absolute', top: 4, right: 0 }}>
-                        <PricePill label={priceLabel} />
-                      </View>
-                    ) : null}
+                <View style={{
+                  paddingHorizontal: space.lg,
+                  borderBottomColor: colors.separator,
+                  borderBottomWidth: 1,
+                  paddingBottom: space.lg,
+                  gap: space.sm,
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
+                    <View style={{ flex: 1 }}>
+                      <AppText
+                        style={{
+                          fontSize: 22,
+                          lineHeight: 28,
+                          fontWeight: '700',
+                          color: colors.ink,
+                          paddingRight: priceLabel ? 64 : 0,
+                        }}
+                      >
+                        {event.data.title}
+                      </AppText>
+                      {priceLabel ? (
+                        <View pointerEvents="none" style={{ position: 'absolute', top: 4, right: 0 }}>
+                          <PricePill label={priceLabel} />
+                        </View>
+                      ) : null}
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <EventActionsMenu
+                        accessibilityLabel={t('events.moreActions')}
+                        shareLabel={t('events.share')}
+                        copyLinkLabel={t('events.copyLink')}
+                        reportLabel={t('events.report')}
+                        onShare={() => void shareEvent()}
+                        onCopyLink={() => void copyLink()}
+                        onReport={() => setReportOpen(true)}
+                        remindLabel={
+                          offerReminder
+                            ? reminderOn
+                              ? t('events.remindMeOn')
+                              : t('events.remindMe')
+                            : undefined
+                        }
+                        onRemind={offerReminder ? openReminderPicker : undefined}
+                        buttonStyle={{ 
+                          width: 42, 
+                          height: 42, 
+                          backgroundColor: colors.card,
+                          borderRadius: radius.pill,
+                        }}
+                      />
+                    </View>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <EventActionsMenu
-                      accessibilityLabel={t('events.moreActions')}
-                      shareLabel={t('events.share')}
-                      copyLinkLabel={t('events.copyLink')}
-                      reportLabel={t('events.report')}
-                      onShare={() => void shareEvent()}
-                      onCopyLink={() => void copyLink()}
-                      onReport={() => setReportOpen(true)}
-                      remindLabel={
-                        offerReminder
-                          ? reminderOn
-                            ? t('events.remindMeOn')
-                            : t('events.remindMe')
-                          : undefined
-                      }
-                      onRemind={offerReminder ? openReminderPicker : undefined}
-                      buttonStyle={{ width: 32, height: 32 }}
-                    />
-                  </View>
-                </View>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                  <DetailIcon
-                    sf={event.data.mode === 'physical' ? 'mappin' : 'link'}
-                    md={event.data.mode === 'physical' ? 'location-on' : 'link'}
-                  />
-                  <AppText variant="body" style={{ flex: 1, color: colors.ink }}>
-                    {event.data.mode === 'physical'
-                      ? [event.data.venueName, event.data.publisherName]
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                    <DetailIcon
+                      sf={event.data.mode === 'physical' ? 'mappin' : 'link'}
+                      md={event.data.mode === 'physical' ? 'location-on' : 'link'}
+                    />
+                    <AppText variant="body" style={{ flex: 1, color: colors.ink }}>
+                      {event.data.mode === 'physical'
+                        ? [event.data.venueName, event.data.publisherName]
                           .filter(Boolean)
                           .join(' · ') || t('events.missingVenue')
-                      : (event.data.onlineUrl ?? event.data.publisherName)}
-                  </AppText>
+                        : (event.data.onlineUrl ?? event.data.publisherName)}
+                    </AppText>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
+                    <View
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, flex: 1 }}
+                    >
+                      <DetailIcon sf="calendar" md="event" />
+                      <AppText variant="caption" style={{ color: colors.ink, flexShrink: 1 }}>
+                        {new Date(event.data.startsAt).toLocaleDateString(locale, {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </AppText>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                      <DetailIcon sf="clock" md="schedule" />
+                      <AppText variant="caption" style={{ color: colors.ink }}>
+                        {`${new Date(event.data.startsAt).toLocaleTimeString(locale, {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })} – ${new Date(event.data.endsAt).toLocaleTimeString(locale, {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}`}
+                      </AppText>
+                    </View>
+                  </View>
+
+
                 </View>
 
-                <TagPills tags={namesForTagIds(event.data.tagIds, tags.data?.items)} />
+                <View style={{
+                  paddingHorizontal: space.lg, gap: space.lg,
+                }}>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
-                  <View
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, flex: 1 }}
-                  >
-                    <DetailIcon sf="calendar" md="event" />
-                    <AppText variant="caption" style={{ color: colors.ink, flexShrink: 1 }}>
-                      {new Date(event.data.startsAt).toLocaleDateString(locale, {
-                        weekday: 'short',
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
+                  <TagPills tags={namesForTagIds(event.data.tagIds, tags.data?.items)} />
+
+                  {event.data.description ? (
+                    <AppText variant="body" style={{ color: colors.ink }}>
+                      {event.data.description}
                     </AppText>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                    <DetailIcon sf="clock" md="schedule" />
-                    <AppText variant="caption" style={{ color: colors.ink }}>
-                      {`${new Date(event.data.startsAt).toLocaleTimeString(locale, {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })} – ${new Date(event.data.endsAt).toLocaleTimeString(locale, {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}`}
-                    </AppText>
-                  </View>
+                  ) : null}
+
                 </View>
 
                 <EventPlan
@@ -530,146 +556,148 @@ export default function EventDetailScreen() {
                   onComingPress={toggleComing}
                 />
 
-                {event.data.description ? (
-                  <AppText variant="body" style={{ color: colors.ink }}>
-                    {event.data.description}
-                  </AppText>
-                ) : null}
+                <View style={{
+                  paddingHorizontal: space.lg, gap: space.lg,
+                }}>
 
-                {(() => {
-                  const action = primaryAction(event.data.links, event.data.onlineUrl);
-                  const url = action ? safeHttpUrl(action.url) : null;
-                  if (!action || !url) return null;
-                  const label =
-                    action.label ??
-                    (action.kind === 'tickets'
-                      ? t('events.linkTickets')
-                      : action.kind === 'registration'
-                        ? t('events.linkRegistration')
-                        : action.kind === 'online'
-                          ? t('events.linkOnline')
-                          : t('events.linkInfo'));
-                  return <PrimaryButton label={label} onPress={() => void Linking.openURL(url)} />;
-                })()}
+                  {(() => {
+                    const action = primaryAction(event.data.links, event.data.onlineUrl);
+                    const url = action ? safeHttpUrl(action.url) : null;
+                    if (!action || !url) return null;
+                    const label =
+                      action.label ??
+                      (action.kind === 'tickets'
+                        ? t('events.linkTickets')
+                        : action.kind === 'registration'
+                          ? t('events.linkRegistration')
+                          : action.kind === 'online'
+                            ? t('events.linkOnline')
+                            : t('events.linkInfo'));
+                    return <PrimaryButton label={label} onPress={() => void Linking.openURL(url)} />;
+                  })()}
 
-                {event.data.checkInEnabled ? (
-                  <View style={{ gap: space.sm }}>
-                    <AppText variant="subtitle">{t('events.contentTitle')}</AppText>
-                    {'fromCache' in (content.data ?? {}) &&
-                    (content.data as { fromCache?: boolean }).fromCache ? (
-                      <AppText variant="caption">{t('events.contentCached')}</AppText>
-                    ) : null}
-                    {content.isPending && (
-                      <AppText variant="caption">{t('events.loading')}</AppText>
-                    )}
-                    {content.data && !content.data.checkedIn ? (
-                      <AppText variant="caption">{t('events.contentLocked')}</AppText>
-                    ) : null}
-                    {content.data?.checkedIn && content.data.attendeeText ? (
-                      <AppText variant="body">{content.data.attendeeText}</AppText>
-                    ) : null}
-                    {content.data?.checkedIn
-                      ? content.data.attendeeLinks.map((link) => (
+                  {event.data.checkInEnabled ? (
+                    <View style={{ gap: space.sm }}>
+                      <AppText variant="subtitle">{t('events.contentTitle')}</AppText>
+                      {'fromCache' in (content.data ?? {}) &&
+                        (content.data as { fromCache?: boolean }).fromCache ? (
+                        <AppText variant="caption">{t('events.contentCached')}</AppText>
+                      ) : null}
+                      {content.isPending && (
+                        <AppText variant="caption">{t('events.loading')}</AppText>
+                      )}
+                      {content.data && !content.data.checkedIn ? (
+                        <AppText variant="caption">{t('events.contentLocked')}</AppText>
+                      ) : null}
+                      {content.data?.checkedIn && content.data.attendeeText ? (
+                        <AppText variant="body">{content.data.attendeeText}</AppText>
+                      ) : null}
+                      {content.data?.checkedIn
+                        ? content.data.attendeeLinks.map((link) => (
                           <PrimaryButton
                             key={link.id}
                             label={link.label || t('events.linkInfo')}
                             onPress={() => void Linking.openURL(link.url)}
                           />
                         ))
-                      : null}
-                    {content.data?.items.map((item) => (
-                      <View key={item.id} style={{ gap: 4 }}>
-                        <AppText variant="subtitle">{item.title}</AppText>
-                        {item.body ? <AppText variant="body">{item.body}</AppText> : null}
-                        {item.url ? (
-                          <AppText variant="caption" style={{ color: colors.accent }}>
-                            {item.url}
-                          </AppText>
-                        ) : null}
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
+                        : null}
+                      {content.data?.items.map((item) => (
+                        <View key={item.id} style={{ gap: 4 }}>
+                          <AppText variant="subtitle">{item.title}</AppText>
+                          {item.body ? <AppText variant="body">{item.body}</AppText> : null}
+                          {item.url ? (
+                            <AppText variant="caption" style={{ color: colors.accent }}>
+                              {item.url}
+                            </AppText>
+                          ) : null}
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
 
-                {eventStats.data &&
-                (eventStats.data.numCheckins > 0 || eventStats.data.numRatings > 0) ? (
-                  <View style={{ gap: space.xs }}>
-                    {eventStats.data.numCheckins > 0 ? (
-                      <AppText variant="caption">
-                        {t('events.statsCheckIns', { count: eventStats.data.numCheckins })}
-                      </AppText>
-                    ) : null}
-                    {eventStats.data.numRatings > 0 ? (
-                      <AppText variant="caption">
-                        {t('events.statsRatings', {
-                          average: eventStats.data.ratingAverage ?? '–',
-                          count: eventStats.data.numRatings,
-                        })}
-                      </AppText>
-                    ) : null}
-                  </View>
-                ) : ratingStatus.data?.aggregate.count ? (
-                  <AppText variant="caption">
-                    {t('events.rateAggregate', {
-                      average: ratingStatus.data.aggregate.average ?? '–',
-                      count: ratingStatus.data.aggregate.count,
-                    })}
-                  </AppText>
-                ) : null}
+                  {eventStats.data &&
+                    (eventStats.data.numCheckins > 0 || eventStats.data.numRatings > 0) ? (
+                    <View style={{ gap: space.xs }}>
+                      {eventStats.data.numCheckins > 0 ? (
+                        <AppText variant="caption">
+                          {t('events.statsCheckIns', { count: eventStats.data.numCheckins })}
+                        </AppText>
+                      ) : null}
+                      {eventStats.data.numRatings > 0 ? (
+                        <AppText variant="caption">
+                          {t('events.statsRatings', {
+                            average: eventStats.data.ratingAverage ?? '–',
+                            count: eventStats.data.numRatings,
+                          })}
+                        </AppText>
+                      ) : null}
+                    </View>
+                  ) : ratingStatus.data?.aggregate.count ? (
+                    <AppText variant="caption">
+                      {t('events.rateAggregate', {
+                        average: ratingStatus.data.aggregate.average ?? '–',
+                        count: ratingStatus.data.aggregate.count,
+                      })}
+                    </AppText>
+                  ) : null}
 
-                {ratingStatus.data?.canRate ? (
-                  <PrimaryButton
-                    label={t('events.rateHowWasIt')}
-                    onPress={() => setRatingOpen(true)}
-                  />
-                ) : ratingStatus.data?.hasRated ? (
-                  <PrimaryButton label={t('events.rateDone')} disabled />
-                ) : event.data.checkInEnabled && checkInStatus.data?.checkedIn ? (
-                  <PrimaryButton label={t('events.checkInDone')} disabled />
-                ) : event.data.mode === 'physical' ? (
-                  <View style={{ gap: space.md }}>
+                  {ratingStatus.data?.canRate ? (
                     <PrimaryButton
-                      label={
-                        checkInStatus.isError
-                          ? t('events.checkInError')
-                          : checkInStatus.isLoading
-                            ? t('events.loading')
-                            : checkInStatus.data?.open
-                              ? t('events.checkIn')
-                              : t('events.checkInClosed')
-                      }
-                      loading={checkIn.isPending || checkInStatus.isLoading}
-                      disabled={
-                        checkInStatus.isError || !checkInStatus.data?.open || !identity.data
-                      }
-                      onPress={() => checkIn.mutate()}
+                      label={t('events.rateHowWasIt')}
+                      onPress={() => setRatingOpen(true)}
                     />
-                    {checkInStatus.data?.codeActive && checkInStatus.data.open ? (
-                      <CodeCheckInFields
-                        code={code}
-                        onChangeCode={setCode}
-                        loading={codeCheckIn.isPending}
-                        disabled={!identity.data}
-                        onSubmit={() => codeCheckIn.mutate()}
-                        hint={t('events.checkInCodeHint')}
-                        placeholder={t('events.checkInCodePlaceholder')}
-                        submitLabel={t('events.checkInWithCode')}
+                  ) : ratingStatus.data?.hasRated ? (
+                    <PrimaryButton label={t('events.rateDone')} disabled />
+                  ) : event.data.checkInEnabled && checkInStatus.data?.checkedIn ? (
+                    <PrimaryButton label={t('events.checkInDone')} disabled />
+                  ) : event.data.mode === 'physical' ? (
+                    <View style={{ gap: space.md }}>
+                      <PrimaryButton
+                        label={
+                          checkInStatus.isError
+                            ? t('events.checkInError')
+                            : checkInStatus.isLoading
+                              ? t('events.loading')
+                              : checkInStatus.data?.open
+                                ? t('events.checkIn')
+                                : t('events.checkInClosed')
+                        }
+                        loading={checkIn.isPending || checkInStatus.isLoading}
+                        disabled={
+                          checkInStatus.isError || !checkInStatus.data?.open || !identity.data
+                        }
+                        onPress={() => checkIn.mutate()}
                       />
-                    ) : null}
-                  </View>
-                ) : checkInStatus.data?.codeActive && checkInStatus.data.open ? (
-                  <CodeCheckInFields
-                    code={code}
-                    onChangeCode={setCode}
-                    loading={codeCheckIn.isPending}
-                    disabled={!identity.data}
-                    onSubmit={() => codeCheckIn.mutate()}
-                    hint={t('events.checkInCodeHint')}
-                    placeholder={t('events.checkInCodePlaceholder')}
-                    submitLabel={t('events.checkInWithCode')}
-                  />
-                ) : null}
-                {reminderNotice ? <AppText variant="caption">{reminderNotice}</AppText> : null}
+                      {checkInStatus.data?.codeActive && checkInStatus.data.open ? (
+                        <CodeCheckInFields
+                          code={code}
+                          onChangeCode={setCode}
+                          loading={codeCheckIn.isPending}
+                          disabled={!identity.data}
+                          onSubmit={() => codeCheckIn.mutate()}
+                          hint={t('events.checkInCodeHint')}
+                          placeholder={t('events.checkInCodePlaceholder')}
+                          submitLabel={t('events.checkInWithCode')}
+                        />
+                      ) : null}
+                    </View>
+                  ) : checkInStatus.data?.codeActive && checkInStatus.data.open ? (
+                    <CodeCheckInFields
+                      code={code}
+                      onChangeCode={setCode}
+                      loading={codeCheckIn.isPending}
+                      disabled={!identity.data}
+                      onSubmit={() => codeCheckIn.mutate()}
+                      hint={t('events.checkInCodeHint')}
+                      placeholder={t('events.checkInCodePlaceholder')}
+                      submitLabel={t('events.checkInWithCode')}
+                    />
+                  ) : null}
+                  {reminderNotice ? <AppText variant="caption">{reminderNotice}</AppText> : null}
+                </View>
+
+
+
               </View>
             </>
           )}

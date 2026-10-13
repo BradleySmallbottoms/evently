@@ -20,4 +20,5 @@ export const radius = {
 export const shadow = {
   card: '0 8px 24px rgba(17, 24, 32, 0.06)',
   soft: '0 2px 8px rgba(17, 24, 32, 0.04)',
+  hard: '0 4px 12px rgba(17, 24, 32, 0.08)',
 } as const;

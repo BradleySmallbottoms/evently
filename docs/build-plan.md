@@ -135,5 +135,6 @@ Closed beta around week 15, store launch around week 19.
 
 Stripe Billing on the web workspace, plan picker and upgrade flow, paid featured placements on the
 start page, enforcement of plan limits, admin tools for plans and refunds. Admins can already mark
-an event featured so it sorts first on the home page. Entitlement checks already exist
+an event featured so it sorts first on the home page. The home For you carousel leaves those
+events out. Entitlement checks already exist
 (`packages/domain/src/entitlements.ts`), so the rest is mostly billing and UI.

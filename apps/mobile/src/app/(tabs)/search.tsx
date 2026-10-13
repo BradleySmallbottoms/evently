@@ -242,6 +242,7 @@ export default function SearchScreen() {
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
               dateBadge={dateBadge(item.startsAt, locale)}
+              eventId={item.id}
               onPress={() => router.push(`/events/${item.id}`)}
             />
           </View>
