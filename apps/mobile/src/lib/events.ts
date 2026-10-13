@@ -10,7 +10,7 @@ export const FALLBACK_CENTER = {
 } as const;
 
 /** Web geolocation/permission prompts often hang until the tab is focused again. */
-const LOCATION_TIMEOUT_MS = Platform.OS === 'web' ? 2_000 : 8_000;
+export const LOCATION_TIMEOUT_MS = Platform.OS === 'web' ? 2_000 : 8_000;
 
 export type EventQueryPoint = {
   lat: number;
@@ -18,7 +18,7 @@ export type EventQueryPoint = {
   radiusM: number;
 };
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('location_timeout')), ms);
     promise.then(
@@ -34,26 +34,27 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+/** One balanced foreground fix. Throws on timeout or provider failure. Does not prompt. */
+export async function readBalancedForegroundPosition(): Promise<{ lat: number; lng: number }> {
+  const position = await withTimeout(
+    Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+      mayShowUserSettingsDialog: false,
+    }),
+    LOCATION_TIMEOUT_MS,
+  );
+  return { lat: position.coords.latitude, lng: position.coords.longitude };
+}
+
 export async function resolveEventQueryPoint(): Promise<EventQueryPoint> {
   try {
-    return await withTimeout(
-      (async (): Promise<EventQueryPoint> => {
-        // Do not prompt here — onboarding / reminders / check-in own the permission request.
-        const perm = await Location.getForegroundPermissionsAsync();
-        if (perm.status !== 'granted') {
-          return { ...FALLBACK_CENTER };
-        }
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        return {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          radiusM: FALLBACK_CENTER.radiusM,
-        };
-      })(),
-      LOCATION_TIMEOUT_MS,
-    );
+    // Do not prompt here — onboarding / reminders / check-in own the permission request.
+    const perm = await Location.getForegroundPermissionsAsync();
+    if (perm.status !== 'granted') {
+      return { ...FALLBACK_CENTER };
+    }
+    const position = await readBalancedForegroundPosition();
+    return { ...position, radiusM: FALLBACK_CENTER.radiusM };
   } catch {
     return { ...FALLBACK_CENTER };
   }

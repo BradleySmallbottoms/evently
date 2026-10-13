@@ -1,19 +1,27 @@
 import type {
   ApprovePushMessageRequest,
+  CreateAdminEventPushMessageRequest,
   CreateBroadcastPushMessageRequest,
   PushMessage,
   PushMessageAudience,
+  SentEventNotification,
   UpdatePushMessageRequest,
 } from '@local-events/contracts';
-import { BROADCAST_MATCH_LIMIT } from '@local-events/domain';
+import {
+  BROADCAST_MATCH_LIMIT,
+  canAdminNotifyEvent,
+  defaultPushMessageCopy,
+  isOpenPushMessageStatus,
+} from '@local-events/domain';
 import type { Db } from '@local-events/db';
-import { schema } from '@local-events/db';
+import { findOpenPushMessage, schema } from '@local-events/db';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 
 const MATCH_LIMIT = 500;
 
 export type AdminPushMessageServices = {
   list(status?: string): Promise<PushMessage[]>;
+  listSentForEvent(eventId: string): Promise<SentEventNotification[]>;
   get(id: string): Promise<PushMessage | null>;
   update(id: string, body: UpdatePushMessageRequest): Promise<PushMessage | null>;
   approve(
@@ -27,6 +35,18 @@ export type AdminPushMessageServices = {
     body: CreateBroadcastPushMessageRequest,
     adminId: string,
   ): Promise<PushMessage>;
+  createEventPush(
+    body: CreateAdminEventPushMessageRequest,
+    adminId: string,
+  ): Promise<PushMessage>;
+};
+
+export type AdminPushEventRef = {
+  id: string;
+  title: string;
+  status: string;
+  publisherId: string;
+  publisherName: string;
 };
 
 function toIso(d: Date | null | undefined): string | null {
@@ -220,6 +240,60 @@ async function countUniqueAndTokens(
   };
 }
 
+async function countAdminEventAudience(
+  db: Db,
+  eventId: string,
+  requireInterest: boolean,
+): Promise<{ nearby: number; withToken: number; capped: boolean }> {
+  const interestJoins = requireInterest
+    ? sql`INNER JOIN event_tags et ON et.event_id = e.id
+          INNER JOIN user_interests ui ON ui.tag_id = et.tag_id AND ui.user_id = u.id`
+    : sql``;
+  const rows = await db.execute(sql`
+    WITH matched AS (
+      SELECT DISTINCT u.id AS user_id
+      FROM events e
+      INNER JOIN user_areas ua
+        ON ua.active = true
+        AND ua.notify = true
+        AND (
+          (ua.area IS NOT NULL AND ST_Covers(ua.area, e.location))
+          OR (
+            ua.center IS NOT NULL
+            AND ua.radius_m IS NOT NULL
+            AND ST_DWithin(ua.center, e.location, ua.radius_m)
+          )
+        )
+      INNER JOIN users u ON u.id = ua.user_id
+      ${interestJoins}
+      WHERE e.id = ${eventId}::uuid
+        AND e.status = 'published'
+        AND e.location IS NOT NULL
+    )
+    SELECT
+      (SELECT COUNT(*)::int FROM (SELECT 1 FROM matched LIMIT ${MATCH_LIMIT}) t) AS nearby,
+      (
+        SELECT COUNT(DISTINCT m.user_id)::int
+        FROM (SELECT user_id FROM matched LIMIT ${MATCH_LIMIT}) m
+        INNER JOIN devices d ON d.user_id = m.user_id
+          AND d.revoked_at IS NULL
+          AND d.expo_push_token IS NOT NULL
+      ) AS with_token,
+      ((SELECT COUNT(*) FROM matched) >= ${MATCH_LIMIT}) AS capped
+  `);
+  const list = (Array.isArray(rows) ? rows : []) as Array<{
+    nearby: number;
+    with_token: number;
+    capped: boolean;
+  }>;
+  const row = list[0];
+  return {
+    nearby: Number(row?.nearby ?? 0),
+    withToken: Number(row?.with_token ?? 0),
+    capped: Boolean(row?.capped),
+  };
+}
+
 async function countBroadcastAudience(
   db: Db,
   audience: 'everyone' | 'tag_interest',
@@ -325,6 +399,55 @@ export function createDbAdminPushMessageServices(db: Db): AdminPushMessageServic
         .orderBy(asc(schema.pushMessages.sendAt), desc(schema.pushMessages.createdAt))
         .limit(100);
       return rows.map(mapRow);
+    },
+
+    async listSentForEvent(eventId) {
+      const rows = await db
+        .select({
+          id: schema.pushMessages.id,
+          audience: schema.pushMessages.audience,
+          audienceTagName: schema.tags.name,
+          status: schema.pushMessages.status,
+          titleSv: schema.pushMessages.titleSv,
+          bodySv: schema.pushMessages.bodySv,
+          titleEn: schema.pushMessages.titleEn,
+          bodyEn: schema.pushMessages.bodyEn,
+          sendAt: schema.pushMessages.sendAt,
+          sentAt: schema.pushMessages.sentAt,
+          createdAt: schema.pushMessages.createdAt,
+        })
+        .from(schema.pushMessages)
+        .leftJoin(schema.tags, eq(schema.tags.id, schema.pushMessages.audienceTagId))
+        .where(
+          and(
+            eq(schema.pushMessages.eventId, eventId),
+            inArray(schema.pushMessages.status, ['sent', 'sending']),
+          ),
+        )
+        .orderBy(desc(schema.pushMessages.sentAt), desc(schema.pushMessages.createdAt));
+      const counts = await recipientCounts(
+        db,
+        rows.map((row) => row.id),
+      );
+      return rows.flatMap((row) => {
+        if (row.status !== 'sent' && row.status !== 'sending') return [];
+        return [
+          {
+            id: row.id,
+            status: row.status,
+            audience: row.audience,
+            audienceTagName: row.audienceTagName,
+            titleSv: row.titleSv,
+            bodySv: row.bodySv,
+            titleEn: row.titleEn,
+            bodyEn: row.bodyEn,
+            sendAt: toIso(row.sendAt),
+            sentAt: toIso(row.sentAt),
+            createdAt: row.createdAt.toISOString(),
+            recipientCount: counts.get(row.id) ?? 0,
+          },
+        ];
+      });
     },
 
     get: load,
@@ -439,6 +562,19 @@ export function createDbAdminPushMessageServices(db: Db): AdminPushMessageServic
         };
       }
       const eventPublished = existing.eventStatus === 'published';
+      if (existing.audience === 'area' || existing.audience === 'area_and_tag') {
+        const stats = eventPublished
+          ? await countAdminEventAudience(db, existing.eventId, existing.audience === 'area_and_tag')
+          : { nearby: 0, withToken: 0, capped: false };
+        return {
+          nearby: stats.nearby,
+          publisherFollowers: 0,
+          uniqueRecipients: stats.nearby,
+          withPushToken: stats.withToken,
+          capped: stats.capped,
+          eventPublished,
+        };
+      }
       const nearby = eventPublished ? await countNearby(db, existing.eventId) : 0;
       const publisherFollowers = await countPublisherFollowers(db, existing.publisherId);
       const { unique, withToken, capped } = eventPublished
@@ -492,14 +628,121 @@ export function createDbAdminPushMessageServices(db: Db): AdminPushMessageServic
       if (!loaded) throw new Error('push_broadcast_failed');
       return loaded;
     },
+
+    async createEventPush(body, adminId) {
+      const [event] = await db
+        .select({
+          id: schema.events.id,
+          title: schema.events.title,
+          status: schema.events.status,
+          publisherId: schema.events.publisherId,
+          publisherName: schema.publishers.name,
+        })
+        .from(schema.events)
+        .innerJoin(schema.publishers, eq(schema.publishers.id, schema.events.publisherId))
+        .where(eq(schema.events.id, body.eventId))
+        .limit(1);
+      if (!event) throw new Error('event_not_found');
+      if (!canAdminNotifyEvent(event.status)) throw new Error('event_not_published');
+      const open = await findOpenPushMessage(db, event.id);
+      if (open) throw new Error('push_draft_exists');
+      const defaults = defaultPushMessageCopy(event.title);
+      const hasCopy = Boolean(body.titleSv || body.bodySv || body.titleEn || body.bodyEn);
+      const now = new Date();
+      const [created] = await db
+        .insert(schema.pushMessages)
+        .values({
+          eventId: event.id,
+          kind: 'event',
+          audience: body.audience,
+          status: 'approved',
+          titleSv: body.titleSv ?? defaults.titleSv,
+          bodySv: body.bodySv ?? defaults.bodySv,
+          titleEn: body.titleEn ?? defaults.titleEn,
+          bodyEn: body.bodyEn ?? defaults.bodyEn,
+          copyEdited: hasCopy,
+          sendAt: body.sendAt ? new Date(body.sendAt) : null,
+          approvedAt: now,
+          approvedByAdminId: adminId,
+          updatedAt: now,
+        })
+        .returning({ id: schema.pushMessages.id });
+      if (!created) throw new Error('push_event_failed');
+      const loaded = await load(created.id);
+      if (!loaded) throw new Error('push_event_failed');
+      return loaded;
+    },
   };
 }
 
-export function createMemoryAdminPushMessageServices(): AdminPushMessageServices {
-  const items = new Map<string, PushMessage>();
+function sentNotificationFromPush(
+  row: PushMessage,
+  recipientCount: number,
+): SentEventNotification | null {
+  if (row.status !== 'sent' && row.status !== 'sending') return null;
+  return {
+    id: row.id,
+    status: row.status,
+    audience: row.audience,
+    audienceTagName: row.audienceTagName ?? null,
+    titleSv: row.titleSv,
+    bodySv: row.bodySv,
+    titleEn: row.titleEn,
+    bodyEn: row.bodyEn,
+    sendAt: row.sendAt,
+    sentAt: row.sentAt,
+    createdAt: row.createdAt,
+    recipientCount,
+  };
+}
+
+/** Matches Postgres `ORDER BY sent_at DESC` (nulls first), then created_at DESC. */
+function compareSentDesc(a: SentEventNotification, b: SentEventNotification): number {
+  if (a.sentAt == null && b.sentAt != null) return -1;
+  if (b.sentAt == null && a.sentAt != null) return 1;
+  if (a.sentAt != null && b.sentAt != null && a.sentAt !== b.sentAt) {
+    return b.sentAt.localeCompare(a.sentAt);
+  }
+  return b.createdAt.localeCompare(a.createdAt);
+}
+
+async function recipientCounts(db: Db, ids: string[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (ids.length === 0) return counts;
+  const rows = await db
+    .select({
+      pushMessageId: schema.notifications.pushMessageId,
+      count: sql<number>`count(distinct ${schema.notifications.userId})::int`,
+    })
+    .from(schema.notifications)
+    .where(inArray(schema.notifications.pushMessageId, ids))
+    .groupBy(schema.notifications.pushMessageId);
+  for (const row of rows) {
+    if (row.pushMessageId) counts.set(row.pushMessageId, Number(row.count));
+  }
+  return counts;
+}
+
+export function createMemoryAdminPushMessageServices(input?: {
+  events?: Map<string, AdminPushEventRef>;
+  items?: Map<string, PushMessage>;
+  recipientCounts?: Map<string, number>;
+}): AdminPushMessageServices {
+  const events = input?.events ?? new Map<string, AdminPushEventRef>();
+  const items = input?.items ?? new Map<string, PushMessage>();
+  const recipients = input?.recipientCounts ?? new Map<string, number>();
   return {
     async list(status) {
       return [...items.values()].filter((i) => !status || i.status === status);
+    },
+    async listSentForEvent(eventId) {
+      return [...items.values()]
+        .filter((row) => row.eventId === eventId)
+        .flatMap((row) => {
+          const sent = sentNotificationFromPush(row, recipients.get(row.id) ?? 0);
+          return sent ? [sent] : [];
+        })
+        .sort(compareSentDesc);
     },
     async get(id) {
       return items.get(id) ?? null;
@@ -574,6 +817,44 @@ export function createMemoryAdminPushMessageServices(): AdminPushMessageServices
         bodyEn: body.bodyEn,
         sendAt: body.sendAt ?? null,
         copyEdited: true,
+        approvedAt: now,
+        approvedByAdminId: adminId,
+        sentAt: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      items.set(id, row);
+      return row;
+    },
+    async createEventPush(body, adminId) {
+      const event = events.get(body.eventId);
+      if (!event) throw new Error('event_not_found');
+      if (!canAdminNotifyEvent(event.status)) throw new Error('event_not_published');
+      const open = [...items.values()].find(
+        (row) => row.eventId === event.id && isOpenPushMessageStatus(row.status),
+      );
+      if (open) throw new Error('push_draft_exists');
+      const defaults = defaultPushMessageCopy(event.title);
+      const hasCopy = Boolean(body.titleSv || body.bodySv || body.titleEn || body.bodyEn);
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const row: PushMessage = {
+        id,
+        eventId: event.id,
+        eventTitle: event.title,
+        publisherId: event.publisherId,
+        publisherName: event.publisherName,
+        eventStatus: event.status,
+        kind: 'event',
+        audience: body.audience,
+        audienceTagId: null,
+        status: 'approved',
+        titleSv: body.titleSv ?? defaults.titleSv,
+        bodySv: body.bodySv ?? defaults.bodySv,
+        titleEn: body.titleEn ?? defaults.titleEn,
+        bodyEn: body.bodyEn ?? defaults.bodyEn,
+        sendAt: body.sendAt ?? null,
+        copyEdited: hasCopy,
         approvedAt: now,
         approvedByAdminId: adminId,
         sentAt: null,

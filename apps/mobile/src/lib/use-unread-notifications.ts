@@ -8,7 +8,7 @@ import { loadNotificationsSeenCount } from '@/lib/notification-badge';
 import { listNotifications } from '@/lib/notifications';
 
 /** True when the inbox has notifications the user has not opened yet. */
-export function useHasUnreadNotifications(): boolean {
+export function useHasUnreadNotifications(): { hasUnread: boolean, numUnread: number } {
   const { i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const queryClient = useQueryClient();
@@ -36,5 +36,5 @@ export function useHasUnreadNotifications(): boolean {
 
   const unread = inbox.data?.unreadCount ?? 0;
   const seenCount = seen.data ?? 0;
-  return inbox.isSuccess && seen.isSuccess && unread > seenCount;
+  return { hasUnread: inbox.isSuccess && seen.isSuccess && unread > seenCount, numUnread: unread - seenCount };
 }

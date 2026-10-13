@@ -14,7 +14,8 @@ import { dateBadge } from '@/lib/event-format';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
-import { useDiscoveryPoint } from '@/lib/use-discovery-point';
+import { queryPointForArea } from '@/lib/area-point';
+import { NEARBY_PLACE_ID, setDiscoveryPlaceId, useDiscoveryPoint } from '@/lib/use-discovery-point';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
@@ -66,7 +67,6 @@ export default function SearchScreen() {
   const [tagId, setTagId] = useState('all');
   const [price, setPrice] = useState<'any' | 'free' | 'paid'>('any');
   const [dateId, setDateId] = useState<DateFilterId>('any');
-  const [useFallbackCenter, setUseFallbackCenter] = useState(false);
 
   useEffect(() => {
     if (!focus) return;
@@ -74,7 +74,7 @@ export default function SearchScreen() {
     return () => clearTimeout(timer);
   }, [focus]);
 
-  const { identity, point } = useDiscoveryPoint(useFallbackCenter);
+  const { identity, preferences, point, placeId } = useDiscoveryPoint();
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
     queryFn: () => listTags(),
@@ -115,8 +115,11 @@ export default function SearchScreen() {
     ...(tags.data?.items ?? []).map((tag) => ({ id: tag.id, label: tag.name })),
   ];
   const placeOptions = [
-    { id: 'nearby', label: t('events.locationNearby') },
-    { id: 'soderhamn', label: t('events.locationSoderhamn') },
+    { id: NEARBY_PLACE_ID, label: t('events.locationNearby') },
+    ...(preferences.data?.areas ?? []).flatMap((area) => {
+      if (!queryPointForArea(area) || !area.name.trim()) return [];
+      return [{ id: area.id, label: area.name }];
+    }),
   ];
   const priceOptions = [
     { id: 'any', label: t('events.priceAny') },
@@ -129,7 +132,7 @@ export default function SearchScreen() {
     setTagId('all');
     setPrice('any');
     setDateId('any');
-    setUseFallbackCenter(false);
+    setDiscoveryPlaceId(NEARBY_PLACE_ID);
   }
 
   return (
@@ -180,9 +183,11 @@ export default function SearchScreen() {
               />
               <FilterDropdown
                 label={t('events.filterPlaceLabel')}
-                value={useFallbackCenter ? 'soderhamn' : 'nearby'}
+                value={
+                  placeOptions.some((option) => option.id === placeId) ? placeId : NEARBY_PLACE_ID
+                }
                 options={placeOptions}
-                onChange={(id) => setUseFallbackCenter(id === 'soderhamn')}
+                onChange={setDiscoveryPlaceId}
               />
               <FilterDropdown
                 label={t('events.price')}

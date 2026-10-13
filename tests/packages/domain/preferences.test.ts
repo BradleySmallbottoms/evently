@@ -1,10 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AREA_RADIUS_PRESETS_M,
   canAddSavedArea,
+  MAX_AREA_RADIUS_M,
   MAX_SAVED_AREAS,
+  MIN_AREA_RADIUS_M,
   validateCircleArea,
   validatePolygonArea,
 } from '../../../packages/domain/src/preferences';
+
+describe('AREA_RADIUS_PRESETS_M', () => {
+  it('stays inside the saved-circle range', () => {
+    expect(AREA_RADIUS_PRESETS_M).toEqual([5_000, 25_000, 50_000, 100_000]);
+    for (const radiusM of AREA_RADIUS_PRESETS_M) {
+      expect(radiusM).toBeGreaterThanOrEqual(MIN_AREA_RADIUS_M);
+      expect(radiusM).toBeLessThanOrEqual(MAX_AREA_RADIUS_M);
+    }
+  });
+});
 
 describe('canAddSavedArea', () => {
   it('caps at MAX_SAVED_AREAS', () => {

@@ -11,6 +11,7 @@ import type { ExpoPushClient, ExpoPushMessage } from './expo-push';
 import {
   clearExpoPushToken,
   countUnreadNotifications,
+  findAreaMatchedUsers,
   findNearbyMatchedUsers,
   findPublisherSubscriberUsers,
   loadPublishedEvent,
@@ -41,11 +42,13 @@ function tokenHint(token: string): string {
 
 type NotifyReason = 'nearby' | 'publisher' | 'broadcast';
 
+type PushAudienceKind = 'event_match' | 'everyone' | 'tag_interest' | 'area' | 'area_and_tag';
+
 type DueMessage = {
   id: string;
   eventId: string | null;
   kind: 'event' | 'broadcast';
-  audience: 'event_match' | 'everyone' | 'tag_interest';
+  audience: PushAudienceKind;
   audienceTagId: string | null;
   titleSv: string;
   bodySv: string;
@@ -103,7 +106,7 @@ async function claimDueMessages(db: Db, now: Date): Promise<DueMessage[]> {
     id: string;
     event_id: string | null;
     kind: 'event' | 'broadcast';
-    audience: 'event_match' | 'everyone' | 'tag_interest';
+    audience: PushAudienceKind;
     audience_tag_id: string | null;
     title_sv: string;
     body_sv: string;
@@ -174,12 +177,32 @@ async function audienceForBroadcast(
   return out;
 }
 
+/** Admin-picked event audience: saved area, optionally also a shared interest. No followers. */
+async function audienceForAdminEvent(
+  db: Db,
+  eventId: string,
+  audience: 'area' | 'area_and_tag',
+): Promise<Map<string, NotifyReason>> {
+  const event = await loadPublishedEvent(db, eventId);
+  if (!event || event.status !== 'published' || !event.hasLocation) return new Map();
+  const matched =
+    audience === 'area'
+      ? await findAreaMatchedUsers(db, eventId, MATCH_LIMIT)
+      : await findNearbyMatchedUsers(db, eventId, MATCH_LIMIT);
+  const out = new Map<string, NotifyReason>();
+  for (const user of matched) out.set(user.userId, 'nearby');
+  return out;
+}
+
 async function audienceForMessage(
   db: Db,
   message: DueMessage,
 ): Promise<Map<string, NotifyReason>> {
   if (message.kind === 'broadcast') return audienceForBroadcast(db, message);
   if (!message.eventId) return new Map();
+  if (message.audience === 'area' || message.audience === 'area_and_tag') {
+    return audienceForAdminEvent(db, message.eventId, message.audience);
+  }
   return audienceForEvent(db, message.eventId);
 }
 

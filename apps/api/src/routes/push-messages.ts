@@ -3,6 +3,7 @@ import {
   CreateEventPushMessageRequest,
   ErrorResponse,
   PushMessageStatus,
+  SentEventNotificationListResponse,
 } from '@local-events/contracts';
 import { z } from 'zod';
 import { readPublisherSessionToken } from '../services/auth/cookies';
@@ -73,6 +74,37 @@ export function registerPublisherPushMessageRoutes(
         },
         200,
       );
+    } catch (err) {
+      return eventErrorResponse(c, err);
+    }
+  });
+
+  const listSent = createRoute({
+    method: 'get',
+    path: '/manage/events/{id}/sent-notifications',
+    request: { params: IdParam },
+    responses: {
+      200: {
+        description: 'Push messages sent or currently sending for this event',
+        content: { 'application/json': { schema: SentEventNotificationListResponse } },
+      },
+      401: {
+        description: 'Unauthorized',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Event not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(listSent, async (c) => {
+    try {
+      const items = await pushMessages.listSent({
+        sessionToken: readPublisherSessionToken(c),
+        eventId: c.req.valid('param').id,
+      });
+      return c.json({ items }, 200);
     } catch (err) {
       return eventErrorResponse(c, err);
     }

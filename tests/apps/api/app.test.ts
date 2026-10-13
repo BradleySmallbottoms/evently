@@ -49,6 +49,7 @@ describe('public api', () => {
     expect(doc.paths['/manage/events/{id}']).toBeDefined();
     expect(doc.paths['/manage/events/{id}/publish']).toBeDefined();
     expect(doc.paths['/manage/events/{id}/cancel']).toBeDefined();
+    expect(doc.paths['/manage/events/{id}/sent-notifications']).toBeDefined();
   });
 });
 

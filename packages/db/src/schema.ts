@@ -77,6 +77,10 @@ export const pushAudience = pgEnum('push_audience', [
   'event_match',
   'everyone',
   'tag_interest',
+  /** Saved notify area covers the event. No interest filter. */
+  'area',
+  /** Saved notify area covers the event and an interest tag overlaps. */
+  'area_and_tag',
 ]);
 /** Per-user delivery of a push message (supports deferral / aggregation). */
 export const pushDeliveryStatus = pgEnum('push_delivery_status', [
@@ -110,6 +114,8 @@ export const users = pgTable('users', {
   quietHoursStartMin: integer('quiet_hours_start_min').notNull().default(22 * 60),
   quietHoursEndMin: integer('quiet_hours_end_min').notNull().default(8 * 60),
   quietHoursEnabled: boolean('quiet_hours_enabled').notNull().default(true),
+  /** How far the user can go before a new place is suggested. Default 25 km. */
+  travelDistanceM: integer('travel_distance_m').notNull().default(25_000),
   /** Set by admin moderation; banned users cannot create sessions or check in. */
   bannedAt: timestamp('banned_at', { withTimezone: true }),
   banReason: text('ban_reason'),

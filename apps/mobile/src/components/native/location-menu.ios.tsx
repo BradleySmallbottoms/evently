@@ -7,17 +7,20 @@ import { Pressable, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import { colors } from '@/theme/colors';
 
+export type LocationMenuOption = {
+  id: string;
+  label: string;
+};
+
 type Props = {
   eyebrow?: string;
   locationLabel: string;
   title: string;
   message: string;
-  useNearbyLabel: string;
-  useFallbackLabel: string;
+  options: LocationMenuOption[];
   isPresented: boolean;
   onIsPresentedChange: (open: boolean) => void;
-  onUseNearby: () => void;
-  onUseFallback: () => void;
+  onSelect: (id: string) => void;
 };
 
 export function LocationMenu({
@@ -25,12 +28,10 @@ export function LocationMenu({
   locationLabel,
   title,
   message,
-  useNearbyLabel,
-  useFallbackLabel,
+  options,
   isPresented,
   onIsPresentedChange,
-  onUseNearby,
-  onUseFallback,
+  onSelect,
 }: Props) {
   return (
     <Host matchContents style={{ alignSelf: 'flex-end', flexShrink: 1, maxWidth: '100%' }}>
@@ -49,7 +50,9 @@ export function LocationMenu({
                     {eyebrow}
                   </AppText>
                 ) : null}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+                <View
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' }}
+                >
                   <SymbolView
                     name={'location.fill' as never}
                     size={16}
@@ -72,20 +75,16 @@ export function LocationMenu({
           <Text>{message}</Text>
         </ConfirmationDialog.Message>
         <ConfirmationDialog.Actions>
-          <Button
-            onPress={() => {
-              onIsPresentedChange(false);
-              onUseNearby();
-            }}
-            label={useNearbyLabel}
-          />
-          <Button
-            onPress={() => {
-              onIsPresentedChange(false);
-              onUseFallback();
-            }}
-            label={useFallbackLabel}
-          />
+          {options.map((option) => (
+            <Button
+              key={option.id}
+              onPress={() => {
+                onIsPresentedChange(false);
+                onSelect(option.id);
+              }}
+              label={option.label}
+            />
+          ))}
         </ConfirmationDialog.Actions>
       </ConfirmationDialog>
     </Host>

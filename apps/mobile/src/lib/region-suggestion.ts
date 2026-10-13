@@ -4,14 +4,19 @@ import { Platform } from 'react-native';
 import { REGION_SUGGESTION, shouldSuggestRegion, type SavedArea } from '@local-events/domain';
 
 import { api, throwIfError } from './api';
+import { readBalancedForegroundPosition } from './events';
 import type { StoredIdentity } from './identity';
+import { placeLabelFromGeocode } from './place-name';
 
+/** Device-only region prompt timers and dismissals. */
 const KEYS = {
   lastPromptAt: 'le.region.lastPromptAt',
   declines: 'le.region.declines',
   foregroundStartedAt: 'le.region.fgStartedAt',
   screensOpened: 'le.region.screensOpened',
 } as const;
+
+export const REGION_PROMPT_STORAGE_KEYS = Object.values(KEYS);
 
 type Decline = { lat: number; lng: number; at: string; permanent: boolean };
 
@@ -47,6 +52,26 @@ async function readDeclines(): Promise<Decline[]> {
   }
 }
 
+/**
+ * Skipping the onboarding area step is a dismiss of the first save prompt.
+ * The same 7-day quiet period applies near this place.
+ */
+export async function deferRegionPromptAfterAreaSkip(
+  point?: { lat: number; lng: number } | null,
+): Promise<void> {
+  if (point) {
+    await recordRegionDecline(point, false);
+    return;
+  }
+  const perm = await Location.getForegroundPermissionsAsync();
+  if (perm.status !== 'granted') return;
+  try {
+    await recordRegionDecline(await readBalancedForegroundPosition(), false);
+  } catch {
+    // No point to attach the quiet period to.
+  }
+}
+
 export async function recordRegionDecline(
   point: { lat: number; lng: number },
   permanent: boolean,
@@ -73,27 +98,40 @@ export async function bumpRegionActivity(): Promise<void> {
 
 async function activityStats(): Promise<{ foregroundSeconds: number; screensOpened: number }> {
   const started = await getItem(KEYS.foregroundStartedAt);
-  const foregroundSeconds = started
-    ? Math.max(0, (Date.now() - Number(started)) / 1000)
-    : 0;
+  const foregroundSeconds = started ? Math.max(0, (Date.now() - Number(started)) / 1000) : 0;
   const raw = await getItem(KEYS.screensOpened);
   return { foregroundSeconds, screensOpened: raw ? Number(raw) : 0 };
+}
+
+async function reverseGeocodedPlaceName(lat: number, lng: number): Promise<string | null> {
+  try {
+    const places = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+    return placeLabelFromGeocode(places[0]);
+  } catch {
+    return null;
+  }
 }
 
 /** Evaluate whether to offer a region subscription for the current place. */
 export async function evaluateRegionSuggestion(input: {
   savedAreas: SavedArea[];
+  /** Used when neither the geocoder nor region lookup yields a name. */
+  fallbackName: string;
+  /** Already-read foreground fix. When omitted, one sample is taken if permission is granted. */
+  location?: { lat: number; lng: number };
+  /** Profile setting. Defaults to 25 km. */
+  travelDistanceM?: number;
 }): Promise<RegionSuggestion | null> {
-  const perm = await Location.getForegroundPermissionsAsync();
-  if (perm.status !== 'granted') return null;
-
-  const position = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.Balanced,
-  });
-  const location = {
-    lat: position.coords.latitude,
-    lng: position.coords.longitude,
-  };
+  let location = input.location ?? null;
+  if (!location) {
+    const perm = await Location.getForegroundPermissionsAsync();
+    if (perm.status !== 'granted') return null;
+    try {
+      location = await readBalancedForegroundPosition();
+    } catch {
+      return null;
+    }
+  }
 
   const lastPromptRaw = await getItem(KEYS.lastPromptAt);
   const declines = await readDeclines();
@@ -112,6 +150,7 @@ export async function evaluateRegionSuggestion(input: {
       permanent: d.permanent,
     })),
     now: new Date(),
+    travelDistanceM: input.travelDistanceM,
   });
   if (!ok) return null;
 
@@ -121,10 +160,15 @@ export async function evaluateRegionSuggestion(input: {
     }),
   );
 
+  const regionName = lookup.region?.name?.trim() || null;
+  const geocodedName = regionName
+    ? null
+    : await reverseGeocodedPlaceName(location.lat, location.lng);
+
   return {
     lat: location.lat,
     lng: location.lng,
-    name: lookup.region?.name ?? 'Här',
+    name: regionName || geocodedName || input.fallbackName,
     regionId: lookup.region?.id ?? null,
   };
 }

@@ -1308,6 +1308,7 @@ export interface paths {
                                 endMin: number;
                                 timezone: string;
                             };
+                            travelDistanceM: number;
                         };
                     };
                 };
@@ -1837,10 +1838,10 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                eventId: string;
+                                eventId: string | null;
                                 eventTitle: string;
                                 /** @enum {string} */
-                                reason: "nearby" | "publisher" | "event";
+                                reason: "nearby" | "publisher" | "event" | "broadcast";
                                 /** @enum {string} */
                                 pushState: "pending" | "sent" | "aggregated";
                                 /** Format: date-time */
@@ -1914,6 +1915,63 @@ export interface paths {
                             startMin: number;
                             endMin: number;
                             timezone: string;
+                        };
+                    };
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/travel-distance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        distanceM: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated travel distance */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            distanceM: number;
                         };
                     };
                 };
@@ -3975,6 +4033,241 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/manage/events/{id}/push-message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Open push draft, or null fields when none */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            pushMessage: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                eventId: string;
+                                /** @enum {string} */
+                                status: "pending" | "approved" | "sending" | "sent" | "rejected" | "cancelled";
+                                titleSv: string;
+                                bodySv: string;
+                                titleEn: string;
+                                bodyEn: string;
+                                /** Format: date-time */
+                                sendAt: string | null;
+                                copyEdited: boolean;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            } | null;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: date-time */
+                        sendAt?: string | null;
+                        titleSv?: string;
+                        bodySv?: string;
+                        titleEn?: string;
+                        bodyEn?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Created push draft */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            eventId: string;
+                            /** @enum {string} */
+                            status: "pending" | "approved" | "sending" | "sent" | "rejected" | "cancelled";
+                            titleSv: string;
+                            bodySv: string;
+                            titleEn: string;
+                            bodyEn: string;
+                            /** Format: date-time */
+                            sendAt: string | null;
+                            copyEdited: boolean;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        };
+                    };
+                };
+                /** @description Draft already open or invalid */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/manage/events/{id}/sent-notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Push messages sent or currently sending for this event */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                /** Format: uuid */
+                                id: string;
+                                /** @enum {string} */
+                                status: "sending" | "sent";
+                                /** @enum {string} */
+                                audience: "event_match" | "everyone" | "tag_interest" | "area" | "area_and_tag";
+                                audienceTagName: string | null;
+                                titleSv: string;
+                                bodySv: string;
+                                titleEn: string;
+                                bodyEn: string;
+                                /** Format: date-time */
+                                sendAt: string | null;
+                                /** Format: date-time */
+                                sentAt: string | null;
+                                /** Format: date-time */
+                                createdAt: string;
+                                recipientCount: number;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Event not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;

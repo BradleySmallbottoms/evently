@@ -1,4 +1,4 @@
-import type { CreateEventPushMessageRequest } from '@local-events/contracts';
+import type { CreateEventPushMessageRequest, SentEventNotification } from '@local-events/contracts';
 import type { PushMessageRow } from '@local-events/db';
 import {
   defaultPushMessageCopy,
@@ -39,6 +39,25 @@ export function createMemoryPublisherPushMessageServices(
       return null;
     },
 
+    async listSent({ sessionToken, eventId }) {
+      const event = store.events.get(eventId);
+      if (!event) throw new EventError('not_found');
+      try {
+        await auth.requirePublisherMember(sessionToken, event.publisherId);
+      } catch (err) {
+        if (err instanceof AuthError) throw new EventError('unauthorized');
+        throw err;
+      }
+      const messages = store.pushMessages ?? new Map();
+      return [...messages.values()]
+        .filter(
+          (row) =>
+            row.eventId === eventId && (row.status === 'sent' || row.status === 'sending'),
+        )
+        .map((row) => sentFromRow(row, store))
+        .sort(compareSentDesc);
+    },
+
     async create({ sessionToken, eventId, body }) {
       const event = store.events.get(eventId);
       if (!event) throw new EventError('not_found');
@@ -69,6 +88,9 @@ export function createMemoryPublisherPushMessageServices(
       const row: PushMessageRow = {
         id: randomUUID(),
         eventId,
+        kind: 'event',
+        audience: 'event_match',
+        audienceTagId: null,
         status,
         titleSv: body.titleSv ?? defaults.titleSv,
         bodySv: body.bodySv ?? defaults.bodySv,
@@ -88,11 +110,49 @@ export function createMemoryPublisherPushMessageServices(
   };
 }
 
+function sentFromRow(
+  row: PushMessageRow,
+  store: MemoryStore,
+): SentEventNotification {
+  const users = new Set(
+    [...store.notifications.values()]
+      .filter((notification) => notification.pushMessageId === row.id)
+      .map((notification) => notification.userId),
+  );
+  return {
+    id: row.id,
+    status: row.status === 'sending' ? 'sending' : 'sent',
+    audience: row.audience,
+    audienceTagName: null,
+    titleSv: row.titleSv,
+    bodySv: row.bodySv,
+    titleEn: row.titleEn,
+    bodyEn: row.bodyEn,
+    sendAt: row.sendAt?.toISOString() ?? null,
+    sentAt: row.sentAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+    recipientCount: users.size,
+  };
+}
+
+/** Matches Postgres `ORDER BY sent_at DESC` (nulls first), then created_at DESC. */
+function compareSentDesc(a: SentEventNotification, b: SentEventNotification): number {
+  if (a.sentAt == null && b.sentAt != null) return -1;
+  if (b.sentAt == null && a.sentAt != null) return 1;
+  if (a.sentAt != null && b.sentAt != null && a.sentAt !== b.sentAt) {
+    return b.sentAt.localeCompare(a.sentAt);
+  }
+  return b.createdAt.localeCompare(a.createdAt);
+}
+
 /** No-op factory when only createApp defaults are needed without a shared store. */
 export function createEmptyPublisherPushMessageServices(): PublisherPushMessageServices {
   return {
     async getOpen() {
       return null;
+    },
+    async listSent() {
+      throw new EventError('unauthorized');
     },
     async create() {
       throw new EventError('not_found');

@@ -8,34 +8,31 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
+export type LocationMenuOption = {
+  id: string;
+  label: string;
+};
+
 type Props = {
   eyebrow?: string;
   locationLabel: string;
   title: string;
   message: string;
-  useNearbyLabel: string;
-  useFallbackLabel: string;
+  options: LocationMenuOption[];
   isPresented?: boolean;
   onIsPresentedChange?: (open: boolean) => void;
-  onUseNearby: () => void;
-  onUseFallback: () => void;
+  onSelect: (id: string) => void;
 };
 
-export function LocationMenu({
-  eyebrow,
-  locationLabel,
-  title,
-  message,
-  useNearbyLabel,
-  useFallbackLabel,
-  onUseNearby,
-  onUseFallback,
-}: Props) {
+export function LocationMenu({ eyebrow, locationLabel, title, message, options, onSelect }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <Pressable onPress={() => setOpen(true)} style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%' }}>
+      <Pressable
+        onPress={() => setOpen(true)}
+        style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%' }}
+      >
         <View style={{ gap: eyebrow ? 2 : 0, maxWidth: '100%' }}>
           {eyebrow ? (
             <AppText variant="caption" numberOfLines={1}>
@@ -57,21 +54,17 @@ export function LocationMenu({
             <Text textStyle={{ fontSize: 20, fontWeight: '700' }}>{title}</Text>
             <Text textStyle={{ fontSize: 15, color: colors.inkMuted as string }}>{message}</Text>
             <View style={{ gap: space.sm }}>
-              <PrimaryButton
-                label={useNearbyLabel}
-                onPress={() => {
-                  setOpen(false);
-                  onUseNearby();
-                }}
-              />
-              <PrimaryButton
-                label={useFallbackLabel}
-                onPress={() => {
-                  setOpen(false);
-                  onUseFallback();
-                }}
-                style={{ backgroundColor: colors.ink }}
-              />
+              {options.map((option, index) => (
+                <PrimaryButton
+                  key={option.id}
+                  label={option.label}
+                  onPress={() => {
+                    setOpen(false);
+                    onSelect(option.id);
+                  }}
+                  style={index === 0 ? undefined : { backgroundColor: colors.ink }}
+                />
+              ))}
             </View>
           </Column>
         </BottomSheet>

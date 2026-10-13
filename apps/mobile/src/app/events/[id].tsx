@@ -3,7 +3,7 @@ import { krPriceLabel } from '@local-events/domain';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +11,6 @@ import {
   Alert,
   Linking,
   Platform,
-  Pressable,
   ScrollView,
   TextInput,
   View,
@@ -24,6 +23,7 @@ import { ProfilePromptSheet } from '@/components/native/profile-prompt-sheet';
 import { RatingSheet } from '@/components/native/rating-sheet';
 import { ReminderPicker } from '@/components/native/reminder-picker';
 import { AppText } from '@/components/ui/app-text';
+import { BackPill } from '@/components/ui/back-pill';
 import { DateBox } from '@/components/ui/date-box';
 import { EventImage } from '@/components/ui/event-image';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
@@ -48,12 +48,11 @@ import { shareEventLink } from '@/lib/event-share';
 import { buildEventWebUrl } from '@/lib/event-share-url';
 import { fetchEventStats } from '@/lib/stats';
 import { colors } from '@/theme/colors';
-import { radius, shadow, space } from '@/theme/tokens';
+import { radius, space } from '@/theme/tokens';
 
 export default function EventDetailScreen() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -335,35 +334,7 @@ export default function EventDetailScreen() {
               left: space.lg,
             }}
           >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('events.back')}
-              onPress={() => {
-                if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
-                router.back();
-              }}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 2,
-                minHeight: 44,
-                paddingLeft: space.sm,
-                paddingRight: space.md,
-                borderRadius: radius.pill,
-                backgroundColor: colors.card,
-                opacity: pressed ? 0.88 : 1,
-                boxShadow: shadow.soft,
-              })}
-            >
-              {Platform.OS === 'ios' ? (
-                <SymbolView name={'chevron.left' as never} size={16} tintColor={colors.ink} />
-              ) : (
-                <MaterialIcons name="chevron-left" size={20} color={colors.ink} />
-              )}
-              <AppText style={{ fontSize: 15, fontWeight: '600', color: colors.ink }}>
-                {t('events.back')}
-              </AppText>
-            </Pressable>
+            <BackPill />
           </View>
           {event.data ? (
             <View

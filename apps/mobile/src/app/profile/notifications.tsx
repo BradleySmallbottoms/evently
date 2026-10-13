@@ -6,6 +6,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
+import { BackPill } from '@/components/ui/back-pill';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ensureIdentity } from '@/lib/identity';
 import { markNotificationsSeen } from '@/lib/notification-badge';
@@ -74,15 +75,9 @@ export default function NotificationsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, paddingTop: insets.top }}>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => router.back()}
-        style={{ paddingHorizontal: space.xl, paddingVertical: space.md }}
-      >
-        <AppText variant="label" style={{ color: colors.accent }}>
-          {t('preferences.back')}
-        </AppText>
-      </Pressable>
+      <View style={{ paddingHorizontal: space.xl, paddingTop: space.sm, paddingBottom: space.md }}>
+        <BackPill />
+      </View>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{

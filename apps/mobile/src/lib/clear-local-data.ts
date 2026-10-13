@@ -1,6 +1,15 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
+import { ONBOARDING_STORAGE_KEY } from './onboarding';
+import { REGION_PROMPT_STORAGE_KEYS } from './region-suggestion';
+
+/**
+ * Device-only prompt dismissals and the onboarding record. Identity and session
+ * are not included. Add further stores of this kind here when they exist.
+ */
+const STORED_PROMPT_KEYS = [...REGION_PROMPT_STORAGE_KEYS, ONBOARDING_STORAGE_KEY] as const;
+
 /** All known persistent keys used by the mobile app (identity, prefs helpers, caches). */
 const KNOWN_KEYS = [
   'le.userId',
@@ -10,12 +19,9 @@ const KNOWN_KEYS = [
   'le.sessionExpiresAt',
   'le.expoPushToken',
   'le.osNotificationsPresented',
-  'le.region.lastPromptAt',
-  'le.region.declines',
-  'le.region.fgStartedAt',
-  'le.region.screensOpened',
-  'le.onboarding.v1',
+  ...STORED_PROMPT_KEYS,
   'le.notificationsSeenCount',
+  'le.discoveryPlaceId',
 ] as const;
 
 async function removeItem(key: string): Promise<void> {
@@ -28,6 +34,11 @@ async function removeItem(key: string): Promise<void> {
   } catch {
     // Missing key is fine.
   }
+}
+
+/** Forget every stored prompt dismissal so those prompts can be shown again. */
+export async function clearStoredPromptState(): Promise<void> {
+  await Promise.all(STORED_PROMPT_KEYS.map((key) => removeItem(key)));
 }
 
 /**

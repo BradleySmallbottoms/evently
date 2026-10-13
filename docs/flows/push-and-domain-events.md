@@ -33,8 +33,10 @@ sequenceDiagram
     Worker->>Worker: Silent Expo push (data + badge)
   end
 
-  Note over Mobile: Cap + quiet hours on device
-  Mobile->>Mobile: Optional local OS notification
+  Note over Mobile: Cap + quiet hours on device, including in the foreground
+  Mobile->>Mobile: Local OS notification
+  Note over Mobile: Tap with an event id opens that event
+  Note over Mobile: Becoming active clears the app icon badge
   Mobile->>API: GET /v1/me/notifications
 ```
 
@@ -46,9 +48,11 @@ sequenceDiagram
 | Edit event before send | Refresh default copy unless `copy_edited`; untrusted edits re-pend approval. |
 | Edit event after send | Open draft unchanged; publisher may `POST` a new draft (“Notify again”). |
 | Admin approve / reject | `approved` or `rejected`; schedule editable. |
+| Admin event notification | `POST /push-messages/event` creates an approved event draft for a published event. Audience is `area` (saved notify area covers the point) or `area_and_tag` (area plus a shared interest). Followers are not included. Refused while an open draft exists. Optional `send_at` and copy. |
 | Admin broadcast | `POST /push-messages/broadcast` creates an approved row (`everyone` or `tag_interest`); optional `send_at`. |
 | Event cancelled | Cancel open draft; cancel undelivered deliveries. |
 | Worker send | Inbox + silent push; status `sent`. Broadcast inbox rows have `event_id` null and reason `broadcast`. |
+| Sent history | Admin `GET /events/{id}/sent-notifications` and publisher `GET /manage/events/{id}/sent-notifications` list messages in `sending` or `sent` for that event, with a distinct inbox-recipient count. Open drafts stay on the draft endpoints. |
 
 ## Aggregation (per user)
 
@@ -62,12 +66,16 @@ with the earliest copy plus “And N more…”.
 - Defaults: enabled, 22:00–08:00 in the user’s timezone (`Europe/Stockholm` at launch).
 - Backend always stores the inbox row at send time and attempts a silent Expo push (when a
   token exists).
-- Mobile may post a local OS notification only outside quiet hours, under the 5/day cap, and
-  when the app is not in the foreground.
-- That local banner is posted from a headless task (`expo-task-manager`), because a data-only
-  push does not show a system banner. iOS delivers it only when `UIBackgroundModes` includes
+- Mobile may post a local OS notification only outside quiet hours and under the 5/day cap.
+  That includes while the app is in the foreground.
+- That local banner is posted from the foreground listener, or from a headless task
+  (`expo-task-manager`) when the app is backgrounded or terminated, because a data-only
+  push does not show a system banner. iOS delivers the task only when `UIBackgroundModes` includes
   `remote-notification` (`enableBackgroundRemoteNotifications` on the expo-notifications plugin).
   That plist value needs a new native build.
+- Tapping a notification whose payload has an event id opens that event. Broadcasts have no
+  event id and stay on the current screen.
+- The app icon badge from the silent push clears when the app becomes active.
 
 ## Retention
 

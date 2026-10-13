@@ -15,9 +15,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
+import { OnboardingAreaStep } from '@/components/onboarding/onboarding-area-step';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ensureIdentity } from '@/lib/identity';
+import { createCircleArea } from '@/lib/preferences';
+import { setDiscoveryPlaceId } from '@/lib/use-discovery-point';
 import {
   loadOnboardingState,
   markOnboardingComplete,
@@ -28,19 +31,20 @@ import {
   type PermissionKind,
 } from '@/lib/onboarding';
 import { registerPushToken } from '@/lib/push-notifications';
+import { deferRegionPromptAfterAreaSkip } from '@/lib/region-suggestion';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-type StepId = 'welcome' | 'notifications' | 'location';
+type StepId = 'welcome' | 'notifications' | 'location' | 'area';
 
 const STEPS: { id: StepId; image: ImageSourcePropType }[] = [
   { id: 'welcome', image: require('@/assets/images/onboarding_1.png') },
   { id: 'notifications', image: require('@/assets/images/onboarding_2.png') },
   { id: 'location', image: require('@/assets/images/onboarding_3.png') },
+  { id: 'area', image: require('@/assets/images/onboarding_4.png') },
 ];
-
 
 type Props = {
   onFinished: (state: OnboardingState) => void;
@@ -137,6 +141,33 @@ export function OnboardingCarousel({ onFinished }: Props) {
     }
   };
 
+  const onSaveArea = async (place: { name: string; lat: number; lng: number; radiusM: number }) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const identity = await ensureUser();
+      if (!identity) return;
+      const area = await createCircleArea(identity, place);
+      await setDiscoveryPlaceId(area.id);
+      await finish(await ensureState());
+    } catch (err) {
+      console.warn('onboarding area save failed', err);
+      setError(t('onboarding.areaSaveError'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onSkipArea = async (detected: { lat: number; lng: number } | null) => {
+    setBusy(true);
+    try {
+      await deferRegionPromptAfterAreaSkip(detected);
+      await finish(await ensureState());
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onSkip = async (kind: PermissionKind) => {
     setBusy(true);
     try {
@@ -173,6 +204,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
         pagingEnabled
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         onMomentumScrollEnd={onScrollEnd}
         scrollEventThrottle={16}
         style={styles.scroll}
@@ -226,6 +258,31 @@ export function OnboardingCarousel({ onFinished }: Props) {
             label={t('onboarding.skip')}
             disabled={busy}
             onPress={() => void onSkip('location')}
+          />
+        </StepFrame>
+
+        <StepFrame
+          image={STEPS[3]!.image}
+          title={t('onboarding.areaTitle')}
+          body={
+            state?.location === 'granted'
+              ? t('onboarding.areaBodyLocated')
+              : t('onboarding.areaBodySearch')
+          }
+          bottomInset={insets.bottom}
+          error={error}
+        >
+          <OnboardingAreaStep
+            active={index === 3}
+            locationGranted={state?.location === 'granted'}
+            fallbackName={t('events.locationHere')}
+            busy={busy}
+            onSave={(place) => {
+              void onSaveArea(place);
+            }}
+            onSkip={(detected) => {
+              void onSkipArea(detected);
+            }}
           />
         </StepFrame>
       </ScrollView>
@@ -437,6 +494,3 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
 });
-
-
-

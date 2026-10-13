@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,11 +11,11 @@ import {
   type MapEventSelection,
 } from '@/components/native/map-event-sheet';
 import { AppText } from '@/components/ui/app-text';
-import { MaxContentWidth } from '@/constants/theme';
+import { BackPill } from '@/components/ui/back-pill';
 import { listPublicEvents } from '@/lib/events';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
 import { colors } from '@/theme/colors';
-import { radius, shadow, space } from '@/theme/tokens';
+import { space } from '@/theme/tokens';
 
 export default function MapScreen() {
   const { t, i18n } = useTranslation();
@@ -32,6 +32,8 @@ export default function MapScreen() {
   });
 
   const center = point.data ?? { lat: 61.3037, lng: 17.0592, radiusM: 50_000 };
+  const failed = point.isError || events.isError;
+  const loading = !failed && (point.isLoading || events.isLoading);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas }}>
@@ -66,41 +68,28 @@ export default function MapScreen() {
           ))}
       </MapView>
 
+      {loading ? (
+        <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+          <ActivityIndicator accessibilityLabel={t('events.loading')} color={colors.ink} />
+        </View>
+      ) : null}
+      {failed ? (
+        <View style={[StyleSheet.absoluteFill, styles.overlay, { padding: space.xl }]}>
+          <AppText variant="body" style={{ color: colors.danger, textAlign: 'center' }}>
+            {t('events.loadError')}
+          </AppText>
+        </View>
+      ) : null}
+
       <View
         pointerEvents="box-none"
         style={{
           position: 'absolute',
-          top: Math.max(insets.top, space.md),
-          left: 0,
-          right: 0,
-          alignItems: 'center',
-          paddingHorizontal: space.xl,
+          top: insets.top + space.sm,
+          left: space.lg,
         }}
       >
-        <View
-          style={{
-            width: '100%',
-            maxWidth: MaxContentWidth,
-            backgroundColor: colors.card as string,
-            borderRadius: radius.lg,
-            borderCurve: 'continuous',
-            paddingHorizontal: space.xl,
-            paddingVertical: space.lg,
-            gap: space.xs,
-            boxShadow: shadow.card,
-          }}
-        >
-          <AppText variant="title">{t('events.mapTitle')}</AppText>
-          <AppText variant="caption">{t('events.mapSubtitle')}</AppText>
-          {(point.isLoading || events.isLoading) && (
-            <AppText variant="caption">{t('events.loading')}</AppText>
-          )}
-          {events.isError && (
-            <AppText variant="caption" style={{ color: colors.danger }}>
-              {t('events.loadError')}
-            </AppText>
-          )}
-        </View>
+        <BackPill />
       </View>
 
       <MapEventSheet
@@ -112,3 +101,11 @@ export default function MapScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  overlay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.canvas,
+  },
+});

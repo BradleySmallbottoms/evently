@@ -3,6 +3,7 @@ import {
   canComment,
   canRate,
   releaseOnVerification,
+  resolveTravelDistanceM,
   shouldSuggestRegion,
   statusOnPublish,
   validateGeoCheckIn,
@@ -168,5 +169,69 @@ describe('shouldSuggestRegion', () => {
       { center: hudiksvall, at: new Date('2026-10-15T00:00:00Z'), permanent: false },
     ];
     expect(shouldSuggestRegion({ ...base, declines })).toBe(false);
+  });
+
+  it('asks on open when the user has no saved region', () => {
+    expect(
+      shouldSuggestRegion({
+        ...base,
+        savedAreas: [],
+        foregroundSeconds: 0,
+        screensOpened: 0,
+      }),
+    ).toBe(true);
+  });
+
+  it('waits a week after a dismiss near that place, and asks again well outside it', () => {
+    const here = hudiksvall;
+    const dismissed = {
+      center: here,
+      at: new Date('2026-10-28T12:00:00Z'),
+      permanent: false,
+    };
+    const noAreas = {
+      ...base,
+      location: here,
+      savedAreas: [],
+      foregroundSeconds: 0,
+      screensOpened: 0,
+    };
+    expect(shouldSuggestRegion({ ...noAreas, declines: [dismissed] })).toBe(false);
+    expect(
+      shouldSuggestRegion({
+        ...noAreas,
+        lastPromptAt: new Date('2026-11-01T06:00:00Z'),
+        declines: [dismissed],
+      }),
+    ).toBe(false);
+    expect(
+      shouldSuggestRegion({
+        ...noAreas,
+        declines: [{ ...dismissed, at: new Date('2026-10-20T12:00:00Z') }],
+      }),
+    ).toBe(true);
+    // Stockholm is far outside Hudiksvall. The 7-day dismiss and the same-day cap stay behind.
+    expect(
+      shouldSuggestRegion({
+        ...noAreas,
+        location: { lat: 59.33, lng: 18.07 },
+        lastPromptAt: new Date('2026-11-01T06:00:00Z'),
+        declines: [dismissed],
+      }),
+    ).toBe(true);
+  });
+
+  it('snaps travel distance to 1 km, then every 5 km', () => {
+    expect(resolveTravelDistanceM(null)).toBe(25_000);
+    expect(resolveTravelDistanceM(500)).toBe(1_000);
+    expect(resolveTravelDistanceM(3_000)).toBe(5_000);
+    expect(resolveTravelDistanceM(12_400)).toBe(10_000);
+    expect(resolveTravelDistanceM(25_000)).toBe(25_000);
+    expect(resolveTravelDistanceM(250_000)).toBe(100_000);
+  });
+
+  it('uses the profile travel distance', () => {
+    expect(shouldSuggestRegion({ ...base, travelDistanceM: 50_000 })).toBe(false);
+    expect(shouldSuggestRegion({ ...base, travelDistanceM: 10_000 })).toBe(true);
   });
 });

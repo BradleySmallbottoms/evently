@@ -1,3 +1,4 @@
+import { AREA_RADIUS_PRESETS_M, DEFAULT_AREA_RADIUS_M } from '@local-events/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -17,15 +18,13 @@ import {
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
-const RADIUS_PRESETS = [5_000, 15_000, 50_000] as const;
-
 export function PreferencesForm() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const router = useRouter();
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [radiusM, setRadiusM] = useState<(typeof RADIUS_PRESETS)[number]>(15_000);
+  const [radiusM, setRadiusM] = useState<(typeof AREA_RADIUS_PRESETS_M)[number]>(DEFAULT_AREA_RADIUS_M);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
@@ -49,8 +48,8 @@ export function PreferencesForm() {
     if (!preferences.data || hydrated) return;
     setSelected(new Set(preferences.data.tagIds));
     const circle = preferences.data.areas.find((a) => a.radiusM != null);
-    if (circle?.radiusM && RADIUS_PRESETS.includes(circle.radiusM as (typeof RADIUS_PRESETS)[number])) {
-      setRadiusM(circle.radiusM as (typeof RADIUS_PRESETS)[number]);
+    if (circle?.radiusM && AREA_RADIUS_PRESETS_M.includes(circle.radiusM as (typeof AREA_RADIUS_PRESETS_M)[number])) {
+      setRadiusM(circle.radiusM as (typeof AREA_RADIUS_PRESETS_M)[number]);
     }
     setHydrated(true);
   }, [preferences.data, hydrated]);
@@ -138,7 +137,7 @@ export function PreferencesForm() {
         <AppText variant="subtitle">{t('preferences.areaTitle')}</AppText>
         <AppText variant="caption">{t('preferences.areaHint')}</AppText>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-          {RADIUS_PRESETS.map((r) => {
+          {AREA_RADIUS_PRESETS_M.map((r) => {
             const on = radiusM === r;
             return (
               <Pressable

@@ -2,6 +2,11 @@ import { generateTotpCode, hashPassword } from '../../../packages/auth/src/index
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../../apps/admin-api/src/app';
 import {
+  createMemoryAdminPushMessageServices,
+  type AdminPushEventRef,
+} from '../../../apps/admin-api/src/services/push-messages';
+import type { PushMessage } from '../../../packages/contracts/src/push-messages';
+import {
   createAdminMemoryAuthStore,
   createMemoryAdminAuthServices,
 } from '../../../apps/admin-api/src/services/auth/memory';
@@ -65,6 +70,7 @@ describe('admin api', () => {
     expect(doc.paths['/events']).toBeDefined();
     expect(doc.paths['/events/{id}']).toBeDefined();
     expect(doc.paths['/tags']).toBeDefined();
+    expect(doc.paths['/events/{id}/sent-notifications']).toBeDefined();
     expect(doc.paths['/events/{id}/approve']).toBeDefined();
     expect(doc.paths['/events/{id}/reject']).toBeDefined();
     expect(doc.paths['/data-sources']).toBeDefined();
@@ -464,6 +470,236 @@ describe('admin api', () => {
       }),
     });
     expect(create.status).toBe(400);
+  });
+
+  it('creates an approved notification for a published event', async () => {
+    const { auth } = await seededAuth();
+    const eventId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    const events = new Map<string, AdminPushEventRef>([
+      [
+        eventId,
+        {
+          id: eventId,
+          title: 'Jazzkväll',
+          status: 'published',
+          publisherId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+          publisherName: 'Folkets hus',
+        },
+      ],
+    ]);
+    const pushMessages = createMemoryAdminPushMessageServices({ events });
+    const app = createApp({ auth, pushMessages });
+    const cookie = await loginSession(app);
+
+    const create = await app.request('/v1/push-messages/event', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        eventId,
+        audience: 'area_and_tag',
+        sendAt: '2026-06-20T18:00:00.000Z',
+      }),
+    });
+    expect(create.status).toBe(201);
+    const row = (await create.json()) as PushMessage;
+    expect(row).toMatchObject({
+      kind: 'event',
+      audience: 'area_and_tag',
+      status: 'approved',
+      eventId,
+      eventTitle: 'Jazzkväll',
+      publisherName: 'Folkets hus',
+      titleSv: 'Jazzkväll',
+      copyEdited: false,
+      approvedByAdminId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      sendAt: '2026-06-20T18:00:00.000Z',
+    });
+    expect(row.bodyEn).toContain('near');
+
+    const again = await app.request('/v1/push-messages/event', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ eventId, audience: 'area' }),
+    });
+    expect(again.status).toBe(409);
+    expect(await again.json()).toMatchObject({ error: { code: 'push_draft_exists' } });
+  });
+
+  it('rejects event notifications for missing or unpublished events', async () => {
+    const { auth } = await seededAuth();
+    const draftId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+    const events = new Map<string, AdminPushEventRef>([
+      [
+        draftId,
+        {
+          id: draftId,
+          title: 'Utkast',
+          status: 'draft',
+          publisherId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+          publisherName: 'Folkets hus',
+        },
+      ],
+    ]);
+    const app = createApp({
+      auth,
+      pushMessages: createMemoryAdminPushMessageServices({ events }),
+    });
+    const cookie = await loginSession(app);
+
+    const missing = await app.request('/v1/push-messages/event', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        eventId: '11111111-1111-4111-8111-111111111111',
+        audience: 'area',
+      }),
+    });
+    expect(missing.status).toBe(404);
+
+    const unpublished = await app.request('/v1/push-messages/event', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ eventId: draftId, audience: 'area' }),
+    });
+    expect(unpublished.status).toBe(400);
+    expect(await unpublished.json()).toMatchObject({ error: { code: 'event_not_published' } });
+  });
+
+  it('allows another event notification after the previous one was sent', async () => {
+    const { auth } = await seededAuth();
+    const eventId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    const events = new Map<string, AdminPushEventRef>([
+      [
+        eventId,
+        {
+          id: eventId,
+          title: 'Jazzkväll',
+          status: 'published',
+          publisherId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+          publisherName: 'Folkets hus',
+        },
+      ],
+    ]);
+    const sent: PushMessage = {
+      id: '22222222-2222-4222-8222-222222222222',
+      eventId,
+      eventTitle: 'Jazzkväll',
+      publisherId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      publisherName: 'Folkets hus',
+      eventStatus: 'published',
+      kind: 'event',
+      audience: 'area',
+      audienceTagId: null,
+      status: 'sent',
+      titleSv: 'Jazzkväll',
+      bodySv: 'Ett nytt evenemang nära dig',
+      titleEn: 'Jazzkväll',
+      bodyEn: 'A new event near you',
+      sendAt: null,
+      copyEdited: false,
+      approvedAt: '2026-06-01T00:00:00.000Z',
+      approvedByAdminId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      sentAt: '2026-06-01T00:00:00.000Z',
+      createdAt: '2026-06-01T00:00:00.000Z',
+      updatedAt: '2026-06-01T00:00:00.000Z',
+    };
+    const app = createApp({
+      auth,
+      pushMessages: createMemoryAdminPushMessageServices({
+        events,
+        items: new Map([[sent.id, sent]]),
+      }),
+    });
+    const cookie = await loginSession(app);
+    const create = await app.request('/v1/push-messages/event', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        eventId,
+        audience: 'area',
+        titleSv: 'Påminnelse',
+        bodySv: 'Ikväll',
+        titleEn: 'Reminder',
+        bodyEn: 'Tonight',
+      }),
+    });
+    expect(create.status).toBe(201);
+    expect(await create.json()).toMatchObject({
+      titleSv: 'Påminnelse',
+      audience: 'area',
+      copyEdited: true,
+      status: 'approved',
+    });
+  });
+
+  it('lists sent notifications for an event and hides open drafts', async () => {
+    const { auth } = await seededAuth();
+    const eventId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    const otherEventId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+    const sentId = '11111111-1111-4111-8111-111111111111';
+    const sendingId = '22222222-2222-4222-8222-222222222222';
+    const draftId = '33333333-3333-4333-8333-333333333333';
+    const otherSentId = '44444444-4444-4444-8444-444444444444';
+    const now = '2026-06-01T12:00:00.000Z';
+    function row(
+      id: string,
+      status: PushMessage['status'],
+      event: string,
+      sentAt: string | null,
+    ): PushMessage {
+      return {
+        id,
+        eventId: event,
+        eventTitle: 'Jazzkväll',
+        publisherId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+        publisherName: 'Folkets hus',
+        eventStatus: 'published',
+        kind: 'event',
+        audience: 'area',
+        audienceTagId: null,
+        status,
+        titleSv: 'Titel',
+        bodySv: 'Brödtext',
+        titleEn: 'Title',
+        bodyEn: 'Body',
+        sendAt: sentAt,
+        copyEdited: false,
+        approvedAt: now,
+        approvedByAdminId: null,
+        sentAt,
+        createdAt: now,
+        updatedAt: now,
+      };
+    }
+    const pushMessages = createMemoryAdminPushMessageServices({
+      items: new Map([
+        [sentId, { ...row(sentId, 'sent', eventId, '2026-06-02T12:00:00.000Z'), titleSv: 'Skickad' }],
+        [sendingId, row(sendingId, 'sending', eventId, null)],
+        [draftId, row(draftId, 'approved', eventId, null)],
+        [otherSentId, row(otherSentId, 'sent', otherEventId, '2026-06-03T12:00:00.000Z')],
+      ]),
+      recipientCounts: new Map([[sentId, 4]]),
+    });
+    const app = createApp({ auth, pushMessages });
+
+    const denied = await app.request(`/v1/events/${eventId}/sent-notifications`);
+    expect(denied.status).toBe(401);
+
+    const cookie = await loginSession(app);
+    const list = await app.request(`/v1/events/${eventId}/sent-notifications`, {
+      headers: { cookie },
+    });
+    expect(list.status).toBe(200);
+    const body = (await list.json()) as {
+      items: { id: string; status: string; recipientCount: number; sentAt: string | null; titleSv: string }[];
+    };
+    expect(body.items.map((item) => item.id)).toEqual([sendingId, sentId]);
+    expect(body.items[0]).toMatchObject({ status: 'sending', recipientCount: 0, sentAt: null });
+    expect(body.items[1]).toMatchObject({
+      status: 'sent',
+      recipientCount: 4,
+      titleSv: 'Skickad',
+    });
   });
 
   it('enrolls TOTP on first login when secret is unset', async () => {

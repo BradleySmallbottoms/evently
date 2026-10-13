@@ -4,6 +4,11 @@ export const MAX_SAVED_AREAS = 20;
 export const MIN_AREA_RADIUS_M = 500;
 export const MAX_AREA_RADIUS_M = 100_000;
 
+/** Circle sizes offered when saving an area, including onboarding. */
+export const AREA_RADIUS_PRESETS_M = [5_000, 25_000, 50_000, 100_000] as const;
+export type AreaRadiusPresetM = (typeof AREA_RADIUS_PRESETS_M)[number];
+export const DEFAULT_AREA_RADIUS_M: AreaRadiusPresetM = 25_000;
+
 export function canAddSavedArea(currentCount: number): boolean {
   return currentCount < MAX_SAVED_AREAS;
 }

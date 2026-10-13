@@ -192,7 +192,7 @@ color as the only active-state signal.
 ### 8.1 Onboarding
 
 The reference image shows three editorial slides (discover, culture,
-together). That sequence is wrong for this app. Keep a three-screen
+together). That sequence is wrong for this app. Keep a four-screen
 photo carousel, but the steps stay:
 
 **Screen 1 --- Intro** - Full-bleed photo. - Heading: "Experience more,
@@ -210,9 +210,21 @@ choice as skipped and advances. A later reminder can ask again.
 
 **Screen 3 --- Location** - Full-bleed photo. - Heading: "Find what's
 nearby." - Supporting copy explains nearby events and venue check-in. -
-CTA: "Activate" requests foreground location permission, then finishes
-onboarding. - Secondary action: "Skip" records the choice as skipped
-and finishes onboarding.
+CTA: "Activate" requests foreground location permission, then advances.
+- Secondary action: "Skip" records the choice as skipped and advances.
+
+**Screen 4 --- First area** - Full-bleed photo. - Heading: "Your first
+area." - If location was granted, read one foreground fix and put the
+place name (covering region, otherwise the device geocoder) in a text
+field. Editing that text disables Continue and opens an autocomplete
+list. Continue is enabled again when a suggestion is picked, or when the
+text fully matches one suggestion. - If location was not granted, the
+same field starts empty for search. A chosen place uses that geocoded
+point as the center. - The user picks a radius (5, 25, 50, or 100 km).
+"Continue" saves that circle as their first area and stores its id as
+the selected discovery area. - "Skip" finishes onboarding without an area
+and counts as dismissing the save-area prompt, so that prompt stays quiet
+for 7 days near this place.
 
 Onboarding rules: - Use full-bleed photography with a dark lower
 gradient. - Place copy in the lower third, with enough contrast and

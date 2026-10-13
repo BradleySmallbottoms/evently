@@ -130,9 +130,16 @@ calls) in the same change as every new major feature.**
   `awaiting_verification` until an admin verifies the publisher (which releases upcoming events).
 - **Push drafts:** publishing creates a `push_messages` row. Trusted publishers auto-approve;
   others need admin approval under **Pushes**. After a send, publishers can **Notify again**
-  (`POST /v1/manage/events/{id}/push-message`). Admins can schedule **broadcasts**
+  (`POST /v1/manage/events/{id}/push-message`). Admins can schedule the same kind of notification
+  for a published event (`POST /v1/push-messages/event` on the admin API; approved on create).
+  The audience is either anyone whose saved notify area covers the event, or only those who
+  also share an interest tag. Publisher followers are not included. They can also schedule **broadcasts**
   (`POST /v1/push-messages/broadcast`) to everyone or users with a favorite tag. The worker
-  sends approved due messages (optional `send_at`); inbox rows appear only then. Per-user
+  sends approved due messages (optional `send_at`); inbox rows appear only then. The event page
+  in admin and the publisher event page list messages that are sending or already sent
+  (`GET /v1/events/{id}/sent-notifications` on the admin API,
+  `GET /v1/manage/events/{id}/sent-notifications` on the public API), with how many people
+  got an inbox row. Per-user
   aggregation within 10 minutes combines alerts. Audience estimate:
   `GET /v1/push-messages/{id}/audience`. Flow:
   [docs/flows/push-and-domain-events.md](docs/flows/push-and-domain-events.md).
@@ -157,7 +164,9 @@ calls) in the same change as every new major feature.**
   requests the OS permission; Skip stores the choice and deferred **reminders** reappear after
   every 5 app activations (one permission at a time). Reset app data clears this state.
 - Home event queries use **existing** location permission only (no prompt). Check-in and onboarding
-  / reminders own the permission request.
+  / reminders own the permission request. “Near you” reads that location when the app becomes
+  active and watches updates of about 100 m until the app backgrounds. Pull to refresh reads again.
+  Background location stays off.
 - Resolving GPS can hang on web permission prompts. The app **times out** (≈2s on web) and falls
   back to Söderhamn so the events query can run. Switching tabs used to “fix” a hung prompt —
   that should no longer be required.
@@ -201,12 +210,16 @@ calls) in the same change as every new major feature.**
 - Mobile uses `Authorization: Bearer <sessionToken>` on `GET/PUT /v1/me/interests`,
   `GET/POST/PATCH/DELETE /v1/me/areas`, and `GET /v1/me/preferences`.
 - Circle areas store `center` + `radius_m`; polygons store geography `area`. Cap 20 areas.
-- Home feed prefers the primary active circle when set. Flow:
+- The location menu always includes “Near you” (device location). Other rows are the user’s
+  active saved areas, labeled with the name stored on the area. Flow:
   [docs/flows/user-preferences.md](docs/flows/user-preferences.md).
 - **Regions:** `GET /v1/regions/lookup?lat&lng` uses `ST_Covers` on seeded fixtures (Söderhamn
-  kommun / Gävleborg län). Mobile may offer save via `shouldSuggestRegion`; accept posts
-  `regionId` (or 15 km circle fallback). Declines stay on-device. Flow:
-  [docs/flows/region-suggestions.md](docs/flows/region-suggestions.md).
+  kommun / Gävleborg län). With no saved region, opening the app looks up that name and asks to
+  save it for notifications; a dismiss, including skipping the onboarding area step, waits 7 days near that place, and a place more than about
+  25 km away can ask again immediately. The distance is the profile setting “How far can you go”
+  (`PUT /v1/me/travel-distance`, default 25 km). The name is the lookup region, then the
+  device geocoder. Accept posts `regionId` (or 15 km circle fallback). Declines stay on-device.
+  Flow: [docs/flows/region-suggestions.md](docs/flows/region-suggestions.md).
 
 ### Push + domain events
 
@@ -221,10 +234,11 @@ calls) in the same change as every new major feature.**
   `DOMAIN_EVENTS_QUEUE_URL`, APIs keep events in-process and the worker idles.
 - Worker fan-out: nearby (areas ∩ interests) + publisher followers → always insert
   `notifications` inbox row → silent Expo push (data + badge, no alert). The icon badge updates
-  from that payload. A banner is a local notification the app posts from a headless task, and
-  only outside quiet hours, under the 5/day cap, and when the app is not in the foreground.
-  iOS needs `enableBackgroundRemoteNotifications` (a new native build) or the task never runs
-  and you only see the badge. Inbox list/badge via
+  from that payload and clears when the app becomes active. A banner is a local notification
+  the app posts (including while it is open), only outside quiet hours and under the 5/day cap.
+  Tapping a notification that carries an event id opens that event. iOS needs
+  `enableBackgroundRemoteNotifications` (a new native build) or the background task never runs
+  and a banner appears only while the app is open. Inbox list/badge via
   `GET /me/notifications` (`unreadCount`). Rows older than 90 days are purged. Toggle quiet hours
   with `PUT /me/quiet-hours`. Follow via `POST /v1/me/subscriptions`. Needs `DATABASE_URL` on the
   worker. Flow: [docs/flows/push-and-domain-events.md](docs/flows/push-and-domain-events.md).

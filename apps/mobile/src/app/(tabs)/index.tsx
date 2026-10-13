@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -26,7 +26,9 @@ import { listPublicEvents, listTags, namesForTagIds } from '@/lib/events';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
-import { useDiscoveryPoint } from '@/lib/use-discovery-point';
+import { queryPointForArea } from '@/lib/area-point';
+import { refreshDeviceLocation } from '@/lib/device-location';
+import { NEARBY_PLACE_ID, setDiscoveryPlaceId, useDiscoveryPoint } from '@/lib/use-discovery-point';
 import {
   acceptRegionSuggestion,
   bumpRegionActivity,
@@ -34,6 +36,7 @@ import {
   recordRegionDecline,
   type RegionSuggestion,
 } from '@/lib/region-suggestion';
+import { shouldReevaluateRegionSuggestion } from '@/lib/foreground-location';
 import { dateBadge } from '@/lib/event-format';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { colors } from '@/theme/colors';
@@ -55,12 +58,11 @@ export default function HomeScreen() {
   const [pairingNotice, setPairingNotice] = useState<string | null>(null);
   const [pairingPending, setPairingPending] = useState(false);
   const [confirmCode, setConfirmCode] = useState('');
-  const [useFallbackCenter, setUseFallbackCenter] = useState(false);
   const [regionSuggestion, setRegionSuggestion] = useState<RegionSuggestion | null>(null);
   const [regionSheetOpen, setRegionSheetOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const { identity, preferences, point } = useDiscoveryPoint(useFallbackCenter);
+  const { identity, preferences, point, placeId, device } = useDiscoveryPoint();
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
     queryFn: () => listTags(),
@@ -99,16 +101,63 @@ export default function HomeScreen() {
     void bumpRegionActivity();
   }, []);
 
+  const lastRegionEval = useRef<{
+    lat: number;
+    lng: number;
+    check: number;
+    areasKey: string;
+    language: string;
+    travelDistanceM: number;
+  } | null>(null);
+
   useEffect(() => {
     if (!identity.isSuccess || !preferences.isSuccess) return;
-    const savedAreas = (preferences.data.areas ?? [])
-      .filter((a) => a.active && a.center && a.radiusM != null)
-      .map((a) => ({ center: a.center!, radiusM: a.radiusM! }));
+    const fix = device.fix;
+    if (!fix?.located) return;
+    const areasKey = (preferences.data?.areas ?? []).map((area) => area.id).join('\n');
+    const travelDistanceM = preferences.data?.travelDistanceM ?? 25_000;
+    const previous = lastRegionEval.current;
+    const foregroundCheckChanged = previous != null && previous.check !== device.check;
+    const contextChanged =
+      previous != null &&
+      (previous.areasKey !== areasKey ||
+        previous.language !== i18n.language ||
+        previous.travelDistanceM !== travelDistanceM);
+    if (
+      !contextChanged &&
+      !shouldReevaluateRegionSuggestion(
+        previous ? { lat: previous.lat, lng: previous.lng } : null,
+        fix,
+        foregroundCheckChanged,
+      )
+    ) {
+      return;
+    }
+    const savedAreas = (preferences.data.areas ?? []).flatMap((area) => {
+      const queryPoint = queryPointForArea(area);
+      return queryPoint
+        ? [{ center: { lat: queryPoint.lat, lng: queryPoint.lng }, radiusM: queryPoint.radiusM }]
+        : [];
+    });
     let cancelled = false;
     void (async () => {
       try {
-        const suggestion = await evaluateRegionSuggestion({ savedAreas });
-        if (!cancelled && suggestion) {
+        const suggestion = await evaluateRegionSuggestion({
+          savedAreas,
+          fallbackName: t('events.locationHere'),
+          location: { lat: fix.lat, lng: fix.lng },
+          travelDistanceM,
+        });
+        if (cancelled) return;
+        lastRegionEval.current = {
+          lat: fix.lat,
+          lng: fix.lng,
+          check: device.check,
+          areasKey,
+          language: i18n.language,
+          travelDistanceM,
+        };
+        if (suggestion) {
           setRegionSuggestion(suggestion);
           setRegionSheetOpen(true);
         }
@@ -119,7 +168,16 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [identity.isSuccess, preferences.isSuccess, preferences.data?.areas]);
+  }, [
+    identity.isSuccess,
+    preferences.isSuccess,
+    preferences.data?.areas,
+    preferences.data?.travelDistanceM,
+    device.fix,
+    device.check,
+    i18n.language,
+    t,
+  ]);
 
   const { featured, coming } = useMemo(() => {
     const items = events.data?.pages.flatMap((page) => page.items) ?? [];
@@ -216,15 +274,23 @@ export default function HomeScreen() {
   async function refreshHome() {
     setRefreshing(true);
     try {
+      await refreshDeviceLocation();
       await Promise.all([identity.refetch(), point.refetch(), events.refetch(), forYou.refetch()]);
     } finally {
       setRefreshing(false);
     }
   }
 
-  const locationLabel = useFallbackCenter
-    ? t('events.locationSoderhamn')
-    : t('events.locationNearby');
+  const savedPlaces = (preferences.data?.areas ?? []).flatMap((area) => {
+    if (!queryPointForArea(area) || !area.name.trim()) return [];
+    return [{ id: area.id, label: area.name }];
+  });
+  const locationOptions = [
+    { id: NEARBY_PLACE_ID, label: t('events.locationNearby') },
+    ...savedPlaces,
+  ];
+  const locationLabel =
+    locationOptions.find((option) => option.id === placeId)?.label ?? t('events.locationNearby');
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
@@ -271,17 +337,11 @@ export default function HomeScreen() {
                   locationLabel={locationLabel}
                   title={t('events.locationPickerTitle')}
                   message={t('events.locationPickerMessage')}
-                  useNearbyLabel={t('events.useNearby')}
-                  useFallbackLabel={t('events.useSoderhamn')}
+                  options={locationOptions}
                   isPresented={locationOpen}
                   onIsPresentedChange={setLocationOpen}
-                  onUseNearby={() => {
-                    setUseFallbackCenter(false);
-                    void point.refetch();
-                  }}
-                  onUseFallback={() => {
-                    setUseFallbackCenter(true);
-                    void point.refetch();
+                  onSelect={(id) => {
+                    setDiscoveryPlaceId(id);
                   }}
                 />
               </View>
@@ -539,6 +599,10 @@ export default function HomeScreen() {
           );
         }}
         onNotNow={() => {
+          if (!regionSuggestion) return;
+          void recordRegionDecline(regionSuggestion, false);
+        }}
+        onUserDismiss={() => {
           if (!regionSuggestion) return;
           void recordRegionDecline(regionSuggestion, false);
         }}

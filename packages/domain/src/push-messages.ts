@@ -64,6 +64,19 @@ export function canCreateNewPushDraft(openStatus: PushMessageStatus | null): boo
   return openStatus === null;
 }
 
+/** Admins may start an event notification only once the event is published. */
+export function canAdminNotifyEvent(eventStatus: string): boolean {
+  return eventStatus === 'published';
+}
+
+/** Audiences an admin can pick when notifying about one event. Followers are not included. */
+export const ADMIN_EVENT_PUSH_AUDIENCES = ['area', 'area_and_tag'] as const;
+export type AdminEventPushAudience = (typeof ADMIN_EVENT_PUSH_AUDIENCES)[number];
+
+export function isAdminEventPushAudience(value: string): value is AdminEventPushAudience {
+  return (ADMIN_EVENT_PUSH_AUDIENCES as readonly string[]).includes(value);
+}
+
 export type PushMessageCopy = {
   titleSv: string;
   bodySv: string;

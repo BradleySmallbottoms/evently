@@ -232,7 +232,7 @@ starter subset; the rest is added phase by phase.
 
 | Entity                      | Key fields                                                                                                                                                                                                                                            | Notes                                                                                                                                                               |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `users`                     | id, display_name (nullable), is_public (default false), recovery_email (nullable), recovery_email_verified_at, profile_chosen_at (nullable), timezone (default Europe/Stockholm), quiet_hours_start_min / end_min / enabled, created_at, last_seen_at | Created on first app launch; `profile_chosen_at` set after named/anonymous prompt; recovery email stored unverified until verify flow ships; quiet hours defer Expo |
+| `users`                     | id, display_name (nullable), is_public (default false), recovery_email (nullable), recovery_email_verified_at, profile_chosen_at (nullable), timezone (default Europe/Stockholm), quiet_hours_start_min / end_min / enabled, travel_distance_m (default 25000, how far before a new place is suggested), created_at, last_seen_at | Created on first app launch; `profile_chosen_at` set after named/anonymous prompt; recovery email stored unverified until verify flow ships; quiet hours defer Expo |
 | `devices`                   | id, user_id, credential_hash, expo_push_token, platform, locale, last_seen_at                                                                                                                                                                         | The app's identity credential; pruned on push receipt errors                                                                                                        |
 | `sessions`                  | id, subject_type (user / publisher_account / admin), subject_id, token_hash, client (app / web / admin), expires_at, revoked_at                                                                                                                       | Opaque tokens, hashed at rest, revocable                                                                                                                            |
 | `web_login_codes`           | id, code_hash, purpose (web_login / device_link), browser_label, status, user_id, device_id (device_link), expires_at                                                                                                                                 | 5-minute TTL, single use; device_id is the device remapped on confirm                                                                                               |
@@ -262,7 +262,7 @@ starter subset; the rest is added phase by phase.
 | `check_ins`                 | id, user_id, event_id, method (geo / code), lat, lng, accuracy_m, device_flags, created_at                                                                                                                                                            | Unique on (user, event); geo check-in via `POST /v1/events/{id}/check-ins`                                                                                          |
 | `ratings`                   | user_id, event_id, score 1–5, comment, created_at                                                                                                                                                                                                     | Requires a check-in; comment only from named profiles                                                                                                               |
 | `digital_codes`             | event_id, secret, revealed_at, rotation_s                                                                                                                                                                                                             | Secret seeds rotating codes; never sent to attendees                                                                                                                |
-| `push_messages`             | id, event_id (nullable for broadcasts), kind (event / broadcast), audience (event_match / everyone / tag_interest), audience_tag_id, status (pending / approved / sending / sent / rejected / cancelled), title/body sv+en, send_at, copy_edited, approved_at, approved_by_admin_id, sent_at | Draft before fan-out; trusted publishers auto-approve; admin broadcasts auto-approve; worker sends when due |
+| `push_messages`             | id, event_id (nullable for broadcasts), kind (event / broadcast), audience (event_match / everyone / tag_interest / area / area_and_tag), audience_tag_id, status (pending / approved / sending / sent / rejected / cancelled), title/body sv+en, send_at, copy_edited, approved_at, approved_by_admin_id, sent_at | Draft before fan-out; trusted publishers auto-approve; admin event notifications (`area` or `area_and_tag`) and broadcasts auto-approve; worker sends when due |
 | `push_message_deliveries`   | push_message_id, user_id, status (pending / deferred / sent), deferred_until_message_id, sent_at                                                                                                                                                  | Per-user delivery + 10-minute aggregation                                                                                                                           |
 | `notifications`             | id, user_id, event_id (nullable for broadcasts), push_message_id, reason (nearby / publisher / event / broadcast), sent_at (inbox accept time), push_state (pending / sent / aggregated legacy), pushed_at (nullable), read_at (nullable)                                                 | Inbox written only when a push message is sent; unique (user, push_message, reason). Cap/quiet hours are client-side. Purged after 90 days                           |
 | `data_sources`              | id, slug, kind (api / feed / scraper), schedule, config, trust (auto_publish / review), enabled                                                                                                                                                       | One row per source; secrets referenced, not stored                                                                                                                  |
@@ -320,8 +320,13 @@ Any linked device can be revoked.
    and later send one silent push with the earliest copy plus “And N more…”.
 5. Insert `notifications` inbox rows only at send time (unique user + push_message + reason).
    Silent Expo push to devices with tokens; quiet hours and the 5/day OS cap stay on the client.
-6. After a message is sent, a publisher may create a new draft for an update. Edits before send
-   update the open draft.
+   The client posts the banner in the foreground as well as the background. A tap that carries
+   an event id opens that event. The app icon badge clears when the app becomes active.
+6. After a message is sent, a publisher may create a new draft for an update. An admin may do the
+   same for a published event (`POST /push-messages/event` on the admin API); that draft is
+   approved immediately. The admin chooses `area` (saved notify area covers the event) or
+   `area_and_tag` (area plus a shared interest). Publisher followers are not included in those
+   audiences. Edits before send update the open draft. A new draft is refused while one is still open.
 
 Areas are saved places, not live tracking.
 
@@ -330,15 +335,26 @@ Areas are saved places, not live tracking.
 When a user actively uses the app somewhere new, the app offers to save that place as a regularly
 visited region. The check runs on the device; the location only leaves the phone if the user accepts.
 
-1. On app foreground, if location permission is already granted, read one coarse location. Never
-   ask for permission just for this.
-2. "New" = more than ~25 km from every saved area; "active" = ≥ 60 s in foreground or a few
-   screens opened. Tunable (`REGION_SUGGESTION` in `packages/domain/src/regions.ts`).
-3. Name the place with on-device reverse geocoding and offer: Save and notify me · Save without
+1. While the app is in the foreground and location permission is already granted, read one balanced
+   location each time the app becomes active, then subscribe to further updates (about 100 m).
+   Stop that subscription when the app backgrounds. Never ask for permission just for this, and
+   never use background location. “Near you” on home, search, and the map follows that fix.
+2. With no saved region, ask as soon as the app opens (location permission already granted).
+   Skipping the onboarding area step counts as a dismiss, so the prompt waits 7 days near that
+   place instead of appearing as onboarding closes.
+   Otherwise "new" = farther than the profile setting “How far can you go” (default 25 km) from
+   every saved area and "active" = ≥ 60 s in foreground
+   or a few screens opened. Tunable (`REGION_SUGGESTION` in `packages/domain/src/regions.ts`).
+3. Name the place from `GET /regions/lookup` (municipality preferred). If that misses, use
+   on-device reverse geocoding, then a generic label. Offer: Save and notify me · Save without
    notifications · Not now · Never ask for this place.
 4. On save, create a region subscription: the municipality boundary when known, else a 15 km circle.
-5. At most one prompt per day, never during check-in, declined places not asked again for 90 days,
-   "never" is permanent. Dismissals are stored on the device only.
+5. At most one prompt per day near the place just asked about, never during check-in. A dismiss
+   (Not now, closing the sheet, or skipping the onboarding area step) hides the prompt near that place: 7 days when the user has no
+   saved region, otherwise 90 days. Farther than the profile setting “How far can you go”
+   (default 25 km) from that place, the prompt can show again immediately. "Never" is permanent
+   for that place. Dismissals are stored on the device only. The distance is `PUT /me/travel-distance`
+   and returned on `GET /me/preferences`.
 
 ### Subscriptions
 
@@ -428,8 +444,9 @@ Mobile builds and store submissions run on EAS; EAS Update channels map to the t
 
 ## Security, privacy and anti-abuse
 
-- **Location minimization:** no background tracking in v1. Store saved areas (`user_areas`) and the
-  single location sample at check-in; both are included in user export/deletion. Saved events and
+- **Location minimization:** no background tracking in v1. While the app is in use, a foreground
+  location is read when the app becomes active and watched until it backgrounds. Store saved areas
+  (`user_areas`) and the single location sample at check-in; both are included in user export/deletion. Saved events and
   custom lists are personal and cascade when the user is deleted. Region suggestions
   compare locations on the device and send nothing unless the user saves the region. Round or drop
   raw check-in coordinates after ~90 days.

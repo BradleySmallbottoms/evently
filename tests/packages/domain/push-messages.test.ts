@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   aggregatedMoreCopy,
   bundledPushPresentation,
+  canAdminNotifyEvent,
   canCreateNewPushDraft,
+  isAdminEventPushAudience,
   defaultPushMessageCopy,
   initialPushMessageStatus,
   isWithinAggregationWindow,
@@ -85,6 +87,19 @@ describe('push-messages domain', () => {
     ]);
     expect(presented.title).toBe('A');
     expect(presented.body).toContain('And 1 more…');
+  });
+
+  it('lets admins notify only published events', () => {
+    expect(canAdminNotifyEvent('published')).toBe(true);
+    expect(canAdminNotifyEvent('draft')).toBe(false);
+    expect(canAdminNotifyEvent('in_review')).toBe(false);
+    expect(canAdminNotifyEvent('awaiting_verification')).toBe(false);
+    expect(canAdminNotifyEvent('cancelled')).toBe(false);
+    expect(canAdminNotifyEvent('ended')).toBe(false);
+    expect(isAdminEventPushAudience('area')).toBe(true);
+    expect(isAdminEventPushAudience('area_and_tag')).toBe(true);
+    expect(isAdminEventPushAudience('event_match')).toBe(false);
+    expect(isAdminEventPushAudience('everyone')).toBe(false);
   });
 
   it('detects aggregation window and new-draft eligibility', () => {

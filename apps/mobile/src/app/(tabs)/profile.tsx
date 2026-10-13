@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { reloadAppAsync } from 'expo';
 import { useRouter } from 'expo-router';
@@ -8,26 +8,21 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 import { PairingSheet, type PairingSheetTab } from '@/components/native/pairing-sheet';
+import { TravelDistanceSetting } from '@/components/preferences/travel-distance-setting';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { api, throwIfError } from '@/lib/api';
-import { clearLocalAppData } from '@/lib/clear-local-data';
+import { clearLocalAppData, clearStoredPromptState } from '@/lib/clear-local-data';
 import { ensureIdentity, loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
 import { useHasUnreadNotifications } from '@/lib/use-unread-notifications';
-import { getPreferences } from '@/lib/preferences';
+import { getPreferences, updateTravelDistance } from '@/lib/preferences';
 import { fetchProfile } from '@/lib/profile';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
-function RowIcon({
-  sf,
-  md,
-}: {
-  sf: string;
-  md: keyof typeof MaterialIcons.glyphMap;
-}) {
+function RowIcon({ sf, md }: { sf: string; md: keyof typeof MaterialIcons.glyphMap }) {
   const tint = colors.ink as string;
   return process.env.EXPO_OS === 'ios' ? (
     <SymbolView name={sf as never} size={22} tintColor={tint} />
@@ -49,7 +44,10 @@ export default function ProfileScreen() {
   const [pairingPending, setPairingPending] = useState(false);
   const [confirmCode, setConfirmCode] = useState('');
   const [resetPending, setResetPending] = useState(false);
+  const [clearPromptsPending, setClearPromptsPending] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  const [travelError, setTravelError] = useState<string | null>(null);
+  const devActionPending = resetPending || clearPromptsPending;
 
   const identity = useQuery({
     queryKey: ['identity', locale],
@@ -70,8 +68,23 @@ export default function ProfileScreen() {
     enabled: identity.isSuccess,
     queryFn: () => listNotifications(identity.data!),
   });
+  const travelDistance = useMutation({
+    mutationFn: async (distanceM: number) => {
+      const id = identity.data;
+      if (!id) throw new Error('missing_identity');
+      await updateTravelDistance(id, distanceM);
+    },
+    onSuccess: async () => {
+      setTravelError(null);
+      await queryClient.invalidateQueries({ queryKey: ['preferences'] });
+    },
+    onError: () => setTravelError(t('preferences.saveError')),
+  });
+  const travelDistanceM =
+    (travelDistance.isPending ? travelDistance.variables : preferences.data?.travelDistanceM) ??
+    25_000;
 
-  const hasUnread = useHasUnreadNotifications();
+  const { hasUnread, numUnread } = useHasUnreadNotifications();
   const name = profile.data?.displayName?.trim() || t('profile.guest');
 
   async function confirmDeviceLink() {
@@ -153,6 +166,35 @@ export default function ProfileScreen() {
     ]);
   }
 
+  async function clearRegionPrompts() {
+    setClearPromptsPending(true);
+    setResetError(null);
+    try {
+      await clearStoredPromptState();
+      await reloadAppAsync();
+    } catch {
+      setResetError(t('preferences.resetError'));
+    } finally {
+      setClearPromptsPending(false);
+    }
+  }
+
+  function promptClearRegionPrompts() {
+    Alert.alert(
+      t('preferences.clearPromptsConfirmTitle'),
+      t('preferences.clearPromptsConfirmMessage'),
+      [
+        { text: t('preferences.resetCancel'), style: 'cancel' },
+        {
+          text: t('preferences.clearPromptsConfirm'),
+          onPress: () => {
+            void clearRegionPrompts();
+          },
+        },
+      ],
+    );
+  }
+
   const countRows = [
     {
       label: t('profile.categories'),
@@ -160,6 +202,14 @@ export default function ProfileScreen() {
       href: '/profile/tags' as const,
       sf: 'heart',
       md: 'favorite-border' as const,
+      alert: false,
+    },
+    {
+      label: t('profile.areas'),
+      count: preferences.data?.areas.length ?? 0,
+      href: '/profile/areas' as const,
+      sf: 'mappin.and.ellipse',
+      md: 'place' as const,
       alert: false,
     },
     {
@@ -220,7 +270,24 @@ export default function ProfileScreen() {
                 borderBottomColor: colors.line,
               }}
             >
-              <RowIcon sf={row.sf} md={row.md} />
+              <View>
+                <RowIcon sf={row.sf} md={row.md} />
+                {row.alert ? (
+                  <View
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      right: -1,
+                      width: 5,
+                      height: 5,
+                      borderRadius: 3,
+                      backgroundColor: colors.danger,
+                    }}
+                  />
+                ) : null}
+              </View>
               <AppText variant="body" style={{ flex: 1 }}>
                 {row.label}
               </AppText>
@@ -230,15 +297,12 @@ export default function ProfileScreen() {
                   height: 28,
                   paddingHorizontal: space.sm,
                   borderRadius: radius.pill,
-                  backgroundColor: row.alert ? colors.danger : colors.accentSoft,
+                  backgroundColor: colors.accentSoft,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <AppText
-                  variant="label"
-                  style={{ color: row.alert ? colors.card : colors.ink }}
-                >
+                <AppText variant="label" style={{ color: colors.ink }}>
                   {row.count}
                 </AppText>
               </View>
@@ -259,6 +323,16 @@ export default function ProfileScreen() {
             <AppText variant="body">{t('events.pairingTitle')}</AppText>
           </Pressable>
         </View>
+        <TravelDistanceSetting
+          value={travelDistanceM}
+          disabled={!identity.data || preferences.isPending}
+          onChange={(distanceM) => travelDistance.mutate(distanceM)}
+        />
+        {travelError ? (
+          <AppText variant="caption" style={{ color: colors.danger }}>
+            {travelError}
+          </AppText>
+        ) : null}
         <View style={{ gap: space.md }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
             <RowIcon sf="wrench.and.screwdriver" md="build" />
@@ -273,9 +347,15 @@ export default function ProfileScreen() {
           <PrimaryButton
             label={t('preferences.resetButton')}
             loading={resetPending}
-            disabled={resetPending}
+            disabled={devActionPending}
             onPress={promptReset}
             style={{ backgroundColor: colors.danger }}
+          />
+          <PrimaryButton
+            label={t('preferences.clearPromptsButton')}
+            loading={clearPromptsPending}
+            disabled={devActionPending}
+            onPress={promptClearRegionPrompts}
           />
         </View>
       </ScrollView>

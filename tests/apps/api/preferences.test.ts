@@ -28,6 +28,7 @@ describe('user preferences', () => {
     expect(doc.paths['/me/areas']).toBeDefined();
     expect(doc.paths['/me/areas/{id}']).toBeDefined();
     expect(doc.paths['/me/profile']).toBeDefined();
+    expect(doc.paths['/me/travel-distance']).toBeDefined();
   });
 
   it('replaces interests and CRUD circle + polygon areas with Bearer auth', async () => {
@@ -51,6 +52,7 @@ describe('user preferences', () => {
         endMin: 8 * 60,
         timezone: 'Europe/Stockholm',
       },
+      travelDistanceM: 25_000,
     });
 
     const interests = await app.request('/v1/me/interests', {
@@ -117,6 +119,24 @@ describe('user preferences', () => {
     expect((await after.json()) as { items: unknown[] }).toMatchObject({
       items: [{ name: 'Drawn' }],
     });
+
+    const rejected = await app.request('/v1/me/travel-distance', {
+      method: 'PUT',
+      headers: { ...authHeader, 'content-type': 'application/json' },
+      body: JSON.stringify({ distanceM: 500 }),
+    });
+    expect(rejected.status).toBe(400);
+
+    const updatedDistance = await app.request('/v1/me/travel-distance', {
+      method: 'PUT',
+      headers: { ...authHeader, 'content-type': 'application/json' },
+      body: JSON.stringify({ distanceM: 50_000 }),
+    });
+    expect(updatedDistance.status).toBe(200);
+    expect(await updatedDistance.json()).toEqual({ distanceM: 50_000 });
+
+    const withDistance = await app.request('/v1/me/preferences', { headers: authHeader });
+    expect(await withDistance.json()).toMatchObject({ travelDistanceM: 50_000 });
   });
 
   it('rejects unauthenticated and unknown tags', async () => {

@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "travel_distance_m" integer DEFAULT 25000 NOT NULL;

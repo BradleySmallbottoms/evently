@@ -9,6 +9,7 @@ import {
   canAddSavedArea,
   normalizeRecoveryEmail,
   resolveProfileChoice,
+  resolveTravelDistanceM,
   validateCircleArea,
   validatePolygonArea,
 } from '@local-events/domain';
@@ -88,6 +89,7 @@ export function createMemoryPreferenceServices(
           endMin: user.quietHoursEndMin,
           timezone: user.timezone,
         },
+        travelDistanceM: resolveTravelDistanceM(user.travelDistanceM),
       };
     },
 
@@ -104,6 +106,14 @@ export function createMemoryPreferenceServices(
         endMin: user.quietHoursEndMin,
         timezone: user.timezone,
       };
+    },
+
+    async updateTravelDistance(sessionToken, input) {
+      const { userId } = await auth.requireUserSession(sessionToken);
+      const user = store.users.get(userId);
+      if (!user) throw new PreferenceError('unauthorized');
+      user.travelDistanceM = resolveTravelDistanceM(input.distanceM);
+      return { distanceM: resolveTravelDistanceM(user.travelDistanceM) };
     },
 
     async getProfile(sessionToken) {

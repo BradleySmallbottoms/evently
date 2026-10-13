@@ -15,7 +15,13 @@ export type PushMessageStatus = z.infer<typeof PushMessageStatus>;
 export const PushMessageKind = z.enum(['event', 'broadcast']);
 export type PushMessageKind = z.infer<typeof PushMessageKind>;
 
-export const PushAudience = z.enum(['event_match', 'everyone', 'tag_interest']);
+export const PushAudience = z.enum([
+  'event_match',
+  'everyone',
+  'tag_interest',
+  'area',
+  'area_and_tag',
+]);
 export type PushAudience = z.infer<typeof PushAudience>;
 
 export const PushMessage = z.object({
@@ -48,6 +54,29 @@ export const PushMessageListResponse = z.object({
   items: z.array(PushMessage),
 });
 export type PushMessageListResponse = z.infer<typeof PushMessageListResponse>;
+
+/** A push that has been sent, or is still fanning out, for one event. */
+export const SentEventNotification = z.object({
+  id: Id,
+  status: z.enum(['sending', 'sent']),
+  audience: PushAudience,
+  audienceTagName: z.string().nullable(),
+  titleSv: z.string(),
+  bodySv: z.string(),
+  titleEn: z.string(),
+  bodyEn: z.string(),
+  sendAt: z.iso.datetime().nullable(),
+  sentAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  /** Distinct users with an inbox row for this message. */
+  recipientCount: z.number().int().nonnegative(),
+});
+export type SentEventNotification = z.infer<typeof SentEventNotification>;
+
+export const SentEventNotificationListResponse = z.object({
+  items: z.array(SentEventNotification),
+});
+export type SentEventNotificationListResponse = z.infer<typeof SentEventNotificationListResponse>;
 
 export const UpdatePushMessageRequest = z.object({
   titleSv: z.string().min(1).max(200).optional(),
@@ -83,6 +112,16 @@ export const CreateEventPushMessageRequest = z.object({
   bodyEn: z.string().min(1).max(500).optional(),
 });
 export type CreateEventPushMessageRequest = z.infer<typeof CreateEventPushMessageRequest>;
+
+/** Admin starts a notification for a published event. Approved on create. */
+export const CreateAdminEventPushMessageRequest = CreateEventPushMessageRequest.extend({
+  eventId: Id,
+  /** `area` = saved notify area covers the event. `area_and_tag` also requires a shared interest. */
+  audience: z.enum(['area', 'area_and_tag']),
+});
+export type CreateAdminEventPushMessageRequest = z.infer<
+  typeof CreateAdminEventPushMessageRequest
+>;
 
 export const CreateBroadcastPushMessageRequest = z
   .object({

@@ -4,6 +4,7 @@ import type {
   ReplaceUserInterestsRequest,
   ReplaceUserInterestsResponse,
   UpdateQuietHoursRequest,
+  UpdateTravelDistanceRequest,
   UpdateUserAreaRequest,
   UpdateUserProfileRequest,
   UserArea,
@@ -38,6 +39,10 @@ export type PreferenceServices = {
     sessionToken: string | undefined,
     input: UpdateQuietHoursRequest,
   ) => Promise<QuietHoursPrefs>;
+  updateTravelDistance: (
+    sessionToken: string | undefined,
+    input: UpdateTravelDistanceRequest,
+  ) => Promise<UpdateTravelDistanceRequest>;
   getProfile: (sessionToken: string | undefined) => Promise<UserProfile>;
   updateProfile: (
     sessionToken: string | undefined,

@@ -166,7 +166,13 @@ export function PushMessageEditor({ pushMessageId }: { pushMessageId: string }) 
                   ? t('audienceTagLabel', { tag: message.data.audienceTagName ?? '—' })
                   : t('audienceEveryone')
               } · ${message.data.status}`
-            : `${message.data.eventTitle ?? '—'} · ${message.data.publisherName ?? '—'} · ${message.data.status}`}
+            : `${message.data.eventTitle ?? '—'} · ${message.data.publisherName ?? '—'} · ${
+                message.data.audience === 'area'
+                  ? t('audienceArea')
+                  : message.data.audience === 'area_and_tag'
+                    ? t('audienceAreaAndTag')
+                    : t('audienceEventMatch')
+              } · ${message.data.status}`}
         </Typography>
         {notice ? <Alert severity="success">{notice}</Alert> : null}
         {error ? <Alert severity="error">{error}</Alert> : null}
@@ -263,15 +269,23 @@ export function PushMessageEditor({ pushMessageId }: { pushMessageId: string }) 
             {message.data.kind === 'broadcast' ? null : (
               <>
                 <Box sx={styles.statRow}>
-                  <Typography>{t('statNearby')}</Typography>
+                  <Typography>
+                    {message.data.audience === 'area'
+                      ? t('audienceArea')
+                      : message.data.audience === 'area_and_tag'
+                        ? t('audienceAreaAndTag')
+                        : t('statNearby')}
+                  </Typography>
                   <Typography sx={{ fontWeight: 600 }}>{audience.data.nearby}</Typography>
                 </Box>
-                <Box sx={styles.statRow}>
-                  <Typography>{t('statFollowers')}</Typography>
-                  <Typography sx={{ fontWeight: 600 }}>
-                    {audience.data.publisherFollowers}
-                  </Typography>
-                </Box>
+                {message.data.audience === 'area' || message.data.audience === 'area_and_tag' ? null : (
+                  <Box sx={styles.statRow}>
+                    <Typography>{t('statFollowers')}</Typography>
+                    <Typography sx={{ fontWeight: 600 }}>
+                      {audience.data.publisherFollowers}
+                    </Typography>
+                  </Box>
+                )}
               </>
             )}
             <Box sx={styles.statRow}>

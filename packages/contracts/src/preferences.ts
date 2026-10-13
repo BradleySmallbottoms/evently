@@ -30,6 +30,15 @@ export const UserArea = z.object({
 });
 export type UserArea = z.infer<typeof UserArea>;
 
+/** Profile setting “How far can you go”. Whole kilometers from 1 to 100, stored in meters. */
+export const TravelDistanceM = z.number().int().min(1_000).max(100_000).multipleOf(1_000);
+export type TravelDistanceM = z.infer<typeof TravelDistanceM>;
+
+export const UpdateTravelDistanceRequest = z.object({
+  distanceM: TravelDistanceM,
+});
+export type UpdateTravelDistanceRequest = z.infer<typeof UpdateTravelDistanceRequest>;
+
 export const UserPreferencesResponse = z.object({
   tagIds: z.array(Id),
   areas: z.array(UserArea),
@@ -39,6 +48,8 @@ export const UserPreferencesResponse = z.object({
     endMin: z.number().int().min(0).max(1439),
     timezone: z.string(),
   }),
+  /** How far the user can go before a new place is suggested. */
+  travelDistanceM: TravelDistanceM,
 });
 export type UserPreferencesResponse = z.infer<typeof UserPreferencesResponse>;
 

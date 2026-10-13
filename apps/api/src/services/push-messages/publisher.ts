@@ -1,4 +1,7 @@
-import type { CreateEventPushMessageRequest } from '@local-events/contracts';
+import type {
+  CreateEventPushMessageRequest,
+  SentEventNotification,
+} from '@local-events/contracts';
 import {
   findOpenPushMessage,
   type Db,
@@ -9,13 +12,17 @@ import { AuthError } from '../auth/types';
 import { EventError } from '../events/types';
 import { createEventPushDraft } from './drafts';
 import { schema } from '@local-events/db';
-import { eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 export type PublisherPushMessageServices = {
   getOpen: (input: {
     sessionToken: string | undefined;
     eventId: string;
   }) => Promise<PushMessageRow | null>;
+  listSent: (input: {
+    sessionToken: string | undefined;
+    eventId: string;
+  }) => Promise<SentEventNotification[]>;
   create: (input: {
     sessionToken: string | undefined;
     eventId: string;
@@ -53,6 +60,67 @@ export function createDbPublisherPushMessageServices(
     async getOpen({ sessionToken, eventId }) {
       await requireEventMember(sessionToken, eventId);
       return findOpenPushMessage(db, eventId);
+    },
+
+    async listSent({ sessionToken, eventId }) {
+      await requireEventMember(sessionToken, eventId);
+      const rows = await db
+        .select({
+          id: schema.pushMessages.id,
+          audience: schema.pushMessages.audience,
+          audienceTagName: schema.tags.name,
+          status: schema.pushMessages.status,
+          titleSv: schema.pushMessages.titleSv,
+          bodySv: schema.pushMessages.bodySv,
+          titleEn: schema.pushMessages.titleEn,
+          bodyEn: schema.pushMessages.bodyEn,
+          sendAt: schema.pushMessages.sendAt,
+          sentAt: schema.pushMessages.sentAt,
+          createdAt: schema.pushMessages.createdAt,
+        })
+        .from(schema.pushMessages)
+        .leftJoin(schema.tags, eq(schema.tags.id, schema.pushMessages.audienceTagId))
+        .where(
+          and(
+            eq(schema.pushMessages.eventId, eventId),
+            inArray(schema.pushMessages.status, ['sent', 'sending']),
+          ),
+        )
+        .orderBy(desc(schema.pushMessages.sentAt), desc(schema.pushMessages.createdAt));
+      const counts = new Map<string, number>();
+      const ids = rows.map((row) => row.id);
+      if (ids.length > 0) {
+        const counted = await db
+          .select({
+            pushMessageId: schema.notifications.pushMessageId,
+            count: sql<number>`count(distinct ${schema.notifications.userId})::int`,
+          })
+          .from(schema.notifications)
+          .where(inArray(schema.notifications.pushMessageId, ids))
+          .groupBy(schema.notifications.pushMessageId);
+        for (const row of counted) {
+          if (row.pushMessageId) counts.set(row.pushMessageId, Number(row.count));
+        }
+      }
+      return rows.flatMap((row) => {
+        if (row.status !== 'sent' && row.status !== 'sending') return [];
+        return [
+          {
+            id: row.id,
+            status: row.status,
+            audience: row.audience,
+            audienceTagName: row.audienceTagName,
+            titleSv: row.titleSv,
+            bodySv: row.bodySv,
+            titleEn: row.titleEn,
+            bodyEn: row.bodyEn,
+            sendAt: row.sendAt?.toISOString() ?? null,
+            sentAt: row.sentAt?.toISOString() ?? null,
+            createdAt: row.createdAt.toISOString(),
+            recipientCount: counts.get(row.id) ?? 0,
+          },
+        ];
+      });
     },
 
     async create({ sessionToken, eventId, body }) {

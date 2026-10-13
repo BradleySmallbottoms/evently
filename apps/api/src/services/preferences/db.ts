@@ -11,6 +11,7 @@ import {
   canAddSavedArea,
   normalizeRecoveryEmail,
   resolveProfileChoice,
+  resolveTravelDistanceM,
   validateCircleArea,
   validatePolygonArea,
 } from '@local-events/domain';
@@ -120,6 +121,7 @@ export function createDbPreferenceServices(
           quietHoursStartMin: users.quietHoursStartMin,
           quietHoursEndMin: users.quietHoursEndMin,
           quietHoursEnabled: users.quietHoursEnabled,
+          travelDistanceM: users.travelDistanceM,
         })
         .from(users)
         .where(eq(users.id, userId))
@@ -138,6 +140,7 @@ export function createDbPreferenceServices(
           endMin: user.quietHoursEndMin,
           timezone: user.timezone,
         },
+        travelDistanceM: resolveTravelDistanceM(user.travelDistanceM),
       };
     },
 
@@ -164,6 +167,17 @@ export function createDbPreferenceServices(
         endMin: user.quietHoursEndMin,
         timezone: user.timezone,
       };
+    },
+
+    async updateTravelDistance(sessionToken, input) {
+      const { userId } = await auth.requireUserSession(sessionToken);
+      const [user] = await db
+        .update(users)
+        .set({ travelDistanceM: resolveTravelDistanceM(input.distanceM) })
+        .where(eq(users.id, userId))
+        .returning({ travelDistanceM: users.travelDistanceM });
+      if (!user) throw new PreferenceError('unauthorized');
+      return { distanceM: resolveTravelDistanceM(user.travelDistanceM) };
     },
 
     async getProfile(sessionToken) {

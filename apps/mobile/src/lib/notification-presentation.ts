@@ -8,7 +8,7 @@ import {
 } from '@local-events/domain';
 import * as Localization from 'expo-localization';
 import * as SecureStore from 'expo-secure-store';
-import { AppState, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
 const PRESENTED_KEY = 'le.osNotificationsPresented';
 const PREFS_KEY = 'le.notificationPresentation';
@@ -139,7 +139,6 @@ export async function decideOsNotificationPresentation(input: {
     now: input.now ?? new Date(),
     quietHours: input.quietHours,
     presentedToday,
-    appInForeground: AppState.currentState === 'active',
   });
 }
 

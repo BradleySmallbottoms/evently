@@ -5,12 +5,12 @@ import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { AppState, Platform, type AppStateStatus } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { InboxPushSync } from '@/components/inbox-push-sync';
-import { ReminderNotificationLink } from '@/components/reminder-notification-link';
+import { NotificationEventLink } from '@/components/notification-event-link';
 import { OnboardingCarousel } from '@/components/onboarding/onboarding-carousel';
 import { PermissionReminder } from '@/components/onboarding/permission-reminder';
 import {
@@ -21,6 +21,8 @@ import {
   type PermissionKind,
 } from '@/lib/onboarding';
 import { loadStoredIdentity } from '@/lib/identity';
+import { clearAppIconBadge } from '@/lib/push-notifications';
+import { refreshDeviceLocation, startDeviceLocation } from '@/lib/device-location';
 import { initSentry } from '@/lib/sentry';
 import { brand } from '@/theme/colors';
 
@@ -77,9 +79,16 @@ export default function RootLayout() {
   }, [countActivation]);
 
   useEffect(() => {
+    if (Platform.OS !== 'web' && AppState.currentState === 'active') {
+      void clearAppIconBadge();
+    }
     const sub = AppState.addEventListener('change', (next) => {
       const prev = appStateRef.current;
       appStateRef.current = next;
+
+      if (Platform.OS !== 'web' && next === 'active' && prev !== 'active') {
+        void clearAppIconBadge();
+      }
 
       if (next === 'background') {
         countedThisForegroundRef.current = false;
@@ -94,6 +103,11 @@ export default function RootLayout() {
     });
     return () => sub.remove();
   }, [countActivation]);
+
+  useEffect(() => {
+    if (!onboarding?.completed || showOnboarding) return;
+    return startDeviceLocation();
+  }, [onboarding?.completed, showOnboarding]);
 
   if (!onboarding) return null;
 
@@ -131,7 +145,7 @@ export default function RootLayout() {
         <ThemeProvider value={navTheme}>
           <AnimatedSplashOverlay />
           <InboxPushSync />
-          <ReminderNotificationLink />
+          <NotificationEventLink />
           <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="map" />
@@ -146,6 +160,7 @@ export default function RootLayout() {
               onDone={(state) => {
                 setOnboarding(state);
                 setReminder(null);
+                void refreshDeviceLocation();
               }}
             />
           ) : null}

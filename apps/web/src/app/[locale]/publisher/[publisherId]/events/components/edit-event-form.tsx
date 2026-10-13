@@ -17,6 +17,7 @@ import { AppLink } from '@/components/app-link';
 import { API_URL, api, throwIfError } from '@/lib/api';
 import { DigitalCodePanel } from './digital-code-panel';
 import { EventContentPanel } from './event-content-panel';
+import { SentNotifications } from './sent-notifications';
 import {
   ManagedEventFields,
   readManagedEventForm,
@@ -396,6 +397,7 @@ export function EditEventForm() {
         ) : null}
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="success">{notice}</Alert>}
+        <SentNotifications eventId={eventId} />
         {pushDraft.data?.pushMessage ? (
           <Alert severity="info">
             {t('pushDraftStatus', { status: pushDraft.data.pushMessage.status })}

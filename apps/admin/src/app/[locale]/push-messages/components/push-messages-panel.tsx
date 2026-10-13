@@ -49,6 +49,8 @@ export function PushMessagesPanel() {
   });
 
   function audienceLabel(row: PushMessage): string {
+    if (row.audience === 'area') return t('audienceArea');
+    if (row.audience === 'area_and_tag') return t('audienceAreaAndTag');
     if (row.kind === 'broadcast') {
       if (row.audience === 'tag_interest') {
         return t('audienceTagLabel', { tag: row.audienceTagName ?? '—' });
@@ -67,9 +69,14 @@ export function PushMessagesPanel() {
             {t('hint')}
           </Typography>
         </Box>
-        <Button component={Link} href="/push-messages/broadcast" variant="contained">
-          {t('composeBroadcast')}
-        </Button>
+        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+          <Button component={Link} href="/push-messages/event" variant="outlined">
+            {t('composeEvent')}
+          </Button>
+          <Button component={Link} href="/push-messages/broadcast" variant="contained">
+            {t('composeBroadcast')}
+          </Button>
+        </Stack>
       </Box>
       {list.isError ? <Alert severity="error">{t('loadError')}</Alert> : null}
       {list.isLoading ? <Typography color="text.secondary">{t('loading')}</Typography> : null}

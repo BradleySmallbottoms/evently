@@ -90,6 +90,40 @@ export async function findNearbyMatchedUsers(
   return list.map((r) => ({ userId: r.user_id }));
 }
 
+/**
+ * Users with an active notify area covering the event point.
+ * Interests are not required. Push token is not required.
+ */
+export async function findAreaMatchedUsers(
+  db: Db,
+  eventId: string,
+  limit = 500,
+): Promise<MatchedUser[]> {
+  const rows = await db.execute(sql`
+    SELECT DISTINCT u.id AS user_id
+    FROM events e
+    INNER JOIN user_areas ua
+      ON ua.active = true
+      AND ua.notify = true
+      AND (
+        (ua.area IS NOT NULL AND ST_Covers(ua.area, e.location))
+        OR (
+          ua.center IS NOT NULL
+          AND ua.radius_m IS NOT NULL
+          AND ST_DWithin(ua.center, e.location, ua.radius_m)
+        )
+      )
+    INNER JOIN users u ON u.id = ua.user_id
+    WHERE e.id = ${eventId}::uuid
+      AND e.status = 'published'
+      AND e.location IS NOT NULL
+    LIMIT ${limit}
+  `);
+
+  const list = (Array.isArray(rows) ? rows : []) as Array<{ user_id: string }>;
+  return list.map((r) => ({ userId: r.user_id }));
+}
+
 /** Drizzle transaction or root db — both support the query builders we use. */
 export type NotifyDb = Pick<Db, 'insert' | 'delete' | 'update' | 'select' | 'execute'>;
 

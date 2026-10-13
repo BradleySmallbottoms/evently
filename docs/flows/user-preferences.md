@@ -34,12 +34,16 @@ sequenceDiagram
   Mobile->>API: GET /me/preferences
   API->>DB: SELECT interests + areas
   API-->>Mobile: Preferences
-  Note over Mobile: Home feed uses primary<br/>active circle area when set
+  Note over Mobile: Location menu lists Near you<br/>plus each saved area name
 ```
 
 ## Notes
 
-- No background location; areas are saved places only.
+- No background location. While the app is open, “Near you” follows foreground location updates
+  (a sample when the app becomes active, then about every 100 m). Areas are saved places only.
+- “How far can you go” is a slider with stops at 1 km and then every 5 km through 100 km.
+  It is stored on the user in meters (`travel_distance_m`, default 25 km) and decides when a
+  place is far enough to suggest saving. `PUT /me/travel-distance`.
 - Circle = `center` + `radius_m`; drawn polygon = `area` geography.
 - Region kind (`regions` table + suggestion UI) is a later Phase 3 slice.
 - Soft cap: 20 areas (`MAX_SAVED_AREAS` in domain).

@@ -9,6 +9,7 @@ import {
   ReplaceUserInterestsRequest,
   ReplaceUserInterestsResponse,
   UpdateQuietHoursRequest,
+  UpdateTravelDistanceRequest,
   UpdateUserAreaRequest,
   UpdateUserProfileRequest,
   UserArea,
@@ -294,6 +295,36 @@ export function registerMeRoutes(
     try {
       const body = c.req.valid('json');
       const result = await preferences.updateQuietHours(readUserSessionToken(c), body);
+      return c.json(result, 200);
+    } catch (err) {
+      return preferenceErrorResponse(c, err);
+    }
+  });
+
+  const updateTravelDistance = createRoute({
+    method: 'put',
+    path: '/me/travel-distance',
+    request: {
+      body: {
+        content: { 'application/json': { schema: UpdateTravelDistanceRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Updated travel distance',
+        content: { 'application/json': { schema: UpdateTravelDistanceRequest } },
+      },
+      401: {
+        description: 'Missing or invalid user session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(updateTravelDistance, async (c) => {
+    try {
+      const body = c.req.valid('json');
+      const result = await preferences.updateTravelDistance(readUserSessionToken(c), body);
       return c.json(result, 200);
     } catch (err) {
       return preferenceErrorResponse(c, err);

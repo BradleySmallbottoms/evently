@@ -1,11 +1,13 @@
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
   ApprovePushMessageRequest,
+  CreateAdminEventPushMessageRequest,
   CreateBroadcastPushMessageRequest,
   ErrorResponse,
   PushMessage,
   PushMessageAudience,
   PushMessageListResponse,
+  SentEventNotificationListResponse,
   UpdatePushMessageRequest,
 } from '@local-events/contracts';
 import { z } from 'zod';
@@ -45,6 +47,33 @@ export function registerPushMessageRoutes(
       await auth.requireSession(readAdminSessionToken(c));
       const status = c.req.valid('query').status;
       return c.json({ items: await pushMessages.list(status) }, 200);
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
+  const listSentForEvent = createRoute({
+    method: 'get',
+    path: '/events/{id}/sent-notifications',
+    request: { params: z.object({ id: z.uuid() }) },
+    responses: {
+      200: {
+        description: 'Push messages sent or currently sending for this event',
+        content: { 'application/json': { schema: SentEventNotificationListResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(listSentForEvent, async (c) => {
+    try {
+      await auth.requireSession(readAdminSessionToken(c));
+      return c.json(
+        { items: await pushMessages.listSentForEvent(c.req.valid('param').id) },
+        200,
+      );
     } catch (err) {
       return adminAuthErrorResponse(c, err);
     }
@@ -257,6 +286,73 @@ export function registerPushMessageRoutes(
       } catch (err) {
         if (err instanceof Error && err.message === 'invalid_tag') {
           return c.json({ error: { code: 'invalid_tag', message: 'Unknown tag' } }, 400);
+        }
+        throw err;
+      }
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
+  const createEventPush = createRoute({
+    method: 'post',
+    path: '/push-messages/event',
+    request: {
+      body: {
+        content: { 'application/json': { schema: CreateAdminEventPushMessageRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        description: 'Event notification created and approved',
+        content: { 'application/json': { schema: PushMessage } },
+      },
+      400: {
+        description: 'Event is not published',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Event not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      409: {
+        description: 'An open notification already exists for this event',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(createEventPush, async (c) => {
+    try {
+      const session = await auth.requireSession(readAdminSessionToken(c));
+      const body = c.req.valid('json');
+      try {
+        const row = await pushMessages.createEventPush(body, session.adminId);
+        return c.json(row, 201);
+      } catch (err) {
+        if (err instanceof Error && err.message === 'event_not_found') {
+          return c.json({ error: { code: 'event_not_found', message: 'Event not found' } }, 404);
+        }
+        if (err instanceof Error && err.message === 'event_not_published') {
+          return c.json(
+            { error: { code: 'event_not_published', message: 'Event must be published' } },
+            400,
+          );
+        }
+        if (err instanceof Error && err.message === 'push_draft_exists') {
+          return c.json(
+            {
+              error: {
+                code: 'push_draft_exists',
+                message: 'An open notification already exists for this event',
+              },
+            },
+            409,
+          );
         }
         throw err;
       }

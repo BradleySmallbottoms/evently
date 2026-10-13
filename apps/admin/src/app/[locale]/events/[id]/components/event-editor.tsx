@@ -21,6 +21,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link as AppLink } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
+import { SentNotifications } from './sent-notifications';
 
 type EventMode = 'physical' | 'digital';
 type EventStatus =
@@ -370,6 +371,17 @@ export function EventEditor({ eventId }: { eventId: string }) {
           ) : null}
         </Typography>
       ) : null}
+      {event?.status === 'published' ? (
+        <Button
+          component={AppLink}
+          href={`/push-messages/event?eventId=${eventId}`}
+          variant="outlined"
+          sx={{ alignSelf: 'flex-start' }}
+        >
+          {t('notify')}
+        </Button>
+      ) : null}
+      <SentNotifications eventId={eventId} />
       {notice ? <Alert severity="success">{notice}</Alert> : null}
       {saveError ? <Alert severity="error">{saveError}</Alert> : null}
       <TextField

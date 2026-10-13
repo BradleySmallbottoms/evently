@@ -2,10 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
+import { BackPill } from '@/components/ui/back-pill';
 import { EmptyState } from '@/components/ui/empty-state';
 import { EventListItem } from '@/components/ui/event-list-item';
 import { MaxContentWidth } from '@/constants/theme';
@@ -55,15 +56,9 @@ export default function ForYouScreen() {
         }}
         ListHeaderComponent={
           <View style={{ gap: space.md, paddingTop: space.md }}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.back()}
-              style={{ paddingHorizontal: space.xl }}
-            >
-              <AppText variant="label" style={{ color: colors.accent }}>
-                {t('preferences.back')}
-              </AppText>
-            </Pressable>
+            <View style={{ paddingHorizontal: space.xl }}>
+              <BackPill />
+            </View>
             <AppText variant="title" style={{ paddingHorizontal: space.xl }}>
               {t('events.forYou')}
             </AppText>

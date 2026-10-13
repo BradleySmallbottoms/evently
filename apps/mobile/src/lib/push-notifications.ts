@@ -38,8 +38,9 @@ async function writeLastToken(token: string): Promise<void> {
 }
 
 /**
- * Reminders and notifications that already have alert text are shown.
- * Silent inbox pushes have no title; the headless task posts a local notification instead.
+ * Reminders and notifications that already have alert text are shown, including
+ * while the app is open. Silent inbox pushes have no title; a local notification
+ * is posted instead (foreground listener or the headless task).
  */
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
@@ -158,8 +159,8 @@ export type SilentPushHandlers = {
 };
 
 /**
- * Post a local banner for a silent inbox push when outside quiet hours, under
- * the daily cap, and the app is not in the foreground.
+ * Post a local banner for a silent inbox push when outside quiet hours and under
+ * the daily cap, including while the app is in the foreground.
  */
 export async function presentSilentInboxNotification(
   data: InboxPushData,
@@ -215,6 +216,19 @@ export async function presentSilentInboxNotification(
       err instanceof Error ? err.message : 'unknown error',
     );
     return false;
+  }
+}
+
+/** Clears the app icon badge. No-op on web and when the OS rejects the update. */
+export async function clearAppIconBadge(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  try {
+    await Notifications.setBadgeCountAsync(0);
+  } catch (err) {
+    console.warn(
+      'clear notification badge failed',
+      err instanceof Error ? err.message : 'unknown error',
+    );
   }
 }
 

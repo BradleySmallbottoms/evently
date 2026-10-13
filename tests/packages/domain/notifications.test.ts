@@ -79,33 +79,24 @@ describe('shouldPresentOsNotification', () => {
     endMin: 8 * 60,
   };
 
-  it('presents when backgrounded, outside quiet hours, under cap', () => {
-    expect(
-      shouldPresentOsNotification({
-        now: new Date('2026-06-15T12:00:00.000Z'),
-        quietHours,
-        presentedToday: 0,
-        appInForeground: false,
-      }),
-    ).toBe(true);
-  });
-
-  it('skips in foreground, quiet hours, or over cap', () => {
+  it('presents outside quiet hours and under cap, including in the foreground', () => {
     const now = new Date('2026-06-15T12:00:00.000Z');
     expect(
       shouldPresentOsNotification({
         now,
         quietHours,
         presentedToday: 0,
-        appInForeground: true,
       }),
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it('skips during quiet hours or over the daily cap', () => {
+    const now = new Date('2026-06-15T12:00:00.000Z');
     expect(
       shouldPresentOsNotification({
         now: new Date('2026-06-15T21:30:00.000Z'),
         quietHours,
         presentedToday: 0,
-        appInForeground: false,
       }),
     ).toBe(false);
     expect(
@@ -113,7 +104,6 @@ describe('shouldPresentOsNotification', () => {
         now,
         quietHours,
         presentedToday: DAILY_NOTIFICATION_CAP,
-        appInForeground: false,
       }),
     ).toBe(false);
   });

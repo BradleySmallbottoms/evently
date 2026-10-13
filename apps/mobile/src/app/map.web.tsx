@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { FlatList, Pressable, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
+import { BackPill } from '@/components/ui/back-pill';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { listPublicEvents } from '@/lib/events';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
@@ -14,6 +16,7 @@ import { radius, shadow, space } from '@/theme/tokens';
 export default function MapWebScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
 
   const { point } = useDiscoveryPoint();
@@ -22,6 +25,8 @@ export default function MapWebScreen() {
     queryFn: () => listPublicEvents(point.data!),
     enabled: point.isSuccess,
   });
+  const failed = point.isError || events.isError;
+  const loading = !failed && (point.isLoading || events.isLoading);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
@@ -35,20 +40,7 @@ export default function MapWebScreen() {
           gap: space.md,
           paddingBottom: BottomTabInset + space.xxxl,
         }}
-        ListHeaderComponent={
-          <View style={{ gap: space.sm, marginBottom: space.md }}>
-            <AppText variant="hero">{t('events.mapTitle')}</AppText>
-            <AppText variant="caption">{t('events.mapWebFallback')}</AppText>
-            {(point.isLoading || events.isLoading) && (
-              <AppText variant="caption">{t('events.loading')}</AppText>
-            )}
-            {events.isError && (
-              <AppText variant="caption" style={{ color: colors.danger }}>
-                {t('events.loadError')}
-              </AppText>
-            )}
-          </View>
-        }
+        ListHeaderComponent={<View style={{ height: 44 + space.sm }} />}
         renderItem={({ item }) => (
           <Pressable
             onPress={() => router.push(`/events/${item.id}`)}
@@ -73,6 +65,36 @@ export default function MapWebScreen() {
           </Pressable>
         )}
       />
+      {loading ? (
+        <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+          <ActivityIndicator accessibilityLabel={t('events.loading')} color={colors.ink} />
+        </View>
+      ) : null}
+      {failed ? (
+        <View style={[StyleSheet.absoluteFill, styles.overlay, { padding: space.xl }]}>
+          <AppText variant="body" style={{ color: colors.danger, textAlign: 'center' }}>
+            {t('events.loadError')}
+          </AppText>
+        </View>
+      ) : null}
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: 'absolute',
+          top: insets.top + space.sm,
+          left: space.lg,
+        }}
+      >
+        <BackPill />
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  overlay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.canvas,
+  },
+});

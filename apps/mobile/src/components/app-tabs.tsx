@@ -6,7 +6,7 @@ import { useHasUnreadNotifications } from '@/lib/use-unread-notifications';
 
 export default function AppTabs() {
   const { t } = useTranslation();
-  const hasUnread = useHasUnreadNotifications();
+  const { hasUnread, numUnread } = useHasUnreadNotifications();
 
   return (
     <NativeTabs
@@ -38,7 +38,7 @@ export default function AppTabs() {
       >
         <NativeTabs.Trigger.Label>{t('tabs.profile')}</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="person" md="person" />
-        {hasUnread ? <NativeTabs.Trigger.Badge /> : null}
+        {hasUnread ? <NativeTabs.Trigger.Badge >{numUnread > 99 ? '99+' : numUnread.toString()}</NativeTabs.Trigger.Badge> : null}
       </NativeTabs.Trigger>
     </NativeTabs>
   );

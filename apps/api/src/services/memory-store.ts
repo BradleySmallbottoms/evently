@@ -13,6 +13,7 @@ export type MemoryUser = {
   quietHoursStartMin: number;
   quietHoursEndMin: number;
   quietHoursEnabled: boolean;
+  travelDistanceM: number;
   bannedAt: Date | null;
   banReason: string | null;
 };
@@ -131,6 +132,7 @@ export type MemoryNotification = {
   id: string;
   userId: string;
   eventId: string;
+  pushMessageId?: string | null;
   reason: 'nearby' | 'publisher' | 'event';
   pushState: 'pending' | 'sent' | 'aggregated';
   sentAt: Date;

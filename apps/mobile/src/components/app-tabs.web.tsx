@@ -16,7 +16,7 @@ import { radius, shadow, space } from '@/theme/tokens';
 
 export default function AppTabs() {
   const { t } = useTranslation();
-  const hasUnread = useHasUnreadNotifications();
+  const { hasUnread, numUnread } = useHasUnreadNotifications();
   return (
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
@@ -40,6 +40,7 @@ export default function AppTabs() {
               accessibilityLabel={hasUnread ? t('tabs.profileUnread') : t('tabs.profile')}
             >
               {t('tabs.profile')}
+              {hasUnread ? <View style={{ position: 'absolute', top: 0, right: -6, width: 4, height: 4, borderRadius: radius.pill, backgroundColor: brand.error }} /> : null}
             </TabButton>
           </TabTrigger>
         </CustomTabList>
@@ -83,9 +84,9 @@ function TabButton({
             style={{
               position: 'absolute',
               top: 0,
-              right: -10,
-              width: 8,
-              height: 8,
+              right: -6,
+              width: 4,
+              height: 4,
               borderRadius: radius.pill,
               backgroundColor: brand.error,
             }}

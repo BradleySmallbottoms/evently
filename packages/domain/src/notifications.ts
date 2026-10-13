@@ -95,16 +95,14 @@ export function localDayKey(now: Date, timezone: string): string {
 
 /**
  * Whether the mobile app should post a local OS notification after a silent push.
- * Cap + quiet hours are client-only; foreground skips the OS notification (badge/inbox only).
+ * Cap + quiet hours are client-only. Foreground still presents the banner.
  */
 export function shouldPresentOsNotification(input: {
   now: Date;
   quietHours: QuietHoursPrefs;
   presentedToday: number;
-  appInForeground: boolean;
   cap?: number;
 }): boolean {
-  if (input.appInForeground) return false;
   if (isWithinQuietHours(input.now, input.quietHours)) return false;
   if (!canSendUnderDailyCap(input.presentedToday, input.cap)) return false;
   return true;
