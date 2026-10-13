@@ -17,6 +17,7 @@ import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { queryPointForArea } from '@/lib/area-point';
 import { NEARBY_PLACE_ID, setDiscoveryPlaceId, useDiscoveryPoint } from '@/lib/use-discovery-point';
+import { setDiscoveryRadiusM } from '@/lib/discovery-radius-store';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
@@ -76,7 +77,7 @@ export default function SearchScreen() {
     return () => clearTimeout(timer);
   }, [focus]);
 
-  const { identity, preferences, point, placeId } = useDiscoveryPoint();
+  const { identity, preferences, point, placeId, radiusM } = useDiscoveryPoint();
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
     queryFn: () => listTags(),
@@ -171,6 +172,10 @@ export default function SearchScreen() {
                   title={t('events.locationPickerTitle')}
                   message={t('events.locationPickerMessage')}
                   options={locationOptions}
+                  radiusM={radiusM}
+                  onRadiusChange={(next) => {
+                    void setDiscoveryRadiusM(next);
+                  }}
                   isPresented={locationOpen}
                   onIsPresentedChange={setLocationOpen}
                   onSelect={(id) => {

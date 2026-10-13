@@ -37,6 +37,8 @@
     "locationSoderhamn": "Söderhamn",
     "locationPickerTitle": "Choose area",
     "locationPickerMessage": "Use your current location or a saved area.",
+    "searchRadius": "Search radius",
+    "searchRadiusHint": "How far from this place to look for events.",
     "useNearby": "Near me",
     "useSoderhamn": "Söderhamn",
     "notifications": "Notifications",

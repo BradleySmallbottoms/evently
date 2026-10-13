@@ -648,7 +648,7 @@ export default function EventDetailScreen() {
                     />
                   ) : ratingStatus.data?.hasRated ? (
                     <PrimaryButton label={t('events.rateDone')} disabled />
-                  ) : event.data.checkInEnabled && checkInStatus.data?.checkedIn ? (
+                  ) : !event.data.checkInEnabled ? null : checkInStatus.data?.checkedIn ? (
                     <PrimaryButton label={t('events.checkInDone')} disabled />
                   ) : event.data.mode === 'physical' ? (
                     <View style={{ gap: space.md }}>

@@ -4,8 +4,13 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform } from 'react-native';
 
-import { FALLBACK_CENTER, resolveEventQueryPoint, type EventQueryPoint } from './events';
+import { resolveEventQueryPoint, type EventQueryPoint } from './events';
 import { getDeviceLocation, useDeviceLocation } from './device-location';
+import {
+  getDiscoveryRadiusM,
+  hydrateDiscoveryRadius,
+  subscribeDiscoveryRadius,
+} from './discovery-radius-store';
 import { ensureIdentity } from './identity';
 import { queryPointForArea } from './area-point';
 import { getPreferences } from './preferences';
@@ -78,8 +83,12 @@ export function useDiscoveryPlaceId() {
   return useSyncExternalStore(subscribeDiscoveryPlace, getDiscoveryPlaceId, getDiscoveryPlaceId);
 }
 
-function pointFromFix(fix: { lat: number; lng: number }): EventQueryPoint {
-  return { lat: fix.lat, lng: fix.lng, radiusM: FALLBACK_CENTER.radiusM };
+export function useDiscoveryRadiusM() {
+  return useSyncExternalStore(subscribeDiscoveryRadius, getDiscoveryRadiusM, getDiscoveryRadiusM);
+}
+
+function pointFromFix(fix: { lat: number; lng: number }, radiusM: number): EventQueryPoint {
+  return { lat: fix.lat, lng: fix.lng, radiusM };
 }
 
 /** Device location, or the saved area currently chosen in the location menu. */
@@ -93,7 +102,13 @@ export function useDiscoveryPoint() {
     queryFn: () => hydrateDiscoveryPlace(),
     staleTime: Infinity,
   });
+  const radiusHydration = useQuery({
+    queryKey: ['discovery-radius'],
+    queryFn: () => hydrateDiscoveryRadius(),
+    staleTime: Infinity,
+  });
   const placeId = useDiscoveryPlaceId();
+  const radiusM = useDiscoveryRadiusM();
   const identity = useQuery({
     queryKey: ['identity', locale],
     queryFn: () => ensureIdentity(locale),
@@ -121,37 +136,36 @@ export function useDiscoveryPoint() {
 
   useEffect(() => {
     if (!device.fix) return;
-    const next = pointFromFix(device.fix);
-    queryClient.setQueryData<EventQueryPoint>(['event-query-point', NEARBY_PLACE_ID], (prev) => {
-      if (prev && prev.lat === next.lat && prev.lng === next.lng && prev.radiusM === next.radiusM) {
-        return prev;
-      }
-      return next;
-    });
-  }, [device.fix, queryClient]);
+    const next = pointFromFix(device.fix, radiusM);
+    queryClient.setQueryData<EventQueryPoint>(
+      ['event-query-point', NEARBY_PLACE_ID, radiusM],
+      (prev) => {
+        if (prev && prev.lat === next.lat && prev.lng === next.lng && prev.radiusM === next.radiusM) {
+          return prev;
+        }
+        return next;
+      },
+    );
+  }, [device.fix, radiusM, queryClient]);
 
   const point = useQuery({
     queryKey: nearby
-      ? ['event-query-point', NEARBY_PLACE_ID]
-      : [
-          'event-query-point',
-          placeId,
-          selectedPoint?.lat,
-          selectedPoint?.lng,
-          selectedPoint?.radiusM,
-        ],
+      ? ['event-query-point', NEARBY_PLACE_ID, radiusM]
+      : ['event-query-point', placeId, selectedPoint?.lat, selectedPoint?.lng, radiusM],
     queryFn: async (): Promise<EventQueryPoint> => {
-      if (selectedPoint) return selectedPoint;
+      if (selectedPoint) return { ...selectedPoint, radiusM };
       const fix = getDeviceLocation().fix;
-      if (fix) return pointFromFix(fix);
-      return resolveEventQueryPoint();
+      if (fix) return pointFromFix(fix, radiusM);
+      const resolved = await resolveEventQueryPoint();
+      return { ...resolved, radiusM };
     },
     enabled:
       hydration.isSuccess &&
+      radiusHydration.isSuccess &&
       !identity.isPending &&
       (identity.isError || !preferences.isLoading) &&
       (nearby ? device.fix != null : preferences.isSuccess),
     retry: false,
   });
-  return { identity, preferences, point, placeId, device };
+  return { identity, preferences, point, placeId, radiusM, device };
 }

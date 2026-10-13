@@ -33,6 +33,7 @@ import { listNotifications } from '@/lib/notifications';
 import { queryPointForArea } from '@/lib/area-point';
 import { refreshDeviceLocation } from '@/lib/device-location';
 import { NEARBY_PLACE_ID, setDiscoveryPlaceId, useDiscoveryPoint } from '@/lib/use-discovery-point';
+import { setDiscoveryRadiusM } from '@/lib/discovery-radius-store';
 import {
   acceptRegionSuggestion,
   bumpRegionActivity,
@@ -65,7 +66,7 @@ export default function HomeScreen() {
   const [regionSheetOpen, setRegionSheetOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const { identity, preferences, point, placeId, device } = useDiscoveryPoint();
+  const { identity, preferences, point, placeId, radiusM, device } = useDiscoveryPoint();
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
     queryFn: () => listTags(),
@@ -391,6 +392,10 @@ export default function HomeScreen() {
                   title={t('events.locationPickerTitle')}
                   message={t('events.locationPickerMessage')}
                   options={locationOptions}
+                  radiusM={radiusM}
+                  onRadiusChange={(next) => {
+                    void setDiscoveryRadiusM(next);
+                  }}
                   isPresented={locationOpen}
                   onIsPresentedChange={setLocationOpen}
                   onSelect={(id) => {
