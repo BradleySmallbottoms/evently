@@ -19,7 +19,7 @@ import { OnboardingAreaStep } from '@/components/onboarding/onboarding-area-step
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ensureIdentity } from '@/lib/identity';
-import { createCircleArea } from '@/lib/preferences';
+import { createCircleArea, getPreferences } from '@/lib/preferences';
 import { setDiscoveryPlaceId } from '@/lib/use-discovery-point';
 import {
   loadOnboardingState,
@@ -59,6 +59,10 @@ export function OnboardingCarousel({ onFinished }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<OnboardingState | null>(null);
+  /** Undefined while saved areas are still loading. */
+  const [savedAreaId, setSavedAreaId] = useState<string | null | undefined>(undefined);
+  const savedAreaRequest = useRef<Promise<string | null> | null>(null);
+  const skippedForSavedArea = useRef(false);
 
   const ensureUser = useCallback(async () => {
     try {
@@ -73,9 +77,30 @@ export function OnboardingCarousel({ onFinished }: Props) {
     }
   }, [locale, t]);
 
+  const firstSavedAreaId = useCallback(async (): Promise<string | null> => {
+    if (!savedAreaRequest.current) {
+      savedAreaRequest.current = (async () => {
+        const identity = await ensureIdentity(locale);
+        const preferences = await getPreferences(identity);
+        const first = [...preferences.areas].sort((a, b) =>
+          a.createdAt.localeCompare(b.createdAt),
+        )[0];
+        return first?.id ?? null;
+      })().catch((err) => {
+        console.warn('onboarding areas failed', err);
+        return null;
+      });
+    }
+    return savedAreaRequest.current;
+  }, [locale]);
+
   useEffect(() => {
     void ensureUser();
-  }, [ensureUser]);
+    void firstSavedAreaId().then((id) => {
+      setSavedAreaId(id);
+      if (id) void setDiscoveryPlaceId(id);
+    });
+  }, [ensureUser, firstSavedAreaId]);
 
   const ensureState = useCallback(async (): Promise<OnboardingState> => {
     if (state) return state;
@@ -91,14 +116,28 @@ export function OnboardingCarousel({ onFinished }: Props) {
 
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const next = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-    if (next >= 0 && next < STEPS.length) setIndex(next);
+    if (next < 0 || next >= STEPS.length) return;
+    setIndex(next);
+    if (next >= 3 && savedAreaId && !skippedForSavedArea.current) {
+      skippedForSavedArea.current = true;
+      void ensureState().then((current) => finish(current));
+    }
   };
 
-  const finish = async (next: OnboardingState) => {
-    const completed = await markOnboardingComplete(next);
-    setState(completed);
-    onFinished(completed);
-  };
+  const finish = useCallback(
+    async (next: OnboardingState) => {
+      const completed = await markOnboardingComplete(next);
+      setState(completed);
+      onFinished(completed);
+    },
+    [onFinished],
+  );
+
+  useEffect(() => {
+    if (!savedAreaId || index < 3 || skippedForSavedArea.current) return;
+    skippedForSavedArea.current = true;
+    void ensureState().then((current) => finish(current));
+  }, [savedAreaId, index, ensureState, finish]);
 
   const onWelcomeContinue = async () => {
     const current = await ensureState();
@@ -131,8 +170,13 @@ export function OnboardingCarousel({ onFinished }: Props) {
       }
       setState(current);
       const stepIndex = STEPS.findIndex((step) => step.id === kind);
-      if (stepIndex >= 0 && stepIndex < STEPS.length - 1) goTo(stepIndex + 1);
-      else await finish(current);
+      if (kind === 'location' && (await firstSavedAreaId())) {
+        await finish(current);
+      } else if (stepIndex >= 0 && stepIndex < STEPS.length - 1) {
+        goTo(stepIndex + 1);
+      } else {
+        await finish(current);
+      }
     } catch (err) {
       console.warn('onboarding activate failed', err);
       setError(t('home.identityError'));
@@ -175,8 +219,13 @@ export function OnboardingCarousel({ onFinished }: Props) {
       current = await setPermissionChoice(current, kind, 'skipped');
       setState(current);
       const stepIndex = STEPS.findIndex((step) => step.id === kind);
-      if (stepIndex >= 0 && stepIndex < STEPS.length - 1) goTo(stepIndex + 1);
-      else await finish(current);
+      if (kind === 'location' && (await firstSavedAreaId())) {
+        await finish(current);
+      } else if (stepIndex >= 0 && stepIndex < STEPS.length - 1) {
+        goTo(stepIndex + 1);
+      } else {
+        await finish(current);
+      }
     } finally {
       setBusy(false);
     }
@@ -185,7 +234,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
   return (
     <View style={styles.root}>
       <View pointerEvents="none" style={[styles.dots, { top: insets.top + space.md }]}>
-        {STEPS.map((step, i) => (
+        {(savedAreaId ? STEPS.slice(0, 3) : STEPS).map((step, i) => (
           <View
             key={step.id}
             style={{
@@ -261,6 +310,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
           />
         </StepFrame>
 
+        {savedAreaId ? null : (
         <StepFrame
           image={STEPS[3]!.image}
           title={t('onboarding.areaTitle')}
@@ -285,6 +335,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
             }}
           />
         </StepFrame>
+        )}
       </ScrollView>
     </View>
   );

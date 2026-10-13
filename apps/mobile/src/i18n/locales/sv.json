@@ -255,6 +255,7 @@
     "areaLocating": "Hittar din plats…",
     "areaLocateFailed": "Vi kunde inte hitta din plats. Sök efter en plats i stället.",
     "areaSearchPlaceholder": "Sök en plats",
+    "areaSearchClear": "Rensa",
     "areaSearchEmpty": "Inga platser hittades.",
     "areaSaveError": "Kunde inte spara området.",
     "activate": "Aktivera",

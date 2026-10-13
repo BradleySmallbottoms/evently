@@ -255,6 +255,7 @@
     "areaLocating": "Finding your location…",
     "areaLocateFailed": "We couldn’t find your location. Search for a place instead.",
     "areaSearchPlaceholder": "Search for a place",
+    "areaSearchClear": "Clear",
     "areaSearchEmpty": "No places found.",
     "areaSaveError": "Couldn’t save this area.",
     "activate": "Activate",

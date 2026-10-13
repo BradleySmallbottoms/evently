@@ -131,6 +131,23 @@ export function OnboardingAreaStep({
             autoCorrect={false}
             style={{ flex: 1, fontSize: 16, color: colors.ink, paddingVertical: space.md }}
           />
+          {text.length > 0 && !locating ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('onboarding.areaSearchClear')}
+              disabled={busy}
+              hitSlop={8}
+              onPress={() => {
+                searchRequest.current += 1;
+                setText('');
+                setResults([]);
+                setSearchEmpty(false);
+                setSearching(false);
+              }}
+            >
+              <SymbolView name={'xmark.circle.fill' as never} size={18} tintColor={colors.inkFaint} />
+            </Pressable>
+          ) : null}
         </View>
         {locating || searching ? <ActivityIndicator color="#FFFFFF" /> : null}
 
