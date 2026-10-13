@@ -16,9 +16,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { OnboardingAreaStep } from '@/components/onboarding/onboarding-area-step';
+import { OnboardingTagsStep } from '@/components/onboarding/onboarding-tags-step';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ensureIdentity } from '@/lib/identity';
+import { saveHomeTagIds } from '@/lib/home-tag-selection';
 import { createCircleArea, getPreferences } from '@/lib/preferences';
 import { setDiscoveryPlaceId } from '@/lib/use-discovery-point';
 import {
@@ -37,13 +39,16 @@ import { radius, space } from '@/theme/tokens';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-type StepId = 'welcome' | 'notifications' | 'location' | 'area';
+type StepId = 'welcome' | 'notifications' | 'location' | 'area' | 'tags';
+
+const TAGS_INDEX = 4;
 
 const STEPS: { id: StepId; image: ImageSourcePropType }[] = [
   { id: 'welcome', image: require('@/assets/images/onboarding_1.png') },
   { id: 'notifications', image: require('@/assets/images/onboarding_2.png') },
   { id: 'location', image: require('@/assets/images/onboarding_3.png') },
   { id: 'area', image: require('@/assets/images/onboarding_4.png') },
+  { id: 'tags', image: require('@/assets/images/onboarding_5.png') },
 ];
 
 type Props = {
@@ -59,10 +64,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<OnboardingState | null>(null);
-  /** Undefined while saved areas are still loading. */
-  const [savedAreaId, setSavedAreaId] = useState<string | null | undefined>(undefined);
   const savedAreaRequest = useRef<Promise<string | null> | null>(null);
-  const skippedForSavedArea = useRef(false);
 
   const ensureUser = useCallback(async () => {
     try {
@@ -97,7 +99,6 @@ export function OnboardingCarousel({ onFinished }: Props) {
   useEffect(() => {
     void ensureUser();
     void firstSavedAreaId().then((id) => {
-      setSavedAreaId(id);
       if (id) void setDiscoveryPlaceId(id);
     });
   }, [ensureUser, firstSavedAreaId]);
@@ -118,10 +119,6 @@ export function OnboardingCarousel({ onFinished }: Props) {
     const next = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
     if (next < 0 || next >= STEPS.length) return;
     setIndex(next);
-    if (next >= 3 && savedAreaId && !skippedForSavedArea.current) {
-      skippedForSavedArea.current = true;
-      void ensureState().then((current) => finish(current));
-    }
   };
 
   const finish = useCallback(
@@ -132,12 +129,6 @@ export function OnboardingCarousel({ onFinished }: Props) {
     },
     [onFinished],
   );
-
-  useEffect(() => {
-    if (!savedAreaId || index < 3 || skippedForSavedArea.current) return;
-    skippedForSavedArea.current = true;
-    void ensureState().then((current) => finish(current));
-  }, [savedAreaId, index, ensureState, finish]);
 
   const onWelcomeContinue = async () => {
     const current = await ensureState();
@@ -170,9 +161,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
       }
       setState(current);
       const stepIndex = STEPS.findIndex((step) => step.id === kind);
-      if (kind === 'location' && (await firstSavedAreaId())) {
-        await finish(current);
-      } else if (stepIndex >= 0 && stepIndex < STEPS.length - 1) {
+      if (stepIndex >= 0 && stepIndex < STEPS.length - 1) {
         goTo(stepIndex + 1);
       } else {
         await finish(current);
@@ -193,7 +182,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
       if (!identity) return;
       const area = await createCircleArea(identity, place);
       await setDiscoveryPlaceId(area.id);
-      await finish(await ensureState());
+      goTo(TAGS_INDEX);
     } catch (err) {
       console.warn('onboarding area save failed', err);
       setError(t('onboarding.areaSaveError'));
@@ -206,7 +195,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
     setBusy(true);
     try {
       await deferRegionPromptAfterAreaSkip(detected);
-      await finish(await ensureState());
+      goTo(TAGS_INDEX);
     } finally {
       setBusy(false);
     }
@@ -219,9 +208,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
       current = await setPermissionChoice(current, kind, 'skipped');
       setState(current);
       const stepIndex = STEPS.findIndex((step) => step.id === kind);
-      if (kind === 'location' && (await firstSavedAreaId())) {
-        await finish(current);
-      } else if (stepIndex >= 0 && stepIndex < STEPS.length - 1) {
+      if (stepIndex >= 0 && stepIndex < STEPS.length - 1) {
         goTo(stepIndex + 1);
       } else {
         await finish(current);
@@ -231,10 +218,24 @@ export function OnboardingCarousel({ onFinished }: Props) {
     }
   };
 
+  const onSaveTags = async (tagIds: string[]) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await saveHomeTagIds(tagIds);
+      await finish(await ensureState());
+    } catch (err) {
+      console.warn('onboarding tags save failed', err);
+      setError(t('onboarding.tagsSaveError'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <View style={styles.root}>
       <View pointerEvents="none" style={[styles.dots, { top: insets.top + space.md }]}>
-        {(savedAreaId ? STEPS.slice(0, 3) : STEPS).map((step, i) => (
+        {STEPS.map((step, i) => (
           <View
             key={step.id}
             style={{
@@ -251,6 +252,8 @@ export function OnboardingCarousel({ onFinished }: Props) {
         ref={scrollRef}
         horizontal
         pagingEnabled
+        directionalLockEnabled
+        nestedScrollEnabled
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -310,7 +313,6 @@ export function OnboardingCarousel({ onFinished }: Props) {
           />
         </StepFrame>
 
-        {savedAreaId ? null : (
         <StepFrame
           image={STEPS[3]!.image}
           title={t('onboarding.areaTitle')}
@@ -335,7 +337,25 @@ export function OnboardingCarousel({ onFinished }: Props) {
             }}
           />
         </StepFrame>
-        )}
+
+        <StepFrame
+          image={STEPS[4]!.image}
+          title={t('onboarding.tagsTitle')}
+          body={t('onboarding.tagsBody')}
+          bottomInset={insets.bottom}
+          error={error}
+          fill
+        >
+          <OnboardingTagsStep
+            busy={busy}
+            onContinue={(tagIds) => {
+              void onSaveTags(tagIds);
+            }}
+            onSkip={() => {
+              void onSaveTags([]);
+            }}
+          />
+        </StepFrame>
       </ScrollView>
     </View>
   );
@@ -349,6 +369,7 @@ function StepFrame({
   accentSoft,
   bottomInset,
   error,
+  fill,
   children,
 }: {
   image: ImageSourcePropType;
@@ -358,6 +379,8 @@ function StepFrame({
   accentSoft?: string;
   bottomInset: number;
   error?: string | null;
+  /** Let the step body use the space under the title, for the interest grid. */
+  fill?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -371,9 +394,10 @@ function StepFrame({
       <View
         style={[
           styles.content,
+          fill ? styles.contentFill : null,
           {
-            paddingTop: space.xxxl * 2,
-            paddingBottom: bottomInset + space.xl,
+            paddingTop: fill ? space.xxxl * 2 + space.lg : space.xxxl * 2,
+            paddingBottom: bottomInset + space.lg,
           },
         ]}
       >
@@ -386,14 +410,14 @@ function StepFrame({
               {accentLabel}
             </ShadowedText>
           ) : null}
-          <ShadowedText variant="hero" style={styles.title}>
+          <ShadowedText variant="hero" style={[styles.title, fill ? styles.titleFill : null]}>
             {title}
           </ShadowedText>
           <ShadowedText variant="body" style={styles.body}>
             {body}
           </ShadowedText>
         </View>
-        <View style={styles.actions}>
+        <View style={fill ? styles.actionsFill : styles.actions}>
           {error ? (
             <ShadowedText variant="caption" intensity="soft" style={styles.error}>
               {error}
@@ -514,11 +538,19 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: space.xxl,
   },
+  contentFill: {
+    justifyContent: 'flex-start',
+    gap: space.lg,
+  },
   copy: {
     gap: space.md,
   },
   title: {
     color: '#FFFFFF',
+  },
+  titleFill: {
+    fontSize: 30,
+    lineHeight: 34,
   },
   body: {
     color: 'rgba(255,255,255,0.92)',
@@ -542,6 +574,11 @@ const styles = StyleSheet.create({
     color: 'rgba(0, 0, 0, 0.28)',
   },
   actions: {
+    gap: space.md,
+  },
+  actionsFill: {
+    flex: 1,
+    minHeight: 0,
     gap: space.md,
   },
 });

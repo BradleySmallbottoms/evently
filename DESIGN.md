@@ -222,9 +222,9 @@ text fully matches one suggestion. - If location was not granted, the
 same field starts empty for search. A chosen place uses that geocoded
 point as the center. - The user picks a radius (5, 25, 50, or 100 km).
 "Continue" saves that circle as their first area and stores its id as
-the selected discovery area. - If the account already has a saved area, this
-step is skipped and the earliest saved area is the selected discovery
-area. - "Skip" finishes onboarding without an area
+the selected discovery area, then advances to interests. An area already
+saved on the account stays the selected discovery area until Continue
+replaces it. - "Skip" advances to interests without a new area
 and counts as dismissing the save-area prompt, so that prompt stays quiet
 for 7 days near this place.
 

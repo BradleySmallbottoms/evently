@@ -13,6 +13,7 @@ export const brand = {
   success: '#477B65',
   error: '#B84C43',
   accentSoft: '#F8E6D8',
+  accentSoftAlpha: '#F8E6D899',
   secondarySoft: '#E4EFEA',
   infoSoft: '#E3EBF3',
   /** Aliases used by existing screens. */
@@ -32,6 +33,7 @@ export const colors = {
   primary: brand.primary,
   accent: brand.accent,
   accentSoft: brand.accentSoft,
+  accentSoftAlpha: brand.accentSoftAlpha,
   secondary: brand.secondary,
   secondarySoft: brand.secondarySoft,
   info: brand.info,

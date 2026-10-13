@@ -302,11 +302,30 @@
     "areaSearchClear": "Clear",
     "areaSearchEmpty": "No places found.",
     "areaSaveError": "Couldn’t save this area.",
+    "tagsTitle": "What are you\ninterested in?",
+    "tagsBody": "Choose your interests so we can show more events that suit you.",
+    "interest": {
+      "music": "Music",
+      "theatre": "Theatre",
+      "training": "Training",
+      "museum": "Museum",
+      "outdoor": "Outdoors",
+      "food": "Food & drink",
+      "family": "Family & kids",
+      "photo": "Photo",
+      "sport": "Sport",
+      "market": "Market",
+      "talks": "Talks",
+      "local": "Local & community"
+    },
+    "tagsLoadError": "Couldn’t load tags. You can show everything and choose later.",
+    "tagsSaveError": "Couldn’t save these tags.",
     "activate": "Activate",
     "skip": "Skip",
     "reminderNotificationsTitle": "Enable notifications?",
     "reminderNotificationsBody": "You skipped this earlier. Activate notifications to hear about events that match your interests.",
     "reminderLocationTitle": "Enable location?",
-    "reminderLocationBody": "You skipped this earlier. Activate location to see nearby events and check in at venues."
+    "reminderLocationBody": "You skipped this earlier. Activate location to see nearby events and check in at venues.",
+    "finish": "Done"
   }
 }

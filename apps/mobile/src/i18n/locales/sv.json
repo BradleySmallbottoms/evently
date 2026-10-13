@@ -302,11 +302,30 @@
     "areaSearchClear": "Rensa",
     "areaSearchEmpty": "Inga platser hittades.",
     "areaSaveError": "Kunde inte spara området.",
+    "tagsTitle": "Vad är du\nintresserad av?",
+    "tagsBody": "Välj dina intressen så kan vi visa evenemang som passar dig. Allting går att ändra senare.",
+    "interest": {
+      "music": "Musik",
+      "theatre": "Teater",
+      "training": "Träning",
+      "museum": "Museum",
+      "outdoor": "Utomhus",
+      "food": "Mat & dryck",
+      "family": "Familj & barn",
+      "photo": "Foto",
+      "sport": "Sport",
+      "market": "Marknad",
+      "talks": "Föreläsningar",
+      "local": "Lokalt & samhälle"
+    },
+    "tagsLoadError": "Kunde inte hämta taggar. Du kan visa allt och välja senare.",
+    "tagsSaveError": "Kunde inte spara taggarna.",
     "activate": "Aktivera",
     "skip": "Hoppa över",
     "reminderNotificationsTitle": "Aktivera notiser?",
     "reminderNotificationsBody": "Du hoppade över detta tidigare. Aktivera notiser för att höra om evenemang som matchar dina intressen.",
     "reminderLocationTitle": "Aktivera plats?",
-    "reminderLocationBody": "Du hoppade över detta tidigare. Aktivera plats för att se evenemang i närheten och checka in på platsen."
+    "reminderLocationBody": "Du hoppade över detta tidigare. Aktivera plats för att se evenemang i närheten och checka in på platsen.",
+    "finish": "Klart"
   }
 }

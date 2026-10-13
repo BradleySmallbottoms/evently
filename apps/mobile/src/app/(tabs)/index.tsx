@@ -18,7 +18,6 @@ import { RegionSuggestionSheet } from '@/components/native/region-suggestion-she
 import { AppText } from '@/components/ui/app-text';
 import { EventCard } from '@/components/ui/event-card';
 import { EventListItem } from '@/components/ui/event-list-item';
-import { SearchBar } from '@/components/ui/search-bar';
 import { TagFilters } from '@/components/ui/tag-filters';
 import { PopularNow } from '@/components/ui/popular-now';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
