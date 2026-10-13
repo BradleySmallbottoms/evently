@@ -8,6 +8,7 @@ import {
   validateCircleArea,
   validatePolygonArea,
 } from '../../../packages/domain/src/preferences';
+import { resolveTravelDistanceM } from '../../../packages/domain/src/regions';
 
 describe('AREA_RADIUS_PRESETS_M', () => {
   it('stays inside the saved-circle range', () => {
@@ -15,6 +16,7 @@ describe('AREA_RADIUS_PRESETS_M', () => {
     for (const radiusM of AREA_RADIUS_PRESETS_M) {
       expect(radiusM).toBeGreaterThanOrEqual(MIN_AREA_RADIUS_M);
       expect(radiusM).toBeLessThanOrEqual(MAX_AREA_RADIUS_M);
+      expect(resolveTravelDistanceM(radiusM)).toBe(radiusM);
     }
   });
 });

@@ -233,7 +233,9 @@ calls) in the same change as every new major feature.**
   kommun / Gävleborg län). With no saved region, opening the app looks up that name and asks to
   save it for notifications; a dismiss, including skipping the onboarding area step, waits 7 days near that place, and a place more than about
   25 km away can ask again immediately. The distance is the profile setting “How far can you go”
-  (`PUT /v1/me/travel-distance`, default 25 km). The name is the lookup region, then the
+  (`PUT /v1/me/travel-distance`, default 25 km). Continuing the onboarding area step sets
+  that distance to the chosen radius (5, 25, 50, or 100 km); skipping leaves the default.
+  The name is the lookup region, then the
   device geocoder. Accept posts `regionId` (or 15 km circle fallback). Declines stay on-device.
   Flow: [docs/flows/region-suggestions.md](docs/flows/region-suggestions.md).
 

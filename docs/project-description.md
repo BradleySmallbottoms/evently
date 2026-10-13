@@ -347,7 +347,8 @@ visited region. The check runs on the device; the location only leaves the phone
    never use background location. “Near you” on home, search, and the map follows that fix.
 2. With no saved region, ask as soon as the app opens (location permission already granted).
    Skipping the onboarding area step counts as a dismiss, so the prompt waits 7 days near that
-   place instead of appearing as onboarding closes.
+   place instead of appearing as onboarding closes. Continuing that step stores the chosen
+   radius (5, 25, 50, or 100 km) as “How far can you go”. Skipping leaves the default 25 km.
    Otherwise "new" = farther than the profile setting “How far can you go” (default 25 km) from
    every saved area and "active" = ≥ 60 s in foreground
    or a few screens opened. Tunable (`REGION_SUGGESTION` in `packages/domain/src/regions.ts`).

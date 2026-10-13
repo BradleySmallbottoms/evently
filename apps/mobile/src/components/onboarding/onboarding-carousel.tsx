@@ -1,3 +1,4 @@
+import { resolveTravelDistanceM } from '@local-events/domain';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -21,7 +22,7 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ensureIdentity } from '@/lib/identity';
 import { saveHomeTagIds } from '@/lib/home-tag-selection';
-import { createCircleArea, getPreferences } from '@/lib/preferences';
+import { createCircleArea, getPreferences, updateTravelDistance } from '@/lib/preferences';
 import { setDiscoveryPlaceId } from '@/lib/use-discovery-point';
 import {
   loadOnboardingState,
@@ -180,6 +181,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
     try {
       const identity = await ensureUser();
       if (!identity) return;
+      await updateTravelDistance(identity, resolveTravelDistanceM(place.radiusM));
       const area = await createCircleArea(identity, place);
       await setDiscoveryPlaceId(area.id);
       goTo(TAGS_INDEX);
