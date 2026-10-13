@@ -334,7 +334,8 @@ Any linked device can be revoked.
    open `event_match` draft; edits before send update that draft, and a second publisher draft is
    refused while it is open. Admin reminders are left alone when the event is edited.
 
-Areas are saved places, not live tracking.
+Areas are saved places, not live tracking. The onboarding tags step writes the chosen tags
+with `PUT /me/interests`. Skip stores none, so nearby push does not match until tags are chosen.
 
 ### Region subscriptions
 

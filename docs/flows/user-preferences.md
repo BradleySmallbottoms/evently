@@ -45,6 +45,8 @@ sequenceDiagram
   It is stored on the user in meters (`travel_distance_m`, default 25 km) and decides when a
   place is far enough to suggest saving. `PUT /me/travel-distance`. Continuing the onboarding
   area step sets it to the chosen radius (5, 25, 50, or 100 km). Skipping leaves the default.
+- The onboarding tags step does the same `PUT /me/interests`, then stores that selection as the
+  home chips on the device. Skip sends an empty list.
 - Circle = `center` + `radius_m`; drawn polygon = `area` geography.
 - Region kind (`regions` table + suggestion UI) is a later Phase 3 slice.
 - Soft cap: 20 areas (`MAX_SAVED_AREAS` in domain).

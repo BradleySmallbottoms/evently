@@ -54,7 +54,8 @@ export const UserPreferencesResponse = z.object({
 export type UserPreferencesResponse = z.infer<typeof UserPreferencesResponse>;
 
 export const ReplaceUserInterestsRequest = z.object({
-  tagIds: z.array(Id).max(50),
+  /** The home catalog is larger than 50 tags, so a full onboarding selection still fits. */
+  tagIds: z.array(Id).max(100),
 });
 export type ReplaceUserInterestsRequest = z.infer<typeof ReplaceUserInterestsRequest>;
 

@@ -2141,7 +2141,7 @@
                       "type": "string",
                       "format": "uuid"
                     },
-                    "maxItems": 50
+                    "maxItems": 100
                   }
                 },
                 "required": [

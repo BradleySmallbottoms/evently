@@ -134,7 +134,9 @@ Product invariants (enforced in domain, tested)
   A dismiss, including skipping the onboarding area step, stays quiet near that place for 7 days;
  farther than the profile setting “How far can you go”
  (default 25 km) the prompt can show again. Continuing the onboarding area step stores the
- chosen radius as that travel distance; skipping leaves the default.
+ chosen radius as that travel distance; skipping leaves the default. The onboarding tags step
+ stores the chosen tags as notification interests and as the device home filters. Skip stores an
+ empty selection.
 - v1 has no subscription/paid plan UI anywhere. Plan limits go through `entitlementsFor()`, which
   returns the all-unlocked launch plan.
 

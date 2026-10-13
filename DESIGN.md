@@ -192,7 +192,7 @@ color as the only active-state signal.
 ### 8.1 Onboarding
 
 The reference image shows three editorial slides (discover, culture,
-together). That sequence is wrong for this app. Keep a four-screen
+together). That sequence is wrong for this app. Keep a five-screen
 photo carousel, but the steps stay:
 
 **Screen 1 --- Intro** - Full-bleed photo. - Heading: "Experience more,
@@ -221,12 +221,19 @@ list. Continue is enabled again when a suggestion is picked, or when the
 text fully matches one suggestion. - If location was not granted, the
 same field starts empty for search. A chosen place uses that geocoded
 point as the center. - The user picks a radius (5, 25, 50, or 100 km).
-"Continue" saves that circle as their first area and stores its id as
-the selected discovery area, then advances to interests. An area already
+"Continue" saves that circle as their first area, stores the chosen
+radius as “How far can you go”, and stores its id as the selected
+discovery area, then advances to interests. An area already
 saved on the account stays the selected discovery area until Continue
 replaces it. - "Skip" advances to interests without a new area
 and counts as dismissing the save-area prompt, so that prompt stays quiet
 for 7 days near this place.
+
+**Screen 5 --- Interests** - Full-bleed photo. - Interest cards. Each
+card selects every loaded tag in that interest. - Finish stores those
+tags as notification interests (`PUT /me/interests`) and as the device
+home filters. - "Skip" stores an empty selection: home shows everything,
+and no interest tags are saved.
 
 Onboarding rules: - Use full-bleed photography with a dark lower
 gradient. - Place copy in the lower third, with enough contrast and
@@ -318,7 +325,9 @@ details. Keep saved state synchronized across screens.
 
 Include: - Profile summary, if the user has signed in. - Rows for
 favorite categories and notifications. Each row shows a count badge and
-opens its own screen. Tickets and registration stay out of the list for
+opens its own screen. Favorite categories uses the same grouped list as
+Home after “Show all categories”: one card per group, and each card
+expands to its tags. Tickets and registration stay out of the list for
 now. Saved events and lists stay on the Saved tab. Quiet hours are on
 the notifications screen. Location stays on the preferences screen
 opened from Home. A separate developer section on Profile resets this

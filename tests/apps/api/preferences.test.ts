@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ReplaceUserInterestsRequest } from '../../../packages/contracts/src/preferences';
 import { createApp } from '../../../apps/api/src/app';
 import { createMemoryAuthServices } from '../../../apps/api/src/services/auth/memory';
 import { createMemoryPreferenceServices } from '../../../apps/api/src/services/preferences/memory';
@@ -20,6 +21,14 @@ async function createUserSession(app: ReturnType<typeof createApp>) {
 }
 
 describe('user preferences', () => {
+  it('accepts a full onboarding interest selection', () => {
+    const tagIds = Array.from({ length: 60 }, () => crypto.randomUUID());
+    expect(ReplaceUserInterestsRequest.safeParse({ tagIds }).success).toBe(true);
+    expect(ReplaceUserInterestsRequest.safeParse({ tagIds: [...tagIds, ...tagIds, ...tagIds] }).success).toBe(
+      false,
+    );
+  });
+
   it('documents OpenAPI paths', async () => {
     const res = await createApp().request('/v1/openapi.json');
     const doc = (await res.json()) as { paths: Record<string, unknown> };

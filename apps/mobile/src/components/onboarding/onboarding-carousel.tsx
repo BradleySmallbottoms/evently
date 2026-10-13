@@ -22,7 +22,7 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ensureIdentity } from '@/lib/identity';
 import { saveHomeTagIds } from '@/lib/home-tag-selection';
-import { createCircleArea, getPreferences, updateTravelDistance } from '@/lib/preferences';
+import { createCircleArea, getPreferences, replaceInterests, updateTravelDistance } from '@/lib/preferences';
 import { setDiscoveryPlaceId } from '@/lib/use-discovery-point';
 import {
   loadOnboardingState,
@@ -224,6 +224,9 @@ export function OnboardingCarousel({ onFinished }: Props) {
     setBusy(true);
     setError(null);
     try {
+      const identity = await ensureUser();
+      if (!identity) return;
+      await replaceInterests(identity, tagIds);
       await saveHomeTagIds(tagIds);
       await finish(await ensureState());
     } catch (err) {

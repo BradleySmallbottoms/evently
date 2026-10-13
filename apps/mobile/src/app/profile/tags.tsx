@@ -2,17 +2,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { TagGroupList } from '@/components/ui/tag-group-list';
 import { listTags } from '@/lib/events';
 import { ensureIdentity } from '@/lib/identity';
 import { getPreferences, replaceInterests } from '@/lib/preferences';
 import { colors } from '@/theme/colors';
-import { radius, space } from '@/theme/tokens';
+import { space } from '@/theme/tokens';
 
 export default function FavoriteCategoriesScreen() {
   const { t, i18n } = useTranslation();
@@ -71,40 +72,16 @@ export default function FavoriteCategoriesScreen() {
           <AppText variant="title">{t('profile.categories')}</AppText>
           <AppText variant="caption">{t('profile.categoriesHint')}</AppText>
         </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-          {(tags.data?.items ?? []).map((tag) => {
-            const on = selected.has(tag.id);
-            const label = tag.name;
-            return (
-              <Pressable
-                key={tag.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                onPress={() => {
-                  setSelected((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(tag.id)) next.delete(tag.id);
-                    else next.add(tag.id);
-                    return next;
-                  });
-                }}
-                style={{
-                  paddingHorizontal: space.lg,
-                  paddingVertical: space.sm + 2,
-                  borderRadius: radius.pill,
-                  borderCurve: 'continuous',
-                  backgroundColor: on ? colors.accent : (colors.card as string),
-                  borderWidth: on ? 0 : 1,
-                  borderColor: colors.line,
-                }}
-              >
-                <AppText variant="label" style={{ color: colors.ink, fontWeight: '600' }}>
-                  {label}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </View>
+        {tags.isPending ? (
+          <ActivityIndicator color={colors.ink} />
+        ) : (
+          <TagGroupList
+            tags={tags.data?.items ?? []}
+            selectedIds={[...selected]}
+            showHeading={false}
+            onChange={(ids) => setSelected(new Set(ids))}
+          />
+        )}
         {error ? (
           <AppText variant="caption" style={{ color: colors.danger }}>
             {error}
@@ -113,7 +90,7 @@ export default function FavoriteCategoriesScreen() {
         <PrimaryButton
           label={t('preferences.save')}
           loading={save.isPending}
-          disabled={!identity.data || tags.isPending || !hydrated}
+          disabled={!identity.data || tags.isPending || tags.isError || !hydrated}
           onPress={() => save.mutate()}
         />
       </ScrollView>

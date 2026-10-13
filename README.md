@@ -176,9 +176,10 @@ calls) in the same change as every new major feature.**
 
 - First launch shows an **onboarding carousel** (welcome → notifications → location → area →
   tags). Activate requests the OS permission; Skip stores the choice and deferred **reminders**
-  reappear after every 5 app activations (one permission at a time). The tags step writes the same
-  device selection as the home chips (`le.homeTagIds`). Each interest card selects that interest’s
-  tags. **Skip** stores an empty selection. Reset app data clears this state.
+  reappear after every 5 app activations (one permission at a time). The tags step writes those
+  tags as notification interests (`PUT /v1/me/interests`) and as the device home filters
+  (`le.homeTagIds`). Each interest card selects that interest’s tags. **Skip** stores an empty
+  selection. Reset app data clears the device state; interests stay on the account until changed.
 - Home event queries use **existing** location permission only (no prompt). Check-in and onboarding
   / reminders own the permission request. “Near you” reads that location when the app becomes
   active and watches updates of about 100 m until the app backgrounds. Pull to refresh reads again.

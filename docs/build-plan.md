@@ -53,7 +53,7 @@ Closed beta around week 15, store launch around week 19.
 
 ## Phase 3 — Discovery + notifications (weeks 6–10)
 
-- [x] Interests, saved areas (radius and polygon)
+- [x] Interests, saved areas (radius and polygon). The onboarding tags step stores the chosen tags as those interests
 - [x] Region suggestions + region subscriptions (municipality boundaries seeded into `regions`). Device location is read when the app becomes active and watched while it stays in the foreground. A dismiss, including skipping the onboarding area step, hides the prompt near that place for 7 days; farther than the profile “How far can you go” setting (default 25 km) it can show again immediately. Continuing the onboarding area step stores the chosen radius as that travel distance
 - [x] Push token registration; SQS + worker wired up
 - [x] Geo matching; silent Expo after inbox insert; client-side quiet hours + 5/day OS-notification cap; 90-day inbox retention. Events without a point stay in the list and off the map, and they do not match nearby push
