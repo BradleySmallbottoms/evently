@@ -141,15 +141,9 @@ async function countNearby(db: Db, eventId: string): Promise<number> {
       SELECT DISTINCT u.id
       FROM events e
       INNER JOIN event_tags et ON et.event_id = e.id
-      INNER JOIN user_interests ui ON ui.tag_id = et.tag_id
-      INNER JOIN users u ON u.id = ui.user_id
       INNER JOIN user_areas ua
-        ON ua.user_id = u.id
-        AND ua.active = true
+        ON ua.active = true
         AND ua.notify = true
-      WHERE e.id = ${eventId}::uuid
-        AND e.status = 'published'
-        AND e.location IS NOT NULL
         AND (
           (ua.area IS NOT NULL AND ST_Covers(ua.area, e.location))
           OR (
@@ -158,6 +152,13 @@ async function countNearby(db: Db, eventId: string): Promise<number> {
             AND ST_DWithin(ua.center, e.location, ua.radius_m)
           )
         )
+      INNER JOIN user_area_tags uat
+        ON uat.area_id = ua.id
+        AND uat.tag_id = et.tag_id
+      INNER JOIN users u ON u.id = ua.user_id
+      WHERE e.id = ${eventId}::uuid
+        AND e.status = 'published'
+        AND e.location IS NOT NULL
       LIMIT ${MATCH_LIMIT}
     ) t
   `);
@@ -190,13 +191,9 @@ async function countUniqueAndTokens(
       SELECT DISTINCT u.id AS user_id
       FROM events e
       INNER JOIN event_tags et ON et.event_id = e.id
-      INNER JOIN user_interests ui ON ui.tag_id = et.tag_id
-      INNER JOIN users u ON u.id = ui.user_id
       INNER JOIN user_areas ua
-        ON ua.user_id = u.id AND ua.active = true AND ua.notify = true
-      WHERE e.id = ${eventId}::uuid
-        AND e.status = 'published'
-        AND e.location IS NOT NULL
+        ON ua.active = true
+        AND ua.notify = true
         AND (
           (ua.area IS NOT NULL AND ST_Covers(ua.area, e.location))
           OR (
@@ -204,6 +201,13 @@ async function countUniqueAndTokens(
             AND ST_DWithin(ua.center, e.location, ua.radius_m)
           )
         )
+      INNER JOIN user_area_tags uat
+        ON uat.area_id = ua.id
+        AND uat.tag_id = et.tag_id
+      INNER JOIN users u ON u.id = ua.user_id
+      WHERE e.id = ${eventId}::uuid
+        AND e.status = 'published'
+        AND e.location IS NOT NULL
       LIMIT ${MATCH_LIMIT}
     ),
     followers AS (
@@ -251,10 +255,17 @@ async function countAdminEventAudience(
   db: Db,
   eventId: string,
   requireInterest: boolean,
-): Promise<{ nearby: number; withToken: number; capped: boolean }> {
-  const interestJoins = requireInterest
+): Promise<{
+  nearby: number;
+  followers: number;
+  unique: number;
+  withToken: number;
+  capped: boolean;
+}> {
+  const tagJoins = requireInterest
     ? sql`INNER JOIN event_tags et ON et.event_id = e.id
-          INNER JOIN user_interests ui ON ui.tag_id = et.tag_id AND ui.user_id = u.id`
+          INNER JOIN user_area_tags uat
+            ON uat.area_id = ua.id AND uat.tag_id = et.tag_id`
     : sql``;
   const rows = await db.execute(sql`
     WITH matched AS (
@@ -272,30 +283,52 @@ async function countAdminEventAudience(
           )
         )
       INNER JOIN users u ON u.id = ua.user_id
-      ${interestJoins}
+      ${tagJoins}
       WHERE e.id = ${eventId}::uuid
         AND e.status = 'published'
         AND e.location IS NOT NULL
+    ),
+    followers AS (
+      SELECT DISTINCT s.user_id
+      FROM events e
+      INNER JOIN subscriptions s
+        ON s.target_type = 'publisher' AND s.target_id = e.publisher_id
+      WHERE e.id = ${eventId}::uuid
+      LIMIT ${MATCH_LIMIT}
+    ),
+    audience AS (
+      SELECT user_id FROM (SELECT user_id FROM matched LIMIT ${MATCH_LIMIT}) m
+      UNION
+      SELECT user_id FROM followers
     )
     SELECT
       (SELECT COUNT(*)::int FROM (SELECT 1 FROM matched LIMIT ${MATCH_LIMIT}) t) AS nearby,
+      (SELECT COUNT(*)::int FROM followers) AS followers,
+      (SELECT COUNT(*)::int FROM audience) AS unique_count,
       (
-        SELECT COUNT(DISTINCT m.user_id)::int
-        FROM (SELECT user_id FROM matched LIMIT ${MATCH_LIMIT}) m
-        INNER JOIN devices d ON d.user_id = m.user_id
+        SELECT COUNT(DISTINCT a.user_id)::int
+        FROM audience a
+        INNER JOIN devices d ON d.user_id = a.user_id
           AND d.revoked_at IS NULL
           AND d.expo_push_token IS NOT NULL
       ) AS with_token,
-      ((SELECT COUNT(*) FROM matched) >= ${MATCH_LIMIT}) AS capped
+      (
+        (SELECT COUNT(*) FROM matched) >= ${MATCH_LIMIT}
+        OR (SELECT COUNT(*) FROM followers) >= ${MATCH_LIMIT}
+      ) AS capped
   `);
   const list = (Array.isArray(rows) ? rows : []) as Array<{
     nearby: number;
+    followers: number;
+    unique_count: number;
     with_token: number;
     capped: boolean;
   }>;
   const row = list[0];
   return {
     nearby: Number(row?.nearby ?? 0),
+    followers: Number(row?.followers ?? 0),
+    unique: Number(row?.unique_count ?? 0),
     withToken: Number(row?.with_token ?? 0),
     capped: Boolean(row?.capped),
   };
@@ -339,10 +372,11 @@ async function countBroadcastAudience(
   if (!tagId) return { unique: 0, withToken: 0, capped: false };
   const rows = await db.execute(sql`
     WITH audience AS (
-      SELECT DISTINCT ui.user_id
-      FROM user_interests ui
-      INNER JOIN users u ON u.id = ui.user_id AND u.banned_at IS NULL
-      WHERE ui.tag_id = ${tagId}::uuid
+      SELECT DISTINCT ua.user_id
+      FROM user_area_tags uat
+      INNER JOIN user_areas ua ON ua.id = uat.area_id
+      INNER JOIN users u ON u.id = ua.user_id AND u.banned_at IS NULL
+      WHERE uat.tag_id = ${tagId}::uuid
       LIMIT ${BROADCAST_MATCH_LIMIT}
     )
     SELECT
@@ -356,10 +390,11 @@ async function countBroadcastAudience(
       (
         SELECT CASE
           WHEN (
-            SELECT COUNT(DISTINCT ui.user_id)
-            FROM user_interests ui
-            INNER JOIN users u ON u.id = ui.user_id AND u.banned_at IS NULL
-            WHERE ui.tag_id = ${tagId}::uuid
+            SELECT COUNT(DISTINCT ua.user_id)
+            FROM user_area_tags uat
+            INNER JOIN user_areas ua ON ua.id = uat.area_id
+            INNER JOIN users u ON u.id = ua.user_id AND u.banned_at IS NULL
+            WHERE uat.tag_id = ${tagId}::uuid
           ) >= ${BROADCAST_MATCH_LIMIT}
           THEN true ELSE false
         END
@@ -568,17 +603,16 @@ export function createDbAdminPushMessageServices(db: Db): AdminPushMessageServic
       }
       const eventPublished = existing.eventStatus === 'published';
       if (existing.audience === 'area' || existing.audience === 'area_and_tag') {
-        const stats = eventPublished
-          ? await countAdminEventAudience(
-              db,
-              existing.eventId,
-              existing.audience === 'area_and_tag',
-            )
-          : { nearby: 0, withToken: 0, capped: false };
+        const stats = await countAdminEventAudience(
+          db,
+          existing.eventId,
+          existing.audience === 'area_and_tag',
+        );
+        const nearby = eventPublished ? stats.nearby : 0;
         return {
-          nearby: stats.nearby,
-          publisherFollowers: 0,
-          uniqueRecipients: stats.nearby,
+          nearby,
+          publisherFollowers: stats.followers,
+          uniqueRecipients: eventPublished ? stats.unique : stats.followers,
           withPushToken: stats.withToken,
           capped: stats.capped,
           eventPublished,

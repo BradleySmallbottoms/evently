@@ -104,6 +104,7 @@ export function createMemoryAuthServices(
         quietHoursEndMin: 8 * 60,
         quietHoursEnabled: true,
         travelDistanceM: 25_000,
+        discoveryRadiusM: null,
         bannedAt: null,
         banReason: null,
       });

@@ -3,14 +3,15 @@ import {
   canCancelEvent,
   canEditEvent,
   canPublishEvent,
+  isPubliclyListedEvent,
   validateEventFields,
 } from '../../../packages/domain/src/events';
 
 describe('validateEventFields', () => {
   it('allows a physical event without a location', () => {
-    expect(
-      validateEventFields({ mode: 'physical', location: null, onlineUrl: null }),
-    ).toEqual({ ok: true });
+    expect(validateEventFields({ mode: 'physical', location: null, onlineUrl: null })).toEqual({
+      ok: true,
+    });
     expect(
       validateEventFields({
         mode: 'physical',
@@ -21,9 +22,10 @@ describe('validateEventFields', () => {
   });
 
   it('requires onlineUrl for digital events', () => {
-    expect(
-      validateEventFields({ mode: 'digital', location: null, onlineUrl: null }),
-    ).toEqual({ ok: false, reason: 'online_url_required' });
+    expect(validateEventFields({ mode: 'digital', location: null, onlineUrl: null })).toEqual({
+      ok: false,
+      reason: 'online_url_required',
+    });
     expect(
       validateEventFields({
         mode: 'digital',
@@ -31,6 +33,14 @@ describe('validateEventFields', () => {
         onlineUrl: 'https://example.com/live',
       }),
     ).toEqual({ ok: true });
+  });
+});
+
+describe('isPubliclyListedEvent', () => {
+  it('omits an event that has neither a point nor a tag', () => {
+    expect(isPubliclyListedEvent({ hasLocation: false, tagCount: 0 })).toBe(false);
+    expect(isPubliclyListedEvent({ hasLocation: true, tagCount: 0 })).toBe(true);
+    expect(isPubliclyListedEvent({ hasLocation: false, tagCount: 1 })).toBe(true);
   });
 });
 

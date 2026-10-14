@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { SEED_TAGS } from '@local-events/db';
+import type { EventMeta } from '@local-events/contracts';
 import {
   importNotificationMessages,
   pushStatusForEvent,
@@ -45,6 +46,7 @@ interface StoredEvent {
   onlineUrl?: string;
   priceAmount?: number;
   currency?: string;
+  meta: EventMeta;
   links?: { type: 'tickets' | 'registration' | 'info'; url: string; label?: string }[];
 }
 
@@ -116,6 +118,7 @@ function eventFromWrite(id: string, input: ImportedEventWrite): StoredEvent {
     onlineUrl: input.event.onlineUrl,
     priceAmount: input.event.priceAmount,
     currency: input.event.currency,
+    meta: input.event.meta ?? {},
     links: input.event.links?.map((link) => ({ ...link })),
   };
 }

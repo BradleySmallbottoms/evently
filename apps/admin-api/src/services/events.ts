@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import type {
-  AdminEventDecisionResponse,
-  AdminEventDetail,
-  AdminEventListResponse,
-  AdminEventPatchRequest,
-  AdminEventReviewListResponse,
-  Tag,
-  EventLink,
+import {
+  type AdminEventDecisionResponse,
+  type AdminEventDetail,
+  type AdminEventListResponse,
+  type AdminEventPatchRequest,
+  type AdminEventReviewListResponse,
+  type Tag,
+  type EventLink,
+  readEventMeta,
 } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import {
@@ -89,6 +90,7 @@ type MemoryEvent = {
   onlineUrl?: string | null;
   priceAmount?: number | null;
   currency?: string;
+  meta?: AdminEventDetail['meta'];
   sourceUrl: string | null;
   tagIds?: string[];
   links?: MemoryEventLink[];
@@ -199,10 +201,7 @@ function contentChanges(
   }
   if (body.currency !== undefined) note('currency', body.currency !== (existing.currency ?? 'SEK'));
   if (body.tagIds !== undefined) {
-    note(
-      'tagIds',
-      JSON.stringify(body.tagIds) !== JSON.stringify(existing.tagIds ?? []),
-    );
+    note('tagIds', JSON.stringify(body.tagIds) !== JSON.stringify(existing.tagIds ?? []));
   }
   if (body.links !== undefined) {
     const prev = (existing.links ?? []).map((link) => ({
@@ -296,6 +295,7 @@ function asDetail(
     onlineUrl: e.onlineUrl ?? null,
     priceAmount: e.priceAmount ?? null,
     currency: e.currency ?? 'SEK',
+    meta: readEventMeta(e.meta),
     sourceUrl: e.sourceUrl,
     tagIds: e.tagIds ?? [],
     links: e.links ?? [],
@@ -512,6 +512,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         onlineUrl: schema.events.onlineUrl,
         priceAmount: schema.events.priceAmount,
         currency: schema.events.currency,
+        meta: schema.events.meta,
         sourceUrl: schema.events.sourceUrl,
         featured: schema.events.featured,
         checkInEnabled: schema.events.checkInEnabled,
@@ -546,6 +547,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       onlineUrl: row.onlineUrl,
       priceAmount: row.priceAmount,
       currency: row.currency,
+      meta: readEventMeta(row.meta),
       sourceUrl: row.sourceUrl,
       tagIds: await tagIdsFor(eventId),
       links: await linksFor(eventId),
@@ -568,9 +570,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
     }
     await db.delete(schema.eventTags).where(eq(schema.eventTags.eventId, eventId));
     if (unique.length > 0) {
-      await db
-        .insert(schema.eventTags)
-        .values(unique.map((tagId) => ({ eventId, tagId })));
+      await db.insert(schema.eventTags).values(unique.map((tagId) => ({ eventId, tagId })));
     }
   }
 
@@ -580,9 +580,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
   ) {
     await db
       .delete(schema.eventLinks)
-      .where(
-        and(eq(schema.eventLinks.eventId, eventId), eq(schema.eventLinks.audience, 'public')),
-      );
+      .where(and(eq(schema.eventLinks.eventId, eventId), eq(schema.eventLinks.audience, 'public')));
     if (links.length === 0) return;
     await db.insert(schema.eventLinks).values(
       links.map((link, position) => ({

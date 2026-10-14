@@ -16,7 +16,8 @@ description: Change the PostgreSQL/PostGIS database schema with Drizzle in packa
      `index('<table>_<col>_gist').using('gist', t.<col>)`.
    - Unique/lookup indexes for every foreign key you query by.
 3. **Generate**: `pnpm db:generate` (writes `packages/db/migrations/NNNN_*.sql`). Read the SQL.
-   Never edit a migration that has been applied in any environment; add a new one. For SQL drizzle
+   The command stamps the new journal entry after the latest existing timestamp. Do not hand-edit
+   those timestamps. Never edit a migration that has been applied in any environment; add a new one. For SQL drizzle
    can't express (CHECK constraints, triggers, data backfills) use
    `pnpm --filter @local-events/db exec drizzle-kit generate --custom --name <name>`.
 4. **Apply locally**: `pnpm db:up && pnpm db:migrate`.

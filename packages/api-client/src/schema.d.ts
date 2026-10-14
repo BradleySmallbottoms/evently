@@ -1270,14 +1270,13 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Current user interests and saved areas */
+                /** @description Current saved areas and notification settings */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
-                            tagIds: string[];
                             areas: {
                                 /** Format: uuid */
                                 id: string;
@@ -1293,6 +1292,7 @@ export interface paths {
                                     lng: number;
                                 } | null;
                                 radiusM: number | null;
+                                searchRadiusM: number | null;
                                 polygon: {
                                     lat: number;
                                     lng: number;
@@ -1310,6 +1310,7 @@ export interface paths {
                                 timezone: string;
                             };
                             travelDistanceM: number;
+                            discoveryRadiusM: number | null;
                         };
                     };
                 };
@@ -1330,77 +1331,6 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/me/interests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        tagIds: string[];
-                    };
-                };
-            };
-            responses: {
-                /** @description Replaced interest tags */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            tagIds: string[];
-                        };
-                    };
-                };
-                /** @description Unknown category */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-                /** @description Missing or invalid user session */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
         post?: never;
         delete?: never;
         options?: never;
@@ -1446,6 +1376,7 @@ export interface paths {
                                     lng: number;
                                 } | null;
                                 radiusM: number | null;
+                                searchRadiusM: number | null;
                                 polygon: {
                                     lat: number;
                                     lng: number;
@@ -1528,6 +1459,7 @@ export interface paths {
                                 lng: number;
                             } | null;
                             radiusM: number | null;
+                            searchRadiusM: number | null;
                             polygon: {
                                 lat: number;
                                 lng: number;
@@ -1675,6 +1607,7 @@ export interface paths {
                             lng: number;
                         }[];
                         tagIds?: string[];
+                        searchRadiusM?: number;
                     };
                 };
             };
@@ -1700,6 +1633,7 @@ export interface paths {
                                 lng: number;
                             } | null;
                             radiusM: number | null;
+                            searchRadiusM: number | null;
                             polygon: {
                                 lat: number;
                                 lng: number;
@@ -1978,6 +1912,63 @@ export interface paths {
                     content: {
                         "application/json": {
                             distanceM: number;
+                        };
+                    };
+                };
+                /** @description Missing or invalid user session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/discovery-radius": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        radiusM: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated Near you search radius */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            radiusM: number;
                         };
                     };
                 };
@@ -2361,6 +2352,20 @@ export interface paths {
                                 onlineUrl: string | null;
                                 priceAmount: number | null;
                                 currency: string;
+                                meta: {
+                                    ageLimit?: number;
+                                    freeEntry?: boolean;
+                                    accessibleParking?: boolean;
+                                    accessibleToilet?: boolean;
+                                    hearingLoop?: boolean;
+                                    visuallyImpairedAccess?: boolean;
+                                    wheelchairAccessible?: boolean;
+                                    petsAllowed?: boolean;
+                                    childFriendly?: boolean;
+                                    allergyAdapted?: boolean;
+                                    smokeFree?: boolean;
+                                    wc?: boolean;
+                                };
                                 publisherName: string;
                                 links: {
                                     /** Format: uuid */
@@ -2573,6 +2578,20 @@ export interface paths {
                                 onlineUrl: string | null;
                                 priceAmount: number | null;
                                 currency: string;
+                                meta: {
+                                    ageLimit?: number;
+                                    freeEntry?: boolean;
+                                    accessibleParking?: boolean;
+                                    accessibleToilet?: boolean;
+                                    hearingLoop?: boolean;
+                                    visuallyImpairedAccess?: boolean;
+                                    wheelchairAccessible?: boolean;
+                                    petsAllowed?: boolean;
+                                    childFriendly?: boolean;
+                                    allergyAdapted?: boolean;
+                                    smokeFree?: boolean;
+                                    wc?: boolean;
+                                };
                                 publisherName: string;
                                 links: {
                                     /** Format: uuid */
@@ -2791,6 +2810,20 @@ export interface paths {
                                     onlineUrl: string | null;
                                     priceAmount: number | null;
                                     currency: string;
+                                    meta: {
+                                        ageLimit?: number;
+                                        freeEntry?: boolean;
+                                        accessibleParking?: boolean;
+                                        accessibleToilet?: boolean;
+                                        hearingLoop?: boolean;
+                                        visuallyImpairedAccess?: boolean;
+                                        wheelchairAccessible?: boolean;
+                                        petsAllowed?: boolean;
+                                        childFriendly?: boolean;
+                                        allergyAdapted?: boolean;
+                                        smokeFree?: boolean;
+                                        wc?: boolean;
+                                    };
                                     publisherName: string;
                                     links: {
                                         /** Format: uuid */
@@ -2891,6 +2924,20 @@ export interface paths {
                                 onlineUrl: string | null;
                                 priceAmount: number | null;
                                 currency: string;
+                                meta: {
+                                    ageLimit?: number;
+                                    freeEntry?: boolean;
+                                    accessibleParking?: boolean;
+                                    accessibleToilet?: boolean;
+                                    hearingLoop?: boolean;
+                                    visuallyImpairedAccess?: boolean;
+                                    wheelchairAccessible?: boolean;
+                                    petsAllowed?: boolean;
+                                    childFriendly?: boolean;
+                                    allergyAdapted?: boolean;
+                                    smokeFree?: boolean;
+                                    wc?: boolean;
+                                };
                                 publisherName: string;
                                 links: {
                                     /** Format: uuid */
@@ -3071,6 +3118,20 @@ export interface paths {
                                 onlineUrl: string | null;
                                 priceAmount: number | null;
                                 currency: string;
+                                meta: {
+                                    ageLimit?: number;
+                                    freeEntry?: boolean;
+                                    accessibleParking?: boolean;
+                                    accessibleToilet?: boolean;
+                                    hearingLoop?: boolean;
+                                    visuallyImpairedAccess?: boolean;
+                                    wheelchairAccessible?: boolean;
+                                    petsAllowed?: boolean;
+                                    childFriendly?: boolean;
+                                    allergyAdapted?: boolean;
+                                    smokeFree?: boolean;
+                                    wc?: boolean;
+                                };
                                 publisherName: string;
                                 links: {
                                     /** Format: uuid */
@@ -3400,6 +3461,20 @@ export interface paths {
                                 onlineUrl: string | null;
                                 priceAmount: number | null;
                                 currency: string;
+                                meta: {
+                                    ageLimit?: number;
+                                    freeEntry?: boolean;
+                                    accessibleParking?: boolean;
+                                    accessibleToilet?: boolean;
+                                    hearingLoop?: boolean;
+                                    visuallyImpairedAccess?: boolean;
+                                    wheelchairAccessible?: boolean;
+                                    petsAllowed?: boolean;
+                                    childFriendly?: boolean;
+                                    allergyAdapted?: boolean;
+                                    smokeFree?: boolean;
+                                    wc?: boolean;
+                                };
                                 publisherName: string;
                                 links: {
                                     /** Format: uuid */
@@ -3525,6 +3600,20 @@ export interface paths {
                             onlineUrl: string | null;
                             priceAmount: number | null;
                             currency: string;
+                            meta: {
+                                ageLimit?: number;
+                                freeEntry?: boolean;
+                                accessibleParking?: boolean;
+                                accessibleToilet?: boolean;
+                                hearingLoop?: boolean;
+                                visuallyImpairedAccess?: boolean;
+                                wheelchairAccessible?: boolean;
+                                petsAllowed?: boolean;
+                                childFriendly?: boolean;
+                                allergyAdapted?: boolean;
+                                smokeFree?: boolean;
+                                wc?: boolean;
+                            };
                             publisherName: string;
                             links: {
                                 /** Format: uuid */
@@ -3616,7 +3705,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Published events near a point. Default order is featured first, then soonest. sort=popular orders by saves plus coming marks (at least 1) and then soonest. Use offset to page. */
+                /** @description Published events near a point, plus published events that have a tag and no point. Events with neither a point nor a tag are omitted. Default order is featured first, then soonest. sort=popular orders by saves plus coming marks (at least 1) and then soonest. Use offset to page. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -3651,6 +3740,20 @@ export interface paths {
                                 onlineUrl: string | null;
                                 priceAmount: number | null;
                                 currency: string;
+                                meta: {
+                                    ageLimit?: number;
+                                    freeEntry?: boolean;
+                                    accessibleParking?: boolean;
+                                    accessibleToilet?: boolean;
+                                    hearingLoop?: boolean;
+                                    visuallyImpairedAccess?: boolean;
+                                    wheelchairAccessible?: boolean;
+                                    petsAllowed?: boolean;
+                                    childFriendly?: boolean;
+                                    allergyAdapted?: boolean;
+                                    smokeFree?: boolean;
+                                    wc?: boolean;
+                                };
                                 publisherName: string;
                                 links: {
                                     /** Format: uuid */
@@ -3741,6 +3844,20 @@ export interface paths {
                             onlineUrl: string | null;
                             priceAmount: number | null;
                             currency: string;
+                            meta: {
+                                ageLimit?: number;
+                                freeEntry?: boolean;
+                                accessibleParking?: boolean;
+                                accessibleToilet?: boolean;
+                                hearingLoop?: boolean;
+                                visuallyImpairedAccess?: boolean;
+                                wheelchairAccessible?: boolean;
+                                petsAllowed?: boolean;
+                                childFriendly?: boolean;
+                                allergyAdapted?: boolean;
+                                smokeFree?: boolean;
+                                wc?: boolean;
+                            };
                             publisherName: string;
                             links: {
                                 /** Format: uuid */
@@ -3843,6 +3960,20 @@ export interface paths {
                             onlineUrl: string | null;
                             priceAmount: number | null;
                             currency: string;
+                            meta: {
+                                ageLimit?: number;
+                                freeEntry?: boolean;
+                                accessibleParking?: boolean;
+                                accessibleToilet?: boolean;
+                                hearingLoop?: boolean;
+                                visuallyImpairedAccess?: boolean;
+                                wheelchairAccessible?: boolean;
+                                petsAllowed?: boolean;
+                                childFriendly?: boolean;
+                                allergyAdapted?: boolean;
+                                smokeFree?: boolean;
+                                wc?: boolean;
+                            };
                             publisherName: string;
                             links: {
                                 /** Format: uuid */
@@ -3995,6 +4126,20 @@ export interface paths {
                             onlineUrl: string | null;
                             priceAmount: number | null;
                             currency: string;
+                            meta: {
+                                ageLimit?: number;
+                                freeEntry?: boolean;
+                                accessibleParking?: boolean;
+                                accessibleToilet?: boolean;
+                                hearingLoop?: boolean;
+                                visuallyImpairedAccess?: boolean;
+                                wheelchairAccessible?: boolean;
+                                petsAllowed?: boolean;
+                                childFriendly?: boolean;
+                                allergyAdapted?: boolean;
+                                smokeFree?: boolean;
+                                wc?: boolean;
+                            };
                             publisherName: string;
                             links: {
                                 /** Format: uuid */
@@ -4115,6 +4260,20 @@ export interface paths {
                             onlineUrl: string | null;
                             priceAmount: number | null;
                             currency: string;
+                            meta: {
+                                ageLimit?: number;
+                                freeEntry?: boolean;
+                                accessibleParking?: boolean;
+                                accessibleToilet?: boolean;
+                                hearingLoop?: boolean;
+                                visuallyImpairedAccess?: boolean;
+                                wheelchairAccessible?: boolean;
+                                petsAllowed?: boolean;
+                                childFriendly?: boolean;
+                                allergyAdapted?: boolean;
+                                smokeFree?: boolean;
+                                wc?: boolean;
+                            };
                             publisherName: string;
                             links: {
                                 /** Format: uuid */
@@ -4231,6 +4390,20 @@ export interface paths {
                             onlineUrl: string | null;
                             priceAmount: number | null;
                             currency: string;
+                            meta: {
+                                ageLimit?: number;
+                                freeEntry?: boolean;
+                                accessibleParking?: boolean;
+                                accessibleToilet?: boolean;
+                                hearingLoop?: boolean;
+                                visuallyImpairedAccess?: boolean;
+                                wheelchairAccessible?: boolean;
+                                petsAllowed?: boolean;
+                                childFriendly?: boolean;
+                                allergyAdapted?: boolean;
+                                smokeFree?: boolean;
+                                wc?: boolean;
+                            };
                             publisherName: string;
                             links: {
                                 /** Format: uuid */

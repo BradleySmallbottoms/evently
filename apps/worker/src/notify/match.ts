@@ -54,8 +54,9 @@ export async function loadPublishedEvent(
 }
 
 /**
- * Users with an active notify area covering the event point and overlapping interests.
- * Push token is not required — inbox rows are stored even without a device token.
+ * Users with an active notify area covering the event point, where that same
+ * area has at least one tag in common with the event. Tags on another area do
+ * not count. Push token is not required — inbox rows are stored either way.
  */
 export async function findNearbyMatchedUsers(
   db: Db,
@@ -66,15 +67,9 @@ export async function findNearbyMatchedUsers(
     SELECT DISTINCT u.id AS user_id
     FROM events e
     INNER JOIN event_tags et ON et.event_id = e.id
-    INNER JOIN user_interests ui ON ui.tag_id = et.tag_id
-    INNER JOIN users u ON u.id = ui.user_id
     INNER JOIN user_areas ua
-      ON ua.user_id = u.id
-      AND ua.active = true
+      ON ua.active = true
       AND ua.notify = true
-    WHERE e.id = ${eventId}::uuid
-      AND e.status = 'published'
-      AND e.location IS NOT NULL
       AND (
         (ua.area IS NOT NULL AND ST_Covers(ua.area, e.location))
         OR (
@@ -83,6 +78,13 @@ export async function findNearbyMatchedUsers(
           AND ST_DWithin(ua.center, e.location, ua.radius_m)
         )
       )
+    INNER JOIN user_area_tags uat
+      ON uat.area_id = ua.id
+      AND uat.tag_id = et.tag_id
+    INNER JOIN users u ON u.id = ua.user_id
+    WHERE e.id = ${eventId}::uuid
+      AND e.status = 'published'
+      AND e.location IS NOT NULL
     LIMIT ${limit}
   `);
 

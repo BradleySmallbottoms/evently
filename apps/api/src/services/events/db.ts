@@ -1,5 +1,12 @@
-import type { Event, EventLink, EventLinkInput, ManagedEvent, PublicEventListQuery, UpdateEventRequest } from '@local-events/contracts';
-import { publicEventTagIds } from '@local-events/contracts';
+import type {
+  Event,
+  EventLink,
+  EventLinkInput,
+  ManagedEvent,
+  PublicEventListQuery,
+  UpdateEventRequest,
+} from '@local-events/contracts';
+import { publicEventTagIds, readEventMeta } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { cancelOpenPushMessages, pointEwkt, schema } from '@local-events/db';
 import {
@@ -41,6 +48,7 @@ type LocRow = {
   onlineUrl: string | null;
   priceAmount: number | null;
   currency: string;
+  meta: unknown;
   publisherName: string;
   featured: boolean;
   checkInEnabled: boolean;
@@ -85,6 +93,7 @@ function mapEvent(
     onlineUrl: row.onlineUrl,
     priceAmount: row.priceAmount,
     currency: row.currency,
+    meta: readEventMeta(row.meta),
     publisherName: row.publisherName,
     links,
     imageUrl: publicAssetUrl(baseUrl, imageKey),
@@ -146,6 +155,7 @@ const eventSelect = {
   onlineUrl: schema.events.onlineUrl,
   priceAmount: schema.events.priceAmount,
   currency: schema.events.currency,
+  meta: schema.events.meta,
   publisherName: schema.publishers.name,
   featured: schema.events.featured,
   checkInEnabled: schema.events.checkInEnabled,
@@ -189,7 +199,10 @@ export function createDbEventServices(
   }
 
   async function imagesFor(eventIds: string[]) {
-    const grouped = new Map<string, { main: string | null; gallery: { role: string; s3Key: string }[] }>();
+    const grouped = new Map<
+      string,
+      { main: string | null; gallery: { role: string; s3Key: string }[] }
+    >();
     for (const id of eventIds) grouped.set(id, { main: null, gallery: [] });
     if (eventIds.length === 0) return grouped;
     const rows = await db
@@ -300,17 +313,12 @@ export function createDbEventServices(
 
   async function replaceTags(eventId: string, tagIds: string[]) {
     if (tagIds.length > 0) {
-      const found = await db
-        .select({ id: tags.id })
-        .from(tags)
-        .where(inArray(tags.id, tagIds));
+      const found = await db.select({ id: tags.id }).from(tags).where(inArray(tags.id, tagIds));
       if (found.length !== tagIds.length) throw new EventError('invalid_event');
     }
     await db.delete(eventTags).where(eq(eventTags.eventId, eventId));
     if (tagIds.length > 0) {
-      await db
-        .insert(eventTags)
-        .values(tagIds.map((tagId) => ({ eventId, tagId })));
+      await db.insert(eventTags).values(tagIds.map((tagId) => ({ eventId, tagId })));
     }
   }
 
@@ -587,17 +595,27 @@ export function createDbEventServices(
               ]
             : [desc(events.featured), asc(events.startsAt), asc(events.id)];
 
-      // No point: included in the list, omitted from the map. A point must be inside the radius.
+      // isPubliclyListedEvent: a point inside the radius, or tags and no point.
+      // Neither is omitted. No point stays off the map.
       const rows = await selectEvents()
         .where(
           and(
             ...filters,
             sql`(
-              ${events.location} IS NULL
-              OR ST_DWithin(
-                ${events.location},
-                ST_GeogFromText(${point}),
-                ${query.radiusM}
+              (
+                ${events.location} IS NOT NULL
+                AND ST_DWithin(
+                  ${events.location},
+                  ST_GeogFromText(${point}),
+                  ${query.radiusM}
+                )
+              )
+              OR (
+                ${events.location} IS NULL
+                AND exists (
+                  select 1 from ${eventTags}
+                  where ${eventTags.eventId} = ${events.id}
+                )
               )
             )`,
           ),

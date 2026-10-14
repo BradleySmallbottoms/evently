@@ -3,9 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { createApp } from '../../../apps/api/src/app';
 import { createMemoryAuthServices } from '../../../apps/api/src/services/auth/memory';
 import { createMemoryDomainEventPublisher } from '../../../apps/api/src/services/domain-events/memory';
-import { createMemoryEventServices, releaseAwaitingEventsInStore } from '../../../apps/api/src/services/events/memory';
+import {
+  createMemoryEventServices,
+  releaseAwaitingEventsInStore,
+} from '../../../apps/api/src/services/events/memory';
 import { SEED_TAGS } from '../../../packages/db/src/seed-tags';
-import { createMemoryStore, type MemoryEventRow } from '../../../apps/api/src/services/memory-store';
+import {
+  createMemoryStore,
+  type MemoryEventRow,
+} from '../../../apps/api/src/services/memory-store';
 
 async function registerAndLogin(app: ReturnType<typeof createApp>, email: string) {
   const registered = await app.request('/v1/publishers/register', {
@@ -53,9 +59,11 @@ describe('events', () => {
     const res = await createApp().request('/v1/tags');
     expect(res.status).toBe(200);
     const body = (await res.json()) as { items: { slug: string; name: string }[] };
-    expect(body.items.some((tag) => tag.slug === 'idrott-tavlingar' && tag.name === 'Idrott & Tävlingar')).toBe(
-      true,
-    );
+    expect(
+      body.items.some(
+        (tag) => tag.slug === 'idrott-tavlingar' && tag.name === 'Idrott & Tävlingar',
+      ),
+    ).toBe(true);
   });
 
   it('upcoming=true returns tags on published events that have not ended', async () => {
@@ -122,18 +130,14 @@ describe('events', () => {
     const pub = (await published.json()) as { status: string };
     expect(pub.status).toBe('awaiting_verification');
 
-    const publicBefore = await app.request(
-      '/v1/events?lat=61.3037&lng=17.0592&radiusM=50000',
-    );
+    const publicBefore = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000');
     expect(publicBefore.status).toBe(200);
     expect(((await publicBefore.json()) as { items: unknown[] }).items).toHaveLength(0);
 
     const released = releaseAwaitingEventsInStore(store, publisherId, new Date());
     expect(released).toBe(1);
 
-    const publicAfter = await app.request(
-      '/v1/events?lat=61.3037&lng=17.0592&radiusM=50000',
-    );
+    const publicAfter = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000');
     const listed = (await publicAfter.json()) as { items: { id: string; status: string }[] };
     expect(listed.items).toHaveLength(1);
     expect(listed.items[0]?.id).toBe(draft.id);
@@ -156,11 +160,7 @@ describe('events', () => {
       store,
     );
     const domainEvents = createMemoryDomainEventPublisher();
-    const events = createMemoryEventServices(
-      auth,
-      { now: () => new Date(), domainEvents },
-      store,
-    );
+    const events = createMemoryEventServices(auth, { now: () => new Date(), domainEvents }, store);
     const app = createApp({ auth, events });
 
     const { publisherId, cookie } = await registerAndLogin(app, 'verified@example.com');
@@ -196,11 +196,7 @@ describe('events', () => {
       store,
     );
     const domainEvents = createMemoryDomainEventPublisher();
-    const events = createMemoryEventServices(
-      auth,
-      { now: () => new Date(), domainEvents },
-      store,
-    );
+    const events = createMemoryEventServices(auth, { now: () => new Date(), domainEvents }, store);
     const app = createApp({ auth, events });
 
     const { publisherId, cookie } = await registerAndLogin(app, 'unverified-enqueue@example.com');
@@ -254,7 +250,11 @@ describe('events', () => {
       }),
     });
     expect(updated.status).toBe(200);
-    const body = (await updated.json()) as { title: string; mode: string; onlineUrl: string | null };
+    const body = (await updated.json()) as {
+      title: string;
+      mode: string;
+      onlineUrl: string | null;
+    };
     expect(body.title).toBe('Uppdaterad titel');
     expect(body.mode).toBe('digital');
     expect(body.onlineUrl).toBe('https://example.com/live');
@@ -290,12 +290,7 @@ describe('events', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     };
-    function row(
-      id: string,
-      title: string,
-      startsAt: string,
-      featured: boolean,
-    ): MemoryEventRow {
+    function row(id: string, title: string, startsAt: string, featured: boolean): MemoryEventRow {
       return {
         ...base,
         id,
@@ -304,16 +299,14 @@ describe('events', () => {
         endsAt: startsAt,
         featured,
         checkInEnabled: false,
+        meta: {},
         numSaved: 0,
         numComing: 0,
         startsAtDate: new Date(startsAt),
         endsAtDate: new Date(startsAt),
       };
     }
-    store.events.set(
-      soonerId,
-      row(soonerId, 'Sooner', '2026-12-02T18:00:00.000Z', false),
-    );
+    store.events.set(soonerId, row(soonerId, 'Sooner', '2026-12-02T18:00:00.000Z', false));
     store.events.set(
       featuredId,
       row(featuredId, 'Featured later', '2026-12-20T18:00:00.000Z', true),
@@ -329,32 +322,49 @@ describe('events', () => {
 
     const listed = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000');
     expect(listed.status).toBe(200);
-    const items = (await listed.json()) as { items: { id: string; featured: boolean }[]; nextOffset: number | null };
+    const items = (await listed.json()) as {
+      items: { id: string; featured: boolean }[];
+      nextOffset: number | null;
+    };
     expect(items.items.map((item) => item.id)).toEqual([featuredId, soonerId, taggedId]);
     expect(items.items[0]?.featured).toBe(true);
     expect(items.nextOffset).toBeNull();
 
     const first = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&limit=1');
-    const firstBody = (await first.json()) as { items: { id: string }[]; nextOffset: number | null };
+    const firstBody = (await first.json()) as {
+      items: { id: string }[];
+      nextOffset: number | null;
+    };
     expect(firstBody.items.map((item) => item.id)).toEqual([featuredId]);
     expect(firstBody.nextOffset).toBe(1);
 
-    const second = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&limit=1&offset=1');
-    const secondBody = (await second.json()) as { items: { id: string }[]; nextOffset: number | null };
+    const second = await app.request(
+      '/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&limit=1&offset=1',
+    );
+    const secondBody = (await second.json()) as {
+      items: { id: string }[];
+      nextOffset: number | null;
+    };
     expect(secondBody.items.map((item) => item.id)).toEqual([soonerId]);
     expect(secondBody.nextOffset).toBe(2);
 
     const tagged = await app.request(
       `/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&tagId=${tagId}&limit=1`,
     );
-    const taggedBody = (await tagged.json()) as { items: { id: string }[]; nextOffset: number | null };
+    const taggedBody = (await tagged.json()) as {
+      items: { id: string }[];
+      nextOffset: number | null;
+    };
     expect(taggedBody.items.map((item) => item.id)).toEqual([featuredId]);
     expect(taggedBody.nextOffset).toBe(1);
 
     const taggedNext = await app.request(
       `/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&tagId=${tagId}&limit=1&offset=1`,
     );
-    const taggedNextBody = (await taggedNext.json()) as { items: { id: string }[]; nextOffset: number | null };
+    const taggedNextBody = (await taggedNext.json()) as {
+      items: { id: string }[];
+      nextOffset: number | null;
+    };
     expect(taggedNextBody.items.map((item) => item.id)).toEqual([taggedId]);
     expect(taggedNextBody.nextOffset).toBeNull();
 
@@ -372,6 +382,74 @@ describe('events', () => {
     );
     const onlyOtherBody = (await onlyOther.json()) as { items: { id: string }[] };
     expect(onlyOtherBody.items.map((item) => item.id)).toEqual([soonerId]);
+  });
+
+  it('omits a published event that has neither a point nor a tag', async () => {
+    const store = createMemoryStore();
+    const auth = createMemoryAuthServices(store);
+    const app = createApp({
+      auth,
+      events: createMemoryEventServices(auth, { now: () => new Date() }, store),
+    });
+    const placedId = '11111111-1111-4111-8111-111111111431';
+    const taggedId = '11111111-1111-4111-8111-111111111432';
+    const blankId = '11111111-1111-4111-8111-111111111433';
+    const tagId = SEED_TAGS[0]!.id;
+    const at = '2026-12-02T18:00:00.000Z';
+    function put(
+      id: string,
+      title: string,
+      location: { lat: number; lng: number } | null,
+      tagIds: string[],
+    ) {
+      store.events.set(id, {
+        id,
+        publisherId: '11111111-1111-4111-8111-111111111403',
+        title,
+        description: null,
+        mode: 'physical',
+        status: 'published',
+        origin: 'native',
+        startsAt: at,
+        endsAt: at,
+        timezone: 'Europe/Stockholm',
+        venueName: 'Hall',
+        location,
+        geofenceRadiusM: location ? 100 : null,
+        onlineUrl: null,
+        priceAmount: null,
+        currency: 'SEK',
+        publisherName: 'Hall',
+        links: [],
+        imageUrl: null,
+        imageUrls: [],
+        tagIds,
+        featured: false,
+        checkInEnabled: false,
+        meta: {},
+        numSaved: 0,
+        numComing: 0,
+        createdAt: at,
+        updatedAt: at,
+        startsAtDate: new Date(at),
+        endsAtDate: new Date(at),
+      });
+    }
+    put(placedId, 'Has a point', { lat: 61.3037, lng: 17.0592 }, []);
+    put(taggedId, 'Tagged without a point', null, [tagId]);
+    put(blankId, 'Neither point nor tag', null, []);
+
+    const listed = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&q=Neither');
+    expect(listed.status).toBe(200);
+    const searched = (await listed.json()) as { items: { id: string }[] };
+    expect(searched.items).toEqual([]);
+
+    const page = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000');
+    const body = (await page.json()) as { items: { id: string }[] };
+    expect(body.items.map((item) => item.id).sort()).toEqual([placedId, taggedId].sort());
+
+    const detail = await app.request(`/v1/events/${blankId}`);
+    expect(detail.status).toBe(200);
   });
 
   it('sorts popular events by saves plus coming marks', async () => {
@@ -410,6 +488,7 @@ describe('events', () => {
         tagIds: [],
         featured: id === quietId,
         checkInEnabled: false,
+        meta: {},
         numSaved: 0,
         numComing: 0,
         createdAt: at.toISOString(),
@@ -425,7 +504,9 @@ describe('events', () => {
     store.stats.set(`event:${bothId}:numSaved`, { value: 2, createdAt: at, updatedAt: at });
     store.stats.set(`event:${bothId}:numComing`, { value: 2, createdAt: at, updatedAt: at });
 
-    const listed = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&sort=popular');
+    const listed = await app.request(
+      '/v1/events?lat=61.3037&lng=17.0592&radiusM=50000&sort=popular',
+    );
     expect(listed.status).toBe(200);
     const body = (await listed.json()) as {
       items: { id: string; numSaved: number; numComing: number; featured: boolean }[];
@@ -472,6 +553,7 @@ describe('events', () => {
       tagIds: [],
       featured: false,
       checkInEnabled: false,
+      meta: {},
       numSaved: 0,
       numComing: 0,
       createdAt: at,

@@ -1933,19 +1933,12 @@
       "get": {
         "responses": {
           "200": {
-            "description": "Current user interests and saved areas",
+            "description": "Current saved areas and notification settings",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "tagIds": {
-                      "type": "array",
-                      "items": {
-                        "type": "string",
-                        "format": "uuid"
-                      }
-                    },
                     "areas": {
                       "type": "array",
                       "items": {
@@ -2001,6 +1994,10 @@
                             "type": "integer",
                             "nullable": true
                           },
+                          "searchRadiusM": {
+                            "type": "integer",
+                            "nullable": true
+                          },
                           "polygon": {
                             "type": "array",
                             "nullable": true,
@@ -2050,6 +2047,7 @@
                           "regionId",
                           "center",
                           "radiusM",
+                          "searchRadiusM",
                           "polygon",
                           "notify",
                           "active",
@@ -2089,124 +2087,17 @@
                       "type": "integer",
                       "minimum": 1000,
                       "maximum": 100000
+                    },
+                    "discoveryRadiusM": {
+                      "type": "integer",
+                      "nullable": true
                     }
                   },
                   "required": [
-                    "tagIds",
                     "areas",
                     "quietHours",
-                    "travelDistanceM"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid user session",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/me/interests": {
-      "put": {
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "tagIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "maxItems": 100
-                  }
-                },
-                "required": [
-                  "tagIds"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Replaced interest tags",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "tagIds": {
-                      "type": "array",
-                      "items": {
-                        "type": "string",
-                        "format": "uuid"
-                      }
-                    }
-                  },
-                  "required": [
-                    "tagIds"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Unknown category",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
+                    "travelDistanceM",
+                    "discoveryRadiusM"
                   ]
                 }
               }
@@ -2310,6 +2201,10 @@
                             "type": "integer",
                             "nullable": true
                           },
+                          "searchRadiusM": {
+                            "type": "integer",
+                            "nullable": true
+                          },
                           "polygon": {
                             "type": "array",
                             "nullable": true,
@@ -2359,6 +2254,7 @@
                           "regionId",
                           "center",
                           "radiusM",
+                          "searchRadiusM",
                           "polygon",
                           "notify",
                           "active",
@@ -2559,6 +2455,10 @@
                       "type": "integer",
                       "nullable": true
                     },
+                    "searchRadiusM": {
+                      "type": "integer",
+                      "nullable": true
+                    },
                     "polygon": {
                       "type": "array",
                       "nullable": true,
@@ -2608,6 +2508,7 @@
                     "regionId",
                     "center",
                     "radiusM",
+                    "searchRadiusM",
                     "polygon",
                     "notify",
                     "active",
@@ -2797,6 +2698,11 @@
                       "format": "uuid"
                     },
                     "maxItems": 100
+                  },
+                  "searchRadiusM": {
+                    "type": "integer",
+                    "minimum": 1000,
+                    "maximum": 100000
                   }
                 }
               }
@@ -2861,6 +2767,10 @@
                       "type": "integer",
                       "nullable": true
                     },
+                    "searchRadiusM": {
+                      "type": "integer",
+                      "nullable": true
+                    },
                     "polygon": {
                       "type": "array",
                       "nullable": true,
@@ -2910,6 +2820,7 @@
                     "regionId",
                     "center",
                     "radiusM",
+                    "searchRadiusM",
                     "polygon",
                     "notify",
                     "active",
@@ -3432,6 +3343,82 @@
                   },
                   "required": [
                     "distanceM"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/discovery-radius": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "radiusM": {
+                    "type": "integer",
+                    "minimum": 1000,
+                    "maximum": 100000
+                  }
+                },
+                "required": [
+                  "radiusM"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated Near you search radius",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "radiusM": {
+                      "type": "integer",
+                      "minimum": 1000,
+                      "maximum": 100000
+                    }
+                  },
+                  "required": [
+                    "radiusM"
                   ]
                 }
               }
@@ -4078,6 +4065,49 @@
                           "currency": {
                             "type": "string"
                           },
+                          "meta": {
+                            "type": "object",
+                            "properties": {
+                              "ageLimit": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 120
+                              },
+                              "freeEntry": {
+                                "type": "boolean"
+                              },
+                              "accessibleParking": {
+                                "type": "boolean"
+                              },
+                              "accessibleToilet": {
+                                "type": "boolean"
+                              },
+                              "hearingLoop": {
+                                "type": "boolean"
+                              },
+                              "visuallyImpairedAccess": {
+                                "type": "boolean"
+                              },
+                              "wheelchairAccessible": {
+                                "type": "boolean"
+                              },
+                              "petsAllowed": {
+                                "type": "boolean"
+                              },
+                              "childFriendly": {
+                                "type": "boolean"
+                              },
+                              "allergyAdapted": {
+                                "type": "boolean"
+                              },
+                              "smokeFree": {
+                                "type": "boolean"
+                              },
+                              "wc": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
                           "publisherName": {
                             "type": "string"
                           },
@@ -4179,6 +4209,7 @@
                           "onlineUrl",
                           "priceAmount",
                           "currency",
+                          "meta",
                           "publisherName",
                           "links",
                           "imageUrl",
@@ -4499,6 +4530,49 @@
                           "currency": {
                             "type": "string"
                           },
+                          "meta": {
+                            "type": "object",
+                            "properties": {
+                              "ageLimit": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 120
+                              },
+                              "freeEntry": {
+                                "type": "boolean"
+                              },
+                              "accessibleParking": {
+                                "type": "boolean"
+                              },
+                              "accessibleToilet": {
+                                "type": "boolean"
+                              },
+                              "hearingLoop": {
+                                "type": "boolean"
+                              },
+                              "visuallyImpairedAccess": {
+                                "type": "boolean"
+                              },
+                              "wheelchairAccessible": {
+                                "type": "boolean"
+                              },
+                              "petsAllowed": {
+                                "type": "boolean"
+                              },
+                              "childFriendly": {
+                                "type": "boolean"
+                              },
+                              "allergyAdapted": {
+                                "type": "boolean"
+                              },
+                              "smokeFree": {
+                                "type": "boolean"
+                              },
+                              "wc": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
                           "publisherName": {
                             "type": "string"
                           },
@@ -4600,6 +4674,7 @@
                           "onlineUrl",
                           "priceAmount",
                           "currency",
+                          "meta",
                           "publisherName",
                           "links",
                           "imageUrl",
@@ -4936,6 +5011,49 @@
                                 "currency": {
                                   "type": "string"
                                 },
+                                "meta": {
+                                  "type": "object",
+                                  "properties": {
+                                    "ageLimit": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 120
+                                    },
+                                    "freeEntry": {
+                                      "type": "boolean"
+                                    },
+                                    "accessibleParking": {
+                                      "type": "boolean"
+                                    },
+                                    "accessibleToilet": {
+                                      "type": "boolean"
+                                    },
+                                    "hearingLoop": {
+                                      "type": "boolean"
+                                    },
+                                    "visuallyImpairedAccess": {
+                                      "type": "boolean"
+                                    },
+                                    "wheelchairAccessible": {
+                                      "type": "boolean"
+                                    },
+                                    "petsAllowed": {
+                                      "type": "boolean"
+                                    },
+                                    "childFriendly": {
+                                      "type": "boolean"
+                                    },
+                                    "allergyAdapted": {
+                                      "type": "boolean"
+                                    },
+                                    "smokeFree": {
+                                      "type": "boolean"
+                                    },
+                                    "wc": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                },
                                 "publisherName": {
                                   "type": "string"
                                 },
@@ -5037,6 +5155,7 @@
                                 "onlineUrl",
                                 "priceAmount",
                                 "currency",
+                                "meta",
                                 "publisherName",
                                 "links",
                                 "imageUrl",
@@ -5237,6 +5356,49 @@
                           "currency": {
                             "type": "string"
                           },
+                          "meta": {
+                            "type": "object",
+                            "properties": {
+                              "ageLimit": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 120
+                              },
+                              "freeEntry": {
+                                "type": "boolean"
+                              },
+                              "accessibleParking": {
+                                "type": "boolean"
+                              },
+                              "accessibleToilet": {
+                                "type": "boolean"
+                              },
+                              "hearingLoop": {
+                                "type": "boolean"
+                              },
+                              "visuallyImpairedAccess": {
+                                "type": "boolean"
+                              },
+                              "wheelchairAccessible": {
+                                "type": "boolean"
+                              },
+                              "petsAllowed": {
+                                "type": "boolean"
+                              },
+                              "childFriendly": {
+                                "type": "boolean"
+                              },
+                              "allergyAdapted": {
+                                "type": "boolean"
+                              },
+                              "smokeFree": {
+                                "type": "boolean"
+                              },
+                              "wc": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
                           "publisherName": {
                             "type": "string"
                           },
@@ -5338,6 +5500,7 @@
                           "onlineUrl",
                           "priceAmount",
                           "currency",
+                          "meta",
                           "publisherName",
                           "links",
                           "imageUrl",
@@ -5575,6 +5738,49 @@
                           "currency": {
                             "type": "string"
                           },
+                          "meta": {
+                            "type": "object",
+                            "properties": {
+                              "ageLimit": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 120
+                              },
+                              "freeEntry": {
+                                "type": "boolean"
+                              },
+                              "accessibleParking": {
+                                "type": "boolean"
+                              },
+                              "accessibleToilet": {
+                                "type": "boolean"
+                              },
+                              "hearingLoop": {
+                                "type": "boolean"
+                              },
+                              "visuallyImpairedAccess": {
+                                "type": "boolean"
+                              },
+                              "wheelchairAccessible": {
+                                "type": "boolean"
+                              },
+                              "petsAllowed": {
+                                "type": "boolean"
+                              },
+                              "childFriendly": {
+                                "type": "boolean"
+                              },
+                              "allergyAdapted": {
+                                "type": "boolean"
+                              },
+                              "smokeFree": {
+                                "type": "boolean"
+                              },
+                              "wc": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
                           "publisherName": {
                             "type": "string"
                           },
@@ -5676,6 +5882,7 @@
                           "onlineUrl",
                           "priceAmount",
                           "currency",
+                          "meta",
                           "publisherName",
                           "links",
                           "imageUrl",
@@ -6298,6 +6505,49 @@
                           "currency": {
                             "type": "string"
                           },
+                          "meta": {
+                            "type": "object",
+                            "properties": {
+                              "ageLimit": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 120
+                              },
+                              "freeEntry": {
+                                "type": "boolean"
+                              },
+                              "accessibleParking": {
+                                "type": "boolean"
+                              },
+                              "accessibleToilet": {
+                                "type": "boolean"
+                              },
+                              "hearingLoop": {
+                                "type": "boolean"
+                              },
+                              "visuallyImpairedAccess": {
+                                "type": "boolean"
+                              },
+                              "wheelchairAccessible": {
+                                "type": "boolean"
+                              },
+                              "petsAllowed": {
+                                "type": "boolean"
+                              },
+                              "childFriendly": {
+                                "type": "boolean"
+                              },
+                              "allergyAdapted": {
+                                "type": "boolean"
+                              },
+                              "smokeFree": {
+                                "type": "boolean"
+                              },
+                              "wc": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
                           "publisherName": {
                             "type": "string"
                           },
@@ -6399,6 +6649,7 @@
                           "onlineUrl",
                           "priceAmount",
                           "currency",
+                          "meta",
                           "publisherName",
                           "links",
                           "imageUrl",
@@ -6697,6 +6948,49 @@
                     "currency": {
                       "type": "string"
                     },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "ageLimit": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 120
+                        },
+                        "freeEntry": {
+                          "type": "boolean"
+                        },
+                        "accessibleParking": {
+                          "type": "boolean"
+                        },
+                        "accessibleToilet": {
+                          "type": "boolean"
+                        },
+                        "hearingLoop": {
+                          "type": "boolean"
+                        },
+                        "visuallyImpairedAccess": {
+                          "type": "boolean"
+                        },
+                        "wheelchairAccessible": {
+                          "type": "boolean"
+                        },
+                        "petsAllowed": {
+                          "type": "boolean"
+                        },
+                        "childFriendly": {
+                          "type": "boolean"
+                        },
+                        "allergyAdapted": {
+                          "type": "boolean"
+                        },
+                        "smokeFree": {
+                          "type": "boolean"
+                        },
+                        "wc": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
                     "publisherName": {
                       "type": "string"
                     },
@@ -6798,6 +7092,7 @@
                     "onlineUrl",
                     "priceAmount",
                     "currency",
+                    "meta",
                     "publisherName",
                     "links",
                     "imageUrl",
@@ -7010,7 +7305,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Published events near a point. Default order is featured first, then soonest. sort=popular orders by saves plus coming marks (at least 1) and then soonest. Use offset to page.",
+            "description": "Published events near a point, plus published events that have a tag and no point. Events with neither a point nor a tag are omitted. Default order is featured first, then soonest. sort=popular orders by saves plus coming marks (at least 1) and then soonest. Use offset to page.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7113,6 +7408,49 @@
                           "currency": {
                             "type": "string"
                           },
+                          "meta": {
+                            "type": "object",
+                            "properties": {
+                              "ageLimit": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 120
+                              },
+                              "freeEntry": {
+                                "type": "boolean"
+                              },
+                              "accessibleParking": {
+                                "type": "boolean"
+                              },
+                              "accessibleToilet": {
+                                "type": "boolean"
+                              },
+                              "hearingLoop": {
+                                "type": "boolean"
+                              },
+                              "visuallyImpairedAccess": {
+                                "type": "boolean"
+                              },
+                              "wheelchairAccessible": {
+                                "type": "boolean"
+                              },
+                              "petsAllowed": {
+                                "type": "boolean"
+                              },
+                              "childFriendly": {
+                                "type": "boolean"
+                              },
+                              "allergyAdapted": {
+                                "type": "boolean"
+                              },
+                              "smokeFree": {
+                                "type": "boolean"
+                              },
+                              "wc": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
                           "publisherName": {
                             "type": "string"
                           },
@@ -7214,6 +7552,7 @@
                           "onlineUrl",
                           "priceAmount",
                           "currency",
+                          "meta",
                           "publisherName",
                           "links",
                           "imageUrl",
@@ -7358,6 +7697,49 @@
                     "currency": {
                       "type": "string"
                     },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "ageLimit": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 120
+                        },
+                        "freeEntry": {
+                          "type": "boolean"
+                        },
+                        "accessibleParking": {
+                          "type": "boolean"
+                        },
+                        "accessibleToilet": {
+                          "type": "boolean"
+                        },
+                        "hearingLoop": {
+                          "type": "boolean"
+                        },
+                        "visuallyImpairedAccess": {
+                          "type": "boolean"
+                        },
+                        "wheelchairAccessible": {
+                          "type": "boolean"
+                        },
+                        "petsAllowed": {
+                          "type": "boolean"
+                        },
+                        "childFriendly": {
+                          "type": "boolean"
+                        },
+                        "allergyAdapted": {
+                          "type": "boolean"
+                        },
+                        "smokeFree": {
+                          "type": "boolean"
+                        },
+                        "wc": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
                     "publisherName": {
                       "type": "string"
                     },
@@ -7459,6 +7841,7 @@
                     "onlineUrl",
                     "priceAmount",
                     "currency",
+                    "meta",
                     "publisherName",
                     "links",
                     "imageUrl",
@@ -7621,6 +8004,49 @@
                     "currency": {
                       "type": "string"
                     },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "ageLimit": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 120
+                        },
+                        "freeEntry": {
+                          "type": "boolean"
+                        },
+                        "accessibleParking": {
+                          "type": "boolean"
+                        },
+                        "accessibleToilet": {
+                          "type": "boolean"
+                        },
+                        "hearingLoop": {
+                          "type": "boolean"
+                        },
+                        "visuallyImpairedAccess": {
+                          "type": "boolean"
+                        },
+                        "wheelchairAccessible": {
+                          "type": "boolean"
+                        },
+                        "petsAllowed": {
+                          "type": "boolean"
+                        },
+                        "childFriendly": {
+                          "type": "boolean"
+                        },
+                        "allergyAdapted": {
+                          "type": "boolean"
+                        },
+                        "smokeFree": {
+                          "type": "boolean"
+                        },
+                        "wc": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
                     "publisherName": {
                       "type": "string"
                     },
@@ -7751,6 +8177,7 @@
                     "onlineUrl",
                     "priceAmount",
                     "currency",
+                    "meta",
                     "publisherName",
                     "links",
                     "imageUrl",
@@ -8096,6 +8523,49 @@
                     "currency": {
                       "type": "string"
                     },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "ageLimit": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 120
+                        },
+                        "freeEntry": {
+                          "type": "boolean"
+                        },
+                        "accessibleParking": {
+                          "type": "boolean"
+                        },
+                        "accessibleToilet": {
+                          "type": "boolean"
+                        },
+                        "hearingLoop": {
+                          "type": "boolean"
+                        },
+                        "visuallyImpairedAccess": {
+                          "type": "boolean"
+                        },
+                        "wheelchairAccessible": {
+                          "type": "boolean"
+                        },
+                        "petsAllowed": {
+                          "type": "boolean"
+                        },
+                        "childFriendly": {
+                          "type": "boolean"
+                        },
+                        "allergyAdapted": {
+                          "type": "boolean"
+                        },
+                        "smokeFree": {
+                          "type": "boolean"
+                        },
+                        "wc": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
                     "publisherName": {
                       "type": "string"
                     },
@@ -8226,6 +8696,7 @@
                     "onlineUrl",
                     "priceAmount",
                     "currency",
+                    "meta",
                     "publisherName",
                     "links",
                     "imageUrl",
@@ -8420,6 +8891,49 @@
                     "currency": {
                       "type": "string"
                     },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "ageLimit": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 120
+                        },
+                        "freeEntry": {
+                          "type": "boolean"
+                        },
+                        "accessibleParking": {
+                          "type": "boolean"
+                        },
+                        "accessibleToilet": {
+                          "type": "boolean"
+                        },
+                        "hearingLoop": {
+                          "type": "boolean"
+                        },
+                        "visuallyImpairedAccess": {
+                          "type": "boolean"
+                        },
+                        "wheelchairAccessible": {
+                          "type": "boolean"
+                        },
+                        "petsAllowed": {
+                          "type": "boolean"
+                        },
+                        "childFriendly": {
+                          "type": "boolean"
+                        },
+                        "allergyAdapted": {
+                          "type": "boolean"
+                        },
+                        "smokeFree": {
+                          "type": "boolean"
+                        },
+                        "wc": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
                     "publisherName": {
                       "type": "string"
                     },
@@ -8521,6 +9035,7 @@
                     "onlineUrl",
                     "priceAmount",
                     "currency",
+                    "meta",
                     "publisherName",
                     "links",
                     "imageUrl",
@@ -8713,6 +9228,49 @@
                     "currency": {
                       "type": "string"
                     },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "ageLimit": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 120
+                        },
+                        "freeEntry": {
+                          "type": "boolean"
+                        },
+                        "accessibleParking": {
+                          "type": "boolean"
+                        },
+                        "accessibleToilet": {
+                          "type": "boolean"
+                        },
+                        "hearingLoop": {
+                          "type": "boolean"
+                        },
+                        "visuallyImpairedAccess": {
+                          "type": "boolean"
+                        },
+                        "wheelchairAccessible": {
+                          "type": "boolean"
+                        },
+                        "petsAllowed": {
+                          "type": "boolean"
+                        },
+                        "childFriendly": {
+                          "type": "boolean"
+                        },
+                        "allergyAdapted": {
+                          "type": "boolean"
+                        },
+                        "smokeFree": {
+                          "type": "boolean"
+                        },
+                        "wc": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
                     "publisherName": {
                       "type": "string"
                     },
@@ -8814,6 +9372,7 @@
                     "onlineUrl",
                     "priceAmount",
                     "currency",
+                    "meta",
                     "publisherName",
                     "links",
                     "imageUrl",

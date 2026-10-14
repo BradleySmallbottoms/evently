@@ -20,6 +20,16 @@ export function validateEventFields(
   return { ok: true };
 }
 
+/**
+ * The public event list includes an event that has a point, or at least one tag.
+ * An event with neither is omitted. A point still has to fall inside the search
+ * radius. Direct lookup by id is unchanged, and an event without a point stays
+ * off the map.
+ */
+export function isPubliclyListedEvent(input: { hasLocation: boolean; tagCount: number }): boolean {
+  return input.hasLocation || input.tagCount > 0;
+}
+
 export function canEditEvent(status: string): boolean {
   return status === 'draft' || status === 'awaiting_verification' || status === 'published';
 }

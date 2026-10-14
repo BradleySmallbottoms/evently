@@ -78,12 +78,16 @@ calls) in the same change as every new major feature.**
   Flow: [docs/flows/visit-soderhamn.md](docs/flows/visit-soderhamn.md).
 - `pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn` writes events as
   `in_review` under a temporary publisher per contact email. They do not show up in the public
-  list until an admin publishes them. The same run again skips unchanged events. A booking link
-  (`Bokningslänk`) is stored as a `tickets` link. The event link and website are `info` links.
+  list until an admin publishes them. The same run again skips unchanged events.
   Every source also stores http(s) links found in the description (tickets, registration, or info).
-  A price is stored only when the description says gratis or states an amount in kr
-  (öre). An event with no price is treated as free in the list filter. Cards show
-  a known price as `100kr`.
+  A booking link (`Bokningslänk`) is a `tickets` link. Event links and websites are `info` links.
+  Each can appear more than once; every distinct URL is stored. When an occasion's arena has a position, that point is the
+  event location. Otherwise the product position is used. Price comes from the Citybreak
+  price fields (major units, plus currency), then from gratis or an amount in kr in the
+  description. Fri entré with no amount is free. Age limit and accessibility flags that
+  are true are stored on `events.meta` (JSON). Every event has that object; it is `{}`
+  when there is nothing extra. An event with no price is treated as free in the list
+  filter. Cards show a known price as `100kr`.
 - Hero images are copied into Garage when `PUBLIC_ASSETS_BUCKET` is set (`pnpm db:up`). The public
   API returns `imageUrl` only when `ASSETS_PUBLIC_BASE_URL` is set. The admin event page shows
   the same hero and gallery. Visit Söderhamn follows each
@@ -166,16 +170,19 @@ calls) in the same change as every new major feature.**
 
 ### Public events & publishers
 
-- Public `GET /v1/events` only returns **`status = published`**. Unverified publishers’ events stay
-  `awaiting_verification` until an admin verifies the publisher (which releases upcoming events).
+- Public `GET /v1/events` only returns **`status = published`**. An event with neither a point
+  nor a tag is left out. One with tags and no point stays in the list and off the map. Unverified
+  publishers’ events stay `awaiting_verification` until an admin verifies the publisher (which
+  releases upcoming events).
 - **Push drafts:** publishing creates a `push_messages` row. Trusted publishers auto-approve;
   others need admin approval under **Pushes**. After a send, publishers can **Notify again**
   (`POST /v1/manage/events/{id}/push-message`). Admins can schedule several reminders
   for a published event (`POST /v1/push-messages/event` on the admin API; approved on create).
   A marketing plan on the event page is stored only after approval
   (`POST /v1/push-messages/event-plan`). The publisher still has a single open draft.
-  The audience is either anyone whose saved notify area covers the event, or only those who
-  also share an interest tag. Publisher followers are not included. They can also schedule **broadcasts**
+  The audience is either anyone whose saved notify area covers the event, or only those whose
+  covering area shares a tag with the event. People who follow the publisher are included either
+  way. They can also schedule **broadcasts**
   (`POST /v1/push-messages/broadcast`) to everyone or users with a favorite tag. The worker
   sends approved due messages (optional `send_at`); inbox rows appear only then. The event page
   in admin and the publisher event page list messages that are sending or already sent
@@ -205,10 +212,9 @@ calls) in the same change as every new major feature.**
 - First launch shows an **onboarding carousel** (welcome → notifications → location → area →
   tags). Activate requests the OS permission; Skip stores the choice and deferred **reminders**
   reappear after every 5 app activations (one permission at a time). The tags step writes those
-  tags as notification interests (`PUT /v1/me/interests`), as the device home filters
-  (`le.homeTagIds`), and on the area saved in the previous step. Each interest card selects that
-  interest’s tags. **Skip** stores an empty selection. Reset app data clears the device state;
-  interests stay on the account until changed.
+  tags as the device home filters (`le.homeTagIds`) and on the area saved in the previous step.
+  Each interest card selects that interest’s tags. **Skip** stores an empty selection. There is
+  no account-wide interest list. Reset app data clears the device state.
 - Home event queries use **existing** location permission only (no prompt). Check-in and onboarding
   / reminders own the permission request. “Near you” reads that location when the app becomes
   active and watches updates of about 100 m until the app backgrounds. Pull to refresh reads again.
@@ -256,16 +262,18 @@ calls) in the same change as every new major feature.**
   `ics-feed` with `config.feedUrl` (https). Review-trust sources stay silent until an admin
   publishes from the review queue.
 
-### Preferences (interests & areas)
+### Preferences (areas)
 
-- Mobile uses `Authorization: Bearer <sessionToken>` on `GET/PUT /v1/me/interests`,
-  `GET/POST/PATCH/DELETE /v1/me/areas`, and `GET /v1/me/preferences`.
+- Mobile uses `Authorization: Bearer <sessionToken>` on
+  `GET/POST/PATCH/DELETE /v1/me/areas` and `GET /v1/me/preferences`.
 - Circle areas store `center` + `radius_m`; polygons store geography `area`. Cap 20 areas.
 - The location menu always includes “Near you” (device location). Other rows are the user’s
   active saved areas, labeled with the name stored on the area. Each area keeps its own tags
   (`user_area_tags`). Choosing an area shows those tags on home; “Near you” keeps the device
   filters. Changing tags on home updates the selected area. The search-radius slider is remembered
-  per place on the device, so switching areas restores that place’s radius. A plus in the menu searches for a
+  per place, on the device and on the user: a saved area stores `search_radius_m`, and “Near you”
+  stores `discovery_radius_m`. A new circle starts with `search_radius_m` equal to its
+  notification radius. A plus in the menu searches for a
   place (25 km circle) and then asks for the onboarding category groups. The save-location
   prompt asks for those groups after the area is created. Flow:
   [docs/flows/user-preferences.md](docs/flows/user-preferences.md).
@@ -290,7 +298,8 @@ calls) in the same change as every new major feature.**
 - Publishing a **`published`** event (or admin verify releasing one) enqueues
   `{ type: 'event.published', eventId }` best-effort after the DB write. Without
   `DOMAIN_EVENTS_QUEUE_URL`, APIs keep events in-process and the worker idles.
-- Worker fan-out: nearby (areas ∩ interests) + publisher followers → always insert
+- Worker fan-out: nearby (covering area ∩ that area’s tags) plus publisher followers on every
+  event notification → always insert. Rules: [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md).
   `notifications` inbox row → silent Expo push (data + badge, no alert). The icon badge updates
   from that payload and clears when the app becomes active. A banner is a local notification
   the app posts (including while it is open), only outside quiet hours and under the 5/day cap.

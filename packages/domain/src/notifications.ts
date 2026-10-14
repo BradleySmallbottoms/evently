@@ -29,8 +29,8 @@ export type QuietHoursPrefs = {
 export type NotificationReason = 'nearby' | 'publisher' | 'event' | 'broadcast';
 
 /**
- * Empty interests mean the user has not opted into any tag — no nearby pushes.
- * Otherwise at least one event tag must overlap.
+ * Empty tag lists do not overlap. Nearby push uses this rule on the covering
+ * area's tags and the event's tags: one shared tag is enough.
  */
 export function interestsOverlap(
   userCategoryIds: readonly string[],

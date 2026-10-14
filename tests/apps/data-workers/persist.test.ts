@@ -35,6 +35,7 @@ const bandy: IncomingEvent = {
     { externalId: 'visit-soderhamn:30194', name: 'Bandy & Innebandy' },
     { externalId: 'visit-soderhamn:30203', name: 'Tävlingar' },
   ],
+  meta: { ageLimit: 13 },
 };
 
 describe('saveIncomingEvents', () => {
@@ -56,6 +57,7 @@ describe('saveIncomingEvents', () => {
       sourceUrl: bandy.sourceUrl,
       venueName: bandy.venueName,
       tagIds: BANDY_TAGS,
+      meta: { ageLimit: 13 },
     });
     expect(store.publishers).toHaveLength(1);
     expect(store.publishers[0]).toMatchObject({

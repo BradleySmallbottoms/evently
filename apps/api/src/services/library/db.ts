@@ -1,4 +1,5 @@
 import type { DomainEvent, Event, EventLink, UserEventList } from '@local-events/contracts';
+import { readEventMeta } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import {
@@ -32,6 +33,7 @@ type LocRow = {
   onlineUrl: string | null;
   priceAmount: number | null;
   currency: string;
+  meta: unknown;
   publisherName: string;
   featured: boolean;
   checkInEnabled: boolean;
@@ -65,6 +67,7 @@ function mapRow(
     onlineUrl: row.onlineUrl,
     priceAmount: row.priceAmount,
     currency: row.currency,
+    meta: readEventMeta(row.meta),
     publisherName: row.publisherName,
     links,
     imageUrl,
@@ -150,6 +153,7 @@ export function createDbLibraryServices(
     onlineUrl: events.onlineUrl,
     priceAmount: events.priceAmount,
     currency: events.currency,
+    meta: events.meta,
     publisherName: publishers.name,
     featured: events.featured,
     checkInEnabled: events.checkInEnabled,
@@ -234,7 +238,11 @@ export function createDbLibraryServices(
     return list;
   }
 
-  async function toList(list: { id: string; name: string; createdAt: Date }): Promise<UserEventList> {
+  async function toList(list: {
+    id: string;
+    name: string;
+    createdAt: Date;
+  }): Promise<UserEventList> {
     const items = await db
       .select({ eventId: eventListItems.eventId })
       .from(eventListItems)

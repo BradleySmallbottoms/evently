@@ -39,7 +39,6 @@ import {
   setDiscoveryPlaceId,
   useDiscoveryPoint,
 } from '@/lib/use-discovery-point';
-import { setDiscoveryRadiusForPlace } from '@/lib/discovery-radius-store';
 import {
   acceptRegionSuggestion,
   bumpRegionActivity,
@@ -51,6 +50,7 @@ import { shouldReevaluateRegionSuggestion } from '@/lib/foreground-location';
 import { dateBadge } from '@/lib/event-format';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { updateAreaTags } from '@/lib/preferences';
+import { useSaveDiscoveryRadius } from '@/lib/save-discovery-radius';
 import { cacheAreaTags, useAreaTagPrompt } from '@/lib/use-area-tag-prompt';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
@@ -75,6 +75,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const { identity, preferences, point, placeId, radiusM, radiusMap, device } = useDiscoveryPoint();
+  const saveDiscoveryRadius = useSaveDiscoveryRadius(identity.data);
   const areaTags = useAreaTagPrompt(identity.data);
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
@@ -349,8 +350,13 @@ export default function HomeScreen() {
     return [{ id: area.id, label: area.name }];
   });
   const radiusByPlace = useMemo(
-    () => radiiForPlaces(radiusMap, preferences.data?.areas ?? []),
-    [preferences.data?.areas, radiusMap],
+    () =>
+      radiiForPlaces(
+        radiusMap,
+        preferences.data?.areas ?? [],
+        preferences.data?.discoveryRadiusM,
+      ),
+    [preferences.data?.areas, preferences.data?.discoveryRadiusM, radiusMap],
   );
   const locationOptions = [
     { id: NEARBY_PLACE_ID, label: t('events.locationNearby') },
@@ -408,9 +414,7 @@ export default function HomeScreen() {
                   selectedId={placeId}
                   radiusM={radiusM}
                   radiusByPlace={radiusByPlace}
-                  onRadiusChange={(next, id) => {
-                    void setDiscoveryRadiusForPlace(id, next);
-                  }}
+                  onRadiusChange={saveDiscoveryRadius}
                   isPresented={locationOpen}
                   onIsPresentedChange={setLocationOpen}
                   canAdd={canAddSavedArea(preferences.data?.areas.length ?? 0)}

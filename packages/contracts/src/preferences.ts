@@ -22,6 +22,8 @@ export const UserArea = z.object({
   /** Circle center when radiusM is set. */
   center: GeoPointSchema.nullable(),
   radiusM: z.number().int().nullable(),
+  /** Event-search radius. A new circle copies the notification radius. Null until set for a polygon or region. */
+  searchRadiusM: z.number().int().nullable(),
   /** Drawn polygon ring (closed) when stored as an area polygon. */
   polygon: z.array(GeoPointSchema).nullable(),
   notify: z.boolean(),
@@ -41,8 +43,16 @@ export const UpdateTravelDistanceRequest = z.object({
 });
 export type UpdateTravelDistanceRequest = z.infer<typeof UpdateTravelDistanceRequest>;
 
+/** Location-menu search radius. The server snaps this onto a slider stop. */
+export const SearchRadiusM = z.number().int().min(1_000).max(100_000);
+export type SearchRadiusM = z.infer<typeof SearchRadiusM>;
+
+export const UpdateDiscoveryRadiusRequest = z.object({
+  radiusM: SearchRadiusM,
+});
+export type UpdateDiscoveryRadiusRequest = z.infer<typeof UpdateDiscoveryRadiusRequest>;
+
 export const UserPreferencesResponse = z.object({
-  tagIds: z.array(Id),
   areas: z.array(UserArea),
   quietHours: z.object({
     enabled: z.boolean(),
@@ -52,19 +62,10 @@ export const UserPreferencesResponse = z.object({
   }),
   /** How far the user can go before a new place is suggested. */
   travelDistanceM: TravelDistanceM,
+  /** “Near you” event-search radius. Null until the location menu sets one. */
+  discoveryRadiusM: z.number().int().nullable(),
 });
 export type UserPreferencesResponse = z.infer<typeof UserPreferencesResponse>;
-
-export const ReplaceUserInterestsRequest = z.object({
-  /** The home catalog is larger than 50 tags, so a full onboarding selection still fits. */
-  tagIds: z.array(Id).max(100),
-});
-export type ReplaceUserInterestsRequest = z.infer<typeof ReplaceUserInterestsRequest>;
-
-export const ReplaceUserInterestsResponse = z.object({
-  tagIds: z.array(Id),
-});
-export type ReplaceUserInterestsResponse = z.infer<typeof ReplaceUserInterestsResponse>;
 
 export const CreateUserAreaRequest = z
   .object({
@@ -104,6 +105,8 @@ export const UpdateUserAreaRequest = z.object({
   polygon: z.array(GeoPointSchema).min(3).max(100).optional(),
   /** Replaces the area's home filters when present. */
   tagIds: z.array(Id).max(100).optional(),
+  /** Event-search radius for this place. Does not change the notification circle. */
+  searchRadiusM: SearchRadiusM.optional(),
 });
 export type UpdateUserAreaRequest = z.infer<typeof UpdateUserAreaRequest>;
 

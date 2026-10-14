@@ -27,6 +27,7 @@ export const TAG_GROUP_STYLE: Record<HomeTagGroupId, Icon & { fill: string; icon
 };
 
 type Props = {
+  title?: string;
   tags: HomeTag[];
   selectedIds: readonly string[];
   onChange: (ids: string[]) => void;
@@ -49,7 +50,7 @@ export function TagGroupIcon({ id, size }: { id: HomeTagGroupId; size: number })
 }
 
 /** Expandable category groups, the list Home shows after “Show all categories”. */
-export function TagGroupList({ tags, selectedIds, onChange, showHeading = true }: Props) {
+export function TagGroupList({ title, tags, selectedIds, onChange, showHeading = true }: Props) {
   const { t } = useTranslation();
   const [expandedId, setExpandedId] = useState<HomeTagGroupId | null>(null);
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);

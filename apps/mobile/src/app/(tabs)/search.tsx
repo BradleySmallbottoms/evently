@@ -24,8 +24,8 @@ import {
   setDiscoveryPlaceId,
   useDiscoveryPoint,
 } from '@/lib/use-discovery-point';
-import { setDiscoveryRadiusForPlace } from '@/lib/discovery-radius-store';
 import { useAreaTagPrompt } from '@/lib/use-area-tag-prompt';
+import { useSaveDiscoveryRadius } from '@/lib/save-discovery-radius';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
@@ -86,6 +86,7 @@ export default function SearchScreen() {
   }, [focus]);
 
   const { identity, preferences, point, placeId, radiusM, radiusMap } = useDiscoveryPoint();
+  const saveDiscoveryRadius = useSaveDiscoveryRadius(identity.data);
   const areaTags = useAreaTagPrompt(identity.data);
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
@@ -127,8 +128,13 @@ export default function SearchScreen() {
     ...(tags.data?.items ?? []).map((tag) => ({ id: tag.id, label: tag.name })),
   ];
   const radiusByPlace = useMemo(
-    () => radiiForPlaces(radiusMap, preferences.data?.areas ?? []),
-    [preferences.data?.areas, radiusMap],
+    () =>
+      radiiForPlaces(
+        radiusMap,
+        preferences.data?.areas ?? [],
+        preferences.data?.discoveryRadiusM,
+      ),
+    [preferences.data?.areas, preferences.data?.discoveryRadiusM, radiusMap],
   );
   const locationOptions = [
     { id: NEARBY_PLACE_ID, label: t('events.locationNearby') },
@@ -188,9 +194,7 @@ export default function SearchScreen() {
                   selectedId={placeId}
                   radiusM={radiusM}
                   radiusByPlace={radiusByPlace}
-                  onRadiusChange={(next, id) => {
-                    void setDiscoveryRadiusForPlace(id, next);
-                  }}
+                  onRadiusChange={saveDiscoveryRadius}
                   isPresented={locationOpen}
                   onIsPresentedChange={setLocationOpen}
                   canAdd={canAddSavedArea(preferences.data?.areas.length ?? 0)}

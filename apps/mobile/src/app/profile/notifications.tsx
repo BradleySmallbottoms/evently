@@ -86,7 +86,6 @@ export default function NotificationsScreen() {
           gap: space.lg,
         }}
       >
-        <AppText variant="title">{t('events.notifications')}</AppText>
         <View style={{ gap: space.md }}>
           <AppText variant="subtitle">{t('preferences.quietHoursTitle')}</AppText>
           <AppText variant="caption">{t('preferences.quietHoursHint')}</AppText>

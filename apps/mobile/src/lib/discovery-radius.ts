@@ -59,3 +59,14 @@ export function discoveryRadiusForPlace(
   if (areaRadiusM == null) return DEFAULT_DISCOVERY_RADIUS_M;
   return resolveDiscoveryRadiusM(areaRadiusM);
 }
+
+/** API value when one is saved, otherwise the on-device value or the area radius. */
+export function rememberedDiscoveryRadiusM(
+  placeId: string,
+  stored: Readonly<Record<string, number>>,
+  savedM: number | null | undefined,
+  areaRadiusM?: number | null,
+): number {
+  if (savedM != null) return resolveDiscoveryRadiusM(savedM);
+  return discoveryRadiusForPlace(placeId, stored, areaRadiusM);
+}

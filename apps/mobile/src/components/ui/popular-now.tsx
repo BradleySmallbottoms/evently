@@ -46,11 +46,11 @@ export function PopularNow({ locale, items, onShowAll, onPress }: Props) {
         }}
       >
         <AppText variant="subtitle">{t('events.popularNow')}</AppText>
-        <Pressable accessibilityRole="button" onPress={onShowAll}>
+        {/* <Pressable accessibilityRole="button" onPress={onShowAll}>
           <AppText variant="label" style={{ color: colors.info }}>
             {t('events.seeAll')}
           </AppText>
-        </Pressable>
+        </Pressable> */}
       </View>
       <View
         onLayout={(event) => setWidth(event.nativeEvent.layout.width)}

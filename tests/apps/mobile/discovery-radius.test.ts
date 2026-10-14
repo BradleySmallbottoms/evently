@@ -5,6 +5,7 @@ import {
   discoveryRadiusForPlace,
   parseDiscoveryRadiusM,
   parseDiscoveryRadiusMap,
+  rememberedDiscoveryRadiusM,
   resolveDiscoveryRadiusM,
 } from '../../../apps/mobile/src/lib/discovery-radius';
 
@@ -36,5 +37,11 @@ describe('discovery search radius', () => {
     expect(discoveryRadiusForPlace('area-1', { 'area-1': 10_000 }, 25_000)).toBe(10_000);
     expect(discoveryRadiusForPlace('area-1', {}, 12_000)).toBe(10_000);
     expect(discoveryRadiusForPlace('nearby', {}, null)).toBe(DEFAULT_DISCOVERY_RADIUS_M);
+  });
+
+  it('prefers the radius saved on the user over the on-device value', () => {
+    expect(rememberedDiscoveryRadiusM('area-1', { 'area-1': 10_000 }, 25_000, 15_000)).toBe(25_000);
+    expect(rememberedDiscoveryRadiusM('area-1', { 'area-1': 10_000 }, null, 15_000)).toBe(10_000);
+    expect(rememberedDiscoveryRadiusM('nearby', {}, 12_000)).toBe(10_000);
   });
 });

@@ -6,8 +6,7 @@ import {
   QuietHoursPrefs,
   RegisterPushTokenRequest,
   RegisterPushTokenResponse,
-  ReplaceUserInterestsRequest,
-  ReplaceUserInterestsResponse,
+  UpdateDiscoveryRadiusRequest,
   UpdateQuietHoursRequest,
   UpdateTravelDistanceRequest,
   UpdateUserAreaRequest,
@@ -39,7 +38,7 @@ export function registerMeRoutes(
     path: '/me/preferences',
     responses: {
       200: {
-        description: 'Current user interests and saved areas',
+        description: 'Current saved areas and notification settings',
         content: { 'application/json': { schema: UserPreferencesResponse } },
       },
       401: {
@@ -51,40 +50,6 @@ export function registerMeRoutes(
   app.openapi(getPreferences, async (c) => {
     try {
       const result = await preferences.getPreferences(readUserSessionToken(c));
-      return c.json(result, 200);
-    } catch (err) {
-      return preferenceErrorResponse(c, err);
-    }
-  });
-
-  const replaceInterests = createRoute({
-    method: 'put',
-    path: '/me/interests',
-    request: {
-      body: {
-        content: { 'application/json': { schema: ReplaceUserInterestsRequest } },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        description: 'Replaced interest tags',
-        content: { 'application/json': { schema: ReplaceUserInterestsResponse } },
-      },
-      400: {
-        description: 'Unknown category',
-        content: { 'application/json': { schema: ErrorResponse } },
-      },
-      401: {
-        description: 'Missing or invalid user session',
-        content: { 'application/json': { schema: ErrorResponse } },
-      },
-    },
-  });
-  app.openapi(replaceInterests, async (c) => {
-    try {
-      const body = c.req.valid('json');
-      const result = await preferences.replaceInterests(readUserSessionToken(c), body);
       return c.json(result, 200);
     } catch (err) {
       return preferenceErrorResponse(c, err);
@@ -325,6 +290,36 @@ export function registerMeRoutes(
     try {
       const body = c.req.valid('json');
       const result = await preferences.updateTravelDistance(readUserSessionToken(c), body);
+      return c.json(result, 200);
+    } catch (err) {
+      return preferenceErrorResponse(c, err);
+    }
+  });
+
+  const updateDiscoveryRadius = createRoute({
+    method: 'put',
+    path: '/me/discovery-radius',
+    request: {
+      body: {
+        content: { 'application/json': { schema: UpdateDiscoveryRadiusRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Updated Near you search radius',
+        content: { 'application/json': { schema: UpdateDiscoveryRadiusRequest } },
+      },
+      401: {
+        description: 'Missing or invalid user session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(updateDiscoveryRadius, async (c) => {
+    try {
+      const body = c.req.valid('json');
+      const result = await preferences.updateDiscoveryRadius(readUserSessionToken(c), body);
       return c.json(result, 200);
     } catch (err) {
       return preferenceErrorResponse(c, err);

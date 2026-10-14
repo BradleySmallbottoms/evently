@@ -278,14 +278,12 @@ export function PushMessageEditor({ pushMessageId }: { pushMessageId: string }) 
                   </Typography>
                   <Typography sx={{ fontWeight: 600 }}>{audience.data.nearby}</Typography>
                 </Box>
-                {message.data.audience === 'area' || message.data.audience === 'area_and_tag' ? null : (
-                  <Box sx={styles.statRow}>
-                    <Typography>{t('statFollowers')}</Typography>
-                    <Typography sx={{ fontWeight: 600 }}>
-                      {audience.data.publisherFollowers}
-                    </Typography>
-                  </Box>
-                )}
+                <Box sx={styles.statRow}>
+                  <Typography>{t('statFollowers')}</Typography>
+                  <Typography sx={{ fontWeight: 600 }}>
+                    {audience.data.publisherFollowers}
+                  </Typography>
+                </Box>
               </>
             )}
             <Box sx={styles.statRow}>

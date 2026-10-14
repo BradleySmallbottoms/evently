@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { ReplaceUserInterestsRequest } from '../../../packages/contracts/src/preferences';
 import { createApp } from '../../../apps/api/src/app';
 import { createMemoryAuthServices } from '../../../apps/api/src/services/auth/memory';
 import { createMemoryPreferenceServices } from '../../../apps/api/src/services/preferences/memory';
@@ -21,26 +20,19 @@ async function createUserSession(app: ReturnType<typeof createApp>) {
 }
 
 describe('user preferences', () => {
-  it('accepts a full onboarding interest selection', () => {
-    const tagIds = Array.from({ length: 60 }, () => crypto.randomUUID());
-    expect(ReplaceUserInterestsRequest.safeParse({ tagIds }).success).toBe(true);
-    expect(ReplaceUserInterestsRequest.safeParse({ tagIds: [...tagIds, ...tagIds, ...tagIds] }).success).toBe(
-      false,
-    );
-  });
-
   it('documents OpenAPI paths', async () => {
     const res = await createApp().request('/v1/openapi.json');
     const doc = (await res.json()) as { paths: Record<string, unknown> };
     expect(doc.paths['/me/preferences']).toBeDefined();
-    expect(doc.paths['/me/interests']).toBeDefined();
+    expect(doc.paths['/me/interests']).toBeUndefined();
     expect(doc.paths['/me/areas']).toBeDefined();
     expect(doc.paths['/me/areas/{id}']).toBeDefined();
     expect(doc.paths['/me/profile']).toBeDefined();
     expect(doc.paths['/me/travel-distance']).toBeDefined();
+    expect(doc.paths['/me/discovery-radius']).toBeDefined();
   });
 
-  it('replaces interests and CRUD circle + polygon areas with Bearer auth', async () => {
+  it('CRUD circle + polygon areas with Bearer auth', async () => {
     const store = createMemoryStore();
     const env = { includeVerificationToken: true, now: () => new Date() };
     const auth = createMemoryAuthServices(env, store);
@@ -53,7 +45,6 @@ describe('user preferences', () => {
     const empty = await app.request('/v1/me/preferences', { headers: authHeader });
     expect(empty.status).toBe(200);
     expect(await empty.json()).toEqual({
-      tagIds: [],
       areas: [],
       quietHours: {
         enabled: true,
@@ -62,15 +53,9 @@ describe('user preferences', () => {
         timezone: 'Europe/Stockholm',
       },
       travelDistanceM: 25_000,
+      discoveryRadiusM: null,
+      discoveryRadiusM: null,
     });
-
-    const interests = await app.request('/v1/me/interests', {
-      method: 'PUT',
-      headers: { ...authHeader, 'content-type': 'application/json' },
-      body: JSON.stringify({ tagIds: [SPORT, BANDY] }),
-    });
-    expect(interests.status).toBe(200);
-    expect(await interests.json()).toEqual({ tagIds: [SPORT, BANDY] });
 
     const circle = await app.request('/v1/me/areas', {
       method: 'POST',
@@ -85,6 +70,7 @@ describe('user preferences', () => {
     const circleBody = (await circle.json()) as { id: string; radiusM: number; tagIds: string[] };
     expect(circleBody.radiusM).toBe(15_000);
     expect(circleBody.tagIds).toEqual([]);
+    expect(circleBody).toMatchObject({ searchRadiusM: 15_000 });
 
     const polygon = await app.request('/v1/me/areas', {
       method: 'POST',
@@ -100,15 +86,14 @@ describe('user preferences', () => {
       }),
     });
     expect(polygon.status).toBe(201);
-    const polyBody = (await polygon.json()) as { polygon: { lat: number }[] | null };
+    const polyBody = (await polygon.json()) as { id: string; polygon: { lat: number }[] | null };
     expect(polyBody.polygon?.length).toBeGreaterThanOrEqual(4);
+    expect(polyBody).toMatchObject({ searchRadiusM: null });
 
     const prefs = await app.request('/v1/me/preferences', { headers: authHeader });
     const prefsBody = (await prefs.json()) as {
-      tagIds: string[];
       areas: { id: string }[];
     };
-    expect(prefsBody.tagIds).toEqual([SPORT, BANDY]);
     expect(prefsBody.areas).toHaveLength(2);
 
     const patched = await app.request(`/v1/me/areas/${circleBody.id}`, {
@@ -134,6 +119,37 @@ describe('user preferences', () => {
     });
     expect(clearedTags.status).toBe(200);
     expect(await clearedTags.json()).toMatchObject({ tagIds: [] });
+
+    const withSearchRadius = await app.request(`/v1/me/areas/${circleBody.id}`, {
+      method: 'PATCH',
+      headers: { ...authHeader, 'content-type': 'application/json' },
+      body: JSON.stringify({ searchRadiusM: 12_000 }),
+    });
+    expect(withSearchRadius.status).toBe(200);
+    expect(await withSearchRadius.json()).toMatchObject({
+      searchRadiusM: 10_000,
+      radiusM: 15_000,
+      center: { lat: 61.3, lng: 17.05 },
+    });
+
+    const polygonRadius = await app.request(`/v1/me/areas/${polyBody.id}`, {
+      method: 'PATCH',
+      headers: { ...authHeader, 'content-type': 'application/json' },
+      body: JSON.stringify({ searchRadiusM: 25_000 }),
+    });
+    expect(polygonRadius.status).toBe(200);
+    const polygonRadiusBody = (await polygonRadius.json()) as {
+      searchRadiusM: number;
+      radiusM: number | null;
+      center: unknown;
+      polygon: unknown[] | null;
+    };
+    expect(polygonRadiusBody).toMatchObject({
+      searchRadiusM: 25_000,
+      radiusM: null,
+      center: null,
+    });
+    expect(polygonRadiusBody.polygon?.length).toBeGreaterThanOrEqual(4);
 
     const unknownTag = await app.request(`/v1/me/areas/${circleBody.id}`, {
       method: 'PATCH',
@@ -171,24 +187,23 @@ describe('user preferences', () => {
 
     const withDistance = await app.request('/v1/me/preferences', { headers: authHeader });
     expect(await withDistance.json()).toMatchObject({ travelDistanceM: 50_000 });
+
+    const updatedSearch = await app.request('/v1/me/discovery-radius', {
+      method: 'PUT',
+      headers: { ...authHeader, 'content-type': 'application/json' },
+      body: JSON.stringify({ radiusM: 12_000 }),
+    });
+    expect(updatedSearch.status).toBe(200);
+    expect(await updatedSearch.json()).toEqual({ radiusM: 10_000 });
+
+    const withSearch = await app.request('/v1/me/preferences', { headers: authHeader });
+    expect(await withSearch.json()).toMatchObject({ discoveryRadiusM: 10_000 });
   });
 
-  it('rejects unauthenticated and unknown tags', async () => {
+  it('rejects unauthenticated preferences', async () => {
     const app = createApp();
     const unauth = await app.request('/v1/me/preferences');
     expect(unauth.status).toBe(401);
-
-    const session = await createUserSession(app);
-    const bad = await app.request('/v1/me/interests', {
-      method: 'PUT',
-      headers: {
-        authorization: `Bearer ${session.sessionToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ tagIds: ['00000000-0000-4000-8000-000000000099'] }),
-    });
-    expect(bad.status).toBe(400);
-    expect(await bad.json()).toMatchObject({ error: { code: 'unknown_tag' } });
   });
 
   it('rejects cross-user area mutations', async () => {

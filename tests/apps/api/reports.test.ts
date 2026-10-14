@@ -42,6 +42,7 @@ function publishedEvent() {
     tagIds: [],
     featured: false,
     checkInEnabled: false,
+    meta: {},
     numSaved: 0,
     numComing: 0,
     createdAt: at,

@@ -14,4 +14,6 @@ pnpm db:migrate     # apply migrations to DATABASE_URL
   works; official `postgis/postgis` is amd64-only.
 - The initial migration creates `postgis`, `pg_trgm` and `pgcrypto` (RDS supports all three)
   plus the starter tables. Geography columns are plain `geography` (see `src/postgis.ts`).
-- The schema is a starter subset; see `docs/project-description.md` → Data model for the full list.
+- `pnpm db:migrate` applies every migration file whose hash is not yet in
+  `drizzle.__drizzle_migrations`, in journal order. `pnpm db:generate` stamps a new file after
+  the latest journal timestamp, so a wall-clock time behind that stamp still applies.

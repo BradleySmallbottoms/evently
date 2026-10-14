@@ -197,14 +197,6 @@ export default function ProfileScreen() {
 
   const countRows = [
     {
-      label: t('profile.categories'),
-      count: preferences.data?.tagIds.length ?? 0,
-      href: '/profile/tags' as const,
-      sf: 'heart',
-      md: 'favorite-border' as const,
-      alert: false,
-    },
-    {
       label: t('profile.areas'),
       count: preferences.data?.areas.length ?? 0,
       href: '/profile/areas' as const,

@@ -57,6 +57,7 @@ describe('notification inbox', () => {
       tagIds: [],
       featured: false,
       checkInEnabled: false,
+      meta: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       startsAtDate: new Date(),

@@ -14,8 +14,10 @@ export interface TagMatchInput {
   venue?: string;
 }
 
+const useQwen3 = true;  
+
 const DEFAULT_BASE = 'http://127.0.0.1:11434';
-const DEFAULT_MODEL = 'qwen3:32b'; //'qwen2.5:3b';
+const DEFAULT_MODEL = useQwen3 ? 'qwen3.8' : 'qwen2.5:3b';
 const DESCRIPTION_LIMIT = 1_200;
 const MAX_TAGS = 3;
 
@@ -158,7 +160,7 @@ function promptFor(event: TagMatchInput, catalog: TagChoice[]): string {
   const lines = catalog.map((tag) => `${tag.externalId} | ${tag.name}`);
   const description = event.description?.replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_LIMIT);
   return [
-    'Välj högst 3 taggar som passar evenemanget. Använd bara id från listan.',
+    'Välj högst 2 taggar som passar evenemanget. Använd bara id från listan. Gör en bedömning av hur väl taggarna passar evenemanget, ge en siffra mellan 0 och 100 för varje tagg.',
     'Svara bara med JSON: {"externalIds":["<id>"]} eller {"externalIds":[]} om ingen tagg passar.',
     'Taggar:',
     ...lines,
@@ -185,6 +187,7 @@ export async function matchEventTag(
     base = ollamaBaseUrl(config);
     model = ollamaModel(config);
   } catch {
+    console.log('Ollama base URL or model is not valid');
     return { ok: false };
   }
   const url = new URL('/api/chat', base);
@@ -205,15 +208,19 @@ export async function matchEventTag(
       }),
       signal: AbortSignal.timeout(90_000),
     });
-  } catch {
+  } catch (e) {
+    console.log('Error fetching Ollama response', e);
     return { ok: false };
   }
-  if (!response.ok) return { ok: false };
+  if (!response.ok) {
+    console.log('Ollama request failed with status', response.status, 'and body', await response.text());
+    return { ok: false };
+  }
   let payload: unknown;
   try {
     payload = await response.json();
   } catch (e) {
-    console.log('error', e);
+    console.log('Error parsing Ollama response', e);
     return { ok: false };
   }
   const content =

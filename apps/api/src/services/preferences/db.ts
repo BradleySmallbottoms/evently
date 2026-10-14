@@ -45,6 +45,7 @@ type AreaRow = {
   lat: number | null;
   lng: number | null;
   radiusM: number | null;
+  searchRadiusM: number | null;
   polygonGeoJson: string | null;
   notify: boolean;
   active: boolean;
@@ -76,6 +77,7 @@ function mapArea(row: AreaRow): UserArea {
     regionId: row.regionId,
     center: row.lat != null && row.lng != null ? { lat: row.lat, lng: row.lng } : null,
     radiusM: row.radiusM,
+    searchRadiusM: row.searchRadiusM,
     polygon: parsePolygon(row.polygonGeoJson),
     notify: row.notify,
     active: row.active,
@@ -93,6 +95,7 @@ const areaSelect = {
   lat: sql<number | null>`ST_Y(${schema.userAreas.center}::geometry)`,
   lng: sql<number | null>`ST_X(${schema.userAreas.center}::geometry)`,
   radiusM: schema.userAreas.radiusM,
+  searchRadiusM: schema.userAreas.searchRadiusM,
   polygonGeoJson: sql<string | null>`ST_AsGeoJSON(${schema.userAreas.area}::geometry)`,
   notify: schema.userAreas.notify,
   active: schema.userAreas.active,
@@ -104,7 +107,7 @@ export function createDbPreferenceServices(
   auth: AuthServices,
   _env: PreferenceEnv = { now: () => new Date() },
 ): PreferenceServices {
-  const { userInterests, userAreas, userAreaTags, tags, regions, users } = schema;
+  const { userAreas, userAreaTags, tags, regions, users } = schema;
 
   async function tagsByArea(areaIds: string[]): Promise<Map<string, string[]>> {
     const grouped = new Map<string, string[]>();
@@ -159,17 +162,13 @@ export function createDbPreferenceServices(
           quietHoursEndMin: users.quietHoursEndMin,
           quietHoursEnabled: users.quietHoursEnabled,
           travelDistanceM: users.travelDistanceM,
+          discoveryRadiusM: users.discoveryRadiusM,
         })
         .from(users)
         .where(eq(users.id, userId))
         .limit(1);
       if (!user) throw new PreferenceError('unauthorized');
-      const interestRows = await db
-        .select({ tagId: userInterests.tagId })
-        .from(userInterests)
-        .where(eq(userInterests.userId, userId));
       return {
-        tagIds: interestRows.map((r) => r.tagId),
         areas: await areasForUser(userId),
         quietHours: {
           enabled: user.quietHoursEnabled,
@@ -178,6 +177,7 @@ export function createDbPreferenceServices(
           timezone: user.timezone,
         },
         travelDistanceM: resolveTravelDistanceM(user.travelDistanceM),
+        discoveryRadiusM: user.discoveryRadiusM,
       };
     },
 
@@ -215,6 +215,18 @@ export function createDbPreferenceServices(
         .returning({ travelDistanceM: users.travelDistanceM });
       if (!user) throw new PreferenceError('unauthorized');
       return { distanceM: resolveTravelDistanceM(user.travelDistanceM) };
+    },
+
+    async updateDiscoveryRadius(sessionToken, input) {
+      const { userId } = await auth.requireUserSession(sessionToken);
+      const radiusM = resolveTravelDistanceM(input.radiusM);
+      const [user] = await db
+        .update(users)
+        .set({ discoveryRadiusM: radiusM })
+        .where(eq(users.id, userId))
+        .returning({ discoveryRadiusM: users.discoveryRadiusM });
+      if (!user || user.discoveryRadiusM == null) throw new PreferenceError('unauthorized');
+      return { radiusM: user.discoveryRadiusM };
     },
 
     async getProfile(sessionToken) {
@@ -284,28 +296,6 @@ export function createDbPreferenceServices(
         });
       if (!row) throw new PreferenceError('unauthorized');
       return toProfile(row);
-    },
-
-    async replaceInterests(sessionToken, input) {
-      const { userId } = await auth.requireUserSession(sessionToken);
-      const unique = [...new Set(input.tagIds)];
-      if (unique.length > 0) {
-        const found = await db
-          .select({ id: tags.id })
-          .from(tags)
-          .where(inArray(tags.id, unique));
-        if (found.length !== unique.length) throw new PreferenceError('unknown_tag');
-      }
-
-      await db.transaction(async (tx) => {
-        await tx.delete(userInterests).where(eq(userInterests.userId, userId));
-        if (unique.length > 0) {
-          await tx.insert(userInterests).values(
-            unique.map((tagId) => ({ userId, tagId })),
-          );
-        }
-      });
-      return { tagIds: unique };
     },
 
     async listAreas(sessionToken) {
@@ -386,6 +376,7 @@ export function createDbPreferenceServices(
             regionId: null,
             center: centerEwkt,
             radiusM,
+            searchRadiusM: radiusM == null ? null : resolveTravelDistanceM(radiusM),
             area: areaEwkt,
             notify: input.notify ?? true,
             active: input.active ?? true,
@@ -414,6 +405,7 @@ export function createDbPreferenceServices(
         active?: boolean;
         center?: string | null;
         radiusM?: number | null;
+        searchRadiusM?: number;
         area?: string | null;
       } = {};
       if (input.name !== undefined) patch.name = input.name;
@@ -434,6 +426,9 @@ export function createDbPreferenceServices(
         patch.radiusM = null;
       } else if (input.center || input.radiusM != null) {
         throw new PreferenceError('invalid_area');
+      }
+      if (input.searchRadiusM != null) {
+        patch.searchRadiusM = resolveTravelDistanceM(input.searchRadiusM);
       }
 
       const nextTags = input.tagIds === undefined ? null : await knownTagIds(input.tagIds);

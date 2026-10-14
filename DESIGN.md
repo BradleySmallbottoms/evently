@@ -231,9 +231,9 @@ for 7 days near this place.
 
 **Screen 5 --- Interests** - Full-bleed photo. - Interest cards. Each
 card selects every loaded tag in that interest. - Finish stores those
-tags as notification interests (`PUT /me/interests`) and as the device
-home filters. - "Skip" stores an empty selection: home shows everything,
-and no interest tags are saved.
+tags as the device home filters and, when the area step saved a place, on
+that area. There is no account-wide interest list. - "Skip" stores an
+empty selection: home shows everything, and no area tags are saved.
 
 Onboarding rules: - Use full-bleed photography with a dark lower
 gradient. - Place copy in the lower third, with enough contrast and

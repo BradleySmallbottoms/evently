@@ -9,15 +9,6 @@ export async function getPreferences(identity: StoredIdentity) {
   return throwIfError(await api.GET('/me/preferences', { headers: authHeaders(identity) }));
 }
 
-export async function replaceInterests(identity: StoredIdentity, tagIds: string[]) {
-  return throwIfError(
-    await api.PUT('/me/interests', {
-      headers: authHeaders(identity),
-      body: { tagIds },
-    }),
-  );
-}
-
 export async function updateQuietHours(
   identity: StoredIdentity,
   input: { enabled: boolean; startMin: number; endMin: number },
@@ -82,6 +73,61 @@ export function updateAreaTags(identity: StoredIdentity, areaId: string, tagIds:
     () => undefined,
   );
   return run;
+}
+
+export async function updateAreaSearchRadius(
+  identity: StoredIdentity,
+  areaId: string,
+  radiusM: number,
+) {
+  return throwIfError(
+    await api.PATCH('/me/areas/{id}', {
+      headers: authHeaders(identity),
+      params: { path: { id: areaId } },
+      body: { searchRadiusM: radiusM },
+    }),
+  );
+}
+
+export async function updateDiscoveryRadius(identity: StoredIdentity, radiusM: number) {
+  return throwIfError(
+    await api.PUT('/me/discovery-radius', {
+      headers: authHeaders(identity),
+      body: { radiusM },
+    }),
+  );
+}
+
+/** Name, tags, search radius, and — for a circle — the notification radius, in one save. */
+export async function updateSavedArea(
+  identity: StoredIdentity,
+  areaId: string,
+  input: {
+    name: string;
+    tagIds: string[];
+    searchRadiusM: number;
+    notify: boolean;
+    active: boolean;
+    center?: { lat: number; lng: number };
+    radiusM?: number;
+  },
+) {
+  return throwIfError(
+    await api.PATCH('/me/areas/{id}', {
+      headers: authHeaders(identity),
+      params: { path: { id: areaId } },
+      body: {
+        name: input.name,
+        tagIds: input.tagIds,
+        searchRadiusM: input.searchRadiusM,
+        notify: input.notify,
+        active: input.active,
+        ...(input.center && input.radiusM != null
+          ? { center: input.center, radiusM: input.radiusM }
+          : {}),
+      },
+    }),
+  );
 }
 
 export async function updateCircleArea(

@@ -32,7 +32,7 @@ sequenceDiagram
   loop POST /v1/api/product page until TotalResults
     Runner->>CBIS: Categories [30172], Page, PageSize 20
   end
-  Note over Runner: one IncomingEvent per occasion<br/>Europe/Stockholm offset<br/>organizer key = contact email<br/>Bokningslänk → tickets<br/>event link and website → info<br/>description URLs → event links<br/>gratis or “N kr” → price, otherwise unknown
+  Note over Runner: one IncomingEvent per occasion<br/>Europe/Stockholm offset<br/>arena position, else product position<br/>organizer key = contact email<br/>every Bokningslänk → tickets<br/>every event link and website → info<br/>description URLs → event links<br/>Price From, then Prisinformation, then “N kr” or gratis<br/>age limit and true accessibility flags → events.meta
   loop each event link, https only
     Runner->>Runner: GET the page<br/>og:image, then img
   end

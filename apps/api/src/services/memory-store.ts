@@ -14,6 +14,7 @@ export type MemoryUser = {
   quietHoursEndMin: number;
   quietHoursEnabled: boolean;
   travelDistanceM: number;
+  discoveryRadiusM: number | null;
   bannedAt: Date | null;
   banReason: string | null;
 };
@@ -68,11 +69,6 @@ export type MemoryPublisherInvite = {
   acceptedAt: Date | null;
   createdAt: Date;
 };
-export type MemoryUserInterest = {
-  userId: string;
-  tagId: string;
-  createdAt: Date;
-};
 export type MemoryUserArea = {
   id: string;
   userId: string;
@@ -82,6 +78,7 @@ export type MemoryUserArea = {
   regionId: string | null;
   center: { lat: number; lng: number } | null;
   radiusM: number | null;
+  searchRadiusM: number | null;
   polygon: { lat: number; lng: number }[] | null;
   notify: boolean;
   active: boolean;
@@ -221,7 +218,6 @@ export type MemoryStore = {
   publishers: Map<string, MemoryPublisher>;
   members: MemoryMember[];
   invites: MemoryPublisherInvite[];
-  userInterests: MemoryUserInterest[];
   userAreas: Map<string, MemoryUserArea>;
   regions: Map<string, MemoryRegion>;
   tokens: Map<string, MemoryToken>;
@@ -284,7 +280,6 @@ export function createMemoryStore(): MemoryStore {
     publishers: new Map(),
     members: [],
     invites: [],
-    userInterests: [],
     userAreas: new Map(),
     regions,
     tokens: new Map(),

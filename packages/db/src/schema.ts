@@ -84,9 +84,9 @@ export const pushAudience = pgEnum('push_audience', [
   'event_match',
   'everyone',
   'tag_interest',
-  /** Saved notify area covers the event. No interest filter. */
+  /** Saved notify area covers the event. No tag filter. Followers are still included. */
   'area',
-  /** Saved notify area covers the event and an interest tag overlaps. */
+  /** Covering area has a tag in common with the event. Followers are still included. */
   'area_and_tag',
 ]);
 /** Per-user delivery of a push message (supports deferral / aggregation). */
@@ -120,11 +120,17 @@ export const users = pgTable('users', {
   /** IANA timezone for quiet-hours evaluation (launch default: Sweden). */
   timezone: text('timezone').notNull().default('Europe/Stockholm'),
   /** Minutes from local midnight; window wraps midnight when start ≥ end. */
-  quietHoursStartMin: integer('quiet_hours_start_min').notNull().default(22 * 60),
-  quietHoursEndMin: integer('quiet_hours_end_min').notNull().default(8 * 60),
+  quietHoursStartMin: integer('quiet_hours_start_min')
+    .notNull()
+    .default(22 * 60),
+  quietHoursEndMin: integer('quiet_hours_end_min')
+    .notNull()
+    .default(8 * 60),
   quietHoursEnabled: boolean('quiet_hours_enabled').notNull().default(true),
   /** How far the user can go before a new place is suggested. Default 25 km. */
   travelDistanceM: integer('travel_distance_m').notNull().default(25_000),
+  /** “Near you” event-search radius. Null until the location menu sets one. */
+  discoveryRadiusM: integer('discovery_radius_m'),
   /** Set by admin moderation; banned users cannot create sessions or check in. */
   bannedAt: timestamp('banned_at', { withTimezone: true }),
   banReason: text('ban_reason'),
@@ -304,24 +310,6 @@ export const regions = pgTable(
   ],
 );
 
-/** Tags the user wants nearby notifications for. */
-export const userInterests = pgTable(
-  'user_interests',
-  {
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    tagId: uuid('tag_id')
-      .notNull()
-      .references(() => tags.id, { onDelete: 'cascade' }),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.userId, t.tagId] }),
-    index('user_interests_user_id_idx').on(t.userId),
-  ],
-);
-
 /**
  * Saved notification/search areas. Circle = center + radius_m; drawn polygon = area;
  * region subscription copies `regions.boundary` into `area` and sets `region_id`.
@@ -340,6 +328,8 @@ export const userAreas = pgTable(
     area: geographyPolygon('area'),
     center: geographyPoint('center'),
     radiusM: integer('radius_m'),
+    /** Event-search radius. A new circle copies the notification radius. Null for a polygon or region until the location menu sets one. */
+    searchRadiusM: integer('search_radius_m'),
     notify: boolean('notify').notNull().default(true),
     active: boolean('active').notNull().default(true),
     createdAt: createdAt(),
@@ -353,6 +343,7 @@ export const userAreas = pgTable(
 
 /**
  * Tags selected for one saved area. Home filters follow the area that is selected.
+ * Nearby notifications match these tags on the area that covers the event.
  * Cascade with the area and with the tag. Included in user export/deletion via `user_areas`.
  */
 export const userAreaTags = pgTable(
@@ -397,6 +388,8 @@ export const events = pgTable(
     /** Minor currency units (öre for SEK). Null means unknown; 0 means free. */
     priceAmount: integer('price_amount'),
     currency: text('currency').notNull().default('SEK'),
+    /** Extra facts such as age limit and accessibility. Empty object when none. */
+    meta: jsonb('meta').notNull().default({}),
     /** Admin pick shown first on the home feed. Distinct from future paid placements. */
     featured: boolean('featured').notNull().default(false),
     /** Admin opt-in. When false, check-in and the text/links it unlocks are unavailable. */

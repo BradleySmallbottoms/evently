@@ -28,7 +28,6 @@ import { saveHomeTagIds } from '@/lib/home-tag-selection';
 import {
   createCircleArea,
   getPreferences,
-  replaceInterests,
   updateAreaTags,
   updateTravelDistance,
 } from '@/lib/preferences';
@@ -315,7 +314,6 @@ export function OnboardingCarousel({ onFinished }: Props) {
     try {
       const identity = await ensureUser();
       if (!identity) return;
-      await replaceInterests(identity, tagIds);
       await saveHomeTagIds(tagIds);
       const placeId = getDiscoveryPlaceId();
       if (placeId !== NEARBY_PLACE_ID) await updateAreaTags(identity, placeId, tagIds);

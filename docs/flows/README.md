@@ -23,7 +23,7 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Web sign-in with app pairing code                      | [web-pairing-login.md](./web-pairing-login.md)           |
 | Device linking (new phone → old phone confirms)        | [device-linking.md](./device-linking.md)                 |
 | Publisher profiles & member invites                    | [publisher-invites.md](./publisher-invites.md)           |
-| User interests & saved areas                           | [user-preferences.md](./user-preferences.md)             |
+| Saved areas and area tags                              | [user-preferences.md](./user-preferences.md)             |
 | Region suggestions                                     | [region-suggestions.md](./region-suggestions.md)         |
 | Push token, nearby match, subscriptions (SQS → worker) | [push-and-domain-events.md](./push-and-domain-events.md) |
 | Physical geofence check-in                             | [geo-check-in.md](./geo-check-in.md)                     |

@@ -1,0 +1,1 @@
+ALTER TABLE "events" ADD COLUMN "meta" jsonb DEFAULT '{}'::jsonb NOT NULL;

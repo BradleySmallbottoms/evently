@@ -29,6 +29,7 @@ function eventValues(input: ImportedEventWrite) {
     onlineUrl: input.event.onlineUrl ?? null,
     priceAmount: input.event.priceAmount ?? null,
     currency: input.event.currency ?? 'SEK',
+    meta: input.event.meta ?? {},
   };
 }
 
@@ -322,6 +323,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             ...(input.event.onlineUrl !== undefined ? { onlineUrl: values.onlineUrl } : {}),
             ...(input.event.priceAmount !== undefined ? { priceAmount: values.priceAmount } : {}),
             ...(input.event.currency !== undefined ? { currency: values.currency } : {}),
+            meta: values.meta,
             updatedAt: new Date(),
           })
           .where(eq(events.id, eventId));

@@ -1,3 +1,4 @@
+import type { EventMeta } from '@local-events/contracts';
 import { mergeImportedLinks, priceAmountFromText } from '@local-events/domain';
 import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
 import { crawlLinkImages } from './page-images';
@@ -28,6 +29,26 @@ const CONTACT = 160;
 const EMAIL = 161;
 const EVENT_LINK = 125;
 const BOOKING_LINK = 126;
+const PRICE_INFO = 106;
+const AGE_LIMIT = 127;
+const CURRENCY = 402;
+const PRICE_FROM = 1012;
+const FREE_ENTRY = 100021;
+const MAX_PRICE_MAJOR = 100_000;
+
+const AMENITIES = [
+  [100093, 'accessibleParking'],
+  [100095, 'accessibleToilet'],
+  [100094, 'hearingLoop'],
+  [101014, 'visuallyImpairedAccess'],
+  [100036, 'wheelchairAccessible'],
+  [100593, 'wheelchairAccessible'],
+  [100037, 'petsAllowed'],
+  [100085, 'childFriendly'],
+  [100631, 'allergyAdapted'],
+  [100188, 'smokeFree'],
+  [100060, 'wc'],
+] as const;
 
 export interface VisitCategory {
   Id: number;
@@ -45,7 +66,10 @@ export interface VisitProduct {
   Occasions?: {
     Start?: string;
     End?: string;
-    Arena?: { Name?: string };
+    Arena?: {
+      Name?: string;
+      Position?: { Latitude?: number; Longitude?: number } | null;
+    };
   }[];
 }
 
@@ -216,11 +240,94 @@ async function fetchProducts(
   return products;
 }
 
+function textValues(product: VisitProduct, id: number): string[] {
+  const values: string[] = [];
+  for (const item of product.Information ?? []) {
+    if (item.Id !== id || typeof item.Value !== 'string') continue;
+    const trimmed = item.Value.trim();
+    if (trimmed) values.push(trimmed);
+  }
+  return values;
+}
+
 function textField(product: VisitProduct, id: number): string | undefined {
-  const value = product.Information?.find((item) => item.Id === id)?.Value;
+  return textValues(product, id)[0];
+}
+
+function infoValue(product: VisitProduct, id: number): unknown {
+  return product.Information?.find((item) => item.Id === id)?.Value;
+}
+
+function numberValue(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value !== 'string') return undefined;
-  const trimmed = value.trim();
-  return trimmed || undefined;
+  const trimmed = value.trim().replace(/\s/g, '').replace(',', '.');
+  if (!trimmed) return undefined;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function boolValue(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (typeof value !== 'string') return undefined;
+  if (/^true$/i.test(value.trim())) return true;
+  if (/^false$/i.test(value.trim())) return false;
+  return undefined;
+}
+
+function minorFromMajor(major: number | undefined): number | undefined {
+  if (major === undefined || major < 0 || major > MAX_PRICE_MAJOR) return undefined;
+  const minor = Math.round(major * 100);
+  if (!Number.isSafeInteger(minor) || minor > 10_000_000) return undefined;
+  return minor;
+}
+
+function currencyCode(product: VisitProduct): string {
+  const code = textField(product, CURRENCY);
+  return code && /^[A-Za-z]{3}$/.test(code) ? code.toUpperCase() : 'SEK';
+}
+
+/** Price From, then Prisinformation, then the description. Fri entré is free when no amount is stated. */
+function priceOf(
+  product: VisitProduct,
+  description: string | undefined,
+): { priceAmount?: number; currency?: string } {
+  const infoText = textField(product, PRICE_INFO);
+  const fromInfo =
+    infoText && /^[\d\s.,]+$/.test(infoText)
+      ? minorFromMajor(numberValue(infoText))
+      : priceAmountFromText(infoText);
+  const structured =
+    minorFromMajor(numberValue(infoValue(product, PRICE_FROM))) ??
+    fromInfo ??
+    priceAmountFromText(description);
+  const priceAmount =
+    structured ?? (boolValue(infoValue(product, FREE_ENTRY)) === true ? 0 : undefined);
+  if (priceAmount === undefined) return {};
+  return { priceAmount, currency: currencyCode(product) };
+}
+
+type AmenityKey = Exclude<keyof EventMeta, 'ageLimit'>;
+
+function metaOf(product: VisitProduct): EventMeta | undefined {
+  const meta: EventMeta = {};
+  const age = numberValue(infoValue(product, AGE_LIMIT));
+  if (age !== undefined && Number.isInteger(age) && age >= 0 && age <= 120) meta.ageLimit = age;
+  if (boolValue(infoValue(product, FREE_ENTRY)) === true) meta.freeEntry = true;
+  for (const [id, key] of AMENITIES) {
+    if (boolValue(infoValue(product, id)) === true) meta[key satisfies AmenityKey] = true;
+  }
+  return Object.keys(meta).length > 0 ? meta : undefined;
+}
+
+function pointOf(
+  position?: { Latitude?: number; Longitude?: number } | null,
+): { lat: number; lng: number } | undefined {
+  const lat = position?.Latitude;
+  const lng = position?.Longitude;
+  if (typeof lat !== 'number' || typeof lng !== 'number') return undefined;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
+  return { lat, lng };
 }
 
 function asUrl(value: string | undefined): string | undefined {
@@ -382,13 +489,13 @@ function productLinks(product: VisitProduct): NonNullable<IncomingEvent['links']
   const links: NonNullable<IncomingEvent['links']> = [];
   const seen = new Set<string>();
   const push = (type: 'tickets' | 'info', url: string | undefined) => {
-    if (!url || seen.has(url)) return;
+    if (!url || seen.has(url) || links.length >= 10) return;
     seen.add(url);
     links.push({ type, url });
   };
-  push('tickets', asUrl(textField(product, BOOKING_LINK)));
-  push('info', asUrl(textField(product, EVENT_LINK)));
-  push('info', asUrl(textField(product, WEBSITE)));
+  for (const value of textValues(product, BOOKING_LINK)) push('tickets', asUrl(value));
+  for (const value of textValues(product, EVENT_LINK)) push('info', asUrl(value));
+  for (const value of textValues(product, WEBSITE)) push('info', asUrl(value));
   return links;
 }
 
@@ -404,22 +511,24 @@ function mapProduct(
   const email = textField(product, EMAIL);
   const contact = textField(product, CONTACT);
   const description = textField(product, DESCRIPTION) ?? textField(product, INGRESS);
-  const priceAmount = priceAmountFromText(description);
+  const priced = priceOf(product, description);
+  const meta = metaOf(product);
   const address = addressOf(product);
-  const lat = product.Position?.Latitude;
-  const lng = product.Position?.Longitude;
-  const location = typeof lat === 'number' && typeof lng === 'number' ? { lat, lng } : undefined;
   const pictures = picturesFor(imageUrl(product), crawled);
   const tags = productTags(product, eventCategoryId);
   const events: IncomingEvent[] = [];
   for (const occasion of product.Occasions ?? []) {
     if (!occasion.Start) continue;
     const venue = occasion.Arena?.Name?.trim();
+    const location = pointOf(occasion.Arena?.Position) ?? pointOf(product.Position);
     events.push({
       externalId: `${product.Id}:${occasion.Start}:${occasion.End ?? ''}`,
       title,
       ...(description ? { description } : {}),
-      ...(priceAmount !== undefined ? { priceAmount, currency: 'SEK' as const } : {}),
+      ...(priced.priceAmount !== undefined
+        ? { priceAmount: priced.priceAmount, currency: priced.currency ?? 'SEK' }
+        : {}),
+      ...(meta ? { meta } : {}),
       mode: 'physical',
       startsAt: withStockholmOffset(occasion.Start),
       ...(occasion.End ? { endsAt: withStockholmOffset(occasion.End) } : {}),

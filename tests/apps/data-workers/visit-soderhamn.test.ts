@@ -72,6 +72,7 @@ describe('visit-soderhamn map', () => {
     expect(bandy.sourceUrl).toBe('https://brobergsoderhamn.se/');
     expect(bandy.links).toEqual([
       { type: 'tickets', url: 'https://brobergsoderhamn.ticketco.events/se/sv' },
+      { type: 'tickets', url: 'https://www.nortic.se/ticket/event/82243' },
       { type: 'info', url: 'https://brobergsoderhamn.se/' },
     ]);
     expect(bandy.organizerKey).toBe('kansli@brobergsoderhamn.se');
@@ -85,6 +86,14 @@ describe('visit-soderhamn map', () => {
     expect(bandy.imageUrl).toBe('https://images.citybreakcdn.com/image.aspx?ImageId=10290222');
     expect(bandy.imageUrls).toBeUndefined();
     expect(bandy.description).toContain('inomhusarena för bandy');
+    expect(bandy.priceAmount).toBe(29_500);
+    expect(bandy.currency).toBe('SEK');
+    expect(bandy.meta).toEqual({
+      accessibleParking: true,
+      hearingLoop: true,
+      accessibleToilet: true,
+    });
+    expect(events[1]?.location).toEqual({ lat: 61.3010138, lng: 17.0444639 });
   });
 
   it('keeps the API image and stores crawled page images beside it', () => {
@@ -183,7 +192,48 @@ describe('visit-soderhamn map', () => {
     expect(event?.organizerName).toBeUndefined();
   });
 
-  it('stores a price when the description states one', () => {
+  it('uses the arena position ahead of the product position', () => {
+    const product: VisitProduct = {
+      ...raw.products[0]!,
+      Position: { Latitude: 61.1, Longitude: 17.1 },
+      Occasions: [
+        {
+          Start: '2025-01-31T19:00:00',
+          End: '2025-01-31T21:00:00',
+          Arena: {
+            Name: 'Helsingehus Arena, Hällåsen',
+            Position: { Latitude: 61.4, Longitude: 17.4 },
+          },
+        },
+      ],
+    };
+    const [event] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
+    expect(event?.location).toEqual({ lat: 61.4, lng: 17.4 });
+  });
+
+  it('reads price, age limit, and links from Information', () => {
+    const product: VisitProduct = {
+      ...raw.products[1]!,
+      Information: [
+        ...(raw.products[1]!.Information ?? []),
+        { Id: 106, Value: '345' },
+        { Id: 127, Value: '13' },
+        { Id: 402, Value: 'SEK' },
+        { Id: 100093, Value: 'True' },
+        { Id: 101014, Value: 'True' },
+      ],
+    };
+    const [event] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
+    expect(event?.priceAmount).toBe(34_500);
+    expect(event?.currency).toBe('SEK');
+    expect(event?.meta).toEqual({
+      ageLimit: 13,
+      accessibleParking: true,
+      visuallyImpairedAccess: true,
+    });
+  });
+
+  it('prefers Price From over a price written in the description', () => {
     const product: VisitProduct = {
       ...raw.products[0]!,
       Information: raw.products[0]!.Information?.map((item) =>
@@ -191,8 +241,31 @@ describe('visit-soderhamn map', () => {
       ),
     };
     const [event] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
+    expect(event?.priceAmount).toBe(29_500);
+  });
+
+  it('stores a price from the description when Information has none', () => {
+    const product: VisitProduct = {
+      ...raw.products[0]!,
+      Information: raw.products[0]!.Information?.flatMap((item) => {
+        if (item.Id === 1012 || item.Id === 106 || item.Id === 100021) return [];
+        if (item.Id === 102) return [{ ...item, Value: 'Avgift: 1600 kr, faktureras' }];
+        return [item];
+      }),
+    };
+    const [event] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
     expect(event?.priceAmount).toBe(160_000);
     expect(event?.currency).toBe('SEK');
+  });
+
+  it('stores free entry when no amount is stated', () => {
+    const product: VisitProduct = {
+      ...raw.products[1]!,
+      Information: [...(raw.products[1]!.Information ?? []), { Id: 100021, Value: 'True' }],
+    };
+    const [event] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
+    expect(event?.priceAmount).toBe(0);
+    expect(event?.meta).toEqual({ freeEntry: true });
   });
 });
 
@@ -378,6 +451,7 @@ describe('visit-soderhamn fetch', () => {
     const pages = calls.filter((call) => !call.url.includes('citybreak.com'));
     expect(pages.map((call) => call.url)).toEqual([
       'https://brobergsoderhamn.ticketco.events/se/sv',
+      'https://www.nortic.se/ticket/event/82243',
       'https://brobergsoderhamn.se/',
       'https://example.com/program',
     ]);

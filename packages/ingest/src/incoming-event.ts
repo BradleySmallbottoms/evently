@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { EventMode, GeoPointSchema, HttpUrl } from '@local-events/contracts';
+import { EventMeta, EventMode, GeoPointSchema, HttpUrl } from '@local-events/contracts';
 import { z } from 'zod';
 
 /** The shape every source adapter maps raw data into. `ingest` takes it from here. */
@@ -17,6 +17,8 @@ export const IncomingEvent = z.object({
   onlineUrl: HttpUrl.optional(),
   /** Minor units. Omit when unknown. 0 means free. */
   priceAmount: z.number().int().min(0).max(10_000_000).optional(),
+  /** Age limit, accessibility, and other facts that are not their own columns. */
+  meta: EventMeta.optional(),
   currency: z
     .string()
     .trim()

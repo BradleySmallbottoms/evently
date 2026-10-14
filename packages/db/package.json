@@ -10,8 +10,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --root ../.. tests/packages/db --passWithNoTests",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:generate": "node ./scripts/generate.mjs",
+    "db:migrate": "node ./scripts/migrate.mjs",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

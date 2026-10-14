@@ -42,6 +42,7 @@ function toUserArea(row: {
   regionId: string | null;
   center: { lat: number; lng: number } | null;
   radiusM: number | null;
+  searchRadiusM: number | null;
   polygon: { lat: number; lng: number }[] | null;
   notify: boolean;
   active: boolean;
@@ -56,6 +57,7 @@ function toUserArea(row: {
     regionId: row.regionId,
     center: row.center,
     radiusM: row.radiusM,
+    searchRadiusM: row.searchRadiusM,
     polygon: row.polygon,
     notify: row.notify,
     active: row.active,
@@ -77,21 +79,17 @@ export function createMemoryPreferenceServices(
   env: PreferenceEnv = { now: () => new Date() },
   store: MemoryStore = createMemoryStore(),
 ): PreferenceServices {
-  const { userInterests, userAreas, tags, regions } = store;
+  const { userAreas, tags, regions } = store;
 
   return {
     async getPreferences(sessionToken) {
       const { userId } = await auth.requireUserSession(sessionToken);
       const user = store.users.get(userId);
       if (!user) throw new PreferenceError('unauthorized');
-      const tagIds = userInterests
-        .filter((i) => i.userId === userId)
-        .map((i) => i.tagId);
       const areas = [...userAreas.values()]
         .filter((a) => a.userId === userId)
         .map(toUserArea);
       return {
-        tagIds,
         areas,
         quietHours: {
           enabled: user.quietHoursEnabled,
@@ -100,6 +98,7 @@ export function createMemoryPreferenceServices(
           timezone: user.timezone,
         },
         travelDistanceM: resolveTravelDistanceM(user.travelDistanceM),
+        discoveryRadiusM: user.discoveryRadiusM,
       };
     },
 
@@ -124,6 +123,14 @@ export function createMemoryPreferenceServices(
       if (!user) throw new PreferenceError('unauthorized');
       user.travelDistanceM = resolveTravelDistanceM(input.distanceM);
       return { distanceM: resolveTravelDistanceM(user.travelDistanceM) };
+    },
+
+    async updateDiscoveryRadius(sessionToken, input) {
+      const { userId } = await auth.requireUserSession(sessionToken);
+      const user = store.users.get(userId);
+      if (!user) throw new PreferenceError('unauthorized');
+      user.discoveryRadiusM = resolveTravelDistanceM(input.radiusM);
+      return { radiusM: user.discoveryRadiusM };
     },
 
     async getProfile(sessionToken) {
@@ -157,22 +164,6 @@ export function createMemoryPreferenceServices(
         }
       }
       return toProfile(user);
-    },
-
-    async replaceInterests(sessionToken, input) {
-      const { userId } = await auth.requireUserSession(sessionToken);
-      for (const id of input.tagIds) {
-        if (!tags.has(id)) throw new PreferenceError('unknown_tag');
-      }
-      const kept = userInterests.filter((i) => i.userId !== userId);
-      userInterests.length = 0;
-      userInterests.push(...kept);
-      const now = env.now();
-      const unique = [...new Set(input.tagIds)];
-      for (const tagId of unique) {
-        userInterests.push({ userId, tagId, createdAt: now });
-      }
-      return { tagIds: unique };
     },
 
     async listAreas(sessionToken) {
@@ -231,6 +222,7 @@ export function createMemoryPreferenceServices(
         regionId,
         center,
         radiusM,
+        searchRadiusM: radiusM == null ? null : resolveTravelDistanceM(radiusM),
         polygon,
         notify: input.notify ?? true,
         active: input.active ?? true,
@@ -264,6 +256,10 @@ export function createMemoryPreferenceServices(
         row.radiusM = null;
       } else if (input.center || input.radiusM != null) {
         throw new PreferenceError('invalid_area');
+      }
+
+      if (input.searchRadiusM != null) {
+        row.searchRadiusM = resolveTravelDistanceM(input.searchRadiusM);
       }
 
       if (input.tagIds !== undefined) row.tagIds = uniqueTagIds(input.tagIds, tags);

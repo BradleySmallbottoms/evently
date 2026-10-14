@@ -53,10 +53,10 @@ Closed beta around week 15, store launch around week 19.
 
 ## Phase 3 — Discovery + notifications (weeks 6–10)
 
-- [x] Interests, saved areas (radius and polygon). The onboarding tags step stores the chosen tags as those interests. Each saved area also keeps its own tag selection for the home filters. The location menu search radius is remembered per place, including “Near you”
+- [x] Saved areas (radius and polygon). The onboarding tags step stores the chosen tags on the area just saved and as the device home filters. There is no account-wide interest list. Nearby notifications use the tags on the covering area. The location menu search radius is remembered per place, including “Near you”, on the device and on the user. A new circle starts with that search radius equal to its notification radius
 - [x] Region suggestions + region subscriptions (municipality boundaries seeded into `regions`). Device location is read when the app becomes active and watched while it stays in the foreground. A dismiss, including skipping the onboarding area step, hides the prompt near that place for 7 days; farther than the profile “How far can you go” setting (default 25 km) it can show again immediately. Continuing the onboarding area step stores the chosen radius as that travel distance
 - [x] Push token registration; SQS + worker wired up
-- [x] Geo matching; silent Expo after inbox insert; client-side quiet hours + 5/day OS-notification cap; 90-day inbox retention. Events without a point stay in the list and off the map, and they do not match nearby push
+- [x] Geo matching; silent Expo after inbox insert; client-side quiet hours + 5/day OS-notification cap; 90-day inbox retention. Events without a point stay off the map and do not match nearby push. They stay in the public list when they have at least one tag. An event with neither a point nor a tag is left out of that list
 - [x] Publisher and event subscriptions (follow API + publisher merge on publish; event.updated debounce later)
 - [x] Notification inbox: persist every matched notification; `GET /me/notifications`; mobile notifications window lists inbox rows
 - [x] Quiet hours deferral: during the window store only (no immediate Expo); after the window ends, one aggregate Expo push; preferences UI to enable/disable (defaults 22:00–08:00)
@@ -64,7 +64,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Per-user push aggregation within 10 minutes (defer + “And N more…”)
 - [x] Admin push editor with audience estimate (nearby / followers / unique / with token)
 - [x] Publisher “Notify again” after a send; admin broadcast composer (everyone / favorite tag) with schedule
-- [x] Admin event notification: schedule an approved push for a published event, choosing saved-area or saved-area-plus-interest (no followers). Several reminders can be scheduled; a marketing plan is created only after the admin approves the preview
+- [x] Admin event notification: schedule an approved push for a published event, choosing saved-area or saved-area-plus-tag. Publisher followers receive every event notification. Several reminders can be scheduled; a marketing plan is created only after the admin approves the preview
 - **Exit:** publishing drafts a push message; after approval (or auto-approve) and `send_at`, the worker inserts inbox rows and a silent push; aggregation prevents back-to-back OS alerts; admin can preview audience and schedule general broadcasts.
 
 ## Phase 4 — Check-in + attendee content (weeks 10–13)

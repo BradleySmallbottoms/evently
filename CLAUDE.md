@@ -123,6 +123,9 @@ Product invariants (enforced in domain, tested)
 
 - A user id never authenticates; the app holds a device credential in secure storage.
 - Events from unverified publishers are `awaiting_verification`: not listed, searched or pushed.
+- An event with neither a point nor a tag is omitted from the public event list. One with tags
+  and no point stays in that list, has no map pin, and does not match nearby push. Direct lookup
+  by id still returns it.
 - Imported events from temporary publishers or review-trust sources go to `in_review`.
 - Script-imported events are notified only when the publisher is verified and its import
   notification plan is set. Future reminders are approved when the event is published, and
@@ -136,13 +139,16 @@ Product invariants (enforced in domain, tested)
 - No background location in v1. While the app is in use, location is read when it becomes active
   and watched until it backgrounds. Region suggestions run on the device and send nothing unless saved.
   A dismiss, including skipping the onboarding area step, stays quiet near that place for 7 days;
- farther than the profile setting “How far can you go”
- (default 25 km) the prompt can show again. Continuing the onboarding area step stores the
- chosen radius as that travel distance; skipping leaves the default. The onboarding tags step
- stores the chosen tags as notification interests, as the device home filters, and on the area
- just saved. Skip stores an empty selection. Each saved area keeps its own tags: the home filters
- follow the area chosen in the location menu, and “Near you” keeps the device filters. The
- location menu search radius is remembered per place on the device.
+  farther than the profile setting “How far can you go”
+  (default 25 km) the prompt can show again. Continuing the onboarding area step stores the
+  chosen radius as that travel distance; skipping leaves the default. The onboarding tags step
+  stores the chosen tags as the device home filters and on the area just saved. There is no
+  account-wide interest list. Nearby notifications use the tags on the covering area. A follow of a
+  publisher receives every notification for that publisher’s events. Skip stores an empty selection.
+  Each saved area keeps its own tags: the home filters
+  follow the area chosen in the location menu, and “Near you” keeps the device filters. The
+  location menu search radius is remembered per place on the device and on the user.
+  A new circle starts with that search radius equal to its notification radius.
 - v1 has no subscription/paid plan UI anywhere. Plan limits go through `entitlementsFor()`, which
   returns the all-unlocked launch plan.
 

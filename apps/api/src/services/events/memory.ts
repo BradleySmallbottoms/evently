@@ -15,6 +15,7 @@ import {
   entitlementsFor,
   eventEngagement,
   isPopularEvent,
+  isPubliclyListedEvent,
   matchesListPrice,
   releaseOnVerification,
   shouldEnqueueNotifications,
@@ -46,13 +47,7 @@ function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: numb
 }
 
 function toManaged(row: MemoryEventRow, store: MemoryStore): ManagedEvent {
-  const {
-    startsAtDate: _starts,
-    endsAtDate: _ends,
-    attendeeText,
-    attendeeLinks,
-    ...event
-  } = row;
+  const { startsAtDate: _starts, endsAtDate: _ends, attendeeText, attendeeLinks, ...event } = row;
   return {
     ...event,
     ...memoryEventEngagement(store, row.id),
@@ -154,6 +149,7 @@ export function createMemoryEventServices(
         onlineUrl,
         priceAmount: body.priceAmount ?? null,
         currency: body.currency,
+        meta: {},
         publisherName: publishers.get(publisherId)?.name ?? '',
         links: linksFromInput(body.links),
         imageUrl: null,
@@ -284,6 +280,9 @@ export function createMemoryEventServices(
       const q = query.q?.toLowerCase();
       const matched = [...events.values()]
         .filter((e) => e.status === 'published')
+        .filter((e) =>
+          isPubliclyListedEvent({ hasLocation: e.location != null, tagCount: e.tagIds.length }),
+        )
         .filter((e) => !e.location || haversineM(center, e.location) <= query.radiusM)
         .filter((e) => !from || e.endsAtDate >= from)
         .filter((e) => !to || e.startsAtDate <= to)
@@ -340,7 +339,9 @@ export function createMemoryEventServices(
       });
       const page = matched.slice(query.offset, query.offset + query.limit + 1);
       const hasMore = page.length > query.limit;
-      const items = (hasMore ? page.slice(0, query.limit) : page).map((row) => toPublic(row, store));
+      const items = (hasMore ? page.slice(0, query.limit) : page).map((row) =>
+        toPublic(row, store),
+      );
       return { items, nextOffset: hasMore ? query.offset + query.limit : null };
     },
   };

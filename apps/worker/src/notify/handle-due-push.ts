@@ -164,10 +164,11 @@ async function audienceForBroadcast(
   }
   if (message.audience === 'tag_interest' && message.audienceTagId) {
     const rows = await db.execute(sql`
-      SELECT DISTINCT ui.user_id
-      FROM user_interests ui
-      INNER JOIN users u ON u.id = ui.user_id AND u.banned_at IS NULL
-      WHERE ui.tag_id = ${message.audienceTagId}::uuid
+      SELECT DISTINCT ua.user_id
+      FROM user_area_tags uat
+      INNER JOIN user_areas ua ON ua.id = uat.area_id
+      INNER JOIN users u ON u.id = ua.user_id AND u.banned_at IS NULL
+      WHERE uat.tag_id = ${message.audienceTagId}::uuid
       LIMIT ${BROADCAST_MATCH_LIMIT}
     `);
     for (const r of (Array.isArray(rows) ? rows : []) as Array<{ user_id: string }>) {
@@ -177,21 +178,24 @@ async function audienceForBroadcast(
   return out;
 }
 
-/** Admin-picked event audience: saved area, optionally also a shared interest. No followers. */
+/**
+ * Admin-picked event audience, plus every follower of the event's publisher.
+ * `area` is coverage only. `area_and_tag` also needs a tag on that covering area.
+ */
 async function audienceForAdminEvent(
   db: Db,
   eventId: string,
   audience: 'area' | 'area_and_tag',
 ): Promise<Map<string, NotifyReason>> {
   const event = await loadPublishedEvent(db, eventId);
-  if (!event || event.status !== 'published' || !event.hasLocation) return new Map();
-  const matched =
-    audience === 'area'
+  if (!event || event.status !== 'published') return new Map();
+  const matched = !event.hasLocation
+    ? []
+    : audience === 'area'
       ? await findAreaMatchedUsers(db, eventId, MATCH_LIMIT)
       : await findNearbyMatchedUsers(db, eventId, MATCH_LIMIT);
-  const out = new Map<string, NotifyReason>();
-  for (const user of matched) out.set(user.userId, 'nearby');
-  return out;
+  const publisherSubs = await findPublisherSubscriberUsers(db, event.publisherId, MATCH_LIMIT);
+  return mergeUsers(matched, publisherSubs);
 }
 
 async function audienceForMessage(

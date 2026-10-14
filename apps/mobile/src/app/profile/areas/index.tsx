@@ -1,41 +1,43 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
 import { ensureIdentity } from '@/lib/identity';
-import { deleteArea, getPreferences } from '@/lib/preferences';
-import {
-  getDiscoveryPlaceId,
-  NEARBY_PLACE_ID,
-  setDiscoveryPlaceId,
-} from '@/lib/use-discovery-point';
+import { getPreferences } from '@/lib/preferences';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
 function areaDetail(
-  area: { kind: string; radiusM: number | null; polygon: unknown[] | null },
+  area: { searchRadiusM: number | null; notify: boolean },
   t: (key: string, options?: Record<string, string>) => string,
 ): string {
-  if (area.radiusM != null) {
-    const radiusLabel =
-      area.radiusM >= 1000
-        ? `${Number((area.radiusM / 1000).toFixed(1))} km`
-        : `${area.radiusM} m`;
-    return t('profile.areaRadius', { radius: radiusLabel });
+  const notifications = t(area.notify ? 'profile.areaNotificationsOn' : 'profile.areaNotificationsOff');
+  if (area.searchRadiusM == null) return notifications;
+  const radiusLabel =
+    area.searchRadiusM >= 1000
+      ? `${Number((area.searchRadiusM / 1000).toFixed(1))} km`
+      : `${area.searchRadiusM} m`;
+  return t('profile.areaListDetail', { radius: radiusLabel, notifications });
+}
+
+function Chevron() {
+  if (process.env.EXPO_OS === 'ios') {
+    return <SymbolView name={'chevron.right' as never} size={14} tintColor={colors.inkFaint} />;
   }
-  if (area.kind === 'region') return t('profile.areaRegion');
-  if (area.polygon && area.polygon.length > 0) return t('profile.areaDrawn');
-  return t('profile.areaRegion');
+  return <MaterialIcons name="chevron-right" size={20} color={colors.inkFaint} />;
 }
 
 export default function SavedAreasScreen() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const insets = useSafeAreaInsets();
-  const queryClient = useQueryClient();
+  const router = useRouter();
 
   const identity = useQuery({
     queryKey: ['identity', locale],
@@ -46,32 +48,6 @@ export default function SavedAreasScreen() {
     enabled: identity.isSuccess,
     queryFn: () => getPreferences(identity.data!),
   });
-
-  const remove = useMutation({
-    mutationFn: async (areaId: string) => {
-      const id = identity.data;
-      if (!id) throw new Error('missing_identity');
-      await deleteArea(id, areaId);
-      return areaId;
-    },
-    onSuccess: async (areaId) => {
-      if (getDiscoveryPlaceId() === areaId) setDiscoveryPlaceId(NEARBY_PLACE_ID);
-      await queryClient.invalidateQueries({ queryKey: ['preferences'] });
-    },
-  });
-
-  function confirmDelete(area: { id: string; name: string }) {
-    Alert.alert(t('profile.areaDeleteTitle'), t('profile.areaDeleteMessage', { name: area.name }), [
-      { text: t('preferences.resetCancel'), style: 'cancel' },
-      {
-        text: t('profile.areaDelete'),
-        style: 'destructive',
-        onPress: () => {
-          remove.mutate(area.id);
-        },
-      },
-    ]);
-  }
 
   const areas = preferences.data?.areas ?? [];
 
@@ -87,11 +63,6 @@ export default function SavedAreasScreen() {
         {identity.isError || preferences.isError ? (
           <AppText variant="caption" style={{ color: colors.danger }}>
             {t('profile.areasLoadError')}
-          </AppText>
-        ) : null}
-        {remove.isError ? (
-          <AppText variant="caption" style={{ color: colors.danger }}>
-            {t('profile.areaDeleteError')}
           </AppText>
         ) : null}
         {preferences.isSuccess && areas.length === 0 ? (
@@ -111,8 +82,11 @@ export default function SavedAreasScreen() {
             }}
           >
             {areas.map((area, index) => (
-              <View
+              <Pressable
                 key={area.id}
+                accessibilityRole="button"
+                accessibilityLabel={t('profile.areaEditA11y', { name: area.name })}
+                onPress={() => router.push(`/profile/areas/${area.id}`)}
                 style={{
                   minHeight: 64,
                   paddingHorizontal: space.lg,
@@ -128,18 +102,8 @@ export default function SavedAreasScreen() {
                   <AppText variant="body">{area.name}</AppText>
                   <AppText variant="caption">{areaDetail(area, t)}</AppText>
                 </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t('profile.areaDelete')}
-                  disabled={remove.isPending}
-                  onPress={() => confirmDelete(area)}
-                  style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: space.sm }}
-                >
-                  <AppText variant="label" style={{ color: colors.danger }}>
-                    {t('profile.areaDelete')}
-                  </AppText>
-                </Pressable>
-              </View>
+                <Chevron />
+              </Pressable>
             ))}
           </View>
         ) : null}

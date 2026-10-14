@@ -1,8 +1,7 @@
 import type {
   CreateUserAreaRequest,
   QuietHoursPrefs,
-  ReplaceUserInterestsRequest,
-  ReplaceUserInterestsResponse,
+  UpdateDiscoveryRadiusRequest,
   UpdateQuietHoursRequest,
   UpdateTravelDistanceRequest,
   UpdateUserAreaRequest,
@@ -31,10 +30,6 @@ export class PreferenceError extends Error {
 
 export type PreferenceServices = {
   getPreferences: (sessionToken: string | undefined) => Promise<UserPreferencesResponse>;
-  replaceInterests: (
-    sessionToken: string | undefined,
-    input: ReplaceUserInterestsRequest,
-  ) => Promise<ReplaceUserInterestsResponse>;
   updateQuietHours: (
     sessionToken: string | undefined,
     input: UpdateQuietHoursRequest,
@@ -43,6 +38,10 @@ export type PreferenceServices = {
     sessionToken: string | undefined,
     input: UpdateTravelDistanceRequest,
   ) => Promise<UpdateTravelDistanceRequest>;
+  updateDiscoveryRadius: (
+    sessionToken: string | undefined,
+    input: UpdateDiscoveryRadiusRequest,
+  ) => Promise<UpdateDiscoveryRadiusRequest>;
   getProfile: (sessionToken: string | undefined) => Promise<UserProfile>;
   updateProfile: (
     sessionToken: string | undefined,

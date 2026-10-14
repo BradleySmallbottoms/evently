@@ -77,6 +77,33 @@ export const AttendeeLinkInput = z.object({
 });
 export type AttendeeLinkInput = z.infer<typeof AttendeeLinkInput>;
 
+/**
+ * Facts that are not their own columns. Imports fill what the source knows.
+ * An empty object means the event has none.
+ */
+export const EventMeta = z.object({
+  /** Minimum age in years, when the source states one. */
+  ageLimit: z.number().int().min(0).max(120).optional(),
+  freeEntry: z.boolean().optional(),
+  accessibleParking: z.boolean().optional(),
+  accessibleToilet: z.boolean().optional(),
+  hearingLoop: z.boolean().optional(),
+  visuallyImpairedAccess: z.boolean().optional(),
+  wheelchairAccessible: z.boolean().optional(),
+  petsAllowed: z.boolean().optional(),
+  childFriendly: z.boolean().optional(),
+  allergyAdapted: z.boolean().optional(),
+  smokeFree: z.boolean().optional(),
+  wc: z.boolean().optional(),
+});
+export type EventMeta = z.infer<typeof EventMeta>;
+
+/** Drops a stored object that does not match {@link EventMeta}. */
+export function readEventMeta(value: unknown): EventMeta {
+  const parsed = EventMeta.safeParse(value && typeof value === 'object' ? value : {});
+  return parsed.success ? parsed.data : {};
+}
+
 /** Minor units. Null is unknown; 0 is free. */
 export const PriceAmount = z.number().int().min(0).max(10_000_000);
 export const CurrencyCode = z
@@ -103,6 +130,8 @@ export const Event = z.object({
   /** Minor units. Null when unknown; 0 when free. */
   priceAmount: z.number().int().nonnegative().nullable(),
   currency: z.string(),
+  /** Extra source facts. `{}` when the event has none. */
+  meta: EventMeta,
   publisherName: z.string(),
   links: z.array(EventLink),
   /** Hero image. Null when the event has none or the public asset host is unset. */
@@ -210,7 +239,10 @@ export const PublicEventListQuery = z.object({
     .string()
     .optional()
     .refine((value) => tagIdList(value).length <= 100, 'tagIds accepts at most 100 ids')
-    .refine((value) => tagIdList(value).every((id) => z.uuid().safeParse(id).success), 'tagIds must be uuids'),
+    .refine(
+      (value) => tagIdList(value).every((id) => z.uuid().safeParse(id).success),
+      'tagIds must be uuids',
+    ),
   sort: z.enum(['soonest', 'distance', 'popular']).optional().default('soonest'),
   /** `free` is amount 0 or unknown; `paid` is amount > 0. */
   price: z.enum(['free', 'paid']).optional(),
@@ -222,7 +254,14 @@ export type PublicEventListQuery = z.infer<typeof PublicEventListQuery>;
 /** Split a `tagIds` query value. Empty and omitted both mean no tag filter. */
 export function tagIdList(value: string | undefined): string[] {
   if (!value) return [];
-  return [...new Set(value.split(',').map((part) => part.trim()).filter((part) => part.length > 0))];
+  return [
+    ...new Set(
+      value
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0),
+    ),
+  ];
 }
 
 /** Single `tagId` and comma-separated `tagIds`, deduped. */

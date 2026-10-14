@@ -145,6 +145,198 @@
           "Name": "Bokningslänk",
           "Value": "https://brobergsoderhamn.ticketco.events/se/sv",
           "Type": "String"
+        },
+        {
+          "Id": 110,
+          "Name": "Webbsida",
+          "Value": "https://www.nortic.se/ticket/event/82243",
+          "Type": "String"
+        },
+        {
+          "Id": 117,
+          "Name": "Gatuadress 1",
+          "Value": "Norrtullsgatan 12",
+          "Type": "String"
+        },
+        {
+          "Id": 120,
+          "Name": "Postnummer",
+          "Value": "82631",
+          "Type": "String"
+        },
+        {
+          "Id": 121,
+          "Name": "Postadress",
+          "Value": "Söderhamn",
+          "Type": "String"
+        },
+        {
+          "Id": 125,
+          "Name": "Evenemangslänk",
+          "Value": "https://www.nortic.se/ticket/event/82243",
+          "Type": "String"
+        },
+        {
+          "Id": 126,
+          "Name": "Bokningslänk",
+          "Value": "https://www.nortic.se/ticket/event/82243",
+          "Type": "String"
+        },
+        {
+          "Id": 160,
+          "Name": "Kontaktperson",
+          "Value": "Enheten Kultur & Bibliotek",
+          "Type": "String"
+        },
+        {
+          "Id": 161,
+          "Name": "E-post",
+          "Value": "kulturen@soderhamn.se",
+          "Type": "String"
+        },
+        {
+          "Id": 402,
+          "Name": "Valuta",
+          "Value": "SEK",
+          "Type": "String"
+        },
+        {
+          "Id": 526,
+          "Name": "Evenemang highlight",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 550,
+          "Name": "Highlight fullskärmskarta",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 669,
+          "Name": "Evenemang highlight stor bild",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 670,
+          "Name": "Evenemang highlight liten bild",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 910,
+          "Name": "UrlName",
+          "Value": "Created_from_Webx_CMS_-_Visit_Soderhamn_2846030",
+          "Type": "String"
+        },
+        {
+          "Id": 1012,
+          "Name": "Price From Translatable",
+          "Value": "295",
+          "Type": "Double"
+        },
+        {
+          "Id": 100021,
+          "Name": "Fri entré",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100036,
+          "Name": "Handikappvänligt",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100037,
+          "Name": "Husdjur tillåtna",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100060,
+          "Name": "WC",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100085,
+          "Name": "Barnvänligt",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100093,
+          "Name": "Handikapparkering",
+          "Value": "True",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100094,
+          "Name": "Hörslinga",
+          "Value": "True",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100095,
+          "Name": "Handikapptoalett",
+          "Value": "True",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100109,
+          "Name": "Naturnära",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100188,
+          "Name": "Rökfritt",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100593,
+          "Name": "Handikappanpassat",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100603,
+          "Name": "Sjönära",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100631,
+          "Name": "Allergianpassat",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100651,
+          "Name": "City",
+          "Value": "True",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100835,
+          "Name": "Skogsmiljö",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 100927,
+          "Name": "Vid kusten",
+          "Value": "False",
+          "Type": "Boolean"
+        },
+        {
+          "Id": 101014,
+          "Name": "Framkomlighet för synskadade",
+          "Value": "False",
+          "Type": "Boolean"
         }
       ],
       "Position": {
@@ -163,7 +355,11 @@
           "End": "2025-01-31T21:00:00",
           "Arena": {
             "Name": "Helsingehus Arena, Hällåsen",
-            "Id": "cbis:1882263"
+            "Id": "cbis:1882263",
+            "Position": {
+              "Longitude": 17.0729084004415,
+              "Latitude": 61.2887228674144
+            }
           }
         }
       ]
