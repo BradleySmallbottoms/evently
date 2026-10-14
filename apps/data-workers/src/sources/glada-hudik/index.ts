@@ -1,6 +1,13 @@
-import { priceAmountFromText } from '@local-events/domain';
-import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
+import { parseLinksFromText, priceAmountFromText } from '@local-events/domain';
+import { defineAdapter, type IncomingEvent } from '@local-events/ingest';
 import { load } from 'cheerio';
+import {
+  existingEventTags,
+  keptTagsForProduct,
+  matchEventTag,
+  tagCatalog,
+  type TagChoice,
+} from './match-tag';
 
 /**
  * Glada Hudik (Hudiksvall) via the public Citybreak calendar.
@@ -56,8 +63,9 @@ export interface GladaOccasion {
 }
 
 export interface GladaLink {
-  type: 'tickets' | 'info';
+  type: 'tickets' | 'registration' | 'info';
   url: string;
+  label?: string;
 }
 
 export interface GladaProduct {
@@ -73,6 +81,10 @@ export interface GladaProduct {
   address?: string;
   links: GladaLink[];
   occasions: GladaOccasion[];
+  location?: { lat: number; lng: number };
+  tag?: TagChoice;
+  /** Tags already stored for this product's events. Set means the model is not asked again. */
+  keptTags?: { externalId: string; tags: TagChoice[] }[];
 }
 
 export interface GladaRaw {
@@ -95,7 +107,9 @@ interface ResolvedOccasion {
 
 function originFromConfig(config: Record<string, unknown>): URL {
   const raw =
-    typeof config.origin === 'string' && config.origin.trim() ? config.origin.trim() : DEFAULT_ORIGIN;
+    typeof config.origin === 'string' && config.origin.trim()
+      ? config.origin.trim()
+      : DEFAULT_ORIGIN;
   let url: URL;
   try {
     url = new URL(raw);
@@ -112,13 +126,15 @@ function originFromConfig(config: Record<string, unknown>): URL {
 function nodeIdFromConfig(config: Record<string, unknown>): number {
   const raw = config.nodeId ?? DEFAULT_NODE_ID;
   const id = typeof raw === 'number' ? raw : Number(raw);
-  if (!Number.isInteger(id) || id <= 0) throw new Error('glada-hudik config.nodeId must be a positive integer');
+  if (!Number.isInteger(id) || id <= 0)
+    throw new Error('glada-hudik config.nodeId must be a positive integer');
   return id;
 }
 
 function languageFromConfig(config: Record<string, unknown>): string {
   const raw = typeof config.language === 'string' ? config.language.trim() : DEFAULT_LANGUAGE;
-  if (!/^[a-z]{2}$/.test(raw)) throw new Error('glada-hudik config.language must be a two-letter code');
+  if (!/^[a-z]{2}$/.test(raw))
+    throw new Error('glada-hudik config.language must be a two-letter code');
   return raw;
 }
 
@@ -151,6 +167,16 @@ function httpsUrl(value: string | undefined): string | undefined {
 
 function sameHost(origin: URL, url: URL): boolean {
   return url.hostname.toLowerCase() === origin.hostname.toLowerCase();
+}
+
+/** `Response.url` is empty when a test builds the response itself. */
+function responseUrl(response: Response, request: URL): URL {
+  if (!response.url) return request;
+  try {
+    return new URL(response.url);
+  } catch {
+    return request;
+  }
 }
 
 /** List cards are HTML fragments. The product id and path are enough to open the event page. */
@@ -197,7 +223,9 @@ function parseContact(texts: string[]): {
   const postal = postalIndex >= 0 ? texts[postalIndex] : undefined;
   const city = postalIndex >= 0 ? texts[postalIndex + 1] : undefined;
   const street = postalIndex > 0 ? texts[postalIndex - 1] : undefined;
-  const used = new Set([email, postal, city, street].filter((item): item is string => Boolean(item)));
+  const used = new Set(
+    [email, postal, city, street].filter((item): item is string => Boolean(item)),
+  );
   const organizerName = texts.find(
     (item) => !used.has(item) && !item.includes('@') && !/^[+\d][\d\s-]{6,}$/.test(item),
   );
@@ -230,16 +258,8 @@ export function parseEventPage(html: string, id: string, path: string): GladaPro
       ),
     )
     .filter((occasion): occasion is GladaOccasion => occasion !== null);
-  const links: GladaLink[] = [];
-  const seen = new Set<string>();
-  $('.cbis-item-attributes a[href], .cbis-item-contact a[href]').each((_, element) => {
-    const url = httpsUrl($(element).attr('href'));
-    const label = textOf($(element).text());
-    if (!url || seen.has(url)) return;
-    seen.add(url);
-    const type = /bokning/i.test(label) ? 'tickets' : 'info';
-    links.push({ type, url });
-  });
+  const links = collectLinks($);
+  const location = parseMap($);
   const contact = parseContact(
     $('.cbis-item-contact li')
       .toArray()
@@ -257,7 +277,29 @@ export function parseEventPage(html: string, id: string, path: string): GladaPro
     ...contact,
     links,
     occasions,
+    ...(location ? { location } : {}),
   };
+}
+
+/** Information, contact, and the description. Footer links on the destination site stay out. */
+function collectLinks($: ReturnType<typeof load>): GladaLink[] {
+  const html = ['.cbis-item-attributes', '.cbis-item-contact', '.read-more-inner']
+    .map((selector) => $(selector).html() ?? '')
+    .join('\n');
+  return parseLinksFromText(html).map((link) => ({
+    type: link.type,
+    url: link.url,
+    ...(link.label ? { label: link.label } : {}),
+  }));
+}
+
+function parseMap($: ReturnType<typeof load>): { lat: number; lng: number } | undefined {
+  const node = $('.sidebar-map').first();
+  const lat = Number(node.attr('data-lat'));
+  const lng = Number(node.attr('data-lng'));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return undefined;
+  return { lat, lng };
 }
 
 function stockholmYmd(now: Date): { y: number; m: number; d: number } {
@@ -291,7 +333,8 @@ export function assignOccasionYears(occasions: GladaOccasion[], now: Date): numb
   }
   const last = occasions.at(-1);
   const lastYear = years.at(-1);
-  if (!last || lastYear == null || occasions.some((occasion) => occasion.year != null)) return years;
+  if (!last || lastYear == null || occasions.some((occasion) => occasion.year != null))
+    return years;
   const daysPast = dayNumber(today.y, today.m, today.d) - dayNumber(lastYear, last.month, last.day);
   if (daysPast > PAST_GRACE_DAYS) return years.map((value) => value + 1);
   return years;
@@ -316,7 +359,14 @@ function stockholmOffsetMinutes(instant: Date): number {
     hour = 0;
     day += 1;
   }
-  const asUtc = Date.UTC(pick('year'), pick('month') - 1, day, hour, pick('minute'), pick('second'));
+  const asUtc = Date.UTC(
+    pick('year'),
+    pick('month') - 1,
+    day,
+    hour,
+    pick('minute'),
+    pick('second'),
+  );
   return Math.round((asUtc - instant.getTime()) / 60_000);
 }
 
@@ -368,7 +418,8 @@ function ymd(day: string): [number, number, number] {
 function descriptionOf(product: GladaProduct): string | undefined {
   const body = product.description?.trim();
   const intro = product.intro?.trim();
-  if (intro && body && !body.toLowerCase().includes(intro.toLowerCase())) return `${intro}\n\n${body}`;
+  if (intro && body && !body.toLowerCase().includes(intro.toLowerCase()))
+    return `${intro}\n\n${body}`;
   return body || intro;
 }
 
@@ -379,7 +430,9 @@ function sharedVenue(occasions: ResolvedOccasion[]): string | undefined {
 
 function mapProduct(product: GladaProduct, origin: string, now: Date): IncomingEvent[] {
   const sourceUrl = new URL(product.path, origin).href;
-  const occasions = resolveOccasions(product, now).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const occasions = resolveOccasions(product, now).sort((a, b) =>
+    a.startsAt.localeCompare(b.startsAt),
+  );
   if (occasions.length === 0) return [];
   const description = descriptionOf(product);
   const priceAmount = priceAmountFromText(product.priceText?.replace(/\bSEK\b/gi, 'kr'));
@@ -395,34 +448,91 @@ function mapProduct(product: GladaProduct, origin: string, now: Date): IncomingE
     timezone: 'Europe/Stockholm' as const,
     ...(venue && !digital ? { venueName: venue } : {}),
     ...(product.address && venue && !digital ? { address: product.address } : {}),
+    ...(product.location && !digital ? { location: product.location } : {}),
     ...(onlineUrl ? { onlineUrl } : {}),
     sourceUrl,
     ...(links.length > 0 ? { links } : {}),
     organizerKey: product.organizerEmail ?? product.organizerName?.toLowerCase() ?? 'glada-hudik',
     ...(product.organizerName ? { organizerName: product.organizerName } : {}),
-    categoryHints: [],
-    tags: [],
     ...(product.imageUrl ? { imageUrl: product.imageUrl } : {}),
+  };
+  const tagged = (externalId: string) => {
+    const tags = tagsForMappedEvent(product, externalId);
+    return {
+      categoryHints: tags.map((tag) => tag.name),
+      tags,
+    };
   };
   if (shouldCollapse(occasions)) {
     const first = occasions[0]!;
     const last = occasions.at(-1)!;
+    const externalId = `${product.id}:span`;
     return [
       {
         ...base,
-        externalId: `${product.id}:span`,
+        ...tagged(externalId),
+        externalId,
         startsAt: first.startsAt,
         ...(last.endsAt ? { endsAt: last.endsAt } : {}),
       },
     ];
   }
-  return occasions.map((occasion) => ({
-    ...base,
-    externalId: `${product.id}:${occasion.startsAt.slice(0, 19)}:${occasion.endsAt?.slice(0, 19) ?? ''}`,
-    startsAt: occasion.startsAt,
-    ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
-    ...(occasion.venue && !digital ? { venueName: occasion.venue } : {}),
-  }));
+  return occasions.map((occasion) => {
+    const externalId = `${product.id}:${occasion.startsAt.slice(0, 19)}:${occasion.endsAt?.slice(0, 19) ?? ''}`;
+    return {
+      ...base,
+      ...tagged(externalId),
+      externalId,
+      startsAt: occasion.startsAt,
+      ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
+      ...(occasion.venue && !digital ? { venueName: occasion.venue } : {}),
+    };
+  });
+}
+
+function tagsForMappedEvent(product: GladaProduct, externalId: string): TagChoice[] {
+  const kept = product.keptTags?.find((row) => row.externalId === externalId)?.tags;
+  if (kept && kept.length > 0) return kept;
+  const inherited = product.keptTags?.find((row) => row.tags.length > 0)?.tags;
+  if (inherited) return inherited;
+  return product.tag ? [product.tag] : [];
+}
+
+async function assignTags(
+  ctx: {
+    config: Record<string, unknown>;
+    log: (message: string, data?: Record<string, unknown>) => void;
+  },
+  products: GladaProduct[],
+): Promise<void> {
+  const catalog = tagCatalog(ctx.config);
+  const stored = existingEventTags(ctx.config);
+  if (catalog.length === 0 && stored.length === 0) return;
+  for (const product of products) {
+    const kept = keptTagsForProduct(product.id, stored);
+    if (kept) {
+      product.keptTags = kept;
+      continue;
+    }
+    if (catalog.length === 0) continue;
+    const venue = product.occasions.find((occasion) => occasion.venue)?.venue;
+    const description = [product.intro, product.description].filter(Boolean).join('\n\n');
+    const result = await matchEventTag(
+      {
+        title: product.title,
+        ...(description ? { description } : {}),
+        ...(venue ? { venue } : {}),
+      },
+      catalog,
+      ctx.config,
+      fetch,
+    );
+    if (!result.ok) {
+      ctx.log('glada-hudik tag matcher unavailable');
+      return;
+    }
+    if (result.tag) product.tag = result.tag;
+  }
 }
 
 async function readJson(response: Response): Promise<{ totalCount?: number; items?: unknown[] }> {
@@ -447,7 +557,7 @@ export const gladaHudik = defineAdapter<GladaRaw>({
       url.searchParams.set('page', String(page));
       const response = await ctx.fetch(url);
       if (!response.ok) throw new Error(`glada-hudik list failed (${response.status})`);
-      if (!sameHost(origin, new URL(response.url))) {
+      if (!sameHost(origin, responseUrl(response, url))) {
         throw new Error('glada-hudik list redirected off the calendar host');
       }
       const body = await readJson(response);
@@ -466,11 +576,15 @@ export const gladaHudik = defineAdapter<GladaRaw>({
     }
     const products: GladaProduct[] = [];
     for (const hit of hits) {
+      // if (hit.id !== 'cbis:2882123') { // && hit.id !== 'cbis:2866536') {
+      //   continue;
+      // }
+      console.log('hit', hit);
       const pageUrl = new URL(hit.path, origin);
       if (!sameHost(origin, pageUrl)) continue;
       await sleep(delayMs);
       const response = await ctx.fetch(pageUrl);
-      if (!response.ok || !sameHost(origin, new URL(response.url))) {
+      if (!response.ok || !sameHost(origin, responseUrl(response, pageUrl))) {
         ctx.log('glada-hudik skipped event page', { id: hit.id, status: response.status });
         continue;
       }
@@ -481,7 +595,19 @@ export const gladaHudik = defineAdapter<GladaRaw>({
     if (hits.length > 0 && products.length === 0) {
       throw new Error('glada-hudik event pages had no occasions');
     }
+    await assignTags(ctx, products);
     return { now: new Date().toISOString(), origin: origin.origin, products };
+  },
+  tags(raw) {
+    const byId = new Map<string, string>();
+    for (const product of raw.products) {
+      const choices = [
+        ...(product.tag ? [product.tag] : []),
+        ...(product.keptTags?.flatMap((row) => row.tags) ?? []),
+      ];
+      for (const tag of choices) byId.set(tag.externalId, tag.name);
+    }
+    return [...byId.entries()].map(([externalId, name]) => ({ externalId, name }));
   },
   map(raw) {
     const now = new Date(raw.now);
@@ -490,5 +616,3 @@ export const gladaHudik = defineAdapter<GladaRaw>({
     return raw.products.flatMap((product) => mapProduct(product, origin, clock));
   },
 });
-
-export type { SourceRunContext };

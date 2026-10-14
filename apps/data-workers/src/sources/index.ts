@@ -1,5 +1,6 @@
 import type { SourceAdapter } from '@local-events/ingest';
 import { exampleFixture } from './example-fixture';
+import { gladaHudik } from './glada-hudik';
 import { icsFeed } from './ics-feed';
 import { visitSoderhamn } from './visit-soderhamn';
 
@@ -7,5 +8,6 @@ import { visitSoderhamn } from './visit-soderhamn';
 export const sources: Record<string, SourceAdapter<any>> = {
   [exampleFixture.slug]: exampleFixture,
   [visitSoderhamn.slug]: visitSoderhamn,
+  [gladaHudik.slug]: gladaHudik,
   [icsFeed.slug]: icsFeed,
 };

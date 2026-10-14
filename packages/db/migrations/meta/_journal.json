@@ -246,6 +246,13 @@
       "when": 1793100000000,
       "tag": "0034_drop_one_open_push_per_event",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1794000000000,
+      "tag": "0035_seed_glada_hudik",
+      "breakpoints": true
     }
   ]
 }

@@ -7,7 +7,7 @@ import {
   slugifyPublisherName,
   tagSlug,
 } from '@local-events/domain';
-import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm';
 import type { ImportedEventWrite, IngestStore, NearbyEvent } from './store';
 
 const NEAR_MS = 30 * 60 * 1000;
@@ -217,6 +217,32 @@ export function createDbIngestStore(db: Db): IngestStore {
         startsAt: row.startsAt,
         location: row.lat != null && row.lng != null ? { lat: row.lat, lng: row.lng } : undefined,
       }));
+    },
+    async listTags() {
+      const rows = await db
+        .select({ externalId: schema.tags.externalId, name: schema.tags.name })
+        .from(schema.tags)
+        .where(isNotNull(schema.tags.externalId));
+      return rows.flatMap((row) =>
+        row.externalId ? [{ externalId: row.externalId, name: row.name }] : [],
+      );
+    },
+    async listEventTags(sourceId) {
+      const rows = await db
+        .select({
+          externalId: externalRefs.externalId,
+          tagExternalId: tags.externalId,
+          name: tags.name,
+        })
+        .from(externalRefs)
+        .innerJoin(eventTags, eq(eventTags.eventId, externalRefs.eventId))
+        .innerJoin(tags, eq(tags.id, eventTags.tagId))
+        .where(and(eq(externalRefs.sourceId, sourceId), isNotNull(tags.externalId)));
+      return rows.flatMap((row) =>
+        row.tagExternalId
+          ? [{ externalId: row.externalId, tag: { externalId: row.tagExternalId, name: row.name } }]
+          : [],
+      );
     },
     async upsertTags(incoming) {
       for (const tag of incoming) {

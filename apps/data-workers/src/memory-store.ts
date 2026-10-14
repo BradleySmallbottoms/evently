@@ -266,6 +266,27 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           location: event.location,
         }));
     },
+    async listTags() {
+      return [...tags.values()].map((tag) => ({ externalId: tag.externalId, name: tag.name }));
+    },
+    async listEventTags(sourceId) {
+      const byId = new Map([...tags.values()].map((tag) => [tag.id, tag]));
+      const rows: { externalId: string; tag: { externalId: string; name: string } }[] = [];
+      for (const ref of refs) {
+        if (ref.sourceId !== sourceId) continue;
+        const event = events.find((item) => item.id === ref.eventId);
+        if (!event) continue;
+        for (const tagId of event.tagIds) {
+          const tag = byId.get(tagId);
+          if (!tag) continue;
+          rows.push({
+            externalId: ref.externalId,
+            tag: { externalId: tag.externalId, name: tag.name },
+          });
+        }
+      }
+      return rows;
+    },
     async upsertTags(incoming) {
       const slugs = new Set([...tags.values()].map((tag) => tag.slug));
       for (const incomingTag of incoming) {

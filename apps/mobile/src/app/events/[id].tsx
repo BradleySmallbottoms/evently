@@ -11,6 +11,7 @@ import {
   Alert,
   Linking,
   Platform,
+  RefreshControl,
   ScrollView,
   TextInput,
   View,
@@ -74,6 +75,13 @@ export default function EventDetailScreen() {
   const [code, setCode] = useState('');
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
   const [reminderOpen, setReminderOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  /** Local on/off until the saved and coming lists catch up. */
+  const [savedOverride, setSavedOverride] = useState<boolean | null>(null);
+  const [comingOverride, setComingOverride] = useState<boolean | null>(null);
+  /** Added to the server totals until a pull replaces them. */
+  const [savedDelta, setSavedDelta] = useState(0);
+  const [comingDelta, setComingDelta] = useState(0);
 
   const identity = useQuery({
     queryKey: ['identity', locale],
@@ -133,12 +141,14 @@ export default function EventDetailScreen() {
     queryFn: () => listSavedEvents(identity.data!),
   });
   const isSaved = saved.data?.items.some((item) => item.id === id) ?? false;
+  const interestedOn = savedOverride ?? isSaved;
   const coming = useQuery({
     queryKey: ['coming-events', identity.data?.userId],
     enabled: identity.isSuccess,
     queryFn: () => listComingEvents(identity.data!),
   });
   const isComing = coming.data?.items.some((item) => item.id === id) ?? false;
+  const comingOn = comingOverride ?? isComing;
   const subscriptions = useQuery({
     queryKey: ['subscriptions', identity.data?.userId],
     enabled: identity.isSuccess,
@@ -289,16 +299,63 @@ export default function EventDetailScreen() {
 
   function toggleSaved() {
     if (!identity.data || typeof id !== 'string') return;
-    void (isSaved ? unsaveEvent(identity.data, id) : saveEvent(identity.data, id))
+    const on = savedOverride ?? isSaved;
+    const next = !on;
+    setSavedOverride(next);
+    setSavedDelta((count) => count + (next ? 1 : -1));
+    void (on ? unsaveEvent(identity.data, id) : saveEvent(identity.data, id))
       .then(() => queryClient.invalidateQueries({ queryKey: ['saved-events'] }))
-      .catch(() => Alert.alert(t('events.planTitle'), t('events.planError')));
+      .catch(() => {
+        setSavedOverride(on);
+        setSavedDelta((count) => count + (next ? -1 : 1));
+        Alert.alert(t('events.planTitle'), t('events.planError'));
+      });
   }
 
   function toggleComing() {
     if (!identity.data || typeof id !== 'string') return;
-    void (isComing ? clearComing(identity.data, id) : markComing(identity.data, id))
+    const on = comingOverride ?? isComing;
+    const next = !on;
+    setComingOverride(next);
+    setComingDelta((count) => count + (next ? 1 : -1));
+    void (on ? clearComing(identity.data, id) : markComing(identity.data, id))
       .then(() => queryClient.invalidateQueries({ queryKey: ['coming-events'] }))
-      .catch(() => Alert.alert(t('events.planTitle'), t('events.planError')));
+      .catch(() => {
+        setComingOverride(on);
+        setComingDelta((count) => count + (next ? -1 : 1));
+        Alert.alert(t('events.planTitle'), t('events.planError'));
+      });
+  }
+
+  async function refreshDetail() {
+    setRefreshing(true);
+    try {
+      const jobs: Promise<unknown>[] = [
+        event.refetch(),
+        eventStats.refetch(),
+        ratingStatus.refetch(),
+        reminder.refetch(),
+        tags.refetch(),
+      ];
+      if (identity.isSuccess) {
+        jobs.push(
+          identity.refetch(),
+          saved.refetch(),
+          coming.refetch(),
+          subscriptions.refetch(),
+        );
+      }
+      if (event.data?.checkInEnabled) {
+        jobs.push(checkInStatus.refetch(), content.refetch());
+      }
+      await Promise.all(jobs);
+      setSavedOverride(null);
+      setComingOverride(null);
+      setSavedDelta(0);
+      setComingDelta(0);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   function toggleFollow() {
@@ -372,6 +429,16 @@ export default function EventDetailScreen() {
         }}
         directionalLockEnabled
         contentInsetAdjustmentBehavior="never"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              void refreshDetail();
+            }}
+            tintColor={colors.accent}
+            progressViewOffset={insets.top}
+          />
+        }
         contentContainerStyle={{
           flexGrow: 1,
           paddingBottom: Math.max(insets.bottom, space.xl),
@@ -418,10 +485,10 @@ export default function EventDetailScreen() {
               }}
             >
               <CircleIconButton
-                tintColor={isSaved ? (colors.accent as string) : undefined}
-                sf={isSaved ? 'heart.fill' : 'heart'}
-                md={isSaved ? 'favorite' : 'favorite-border'}
-                accessibilityLabel={isSaved ? t('events.unfavorite') : t('events.favorite')}
+                tintColor={interestedOn ? (colors.accent as string) : undefined}
+                sf={interestedOn ? 'heart.fill' : 'heart'}
+                md={interestedOn ? 'favorite' : 'favorite-border'}
+                accessibilityLabel={interestedOn ? t('events.unfavorite') : t('events.favorite')}
                 onPress={toggleSaved}
               />
               <CircleIconButton
@@ -509,12 +576,12 @@ export default function EventDetailScreen() {
                       <EventActionsMenu
                         accessibilityLabel={t('events.moreActions')}
                         interestedLabel={
-                          isSaved ? t('events.removeInterest') : t('events.saveInterested')
+                          interestedOn ? t('events.removeInterest') : t('events.saveInterested')
                         }
-                        interestedOn={isSaved}
+                        interestedOn={interestedOn}
                         onInterested={toggleSaved}
-                        comingLabel={isComing ? t('events.removeComing') : t('events.planComing')}
-                        comingOn={isComing}
+                        comingLabel={comingOn ? t('events.removeComing') : t('events.planComing')}
+                        comingOn={comingOn}
                         onComing={toggleComing}
                         shareLabel={t('events.share')}
                         copyLinkLabel={t('events.copyLink')}
@@ -610,15 +677,15 @@ export default function EventDetailScreen() {
                   interestedLabel={t('events.planInterested')}
                   comingLabel={t('events.planComing')}
                   hint={t('events.planHint')}
-                  interested={isSaved}
-                  coming={isComing}
-                  interestedCount={event.data.numSaved}
-                  comingCount={event.data.numComing}
+                  interested={interestedOn}
+                  coming={comingOn}
+                  interestedCount={Math.max(0, event.data.numSaved + savedDelta)}
+                  comingCount={Math.max(0, event.data.numComing + comingDelta)}
                   interestedCountLabel={t('events.planInterestedCount', {
-                    count: event.data.numSaved,
+                    count: Math.max(0, event.data.numSaved + savedDelta),
                   })}
                   comingCountLabel={t('events.planComingCount', {
-                    count: event.data.numComing,
+                    count: Math.max(0, event.data.numComing + comingDelta),
                   })}
                   onInterestedPress={toggleSaved}
                   onComingPress={toggleComing}

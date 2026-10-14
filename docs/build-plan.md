@@ -132,6 +132,8 @@ Closed beta around week 15, store launch around week 19.
       `<img>`) and stores the other crawled images as gallery roles
 - [x] Remaining launch-area sources (generic `ics-feed` adapter + seed; configure `feedUrl` per
       calendar — Visit Gävle has no public ICS yet)
+- [x] Glada Hudik public calendar (`glada-hudik`, no API key). Tag matching skips an event that already has tags. Later sources:
+      `docs/event-sources.md`
 - **Exit:** sources run on schedule unattended, and an imported event notifies users exactly like a
   native one.
 

@@ -296,8 +296,10 @@ swipe between photos, with page dots on the image above the detail card.
 2. Event title with the overflow menu beside it, then category chips.
 3. Date and time. Then "Your plan": the number of people interested
 (`numSaved`) and the number coming (`numComing`), then Interested (the
-save) and I'm coming as two pills. A selected pill is filled dark. The
-line under them says the answer can be changed anytime. 4. Venue
+save) and I'm coming as two pills. A selected pill is filled dark. Tapping
+a pill adds or removes one from that count immediately. Pull down to
+reload the event, including those counts. The line under the pills says
+the answer can be changed anytime. 4. Venue
 and location, with a map preview or directions action where supported.
 5. Price or admission details. 6. Description and accessibility
 information, if available. 7. Organizer information. 8. Primary action:

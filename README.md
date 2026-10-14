@@ -102,6 +102,22 @@ calls) in the same change as every new major feature.**
   Browse the buckets at `http://localhost:3909` (Garage Web UI).
   In AWS the same key is served from CloudFront (`ASSETS_PUBLIC_BASE_URL`).
 
+### Glada Hudik import
+
+- Hudiksvall’s public calendar, with no Citybreak API key. The worker reads the unfiltered product
+  list (`nodeId` 841) and then each event page. Filtered list queries are left out because
+  `robots.txt` disallows them. The page map’s `data-lat` and `data-lng` become the event point.
+  Links in the description, information, and contact (including Facebook) are stored. The site
+  footer is not. A long daily exhibition becomes one event; a concert or a monthly circle stays
+  one event per occasion. The hero image is the page `og:image`.
+  Tag matching uses a local [Ollama](https://ollama.com) model (`ollama serve`, default
+  `qwen3:32b`). It may pick one existing tag and cannot invent one. An event that already has
+  tags keeps them and is not sent to the model again. If Ollama is not running, a new event is
+  still saved, without a tag. `OLLAMA_BASE_URL` must be a loopback URL.
+  `pnpm --filter @local-events/data-workers dev -- --source glada-hudik` writes `in_review` events.
+  The seeded row stays disabled. Flow: [docs/flows/glada-hudik.md](docs/flows/glada-hudik.md).
+  Later sources and the build order: [docs/event-sources.md](docs/event-sources.md).
+
 ### Event share links
 
 - Mobile share uses the OS sheet with `EXPO_PUBLIC_WEB_URL/events/{id}` (default local web

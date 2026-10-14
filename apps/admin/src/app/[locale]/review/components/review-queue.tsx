@@ -24,6 +24,17 @@ type ReviewItem = {
   sourceUrl: string | null;
 };
 
+function httpUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return value;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   const t = useTranslations('Events');
   const tApp = useTranslations('App');
@@ -80,47 +91,52 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {items.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>
-                  {item.sourceUrl ? (
-                    <a href={item.sourceUrl} target="_blank" rel="noreferrer">
-                      {item.title}
-                    </a>
-                  ) : (
-                    item.title
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>
-                </TableCell>
-                <TableCell>{new Date(item.startsAt).toLocaleString()}</TableCell>
-                <TableCell>{item.venueName ?? '—'}</TableCell>
-                <TableCell align="right">
-                  <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-                    <Button component={Link} href={`/events/${item.id}`} size="small">
-                      {t('view')}
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      disabled={decide.isPending}
-                      onClick={() => decide.mutate({ id: item.id, action: 'approve' })}
-                    >
-                      {t('approve')}
-                    </Button>
-                    <Button
-                      size="small"
-                      color="inherit"
-                      disabled={decide.isPending}
-                      onClick={() => decide.mutate({ id: item.id, action: 'reject' })}
-                    >
-                      {t('reject')}
-                    </Button>
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            ))}
+            {items.map((item) => {
+              const source = httpUrl(item.sourceUrl);
+              return (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <Link href={`/events/${item.id}`}>{item.title}</Link>
+                  </TableCell>
+                  <TableCell>
+                    <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>
+                  </TableCell>
+                  <TableCell>{new Date(item.startsAt).toLocaleString()}</TableCell>
+                  <TableCell>{item.venueName ?? '—'}</TableCell>
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                      {source ? (
+                        <Button
+                          component="a"
+                          href={source}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          size="small"
+                        >
+                          {t('view')}
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="small"
+                        variant="contained"
+                        disabled={decide.isPending}
+                        onClick={() => decide.mutate({ id: item.id, action: 'approve' })}
+                      >
+                        {t('approve')}
+                      </Button>
+                      <Button
+                        size="small"
+                        color="inherit"
+                        disabled={decide.isPending}
+                        onClick={() => decide.mutate({ id: item.id, action: 'reject' })}
+                      >
+                        {t('reject')}
+                      </Button>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       ) : null}

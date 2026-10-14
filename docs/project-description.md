@@ -508,7 +508,8 @@ Mobile builds and store submissions run on EAS; EAS Update channels map to the t
 Open questions:
 
 - [x] First data source: Visit Söderhamn, official Citybreak CBIS API. Events only (category
-      Evenemang). Further sources in Gävleborgs län are still open.
+      Evenemang). Further sources in Gävleborgs län, and the build order, are in
+      `docs/event-sources.md`. Glada Hudik is the public calendar (no API key). Its tag match skips events that already have tags.
 - [ ] Investigate: someone registers as publisher A when an imported publisher A already exists.
       How do we detect the match (name, domain, email, org number), prove they are the real
       organizer, and merge or transfer the imported publisher and its events without letting an

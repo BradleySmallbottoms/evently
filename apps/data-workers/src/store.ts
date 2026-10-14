@@ -65,6 +65,12 @@ export interface IngestStore {
   sourceOwnsEvent(sourceId: string, eventId: string): Promise<boolean>;
   candidatesNear(startsAt: Date): Promise<NearbyEvent[]>;
   upsertTags(tags: { externalId: string; name: string }[]): Promise<void>;
+  /** Existing tag vocabulary, used when a source matches events onto tags. */
+  listTags(): Promise<{ externalId: string; name: string }[]>;
+  /** Tags already attached to this source's events, one row per tag. */
+  listEventTags(
+    sourceId: string,
+  ): Promise<{ externalId: string; tag: { externalId: string; name: string } }[]>;
   tagIdsForExternalIds(externalIds: string[]): Promise<string[]>;
   insertImported(input: ImportedEventWrite): Promise<string>;
   updateImported(eventId: string, input: ImportedEventWrite): Promise<void>;

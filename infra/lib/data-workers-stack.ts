@@ -10,7 +10,7 @@ import type { Construct } from 'constructs';
 import type { DataStack } from './data-stack';
 
 /** Slugs with a `data_sources` row and an adapter in data-workers. */
-export const KNOWN_DATA_WORKER_SOURCE_SLUGS = ['visit-soderhamn', 'ics-feed'] as const;
+export const KNOWN_DATA_WORKER_SOURCE_SLUGS = ['visit-soderhamn', 'glada-hudik', 'ics-feed'] as const;
 
 export type KnownDataWorkerSourceSlug = (typeof KNOWN_DATA_WORKER_SOURCE_SLUGS)[number];
 

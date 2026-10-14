@@ -60,7 +60,15 @@ export async function persistSource(
   if (!source) throw new Error(`No data_sources row for "${slug}"`);
   const runId = await store.startRun(source.id);
   try {
-    const run = await runSource(slug, source.config);
+    const config =
+      slug === 'glada-hudik'
+        ? {
+            ...source.config,
+            tagCatalog: await store.listTags(),
+            existingEventTags: await store.listEventTags(source.id),
+          }
+        : source.config;
+    const run = await runSource(slug, config);
     try {
       await rawSink.save({ sourceSlug: slug, runId, raw: run.raw });
     } catch (err) {

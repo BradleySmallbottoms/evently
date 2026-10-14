@@ -1,10 +1,9 @@
 'use client';
 
 import Autocomplete from '@mui/material/Autocomplete';
-import IconButton from '@mui/material/IconButton';
+import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
@@ -54,20 +53,14 @@ export function EventTagsField({ tags, selectedIds, disabled, onChange }: Props)
         )}
       />
       {selected.length > 0 ? (
-        <Stack spacing={0.5}>
+        <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
           {selected.map((tag) => (
-            <Stack key={tag.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <Typography sx={{ flex: 1 }}>{tag.name}</Typography>
-              <IconButton
-                size="small"
-                aria-label={t('removeTag', { name: tag.name })}
-                onClick={() => onChange(selectedIds.filter((id) => id !== tag.id))}
-              >
-                <Typography component="span" aria-hidden sx={{ lineHeight: 1 }}>
-                  ×
-                </Typography>
-              </IconButton>
-            </Stack>
+            <Chip
+              key={tag.id}
+              size="small"
+              label={tag.name}
+              onDelete={() => onChange(selectedIds.filter((id) => id !== tag.id))}
+            />
           ))}
         </Stack>
       ) : null}

@@ -1,0 +1,20 @@
+{
+  "now": "2026-10-14T08:00:00.000Z",
+  "origin": "https://www.gladahudik.se",
+  "products": [
+    {
+      "id": "cbis:2806136",
+      "title": "Bokcirkel på Bjuråkers bibliotek",
+      "path": "/sv/bokcirkel-pa-bjurakers-bibliotek",
+      "description": "Vi ses en tisdag i månaden.",
+      "organizerName": "Bjuråkers bibliotek",
+      "address": "Bjuråkers bibliotek, 824 95 Bjuråker",
+      "links": [],
+      "occasions": [
+        { "day": 20, "month": 10, "start": "18:00", "end": "19:30", "venue": "Bjuråkers bibliotek" },
+        { "day": 17, "month": 11, "start": "18:00", "end": "19:30", "venue": "Bjuråkers bibliotek" },
+        { "day": 15, "month": 12, "start": "18:00", "end": "19:30", "venue": "Bjuråkers bibliotek" }
+      ]
+    }
+  ]
+}
