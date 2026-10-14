@@ -116,6 +116,8 @@ Closed beta around week 15, store launch around week 19.
 - [x] Data-source management with run history and a manual run button
 - [x] Review queue for imported events; publisher mapping queue (re-map a temporary publisher to an
       existing one, moving its events, or fill in its details)
+- [x] Import review: select rows and publish, reject, or delete. Delete records `import_suppressions`
+      so the same external id is not imported again.
 - [x] Audit log viewer
 
 ## Parallel track — Data workers (from week 6)

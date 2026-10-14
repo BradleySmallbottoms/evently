@@ -326,6 +326,7 @@ async function saveOne(
     onlineUrl: event.onlineUrl ?? null,
   });
   if (!fields.ok) return { externalId: event.externalId, reason: fields.reason };
+  if (await store.isImportSuppressed(source.id, event.externalId)) return 'skipped';
 
   const linked = {
     ...event,

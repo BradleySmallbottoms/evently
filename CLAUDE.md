@@ -127,6 +127,8 @@ Product invariants (enforced in domain, tested)
   and no point stays in that list, has no map pin, and does not match nearby push. Direct lookup
   by id still returns it.
 - Imported events from temporary publishers or review-trust sources go to `in_review`.
+- Deleting an `in_review` import removes the event and skips that source id on later imports.
+  Rejecting it cancels the event and leaves the row.
 - Script-imported events are notified only when the publisher is verified and its import
   notification plan is set. Future reminders are approved when the event is published, and
   stored as pending while the event is still in review. Publishing the event approves them.

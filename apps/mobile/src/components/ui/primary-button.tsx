@@ -166,11 +166,11 @@ export function PrimaryButton({
             {icon ? <ButtonGlyph icon={icon} color={labelColor} /> : null}
             {pending ? (
               <ActivityIndicator color={labelColor} />
-            ) : (
+            ) : (!confirmed && !rejected ? (
               <AppText variant="subtitle" style={{ color: labelColor, fontWeight: '700' }}>
                 {label}
               </AppText>
-            )}
+            ) : null)}
             {arrow && !pending ? (
               process.env.EXPO_OS === 'ios' ? (
                 <SymbolView name="arrow.right" size={18} tintColor={labelColor} weight="semibold" />
@@ -185,9 +185,10 @@ export function PrimaryButton({
               <StatusMark
                 sf="checkmark"
                 md="check"
-                color={labelColor}
+                color={confirmed ? '#FFFFFF' : labelColor}
                 reduced={reduced}
                 enter={confirmed}
+                glow={confirmed}
               />
             ) : null}
           </View>
@@ -211,22 +212,25 @@ function StatusMark({
   color,
   reduced,
   enter,
+  glow = false,
 }: {
   sf: SFSymbol;
   md: keyof typeof MaterialIcons.glyphMap;
   color: string;
   reduced: boolean;
   enter: boolean;
+  glow?: boolean;
 }) {
   return (
     <Animated.View
       entering={enter ? (reduced ? CHECK_IN_REDUCED : CHECK_IN) : undefined}
       style={styles.status}
     >
+      {/* {glow ? <View style={styles.checkGlow} /> : null} */}
       {process.env.EXPO_OS === 'ios' ? (
-        <SymbolView name={sf} size={18} tintColor={color} weight="bold" />
+        <SymbolView name={sf} size={20} tintColor={color} weight="bold" />
       ) : (
-        <MaterialIcons name={md} size={20} color={color} />
+        <MaterialIcons name={md} size={22} color={color} />
       )}
     </Animated.View>
   );
@@ -273,7 +277,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   washConfirm: {
-    backgroundColor: colors.secondarySoftAlpha,
+    backgroundColor: colors.secondary,
   },
   washReject: {
     backgroundColor: colors.dangerSoft,
@@ -285,14 +289,20 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   status: {
-    position: 'absolute',
-    left: '100%',
-    top: '50%',
-    marginLeft: space.sm,
-    marginTop: -11,
-    width: 22,
-    height: 22,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  checkGlow: {
+    position: 'absolute',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.42)',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.95,
+    shadowRadius: 10,
   },
 });

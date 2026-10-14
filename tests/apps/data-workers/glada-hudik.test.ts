@@ -17,6 +17,7 @@ import {
   matchEventTag,
   ollamaBaseUrl,
   parseTagChoices,
+  tagCatalog,
 } from '../../../apps/data-workers/src/sources/glada-hudik/match-tag';
 
 const raw = fixture as GladaRaw;
@@ -295,6 +296,21 @@ describe('glada-hudik tag match', () => {
     { externalId: 'visit-soderhamn:30216', name: 'Mässor & Utställningar' },
     { externalId: 'visit-soderhamn:30184', name: 'Jul & Nyår' },
   ];
+
+  it('leaves the kulturfestival tag out of the catalog', () => {
+    expect(
+      tagCatalog({
+        tagCatalog: [
+          {
+            externalId: 'visit-soderhamn:1',
+            name: 'Söderhamns kulturfestival',
+            slug: 'soderhamns-kulturfestival',
+          },
+          { externalId: 'visit-soderhamn:30224', name: 'Utställning', slug: 'utstallning' },
+        ],
+      }),
+    ).toEqual([{ externalId: 'visit-soderhamn:30224', name: 'Utställning' }]);
+  });
 
   it('keeps catalog ids scored above 90', () => {
     expect(

@@ -825,6 +825,19 @@ export const externalRefs = pgTable(
   (t) => [primaryKey({ columns: [t.sourceId, t.externalId] })],
 );
 
+/** Source ids an admin deleted from review. A later import of the same id is skipped. */
+export const importSuppressions = pgTable(
+  'import_suppressions',
+  {
+    sourceId: uuid('source_id')
+      .notNull()
+      .references(() => dataSources.id),
+    externalId: text('external_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.sourceId, t.externalId] })],
+);
+
 export const publisherAliases = pgTable(
   'publisher_aliases',
   {

@@ -256,7 +256,6 @@ export function OnboardingAreaStep({
 
       <PrimaryButton
         label={t('onboarding.continue')}
-        icon={{ sf: 'mappin.and.ellipse', md: 'place' }}
         loading={busy}
         disabled={locating || !resolved}
         confirmed={confirmed}

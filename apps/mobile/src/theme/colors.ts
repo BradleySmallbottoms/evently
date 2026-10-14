@@ -6,6 +6,7 @@ export const brand = {
   info: '#7095B5',
   background: '#F6F1E8',
   surface: '#FFFFFF',
+  surfaceOpacity: '#00000033',
   text: '#283533',
   textSecondary: '#64736C',
   border: '#E5E0D8',
@@ -29,6 +30,7 @@ export const brand = {
 export const colors = {
   background: brand.background,
   card: brand.surface,
+  cardOpacity: brand.surfaceOpacity,
   label: brand.text,
   secondaryLabel: brand.textSecondary,
   separator: brand.border,

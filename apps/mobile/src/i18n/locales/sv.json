@@ -299,6 +299,7 @@
     "areaTagsHint": "De här kategorierna filtrerar området på startsidan och styr notiserna i närheten.",
     "areaEditName": "Redigera namn",
     "areaNameDone": "Klar",
+    "areaNameCancel": "Avbryt",
     "areaNotify": "Notiser",
     "areaNotifyHint": "Skicka notiser om evenemang i det här området.",
     "areaNotifyNeedsTags": "Välj minst en kategori för att slå på notiser för det här området.",

@@ -61,12 +61,14 @@ export interface IngestStore {
     name: string;
   }): Promise<PublisherLink>;
   findExternalRef(sourceId: string, externalId: string): Promise<ExternalRefHit | null>;
+  /** True when an admin deleted this source id from review, so a later import must skip it. */
+  isImportSuppressed(sourceId: string, externalId: string): Promise<boolean>;
   /** True when this source's publisher alias owns the event, so a re-import may update it. */
   sourceOwnsEvent(sourceId: string, eventId: string): Promise<boolean>;
   candidatesNear(startsAt: Date): Promise<NearbyEvent[]>;
   upsertTags(tags: { externalId: string; name: string }[]): Promise<void>;
   /** Existing tag vocabulary, used when a source matches events onto tags. */
-  listTags(): Promise<{ externalId: string; name: string }[]>;
+  listTags(): Promise<{ externalId: string; name: string; slug: string }[]>;
   /** Tags already attached to this source's events, one row per tag. */
   listEventTags(
     sourceId: string,

@@ -299,6 +299,7 @@
     "areaTagsHint": "These categories filter this area on the home screen and decide its nearby notifications.",
     "areaEditName": "Edit name",
     "areaNameDone": "Done",
+    "areaNameCancel": "Cancel",
     "areaNotify": "Notifications",
     "areaNotifyHint": "Notify me about events in this area.",
     "areaNotifyNeedsTags": "Pick at least one category to turn notifications on for this area.",

@@ -7,7 +7,15 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, TextInput, useWindowDimensions, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  TextInput,
+  useWindowDimensions,
+  View,
+  type PressableProps,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CenteredSwitch } from '@/components/native/centered-switch';
@@ -95,6 +103,60 @@ function RadiusSlider({
   );
 }
 
+const NAME_FIELD_HEIGHT = 52;
+
+function RoundIconButton({
+  label,
+  sf,
+  md,
+  tint,
+  backgroundColor,
+  borderColor,
+  onPress,
+  onPressIn,
+  decorative = false,
+}: {
+  label: string;
+  sf: string;
+  md: keyof typeof MaterialIcons.glyphMap;
+  tint: string;
+  backgroundColor: string;
+  borderColor?: string;
+  onPress: () => void;
+  onPressIn?: PressableProps['onPressIn'];
+  /** Same action as a neighboring control, so it stays out of the accessibility tree. */
+  decorative?: boolean;
+}) {
+  return (
+    <Pressable
+      accessible={!decorative}
+      accessibilityElementsHidden={decorative}
+      importantForAccessibility={decorative ? 'no-hide-descendants' : 'auto'}
+      accessibilityRole={decorative ? undefined : 'button'}
+      accessibilityLabel={decorative ? undefined : label}
+      onPressIn={onPressIn}
+      onPress={onPress}
+      hitSlop={6}
+      style={{
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: radius.pill,
+        backgroundColor,
+        borderWidth: borderColor ? 1 : 0,
+        borderColor,
+      }}
+    >
+      {process.env.EXPO_OS === 'ios' ? (
+        <SymbolView name={sf as never} size={18} tintColor={tint} weight="semibold" />
+      ) : (
+        <MaterialIcons name={md} size={20} color={tint} />
+      )}
+    </Pressable>
+  );
+}
+
 function SettingSwitch({
   title,
   hint,
@@ -142,7 +204,7 @@ function AreaEditor({
   const queryClient = useQueryClient();
   const nameRef = useRef<TextInput>(null);
   const nameBeforeEdit = useRef(area.name);
-  const keepNameEdit = useRef(false);
+  const nameAction = useRef<'commit' | 'cancel' | null>(null);
   const [name, setName] = useState(area.name);
   const [editingName, setEditingName] = useState(false);
   const [tagIds, setTagIds] = useState(area.tagIds);
@@ -218,22 +280,31 @@ function AreaEditor({
 
   function startNameEdit() {
     nameBeforeEdit.current = name;
-    keepNameEdit.current = false;
+    nameAction.current = null;
     setEditingName(true);
   }
 
-  function finishNameEdit() {
-    keepNameEdit.current = true;
+  function commitNameEdit() {
+    nameAction.current = 'commit';
     const trimmed = name.trim();
     setName(trimmed.length > 0 ? trimmed : nameBeforeEdit.current);
     setEditingName(false);
     nameRef.current?.blur();
   }
 
-  function cancelNameEdit() {
-    if (keepNameEdit.current) return;
+  function revertNameEdit() {
+    nameAction.current = 'cancel';
     setName(nameBeforeEdit.current);
     setEditingName(false);
+    nameRef.current?.blur();
+  }
+
+  function blurNameEdit() {
+    setTimeout(() => {
+      if (nameAction.current === 'commit') return;
+      setName(nameBeforeEdit.current);
+      setEditingName(false);
+    }, 0);
   }
 
   const busy = save.isPending || remove.isPending;
@@ -246,7 +317,6 @@ function AreaEditor({
           flexDirection: 'row',
           alignItems: 'center',
           gap: space.sm,
-          minHeight: 48,
           paddingHorizontal: space.xl,
         }}
       >
@@ -259,58 +329,83 @@ function AreaEditor({
             placeholderTextColor={colors.inkFaint}
             maxLength={80}
             autoCorrect={false}
-            onBlur={() => {
-              setTimeout(cancelNameEdit, 0);
-            }}
+            returnKeyType="done"
+            onSubmitEditing={commitNameEdit}
+            onBlur={blurNameEdit}
             style={{
               flex: 1,
-              backgroundColor: colors.card,
-              borderRadius: radius.xl,
-              borderCurve: 'continuous',
-              borderWidth: 1,
-              borderColor: colors.line,
-              minHeight: 48,
+              minHeight: NAME_FIELD_HEIGHT,
               paddingHorizontal: space.lg,
-              paddingVertical: space.md,
+              backgroundColor: colors.card,
+              borderRadius: radius.lg,
+              borderCurve: 'continuous',
+              borderWidth: 1.5,
+              borderColor: colors.accent,
+              paddingVertical: 0,
+              textAlignVertical: 'center',
               fontSize: 16,
               color: colors.ink,
             }}
           />
         ) : (
-          <AppText variant="title" numberOfLines={1} style={{ flex: 1 }}>
-            {name}
-          </AppText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('profile.areaEditA11y', { name })}
+            onPress={startNameEdit}
+            style={{
+              flex: 1,
+              minHeight: NAME_FIELD_HEIGHT,
+              paddingHorizontal: space.lg,
+              justifyContent: 'center',
+              backgroundColor: colors.card,
+              borderRadius: radius.lg,
+              borderCurve: 'continuous',
+              borderWidth: 1.5,
+              borderColor: colors.card,
+            }}
+          >
+            <AppText variant="body" numberOfLines={1}>
+              {name}
+            </AppText>
+          </Pressable>
         )}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t(editingName ? 'profile.areaNameDone' : 'profile.areaEditName')}
-          onPressIn={() => {
-            if (editingName) keepNameEdit.current = true;
-          }}
-          onPress={() => {
-            if (editingName) finishNameEdit();
-            else startNameEdit();
-          }}
-          hitSlop={8}
-          style={{
-            width: 36,
-            height: 36,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: radius.pill,
-            backgroundColor: colors.accentSoft,
-          }}
-        >
-          {process.env.EXPO_OS === 'ios' ? (
-            <SymbolView
-              name={(editingName ? 'checkmark' : 'pencil') as never}
-              size={16}
-              tintColor={colors.ink}
+        {editingName ? (
+          <>
+            <RoundIconButton
+              label={t('profile.areaNameDone')}
+              sf="checkmark"
+              md="check"
+              tint={colors.primary}
+              backgroundColor={colors.accent}
+              onPressIn={() => {
+                nameAction.current = 'commit';
+              }}
+              onPress={commitNameEdit}
             />
-          ) : (
-            <MaterialIcons name={editingName ? 'check-box' : 'edit'} size={18} color={colors.ink} />
-          )}
-        </Pressable>
+            <RoundIconButton
+              label={t('profile.areaNameCancel')}
+              sf="xmark"
+              md="close"
+              tint={colors.ink}
+              backgroundColor={colors.card}
+              borderColor={colors.line}
+              onPressIn={() => {
+                nameAction.current = 'cancel';
+              }}
+              onPress={revertNameEdit}
+            />
+          </>
+        ) : (
+          <RoundIconButton
+            label={t('profile.areaEditName')}
+            sf="pencil"
+            md="edit"
+            tint={colors.ink}
+            backgroundColor={colors.accentSoft}
+            decorative
+            onPress={startNameEdit}
+          />
+        )}
       </View>
 
       <RadiusSlider
@@ -387,6 +482,12 @@ function AreaEditor({
           loading={save.isPending}
           disabled={!canSave}
           onPress={() => {
+            if (editingName) {
+              const trimmed = name.trim();
+              nameAction.current = 'commit';
+              setName(trimmed.length > 0 ? trimmed : nameBeforeEdit.current);
+              setEditingName(false);
+            }
             save.mutate();
           }}
         />

@@ -200,20 +200,27 @@ locally." - Supporting copy: "Music, concerts and unique events near
 you." - CTA: "Continue". This only advances. It does not request a
 permission.
 
-**Screen 2 --- Notifications** - Full-bleed photo. - Heading: "Stay in
-the loop." - Supporting copy explains that notifications are for new
-events that match the user's interests. - CTA: "Activate" creates the
-anonymous device identity when secure storage has none
-(`POST /identities`), requests notification permission, then registers
-the push token on that device. - Secondary action: "Skip" records the
-choice as skipped and advances. A later reminder can ask again.
+**Screen 2 --- Notifications** - Full-bleed photo. - A large bell
+sits centered between the top of the screen and the heading. - Heading:
+"Stay in the loop." - Supporting copy explains that notifications are for
+new events that match the user's interests. - CTA: "Activate" has no
+icon. When permission is granted the button turns green and shows a
+glowing checkmark, then advances. It creates the anonymous device
+identity when secure storage has none (`POST /identities`), requests
+notification permission, then registers the push token on that device. -
+Secondary action: "Skip" records the choice as skipped and advances. A
+later reminder can ask again.
 
-**Screen 3 --- Location** - Full-bleed photo. - Heading: "Find what's
-nearby." - Supporting copy explains nearby events and venue check-in. -
-CTA: "Activate" requests foreground location permission, then advances.
-- Secondary action: "Skip" records the choice as skipped and advances.
+**Screen 3 --- Location** - Full-bleed photo. - A large location icon
+sits centered between the top of the screen and the heading. - Heading:
+"Find what's nearby." - Supporting copy explains nearby events and venue
+check-in. - CTA: "Activate" has no icon. When permission is granted the
+button turns green and shows a glowing checkmark, then advances. It
+requests foreground location permission. - Secondary action: "Skip"
+records the choice as skipped and advances.
 
-**Screen 4 --- First area** - Full-bleed photo. - Heading: "Your first
+**Screen 4 --- First area** - Full-bleed photo. - A large map pin sits
+centered between the top of the screen and the heading. - Heading: "Your first
 area." - If location was granted, read one foreground fix and put the
 place name (covering region, otherwise the device geocoder) in a text
 field. Editing that text disables Continue and opens an autocomplete
@@ -241,7 +248,10 @@ are turned off.
 Onboarding rules: - Use full-bleed photography with a dark lower
 gradient. - Place copy in the lower third, with enough contrast and
 spacing. - Use small, clear page indicators. - Keep the CTA anchored
-consistently near the bottom, above the safe area. - Show this carousel
+consistently near the bottom, above the safe area. - The next step is added
+only after this one continues, a skip is confirmed, activation succeeds, or
+a failed activation is confirmed. A swipe can move among steps already
+added, including back to an earlier one. - Show this carousel
 when onboarding is unfinished, and when secure storage has no device
 identity. - Skipping a permission is allowed. Do not finish the intro by
 skipping both permissions at once. - Do not force account creation

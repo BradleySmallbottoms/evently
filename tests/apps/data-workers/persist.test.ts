@@ -68,6 +68,22 @@ describe('saveIncomingEvents', () => {
     expect(published).toEqual([]);
   });
 
+  it('skips an external id deleted from review', async () => {
+    const store = createMemoryIngestStore();
+    await saveIncomingEvents(store, source, [bandy], { publish: async () => {} });
+    const ref = store.refs[0];
+    expect(ref).toBeDefined();
+    if (!ref) return;
+    store.suppressions.push({ sourceId: ref.sourceId, externalId: ref.externalId });
+    store.events.splice(0, store.events.length);
+    store.refs.splice(0, store.refs.length);
+
+    const again = await saveIncomingEvents(store, source, [bandy], { publish: async () => {} });
+
+    expect(again).toMatchObject({ created: 0, updated: 0, skipped: 1, rejected: [] });
+    expect(store.events).toHaveLength(0);
+  });
+
   it('adds links parsed from the description and keeps adapter links', async () => {
     const store = createMemoryIngestStore();
     await saveIncomingEvents(store, source, [

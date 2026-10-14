@@ -64,6 +64,7 @@ export function createDbIngestStore(db: Db): IngestStore {
     publishers,
     publisherAliases,
     externalRefs,
+    importSuppressions,
     ingestionRuns,
     dataSources,
   } = schema;
@@ -185,6 +186,19 @@ export function createDbIngestStore(db: Db): IngestStore {
         .limit(1);
       return Boolean(row);
     },
+    async isImportSuppressed(sourceId, externalId) {
+      const [row] = await db
+        .select({ externalId: importSuppressions.externalId })
+        .from(importSuppressions)
+        .where(
+          and(
+            eq(importSuppressions.sourceId, sourceId),
+            eq(importSuppressions.externalId, externalId),
+          ),
+        )
+        .limit(1);
+      return Boolean(row);
+    },
     async findExternalRef(sourceId, externalId) {
       const [row] = await db
         .select({
@@ -221,11 +235,15 @@ export function createDbIngestStore(db: Db): IngestStore {
     },
     async listTags() {
       const rows = await db
-        .select({ externalId: schema.tags.externalId, name: schema.tags.name })
+        .select({
+          externalId: schema.tags.externalId,
+          name: schema.tags.name,
+          slug: schema.tags.slug,
+        })
         .from(schema.tags)
         .where(isNotNull(schema.tags.externalId));
       return rows.flatMap((row) =>
-        row.externalId ? [{ externalId: row.externalId, name: row.name }] : [],
+        row.externalId ? [{ externalId: row.externalId, name: row.name, slug: row.slug }] : [],
       );
     },
     async listEventTags(sourceId) {

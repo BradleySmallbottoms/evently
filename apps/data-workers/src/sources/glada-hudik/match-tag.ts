@@ -23,6 +23,8 @@ const DESCRIPTION_LIMIT = 1_200;
 const MAX_TAGS = 5;
 /** Tags at this score or below are not a good enough match. */
 const MIN_SCORE = 90;
+/** Festival-specific tags the model must not attach to ordinary events. */
+const EXCLUDED_TAG_SLUGS = new Set(['soderhamns-kulturfestival']);
 
 export function ollamaBaseUrl(config: Record<string, unknown>): URL {
   const fromConfig = typeof config.ollamaBaseUrl === 'string' ? config.ollamaBaseUrl.trim() : '';
@@ -104,7 +106,9 @@ export function tagCatalog(config: Record<string, unknown>): TagChoice[] {
     if (!item || typeof item !== 'object') continue;
     const externalId = 'externalId' in item ? item.externalId : undefined;
     const name = 'name' in item ? item.name : undefined;
+    const slug = 'slug' in item && typeof item.slug === 'string' ? item.slug.trim() : '';
     if (typeof externalId !== 'string' || typeof name !== 'string') continue;
+    if (EXCLUDED_TAG_SLUGS.has(slug)) continue;
     const id = externalId.trim();
     const label = name.trim();
     if (!id || !label) continue;

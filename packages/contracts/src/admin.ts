@@ -79,6 +79,11 @@ export const AdminEventDecisionResponse = z.object({
 });
 export type AdminEventDecisionResponse = z.infer<typeof AdminEventDecisionResponse>;
 
+export const AdminEventDeleteResponse = z.object({
+  id: Id,
+});
+export type AdminEventDeleteResponse = z.infer<typeof AdminEventDeleteResponse>;
+
 export const AdminTemporaryPublisher = z.object({
   id: Id,
   name: z.string(),

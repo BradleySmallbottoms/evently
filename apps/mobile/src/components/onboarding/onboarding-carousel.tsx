@@ -1,5 +1,7 @@
 import { resolveTravelDistanceM } from '@local-events/domain';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
+import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Dimensions,
@@ -22,7 +24,7 @@ import { ConfirmAction } from '@/components/native/confirm-action';
 import { OnboardingAreaStep } from '@/components/onboarding/onboarding-area-step';
 import { OnboardingTagsStep } from '@/components/onboarding/onboarding-tags-step';
 import { AppText } from '@/components/ui/app-text';
-import { PrimaryButton } from '@/components/ui/primary-button';
+import { PrimaryButton, type ButtonIcon } from '@/components/ui/primary-button';
 import { ensureIdentity } from '@/lib/identity';
 import { saveHomeTagIds } from '@/lib/home-tag-selection';
 import {
@@ -48,7 +50,7 @@ import {
 import { registerPushToken } from '@/lib/push-notifications';
 import { deferRegionPromptAfterAreaSkip } from '@/lib/region-suggestion';
 import { colors } from '@/theme/colors';
-import { radius, space } from '@/theme/tokens';
+import { radius, shadow, space } from '@/theme/tokens';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -100,7 +102,11 @@ export function OnboardingCarousel({ onFinished }: Props) {
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
+  const indexRef = useRef(0);
+  const reachedRef = useRef(0);
+  const pendingScroll = useRef<number | null>(null);
   const [index, setIndex] = useState(0);
+  const [reached, setReached] = useState(0);
   const [busy, setBusy] = useState(false);
   const [celebrated, setCelebrated] = useState<CelebrateId | null>(null);
   const [rejected, setRejected] = useState<PermissionKind | null>(null);
@@ -159,13 +165,30 @@ export function OnboardingCarousel({ onFinished }: Props) {
   }, [state]);
 
   const goTo = (next: number) => {
-    scrollRef.current?.scrollTo({ x: next * SCREEN_WIDTH, animated: true });
+    const furthest = Math.max(reachedRef.current, next);
+    reachedRef.current = furthest;
+    indexRef.current = next;
+    pendingScroll.current = next;
+    setReached(furthest);
     setIndex(next);
   };
 
+  useEffect(() => {
+    const target = pendingScroll.current;
+    if (target == null) return;
+    pendingScroll.current = null;
+    const x = target * SCREEN_WIDTH;
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({ x, animated: true });
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [reached, index]);
+
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const next = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-    if (next < 0 || next >= STEPS.length) return;
+    let next = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    if (next < 0) next = 0;
+    if (next > reachedRef.current) next = reachedRef.current;
+    indexRef.current = next;
     setIndex(next);
     setCelebrated(null);
   };
@@ -397,7 +420,6 @@ export function OnboardingCarousel({ onFinished }: Props) {
         scrollEnabled={celebrated == null && leavePrompt == null && !awaitingDenyAlert}
         keyboardShouldPersistTaps="handled"
         onMomentumScrollEnd={onScrollEnd}
-        scrollEventThrottle={16}
         style={styles.scroll}
       >
         <StepFrame
@@ -414,100 +436,112 @@ export function OnboardingCarousel({ onFinished }: Props) {
           />
         </StepFrame>
 
-        <StepFrame
-          image={STEPS[1]!.image}
-          title={t('onboarding.notificationsTitle')}
-          body={t('onboarding.notificationsBody')}
-          bottomInset={insets.bottom}
-          error={error}
-        >
-          <PrimaryButton
-            label={t('onboarding.activate')}
-            icon={{ sf: 'bell', md: 'notifications-none' }}
-            loading={busy}
-            confirmed={celebrated === 'notifications'}
-            rejected={rejected === 'notifications'}
-            onConfirmed={onCelebrated}
-            onPress={() => void onActivate('notifications')}
-          />
-          <SkipButton
-            label={t('onboarding.skip')}
-            disabled={busy || celebrated != null}
-            onPress={() => openLeavePrompt({ id: 'notifications', source: 'skip' })}
-          />
-        </StepFrame>
+        {reached >= 1 ? (
+          <StepFrame
+            image={STEPS[1]!.image}
+            hero={{ sf: 'bell', md: 'notifications-none' }}
+            title={t('onboarding.notificationsTitle')}
+            body={t('onboarding.notificationsBody')}
+            bottomInset={insets.bottom}
+            topInset={insets.top}
+            error={error}
+          >
+            <PrimaryButton
+              label={t('onboarding.activate')}
+              loading={busy}
+              confirmed={celebrated === 'notifications'}
+              rejected={rejected === 'notifications'}
+              onConfirmed={onCelebrated}
+              onPress={() => void onActivate('notifications')}
+            />
+            <SkipButton
+              label={t('onboarding.skip')}
+              disabled={busy || celebrated != null}
+              onPress={() => openLeavePrompt({ id: 'notifications', source: 'skip' })}
+            />
+          </StepFrame>
+        ) : null}
 
-        <StepFrame
-          image={STEPS[2]!.image}
-          title={t('onboarding.locationTitle')}
-          body={t('onboarding.locationBody')}
-          bottomInset={insets.bottom}
-          error={error}
-        >
-          <PrimaryButton
-            label={t('onboarding.activate')}
-            icon={{ sf: 'location', md: 'location-on' }}
-            loading={busy}
-            confirmed={celebrated === 'location'}
-            rejected={rejected === 'location'}
-            onConfirmed={onCelebrated}
-            onPress={() => void onActivate('location')}
-          />
-          <SkipButton
-            label={t('onboarding.skip')}
-            disabled={busy || celebrated != null}
-            onPress={() => openLeavePrompt({ id: 'location', source: 'skip' })}
-          />
-        </StepFrame>
+        {reached >= 2 ? (
+          <StepFrame
+            image={STEPS[2]!.image}
+            hero={{ sf: 'location', md: 'location-on' }}
+            title={t('onboarding.locationTitle')}
+            body={t('onboarding.locationBody')}
+            bottomInset={insets.bottom}
+            topInset={insets.top}
+            error={error}
+          >
+            <PrimaryButton
+              label={t('onboarding.activate')}
+              loading={busy}
+              confirmed={celebrated === 'location'}
+              rejected={rejected === 'location'}
+              onConfirmed={onCelebrated}
+              onPress={() => void onActivate('location')}
+            />
+            <SkipButton
+              label={t('onboarding.skip')}
+              disabled={busy || celebrated != null}
+              onPress={() => openLeavePrompt({ id: 'location', source: 'skip' })}
+            />
+          </StepFrame>
+        ) : null}
 
-        <StepFrame
-          image={STEPS[3]!.image}
-          title={t('onboarding.areaTitle')}
-          body={
-            state?.location === 'granted'
-              ? t('onboarding.areaBodyLocated')
-              : t('onboarding.areaBodySearch')
-          }
-          bottomInset={insets.bottom}
-          error={error}
-          liftForKeyboard
-        >
-          <OnboardingAreaStep
-            active={index === 3}
-            locationGranted={state?.location === 'granted'}
-            fallbackName={t('events.locationHere')}
-            busy={busy}
-            confirmed={celebrated === 'area'}
-            onConfirmed={onCelebrated}
-            onSave={(place) => {
-              void onSaveArea(place);
-            }}
-            onSkip={(detected) => {
-              openLeavePrompt({ id: 'area', source: 'skip', detected });
-            }}
-          />
-        </StepFrame>
+        {reached >= 3 ? (
+          <StepFrame
+            image={STEPS[3]!.image}
+            hero={{ sf: 'mappin.and.ellipse', md: 'place' }}
+            title={t('onboarding.areaTitle')}
+            body={
+              state?.location === 'granted'
+                ? t('onboarding.areaBodyLocated')
+                : t('onboarding.areaBodySearch')
+            }
+            bottomInset={insets.bottom}
+            topInset={insets.top}
+            error={error}
+            liftForKeyboard
+          >
+            <OnboardingAreaStep
+              active={index === 3}
+              locationGranted={state?.location === 'granted'}
+              fallbackName={t('events.locationHere')}
+              busy={busy}
+              confirmed={celebrated === 'area'}
+              onConfirmed={onCelebrated}
+              onSave={(place) => {
+                void onSaveArea(place);
+              }}
+              onSkip={(detected) => {
+                openLeavePrompt({ id: 'area', source: 'skip', detected });
+              }}
+            />
+          </StepFrame>
+        ) : null}
 
-        <StepFrame
-          image={STEPS[4]!.image}
-          title={t('onboarding.tagsTitle')}
-          body={t('onboarding.tagsBody')}
-          bottomInset={insets.bottom}
-          error={error}
-          fill
-        >
-          <OnboardingTagsStep
-            busy={busy}
-            confirmed={celebrated === 'tags'}
-            onConfirmed={onCelebrated}
-            onContinue={(tagIds) => {
-              void onSaveTags(tagIds);
-            }}
-            onSkip={() => {
-              openLeavePrompt({ id: 'tags', source: 'skip' });
-            }}
-          />
-        </StepFrame>
+        {reached >= 4 ? (
+          <StepFrame
+            image={STEPS[4]!.image}
+            title={t('onboarding.tagsTitle')}
+            body={t('onboarding.tagsBody')}
+            bottomInset={insets.bottom}
+            error={error}
+            fill
+          >
+            <OnboardingTagsStep
+              busy={busy}
+              confirmed={celebrated === 'tags'}
+              onConfirmed={onCelebrated}
+              onContinue={(tagIds) => {
+                void onSaveTags(tagIds);
+              }}
+              onSkip={() => {
+                openLeavePrompt({ id: 'tags', source: 'skip' });
+              }}
+            />
+          </StepFrame>
+        ) : null}
       </ScrollView>
       <ConfirmAction
         title={t(LEAVE_COPY[leavePrompt?.id ?? 'notifications'].title)}
@@ -536,22 +570,26 @@ export function OnboardingCarousel({ onFinished }: Props) {
 
 function StepFrame({
   image,
+  hero,
   title,
   body,
   accentLabel,
   accentSoft,
   bottomInset,
+  topInset = 0,
   error,
   fill,
   liftForKeyboard,
   children,
 }: {
   image: ImageSourcePropType;
+  hero?: ButtonIcon;
   title: string;
   body: string;
   accentLabel?: string;
   accentSoft?: string;
   bottomInset: number;
+  topInset?: number;
   error?: string | null;
   /** Let the step body use the space under the title, for the interest grid. */
   fill?: boolean;
@@ -570,6 +608,9 @@ function StepFrame({
         },
       ]}
     >
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        {hero ? <HeroIcon icon={hero} /> : null}
+      </View>
       <View style={styles.copy}>
         {accentLabel ? (
           <ShadowedText
@@ -606,6 +647,20 @@ function StepFrame({
         contentFit="cover"
       />
       {liftForKeyboard ? <KeyboardLift bottomInset={bottomInset}>{frame}</KeyboardLift> : frame}
+    </View>
+  );
+}
+
+function HeroIcon({ icon }: { icon: ButtonIcon }) {
+  return (
+    <View pointerEvents="none" style={[styles.hero]}>
+      <View style={styles.heroGlyph}>
+        {process.env.EXPO_OS === 'ios' ? (
+          <SymbolView name={icon.sf} size={64} tintColor="#FFFFFF" />
+        ) : (
+          <MaterialIcons name={icon.md} size={64} color="#FFFFFF" />
+        )}
+      </View>
     </View>
   );
 }
@@ -714,6 +769,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: space.sm,
+  },
+  hero: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 1,
+    alignItems: 'center',
+  },
+  heroGlyph: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    borderRadius: radius.xl,
+    padding: space.xxl,
+    backgroundColor: colors.cardOpacity,
   },
   scroll: {
     flex: 1,

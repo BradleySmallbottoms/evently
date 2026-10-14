@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   type AdminEventDecisionResponse,
+  type AdminEventDeleteResponse,
   type AdminEventDetail,
   type AdminEventListResponse,
   type AdminEventPatchRequest,
@@ -18,6 +19,7 @@ import {
 } from '@local-events/db';
 import {
   canApproveImportedEvent,
+  canDeleteImportedEvent,
   canRejectImportedEvent,
   publicAssetUrl,
   publicGalleryUrls,
@@ -50,6 +52,7 @@ export type AdminEventServices = {
   get: (eventId: string) => Promise<AdminEventDetail | null>;
   approve: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
   reject: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
+  remove: (eventId: string, actor: string) => Promise<AdminEventDeleteResponse | null>;
   patch: (
     eventId: string,
     body: AdminEventPatchRequest,
@@ -409,6 +412,21 @@ export function createMemoryAdminEventServices(
         after: { status: 'cancelled' },
       });
       return { id: row.id, status: 'cancelled' as const };
+    },
+    async remove(eventId, actor) {
+      const row = store.events.get(eventId);
+      if (!row || !canDeleteImportedEvent(row)) return null;
+      const before = { status: row.status, title: row.title };
+      store.events.delete(eventId);
+      await audit.write({
+        actor,
+        action: 'event.delete',
+        entityType: 'event',
+        entityId: eventId,
+        before,
+        after: null,
+      });
+      return { id: eventId };
     },
     async patch(eventId, body, actor) {
       const row = store.events.get(eventId);
@@ -788,6 +806,69 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         after: { status: 'cancelled' },
       });
       return { id: eventId, status: 'cancelled' as const };
+    },
+    async remove(eventId, actor) {
+      const deleted = await db.transaction(async (tx) => {
+        const [row] = await tx
+          .select({
+            id: schema.events.id,
+            status: schema.events.status,
+            origin: schema.events.origin,
+            title: schema.events.title,
+          })
+          .from(schema.events)
+          .where(eq(schema.events.id, eventId))
+          .limit(1)
+          .for('update');
+        if (!row || !canDeleteImportedEvent(row)) return null;
+        const audience = [
+          schema.checkIns,
+          schema.ratings,
+          schema.savedEvents,
+          schema.comingEvents,
+          schema.notifications,
+        ];
+        for (const table of audience) {
+          const [hit] = await tx
+            .select({ eventId: table.eventId })
+            .from(table)
+            .where(eq(table.eventId, eventId))
+            .limit(1);
+          if (hit) return null;
+        }
+        const refs = await tx
+          .select({
+            sourceId: schema.externalRefs.sourceId,
+            externalId: schema.externalRefs.externalId,
+          })
+          .from(schema.externalRefs)
+          .where(eq(schema.externalRefs.eventId, eventId));
+        const removed = await tx
+          .delete(schema.events)
+          .where(
+            and(
+              eq(schema.events.id, eventId),
+              eq(schema.events.status, 'in_review'),
+              eq(schema.events.origin, 'imported'),
+            ),
+          )
+          .returning({ id: schema.events.id });
+        if (!removed[0]) return null;
+        if (refs.length > 0) {
+          await tx.insert(schema.importSuppressions).values(refs).onConflictDoNothing();
+        }
+        return { id: eventId, before: { status: row.status, title: row.title } };
+      });
+      if (!deleted) return null;
+      await audit.write({
+        actor,
+        action: 'event.delete',
+        entityType: 'event',
+        entityId: eventId,
+        before: deleted.before,
+        after: null,
+      });
+      return { id: deleted.id };
     },
     async patch(eventId, body, actor) {
       const existing = await loadDetail(eventId);

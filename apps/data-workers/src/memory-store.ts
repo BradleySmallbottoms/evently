@@ -82,6 +82,7 @@ export interface MemoryIngestStore extends IngestStore {
   publishers: StoredPublisher[];
   events: StoredEvent[];
   refs: StoredRef[];
+  suppressions: { sourceId: string; externalId: string }[];
   runs: StoredRun[];
   images: StoredImage[];
   scheduledNotifications: {
@@ -130,6 +131,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
   const aliases: { sourceId: string; organizerKey: string; publisherId: string }[] = [];
   const events: StoredEvent[] = [];
   const refs: StoredRef[] = [];
+  const suppressions: MemoryIngestStore['suppressions'] = [];
   const runs: StoredRun[] = [];
   const images: StoredImage[] = [];
   const scheduledNotifications: MemoryIngestStore['scheduledNotifications'] = [];
@@ -149,6 +151,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
     publishers,
     events,
     refs,
+    suppressions,
     runs,
     images,
     scheduledNotifications,
@@ -252,6 +255,11 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         (alias) => alias.sourceId === sourceId && alias.publisherId === event.publisherId,
       );
     },
+    async isImportSuppressed(sourceId, externalId) {
+      return suppressions.some(
+        (item) => item.sourceId === sourceId && item.externalId === externalId,
+      );
+    },
     async findExternalRef(sourceId, externalId) {
       const ref = refs.find((item) => item.sourceId === sourceId && item.externalId === externalId);
       if (!ref) return null;
@@ -270,7 +278,11 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         }));
     },
     async listTags() {
-      return [...tags.values()].map((tag) => ({ externalId: tag.externalId, name: tag.name }));
+      return [...tags.values()].map((tag) => ({
+        externalId: tag.externalId,
+        name: tag.name,
+        slug: tag.slug,
+      }));
     },
     async listEventTags(sourceId) {
       const byId = new Map([...tags.values()].map((tag) => [tag.id, tag]));

@@ -48,6 +48,11 @@ export function canRejectImportedEvent(status: string): boolean {
   return status === 'in_review';
 }
 
+/** Admin removal of an imported event that is still waiting in the review queue. */
+export function canDeleteImportedEvent(input: { status: string; origin: string }): boolean {
+  return input.status === 'in_review' && input.origin === 'imported';
+}
+
 export const MAX_EVENT_LISTS = 20;
 export const MAX_EVENTS_PER_LIST = 100;
 export const MAX_EVENT_LINKS = 10;

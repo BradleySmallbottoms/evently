@@ -73,6 +73,7 @@ describe('admin api', () => {
     expect(doc.paths['/events/{id}/sent-notifications']).toBeDefined();
     expect(doc.paths['/events/{id}/approve']).toBeDefined();
     expect(doc.paths['/events/{id}/reject']).toBeDefined();
+    expect((doc.paths['/events/{id}'] as { delete?: unknown }).delete).toBeDefined();
     expect(doc.paths['/data-sources']).toBeDefined();
     expect(doc.paths['/data-sources/{id}/runs']).toBeDefined();
     expect(doc.paths['/data-sources/{id}/run']).toBeDefined();
@@ -279,6 +280,106 @@ describe('admin api', () => {
     expect(domainEvents.events).toEqual([
       { type: 'event.published', eventId: '44444444-4444-4444-8444-444444444401' },
     ]);
+  });
+
+  it('deletes an imported event in review and refuses other statuses', async () => {
+    const { auth } = await seededAuth();
+    const inReviewId = '44444444-4444-4444-8444-444444444401';
+    const publishedId = '44444444-4444-4444-8444-444444444402';
+    const nativeId = '44444444-4444-4444-8444-444444444403';
+    const eventStore = {
+      publishers: new Map([
+        [
+          '22222222-2222-4222-8222-222222222201',
+          { id: '22222222-2222-4222-8222-222222222201', name: 'Imported Band' },
+        ],
+      ]),
+      events: new Map([
+        [
+          inReviewId,
+          {
+            id: inReviewId,
+            publisherId: '22222222-2222-4222-8222-222222222201',
+            title: 'Concert',
+            mode: 'physical' as const,
+            status: 'in_review',
+            origin: 'imported' as const,
+            startsAt: '2026-07-01T18:00:00.000Z',
+            endsAt: '2026-07-01T21:00:00.000Z',
+            venueName: 'Arena',
+            sourceUrl: 'https://example.com',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+        [
+          publishedId,
+          {
+            id: publishedId,
+            publisherId: '22222222-2222-4222-8222-222222222201',
+            title: 'Already live',
+            mode: 'physical' as const,
+            status: 'published',
+            origin: 'imported' as const,
+            startsAt: '2026-07-02T18:00:00.000Z',
+            endsAt: '2026-07-02T21:00:00.000Z',
+            venueName: 'Arena',
+            sourceUrl: null,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+        [
+          nativeId,
+          {
+            id: nativeId,
+            publisherId: '22222222-2222-4222-8222-222222222201',
+            title: 'Local draft',
+            mode: 'physical' as const,
+            status: 'in_review',
+            origin: 'native' as const,
+            startsAt: '2026-07-03T18:00:00.000Z',
+            endsAt: '2026-07-03T21:00:00.000Z',
+            venueName: null,
+            sourceUrl: null,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+      ]),
+    };
+    const { createMemoryAdminEventServices } =
+      await import('../../../apps/admin-api/src/services/events');
+    const app = createApp({
+      auth,
+      events: createMemoryAdminEventServices(eventStore),
+    });
+    const cookie = await loginSession(app);
+
+    const removed = await app.request(`/v1/events/${inReviewId}`, {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    expect(removed.status).toBe(200);
+    expect(await removed.json()).toEqual({ id: inReviewId });
+    expect(eventStore.events.has(inReviewId)).toBe(false);
+
+    const refused = await app.request(`/v1/events/${publishedId}`, {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    expect(refused.status).toBe(404);
+    expect(eventStore.events.has(publishedId)).toBe(true);
+
+    const native = await app.request(`/v1/events/${nativeId}`, {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    expect(native.status).toBe(404);
+    expect(eventStore.events.has(nativeId)).toBe(true);
+
+    const anonymous = await app.request(`/v1/events/${publishedId}`, { method: 'DELETE' });
+    expect(anonymous.status).toBe(401);
   });
 
   it('reads and edits an event, and rejects an incomplete digital event', async () => {

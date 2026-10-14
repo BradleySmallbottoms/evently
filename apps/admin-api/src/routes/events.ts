@@ -1,6 +1,7 @@
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
   AdminEventDecisionResponse,
+  AdminEventDeleteResponse,
   AdminEventDetail,
   AdminEventListResponse,
   AdminEventPatchRequest,
@@ -178,6 +179,38 @@ export function registerAdminEventRoutes(
     try {
       const session = await auth.requireSession(readAdminSessionToken(c));
       const result = await events.reject(c.req.valid('param').id, session.adminId);
+      if (!result) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json(result, 200);
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
+  const remove = createRoute({
+    method: 'delete',
+    path: '/events/{id}',
+    request: { params: z.object({ id: z.uuid() }) },
+    responses: {
+      200: {
+        description: 'Imported event removed from review',
+        content: { 'application/json': { schema: AdminEventDeleteResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Not found or not in review',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(remove, async (c) => {
+    try {
+      const session = await auth.requireSession(readAdminSessionToken(c));
+      const result = await events.remove(c.req.valid('param').id, session.adminId);
       if (!result) {
         return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
       }
