@@ -608,9 +608,9 @@ function StepFrame({
         },
       ]}
     >
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      {/* <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         {hero ? <HeroIcon icon={hero} /> : null}
-      </View>
+      </View> */}
       <View style={styles.copy}>
         {accentLabel ? (
           <ShadowedText

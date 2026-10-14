@@ -253,7 +253,8 @@ calls) in the same change as every new major feature.**
   `SameSite=Lax` on the admin API host — keep the UI and `NEXT_PUBLIC_ADMIN_API_URL` on the
   same site (e.g. both `localhost`, or both `*.your-alias`) or the cookie will not stick.
 - **Admin queues:** `/review` lists imports in `in_review`, unverified publishers, and `pending`
-  notifications (approve/reject). Import review can select rows and publish, reject, or delete them.
+  notifications (approve/reject). Import review and the event catalog can select rows and publish,
+  reject, or delete them. Publisher lists can select rows and verify them.
   Delete removes the event and keeps the source id out of later imports
   ([docs/flows/import-review-delete.md](docs/flows/import-review-delete.md)). `/events` redirects there. `/events/manage`
   patches status. `/publishers` verifies, remaps/completes temporary publishers, and toggles
