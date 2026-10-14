@@ -50,6 +50,42 @@ describe('public api', () => {
     expect(doc.paths['/manage/events/{id}/cancel']).toBeDefined();
     expect(doc.paths['/manage/events/{id}/sent-notifications']).toBeDefined();
   });
+
+  it('logs time, method, path with query, request id, and ip', async () => {
+    const lines: string[] = [];
+    const app = createApp({ accessLog: (line) => lines.push(line) });
+    const res = await app.request('/v1/events?lat=61.3&lng=17.05&tag=music&tag=food', {
+      method: 'GET',
+      headers: {
+        'x-forwarded-for': '203.0.113.9, 10.0.0.4',
+        'x-request-id': 'req-abc-1',
+      },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-request-id')).toBe('req-abc-1');
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z - GET - \/v1\/events\?lat=61\.3&lng=17\.05&tag=music&tag=food - req-abc-1 - 203\.0\.113\.9$/,
+    );
+  });
+
+  it('replaces an unsafe request id and still logs a missing route', async () => {
+    const lines: string[] = [];
+    const app = createApp({ accessLog: (line) => lines.push(line) });
+    const res = await app.request('/missing', {
+      headers: { 'x-request-id': 'bad id', 'x-real-ip': '::ffff:192.0.2.10' },
+    });
+    expect(res.status).toBe(404);
+    const requestId = res.headers.get('x-request-id');
+    expect(requestId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+    expect(lines[0]).toMatch(
+      new RegExp(
+        `^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z - GET - /missing - ${requestId} - 192\\.0\\.2\\.10$`,
+      ),
+    );
+  });
 });
 
 describe('identity + sessions', () => {

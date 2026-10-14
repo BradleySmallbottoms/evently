@@ -1,5 +1,6 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { cors } from 'hono/cors';
+import { accessLog, type AccessLogWriter } from './access-log';
 import { API_PREFIX, API_VERSION } from './config';
 import { registerRoutes } from './routes';
 import { registerHealthRoutes } from './routes/health';
@@ -59,6 +60,8 @@ export type CreateAppOptions = {
     | ((origin: string) => string | null | undefined | Promise<string | null | undefined>);
   /** Local Garage website origin. Used only to proxy images phones cannot reach. */
   assetsPublicBaseUrl?: string;
+  /** One line per request. Defaults to stdout, and stays quiet under Vitest. */
+  accessLog?: AccessLogWriter;
 };
 
 /**
@@ -101,6 +104,7 @@ export function createApp(options: CreateAppOptions = {}) {
     return c.json({ error: { code: 'internal_error', message: 'Internal server error' } }, 500);
   });
 
+  app.use('*', accessLog(options.accessLog));
   app.use(
     '*',
     cors({
@@ -111,7 +115,8 @@ export function createApp(options: CreateAppOptions = {}) {
         'http://127.0.0.1:8081',
       ],
       credentials: true,
-      allowHeaders: ['Content-Type', 'Authorization', 'X-Stats-Worker-Token'],
+      allowHeaders: ['Content-Type', 'Authorization', 'X-Stats-Worker-Token', 'X-Request-Id'],
+      exposeHeaders: ['X-Request-Id'],
       allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     }),
   );

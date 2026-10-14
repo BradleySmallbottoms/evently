@@ -29,6 +29,7 @@ import { useForYouEvents } from '@/lib/use-for-you';
 import { eventListFreshness } from '@/lib/query-client';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { loadHomeTagIds, saveHomeTagIds } from '@/lib/home-tag-selection';
+import { retainedTagIds } from '@/lib/tag-groups';
 import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
 import { queryPointForArea } from '@/lib/area-point';
@@ -91,10 +92,18 @@ export default function HomeScreen() {
     placeId === NEARBY_PLACE_ID
       ? null
       : (preferences.data?.areas ?? []).find((area) => area.id === placeId);
-  const selectedTagIds = tagDraft ?? (activeArea ? (activeArea.tagIds ?? []) : (storedTagIds.data ?? []));
+  const rawTagIds = tagDraft ?? (activeArea ? (activeArea.tagIds ?? []) : (storedTagIds.data ?? []));
+  const knownTagIds = useMemo(
+    () => new Set((tags.data?.items ?? []).map((tag) => tag.id)),
+    [tags.data],
+  );
+  // A saved tag missing from the chips cannot be seen or cleared. Leave it out of
+  // the list filter so a clear selection shows every event in the radius.
+  const tagsSettled = tags.isSuccess || tags.isError;
+  const selectedTagIds = tags.isSuccess ? retainedTagIds(rawTagIds, knownTagIds) : rawTagIds;
   const selectedTagKey = [...selectedTagIds].sort().join('\n');
   const events = useInfinitePublicEvents(
-    storedTagIds.isSuccess ? point.data : undefined,
+    storedTagIds.isSuccess && tagsSettled ? point.data : undefined,
     { tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined, sort: 'soonest' },
     ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM, selectedTagKey],
   );
@@ -239,7 +248,7 @@ export default function HomeScreen() {
   const forYou = useForYouEvents({
     point: point.data,
     identity: identity.isSuccess ? identity.data : undefined,
-    tagsReady: storedTagIds.isSuccess,
+    tagsReady: storedTagIds.isSuccess && tagsSettled,
     selectedTagIds,
     featuredIds: forYouReady ? featuredIds : new Set(),
   });

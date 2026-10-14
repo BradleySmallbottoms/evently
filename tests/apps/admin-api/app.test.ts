@@ -951,4 +951,21 @@ describe('admin api', () => {
     expect(confirm.status).toBe(200);
     expect(store.admins.get('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')?.totpSecret).toBe(setup.secret);
   });
+
+  it('logs time, method, path with query, request id, and ip', async () => {
+    const lines: string[] = [];
+    const app = createApp({ accessLog: (line) => lines.push(line) });
+    const res = await app.request('/health?probe=1', {
+      headers: {
+        'x-forwarded-for': '[2001:db8::1], 10.0.0.1',
+        'x-request-id': 'admin-req-1',
+      },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-request-id')).toBe('admin-req-1');
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z - GET - \/health\?probe=1 - admin-req-1 - 2001:db8::1$/,
+    );
+  });
 });

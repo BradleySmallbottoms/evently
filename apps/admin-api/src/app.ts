@@ -1,5 +1,6 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { cors } from 'hono/cors';
+import { accessLog, type AccessLogWriter } from './access-log';
 import { API_PREFIX, API_VERSION } from './config';
 import { registerRoutes } from './routes';
 import { registerHealthRoutes } from './routes/health';
@@ -56,6 +57,8 @@ export type CreateAdminAppOptions = {
     | string
     | string[]
     | ((origin: string) => string | null | undefined | Promise<string | null | undefined>);
+  /** One line per request. Defaults to stdout, and stays quiet under Vitest. */
+  accessLog?: AccessLogWriter;
 };
 
 /**
@@ -99,6 +102,7 @@ export function createApp(options: CreateAdminAppOptions = {}) {
     return c.json({ error: { code: 'internal_error', message: 'Internal server error' } }, 500);
   });
 
+  app.use('*', accessLog(options.accessLog));
   app.use(
     '*',
     cors({
@@ -107,7 +111,8 @@ export function createApp(options: CreateAdminAppOptions = {}) {
         'http://127.0.0.1:3200',
       ],
       credentials: true,
-      allowHeaders: ['Content-Type', 'Authorization'],
+      allowHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+      exposeHeaders: ['X-Request-Id'],
       allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     }),
   );

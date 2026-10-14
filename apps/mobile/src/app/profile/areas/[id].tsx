@@ -426,8 +426,8 @@ export default function EditSavedAreaScreen() {
     queryFn: () => getPreferences(identity.data!),
   });
   const tags = useQuery({
-    queryKey: ['tags', 'upcoming'],
-    queryFn: () => listTags(),
+    queryKey: ['tags', 'all'],
+    queryFn: () => listTags({ upcoming: false }),
   });
 
   const area = preferences.data?.areas.find((item) => item.id === areaId);
