@@ -13,6 +13,18 @@ export function canAddSavedArea(currentCount: number): boolean {
   return currentCount < MAX_SAVED_AREAS;
 }
 
+/**
+ * Nearby notifications for one saved area. The switch only counts when that
+ * area has at least one category. An empty list shows every event on home
+ * and does not match nearby push.
+ */
+export function areaNotificationsEnabled(area: {
+  notify: boolean;
+  tagIds: readonly string[];
+}): boolean {
+  return area.notify && area.tagIds.length > 0;
+}
+
 export function validateCircleArea(input: {
   center: { lat: number; lng: number };
   radiusM: number;

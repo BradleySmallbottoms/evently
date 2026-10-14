@@ -31,7 +31,11 @@ import {
   updateAreaTags,
   updateTravelDistance,
 } from '@/lib/preferences';
-import { getDiscoveryPlaceId, NEARBY_PLACE_ID, setDiscoveryPlaceId } from '@/lib/use-discovery-point';
+import {
+  getDiscoveryPlaceId,
+  NEARBY_PLACE_ID,
+  setDiscoveryPlaceId,
+} from '@/lib/use-discovery-point';
 import {
   loadOnboardingState,
   markOnboardingComplete,
@@ -316,7 +320,14 @@ export function OnboardingCarousel({ onFinished }: Props) {
       if (!identity) return;
       await saveHomeTagIds(tagIds);
       const placeId = getDiscoveryPlaceId();
-      if (placeId !== NEARBY_PLACE_ID) await updateAreaTags(identity, placeId, tagIds);
+      if (placeId !== NEARBY_PLACE_ID) {
+        await updateAreaTags(
+          identity,
+          placeId,
+          tagIds,
+          tagIds.length === 0 ? { notify: false } : undefined,
+        );
+      }
       const current = await ensureState();
       if (!celebrate) {
         await finish(current);

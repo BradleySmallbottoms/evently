@@ -131,7 +131,10 @@ export function OnboardingTagsStep({
         disabled={tags == null && !failed}
         confirmed={confirmed}
         onConfirmed={onConfirmed}
-        onPress={() => onContinue(selectedIds)}
+        onPress={() => {
+          if (selectedIds.length === 0) onSkip();
+          else onContinue(selectedIds);
+        }}
       />
       <SkipRow label={t('onboarding.skip')} disabled={busy || confirmed} onPress={onSkip} />
     </View>

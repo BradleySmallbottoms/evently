@@ -15,12 +15,17 @@ function writeAreaTags(
   userId: string,
   areaId: string,
   tagIds: string[],
+  notify?: boolean,
 ) {
   queryClient.setQueryData<UserPreferencesResponse>(['preferences', userId], (current) => {
     if (!current) return current;
     return {
       ...current,
-      areas: current.areas.map((area) => (area.id === areaId ? { ...area, tagIds } : area)),
+      areas: current.areas.map((area) =>
+        area.id === areaId
+          ? { ...area, tagIds, ...(notify === undefined ? {} : { notify }) }
+          : area,
+      ),
     };
   });
 }
@@ -39,11 +44,14 @@ export function useAreaTagPrompt(identity: StoredIdentity | undefined) {
       lng: place.lng,
       radiusM: DEFAULT_AREA_RADIUS_M,
     });
-    queryClient.setQueryData<UserPreferencesResponse>(['preferences', identity.userId], (current) => {
-      if (!current) return current;
-      if (current.areas.some((item) => item.id === area.id)) return current;
-      return { ...current, areas: [...current.areas, area] };
-    });
+    queryClient.setQueryData<UserPreferencesResponse>(
+      ['preferences', identity.userId],
+      (current) => {
+        if (!current) return current;
+        if (current.areas.some((item) => item.id === area.id)) return current;
+        return { ...current, areas: [...current.areas, area] };
+      },
+    );
     // Let the location sheet finish dismissing before this sheet is presented.
     setTimeout(() => setTarget({ id: area.id, name: area.name }), 400);
   }
@@ -54,10 +62,16 @@ export function useAreaTagPrompt(identity: StoredIdentity | undefined) {
 
   async function commit(tagIds: string[], select: boolean) {
     if (!identity || !target) return;
+    const notify = tagIds.length === 0 ? false : undefined;
     setBusy(true);
     try {
-      await updateAreaTags(identity, target.id, tagIds);
-      writeAreaTags(queryClient, identity.userId, target.id, tagIds);
+      await updateAreaTags(
+        identity,
+        target.id,
+        tagIds,
+        notify === undefined ? undefined : { notify },
+      );
+      writeAreaTags(queryClient, identity.userId, target.id, tagIds, notify);
       if (select) await setDiscoveryPlaceId(target.id);
       setTarget(null);
     } finally {
@@ -83,6 +97,7 @@ export function cacheAreaTags(
   userId: string,
   areaId: string,
   tagIds: string[],
+  notify?: boolean,
 ) {
-  writeAreaTags(queryClient, userId, areaId, tagIds);
+  writeAreaTags(queryClient, userId, areaId, tagIds, notify);
 }

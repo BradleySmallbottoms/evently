@@ -1,16 +1,26 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Haptics from 'expo-haptics';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { useEffect, useRef } from 'react';
-import { ActivityIndicator, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Animated, { Easing, Keyframe, cubicBezier, useReducedMotion } from 'react-native-reanimated';
 
 import { AppText } from '@/components/ui/app-text';
 import { colors } from '@/theme/colors';
-import { radius, shadow, space } from '@/theme/tokens';
+import { radius, space } from '@/theme/tokens';
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const CSS_EASE_OUT = cubicBezier(0.23, 1, 0.32, 1);
+
+/** Skip the spinner for taps that resolve into confirm/reject before this. */
+const LOADING_INDICATOR_DELAY_MS = 280;
 
 const CHECK_IN = new Keyframe({
   0: { opacity: 0, transform: [{ scale: 0.92 }] },
@@ -71,12 +81,27 @@ export function PrimaryButton({
   const backgroundColor = color ?? colors.accent;
   const labelColor = colors.primary;
   const reduced = useReducedMotion();
+  const [pressed, setPressed] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
   const onConfirmedRef = useRef(onConfirmed);
-  onConfirmedRef.current = onConfirmed;
   const showCheck = (checkmark || confirmed) && !rejected;
   const showCross = rejected && !confirmed;
   const locked = disabled || loading || confirmed;
-  const colorDuration = reduced ? 350 : 580;
+  const flex = StyleSheet.flatten(style)?.flex;
+  const loadingVisible = Boolean(loading) && !confirmed && !rejected;
+  if (!loadingVisible && showLoading) setShowLoading(false);
+  const pending = loadingVisible && showLoading;
+  const dimmed = Boolean(disabled) && !confirmed && !rejected;
+
+  useEffect(() => {
+    onConfirmedRef.current = onConfirmed;
+  }, [onConfirmed]);
+
+  useEffect(() => {
+    if (!loadingVisible) return;
+    const timer = setTimeout(() => setShowLoading(true), LOADING_INDICATOR_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [loadingVisible]);
 
   useEffect(() => {
     if (!confirmed) return;
@@ -98,119 +123,76 @@ export function PrimaryButton({
   return (
     <Pressable
       accessibilityRole="button"
-      disabled={locked}
+      accessibilityState={{ disabled: locked, busy: Boolean(loading) }}
+      disabled={disabled || confirmed}
+      pressRetentionOffset={16}
+      style={flex != null ? { flex } : undefined}
+      onPressIn={() => {
+        if (locked) return;
+        setPressed(true);
+      }}
+      onPressOut={() => setPressed(false)}
       onPress={() => {
+        if (locked) return;
         if (process.env.EXPO_OS === 'ios') {
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
         onPress?.();
       }}
     >
-      {({ pressed }) => (
-        <Animated.View
-          style={[
-            {
-              backgroundColor,
-              borderRadius: radius.xl,
-              borderCurve: 'continuous',
-              height: 52,
-              paddingHorizontal: space.xxl,
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-              opacity: (disabled || loading) && !confirmed && !rejected ? 0.5 : 1,
-              transform: [{ scale: pressed ? 0.97 : 1 }],
-              transitionProperty: 'transform',
-              transitionDuration: 120,
-            },
-            style,
-          ]}
-        >
+      <Animated.View
+        style={[pressStyle, pressed && !reduced && pressInStyle, flex != null ? { flex } : null]}
+      >
+        <View style={[styles.face, { backgroundColor, opacity: dimmed ? 0.5 : 1 }, style]}>
           <Animated.View
             pointerEvents="none"
-            style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0,
-              backgroundColor: colors.secondarySoftAlpha,
-              opacity: confirmed ? 1 : 0,
-              transitionProperty: 'opacity',
-              transitionDuration: colorDuration,
-              transitionTimingFunction: CSS_EASE_OUT,
-            }}
+            collapsable={false}
+            style={[
+              reduced ? washReducedStyle : washStyle,
+              styles.washConfirm,
+              confirmed && washOnStyle,
+            ]}
           />
           <Animated.View
             pointerEvents="none"
-            style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0,
-              backgroundColor: colors.dangerSoft,
-              opacity: rejected && !confirmed ? 1 : 0,
-              transitionProperty: 'opacity',
-              transitionDuration: colorDuration,
-              transitionTimingFunction: CSS_EASE_OUT,
-            }}
+            collapsable={false}
+            style={[
+              reduced ? washReducedStyle : washStyle,
+              styles.washReject,
+              showCross && washOnStyle,
+            ]}
           />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <View style={styles.content}>
             {icon ? <ButtonGlyph icon={icon} color={labelColor} /> : null}
-            {loading && !confirmed ? (
+            {pending ? (
               <ActivityIndicator color={labelColor} />
             ) : (
               <AppText variant="subtitle" style={{ color: labelColor, fontWeight: '700' }}>
                 {label}
               </AppText>
             )}
-            {arrow && !loading ? (
+            {arrow && !pending ? (
               process.env.EXPO_OS === 'ios' ? (
                 <SymbolView name="arrow.right" size={18} tintColor={labelColor} weight="semibold" />
               ) : (
                 <MaterialIcons name="arrow-forward" size={18} color={labelColor} />
               )
             ) : null}
-            {showCross && !loading ? (
-              <Animated.View
-                entering={reduced ? CHECK_IN_REDUCED : CHECK_IN}
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 11,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {process.env.EXPO_OS === 'ios' ? (
-                  <SymbolView name="xmark" size={18} tintColor={colors.danger} weight="bold" />
-                ) : (
-                  <MaterialIcons name="close" size={20} color={colors.danger} />
-                )}
-              </Animated.View>
+            {showCross && !pending ? (
+              <StatusMark sf="xmark" md="close" color={colors.danger} reduced={reduced} enter />
             ) : null}
-            {showCheck && !loading ? (
-              <Animated.View
-                entering={confirmed ? (reduced ? CHECK_IN_REDUCED : CHECK_IN) : undefined}
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 11,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {process.env.EXPO_OS === 'ios' ? (
-                  <SymbolView name="checkmark" size={18} tintColor={labelColor} weight="bold" />
-                ) : (
-                  <MaterialIcons name="check" size={20} color={labelColor} />
-                )}
-              </Animated.View>
+            {showCheck && !pending ? (
+              <StatusMark
+                sf="checkmark"
+                md="check"
+                color={labelColor}
+                reduced={reduced}
+                enter={confirmed}
+              />
             ) : null}
           </View>
-        </Animated.View>
-      )}
+        </View>
+      </Animated.View>
     </Pressable>
   );
 }
@@ -222,3 +204,95 @@ function ButtonGlyph({ icon, color }: { icon: ButtonIcon; color: string }) {
     <MaterialIcons name={icon.md} size={18} color={color} />
   );
 }
+
+function StatusMark({
+  sf,
+  md,
+  color,
+  reduced,
+  enter,
+}: {
+  sf: SFSymbol;
+  md: keyof typeof MaterialIcons.glyphMap;
+  color: string;
+  reduced: boolean;
+  enter: boolean;
+}) {
+  return (
+    <Animated.View
+      entering={enter ? (reduced ? CHECK_IN_REDUCED : CHECK_IN) : undefined}
+      style={styles.status}
+    >
+      {process.env.EXPO_OS === 'ios' ? (
+        <SymbolView name={sf} size={18} tintColor={color} weight="bold" />
+      ) : (
+        <MaterialIcons name={md} size={20} color={color} />
+      )}
+    </Animated.View>
+  );
+}
+
+const pressStyle = {
+  transform: [{ scale: 1 }],
+  transitionProperty: 'transform',
+  transitionDuration: '120ms',
+  transitionTimingFunction: CSS_EASE_OUT,
+} as const;
+
+const pressInStyle = {
+  transform: [{ scale: 0.97 }],
+} as const;
+
+const washStyle = {
+  position: 'absolute',
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+  opacity: 0,
+  transitionProperty: 'opacity',
+  transitionDuration: '580ms',
+  transitionTimingFunction: CSS_EASE_OUT,
+} as const;
+
+const washReducedStyle = {
+  ...washStyle,
+  transitionDuration: '350ms',
+} as const;
+
+const washOnStyle = { opacity: 1 } as const;
+
+const styles = StyleSheet.create({
+  face: {
+    borderRadius: radius.xl,
+    borderCurve: 'continuous',
+    height: 52,
+    paddingHorizontal: space.xxl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  washConfirm: {
+    backgroundColor: colors.secondarySoftAlpha,
+  },
+  washReject: {
+    backgroundColor: colors.dangerSoft,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+  },
+  status: {
+    position: 'absolute',
+    left: '100%',
+    top: '50%',
+    marginLeft: space.sm,
+    marginTop: -11,
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

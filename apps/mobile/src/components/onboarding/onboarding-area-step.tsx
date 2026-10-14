@@ -258,7 +258,7 @@ export function OnboardingAreaStep({
         label={t('onboarding.continue')}
         icon={{ sf: 'mappin.and.ellipse', md: 'place' }}
         loading={busy}
-        disabled={busy || locating || !resolved}
+        disabled={locating || !resolved}
         confirmed={confirmed}
         onConfirmed={onConfirmed}
         onPress={() => {

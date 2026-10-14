@@ -58,7 +58,9 @@ Used by `event_match` and `area_and_tag`. A user is included when all of these a
    - a circle matches with `ST_DWithin(center, event point, radius_m)`
    - a polygon or copied region boundary matches with `ST_Covers(area, event point)`
 3. That same area has at least one tag in `user_area_tags` that the event also has.
-   Tags on a different area do not count. An area with no tags does not match.
+   Tags on a different area do not count. An area with no tags does not match. The app stores
+   that area’s notifications off when the list is empty, including after skip or clearing the
+   last category, so the switch matches this rule.
 
 One covering area with one shared tag is enough. The phone’s current “Near you”
 location is not an area and is not used.

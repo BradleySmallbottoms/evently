@@ -1,4 +1,5 @@
 import type { UserPreferencesResponse } from '@local-events/contracts';
+import { areaNotificationsEnabled } from '@local-events/domain';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Host, Slider } from '@expo/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,10 +17,7 @@ import { BackPill } from '@/components/ui/back-pill';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TagGroupList } from '@/components/ui/tag-group-list';
 import { setDiscoveryRadiusForPlace } from '@/lib/discovery-radius-store';
-import {
-  DISCOVERY_RADIUS_STOPS_M,
-  resolveDiscoveryRadiusM,
-} from '@/lib/discovery-radius';
+import { DISCOVERY_RADIUS_STOPS_M, resolveDiscoveryRadiusM } from '@/lib/discovery-radius';
 import { listTags } from '@/lib/events';
 import { ensureIdentity, type StoredIdentity } from '@/lib/identity';
 import type { HomeTag } from '@/lib/tag-groups';
@@ -68,7 +66,9 @@ function RadiusSlider({
         backgroundColor: colors.card,
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+      <View
+        style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}
+      >
         <AppText variant="subtitle">{title}</AppText>
         <AppText variant="subtitle" style={{ fontWeight: '700' }}>
           {t('preferences.radiusKm', { km: STOPS_KM[index] })}
@@ -99,20 +99,29 @@ function SettingSwitch({
   title,
   hint,
   value,
+  disabled = false,
   onValueChange,
 }: {
   title: string;
   hint: string;
   value: boolean;
+  disabled?: boolean;
   onValueChange: (value: boolean) => void;
 }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md }}>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: space.md,
+      }}
+    >
       <View style={{ flex: 1, gap: 2 }}>
         <AppText variant="subtitle">{title}</AppText>
         <AppText variant="caption">{hint}</AppText>
       </View>
-      <CenteredSwitch value={value} onValueChange={onValueChange} />
+      <CenteredSwitch value={value} disabled={disabled} onValueChange={onValueChange} />
     </View>
   );
 }
@@ -137,12 +146,13 @@ function AreaEditor({
   const [name, setName] = useState(area.name);
   const [editingName, setEditingName] = useState(false);
   const [tagIds, setTagIds] = useState(area.tagIds);
+  const [notify, setNotify] = useState(() => areaNotificationsEnabled(area));
   const [searchIndex, setSearchIndex] = useState(() =>
     indexForMeters(area.searchRadiusM ?? area.radiusM),
   );
   const [notifyIndex, setNotifyIndex] = useState(() => indexForMeters(area.radiusM));
-  const [notify, setNotify] = useState(area.notify);
   const [active, setActive] = useState(area.active);
+  const notificationsOn = areaNotificationsEnabled({ notify, tagIds });
   const circle = area.center != null && area.radiusM != null;
 
   const save = useMutation({
@@ -153,19 +163,24 @@ function AreaEditor({
         name: name.trim(),
         tagIds,
         searchRadiusM,
-        notify,
+        notify: notificationsOn,
         active,
-        ...(notify && circle && area.center ? { center: area.center, radiusM: notifyRadiusM } : {}),
+        ...(notificationsOn && circle && area.center
+          ? { center: area.center, radiusM: notifyRadiusM }
+          : {}),
       });
     },
     onSuccess: async (updated) => {
-      queryClient.setQueryData<UserPreferencesResponse>(['preferences', identity.userId], (current) => {
-        if (!current) return current;
-        return {
-          ...current,
-          areas: current.areas.map((item) => (item.id === updated.id ? updated : item)),
-        };
-      });
+      queryClient.setQueryData<UserPreferencesResponse>(
+        ['preferences', identity.userId],
+        (current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            areas: current.areas.map((item) => (item.id === updated.id ? updated : item)),
+          };
+        },
+      );
       if (updated.searchRadiusM != null) {
         void setDiscoveryRadiusForPlace(updated.id, updated.searchRadiusM);
       }
@@ -235,75 +250,67 @@ function AreaEditor({
           paddingHorizontal: space.xl,
         }}
       >
-          {editingName ? (
-            <TextInput
-              ref={nameRef}
-              value={name}
-              onChangeText={setName}
-              placeholder={t('profile.areaNamePlaceholder')}
-              placeholderTextColor={colors.inkFaint}
-              maxLength={80}
-              autoCorrect={false}
-              onBlur={() => {
-                setTimeout(cancelNameEdit, 0);
-              }}
-              style={{
-                flex: 1,
-                backgroundColor: colors.card,
-                borderRadius: radius.xl,
-                borderCurve: 'continuous',
-                borderWidth: 1,
-                borderColor: colors.line,
-                minHeight: 48,
-                paddingHorizontal: space.lg,
-                paddingVertical: space.md,
-                fontSize: 16,
-                color: colors.ink,
-              }}
+        {editingName ? (
+          <TextInput
+            ref={nameRef}
+            value={name}
+            onChangeText={setName}
+            placeholder={t('profile.areaNamePlaceholder')}
+            placeholderTextColor={colors.inkFaint}
+            maxLength={80}
+            autoCorrect={false}
+            onBlur={() => {
+              setTimeout(cancelNameEdit, 0);
+            }}
+            style={{
+              flex: 1,
+              backgroundColor: colors.card,
+              borderRadius: radius.xl,
+              borderCurve: 'continuous',
+              borderWidth: 1,
+              borderColor: colors.line,
+              minHeight: 48,
+              paddingHorizontal: space.lg,
+              paddingVertical: space.md,
+              fontSize: 16,
+              color: colors.ink,
+            }}
+          />
+        ) : (
+          <AppText variant="title" numberOfLines={1} style={{ flex: 1 }}>
+            {name}
+          </AppText>
+        )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t(editingName ? 'profile.areaNameDone' : 'profile.areaEditName')}
+          onPressIn={() => {
+            if (editingName) keepNameEdit.current = true;
+          }}
+          onPress={() => {
+            if (editingName) finishNameEdit();
+            else startNameEdit();
+          }}
+          hitSlop={8}
+          style={{
+            width: 36,
+            height: 36,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: radius.pill,
+            backgroundColor: colors.accentSoft,
+          }}
+        >
+          {process.env.EXPO_OS === 'ios' ? (
+            <SymbolView
+              name={(editingName ? 'checkmark' : 'pencil') as never}
+              size={16}
+              tintColor={colors.ink}
             />
           ) : (
-            <AppText
-              variant="title"
-              numberOfLines={1}
-              style={{ flex: 1 }}
-            >
-              {name}
-            </AppText>
+            <MaterialIcons name={editingName ? 'check-box' : 'edit'} size={18} color={colors.ink} />
           )}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t(editingName ? 'profile.areaNameDone' : 'profile.areaEditName')}
-            onPressIn={() => {
-              if (editingName) keepNameEdit.current = true;
-            }}
-            onPress={() => {
-              if (editingName) finishNameEdit();
-              else startNameEdit();
-            }}
-            hitSlop={8}
-            style={{
-              width: 36,
-              height: 36,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: radius.pill,
-              backgroundColor: colors.accentSoft,
-            }}
-          >
-            {process.env.EXPO_OS === 'ios' ? (
-              <SymbolView
-                name={(editingName ? 'checkmark' : 'pencil') as never}
-                size={16}
-                tintColor={colors.ink}
-              />
-            ) : (
-              <MaterialIcons
-                name={editingName ? 'check-box' : 'edit'}
-                size={18}
-                color={colors.ink}
-              />
-            )}
-          </Pressable>
+        </Pressable>
       </View>
 
       <RadiusSlider
@@ -315,7 +322,16 @@ function AreaEditor({
       />
 
       <View style={{ gap: space.md, paddingHorizontal: space.xl }}>
-        <TagGroupList showHeading={true} tags={tags} selectedIds={tagIds} onChange={setTagIds} />
+        <TagGroupList
+          showHeading={true}
+          tags={tags}
+          selectedIds={tagIds}
+          onChange={(ids) => {
+            setTagIds(ids);
+            if (ids.length === 0) setNotify(false);
+          }}
+        />
+        <AppText variant="caption">{t('profile.areaTagsHint')}</AppText>
       </View>
 
       <View
@@ -338,13 +354,14 @@ function AreaEditor({
         />
         <SettingSwitch
           title={t('profile.areaNotify')}
-          hint={t('profile.areaNotifyHint')}
-          value={notify}
+          hint={t(tagIds.length === 0 ? 'profile.areaNotifyNeedsTags' : 'profile.areaNotifyHint')}
+          value={notificationsOn}
+          disabled={tagIds.length === 0}
           onValueChange={setNotify}
         />
       </View>
 
-      {notify && circle ? (
+      {notificationsOn && circle ? (
         <RadiusSlider
           title={t('profile.areaNotifyRadius')}
           hint={t('profile.areaNotifyRadiusHint')}
@@ -353,7 +370,7 @@ function AreaEditor({
           width={sliderWidth}
         />
       ) : null}
-      {notify && !circle ? (
+      {notificationsOn && !circle ? (
         <AppText variant="caption" style={{ paddingHorizontal: space.xl }}>
           {t('profile.areaNotifyShape')}
         </AppText>

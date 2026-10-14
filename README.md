@@ -116,7 +116,7 @@ calls) in the same change as every new major feature.**
   one event per occasion. The hero image is the page `og:image`.
   The worker reads the list, then saves each event after its page and tags are ready, before
   fetching the next page. Tag matching uses a local [Ollama](https://ollama.com) model
-  (`ollama serve`, default `qwen3:32b`). It may pick up to three existing tags and cannot invent
+  (`ollama serve`, default `qwen3:32b`). It may pick up to five existing tags scored above 90 and cannot invent
   one. An event that already has tags keeps them and is not sent to the model again. If Ollama
   is not running, a new event is still saved, without a tag. `OLLAMA_BASE_URL` must be a loopback URL.
   `pnpm --filter @local-events/data-workers dev -- --source glada-hudik` writes `in_review` events.
@@ -213,7 +213,8 @@ calls) in the same change as every new major feature.**
   tags). Activate requests the OS permission; Skip stores the choice and deferred **reminders**
   reappear after every 5 app activations (one permission at a time). The tags step writes those
   tags as the device home filters (`le.homeTagIds`) and on the area saved in the previous step.
-  Each interest card selects that interest’s tags. **Skip** stores an empty selection. There is
+  Each interest card selects that interest’s tags. **Skip** stores an empty selection and turns
+  that area’s notifications off. The home list still shows every event. There is
   no account-wide interest list. Reset app data clears the device state.
 - Home event queries use **existing** location permission only (no prompt). Check-in and onboarding
   / reminders own the permission request. “Near you” reads that location when the app becomes
@@ -270,7 +271,8 @@ calls) in the same change as every new major feature.**
 - The location menu always includes “Near you” (device location). Other rows are the user’s
   active saved areas, labeled with the name stored on the area. Each area keeps its own tags
   (`user_area_tags`). Choosing an area shows those tags on home; “Near you” keeps the device
-  filters. Changing tags on home updates the selected area. The search-radius slider is remembered
+  filters. An empty category list shows every event on home and stores that area’s notifications
+  off. Changing tags on home updates the selected area. The search-radius slider is remembered
   per place, on the device and on the user: a saved area stores `search_radius_m`, and “Near you”
   stores `discovery_radius_m`. A new circle starts with `search_radius_m` equal to its
   notification radius. A plus in the menu searches for a

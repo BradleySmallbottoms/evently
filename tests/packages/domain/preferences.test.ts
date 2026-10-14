@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AREA_RADIUS_PRESETS_M,
+  areaNotificationsEnabled,
   canAddSavedArea,
   MAX_AREA_RADIUS_M,
   MAX_SAVED_AREAS,
@@ -21,6 +22,14 @@ describe('AREA_RADIUS_PRESETS_M', () => {
   });
 });
 
+describe('areaNotificationsEnabled', () => {
+  it('stays off until the area has a category and the switch is on', () => {
+    expect(areaNotificationsEnabled({ notify: true, tagIds: [] })).toBe(false);
+    expect(areaNotificationsEnabled({ notify: false, tagIds: ['a'] })).toBe(false);
+    expect(areaNotificationsEnabled({ notify: true, tagIds: ['a'] })).toBe(true);
+  });
+});
+
 describe('canAddSavedArea', () => {
   it('caps at MAX_SAVED_AREAS', () => {
     expect(canAddSavedArea(0)).toBe(true);
@@ -31,14 +40,15 @@ describe('canAddSavedArea', () => {
 
 describe('validateCircleArea', () => {
   it('accepts launch-range radii', () => {
-    expect(
-      validateCircleArea({ center: { lat: 61.3, lng: 17.05 }, radiusM: 15_000 }),
-    ).toEqual({ ok: true });
+    expect(validateCircleArea({ center: { lat: 61.3, lng: 17.05 }, radiusM: 15_000 })).toEqual({
+      ok: true,
+    });
   });
   it('rejects out-of-range radii', () => {
-    expect(
-      validateCircleArea({ center: { lat: 61.3, lng: 17.05 }, radiusM: 100 }),
-    ).toEqual({ ok: false, reason: 'radius_out_of_range' });
+    expect(validateCircleArea({ center: { lat: 61.3, lng: 17.05 }, radiusM: 100 })).toEqual({
+      ok: false,
+      reason: 'radius_out_of_range',
+    });
   });
 });
 

@@ -232,8 +232,11 @@ for 7 days near this place.
 **Screen 5 --- Interests** - Full-bleed photo. - Interest cards. Each
 card selects every loaded tag in that interest. - Finish stores those
 tags as the device home filters and, when the area step saved a place, on
-that area. There is no account-wide interest list. - "Skip" stores an
-empty selection: home shows everything, and no area tags are saved.
+that area. There is no account-wide interest list. - "Done" with at
+least one group selected stores those tags. With none selected, it shows
+the same confirmation as "Skip". - "Skip" stores an empty selection: home
+shows everything, no area tags are saved, and that area’s notifications
+are turned off.
 
 Onboarding rules: - Use full-bleed photography with a dark lower
 gradient. - Place copy in the lower third, with enough contrast and

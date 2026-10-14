@@ -92,7 +92,8 @@ export default function HomeScreen() {
     placeId === NEARBY_PLACE_ID
       ? null
       : (preferences.data?.areas ?? []).find((area) => area.id === placeId);
-  const rawTagIds = tagDraft ?? (activeArea ? (activeArea.tagIds ?? []) : (storedTagIds.data ?? []));
+  const rawTagIds =
+    tagDraft ?? (activeArea ? (activeArea.tagIds ?? []) : (storedTagIds.data ?? []));
   const knownTagIds = useMemo(
     () => new Set((tags.data?.items ?? []).map((tag) => tag.id)),
     [tags.data],
@@ -148,8 +149,14 @@ export default function HomeScreen() {
   function changeHomeTags(ids: string[]) {
     setTagDraft(ids);
     if (activeArea && identity.data) {
-      cacheAreaTags(queryClient, identity.data.userId, activeArea.id, ids);
-      void updateAreaTags(identity.data, activeArea.id, ids);
+      const notify = ids.length === 0 ? false : undefined;
+      cacheAreaTags(queryClient, identity.data.userId, activeArea.id, ids, notify);
+      void updateAreaTags(
+        identity.data,
+        activeArea.id,
+        ids,
+        notify === undefined ? undefined : { notify },
+      );
       return;
     }
     queryClient.setQueryData(['home-tag-ids'], ids);
@@ -360,11 +367,7 @@ export default function HomeScreen() {
   });
   const radiusByPlace = useMemo(
     () =>
-      radiiForPlaces(
-        radiusMap,
-        preferences.data?.areas ?? [],
-        preferences.data?.discoveryRadiusM,
-      ),
+      radiiForPlaces(radiusMap, preferences.data?.areas ?? [], preferences.data?.discoveryRadiusM),
     [preferences.data?.areas, preferences.data?.discoveryRadiusM, radiusMap],
   );
   const locationOptions = [
@@ -434,7 +437,7 @@ export default function HomeScreen() {
                 />
               </View>
             </View>
-            
+
             <TagFilters
               tags={tags.data?.items ?? []}
               selectedIds={selectedTagIds}

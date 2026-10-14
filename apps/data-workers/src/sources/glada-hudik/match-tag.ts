@@ -1,6 +1,7 @@
 /**
- * Ask a local Ollama model to pick up to three existing tags for an event.
- * The model may only return ids from the catalog. A missing server leaves the event untagged.
+ * Ask a local Ollama model to pick existing tags for an event.
+ * The model may only return ids from the catalog, each with a fit score.
+ * Scores of 90 or below are dropped. A missing server leaves the event untagged.
  */
 
 export interface TagChoice {
@@ -14,12 +15,14 @@ export interface TagMatchInput {
   venue?: string;
 }
 
-const useQwen3 = true;  
+const useQwen3 = true;
 
 const DEFAULT_BASE = 'http://127.0.0.1:11434';
-const DEFAULT_MODEL = useQwen3 ? 'qwen3.8' : 'qwen2.5:3b';
+const DEFAULT_MODEL = useQwen3 ? 'qwen3:8b' : 'qwen2.5:3b';
 const DESCRIPTION_LIMIT = 1_200;
-const MAX_TAGS = 3;
+const MAX_TAGS = 5;
+/** Tags at this score or below are not a good enough match. */
+const MIN_SCORE = 90;
 
 export function ollamaBaseUrl(config: Record<string, unknown>): URL {
   const fromConfig = typeof config.ollamaBaseUrl === 'string' ? config.ollamaBaseUrl.trim() : '';
@@ -123,18 +126,26 @@ function resolveTagId(raw: string, catalog: TagChoice[]): TagChoice | null {
   return suffix.length === 1 ? suffix[0]! : null;
 }
 
-function idsFromChoice(parsed: object): string[] {
-  if ('externalIds' in parsed && Array.isArray(parsed.externalIds)) {
-    return parsed.externalIds.map(idText).filter(Boolean);
-  }
-  if (!('externalId' in parsed)) return [];
-  const id = parsed.externalId;
-  if (Array.isArray(id)) return id.map(idText).filter(Boolean);
-  const text = idText(id);
-  return text ? [text] : [];
+function scoreValue(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return value;
 }
 
-/** Up to three catalog tags. Unknown ids are dropped. A bare numeric id matches `prefix:id`. */
+/** Catalog ids whose fit score is above {@link MIN_SCORE}. */
+function scoredIds(parsed: object): string[] {
+  if (!('externalIds' in parsed) || !Array.isArray(parsed.externalIds)) return [];
+  const ids: string[] = [];
+  for (const item of parsed.externalIds) {
+    if (!item || typeof item !== 'object') continue;
+    const id = 'id' in item ? idText(item.id) : '';
+    const score = 'score' in item ? scoreValue(item.score) : null;
+    if (!id || score === null || score <= MIN_SCORE) continue;
+    ids.push(id);
+  }
+  return ids;
+}
+
+/** Up to five catalog tags with a score above 90. Unknown ids are dropped. A bare numeric id matches `prefix:id`. */
 export function parseTagChoices(body: string, catalog: TagChoice[]): TagChoice[] {
   const start = body.indexOf('{');
   const end = body.lastIndexOf('}');
@@ -147,7 +158,7 @@ export function parseTagChoices(body: string, catalog: TagChoice[]): TagChoice[]
   }
   if (!parsed || typeof parsed !== 'object') return [];
   const chosen: TagChoice[] = [];
-  for (const id of idsFromChoice(parsed)) {
+  for (const id of scoredIds(parsed)) {
     if (chosen.length >= MAX_TAGS) break;
     const tag = resolveTagId(id, catalog);
     if (!tag || chosen.some((item) => item.externalId === tag.externalId)) continue;
@@ -160,8 +171,8 @@ function promptFor(event: TagMatchInput, catalog: TagChoice[]): string {
   const lines = catalog.map((tag) => `${tag.externalId} | ${tag.name}`);
   const description = event.description?.replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_LIMIT);
   return [
-    'Välj högst 2 taggar som passar evenemanget. Använd bara id från listan. Gör en bedömning av hur väl taggarna passar evenemanget, ge en siffra mellan 0 och 100 för varje tagg.',
-    'Svara bara med JSON: {"externalIds":["<id>"]} eller {"externalIds":[]} om ingen tagg passar.',
+    'För varje tagg, bedöm hur väl den passar evenemanget från 0 till 100 och skapa en lista med taggar som får en poäng över 90.',
+    'Svara bara med JSON: {"externalIds":[{"id":"<id>","score":<score>}]} eller {"externalIds":[]} om ingen tagg passar.',
     'Taggar:',
     ...lines,
     'Evenemang:',
@@ -173,7 +184,7 @@ function promptFor(event: TagMatchInput, catalog: TagChoice[]): string {
 
 export type TagMatchResult = { ok: true; tags: TagChoice[] } | { ok: false };
 
-/** Up to three catalog tags, none, or a failed local call. */
+/** Up to five catalog tags with a score above 90, none, or a failed local call. */
 export async function matchEventTag(
   event: TagMatchInput,
   catalog: TagChoice[],
@@ -194,8 +205,6 @@ export async function matchEventTag(
   let response: Response;
   try {
     console.log('Running Ollama request with model ', model, 'on event with title ', event.title);
-    console.log('Event description', event.description);
-    console.log('Event venue', event.venue);
     response = await fetchImpl(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -213,12 +222,18 @@ export async function matchEventTag(
     return { ok: false };
   }
   if (!response.ok) {
-    console.log('Ollama request failed with status', response.status, 'and body', await response.text());
+    console.log(
+      'Ollama request failed with status',
+      response.status,
+      'and body',
+      await response.text(),
+    );
     return { ok: false };
   }
   let payload: unknown;
   try {
     payload = await response.json();
+    console.log('Ollama response', payload);
   } catch (e) {
     console.log('Error parsing Ollama response', e);
     return { ok: false };

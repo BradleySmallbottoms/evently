@@ -144,7 +144,8 @@ Product invariants (enforced in domain, tested)
   chosen radius as that travel distance; skipping leaves the default. The onboarding tags step
   stores the chosen tags as the device home filters and on the area just saved. There is no
   account-wide interest list. Nearby notifications use the tags on the covering area. A follow of a
-  publisher receives every notification for that publisher’s events. Skip stores an empty selection.
+  publisher receives every notification for that publisher’s events. Skip stores an empty selection
+  and turns that area’s notifications off.
   Each saved area keeps its own tags: the home filters
   follow the area chosen in the location menu, and “Near you” keeps the device filters. The
   location menu search radius is remembered per place on the device and on the user.

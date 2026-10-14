@@ -47,7 +47,8 @@ sequenceDiagram
   place is far enough to suggest saving. `PUT /me/travel-distance`. Continuing the onboarding
   area step sets it to the chosen radius (5, 25, 50, or 100 km). Skipping leaves the default.
 - The onboarding tags step stores that selection as the home chips on the device and, when the
-  area step saved a place, on that area. Skip sends an empty list. There is no account-wide
+  area step saved a place, on that area. Skip sends an empty list and turns that area’s
+  notifications off. There is no account-wide
   interest list. Nearby notifications use the tags on the covering area.
 - Home chips follow the saved area that is selected. “Near you” uses the device chips. Editing
   chips while a saved area is selected replaces that area’s `user_area_tags`.

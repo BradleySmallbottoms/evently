@@ -1,3 +1,4 @@
+import { areaNotificationsEnabled } from '@local-events/domain';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -14,10 +15,12 @@ import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
 function areaDetail(
-  area: { searchRadiusM: number | null; notify: boolean },
+  area: { searchRadiusM: number | null; notify: boolean; tagIds: readonly string[] },
   t: (key: string, options?: Record<string, string>) => string,
 ): string {
-  const notifications = t(area.notify ? 'profile.areaNotificationsOn' : 'profile.areaNotificationsOff');
+  const notifications = t(
+    areaNotificationsEnabled(area) ? 'profile.areaNotificationsOn' : 'profile.areaNotificationsOff',
+  );
   if (area.searchRadiusM == null) return notifications;
   const radiusLabel =
     area.searchRadiusM >= 1000

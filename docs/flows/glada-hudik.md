@@ -15,10 +15,10 @@ the description or contact block are `info`. The destination site’s footer lin
 Organizer key is the contact email when the page has one.
 
 The worker reads the whole list first. It then takes one event at a time: the event page, then
-up to three tags from a local Ollama model (`qwen3:32b` unless `OLLAMA_MODEL` is set). The
-answer has to be ids already in the database. That event is saved before the next page is
-fetched. An event that already has tags keeps them and is not sent to the model again. No
-running model means a new event is saved without a tag.
+up to five tags from a local Ollama model (`qwen3:32b` unless `OLLAMA_MODEL` is set). The
+answer has to be ids already in the database, each with a fit score above 90. That event is
+saved before the next page is fetched. An event that already has tags keeps them and is not
+sent to the model again. No running model means a new event is saved without a tag.
 
 ```mermaid
 sequenceDiagram

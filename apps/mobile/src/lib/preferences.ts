@@ -57,14 +57,25 @@ export async function deleteArea(identity: StoredIdentity, areaId: string) {
 
 let areaTagQueue = Promise.resolve();
 
-/** Replace one area's tags. Later calls wait so an older response cannot overwrite a newer one. */
-export function updateAreaTags(identity: StoredIdentity, areaId: string, tagIds: string[]) {
+/**
+ * Replace one area's tags. Later calls wait so an older response cannot overwrite a newer one.
+ * An empty list also turns notifications off, so the stored switch matches nearby matching.
+ */
+export function updateAreaTags(
+  identity: StoredIdentity,
+  areaId: string,
+  tagIds: string[],
+  options?: { notify?: boolean },
+) {
   const run = areaTagQueue.then(async () =>
     throwIfError(
       await api.PATCH('/me/areas/{id}', {
         headers: authHeaders(identity),
         params: { path: { id: areaId } },
-        body: { tagIds },
+        body: {
+          tagIds,
+          ...(options?.notify === undefined ? {} : { notify: options.notify }),
+        },
       }),
     ),
   );

@@ -257,7 +257,9 @@ describe('glada-hudik fetch', () => {
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/api/chat')) {
-        return json({ message: { content: '{"externalIds":["30224"]}' } });
+        return json({
+          message: { content: '{"externalIds":[{"id":"30224","score":95}]}' },
+        });
       }
       if (url.includes('/api/cbis-product-list')) {
         const page = new URL(url).searchParams.get('page');
@@ -294,22 +296,28 @@ describe('glada-hudik tag match', () => {
     { externalId: 'visit-soderhamn:30184', name: 'Jul & Nyår' },
   ];
 
-  it('accepts up to three catalog ids from the model', () => {
-    expect(parseTagChoices('{"externalId":"visit-soderhamn:30224"}', catalog)).toEqual([
+  it('keeps catalog ids scored above 90', () => {
+    expect(
+      parseTagChoices('{"externalIds":[{"id":"visit-soderhamn:30224","score":96}]}', catalog),
+    ).toEqual([catalog[0]]);
+    expect(parseTagChoices('{"externalIds":[{"id":"30224","score":91}]}', catalog)).toEqual([
       catalog[0],
     ]);
-    expect(parseTagChoices('{"externalId":"30224"}', catalog)).toEqual([catalog[0]]);
-    expect(parseTagChoices('{"externalId":30224}', catalog)).toEqual([catalog[0]]);
+    expect(parseTagChoices('{"externalIds":[{"id":30224,"score":100}]}', catalog)).toEqual([
+      catalog[0],
+    ]);
     expect(
       parseTagChoices(
-        '{"externalIds":["30224","visit-soderhamn:30192","30216","30224","nope"]}',
+        '{"externalIds":[{"id":"30224","score":95},{"id":"visit-soderhamn:30192","score":99},{"id":"30216","score":91},{"id":"30224","score":98},{"id":"nope","score":100},{"id":"30184","score":90},{"id":"30184","score":40}]}',
         catalog,
       ),
     ).toEqual([catalog[0], catalog[1], catalog[2]]);
     expect(parseTagChoices('{"externalIds":[]}', catalog)).toEqual([]);
-    expect(parseTagChoices('{"externalId":"made-up"}', catalog)).toEqual([]);
-    expect(parseTagChoices('{"externalId":"302"}', catalog)).toEqual([]);
-    expect(parseTagChoices('{"externalId":null}', catalog)).toEqual([]);
+    expect(parseTagChoices('{"externalIds":[{"id":"made-up","score":99}]}', catalog)).toEqual([]);
+    expect(parseTagChoices('{"externalIds":[{"id":"302","score":99}]}', catalog)).toEqual([]);
+    expect(parseTagChoices('{"externalIds":[{"id":null,"score":99}]}', catalog)).toEqual([]);
+    expect(parseTagChoices('{"externalIds":[{"id":"30224","score":90}]}', catalog)).toEqual([]);
+    expect(parseTagChoices('{"externalIds":["30224"]}', catalog)).toEqual([]);
   });
 
   it('refuses an Ollama URL that is not on this machine', () => {
@@ -323,7 +331,9 @@ describe('glada-hudik tag match', () => {
       {},
       async () =>
         json({
-          message: { content: '{"externalId":"visit-soderhamn:30224"}' },
+          message: {
+            content: '{"externalIds":[{"id":"visit-soderhamn:30224","score":97}]}',
+          },
         }),
     );
     expect(result).toEqual({
@@ -359,17 +369,18 @@ describe('glada-hudik tag match', () => {
     expect(result).toEqual({ ok: false });
   });
 
-  it('stores up to three tags the local model returns', async () => {
+  it('stores tags the local model scores above 90', async () => {
     const result = await matchEventTag({ title: 'Julmarknad' }, catalog, {}, async () =>
       json({
         message: {
-          content: '{"externalIds":["30224","30192","30216","30184"]}',
+          content:
+            '{"externalIds":[{"id":"30224","score":95},{"id":"30192","score":88},{"id":"30216","score":91},{"id":"30184","score":90}]}',
         },
       }),
     );
     expect(result).toEqual({
       ok: true,
-      tags: [catalog[0], catalog[1], catalog[2]],
+      tags: [catalog[0], catalog[2]],
     });
   });
 });
