@@ -475,7 +475,6 @@ export default function EventDetailScreen() {
                   borderTopLeftRadius: radius.lg,
                   borderTopRightRadius: radius.lg,
                   borderCurve: 'continuous',
-                  gap: space.lg,
                   paddingTop: 36,
                   paddingBottom: space.xxl,
                 }}
@@ -605,11 +604,29 @@ export default function EventDetailScreen() {
                     </View>
                   </View>
 
-
                 </View>
+
+                <EventPlan
+                  interestedLabel={t('events.planInterested')}
+                  comingLabel={t('events.planComing')}
+                  hint={t('events.planHint')}
+                  interested={isSaved}
+                  coming={isComing}
+                  interestedCount={event.data.numSaved}
+                  comingCount={event.data.numComing}
+                  interestedCountLabel={t('events.planInterestedCount', {
+                    count: event.data.numSaved,
+                  })}
+                  comingCountLabel={t('events.planComingCount', {
+                    count: event.data.numComing,
+                  })}
+                  onInterestedPress={toggleSaved}
+                  onComingPress={toggleComing}
+                />
 
                 <View style={{
                   paddingHorizontal: space.lg, gap: space.lg,
+                  marginTop: space.lg,
                 }}>
 
                   <TagPills tags={namesForTagIds(event.data.tagIds, tags.data?.items)} />
@@ -621,17 +638,6 @@ export default function EventDetailScreen() {
                   ) : null}
 
                 </View>
-
-                <EventPlan
-                  title={t('events.planTitle')}
-                  interestedLabel={t('events.planInterested')}
-                  comingLabel={t('events.planComing')}
-                  hint={t('events.planHint')}
-                  interested={isSaved}
-                  coming={isComing}
-                  onInterestedPress={toggleSaved}
-                  onComingPress={toggleComing}
-                />
 
                 <View style={{
                   paddingHorizontal: space.lg, gap: space.lg,

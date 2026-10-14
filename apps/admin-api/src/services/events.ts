@@ -18,6 +18,8 @@ import {
 import {
   canApproveImportedEvent,
   canRejectImportedEvent,
+  publicAssetUrl,
+  publicGalleryUrls,
   shouldEnqueueNotifications,
   importPlanToSchedule,
   validateEventFields,
@@ -58,6 +60,8 @@ export type AdminEventEnv = {
   now?: () => Date;
   domainEvents?: DomainEventPublisher;
   audit?: AdminAuditServices;
+  /** Garage or CloudFront origin. Image URLs are omitted when this is unset. */
+  assetsPublicBaseUrl?: string;
 };
 
 type MemoryEventLink = {
@@ -90,6 +94,7 @@ type MemoryEvent = {
   links?: MemoryEventLink[];
   featured?: boolean;
   checkInEnabled?: boolean;
+  images?: { role: string; s3Key: string }[];
   createdAt: string;
   updatedAt: string;
 };
@@ -266,7 +271,22 @@ function asListItem(
   };
 }
 
-function asDetail(e: MemoryEvent, publisherName: string): AdminEventDetail {
+function imageFields(
+  images: readonly { role: string; s3Key: string }[],
+  assetsPublicBaseUrl: string | undefined,
+): Pick<AdminEventDetail, 'imageUrl' | 'imageUrls'> {
+  const main = images.find((image) => image.role === 'main')?.s3Key ?? null;
+  return {
+    imageUrl: publicAssetUrl(assetsPublicBaseUrl, main),
+    imageUrls: publicGalleryUrls(assetsPublicBaseUrl, images),
+  };
+}
+
+function asDetail(
+  e: MemoryEvent,
+  publisherName: string,
+  assetsPublicBaseUrl?: string,
+): AdminEventDetail {
   return {
     ...asListItem(e, publisherName),
     description: e.description ?? null,
@@ -279,6 +299,7 @@ function asDetail(e: MemoryEvent, publisherName: string): AdminEventDetail {
     sourceUrl: e.sourceUrl,
     tagIds: e.tagIds ?? [],
     links: e.links ?? [],
+    ...imageFields(e.images ?? [], assetsPublicBaseUrl),
     updatedAt: e.updatedAt,
   };
 }
@@ -348,7 +369,11 @@ export function createMemoryAdminEventServices(
     async get(eventId) {
       const row = store.events.get(eventId);
       if (!row) return null;
-      return asDetail(row, store.publishers.get(row.publisherId)?.name ?? 'Unknown');
+      return asDetail(
+        row,
+        store.publishers.get(row.publisherId)?.name ?? 'Unknown',
+        env.assetsPublicBaseUrl,
+      );
     },
     async approve(eventId, actor) {
       const row = store.events.get(eventId);
@@ -395,7 +420,7 @@ export function createMemoryAdminEventServices(
       }
       assertEditable(row, body);
       const publisherName = store.publishers.get(row.publisherId)?.name ?? 'Unknown';
-      const before = asDetail(row, publisherName);
+      const before = asDetail(row, publisherName, env.assetsPublicBaseUrl);
       const changed = contentChanges(row, body);
       const previousStatus = row.status;
       applyMemoryPatch(row, body);
@@ -414,7 +439,7 @@ export function createMemoryAdminEventServices(
           changedFields: changed,
         });
       }
-      const after = asDetail(row, publisherName);
+      const after = asDetail(row, publisherName, env.assetsPublicBaseUrl);
       await audit.write({
         actor,
         action: 'event.patch',
@@ -439,6 +464,16 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       .from(schema.eventTags)
       .where(eq(schema.eventTags.eventId, eventId));
     return rows.map((row) => row.tagId);
+  }
+
+  async function imagesFor(
+    eventId: string,
+  ): Promise<Pick<AdminEventDetail, 'imageUrl' | 'imageUrls'>> {
+    const rows = await db
+      .select({ role: schema.eventImages.role, s3Key: schema.eventImages.s3Key })
+      .from(schema.eventImages)
+      .where(eq(schema.eventImages.eventId, eventId));
+    return imageFields(rows, env.assetsPublicBaseUrl);
   }
 
   async function linksFor(eventId: string): Promise<EventLink[]> {
@@ -514,6 +549,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       sourceUrl: row.sourceUrl,
       tagIds: await tagIdsFor(eventId),
       links: await linksFor(eventId),
+      ...(await imagesFor(eventId)),
       featured: row.featured,
       checkInEnabled: row.checkInEnabled,
       createdAt: row.createdAt.toISOString(),

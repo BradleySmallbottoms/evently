@@ -308,6 +308,10 @@ export const AdminEventDetail = AdminEventListItem.extend({
   sourceUrl: z.string().nullable(),
   tagIds: z.array(Id),
   links: z.array(EventLink),
+  /** Hero image. Null when the event has none or the public asset host is unset. */
+  imageUrl: z.url().nullable(),
+  /** Photos after the hero, `gallery-1` then `gallery-2`, and so on. */
+  imageUrls: z.array(z.url()),
   updatedAt: z.iso.datetime(),
 });
 export type AdminEventDetail = z.infer<typeof AdminEventDetail>;

@@ -63,6 +63,10 @@
     "planInterested": "Intresserad",
     "planComing": "Jag kommer",
     "planHint": "Du kan ändra ditt svar när som helst.",
+    "planInterestedCount_one": "intresserad",
+    "planInterestedCount_other": "intresserade",
+    "planComingCount_one": "kommer",
+    "planComingCount_other": "kommer",
     "planError": "Kunde inte uppdatera din plan. Försök igen.",
     "filterDate": "Dag",
     "filterDateLabel": "Datum",
@@ -321,7 +325,8 @@
       "sport": "Sport",
       "market": "Marknad",
       "talks": "Föreläsningar",
-      "local": "Lokalt & samhälle"
+      "local": "Lokalt & samhälle",
+      "other": "Övrigt"
     },
     "tagsLoadError": "Kunde inte hämta taggar. Du kan visa allt och välja senare.",
     "tagsSaveError": "Kunde inte spara taggarna.",

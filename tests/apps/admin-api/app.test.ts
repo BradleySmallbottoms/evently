@@ -318,6 +318,10 @@ describe('admin api', () => {
             venueName: 'Arena',
             location: { lat: 61.3, lng: 17.05 },
             sourceUrl: null,
+            images: [
+              { role: 'main', s3Key: 'events/44444444-4444-4444-8444-444444444401/main' },
+              { role: 'gallery-1', s3Key: 'events/44444444-4444-4444-8444-444444444401/gallery-1' },
+            ],
             createdAt: '2026-01-01T00:00:00.000Z',
             updatedAt: '2026-01-01T00:00:00.000Z',
           },
@@ -350,7 +354,10 @@ describe('admin api', () => {
       await import('../../../apps/admin-api/src/services/events');
     const app = createApp({
       auth,
-      events: createMemoryAdminEventServices(eventStore, { domainEvents }),
+      events: createMemoryAdminEventServices(eventStore, {
+        domainEvents,
+        assetsPublicBaseUrl: 'https://assets.example',
+      }),
     });
     const cookie = await loginSession(app);
 
@@ -365,6 +372,8 @@ describe('admin api', () => {
       title: 'Concert',
       description: 'Live',
       location: { lat: 61.3, lng: 17.05 },
+      imageUrl: 'https://assets.example/events/44444444-4444-4444-8444-444444444401/main',
+      imageUrls: ['https://assets.example/events/44444444-4444-4444-8444-444444444401/gallery-1'],
     });
 
     const tags = await app.request('/v1/tags', { headers: { cookie } });

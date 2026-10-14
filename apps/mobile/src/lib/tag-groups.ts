@@ -63,6 +63,7 @@ export const HOME_TAG_GROUPS = [
       'jul-nyar',
       'julskyltning',
       'julmarknad',
+      'ulmarknad',
       'midsommar',
       'pask',
       'valborg',
@@ -72,7 +73,7 @@ export const HOME_TAG_GROUPS = [
   },
   {
     id: 'other',
-    slugs: ['mat-dryck', 'julbord', 'forsaljning', 'auktion-marknad'],
+    slugs: ['mat-dryck', 'julbord', 'forsaljning', 'forsaljning-amn30220', 'auktion-marknad'],
   },
 ] as const;
 

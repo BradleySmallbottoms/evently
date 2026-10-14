@@ -8,12 +8,16 @@ import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
 type Props = {
-  title: string;
+  title?: string;
   interestedLabel: string;
   comingLabel: string;
   hint: string;
   interested: boolean;
   coming: boolean;
+  interestedCount: number;
+  comingCount: number;
+  interestedCountLabel: string;
+  comingCountLabel: string;
   onInterestedPress: () => void;
   onComingPress: () => void;
 };
@@ -82,6 +86,29 @@ function PlanButton({
   );
 }
 
+function PlanCount({ count, label }: { count: number; label: string }) {
+  return (
+    <View
+      accessibilityRole="text"
+      accessibilityLabel={`${count} ${label}`}
+      style={{ flex: 1, alignItems: 'center', gap: 2 }}
+    >
+      <AppText
+        style={{
+          fontSize: 22,
+          lineHeight: 26,
+          fontWeight: '700',
+          fontVariant: ['tabular-nums'],
+          color: colors.ink,
+        }}
+      >
+        {count}
+      </AppText>
+      <AppText variant="caption">{label}</AppText>
+    </View>
+  );
+}
+
 /** Save (“interested”) and “I’m coming” on the event detail screen. */
 export function EventPlan({
   title,
@@ -90,6 +117,10 @@ export function EventPlan({
   hint,
   interested,
   coming,
+  interestedCount,
+  comingCount,
+  interestedCountLabel,
+  comingCountLabel,
   onInterestedPress,
   onComingPress,
 }: Props) {
@@ -104,7 +135,11 @@ export function EventPlan({
       paddingHorizontal: space.lg,
       backgroundColor: colors.accentSoft,
     }}>
-      <AppText variant="subtitle">{title}</AppText>
+      {title ? <AppText variant="subtitle">{title}</AppText> : null}
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        <PlanCount count={interestedCount} label={interestedCountLabel} />
+        <PlanCount count={comingCount} label={comingCountLabel} />
+      </View>
       <View style={{ flexDirection: 'row', gap: space.sm }}>
         <PlanButton
           label={interestedLabel}

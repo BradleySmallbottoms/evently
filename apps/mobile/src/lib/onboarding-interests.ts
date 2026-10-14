@@ -1,6 +1,9 @@
 import type { HomeTag } from '@/lib/tag-groups';
 
-/** Interest cards on the last onboarding step. Slugs are a partition of the home tag groups. */
+/**
+ * Interest cards on the last onboarding step. Listed slugs are a partition of the home tag
+ * groups. `other` has no slugs: it selects any loaded tag that is not in a listed interest.
+ */
 export const ONBOARDING_INTERESTS = [
   {
     id: 'music',
@@ -39,7 +42,10 @@ export const ONBOARDING_INTERESTS = [
       'cruising',
     ],
   },
-  { id: 'market', slugs: ['auktion-marknad', 'forsaljning', 'julmarknad', 'massa'] },
+  {
+    id: 'market',
+    slugs: ['auktion-marknad', 'forsaljning', 'forsaljning-amn30220', 'julmarknad', 'ulmarknad', 'massa'],
+  },
   { id: 'talks', slugs: ['forelasningar-seminarier', 'naringsliv'] },
   {
     id: 'local',
@@ -56,6 +62,7 @@ export const ONBOARDING_INTERESTS = [
       'internationella-hogtider',
     ],
   },
+  { id: 'other', slugs: [] },
 ] as const;
 
 export type OnboardingInterestId = (typeof ONBOARDING_INTERESTS)[number]['id'];
@@ -64,8 +71,11 @@ const SLUGS_BY_INTEREST = new Map<OnboardingInterestId, ReadonlySet<string>>(
   ONBOARDING_INTERESTS.map((interest) => [interest.id, new Set<string>(interest.slugs)]),
 );
 
+const LISTED_SLUGS = new Set<string>(ONBOARDING_INTERESTS.flatMap((interest) => interest.slugs));
+
 /** Tags from the loaded list that belong to this interest, in list order. */
 export function tagsForInterest(tags: readonly HomeTag[], interestId: OnboardingInterestId): HomeTag[] {
+  if (interestId === 'other') return tags.filter((tag) => !LISTED_SLUGS.has(tag.slug));
   const slugs = SLUGS_BY_INTEREST.get(interestId);
   if (!slugs) return [];
   return tags.filter((tag) => slugs.has(tag.slug));

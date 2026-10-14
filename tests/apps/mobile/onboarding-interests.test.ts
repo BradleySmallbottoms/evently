@@ -31,6 +31,16 @@ describe('onboarding interests', () => {
     expect(tagsForInterest(tags, 'music').map((item) => item.id)).toEqual(['konsert']);
   });
 
+  it('puts unlisted tags on Other and the extra market slugs on Market', () => {
+    const tags = [tag('ulmarknad'), tag('forsaljning-amn30220'), tag('ny-tagg')];
+    expect(tagsForInterest(tags, 'market').map((item) => item.slug)).toEqual([
+      'ulmarknad',
+      'forsaljning-amn30220',
+    ]);
+    expect(tagsForInterest(tags, 'other').map((item) => item.slug)).toEqual(['ny-tagg']);
+    expect(visibleInterests(tags)).toEqual(['market', 'other']);
+  });
+
   it('selects and clears every tag in the interest', () => {
     const tags = [tag('konsert', 'a'), tag('fest', 'b'), tag('fotboll', 'c')];
     const musicIds = tagsForInterest(tags, 'music').map((item) => item.id);

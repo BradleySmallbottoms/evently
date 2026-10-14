@@ -85,7 +85,8 @@ calls) in the same change as every new major feature.**
   (öre). An event with no price is treated as free in the list filter. Cards show
   a known price as `100kr`.
 - Hero images are copied into Garage when `PUBLIC_ASSETS_BUCKET` is set (`pnpm db:up`). The public
-  API returns `imageUrl` only when `ASSETS_PUBLIC_BASE_URL` is set. Visit Söderhamn follows each
+  API returns `imageUrl` only when `ASSETS_PUBLIC_BASE_URL` is set. The admin event page shows
+  the same hero and gallery. Visit Söderhamn follows each
   event's links (the API links and http(s) links in the description) and reads `og:image` and
   `<img>` URLs. The Citybreak image stays the hero. When it is missing, the hero is the first
   og:image, then the first page image. Further crawled images are stored as `gallery-1`,

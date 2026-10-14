@@ -41,6 +41,7 @@ const INTEREST_STYLE: Record<OnboardingInterestId, Icon> = {
   market: { sf: 'bag', md: 'shopping-bag', fill: '#F6D0C6' },
   talks: { sf: 'lightbulb', md: 'lightbulb-outline', fill: '#F8E8C8' },
   local: { sf: 'heart', md: 'favorite-border', fill: '#E6D4F5' },
+  other: { sf: 'tag', md: 'label', fill: '#E7D7C8' },
 };
 
 const ICON_INK = '#2C241C';
@@ -99,9 +100,10 @@ export function OnboardingTagsStep({
               style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}
             >
               {cardWidth > 0
-                ? ONBOARDING_INTERESTS.map((interest) => {
+                ? ONBOARDING_INTERESTS.flatMap((interest) => {
                     const interestTags = tagsForInterest(tags ?? [], interest.id);
                     const ids = interestTags.map((tag) => tag.id);
+                    if (ids.length === 0) return [];
                     const selected = isInterestSelected(selectedIds, ids);
                     return (
                       <InterestCard
@@ -110,7 +112,6 @@ export function OnboardingTagsStep({
                         label={t(`onboarding.interest.${interest.id}`)}
                         width={cardWidth}
                         selected={selected}
-                        disabled={ids.length === 0}
                         onPress={() => {
                           if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
                           setSelectedIds((current) => toggleGroupSelection(current, ids));

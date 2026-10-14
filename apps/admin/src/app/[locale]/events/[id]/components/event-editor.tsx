@@ -24,7 +24,9 @@ import type { FormEvent } from 'react';
 import { Link as AppLink } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 import { toDatetimeLocal, zonedLocalToIso } from '@/lib/zoned-datetime';
+import { EventImages } from './event-images';
 import { EventNotifications } from './event-notifications';
+import { EventTagsField } from './event-tags-field';
 
 type EventMode = 'physical' | 'digital';
 type EventStatus =
@@ -53,6 +55,8 @@ type EventDetail = {
   tagIds: string[];
   featured: boolean;
   checkInEnabled: boolean;
+  imageUrl: string | null;
+  imageUrls: string[];
   links: { type: LinkType; url: string; label: string | null }[];
   createdAt: string;
   updatedAt: string;
@@ -363,6 +367,7 @@ export function EventEditor({ eventId }: { eventId: string }) {
           {saveError ? <Alert severity="error">{saveError}</Alert> : null}
           {tab === 'info' ? (
             <>
+              <EventImages imageUrl={event?.imageUrl ?? null} imageUrls={event?.imageUrls ?? []} />
               <TextField
                 label={t('name')}
                 required
@@ -484,25 +489,12 @@ export function EventEditor({ eventId }: { eventId: string }) {
                   slotProps={{ htmlInput: { maxLength: 3 } }}
                 />
               </Stack>
-              <FormControl fullWidth disabled={categories.isLoading || categories.isError}>
-                <InputLabel id="event-categories-label">{t('categories')}</InputLabel>
-                <Select
-                  labelId="event-categories-label"
-                  label={t('categories')}
-                  multiple
-                  value={form.tagIds}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    update('tagIds', typeof value === 'string' ? value.split(',') : value);
-                  }}
-                >
-                  {(categories.data?.items ?? []).map((category) => (
-                    <MenuItem key={category.id} value={category.id}>
-                      {category.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <EventTagsField
+                tags={categories.data?.items ?? []}
+                selectedIds={form.tagIds}
+                disabled={categories.isLoading || categories.isError}
+                onChange={(ids) => update('tagIds', ids)}
+              />
               <Paper variant="outlined" sx={styles.section}>
                 <Typography variant="overline" color="text.secondary">
                   {t('links')}

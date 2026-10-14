@@ -62,7 +62,11 @@ const { auth, publishers, events, dataSources, audit, moderation, pushMessages }
     return {
       auth: createDbAdminAuthServices(db),
       publishers: createDbAdminPublisherServices(db, { domainEvents }),
-      events: createDbAdminEventServices(db, { domainEvents, audit: auditSvc }),
+      events: createDbAdminEventServices(db, {
+        domainEvents,
+        audit: auditSvc,
+        assetsPublicBaseUrl: process.env.ASSETS_PUBLIC_BASE_URL?.trim() || undefined,
+      }),
       dataSources: createDbAdminDataSourceServices(db),
       audit: auditSvc,
       moderation: createDbAdminModerationServices(db, { audit: auditSvc }),

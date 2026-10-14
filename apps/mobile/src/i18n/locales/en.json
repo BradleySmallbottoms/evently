@@ -63,6 +63,10 @@
     "planInterested": "Interested",
     "planComing": "I'm coming",
     "planHint": "You can change your answer anytime.",
+    "planInterestedCount_one": "interested",
+    "planInterestedCount_other": "interested",
+    "planComingCount_one": "coming",
+    "planComingCount_other": "coming",
     "planError": "Couldn't update your plan. Try again.",
     "filterDate": "Day",
     "filterDateLabel": "Date",
@@ -321,7 +325,8 @@
       "sport": "Sport",
       "market": "Market",
       "talks": "Talks",
-      "local": "Local & community"
+      "local": "Local & community",
+      "other": "Other"
     },
     "tagsLoadError": "Couldn’t load tags. You can show everything and choose later.",
     "tagsSaveError": "Couldn’t save these tags.",
