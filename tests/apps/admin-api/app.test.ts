@@ -145,6 +145,88 @@ describe('admin api', () => {
     ]);
   });
 
+  it('saves a publisher notification plan and schedules it when the publisher is verified', async () => {
+    const { auth } = await seededAuth();
+    const publishers = new Map([
+      [
+        '22222222-2222-4222-8222-222222222201',
+        {
+          id: '22222222-2222-4222-8222-222222222201',
+          name: 'Cafe',
+          slug: 'cafe',
+          type: 'org' as const,
+          verified: true,
+          origin: 'imported' as const,
+          importNotificationPlan: null,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+        },
+      ],
+    ]);
+    const events = new Map([
+      [
+        '33333333-3333-4333-8333-333333333301',
+        {
+          id: '33333333-3333-4333-8333-333333333301',
+          publisherId: '22222222-2222-4222-8222-222222222201',
+          status: 'published',
+          origin: 'imported' as const,
+          title: 'Jazzkväll',
+          startsAtDate: new Date('2026-07-01T18:00:00.000Z'),
+          endsAtDate: new Date('2026-07-01T21:00:00.000Z'),
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    ]);
+    const store = {
+      publishers,
+      events,
+      scheduledImports: [] as {
+        eventId: string;
+        planId: string;
+        offsets: string[];
+        status: 'pending' | 'approved';
+      }[],
+    };
+    const app = createApp({
+      auth,
+      publishers: createMemoryAdminPublisherServices(store, {
+        now: () => new Date('2026-06-15T12:00:00.000Z'),
+      }),
+    });
+    const cookie = await loginSession(app);
+    const saved = await app.request('/v1/publishers/22222222-2222-4222-8222-222222222201', {
+      method: 'PATCH',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ importNotificationPlan: 'standard' }),
+    });
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toMatchObject({ importNotificationPlan: 'standard' });
+    expect(store.scheduledImports).toEqual([
+      {
+        eventId: '33333333-3333-4333-8333-333333333301',
+        planId: 'standard',
+        offsets: ['week', 'day'],
+        status: 'approved',
+      },
+    ]);
+
+    const again = await app.request('/v1/publishers/22222222-2222-4222-8222-222222222201', {
+      method: 'PATCH',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ importNotificationPlan: 'full' }),
+    });
+    expect(again.status).toBe(200);
+    expect(store.scheduledImports).toHaveLength(1);
+
+    const cleared = await app.request('/v1/publishers/22222222-2222-4222-8222-222222222201', {
+      method: 'PATCH',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ importNotificationPlan: null }),
+    });
+    expect(cleared.status).toBe(200);
+    expect(await cleared.json()).toMatchObject({ importNotificationPlan: null });
+  });
+
   it('approves and rejects imported events in review', async () => {
     const { auth } = await seededAuth();
     const eventStore = {
@@ -615,11 +697,13 @@ describe('admin api', () => {
         ],
       }),
     });
-    expect(unpublished.status).toBe(400);
-    expect(await unpublished.json()).toMatchObject({ error: { code: 'event_not_published' } });
+    expect(unpublished.status).toBe(201);
+    const held = (await unpublished.json()) as { items: PushMessage[] };
+    expect(held.items).toHaveLength(1);
+    expect(held.items[0]).toMatchObject({ status: 'pending', approvedAt: null });
   });
 
-  it('rejects event notifications for missing or unpublished events', async () => {
+  it('keeps draft event notifications pending and rejects cancelled events', async () => {
     const { auth } = await seededAuth();
     const draftId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
     const events = new Map<string, AdminPushEventRef>([
@@ -655,8 +739,26 @@ describe('admin api', () => {
       headers: { cookie, 'content-type': 'application/json' },
       body: JSON.stringify({ eventId: draftId, audience: 'area' }),
     });
-    expect(unpublished.status).toBe(400);
-    expect(await unpublished.json()).toMatchObject({ error: { code: 'event_not_published' } });
+    expect(unpublished.status).toBe(201);
+    expect(await unpublished.json()).toMatchObject({ status: 'pending', approvedAt: null });
+
+    events.set('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      title: 'Inställt',
+      status: 'cancelled',
+      publisherId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      publisherName: 'Folkets hus',
+    });
+    const cancelled = await app.request('/v1/push-messages/event', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        eventId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        audience: 'area',
+      }),
+    });
+    expect(cancelled.status).toBe(400);
+    expect(await cancelled.json()).toMatchObject({ error: { code: 'event_not_published' } });
   });
 
   it('allows another event notification after the previous one was sent', async () => {

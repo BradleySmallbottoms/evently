@@ -48,10 +48,10 @@ sequenceDiagram
 | Edit event before send | Refresh default copy unless `copy_edited`; untrusted edits re-pend approval. |
 | Edit event after send | Open draft unchanged; publisher may `POST` a new draft (“Notify again”). |
 | Admin approve / reject | `approved` or `rejected`; schedule editable. |
-| Admin event notification | `POST /push-messages/event` creates an approved reminder for a published event. Audience is `area` (saved notify area covers the point) or `area_and_tag` (area plus a shared interest). Followers are not included. Several may be scheduled for one event. Optional `send_at` and copy. `POST /push-messages/event-plan` creates the whole reviewed plan at once. The publisher's single open draft stays `event_match` and is not replaced by these reminders. |
+| Admin event notification | `POST /push-messages/event` creates a reminder for a draft, in-review, awaiting-verification, or published event. It is `approved` when the event is already published and `pending` until then. Publishing the event approves those pending rows. The worker sends only an `approved` message whose event is `published`. Audience is `area` (saved notify area covers the point) or `area_and_tag` (area plus a shared interest). Followers are not included. Several may be scheduled for one event. Optional `send_at` and copy. `POST /push-messages/event-plan` creates the whole reviewed plan at once. The publisher's single open draft stays `event_match` and is not replaced by these reminders. |
 | Admin broadcast | `POST /push-messages/broadcast` creates an approved row (`everyone` or `tag_interest`); optional `send_at`. |
 | Event cancelled | Cancel open draft; cancel undelivered deliveries. |
-| Worker send | Inbox + silent push; status `sent`. Broadcast inbox rows have `event_id` null and reason `broadcast`. |
+| Worker send | Inbox + silent push; status `sent`. Broadcast inbox rows have `event_id` null and reason `broadcast`. With `PUSH_DRY_RUN=1` the worker still writes the inbox row and `push_message_deliveries` (`status = dry_run`) and does not call Expo. |
 | Sent history | Admin `GET /events/{id}/sent-notifications` and publisher `GET /manage/events/{id}/sent-notifications` list messages in `sending` or `sent` for that event, with a distinct inbox-recipient count. Open drafts stay on the draft endpoints. |
 
 ## Aggregation (per user)

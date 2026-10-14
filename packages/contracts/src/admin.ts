@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { CurrencyCode, EventLink, EventLinkInput, HttpUrl, PriceAmount } from './events';
+import {
+  CurrencyCode,
+  EventLink,
+  EventLinkInput,
+  HttpUrl,
+  ImportNotificationPlan,
+  PriceAmount,
+} from './events';
 
 const Id = z.uuid();
 
@@ -359,5 +366,6 @@ export const AdminPublisherPatchRequest = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
     .optional(),
   type: z.enum(['org', 'person']).optional(),
+  importNotificationPlan: ImportNotificationPlan.nullable().optional(),
 });
 export type AdminPublisherPatchRequest = z.infer<typeof AdminPublisherPatchRequest>;

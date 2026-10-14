@@ -12,12 +12,21 @@ import {
   BROADCAST_MATCH_LIMIT,
   canAdminNotifyEvent,
   defaultPushMessageCopy,
+  pushStatusForEvent,
 } from '@local-events/domain';
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 
 const MATCH_LIMIT = 500;
+
+function eventPushApproval(eventStatus: string, now: Date, adminId: string) {
+  const status = pushStatusForEvent(eventStatus);
+  if (status === 'approved') {
+    return { status, approvedAt: now, approvedByAdminId: adminId };
+  }
+  return { status, approvedAt: null, approvedByAdminId: null };
+}
 
 export type AdminPushMessageServices = {
   list(status?: string): Promise<PushMessage[]>;
@@ -647,21 +656,22 @@ export function createDbAdminPushMessageServices(db: Db): AdminPushMessageServic
       const defaults = defaultPushMessageCopy(event.title);
       const hasCopy = Boolean(body.titleSv || body.bodySv || body.titleEn || body.bodyEn);
       const now = new Date();
+      const approval = eventPushApproval(event.status, now, adminId);
       const [created] = await db
         .insert(schema.pushMessages)
         .values({
           eventId: event.id,
           kind: 'event',
           audience: body.audience,
-          status: 'approved',
+          status: approval.status,
           titleSv: body.titleSv ?? defaults.titleSv,
           bodySv: body.bodySv ?? defaults.bodySv,
           titleEn: body.titleEn ?? defaults.titleEn,
           bodyEn: body.bodyEn ?? defaults.bodyEn,
           copyEdited: hasCopy,
           sendAt: body.sendAt ? new Date(body.sendAt) : null,
-          approvedAt: now,
-          approvedByAdminId: adminId,
+          approvedAt: approval.approvedAt,
+          approvedByAdminId: approval.approvedByAdminId,
           updatedAt: now,
         })
         .returning({ id: schema.pushMessages.id });
@@ -687,6 +697,7 @@ export function createDbAdminPushMessageServices(db: Db): AdminPushMessageServic
       if (!event) throw new Error('event_not_found');
       if (!canAdminNotifyEvent(event.status)) throw new Error('event_not_published');
       const now = new Date();
+      const approval = eventPushApproval(event.status, now, adminId);
       const created = await db
         .insert(schema.pushMessages)
         .values(
@@ -694,15 +705,15 @@ export function createDbAdminPushMessageServices(db: Db): AdminPushMessageServic
             eventId: event.id,
             kind: 'event' as const,
             audience: body.audience,
-            status: 'approved' as const,
+            status: approval.status,
             titleSv: item.titleSv,
             bodySv: item.bodySv,
             titleEn: item.titleEn,
             bodyEn: item.bodyEn,
             copyEdited: true,
             sendAt: new Date(item.sendAt),
-            approvedAt: now,
-            approvedByAdminId: adminId,
+            approvedAt: approval.approvedAt,
+            approvedByAdminId: approval.approvedByAdminId,
             updatedAt: now,
           })),
         )
@@ -874,6 +885,7 @@ export function createMemoryAdminPushMessageServices(input?: {
       const hasCopy = Boolean(body.titleSv || body.bodySv || body.titleEn || body.bodyEn);
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
+      const approval = eventPushApproval(event.status, new Date(now), adminId);
       const row: PushMessage = {
         id,
         eventId: event.id,
@@ -884,15 +896,15 @@ export function createMemoryAdminPushMessageServices(input?: {
         kind: 'event',
         audience: body.audience,
         audienceTagId: null,
-        status: 'approved',
+        status: approval.status,
         titleSv: body.titleSv ?? defaults.titleSv,
         bodySv: body.bodySv ?? defaults.bodySv,
         titleEn: body.titleEn ?? defaults.titleEn,
         bodyEn: body.bodyEn ?? defaults.bodyEn,
         sendAt: body.sendAt ?? null,
         copyEdited: hasCopy,
-        approvedAt: now,
-        approvedByAdminId: adminId,
+        approvedAt: approval.approvedAt?.toISOString() ?? null,
+        approvedByAdminId: approval.approvedByAdminId,
         sentAt: null,
         createdAt: now,
         updatedAt: now,
@@ -905,6 +917,7 @@ export function createMemoryAdminPushMessageServices(input?: {
       if (!event) throw new Error('event_not_found');
       if (!canAdminNotifyEvent(event.status)) throw new Error('event_not_published');
       const now = new Date().toISOString();
+      const approval = eventPushApproval(event.status, new Date(now), adminId);
       return body.notifications.map((item) => {
         const id = crypto.randomUUID();
         const row: PushMessage = {
@@ -917,15 +930,15 @@ export function createMemoryAdminPushMessageServices(input?: {
           kind: 'event',
           audience: body.audience,
           audienceTagId: null,
-          status: 'approved',
+          status: approval.status,
           titleSv: item.titleSv,
           bodySv: item.bodySv,
           titleEn: item.titleEn,
           bodyEn: item.bodyEn,
           sendAt: item.sendAt,
           copyEdited: true,
-          approvedAt: now,
-          approvedByAdminId: adminId,
+          approvedAt: approval.approvedAt?.toISOString() ?? null,
+          approvedByAdminId: approval.approvedByAdminId,
           sentAt: null,
           createdAt: now,
           updatedAt: now,

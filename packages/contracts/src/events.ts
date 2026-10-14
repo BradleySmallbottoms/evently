@@ -230,6 +230,9 @@ export function publicEventTagIds(query: { tagId?: string; tagIds?: string }): s
   return [...new Set([...(query.tagId ? [query.tagId] : []), ...tagIdList(query.tagIds)])];
 }
 
+export const ImportNotificationPlan = z.enum(['single', 'standard', 'countdown', 'full']);
+export type ImportNotificationPlan = z.infer<typeof ImportNotificationPlan>;
+
 export const PublisherSummaryAdmin = z.object({
   id: Id,
   name: z.string(),
@@ -237,6 +240,7 @@ export const PublisherSummaryAdmin = z.object({
   type: z.enum(['org', 'person']),
   verified: z.boolean(),
   origin: EventOrigin,
+  importNotificationPlan: ImportNotificationPlan.nullable(),
   createdAt: z.iso.datetime(),
 });
 export type PublisherSummaryAdmin = z.infer<typeof PublisherSummaryAdmin>;

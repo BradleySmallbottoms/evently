@@ -19,6 +19,7 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 
 | Feature                                                | Diagram                                                  |
 | ------------------------------------------------------ | -------------------------------------------------------- |
+| Rejected device identity (reset + onboarding)          | [identity-reset.md](./identity-reset.md)                 |
 | Web sign-in with app pairing code                      | [web-pairing-login.md](./web-pairing-login.md)           |
 | Device linking (new phone → old phone confirms)        | [device-linking.md](./device-linking.md)                 |
 | Publisher profiles & member invites                    | [publisher-invites.md](./publisher-invites.md)           |
@@ -36,3 +37,4 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Saved events and custom lists                          | [saved-events.md](./saved-events.md)                     |
 | I'm coming and popular events                          | [event-coming.md](./event-coming.md)                     |
 | Admin view and edit an event                           | [admin-event-edit.md](./admin-event-edit.md)             |
+| Publisher import notification plan                     | [publisher-import-notifications.md](./publisher-import-notifications.md) |

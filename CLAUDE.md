@@ -124,6 +124,10 @@ Product invariants (enforced in domain, tested)
 - A user id never authenticates; the app holds a device credential in secure storage.
 - Events from unverified publishers are `awaiting_verification`: not listed, searched or pushed.
 - Imported events from temporary publishers or review-trust sources go to `in_review`.
+- Script-imported events are notified only when the publisher is verified and its import
+  notification plan is set. Future reminders are approved when the event is published, and
+  stored as pending while the event is still in review. Publishing the event approves them.
+  Nothing means no import notification.
 - Only checked-in users rate, once, within 14 days after the end. Public sees aggregates only.
   Anonymous users can score but not comment.
 - A save is the interested bookmark. "I'm coming" is a separate row. Popularity is `numSaved` +

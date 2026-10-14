@@ -12,9 +12,11 @@ export const brand = {
   overlay: '#111820',
   success: '#477B65',
   error: '#B84C43',
+  errorSoft: '#F8D6D2',
   accentSoft: '#F8E6D8',
   accentSoftAlpha: '#F8E6D899',
   secondarySoft: '#E4EFEA',
+  secondarySoftAlpha: '#729A8Bcc',
   infoSoft: '#E3EBF3',
   /** Aliases used by existing screens. */
   canvas: '#F6F1E8',
@@ -36,6 +38,7 @@ export const colors = {
   accentSoftAlpha: brand.accentSoftAlpha,
   secondary: brand.secondary,
   secondarySoft: brand.secondarySoft,
+  secondarySoftAlpha: brand.secondarySoftAlpha,
   info: brand.info,
   infoSoft: brand.infoSoft,
   accentDeep: brand.primary,
@@ -47,4 +50,5 @@ export const colors = {
   overlay: brand.overlay,
   success: brand.success,
   danger: brand.error,
+  dangerSoft: brand.errorSoft,
 } as const;

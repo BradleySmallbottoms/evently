@@ -10,7 +10,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -27,6 +27,7 @@ type PublisherRow = {
 export function PublisherCatalog() {
   const t = useTranslations('PublisherCatalog');
   const tApp = useTranslations('App');
+  const locale = useLocale();
   const queryClient = useQueryClient();
 
   const list = useQuery({
@@ -44,6 +45,10 @@ export function PublisherCatalog() {
     },
   });
 
+  const items = [...(list.data?.items ?? [])].sort((a, b) =>
+    a.name.localeCompare(b.name, locale, { sensitivity: 'base' }),
+  );
+
   if (list.isError) {
     const unauthorized =
       list.error instanceof AdminApiError && list.error.status === 401;
@@ -60,8 +65,6 @@ export function PublisherCatalog() {
       </Alert>
     );
   }
-
-  const items = list.data?.items ?? [];
 
   return (
     <Stack spacing={2}>
@@ -85,21 +88,28 @@ export function PublisherCatalog() {
           </TableHead>
           <TableBody>
             {items.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>{item.name}</TableCell>
+              <TableRow key={item.id} hover>
+                <TableCell>
+                  <Link href={`/publishers/${item.id}`}>{item.name}</Link>
+                </TableCell>
                 <TableCell>{item.slug}</TableCell>
                 <TableCell>{item.origin}</TableCell>
                 <TableCell>{item.verified ? '✓' : '—'}</TableCell>
                 <TableCell align="right">
-                  {!item.verified ? (
-                    <Button
-                      size="small"
-                      disabled={verify.isPending}
-                      onClick={() => verify.mutate(item.id)}
-                    >
-                      {t('verify')}
+                  <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                    <Button component={Link} href={`/publishers/${item.id}`} size="small">
+                      {t('edit')}
                     </Button>
-                  ) : null}
+                    {!item.verified ? (
+                      <Button
+                        size="small"
+                        disabled={verify.isPending}
+                        onClick={() => verify.mutate(item.id)}
+                      >
+                        {t('verify')}
+                      </Button>
+                    ) : null}
+                  </Stack>
                 </TableCell>
               </TableRow>
             ))}

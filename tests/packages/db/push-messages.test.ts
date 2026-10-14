@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Db } from '../../../packages/db/src/index';
-import { approveOpenPushMessagesForPublisher } from '../../../packages/db/src/push-messages';
+import {
+  approveOpenPushMessagesForPublisher,
+  approvePendingPushMessagesForEvent,
+} from '../../../packages/db/src/push-messages';
 
 function sqlChunksContainDate(value: unknown, seen = new Set<unknown>()): boolean {
   if (value instanceof Date) return true;
@@ -28,5 +31,26 @@ describe('approveOpenPushMessagesForPublisher', () => {
 
     expect(sqlChunksContainDate(query)).toBe(false);
     expect(JSON.stringify(query)).toContain(now.toISOString());
+  });
+});
+
+describe('approvePendingPushMessagesForEvent', () => {
+  it('approves only pending rows for that event', async () => {
+    let query: unknown;
+    const db = {
+      execute: async (q: unknown) => {
+        query = q;
+        return [{ id: '1' }];
+      },
+    } as unknown as Db;
+    const now = new Date('2026-10-14T08:00:00.000Z');
+    const eventId = '11111111-1111-4111-8111-111111111111';
+
+    await expect(approvePendingPushMessagesForEvent(db, eventId, now)).resolves.toBe(1);
+    expect(sqlChunksContainDate(query)).toBe(false);
+    const sqlText = JSON.stringify(query);
+    expect(sqlText).toContain(now.toISOString());
+    expect(sqlText).toContain(eventId);
+    expect(sqlText).toContain('pending');
   });
 });

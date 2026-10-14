@@ -11,7 +11,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
@@ -25,9 +25,10 @@ type PublisherRow = {
   createdAt: string;
 };
 
-export function VerificationQueue() {
+export function VerificationQueue({ embedded = false }: { embedded?: boolean }) {
   const t = useTranslations('Publishers');
   const tApp = useTranslations('App');
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -67,7 +68,7 @@ export function VerificationQueue() {
   if (me.isError || !me.data) {
     return (
       <Stack spacing={2}>
-        <Typography variant="h4" component="h1">
+        <Typography variant={embedded ? 'h5' : 'h4'} component={embedded ? 'h2' : 'h1'}>
           {t('title')}
         </Typography>
         <Alert severity="info">
@@ -80,7 +81,7 @@ export function VerificationQueue() {
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h4" component="h1">
+      <Typography variant={embedded ? 'h5' : 'h4'} component={embedded ? 'h2' : 'h1'}>
         {t('title')}
       </Typography>
       {notice ? <Alert severity="success">{notice}</Alert> : null}
@@ -107,28 +108,37 @@ export function VerificationQueue() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {(list.data ?? []).map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>{row.name}</TableCell>
+              {[...(list.data ?? [])]
+                .sort((a, b) => a.name.localeCompare(b.name, locale, { sensitivity: 'base' }))
+                .map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>
+                    <Link href={`/publishers/${row.id}`}>{row.name}</Link>
+                  </TableCell>
                   <TableCell>{row.slug}</TableCell>
                   <TableCell>{row.type}</TableCell>
                   <TableCell>{row.origin}</TableCell>
                   <TableCell>{new Date(row.createdAt).toLocaleString()}</TableCell>
                   <TableCell align="right">
-                    <Button
-                      size="small"
-                      variant="contained"
-                      disabled={verify.isPending}
-                      onClick={() => {
-                        setNotice(null);
-                        verify.mutate(row.id);
-                      }}
-                    >
-                      {verify.isPending ? t('verifying') : t('verify')}
-                    </Button>
+                    <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                      <Button component={Link} href={`/publishers/${row.id}`} size="small">
+                        {t('edit')}
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        disabled={verify.isPending}
+                        onClick={() => {
+                          setNotice(null);
+                          verify.mutate(row.id);
+                        }}
+                      >
+                        {verify.isPending ? t('verifying') : t('verify')}
+                      </Button>
+                    </Stack>
                   </TableCell>
-                </TableRow>
-              ))}
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </Paper>

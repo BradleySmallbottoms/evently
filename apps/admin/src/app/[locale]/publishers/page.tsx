@@ -1,8 +1,5 @@
-import Stack from '@mui/material/Stack';
 import { setRequestLocale } from 'next-intl/server';
-import { MappingQueue } from './components/mapping-queue';
-import { PublisherCatalog } from './components/publisher-catalog';
-import { VerificationQueue } from './components/verification-queue';
+import { PublishersBoard } from './components/publishers-board';
 
 export default async function PublishersPage({
   params,
@@ -11,11 +8,5 @@ export default async function PublishersPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  return (
-    <Stack spacing={4}>
-      <VerificationQueue />
-      <MappingQueue />
-      <PublisherCatalog />
-    </Stack>
-  );
+  return <PublishersBoard />;
 }

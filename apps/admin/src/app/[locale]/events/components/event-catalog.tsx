@@ -19,6 +19,7 @@ import { AdminApiError, adminFetch } from '@/lib/api';
 
 type EventRow = {
   id: string;
+  publisherId: string;
   publisherName: string;
   title: string;
   mode: string;
@@ -133,7 +134,9 @@ export function EventCatalog() {
                 <TableCell>
                   <Link href={`/events/${item.id}`}>{item.title}</Link>
                 </TableCell>
-                <TableCell>{item.publisherName}</TableCell>
+                <TableCell>
+                  <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>
+                </TableCell>
                 <TableCell>{item.status}</TableCell>
                 <TableCell>{item.featured ? t('featuredYes') : t('featuredNo')}</TableCell>
                 <TableCell>{item.checkInEnabled ? t('featuredYes') : t('featuredNo')}</TableCell>

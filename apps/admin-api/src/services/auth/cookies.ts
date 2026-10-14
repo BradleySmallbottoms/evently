@@ -8,7 +8,8 @@ export function readAdminSessionToken(c: Context): string | undefined {
     const token = header.slice(7).trim();
     if (token.length > 0) return token;
   }
-  return getCookie(c, ADMIN_SESSION_COOKIE);
+  const cookie = getCookie(c, ADMIN_SESSION_COOKIE);
+  return cookie;
 }
 
 export function setAdminSessionCookie(c: Context, token: string, expiresAt: Date): void {

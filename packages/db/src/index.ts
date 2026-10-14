@@ -13,9 +13,11 @@ export {
 } from './postgis';
 export {
   approveOpenPushMessagesForPublisher,
+  approvePendingPushMessagesForEvent,
   cancelOpenPushMessages,
   findLatestSentPushMessage,
   findOpenPushMessage,
+  insertApprovedEventReminders,
   insertPushMessage,
   updatePushMessage,
   type PushMessageRow,

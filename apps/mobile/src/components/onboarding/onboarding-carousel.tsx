@@ -13,16 +13,24 @@ import {
   type StyleProp,
   type TextStyle,
 } from 'react-native';
+import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
+import { AcknowledgeAlert } from '@/components/native/acknowledge-alert';
+import { ConfirmAction } from '@/components/native/confirm-action';
 import { OnboardingAreaStep } from '@/components/onboarding/onboarding-area-step';
 import { OnboardingTagsStep } from '@/components/onboarding/onboarding-tags-step';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ensureIdentity } from '@/lib/identity';
 import { saveHomeTagIds } from '@/lib/home-tag-selection';
-import { createCircleArea, getPreferences, replaceInterests, updateTravelDistance } from '@/lib/preferences';
+import {
+  createCircleArea,
+  getPreferences,
+  replaceInterests,
+  updateTravelDistance,
+} from '@/lib/preferences';
 import { setDiscoveryPlaceId } from '@/lib/use-discovery-point';
 import {
   loadOnboardingState,
@@ -41,8 +49,35 @@ import { radius, space } from '@/theme/tokens';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type StepId = 'welcome' | 'notifications' | 'location' | 'area' | 'tags';
+type CelebrateId = Exclude<StepId, 'welcome'>;
 
 const TAGS_INDEX = 4;
+const DENY_ALERT_DELAY_MS = 420;
+
+type LeavePrompt = {
+  id: CelebrateId;
+  source: 'skip' | 'denied';
+  detected?: { lat: number; lng: number } | null;
+};
+
+const LEAVE_COPY: Record<CelebrateId, { title: string; message: string }> = {
+  notifications: {
+    title: 'onboarding.skipNotificationsTitle',
+    message: 'onboarding.skipNotificationsMessage',
+  },
+  location: {
+    title: 'onboarding.skipLocationTitle',
+    message: 'onboarding.skipLocationMessage',
+  },
+  area: {
+    title: 'onboarding.skipAreaTitle',
+    message: 'onboarding.skipAreaMessage',
+  },
+  tags: {
+    title: 'onboarding.skipTagsTitle',
+    message: 'onboarding.skipTagsMessage',
+  },
+};
 
 const STEPS: { id: StepId; image: ImageSourcePropType }[] = [
   { id: 'welcome', image: require('@/assets/images/onboarding_1.png') },
@@ -63,6 +98,14 @@ export function OnboardingCarousel({ onFinished }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [celebrated, setCelebrated] = useState<CelebrateId | null>(null);
+  const [rejected, setRejected] = useState<PermissionKind | null>(null);
+  const [leavePrompt, setLeavePrompt] = useState<LeavePrompt | null>(null);
+  const [awaitingDenyAlert, setAwaitingDenyAlert] = useState(false);
+  const afterCelebrate = useRef<(() => void) | null>(null);
+  const leavePromptRef = useRef<LeavePrompt | null>(null);
+  const denyAlertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  leavePromptRef.current = leavePrompt;
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<OnboardingState | null>(null);
   const savedAreaRequest = useRef<Promise<string | null> | null>(null);
@@ -120,6 +163,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
     const next = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
     if (next < 0 || next >= STEPS.length) return;
     setIndex(next);
+    setCelebrated(null);
   };
 
   const finish = useCallback(
@@ -131,6 +175,38 @@ export function OnboardingCarousel({ onFinished }: Props) {
     [onFinished],
   );
 
+  const celebrateThen = (id: CelebrateId, next: () => void) => {
+    afterCelebrate.current = next;
+    setCelebrated(id);
+  };
+
+  const clearDenyAlertTimer = () => {
+    if (!denyAlertTimer.current) return;
+    clearTimeout(denyAlertTimer.current);
+    denyAlertTimer.current = null;
+  };
+
+  useEffect(() => {
+    return () => {
+      if (denyAlertTimer.current) clearTimeout(denyAlertTimer.current);
+    };
+  }, []);
+
+  const openLeavePrompt = (prompt: LeavePrompt) => {
+    clearDenyAlertTimer();
+    setAwaitingDenyAlert(false);
+    leavePromptRef.current = prompt;
+    setLeavePrompt(prompt);
+  };
+
+  const onCelebrated = useCallback(() => {
+    const next = afterCelebrate.current;
+    afterCelebrate.current = null;
+    next?.();
+    // Momentum end also clears this. The timer covers a scroll that never reports end.
+    setTimeout(() => setCelebrated(null), 450);
+  }, []);
+
   const onWelcomeContinue = async () => {
     const current = await ensureState();
     setState(current);
@@ -138,35 +214,47 @@ export function OnboardingCarousel({ onFinished }: Props) {
   };
 
   const onActivate = async (kind: PermissionKind) => {
+    if (leavePromptRef.current || denyAlertTimer.current) return;
     setBusy(true);
+    setCelebrated(null);
     try {
       let current = await ensureState();
-      if (kind === 'notifications') {
+      const choice =
+        kind === 'notifications'
+          ? await requestNotificationPermission(null)
+          : await requestLocationPermission();
+      current = await setPermissionChoice(current, kind, choice);
+      if (kind === 'notifications' && choice === 'granted') {
         // Ask the OS first so Activate never waits on API / Expo push registration.
-        const choice = await requestNotificationPermission(null);
-        current = await setPermissionChoice(current, 'notifications', choice);
-        if (choice === 'granted') {
-          void ensureUser().then((identity) => {
-            if (!identity) return;
-            void registerPushToken(identity).catch((err) => {
-              console.warn(
-                'push token registration failed',
-                err instanceof Error ? err.message : 'unknown error',
-              );
-            });
+        void ensureUser().then((identity) => {
+          if (!identity) return;
+          void registerPushToken(identity).catch((err) => {
+            console.warn(
+              'push token registration failed',
+              err instanceof Error ? err.message : 'unknown error',
+            );
           });
-        }
-      } else {
-        const choice = await requestLocationPermission();
-        current = await setPermissionChoice(current, 'location', choice);
+        });
       }
       setState(current);
       const stepIndex = STEPS.findIndex((step) => step.id === kind);
-      if (stepIndex >= 0 && stepIndex < STEPS.length - 1) {
-        goTo(stepIndex + 1);
-      } else {
-        await finish(current);
+      const advance = () => {
+        if (stepIndex >= 0 && stepIndex < STEPS.length - 1) goTo(stepIndex + 1);
+        else void finish(current);
+      };
+      if (choice === 'granted') {
+        setRejected((current) => (current === kind ? null : current));
+        celebrateThen(kind, advance);
+        return;
       }
+      setRejected(kind);
+      setAwaitingDenyAlert(true);
+      clearDenyAlertTimer();
+      denyAlertTimer.current = setTimeout(() => {
+        denyAlertTimer.current = null;
+        setAwaitingDenyAlert(false);
+        openLeavePrompt({ id: kind, source: 'denied' });
+      }, DENY_ALERT_DELAY_MS);
     } catch (err) {
       console.warn('onboarding activate failed', err);
       setError(t('home.identityError'));
@@ -184,7 +272,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
       await updateTravelDistance(identity, resolveTravelDistanceM(place.radiusM));
       const area = await createCircleArea(identity, place);
       await setDiscoveryPlaceId(area.id);
-      goTo(TAGS_INDEX);
+      celebrateThen('area', () => goTo(TAGS_INDEX));
     } catch (err) {
       console.warn('onboarding area save failed', err);
       setError(t('onboarding.areaSaveError'));
@@ -220,7 +308,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
     }
   };
 
-  const onSaveTags = async (tagIds: string[]) => {
+  const onSaveTags = async (tagIds: string[], celebrate = true) => {
     setBusy(true);
     setError(null);
     try {
@@ -228,13 +316,46 @@ export function OnboardingCarousel({ onFinished }: Props) {
       if (!identity) return;
       await replaceInterests(identity, tagIds);
       await saveHomeTagIds(tagIds);
-      await finish(await ensureState());
+      const current = await ensureState();
+      if (!celebrate) {
+        await finish(current);
+        return;
+      }
+      celebrateThen('tags', () => {
+        void finish(current);
+      });
     } catch (err) {
       console.warn('onboarding tags save failed', err);
       setError(t('onboarding.tagsSaveError'));
     } finally {
       setBusy(false);
     }
+  };
+
+  const confirmLeave = () => {
+    const prompt = leavePromptRef.current;
+    if (!prompt) return;
+    leavePromptRef.current = null;
+    setLeavePrompt(null);
+    if (prompt.id === 'notifications' || prompt.id === 'location') {
+      setRejected((current) => (current === prompt.id ? null : current));
+      void onSkip(prompt.id);
+      return;
+    }
+    if (prompt.id === 'area') {
+      void onSkipArea(prompt.detected ?? null);
+      return;
+    }
+    void onSaveTags([], false);
+  };
+
+  const acknowledgeDenied = () => {
+    const prompt = leavePromptRef.current;
+    if (!prompt || prompt.source !== 'denied') return;
+    leavePromptRef.current = null;
+    setLeavePrompt(null);
+    const stepIndex = STEPS.findIndex((step) => step.id === prompt.id);
+    if (stepIndex >= 0 && stepIndex < STEPS.length - 1) goTo(stepIndex + 1);
   };
 
   return (
@@ -261,6 +382,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
         nestedScrollEnabled
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
+        scrollEnabled={celebrated == null && leavePrompt == null && !awaitingDenyAlert}
         keyboardShouldPersistTaps="handled"
         onMomentumScrollEnd={onScrollEnd}
         scrollEventThrottle={16}
@@ -289,13 +411,17 @@ export function OnboardingCarousel({ onFinished }: Props) {
         >
           <PrimaryButton
             label={t('onboarding.activate')}
+            icon={{ sf: 'bell', md: 'notifications-none' }}
             loading={busy}
+            confirmed={celebrated === 'notifications'}
+            rejected={rejected === 'notifications'}
+            onConfirmed={onCelebrated}
             onPress={() => void onActivate('notifications')}
           />
           <SkipButton
             label={t('onboarding.skip')}
-            disabled={busy}
-            onPress={() => void onSkip('notifications')}
+            disabled={busy || celebrated != null}
+            onPress={() => openLeavePrompt({ id: 'notifications', source: 'skip' })}
           />
         </StepFrame>
 
@@ -308,13 +434,17 @@ export function OnboardingCarousel({ onFinished }: Props) {
         >
           <PrimaryButton
             label={t('onboarding.activate')}
+            icon={{ sf: 'location', md: 'location-on' }}
             loading={busy}
+            confirmed={celebrated === 'location'}
+            rejected={rejected === 'location'}
+            onConfirmed={onCelebrated}
             onPress={() => void onActivate('location')}
           />
           <SkipButton
             label={t('onboarding.skip')}
-            disabled={busy}
-            onPress={() => void onSkip('location')}
+            disabled={busy || celebrated != null}
+            onPress={() => openLeavePrompt({ id: 'location', source: 'skip' })}
           />
         </StepFrame>
 
@@ -328,17 +458,20 @@ export function OnboardingCarousel({ onFinished }: Props) {
           }
           bottomInset={insets.bottom}
           error={error}
+          liftForKeyboard
         >
           <OnboardingAreaStep
             active={index === 3}
             locationGranted={state?.location === 'granted'}
             fallbackName={t('events.locationHere')}
             busy={busy}
+            confirmed={celebrated === 'area'}
+            onConfirmed={onCelebrated}
             onSave={(place) => {
               void onSaveArea(place);
             }}
             onSkip={(detected) => {
-              void onSkipArea(detected);
+              openLeavePrompt({ id: 'area', source: 'skip', detected });
             }}
           />
         </StepFrame>
@@ -353,15 +486,38 @@ export function OnboardingCarousel({ onFinished }: Props) {
         >
           <OnboardingTagsStep
             busy={busy}
+            confirmed={celebrated === 'tags'}
+            onConfirmed={onCelebrated}
             onContinue={(tagIds) => {
               void onSaveTags(tagIds);
             }}
             onSkip={() => {
-              void onSaveTags([]);
+              openLeavePrompt({ id: 'tags', source: 'skip' });
             }}
           />
         </StepFrame>
       </ScrollView>
+      <ConfirmAction
+        title={t(LEAVE_COPY[leavePrompt?.id ?? 'notifications'].title)}
+        message={t(LEAVE_COPY[leavePrompt?.id ?? 'notifications'].message)}
+        confirmLabel={t('onboarding.skipConfirm')}
+        cancelLabel={t('onboarding.skipCancel')}
+        isPresented={leavePrompt?.source === 'skip'}
+        onIsPresentedChange={(open) => {
+          if (!open) setLeavePrompt(null);
+        }}
+        onConfirm={confirmLeave}
+      />
+      <AcknowledgeAlert
+        title={t(
+          leavePrompt?.id === 'location'
+            ? 'onboarding.deniedLocationTitle'
+            : 'onboarding.deniedNotificationsTitle',
+        )}
+        confirmLabel={t('onboarding.deniedOk')}
+        isPresented={leavePrompt?.source === 'denied'}
+        onConfirm={acknowledgeDenied}
+      />
     </View>
   );
 }
@@ -375,6 +531,7 @@ function StepFrame({
   bottomInset,
   error,
   fill,
+  liftForKeyboard,
   children,
 }: {
   image: ImageSourcePropType;
@@ -386,8 +543,48 @@ function StepFrame({
   error?: string | null;
   /** Let the step body use the space under the title, for the interest grid. */
   fill?: boolean;
+  /** Shift this step up while the software keyboard is open. */
+  liftForKeyboard?: boolean;
   children: ReactNode;
 }) {
+  const frame = (
+    <View
+      style={[
+        styles.content,
+        fill ? styles.contentFill : null,
+        {
+          paddingTop: fill ? space.xxxl * 2 + space.lg : space.xxxl * 2,
+          paddingBottom: bottomInset + space.lg,
+        },
+      ]}
+    >
+      <View style={styles.copy}>
+        {accentLabel ? (
+          <ShadowedText
+            variant="label"
+            style={{ color: accentSoft, textTransform: 'uppercase', letterSpacing: 1.2 }}
+          >
+            {accentLabel}
+          </ShadowedText>
+        ) : null}
+        <ShadowedText variant="hero" style={[styles.title, fill ? styles.titleFill : null]}>
+          {title}
+        </ShadowedText>
+        <ShadowedText variant="body" style={styles.body}>
+          {body}
+        </ShadowedText>
+      </View>
+      <View style={fill ? styles.actionsFill : styles.actions}>
+        {error ? (
+          <ShadowedText variant="caption" intensity="soft" style={styles.error}>
+            {error}
+          </ShadowedText>
+        ) : null}
+        {children}
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.step}>
       <Image
@@ -396,43 +593,20 @@ function StepFrame({
         style={StyleSheet.absoluteFill}
         contentFit="cover"
       />
-      <View
-        style={[
-          styles.content,
-          fill ? styles.contentFill : null,
-          {
-            paddingTop: fill ? space.xxxl * 2 + space.lg : space.xxxl * 2,
-            paddingBottom: bottomInset + space.lg,
-          },
-        ]}
-      >
-        <View style={styles.copy}>
-          {accentLabel ? (
-            <ShadowedText
-              variant="label"
-              style={{ color: accentSoft, textTransform: 'uppercase', letterSpacing: 1.2 }}
-            >
-              {accentLabel}
-            </ShadowedText>
-          ) : null}
-          <ShadowedText variant="hero" style={[styles.title, fill ? styles.titleFill : null]}>
-            {title}
-          </ShadowedText>
-          <ShadowedText variant="body" style={styles.body}>
-            {body}
-          </ShadowedText>
-        </View>
-        <View style={fill ? styles.actionsFill : styles.actions}>
-          {error ? (
-            <ShadowedText variant="caption" intensity="soft" style={styles.error}>
-              {error}
-            </ShadowedText>
-          ) : null}
-          {children}
-        </View>
-      </View>
+      {liftForKeyboard ? <KeyboardLift bottomInset={bottomInset}>{frame}</KeyboardLift> : frame}
     </View>
   );
+}
+
+/** Follows the keyboard so the place field and its suggestions stay visible. */
+function KeyboardLift({ bottomInset, children }: { bottomInset: number; children: ReactNode }) {
+  const keyboard = useAnimatedKeyboard();
+  const style = useAnimatedStyle(() => {
+    const lift = Math.max(0, keyboard.height.value - bottomInset);
+    return { transform: [{ translateY: -lift }] };
+  }, [bottomInset]);
+
+  return <Animated.View style={[{ flex: 1 }, style]}>{children}</Animated.View>;
 }
 
 function SkipButton({

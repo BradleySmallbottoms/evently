@@ -11,7 +11,7 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
@@ -28,6 +28,7 @@ type TempPublisher = {
 export function MappingQueue() {
   const t = useTranslations('PublisherMapping');
   const tApp = useTranslations('App');
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const [targets, setTargets] = useState<Record<string, string>>({});
   const [completeForms, setCompleteForms] = useState<
@@ -89,7 +90,9 @@ export function MappingQueue() {
     );
   }
 
-  const items = list.data?.items ?? [];
+  const items = [...(list.data?.items ?? [])].sort((a, b) =>
+    a.name.localeCompare(b.name, locale, { sensitivity: 'base' }),
+  );
 
   return (
     <Stack spacing={2} sx={{ mt: 4 }}>

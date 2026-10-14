@@ -333,7 +333,7 @@ export function registerPushMessageRoutes(
         }
         if (err instanceof Error && err.message === 'event_not_published') {
           return c.json(
-            { error: { code: 'event_not_published', message: 'Event must be published' } },
+            { error: { code: 'event_not_published', message: 'This event cannot be notified' } },
             400,
           );
         }
@@ -385,7 +385,7 @@ export function registerPushMessageRoutes(
         }
         if (err instanceof Error && err.message === 'event_not_published') {
           return c.json(
-            { error: { code: 'event_not_published', message: 'Event must be published' } },
+            { error: { code: 'event_not_published', message: 'This event cannot be notified' } },
             400,
           );
         }

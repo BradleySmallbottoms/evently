@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { SEED_TAGS } from '@local-events/db';
-import { slugifyPublisherName, tagSlug } from '@local-events/domain';
+import {
+  importNotificationMessages,
+  pushStatusForEvent,
+  slugifyPublisherName,
+  tagSlug,
+  type MarketingPushPlanId,
+} from '@local-events/domain';
 import type {
   ExternalRefHit,
   ImportedEventWrite,
@@ -19,6 +25,8 @@ interface StoredPublisher {
   name: string;
   slug: string;
   isTemporary: boolean;
+  verified: boolean;
+  importNotificationPlan: MarketingPushPlanId | null;
 }
 
 interface StoredEvent {
@@ -74,12 +82,20 @@ export interface MemoryIngestStore extends IngestStore {
   refs: StoredRef[];
   runs: StoredRun[];
   images: StoredImage[];
+  scheduledNotifications: {
+    eventId: string;
+    planId: string;
+    offsets: string[];
+    status: 'pending' | 'approved';
+  }[];
   /** Pre-map an organizer onto an existing publisher (for example a verified one). */
   linkPublisher(input: {
     sourceId: string;
     organizerKey: string;
     name: string;
     isTemporary: boolean;
+    verified?: boolean;
+    importNotificationPlan?: MarketingPushPlanId | null;
   }): PublisherLink;
 }
 
@@ -113,6 +129,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
   const refs: StoredRef[] = [];
   const runs: StoredRun[] = [];
   const images: StoredImage[] = [];
+  const scheduledNotifications: MemoryIngestStore['scheduledNotifications'] = [];
 
   function uniqueSlug(name: string): string {
     const base = slugifyPublisherName(name);
@@ -131,6 +148,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
     refs,
     runs,
     images,
+    scheduledNotifications,
     async getSource(slug) {
       return sources.find((source) => source.slug === slug) ?? null;
     },
@@ -160,7 +178,12 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       if (!alias) return null;
       const publisher = publishers.find((item) => item.id === alias.publisherId);
       if (!publisher) return null;
-      return { publisherId: publisher.id, isTemporary: publisher.isTemporary };
+      return {
+        publisherId: publisher.id,
+        isTemporary: publisher.isTemporary,
+        verified: publisher.verified,
+        importNotificationPlan: publisher.importNotificationPlan,
+      };
     },
     async createTemporaryPublisher(input) {
       const id = randomUUID();
@@ -169,28 +192,55 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         name: input.name,
         slug: uniqueSlug(input.name),
         isTemporary: true,
+        verified: false,
+        importNotificationPlan: null,
       });
       aliases.push({
         sourceId: input.sourceId,
         organizerKey: input.organizerKey,
         publisherId: id,
       });
-      return { publisherId: id, isTemporary: true };
+      return {
+        publisherId: id,
+        isTemporary: true,
+        verified: false,
+        importNotificationPlan: null,
+      };
     },
     linkPublisher(input) {
       const id = randomUUID();
+      const verified = input.verified ?? false;
+      const importNotificationPlan = input.importNotificationPlan ?? null;
       publishers.push({
         id,
         name: input.name,
         slug: uniqueSlug(input.name),
         isTemporary: input.isTemporary,
+        verified,
+        importNotificationPlan,
       });
       aliases.push({
         sourceId: input.sourceId,
         organizerKey: input.organizerKey,
         publisherId: id,
       });
-      return { publisherId: id, isTemporary: input.isTemporary };
+      return { publisherId: id, isTemporary: input.isTemporary, verified, importNotificationPlan };
+    },
+    async scheduleImportNotifications(input) {
+      if (scheduledNotifications.some((row) => row.eventId === input.eventId)) return;
+      const messages = importNotificationMessages({
+        planId: input.planId,
+        eventTitle: input.eventTitle,
+        startsAt: input.startsAt,
+        now: new Date(),
+      });
+      if (messages.length === 0) return;
+      scheduledNotifications.push({
+        eventId: input.eventId,
+        planId: input.planId,
+        offsets: messages.map((message) => message.offset),
+        status: pushStatusForEvent(input.status),
+      });
     },
     async sourceOwnsEvent(sourceId, eventId) {
       const event = events.find((item) => item.id === eventId);

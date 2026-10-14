@@ -59,9 +59,24 @@ export function canCreateNewPushDraft(openStatus: PushMessageStatus | null): boo
   return openStatus === null;
 }
 
-/** Admins may start an event notification only once the event is published. */
+const NOTIFIABLE_EVENT_STATUSES = [
+  'draft',
+  'awaiting_verification',
+  'in_review',
+  'published',
+] as const;
+
+/** Cancelled and ended events cannot have notifications. */
 export function canAdminNotifyEvent(eventStatus: string): boolean {
-  return eventStatus === 'published';
+  return (NOTIFIABLE_EVENT_STATUSES as readonly string[]).includes(eventStatus);
+}
+
+/**
+ * Published events are approved on create. Anything still unpublished stays pending
+ * until the event is published.
+ */
+export function pushStatusForEvent(eventStatus: string): 'pending' | 'approved' {
+  return eventStatus === 'published' ? 'approved' : 'pending';
 }
 
 /** Audiences an admin can pick when notifying about one event. Followers are not included. */
@@ -127,6 +142,46 @@ export const MAX_ADMIN_EVENT_PUSH_PLAN = 8;
 
 export function marketingPushPlan(id: string) {
   return MARKETING_PUSH_PLANS.find((plan) => plan.id === id) ?? null;
+}
+
+/**
+ * Audience for reminders created from a publisher's import notification plan.
+ * Saved area plus a shared interest tag. Followers are not included.
+ */
+export const IMPORT_NOTIFICATION_AUDIENCE = 'area_and_tag' as const;
+
+export type ImportNotificationMessage = {
+  offset: PushScheduleOffset;
+  sendAt: Date;
+  copy: PushMessageCopy;
+};
+
+/** Future reminders for one imported event. Offsets already in the past are left out. */
+export function importNotificationMessages(input: {
+  planId: MarketingPushPlanId;
+  eventTitle: string;
+  startsAt: Date;
+  now: Date;
+}): ImportNotificationMessage[] {
+  const plan = marketingPushPlan(input.planId);
+  if (!plan) return [];
+  return plan.offsets.flatMap((offset) => {
+    const sendAt = offsetBeforeEventStart(input.startsAt, offset);
+    if (sendAt.getTime() <= input.now.getTime()) return [];
+    return [{ offset, sendAt, copy: reminderPushCopy(input.eventTitle, offset) }];
+  });
+}
+
+/**
+ * The plan to schedule, or null when the publisher is unverified or no plan is chosen.
+ * Script imports are notified only in that first case.
+ */
+export function importPlanToSchedule(input: {
+  publisherVerified: boolean;
+  planId: MarketingPushPlanId | null;
+}): MarketingPushPlanId | null {
+  if (!input.publisherVerified || input.planId === null) return null;
+  return marketingPushPlan(input.planId) ? input.planId : null;
 }
 
 /** Default bilingual copy from the event title and nearby reason. */

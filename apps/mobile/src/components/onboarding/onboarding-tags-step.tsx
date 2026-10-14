@@ -20,6 +20,8 @@ import { radius, shadow, space } from '@/theme/tokens';
 
 type Props = {
   busy: boolean;
+  confirmed?: boolean;
+  onConfirmed?: () => void;
   onContinue: (tagIds: string[]) => void;
   onSkip: () => void;
 };
@@ -45,7 +47,13 @@ const ICON_INK = '#2C241C';
 const GAP = 10;
 
 /** Interest cards. Each card selects every loaded tag in that interest. Skip stores nothing. */
-export function OnboardingTagsStep({ busy, onContinue, onSkip }: Props) {
+export function OnboardingTagsStep({
+  busy,
+  confirmed = false,
+  onConfirmed,
+  onContinue,
+  onSkip,
+}: Props) {
   const { t } = useTranslation();
   const [tags, setTags] = useState<HomeTag[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -117,12 +125,14 @@ export function OnboardingTagsStep({ busy, onContinue, onSkip }: Props) {
       </View>
       <PrimaryButton
         label={t('onboarding.finish')}
-        checkmark
+        icon={{ sf: 'heart', md: 'favorite-border' }}
         loading={busy}
         disabled={tags == null && !failed}
+        confirmed={confirmed}
+        onConfirmed={onConfirmed}
         onPress={() => onContinue(selectedIds)}
       />
-      <SkipRow label={t('onboarding.skip')} disabled={busy} onPress={onSkip} />
+      <SkipRow label={t('onboarding.skip')} disabled={busy || confirmed} onPress={onSkip} />
     </View>
   );
 }
@@ -164,7 +174,7 @@ function InterestCard({
         borderWidth: selected ? 2 : 1.5,
         borderColor: selected ? colors.accent : 'rgba(255,255,255,0.5)',
         backgroundColor: selected ? colors.accentSoftAlpha : 'rgba(20, 16, 14, 0.28)',
-        opacity: disabled ? 0.4 : pressed ? 0.5 : 1
+        opacity: disabled ? 0.4 : pressed ? 0.5 : 1,
       })}
     >
       {selected ? <CheckBadge /> : null}

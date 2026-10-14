@@ -16,7 +16,7 @@ export default async function AdminHomePage({ params }: { params: Promise<{ loca
         {t('tagline')}
       </Typography>
       <Typography>
-        <Link href="/events">{t('navEvents')}</Link>
+        <Link href="/review">{t('navEvents')}</Link>
         {' · '}
         <Link href="/events/manage">{t('navEventCatalog')}</Link>
         {' · '}

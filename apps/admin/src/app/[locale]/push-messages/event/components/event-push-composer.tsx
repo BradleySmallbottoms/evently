@@ -15,6 +15,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
 import {
+  canAdminNotifyEvent,
   defaultPushMessageCopy,
   offsetBeforeEventStart,
   reminderPushCopy,
@@ -39,6 +40,7 @@ type EventOption = {
   title: string;
   publisherName: string;
   startsAt: string;
+  status: string;
 };
 
 type PushMessage = {
@@ -61,8 +63,11 @@ export function EventPushComposer({ initialEventId }: { initialEventId?: string 
   const [filledFor, setFilledFor] = useState<string | null>(null);
 
   const events = useQuery({
-    queryKey: ['admin-events-catalog', 'published'],
-    queryFn: () => adminFetch<{ items: EventOption[] }>('/events?status=published'),
+    queryKey: ['admin-events-catalog', 'notifiable'],
+    queryFn: async () => {
+      const data = await adminFetch<{ items: EventOption[] }>('/events');
+      return { items: data.items.filter((item) => canAdminNotifyEvent(item.status)) };
+    },
   });
 
   const selected = (events.data?.items ?? []).find((event) => event.id === eventId) ?? null;
@@ -176,6 +181,7 @@ export function EventPushComposer({ initialEventId }: { initialEventId?: string 
                     {option.publisherName}
                     {' · '}
                     {new Date(option.startsAt).toLocaleString()}
+                    {option.status === 'published' ? '' : ` · ${t('heldUntilPublished')}`}
                   </Typography>
                 </Box>
               </li>
@@ -185,6 +191,9 @@ export function EventPushComposer({ initialEventId }: { initialEventId?: string 
             <TextField {...params} label={t('eventPicker')} required fullWidth />
           )}
         />
+        {selected && selected.status !== 'published' ? (
+          <Alert severity="info">{t('planHeld')}</Alert>
+        ) : null}
         <FormControl>
           <FormLabel id="event-push-audience-label">{t('audienceRule')}</FormLabel>
           <RadioGroup

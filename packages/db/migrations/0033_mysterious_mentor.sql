@@ -1,0 +1,1 @@
+ALTER TYPE "public"."push_delivery_status" ADD VALUE 'dry_run';

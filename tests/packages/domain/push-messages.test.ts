@@ -7,6 +7,7 @@ import {
   isAdminEventPushAudience,
   defaultPushMessageCopy,
   DEFAULT_MARKETING_PUSH_PLAN,
+  importNotificationMessages,
   initialPushMessageStatus,
   marketingPushPlan,
   offsetBeforeEventStart,
@@ -14,6 +15,8 @@ import {
   isWithinAggregationWindow,
   pickPrimaryPushMessage,
   shouldAutoApprovePushMessage,
+  importPlanToSchedule,
+  pushStatusForEvent,
   statusAfterDraftEdit,
 } from '../../../packages/domain/src/push-messages';
 
@@ -62,6 +65,24 @@ describe('push-messages domain', () => {
     expect(marketingPushPlan('full')?.offsets).toEqual(['week', 'day', 'hour']);
   });
 
+  it('schedules import reminders only for a verified publisher with a plan', () => {
+    expect(importPlanToSchedule({ publisherVerified: true, planId: 'single' })).toBe('single');
+    expect(importPlanToSchedule({ publisherVerified: false, planId: 'full' })).toBeNull();
+    expect(importPlanToSchedule({ publisherVerified: true, planId: null })).toBeNull();
+
+    const startsAt = new Date('2026-06-20T18:00:00.000Z');
+    const now = new Date('2026-06-19T12:00:00.000Z');
+    const messages = importNotificationMessages({
+      planId: 'full',
+      eventTitle: 'Jazzkväll',
+      startsAt,
+      now,
+    });
+    expect(messages.map((message) => message.offset)).toEqual(['day', 'hour']);
+    expect(messages[0]?.copy.bodySv).toContain('imorgon');
+    expect(messages[0]?.sendAt.toISOString()).toBe('2026-06-19T18:00:00.000Z');
+  });
+
   it('builds default bilingual copy and aggregation lines', () => {
     const copy = defaultPushMessageCopy('Konsert');
     expect(copy.titleSv).toBe('Konsert');
@@ -106,13 +127,16 @@ describe('push-messages domain', () => {
     expect(presented.body).toContain('And 1 more…');
   });
 
-  it('lets admins notify only published events', () => {
+  it('lets admins notify events that are not cancelled or ended', () => {
     expect(canAdminNotifyEvent('published')).toBe(true);
-    expect(canAdminNotifyEvent('draft')).toBe(false);
-    expect(canAdminNotifyEvent('in_review')).toBe(false);
-    expect(canAdminNotifyEvent('awaiting_verification')).toBe(false);
+    expect(canAdminNotifyEvent('draft')).toBe(true);
+    expect(canAdminNotifyEvent('in_review')).toBe(true);
+    expect(canAdminNotifyEvent('awaiting_verification')).toBe(true);
     expect(canAdminNotifyEvent('cancelled')).toBe(false);
     expect(canAdminNotifyEvent('ended')).toBe(false);
+    expect(pushStatusForEvent('published')).toBe('approved');
+    expect(pushStatusForEvent('in_review')).toBe('pending');
+    expect(pushStatusForEvent('draft')).toBe('pending');
     expect(isAdminEventPushAudience('area')).toBe(true);
     expect(isAdminEventPushAudience('area_and_tag')).toBe(true);
     expect(isAdminEventPushAudience('event_match')).toBe(false);

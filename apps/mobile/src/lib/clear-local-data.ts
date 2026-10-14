@@ -19,6 +19,7 @@ const KNOWN_KEYS = [
   'le.sessionExpiresAt',
   'le.expoPushToken',
   'le.osNotificationsPresented',
+  'le.notificationPresentation',
   ...STORED_PROMPT_KEYS,
   'le.notificationsSeenCount',
   'le.discoveryPlaceId',

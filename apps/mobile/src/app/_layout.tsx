@@ -5,14 +5,23 @@ import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { InboxPushSync } from '@/components/inbox-push-sync';
 import { NotificationEventLink } from '@/components/notification-event-link';
+import { IdentityResetAlert } from '@/components/native/identity-reset-alert';
 import { OnboardingCarousel } from '@/components/onboarding/onboarding-carousel';
 import { PermissionReminder } from '@/components/onboarding/permission-reminder';
+import {
+  currentIdentityEpoch,
+  discardStoredIdentity,
+  loadStoredIdentity,
+  setIdentityRejectedHandler,
+  verifyStoredIdentity,
+} from '@/lib/identity';
 import {
   loadOnboardingState,
   reconcileGrantedPermissions,
@@ -20,7 +29,7 @@ import {
   type OnboardingState,
   type PermissionKind,
 } from '@/lib/onboarding';
-import { loadStoredIdentity } from '@/lib/identity';
+import { DEFAULT_ONBOARDING_STATE } from '@/lib/onboarding-state';
 import { clearAppIconBadge } from '@/lib/push-notifications';
 import { refreshDeviceLocation, startDeviceLocation } from '@/lib/device-location';
 import { createAppQueryClient, subscribeQueryFocus } from '@/lib/query-client';
@@ -31,19 +40,34 @@ initSentry();
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const { t } = useTranslation();
   const [queryClient] = useState(() => createAppQueryClient());
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [reminder, setReminder] = useState<PermissionKind | null>(null);
+  const [identityLost, setIdentityLost] = useState(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const onboardingRef = useRef<OnboardingState | null>(null);
+  const identityLostRef = useRef(false);
+  /** True after the app has been in the background, until the next active verify. */
+  const sawBackgroundRef = useRef(false);
   /** Avoid counting twice for the same foreground (cold start + brief inactive). */
   const countedThisForegroundRef = useRef(false);
   const bootstrappedRef = useRef(false);
+  const resettingRef = useRef(false);
 
   useEffect(() => {
     onboardingRef.current = onboarding;
   }, [onboarding]);
+
+  useEffect(() => {
+    identityLostRef.current = identityLost;
+  }, [identityLost]);
+
+  useEffect(() => {
+    setIdentityRejectedHandler(() => setIdentityLost(true));
+    return () => setIdentityRejectedHandler(null);
+  }, []);
 
   useEffect(() => {
     void SplashScreen.hideAsync();
@@ -52,7 +76,7 @@ export default function RootLayout() {
   useEffect(() => subscribeQueryFocus(AppState, Platform.OS), []);
 
   const countActivation = useCallback(async (state: OnboardingState) => {
-    if (!state.completed || countedThisForegroundRef.current) return;
+    if (!state.completed || countedThisForegroundRef.current || identityLostRef.current) return;
     countedThisForegroundRef.current = true;
     const reconciled = await reconcileGrantedPermissions(state);
     const result = await recordAppActivation(reconciled);
@@ -69,6 +93,17 @@ export default function RootLayout() {
       if (cancelled) return;
       const identity = await loadStoredIdentity();
       if (cancelled) return;
+      if (identity) {
+        const epoch = currentIdentityEpoch();
+        const check = await verifyStoredIdentity();
+        if (cancelled || epoch !== currentIdentityEpoch()) return;
+        if (check === 'invalid') {
+          setOnboarding(reconciled);
+          setIdentityLost(true);
+          bootstrappedRef.current = true;
+          return;
+        }
+      }
       setShowOnboarding(!reconciled.completed || !identity);
       setOnboarding(reconciled);
       bootstrappedRef.current = true;
@@ -95,24 +130,72 @@ export default function RootLayout() {
 
       if (next === 'background') {
         countedThisForegroundRef.current = false;
+        sawBackgroundRef.current = true;
         return;
       }
 
       if (!bootstrappedRef.current) return;
-      if (prev === 'background' && next === 'active') {
+      if (next !== 'active' || !sawBackgroundRef.current) return;
+      sawBackgroundRef.current = false;
+      if (identityLostRef.current) return;
+
+      const epoch = currentIdentityEpoch();
+      void (async () => {
+        const check = await verifyStoredIdentity();
+        if (epoch !== currentIdentityEpoch()) return;
+        if (check === 'invalid') {
+          setIdentityLost(true);
+          return;
+        }
         const current = onboardingRef.current;
         if (current) void countActivation(current);
-      }
+      })();
     });
     return () => sub.remove();
   }, [countActivation]);
 
+  const confirmIdentityReset = useCallback(async () => {
+    if (resettingRef.current) return;
+    resettingRef.current = true;
+    try {
+      await discardStoredIdentity();
+      queryClient.clear();
+      setReminder(null);
+      setOnboarding({ ...DEFAULT_ONBOARDING_STATE });
+      setShowOnboarding(true);
+      setIdentityLost(false);
+      countedThisForegroundRef.current = false;
+    } finally {
+      resettingRef.current = false;
+    }
+  }, [queryClient]);
+
   useEffect(() => {
-    if (!onboarding?.completed || showOnboarding) return;
+    if (!onboarding?.completed || showOnboarding || identityLost) return;
     return startDeviceLocation();
-  }, [onboarding?.completed, showOnboarding]);
+  }, [identityLost, onboarding?.completed, showOnboarding]);
 
   if (!onboarding) return null;
+
+  const resetAlert = (
+    <IdentityResetAlert
+      title={t('identity.resetTitle')}
+      message={t('identity.resetMessage')}
+      confirmLabel={t('identity.resetConfirm')}
+      isPresented={identityLost}
+      onConfirm={() => {
+        void confirmIdentityReset();
+      }}
+    />
+  );
+
+  if (identityLost) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: brand.canvas }}>
+        {resetAlert}
+      </GestureHandlerRootView>
+    );
+  }
 
   const navTheme = {
     ...DefaultTheme,

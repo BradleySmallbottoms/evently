@@ -5,13 +5,22 @@ import type {
   AdminPublisherListResponse,
   AdminPublisherPatchRequest,
   AdminTemporaryPublisherListResponse,
+  ImportNotificationPlan,
   PublisherSummaryAdmin,
   VerifyPublisherResponse,
 } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { approveOpenPushMessagesForPublisher, schema } from '@local-events/db';
-import { releaseOnVerification, shouldEnqueueNotifications } from '@local-events/domain';
+import {
+  importNotificationMessages,
+  releaseOnVerification,
+  shouldEnqueueNotifications,
+  importPlanToSchedule,
+  pushStatusForEvent,
+  type MarketingPushPlanId,
+} from '@local-events/domain';
 import { and, count, eq, ne, asc } from 'drizzle-orm';
+import { scheduleImportPlanForPublisher } from './import-notifications';
 import { createMemoryDomainEventPublisher } from './domain-events/memory';
 import { enqueueDomainEvent, type DomainEventPublisher } from './domain-events/types';
 
@@ -32,6 +41,7 @@ export type AdminPublisherServices = {
     publisherId: string,
     body: AdminPublisherPatchRequest,
   ) => Promise<PublisherSummaryAdmin | null>;
+  get: (publisherId: string) => Promise<PublisherSummaryAdmin | null>;
   listAll: () => Promise<PublisherSummaryAdmin[]>;
 };
 
@@ -52,6 +62,7 @@ export type AdminMemoryStore = {
       verified: boolean;
       origin: 'native' | 'imported';
       isTemporary?: boolean;
+      importNotificationPlan?: ImportNotificationPlan | null;
       createdAt: Date;
     }
   >;
@@ -63,13 +74,78 @@ export type AdminMemoryStore = {
       status: string;
       endsAtDate: Date;
       updatedAt: string;
+      origin?: 'native' | 'imported';
+      title?: string;
+      startsAtDate?: Date;
     }
   >;
+  /** Reminders recorded when a verified publisher's import plan is applied. */
+  scheduledImports?: {
+    eventId: string;
+    planId: string;
+    offsets: string[];
+    status: 'pending' | 'approved';
+  }[];
   aliases?: Map<
     string,
     { sourceId: string; externalOrganizerKey: string; publisherId: string }
   >;
 };
+
+function asPublisherSummary(
+  p: AdminMemoryStore['publishers'] extends Map<string, infer T> ? T : never,
+): PublisherSummaryAdmin {
+  return {
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    type: p.type,
+    verified: p.verified,
+    origin: p.origin,
+    importNotificationPlan: p.importNotificationPlan ?? null,
+    createdAt: p.createdAt.toISOString(),
+  };
+}
+
+function scheduleMemoryImportPlanIfReady(
+  store: AdminMemoryStore,
+  publisherId: string,
+  input: { publisherVerified: boolean; planId: MarketingPushPlanId | null },
+  at: Date,
+) {
+  const planId = importPlanToSchedule(input);
+  if (!planId) return;
+  scheduleMemoryImportPlan(store, publisherId, planId, at);
+}
+
+function scheduleMemoryImportPlan(
+  store: AdminMemoryStore,
+  publisherId: string,
+  planId: MarketingPushPlanId,
+  now: Date,
+) {
+  const scheduled = store.scheduledImports ?? (store.scheduledImports = []);
+  for (const event of store.events.values()) {
+    if (event.publisherId !== publisherId) continue;
+    if (event.origin !== 'imported') continue;
+    if (event.status !== 'published' && event.status !== 'in_review') continue;
+    if (!event.title || !event.startsAtDate) continue;
+    if (scheduled.some((row) => row.eventId === event.id)) continue;
+    const messages = importNotificationMessages({
+      planId,
+      eventTitle: event.title,
+      startsAt: event.startsAtDate,
+      now,
+    });
+    if (messages.length === 0) continue;
+    scheduled.push({
+      eventId: event.id,
+      planId,
+      offsets: messages.map((message) => message.offset),
+      status: pushStatusForEvent(event.status),
+    });
+  }
+}
 
 export function createMemoryAdminPublisherServices(
   store: AdminMemoryStore,
@@ -81,19 +157,13 @@ export function createMemoryAdminPublisherServices(
     async listUnverified() {
       return [...store.publishers.values()]
         .filter((p) => !p.verified)
-        .map((p) => ({
-          id: p.id,
-          name: p.name,
-          slug: p.slug,
-          type: p.type,
-          verified: p.verified,
-          origin: p.origin,
-          createdAt: p.createdAt.toISOString(),
-        }));
+        .sort((a, b) => a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }))
+        .map(asPublisherSummary);
     },
     async listTemporary() {
       return [...store.publishers.values()]
         .filter((p) => p.isTemporary)
+        .sort((a, b) => a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }))
         .map((p) => ({
           id: p.id,
           name: p.name,
@@ -128,6 +198,12 @@ export function createMemoryAdminPublisherServices(
           }
         }
       }
+      scheduleMemoryImportPlanIfReady(
+        store,
+        publisherId,
+        { publisherVerified: true, planId: publisher.importNotificationPlan ?? null },
+        at,
+      );
       return { id: publisherId, verified: true as const, releasedEventCount };
     },
     async mapTo({ sourcePublisherId, targetPublisherId }) {
@@ -146,6 +222,12 @@ export function createMemoryAdminPublisherServices(
         }
       }
       store.publishers.delete(sourcePublisherId);
+      scheduleMemoryImportPlanIfReady(
+        store,
+        targetPublisherId,
+        { publisherVerified: target.verified, planId: target.importNotificationPlan ?? null },
+        now(),
+      );
       return { id: sourcePublisherId, targetPublisherId, movedEventCount };
     },
     async complete(publisherId, body) {
@@ -167,15 +249,13 @@ export function createMemoryAdminPublisherServices(
       };
     },
     async listAll() {
-      return [...store.publishers.values()].map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        type: p.type,
-        verified: p.verified,
-        origin: p.origin,
-        createdAt: p.createdAt.toISOString(),
-      }));
+      return [...store.publishers.values()]
+        .sort((a, b) => a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }))
+        .map(asPublisherSummary);
+    },
+    async get(publisherId) {
+      const publisher = store.publishers.get(publisherId);
+      return publisher ? asPublisherSummary(publisher) : null;
     },
     async patch(publisherId, body) {
       const publisher = store.publishers.get(publisherId);
@@ -186,15 +266,18 @@ export function createMemoryAdminPublisherServices(
       if (body.name !== undefined) publisher.name = body.name;
       if (body.slug !== undefined) publisher.slug = body.slug;
       if (body.type !== undefined) publisher.type = body.type;
-      return {
-        id: publisher.id,
-        name: publisher.name,
-        slug: publisher.slug,
-        type: publisher.type,
-        verified: publisher.verified,
-        origin: publisher.origin,
-        createdAt: publisher.createdAt.toISOString(),
-      };
+      if (body.importNotificationPlan !== undefined) {
+        publisher.importNotificationPlan = body.importNotificationPlan;
+      }
+      if (body.importNotificationPlan) {
+        scheduleMemoryImportPlanIfReady(
+          store,
+          publisherId,
+          { publisherVerified: publisher.verified, planId: publisher.importNotificationPlan ?? null },
+          now(),
+        );
+      }
+      return asPublisherSummary(publisher);
     },
   };
 }
@@ -215,10 +298,12 @@ export function createDbAdminPublisherServices(
           type: schema.publishers.type,
           verified: schema.publishers.verified,
           origin: schema.publishers.origin,
+          importNotificationPlan: schema.publishers.importNotificationPlan,
           createdAt: schema.publishers.createdAt,
         })
         .from(schema.publishers)
-        .where(eq(schema.publishers.verified, false));
+        .where(eq(schema.publishers.verified, false))
+        .orderBy(asc(schema.publishers.name));
       return rows.map((r) => ({
         id: r.id,
         name: r.name,
@@ -226,6 +311,7 @@ export function createDbAdminPublisherServices(
         type: r.type,
         verified: r.verified,
         origin: r.origin,
+        importNotificationPlan: r.importNotificationPlan,
         createdAt: r.createdAt.toISOString(),
       }));
     },
@@ -250,7 +336,8 @@ export function createDbAdminPublisherServices(
           schema.publishers.type,
           schema.publishers.origin,
           schema.publishers.createdAt,
-        );
+        )
+        .orderBy(asc(schema.publishers.name));
       return rows.map((r) => ({
         id: r.id,
         name: r.name,
@@ -263,7 +350,10 @@ export function createDbAdminPublisherServices(
     },
     async verify(publisherId: string) {
       const [publisher] = await db
-        .select({ id: schema.publishers.id })
+        .select({
+          id: schema.publishers.id,
+          importNotificationPlan: schema.publishers.importNotificationPlan,
+        })
         .from(schema.publishers)
         .where(eq(schema.publishers.id, publisherId))
         .limit(1);
@@ -307,6 +397,13 @@ export function createDbAdminPublisherServices(
         }
       }
       await approveOpenPushMessagesForPublisher(db, publisherId, at);
+      const verifiedPlan = importPlanToSchedule({
+        publisherVerified: true,
+        planId: publisher.importNotificationPlan,
+      });
+      if (verifiedPlan) {
+        await scheduleImportPlanForPublisher(db, publisherId, verifiedPlan, at);
+      }
 
       return { id: publisherId, verified: true as const, releasedEventCount };
     },
@@ -321,7 +418,11 @@ export function createDbAdminPublisherServices(
         .where(eq(schema.publishers.id, sourcePublisherId))
         .limit(1);
       const [target] = await db
-        .select({ id: schema.publishers.id })
+        .select({
+          id: schema.publishers.id,
+          verified: schema.publishers.verified,
+          importNotificationPlan: schema.publishers.importNotificationPlan,
+        })
         .from(schema.publishers)
         .where(eq(schema.publishers.id, targetPublisherId))
         .limit(1);
@@ -340,6 +441,14 @@ export function createDbAdminPublisherServices(
         .where(eq(schema.publisherAliases.publisherId, sourcePublisherId));
 
       await db.delete(schema.publishers).where(eq(schema.publishers.id, sourcePublisherId));
+
+      const mappedPlan = importPlanToSchedule({
+        publisherVerified: target.verified,
+        planId: target.importNotificationPlan,
+      });
+      if (mappedPlan) {
+        await scheduleImportPlanForPublisher(db, targetPublisherId, mappedPlan, at);
+      }
 
       return {
         id: sourcePublisherId,
@@ -392,6 +501,7 @@ export function createDbAdminPublisherServices(
           type: schema.publishers.type,
           verified: schema.publishers.verified,
           origin: schema.publishers.origin,
+          importNotificationPlan: schema.publishers.importNotificationPlan,
           createdAt: schema.publishers.createdAt,
         })
         .from(schema.publishers)
@@ -401,6 +511,23 @@ export function createDbAdminPublisherServices(
         ...r,
         createdAt: r.createdAt.toISOString(),
       }));
+    },
+    async get(publisherId) {
+      const [row] = await db
+        .select({
+          id: schema.publishers.id,
+          name: schema.publishers.name,
+          slug: schema.publishers.slug,
+          type: schema.publishers.type,
+          verified: schema.publishers.verified,
+          origin: schema.publishers.origin,
+          importNotificationPlan: schema.publishers.importNotificationPlan,
+          createdAt: schema.publishers.createdAt,
+        })
+        .from(schema.publishers)
+        .where(eq(schema.publishers.id, publisherId))
+        .limit(1);
+      return row ? { ...row, createdAt: row.createdAt.toISOString() } : null;
     },
     async patch(publisherId, body) {
       const [existing] = await db
@@ -423,6 +550,9 @@ export function createDbAdminPublisherServices(
           ...(body.name !== undefined ? { name: body.name } : {}),
           ...(body.slug !== undefined ? { slug: body.slug } : {}),
           ...(body.type !== undefined ? { type: body.type } : {}),
+          ...(body.importNotificationPlan !== undefined
+            ? { importNotificationPlan: body.importNotificationPlan }
+            : {}),
         })
         .where(eq(schema.publishers.id, publisherId))
         .returning({
@@ -432,8 +562,19 @@ export function createDbAdminPublisherServices(
           type: schema.publishers.type,
           verified: schema.publishers.verified,
           origin: schema.publishers.origin,
+          importNotificationPlan: schema.publishers.importNotificationPlan,
           createdAt: schema.publishers.createdAt,
         });
+      const savedPlan =
+        updated && body.importNotificationPlan
+          ? importPlanToSchedule({
+              publisherVerified: updated.verified,
+              planId: updated.importNotificationPlan,
+            })
+          : null;
+      if (savedPlan) {
+        await scheduleImportPlanForPublisher(db, publisherId, savedPlan, now());
+      }
       return updated
         ? { ...updated, createdAt: updated.createdAt.toISOString() }
         : null;

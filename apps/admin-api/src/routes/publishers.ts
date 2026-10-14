@@ -176,6 +176,40 @@ export function registerPublisherRoutes(
     }
   });
 
+  const getOne = createRoute({
+    method: 'get',
+    path: '/publishers/{id}',
+    request: {
+      params: z.object({ id: z.uuid() }),
+    },
+    responses: {
+      200: {
+        description: 'Publisher',
+        content: { 'application/json': { schema: PublisherSummaryAdmin } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(getOne, async (c) => {
+    try {
+      await auth.requireSession(readAdminSessionToken(c));
+      const result = await publishers.get(c.req.valid('param').id);
+      if (!result) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json(result, 200);
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
   const patch = createRoute({
     method: 'patch',
     path: '/publishers/{id}',

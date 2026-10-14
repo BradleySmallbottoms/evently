@@ -38,6 +38,13 @@ export const eventStatus = pgEnum('event_status', [
 ]);
 export const origin = pgEnum('origin', ['native', 'imported']);
 export const publisherType = pgEnum('publisher_type', ['org', 'person']);
+/** Marketing plan used for script-imported events. Null means no notifications. */
+export const importNotificationPlan = pgEnum('import_notification_plan', [
+  'single',
+  'standard',
+  'countdown',
+  'full',
+]);
 export const memberRole = pgEnum('member_role', ['owner', 'editor']);
 export const sessionSubject = pgEnum('session_subject', ['user', 'publisher_account', 'admin']);
 export const sourceKind = pgEnum('source_kind', ['api', 'feed', 'scraper']);
@@ -87,6 +94,8 @@ export const pushDeliveryStatus = pgEnum('push_delivery_status', [
   'pending',
   'deferred',
   'sent',
+  /** Recorded by the worker when PUSH_DRY_RUN is set. Expo was not called. */
+  'dry_run',
 ]);
 export const subscriptionTarget = pgEnum('subscription_target', ['publisher', 'event']);
 export const checkInMethod = pgEnum('check_in_method', ['geo', 'code']);
@@ -216,6 +225,8 @@ export const publishers = pgTable(
     verified: boolean('verified').notNull().default(false),
     origin: origin('origin').notNull().default('native'),
     isTemporary: boolean('is_temporary').notNull().default(false),
+    /** Null: do not notify about script-imported events. Otherwise a marketing plan id. */
+    importNotificationPlan: importNotificationPlan('import_notification_plan'),
     claimedAt: timestamp('claimed_at', { withTimezone: true }),
     createdAt: createdAt(),
   },

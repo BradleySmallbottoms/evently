@@ -7,7 +7,7 @@ import {
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import { and, asc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
-import type { ExpoPushClient, ExpoPushMessage } from './expo-push';
+import { isPushDryRun, type ExpoPushClient, type ExpoPushMessage } from './expo-push';
 import {
   clearExpoPushToken,
   countUnreadNotifications,
@@ -263,7 +263,7 @@ async function upsertDelivery(
   input: {
     pushMessageId: string;
     userId: string;
-    status: 'pending' | 'deferred' | 'sent';
+    status: 'pending' | 'deferred' | 'sent' | 'dry_run';
     deferredUntilMessageId?: string | null;
     sentAt?: Date | null;
   },
@@ -393,11 +393,12 @@ async function deliverBundleToUser(
   }
 
   const devices = await loadPushDevicesForUsers(deps.db, [input.userId]);
+  const dryRun = isPushDryRun();
   for (const msg of input.bundle) {
     await upsertDelivery(deps.db, {
       pushMessageId: msg.id,
       userId: input.userId,
-      status: 'sent',
+      status: dryRun ? 'dry_run' : 'sent',
       deferredUntilMessageId: null,
       sentAt: input.now,
     });
@@ -426,6 +427,20 @@ async function deliverBundleToUser(
       await markNotificationsPushed(deps.db, notificationIds, input.now);
     }
     return 0;
+  }
+
+  if (dryRun) {
+    console.log(
+      JSON.stringify({
+        pushDryRun: true,
+        step: 'delivery_recorded',
+        userId: input.userId,
+        pushMessageIds: input.bundle.map((m) => m.id),
+        deviceCount: devices.length,
+        note: 'push_message_deliveries status dry_run; Expo not called',
+      }),
+    );
+    return 1;
   }
 
   const unread = await countUnreadNotifications(deps.db, input.userId);
@@ -581,12 +596,13 @@ async function processMessage(
         ),
       )
       .limit(1);
-    if (existing?.status === 'sent') {
+    if (existing?.status === 'sent' || existing?.status === 'dry_run') {
       skippedAlreadySent += 1;
       pushDebug({
         step: 'skip_already_sent',
         pushMessageId: message.id,
         userId,
+        status: existing.status,
       });
       continue;
     }

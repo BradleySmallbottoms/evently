@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { Db } from './index';
 import * as schema from './schema';
 
@@ -79,6 +79,67 @@ export async function cancelOpenPushMessages(
   return result.length;
 }
 
+/**
+ * Insert marketing reminders for one event.
+ * Published events are stored approved. Unpublished events are stored pending.
+ * Does nothing when that audience already has a non-cancelled message, so a later
+ * import or a second save does not schedule the plan again.
+ */
+export async function insertApprovedEventReminders(
+  db: Db,
+  input: {
+    eventId: string;
+    audience: 'area' | 'area_and_tag';
+    status?: 'pending' | 'approved';
+    now?: Date;
+    notifications: {
+      titleSv: string;
+      bodySv: string;
+      titleEn: string;
+      bodyEn: string;
+      sendAt: Date;
+    }[];
+  },
+): Promise<number> {
+  if (input.notifications.length === 0) return 0;
+  const [existing] = await db
+    .select({ id: schema.pushMessages.id })
+    .from(schema.pushMessages)
+    .where(
+      and(
+        eq(schema.pushMessages.eventId, input.eventId),
+        eq(schema.pushMessages.audience, input.audience),
+        ne(schema.pushMessages.status, 'cancelled'),
+      ),
+    )
+    .limit(1);
+  if (existing) return 0;
+
+  const now = input.now ?? new Date();
+  const status = input.status ?? 'approved';
+  const created = await db
+    .insert(schema.pushMessages)
+    .values(
+      input.notifications.map((item) => ({
+        eventId: input.eventId,
+        kind: 'event' as const,
+        audience: input.audience,
+        status,
+        titleSv: item.titleSv,
+        bodySv: item.bodySv,
+        titleEn: item.titleEn,
+        bodyEn: item.bodyEn,
+        copyEdited: false,
+        sendAt: item.sendAt,
+        approvedAt: status === 'approved' ? now : null,
+        approvedByAdminId: null,
+        updatedAt: now,
+      })),
+    )
+    .returning({ id: schema.pushMessages.id });
+  return created.length;
+}
+
 /** Approve every open pending/rejected draft for a publisher (e.g. on verify). */
 export async function approveOpenPushMessagesForPublisher(
   db: Db,
@@ -99,6 +160,26 @@ export async function approveOpenPushMessagesForPublisher(
       AND pm.status IN ('pending', 'rejected')
       AND e.status IN ('published', 'awaiting_verification')
     RETURNING pm.id
+  `);
+  const rows = (Array.isArray(result) ? result : []) as unknown[];
+  return rows.length;
+}
+
+/** Approve pending notifications when their event is published. Rejected rows stay rejected. */
+export async function approvePendingPushMessagesForEvent(
+  db: Db,
+  eventId: string,
+  now = new Date(),
+): Promise<number> {
+  const nowIso = now.toISOString();
+  const result = await db.execute(sql`
+    UPDATE push_messages
+    SET status = 'approved',
+        approved_at = ${nowIso},
+        updated_at = ${nowIso}
+    WHERE event_id = ${eventId}::uuid
+      AND status = 'pending'
+    RETURNING id
   `);
   const rows = (Array.isArray(result) ? result : []) as unknown[];
   return rows.length;

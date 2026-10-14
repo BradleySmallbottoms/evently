@@ -9,17 +9,24 @@ import type {
   EventLink,
 } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
-import { cancelOpenPushMessages, pointEwkt, schema } from '@local-events/db';
+import {
+  approvePendingPushMessagesForEvent,
+  cancelOpenPushMessages,
+  pointEwkt,
+  schema,
+} from '@local-events/db';
 import {
   canApproveImportedEvent,
   canRejectImportedEvent,
   shouldEnqueueNotifications,
+  importPlanToSchedule,
   validateEventFields,
 } from '@local-events/domain';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { AdminAuditServices } from './audit';
 import { noopAudit } from './audit';
 import { createMemoryDomainEventPublisher } from './domain-events/memory';
+import { scheduleImportPlanForEvent } from './import-notifications';
 import { upsertEventPushDraft } from './push-drafts/drafts';
 import { enqueueDomainEvent, type DomainEventPublisher } from './domain-events/types';
 
@@ -672,6 +679,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           title: schema.events.title,
           origin: schema.events.origin,
           publisherId: schema.events.publisherId,
+          startsAt: schema.events.startsAt,
         })
         .from(schema.events)
         .where(eq(schema.events.id, eventId))
@@ -685,18 +693,30 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .returning({ id: schema.events.id });
       if (!updated[0]) return null;
       const [publisher] = await db
-        .select({ verified: schema.publishers.verified })
+        .select({
+          verified: schema.publishers.verified,
+          importNotificationPlan: schema.publishers.importNotificationPlan,
+        })
         .from(schema.publishers)
         .where(eq(schema.publishers.id, row.publisherId))
         .limit(1);
-      await upsertEventPushDraft(db, {
-        eventId,
-        eventTitle: row.title,
-        publisherVerified: publisher?.verified ?? false,
-        origin: row.origin,
-        sourceTrust: 'review',
-        now: at,
-      });
+      const approvedPlan = publisher
+        ? importPlanToSchedule({
+            publisherVerified: publisher.verified,
+            planId: publisher.importNotificationPlan,
+          })
+        : null;
+      await approvePendingPushMessagesForEvent(db, eventId, at);
+      if (approvedPlan) {
+        await scheduleImportPlanForEvent(db, {
+          eventId,
+          eventTitle: row.title,
+          startsAt: row.startsAt,
+          eventStatus: 'published',
+          planId: approvedPlan,
+          now: at,
+        });
+      }
       if (shouldEnqueueNotifications('published')) {
         await enqueueDomainEvent(domainEvents, { type: 'event.published', eventId });
       }
@@ -789,17 +809,41 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         nextStatus === 'in_review'
       ) {
         const [publisher] = await db
-          .select({ verified: schema.publishers.verified })
+          .select({
+            verified: schema.publishers.verified,
+            importNotificationPlan: schema.publishers.importNotificationPlan,
+          })
           .from(schema.publishers)
           .where(eq(schema.publishers.id, existing.publisherId))
           .limit(1);
-        await upsertEventPushDraft(db, {
-          eventId,
-          eventTitle: body.title ?? existing.title,
-          publisherVerified: publisher?.verified ?? false,
-          origin: existing.origin,
-          now: at,
-        });
+        const editedPlan =
+          existing.origin === 'imported' && nextStatus === 'published' && publisher
+            ? importPlanToSchedule({
+                publisherVerified: publisher.verified,
+                planId: publisher.importNotificationPlan,
+              })
+            : null;
+        if (nextStatus === 'published' && existing.status !== 'published') {
+          await approvePendingPushMessagesForEvent(db, eventId, at);
+        }
+        if (editedPlan) {
+          await scheduleImportPlanForEvent(db, {
+            eventId,
+            eventTitle: body.title ?? existing.title,
+            startsAt: new Date(body.startsAt ?? existing.startsAt),
+            eventStatus: 'published',
+            planId: editedPlan,
+            now: at,
+          });
+        } else if (existing.origin !== 'imported') {
+          await upsertEventPushDraft(db, {
+            eventId,
+            eventTitle: body.title ?? existing.title,
+            publisherVerified: publisher?.verified ?? false,
+            origin: existing.origin,
+            now: at,
+          });
+        }
       }
       if (nextStatus === 'published' && existing.status !== 'published') {
         await enqueueDomainEvent(domainEvents, { type: 'event.published', eventId });

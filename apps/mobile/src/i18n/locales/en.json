@@ -279,6 +279,11 @@
     "ticketsEmptyTitle": "No tickets",
     "ticketsEmptyBody": "Nearby events with a ticket or registration link show up here."
   },
+  "identity": {
+    "resetTitle": "Start over on this device?",
+    "resetMessage": "This identity is no longer active. Everything saved on this device will be removed, and setup will start again.",
+    "resetConfirm": "Start over"
+  },
   "onboarding": {
     "welcomeTitle": "Experience more, locally.",
     "welcomeBody": "Music, concerts and unique events near you.",
@@ -322,6 +327,19 @@
     "tagsSaveError": "Couldn’t save these tags.",
     "activate": "Activate",
     "skip": "Skip",
+    "skipCancel": "Cancel",
+    "skipConfirm": "Skip anyway",
+    "skipNotificationsTitle": "Skip notifications?",
+    "deniedNotificationsTitle": "Notifications could not be enabled",
+    "deniedOk": "OK",
+    "skipNotificationsMessage": "You won’t be told when new events match your interests.",
+    "skipLocationTitle": "Skip location?",
+    "deniedLocationTitle": "Location could not be enabled",
+    "skipLocationMessage": "You won’t see events around you, and you won’t be able to check in at a venue.",
+    "skipAreaTitle": "Skip this place?",
+    "skipAreaMessage": "You won’t get events for a saved place until you add one later.",
+    "skipTagsTitle": "Skip interests?",
+    "skipTagsMessage": "You won’t get events and notifications based on what you like. You can choose interests later.",
     "reminderNotificationsTitle": "Enable notifications?",
     "reminderNotificationsBody": "You skipped this earlier. Activate notifications to hear about events that match your interests.",
     "reminderLocationTitle": "Enable location?",

@@ -1,5 +1,5 @@
 import type { IncomingEvent } from '@local-events/ingest';
-import type { EventStatus, SourceTrust } from '@local-events/domain';
+import type { EventStatus, MarketingPushPlanId, SourceTrust } from '@local-events/domain';
 
 export interface SourceRecord {
   id: string;
@@ -12,6 +12,8 @@ export interface SourceRecord {
 export interface PublisherLink {
   publisherId: string;
   isTemporary: boolean;
+  verified: boolean;
+  importNotificationPlan: MarketingPushPlanId | null;
 }
 
 export interface ExternalRefHit {
@@ -66,14 +68,14 @@ export interface IngestStore {
   tagIdsForExternalIds(externalIds: string[]): Promise<string[]>;
   insertImported(input: ImportedEventWrite): Promise<string>;
   updateImported(eventId: string, input: ImportedEventWrite): Promise<void>;
-  /** Optional: create/refresh push draft for imported events. */
-  upsertPushDraft?(input: {
+  /** Schedule the publisher's import notification plan for one imported event. */
+  scheduleImportNotifications?(input: {
     eventId: string;
     eventTitle: string;
-    publisherVerified: boolean;
-    origin: 'imported';
-    sourceTrust: SourceTrust;
-    publisherIsTemporary: boolean;
+    startsAt: Date;
+    planId: MarketingPushPlanId;
+    /** Event status after this import. Published rows are approved; others stay pending. */
+    status: EventStatus;
   }): Promise<void>;
   linkExisting(input: {
     sourceId: string;

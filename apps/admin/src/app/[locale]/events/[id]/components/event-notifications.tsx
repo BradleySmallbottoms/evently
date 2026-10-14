@@ -16,6 +16,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
 import {
+  canAdminNotifyEvent,
   DEFAULT_MARKETING_PUSH_PLAN,
   MAX_ADMIN_EVENT_PUSH_PLAN,
   marketingPushPlan,
@@ -111,13 +112,13 @@ export function EventNotifications({
   title,
   startsAt,
   timezone,
-  published,
+  status,
 }: {
   eventId: string;
   title: string;
   startsAt: string;
   timezone: string;
-  published: boolean;
+  status: string;
 }) {
   const t = useTranslations('PushMessages');
   const locale = useLocale();
@@ -131,8 +132,9 @@ export function EventNotifications({
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const canNotify = canAdminNotifyEvent(status);
   const scheduleKey = `${eventId}|${startsAt}|${timezone}`;
-  if (published && !customized && (builtScheduleKey !== scheduleKey || builtPlan !== planId)) {
+  if (canNotify && !customized && (builtScheduleKey !== scheduleKey || builtPlan !== planId)) {
     setBuiltScheduleKey(scheduleKey);
     setBuiltPlan(planId);
     setDrafts(draftsForPlan(planId, title, startsAt, timezone));
@@ -144,7 +146,11 @@ export function EventNotifications({
     queryKey: ['admin-push-messages', 'approved'],
     queryFn: () => adminFetch<{ items: ScheduledPush[] }>('/push-messages?status=approved'),
   });
-  const waiting = (scheduled.data?.items ?? []).filter(
+  const pending = useQuery({
+    queryKey: ['admin-push-messages', 'pending'],
+    queryFn: () => adminFetch<{ items: ScheduledPush[] }>('/push-messages?status=pending'),
+  });
+  const waiting = [...(pending.data?.items ?? []), ...(scheduled.data?.items ?? [])].filter(
     (item) => item.eventId === eventId && item.kind === 'event',
   );
 
@@ -163,7 +169,7 @@ export function EventNotifications({
         body: JSON.stringify({ eventId, audience, notifications }),
       }),
     onSuccess: async () => {
-      setNotice(t('planApproved'));
+      setNotice(status === 'published' ? t('planApproved') : t('planSaved'));
       setError(null);
       setDrafts([]);
       setCustomized(true);
@@ -262,9 +268,10 @@ export function EventNotifications({
       <Typography variant="body2" color="text.secondary">
         {t('planStarts', { when: startsLabel })}
       </Typography>
-      {published ? (
+      {canNotify ? (
         <Paper variant="outlined" sx={styles.card}>
           <Typography variant="body2">{t('planLead')}</Typography>
+          {status === 'published' ? null : <Alert severity="info">{t('planHeld')}</Alert>}
           {notice ? <Alert severity="success">{notice}</Alert> : null}
           {error ? <Alert severity="error">{error}</Alert> : null}
           {scheduleStale ? (
@@ -412,7 +419,13 @@ export function EventNotifications({
               onClick={approvePlan}
               disabled={approve.isPending || drafts.length === 0}
             >
-              {approve.isPending ? t('approvingPlan') : t('approvePlan')}
+              {approve.isPending
+                ? status === 'published'
+                  ? t('approvingPlan')
+                  : t('savingPlan')
+                : status === 'published'
+                  ? t('approvePlan')
+                  : t('savePlan')}
             </Button>
             {drafts.length === 0 ? (
               <Button onClick={() => setCustomized(false)}>{t('refreshPlan')}</Button>
@@ -426,11 +439,13 @@ export function EventNotifications({
         <Typography variant="h6" component="h2">
           {t('scheduledTitle')}
         </Typography>
-        {scheduled.isError ? <Alert severity="error">{t('loadError')}</Alert> : null}
-        {scheduled.isLoading ? (
+        {scheduled.isError || pending.isError ? (
+          <Alert severity="error">{t('loadError')}</Alert>
+        ) : null}
+        {scheduled.isLoading || pending.isLoading ? (
           <Typography color="text.secondary">{t('loading')}</Typography>
         ) : null}
-        {scheduled.data && waiting.length === 0 ? (
+        {(scheduled.data || pending.data) && waiting.length === 0 ? (
           <Alert severity="info">{t('scheduledEmpty')}</Alert>
         ) : null}
         {waiting.map((item) => (
@@ -438,6 +453,7 @@ export function EventNotifications({
             {item.sendAt ? new Date(item.sendAt).toLocaleString(locale) : t('asap')}
             {' · '}
             {locale === 'en' ? item.titleEn : item.titleSv}
+            {item.status === 'pending' ? ` · ${t('inReview')}` : ''}
           </Typography>
         ))}
       </Stack>

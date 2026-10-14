@@ -6,12 +6,21 @@ import {
 import { createDb, resolveDatabaseUrl } from '@local-events/db';
 import { processMessage, type HandlerContext } from './handlers';
 import { handleDuePushMessages } from './notify/handle-due-push';
-import { createExpoPushClient } from './notify/expo-push';
+import { createExpoPushClient, isPushDryRun } from './notify/expo-push';
 import { initSentry, Sentry } from './sentry';
 import { createHttpStatsWriter } from './stats/apply';
 import { reconcileAllStats } from './stats/recompute';
 
 initSentry('worker');
+
+if (isPushDryRun()) {
+  console.log(
+    JSON.stringify({
+      pushDryRun: true,
+      note: 'PUSH_DRY_RUN is set; deliveries are stored as dry_run and Expo is not called',
+    }),
+  );
+}
 
 const queueUrl = process.env.DOMAIN_EVENTS_QUEUE_URL?.trim();
 const region = process.env.AWS_REGION ?? 'eu-north-1';

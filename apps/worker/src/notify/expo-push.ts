@@ -22,6 +22,15 @@ export type ExpoPushClient = {
   send: (messages: ExpoPushMessage[]) => Promise<ExpoPushTicket[]>;
 };
 
+/**
+ * `PUSH_DRY_RUN=1` (also `true` / `yes`) records deliveries and does not call Expo.
+ * Unset or any other value sends for real.
+ */
+export function isPushDryRun(env: NodeJS.ProcessEnv = process.env): boolean {
+  const raw = env.PUSH_DRY_RUN?.trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes';
+}
+
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const BATCH_SIZE = 100;
 
@@ -32,6 +41,20 @@ const BATCH_SIZE = 100;
 export function createExpoPushClient(fetchImpl: typeof fetch = fetch): ExpoPushClient {
   return {
     async send(messages) {
+      if (isPushDryRun()) {
+        console.log(
+          JSON.stringify({
+            pushDryRun: true,
+            step: 'expo_skipped',
+            count: messages.length,
+          }),
+        );
+        return messages.map(() => ({
+          status: 'error' as const,
+          message: 'dry_run',
+          details: { error: 'DryRun' },
+        }));
+      }
       const tickets: ExpoPushTicket[] = [];
       for (let i = 0; i < messages.length; i += BATCH_SIZE) {
         const chunk = messages.slice(i, i + BATCH_SIZE);

@@ -279,6 +279,11 @@
     "ticketsEmptyTitle": "Inga biljetter",
     "ticketsEmptyBody": "Evenemang i närheten med biljett- eller anmälningslänk visas här."
   },
+  "identity": {
+    "resetTitle": "Börja om på den här enheten?",
+    "resetMessage": "Den här identiteten är inte längre aktiv. Allt som sparats på enheten tas bort och starten börjar om.",
+    "resetConfirm": "Börja om"
+  },
   "onboarding": {
     "welcomeTitle": "Upplev mer lokalt",
     "welcomeBody": "Musik, konserter och unika evenemang nära dig.",
@@ -322,6 +327,19 @@
     "tagsSaveError": "Kunde inte spara taggarna.",
     "activate": "Aktivera",
     "skip": "Hoppa över",
+    "skipCancel": "Avbryt",
+    "skipConfirm": "Hoppa över ändå",
+    "skipNotificationsTitle": "Hoppa över notiser?",
+    "deniedNotificationsTitle": "Notiser kunde inte aktiveras",
+    "deniedOk": "OK",
+    "skipNotificationsMessage": "Du får inte veta när nya evenemang matchar dina intressen.",
+    "skipLocationTitle": "Hoppa över plats?",
+    "deniedLocationTitle": "Plats kunde inte aktiveras",
+    "skipLocationMessage": "Du ser inte evenemang i närheten och kan inte checka in på platsen.",
+    "skipAreaTitle": "Hoppa över platsen?",
+    "skipAreaMessage": "Du får inte evenemang för en sparad plats förrän du lägger till en senare.",
+    "skipTagsTitle": "Hoppa över intressen?",
+    "skipTagsMessage": "Du får inte evenemang och notiser utifrån vad du gillar. Du kan välja intressen senare.",
     "reminderNotificationsTitle": "Aktivera notiser?",
     "reminderNotificationsBody": "Du hoppade över detta tidigare. Aktivera notiser för att höra om evenemang som matchar dina intressen.",
     "reminderLocationTitle": "Aktivera plats?",

@@ -1,8 +1,13 @@
 import type { Db } from '@local-events/db';
-import { pointEwkt, schema } from '@local-events/db';
-import { slugifyPublisherName, tagSlug } from '@local-events/domain';
+import { insertApprovedEventReminders, pointEwkt, schema } from '@local-events/db';
+import {
+  IMPORT_NOTIFICATION_AUDIENCE,
+  importNotificationMessages,
+  pushStatusForEvent,
+  slugifyPublisherName,
+  tagSlug,
+} from '@local-events/domain';
 import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
-import { upsertEventPushDraft } from './push-messages/drafts';
 import type { ImportedEventWrite, IngestStore, NearbyEvent } from './store';
 
 const NEAR_MS = 30 * 60 * 1000;
@@ -122,6 +127,8 @@ export function createDbIngestStore(db: Db): IngestStore {
         .select({
           publisherId: publisherAliases.publisherId,
           isTemporary: publishers.isTemporary,
+          verified: publishers.verified,
+          importNotificationPlan: publishers.importNotificationPlan,
         })
         .from(publisherAliases)
         .innerJoin(publishers, eq(publishers.id, publisherAliases.publisherId))
@@ -154,7 +161,12 @@ export function createDbIngestStore(db: Db): IngestStore {
           externalOrganizerKey: input.organizerKey,
           publisherId: publisher.id,
         });
-        return { publisherId: publisher.id, isTemporary: true };
+        return {
+          publisherId: publisher.id,
+          isTemporary: true,
+          verified: false,
+          importNotificationPlan: null,
+        };
       });
     },
     async sourceOwnsEvent(sourceId, eventId) {
@@ -366,8 +378,25 @@ export function createDbIngestStore(db: Db): IngestStore {
         .delete(eventImages)
         .where(and(eq(eventImages.eventId, eventId), inArray(eventImages.role, gallery)));
     },
-    async upsertPushDraft(input) {
-      await upsertEventPushDraft(db, input);
+    async scheduleImportNotifications(input) {
+      const messages = importNotificationMessages({
+        planId: input.planId,
+        eventTitle: input.eventTitle,
+        startsAt: input.startsAt,
+        now: new Date(),
+      });
+      await insertApprovedEventReminders(db, {
+        eventId: input.eventId,
+        audience: IMPORT_NOTIFICATION_AUDIENCE,
+        status: pushStatusForEvent(input.status),
+        notifications: messages.map((message) => ({
+          titleSv: message.copy.titleSv,
+          bodySv: message.copy.bodySv,
+          titleEn: message.copy.titleEn,
+          bodyEn: message.copy.bodyEn,
+          sendAt: message.sendAt,
+        })),
+      });
     },
   };
 }

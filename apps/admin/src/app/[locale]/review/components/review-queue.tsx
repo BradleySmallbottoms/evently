@@ -16,6 +16,7 @@ import { AdminApiError, adminFetch } from '@/lib/api';
 
 type ReviewItem = {
   id: string;
+  publisherId: string;
   publisherName: string;
   title: string;
   startsAt: string;
@@ -23,7 +24,7 @@ type ReviewItem = {
   sourceUrl: string | null;
 };
 
-export function ReviewQueue() {
+export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   const t = useTranslations('Events');
   const tApp = useTranslations('App');
   const queryClient = useQueryClient();
@@ -60,7 +61,7 @@ export function ReviewQueue() {
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h4" component="h1">
+      <Typography variant={embedded ? 'h5' : 'h4'} component={embedded ? 'h2' : 'h1'}>
         {t('reviewTitle')}
       </Typography>
       {list.isLoading ? <Typography color="text.secondary">{tApp('loading')}</Typography> : null}
@@ -90,7 +91,9 @@ export function ReviewQueue() {
                     item.title
                   )}
                 </TableCell>
-                <TableCell>{item.publisherName}</TableCell>
+                <TableCell>
+                  <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>
+                </TableCell>
                 <TableCell>{new Date(item.startsAt).toLocaleString()}</TableCell>
                 <TableCell>{item.venueName ?? '—'}</TableCell>
                 <TableCell align="right">

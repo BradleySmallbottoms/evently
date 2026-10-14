@@ -1,0 +1,2 @@
+CREATE TYPE "public"."import_notification_plan" AS ENUM('single', 'standard', 'countdown', 'full');--> statement-breakpoint
+ALTER TABLE "publishers" ADD COLUMN "import_notification_plan" "import_notification_plan";

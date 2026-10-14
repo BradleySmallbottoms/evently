@@ -1,7 +1,9 @@
 import {
   mergeImportedLinks,
   shouldEnqueueNotifications,
+  importPlanToSchedule,
   statusOnPublish,
+  type EventStatus,
   validateEventFields,
 } from '@local-events/domain';
 import { contentHash, isLikelySameEvent, type IncomingEvent } from '@local-events/ingest';
@@ -9,7 +11,7 @@ import { emitDomainEvent, noopDomainEvents, type DomainEventSink } from './domai
 import { noopEventImageUploader, type EventImageUploader } from './event-images';
 import { noopRawPayloadSink, type RawPayloadSink } from './raw-payload';
 import { runSource } from './run';
-import type { IngestStore, SourceRecord } from './store';
+import type { IngestStore, PublisherLink, SourceRecord } from './store';
 
 export interface PersistSummary {
   source: string;
@@ -42,6 +44,8 @@ const UPDATED_FIELDS = [
 /**
  * Fetch one source and upsert its events.
  * Review-trust and temporary publishers stay `in_review` and are not announced.
+ * A verified publisher with a plan still gets reminders: approved when the event
+ * is published, pending while it is in review.
  * An unchanged content hash is skipped. A cross-source match links the ref and
  * leaves the existing event alone.
  */
@@ -180,6 +184,31 @@ async function attachImages(
   if (stale.length > 0) await store.deleteEventImages(eventId, stale);
 }
 
+async function scheduleImportedNotifications(
+  store: IngestStore,
+  input: {
+    eventId: string;
+    eventTitle: string;
+    startsAt: string;
+    status: EventStatus;
+    publisher: PublisherLink;
+  },
+) {
+  const planId = importPlanToSchedule({
+    publisherVerified: input.publisher.verified,
+    planId: input.publisher.importNotificationPlan,
+  });
+  if (!planId || !store.scheduleImportNotifications) return;
+  if (input.status === 'cancelled' || input.status === 'ended') return;
+  await store.scheduleImportNotifications({
+    eventId: input.eventId,
+    eventTitle: input.eventTitle,
+    startsAt: new Date(input.startsAt),
+    planId,
+    status: input.status,
+  });
+}
+
 async function saveOne(
   store: IngestStore,
   source: SourceRecord,
@@ -239,16 +268,13 @@ async function saveOne(
     }
     await store.updateImported(existing.eventId, write);
     await attachImages(store, existing.eventId, event, images);
-    if (store.upsertPushDraft) {
-      await store.upsertPushDraft({
-        eventId: existing.eventId,
-        eventTitle: event.title,
-        publisherVerified: !publisher.isTemporary && source.trust === 'auto_publish',
-        origin: 'imported',
-        sourceTrust: source.trust,
-        publisherIsTemporary: publisher.isTemporary,
-      });
-    }
+    await scheduleImportedNotifications(store, {
+      eventId: existing.eventId,
+      eventTitle: event.title,
+      startsAt: event.startsAt,
+      status: write.status,
+      publisher,
+    });
     if (existing.status === 'published') {
       await emitDomainEvent(enqueue, {
         type: 'event.updated',
@@ -275,16 +301,13 @@ async function saveOne(
 
   const eventId = await store.insertImported(write);
   await attachImages(store, eventId, event, images);
-  if (store.upsertPushDraft) {
-    await store.upsertPushDraft({
-      eventId,
-      eventTitle: event.title,
-      publisherVerified: !publisher.isTemporary && source.trust === 'auto_publish',
-      origin: 'imported',
-      sourceTrust: source.trust,
-      publisherIsTemporary: publisher.isTemporary,
-    });
-  }
+  await scheduleImportedNotifications(store, {
+    eventId,
+    eventTitle: event.title,
+    startsAt: event.startsAt,
+    status: write.status,
+    publisher,
+  });
   if (shouldEnqueueNotifications(write.status)) {
     await emitDomainEvent(enqueue, { type: 'event.published', eventId });
   }

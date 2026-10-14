@@ -17,6 +17,8 @@ type Props = {
   locationGranted: boolean;
   fallbackName: string;
   busy: boolean;
+  confirmed?: boolean;
+  onConfirmed?: () => void;
   onSave: (place: NamedPlace & { radiusM: number }) => void;
   onSkip: (detected: { lat: number; lng: number } | null) => void;
 };
@@ -26,6 +28,8 @@ export function OnboardingAreaStep({
   locationGranted,
   fallbackName,
   busy,
+  confirmed = false,
+  onConfirmed,
   onSave,
   onSkip,
 }: Props) {
@@ -38,7 +42,8 @@ export function OnboardingAreaStep({
   const [results, setResults] = useState<NamedPlace[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchEmpty, setSearchEmpty] = useState(false);
-  const [radiusM, setRadiusM] = useState<(typeof AREA_RADIUS_PRESETS_M)[number]>(DEFAULT_AREA_RADIUS_M);
+  const [radiusM, setRadiusM] =
+    useState<(typeof AREA_RADIUS_PRESETS_M)[number]>(DEFAULT_AREA_RADIUS_M);
 
   const locating = locationGranted && !locateFailed && !place;
   const textChanged =
@@ -145,7 +150,11 @@ export function OnboardingAreaStep({
                 setSearching(false);
               }}
             >
-              <SymbolView name={'xmark.circle.fill' as never} size={18} tintColor={colors.inkFaint} />
+              <SymbolView
+                name={'xmark.circle.fill' as never}
+                size={18}
+                tintColor={colors.inkFaint}
+              />
             </Pressable>
           ) : null}
         </View>
@@ -167,13 +176,15 @@ export function OnboardingAreaStep({
           }}
         >
           {searchEmpty ? (
-            <View style={{
-              minHeight: 44,
-              justifyContent: 'center',
-              paddingHorizontal: space.lg,
-              borderTopWidth: 1,
-              borderTopColor: 'rgba(26, 26, 26, 0.08)',
-            }}>
+            <View
+              style={{
+                minHeight: 44,
+                justifyContent: 'center',
+                paddingHorizontal: space.lg,
+                borderTopWidth: 1,
+                borderTopColor: 'rgba(26, 26, 26, 0.08)',
+              }}
+            >
               <AppText variant="caption" style={{ color: '#ff0000' }}>
                 {t('onboarding.areaSearchEmpty')}
               </AppText>
@@ -245,8 +256,11 @@ export function OnboardingAreaStep({
 
       <PrimaryButton
         label={t('onboarding.continue')}
+        icon={{ sf: 'mappin.and.ellipse', md: 'place' }}
         loading={busy}
         disabled={busy || locating || !resolved}
+        confirmed={confirmed}
+        onConfirmed={onConfirmed}
         onPress={() => {
           if (!resolved) return;
           onSave({ ...resolved, radiusM });
@@ -254,12 +268,12 @@ export function OnboardingAreaStep({
       />
       <Pressable
         accessibilityRole="button"
-        disabled={busy}
+        disabled={busy || confirmed}
         onPress={() => onSkip(detected)}
         style={({ pressed }) => ({
           alignItems: 'center',
           paddingVertical: space.sm,
-          opacity: busy ? 0.4 : pressed ? 0.6 : 1,
+          opacity: busy || confirmed ? 0.4 : pressed ? 0.6 : 1,
         })}
       >
         <AppText variant="caption" style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>

@@ -50,6 +50,16 @@ pnpm api-client:generate   # after public API OpenAPI changes
 
 ## Need to know
 
+### Publisher import notifications
+
+- Admin edits a publisher at `/publishers/{id}` (name, slug, type, and notification settings).
+  Notification settings are **nothing** or a marketing plan. A plan schedules reminders for events
+  a script imports for that publisher, and only when the publisher is **verified**. The reminders
+  use saved area plus a matching interest (`area_and_tag`) and skip times already in the past.
+  A published import (`auto_publish`) is approved immediately. An event still in review is stored
+  as `pending` and is not sent until an admin publishes the event, which approves those rows.
+  Flow: [docs/flows/publisher-import-notifications.md](docs/flows/publisher-import-notifications.md).
+
 Operational and product facts that bite during local development. **Update this section (and add
 a diagram under [`docs/flows/`](docs/flows/README.md) when the feature has complex client→API→DB
 calls) in the same change as every new major feature.**
@@ -202,7 +212,11 @@ calls) in the same change as every new major feature.**
   [docs/flows/device-linking.md](docs/flows/device-linking.md).
 - App identity is a **device credential** in secure storage (localStorage on web), not the user id.
   Onboarding creates it with `POST /v1/identities` before the notification prompt, and shows again
-  when that credential is missing. On the iOS Simulator set `EXPO_PUBLIC_API_URL` to
+  when that credential is missing. Launch and foreground call `POST /v1/sessions`; a rejected
+  credential (deleted, revoked, or banned user) shows an alert and, once confirmed, wipes local
+  stores and restarts onboarding. Offline does not wipe. Flow:
+  [docs/flows/identity-reset.md](docs/flows/identity-reset.md). On the iOS Simulator set
+  `EXPO_PUBLIC_API_URL` to
   `http://127.0.0.1:3000/v1` (`localhost` resolves to IPv6 and the request fails). A physical phone
   needs the Mac's LAN address.
 - Dev CORS defaults allow web `:3100` and Expo web `:8081` with credentials. Override with
@@ -212,7 +226,8 @@ calls) in the same change as every new major feature.**
   otherwise `/_next` is 403 and the login form appears to do nothing. Session cookies are
   `SameSite=Lax` on the admin API host — keep the UI and `NEXT_PUBLIC_ADMIN_API_URL` on the
   same site (e.g. both `localhost`, or both `*.your-alias`) or the cookie will not stick.
-- **Admin queues:** `/events` reviews `in_review` imports (publish/reject); `/events/manage`
+- **Admin queues:** `/review` lists imports in `in_review`, unverified publishers, and `pending`
+  notifications (approve/reject). `/events` redirects there. `/events/manage`
   patches status. `/publishers` verifies, remaps/completes temporary publishers, and toggles
   verified. `/moderation` hides ratings and bans users (banned users cannot create sessions or
   use existing ones). `/audit-log` lists admin actions. Ingest raw payloads go to S3 as
@@ -260,7 +275,9 @@ calls) in the same change as every new major feature.**
   and a banner appears only while the app is open. Inbox list/badge via
   `GET /me/notifications` (`unreadCount`). Rows older than 90 days are purged. Toggle quiet hours
   with `PUT /me/quiet-hours`. Follow via `POST /v1/me/subscriptions`. Needs `DATABASE_URL` on the
-  worker. Flow: [docs/flows/push-and-domain-events.md](docs/flows/push-and-domain-events.md).
+  worker. Set `PUSH_DRY_RUN=1` on the worker to keep writing inbox rows and
+  `push_message_deliveries` (`status = dry_run`) without POSTing to Expo.
+  Flow: [docs/flows/push-and-domain-events.md](docs/flows/push-and-domain-events.md).
 
 ### Frontend structure
 

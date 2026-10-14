@@ -1,8 +1,22 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { ApiError } from '@local-events/api-client';
 import { api, throwIfError } from './api';
+import { clearLocalAppData } from './clear-local-data';
+import { isRejectedIdentity } from './identity-check';
 import { registerPushToken } from './push-notifications';
+
+let identityWrite: Promise<void> = Promise.resolve();
+/** Bumped when the device is wiped so an in-flight rejection cannot reopen the alert. */
+let identityEpoch = 0;
+
+function withIdentityLock<T>(work: () => Promise<T>): Promise<T> {
+  const run = identityWrite.then(work, work);
+  identityWrite = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
 
 const KEYS = {
   userId: 'le.userId',
@@ -45,7 +59,7 @@ export async function loadStoredIdentity(): Promise<StoredIdentity | null> {
   return { userId, deviceId, deviceCredential, sessionToken, expiresAt };
 }
 
-async function persistIdentity(identity: StoredIdentity): Promise<void> {
+async function writeIdentity(identity: StoredIdentity): Promise<void> {
   await Promise.all([
     setItem(KEYS.userId, identity.userId),
     setItem(KEYS.deviceId, identity.deviceId),
@@ -55,24 +69,32 @@ async function persistIdentity(identity: StoredIdentity): Promise<void> {
   ]);
 }
 
-async function removeItem(key: string): Promise<void> {
-  if (Platform.OS === 'web') {
-    globalThis.localStorage?.removeItem(key);
-    return;
-  }
-  try {
-    await SecureStore.deleteItemAsync(key);
-  } catch {
-    /* missing key */
-  }
+async function persistIdentity(identity: StoredIdentity): Promise<void> {
+  await withIdentityLock(() => writeIdentity(identity));
 }
 
-async function clearStoredIdentity(): Promise<void> {
-  await Promise.all([...Object.values(KEYS), 'le.expoPushToken'].map((key) => removeItem(key)));
+/** Drop every local store after the user confirms the identity is gone. */
+export async function discardStoredIdentity(): Promise<void> {
+  identityEpoch += 1;
+  await withIdentityLock(() => clearLocalAppData());
 }
 
-function isStaleCredential(err: unknown): boolean {
-  return err instanceof ApiError && (err.status === 401 || err.code === 'invalid_credentials');
+export type IdentityCheck = 'valid' | 'invalid' | 'missing' | 'unavailable';
+
+/** Fired when a session exchange proves the stored credential is gone or banned. */
+let onIdentityRejected: (() => void) | null = null;
+
+export function setIdentityRejectedHandler(handler: (() => void) | null): void {
+  onIdentityRejected = handler;
+}
+
+export function currentIdentityEpoch(): number {
+  return identityEpoch;
+}
+
+function notifyIdentityRejected(epoch: number): void {
+  if (epoch !== identityEpoch) return;
+  onIdentityRejected?.();
 }
 
 function platform(): 'ios' | 'android' | 'web' {
@@ -105,23 +127,29 @@ function syncPushToken(identity: StoredIdentity): void {
   });
 }
 
+/** One create shared by concurrent callers (onboarding mounts two at once). */
+let pendingIdentity: Promise<StoredIdentity> | null = null;
+
 /** Ensure the device has an anonymous identity and a fresh-enough session token. */
 export async function ensureIdentity(locale: 'sv' | 'en' = 'sv'): Promise<StoredIdentity> {
   const existing = await loadStoredIdentity();
-  const identity = existing
-    ? await refreshSessionIfNeeded(existing, locale)
-    : await createAnonymousIdentity(locale);
+  if (existing) {
+    const identity = await refreshSessionIfNeeded(existing);
+    syncPushToken(identity);
+    return identity;
+  }
+  if (!pendingIdentity) {
+    pendingIdentity = createAnonymousIdentity(locale).finally(() => {
+      pendingIdentity = null;
+    });
+  }
+  const identity = await pendingIdentity;
   syncPushToken(identity);
   return identity;
 }
 
-async function refreshSessionIfNeeded(
-  existing: StoredIdentity,
-  locale: 'sv' | 'en',
-): Promise<StoredIdentity> {
-  const expiresSoon = new Date(existing.expiresAt).getTime() - Date.now() < 5 * 60 * 1000;
-  if (!expiresSoon) return existing;
-
+async function exchangeSession(existing: StoredIdentity): Promise<StoredIdentity> {
+  const epoch = identityEpoch;
   try {
     const session = throwIfError(
       await api.POST('/sessions', {
@@ -134,31 +162,45 @@ async function refreshSessionIfNeeded(
       sessionToken: session.sessionToken,
       expiresAt: session.expiresAt,
     };
-    await persistIdentity(refreshed);
+    await withIdentityLock(async () => {
+      if (epoch !== identityEpoch) throw new Error('identity_check_stale');
+      await writeIdentity(refreshed);
+    });
     return refreshed;
   } catch (err) {
-    if (!isStaleCredential(err)) throw err;
-    await clearStoredIdentity();
-    return createAnonymousIdentity(locale);
+    if (isRejectedIdentity(err)) notifyIdentityRejected(epoch);
+    throw err;
   }
+}
+
+/**
+ * Prove the stored device credential still belongs to an active user.
+ * Network failures stay `unavailable` so a blip does not wipe the device.
+ */
+export async function verifyStoredIdentity(): Promise<IdentityCheck> {
+  const existing = await loadStoredIdentity();
+  if (!existing) return 'missing';
+  try {
+    await exchangeSession(existing);
+    return 'valid';
+  } catch (err) {
+    if (!isRejectedIdentity(err)) return 'unavailable';
+    return 'invalid';
+  }
+}
+
+async function refreshSessionIfNeeded(existing: StoredIdentity): Promise<StoredIdentity> {
+  const expiresSoon = new Date(existing.expiresAt).getTime() - Date.now() < 5 * 60 * 1000;
+  if (!expiresSoon) return existing;
+
+  return exchangeSession(existing);
 }
 
 /** Force a session exchange (e.g. after device linking remaps this credential to another user). */
 export async function refreshIdentitySession(): Promise<StoredIdentity> {
   const existing = await loadStoredIdentity();
   if (!existing) throw new Error('missing_identity');
-  const session = throwIfError(
-    await api.POST('/sessions', {
-      body: { deviceCredential: existing.deviceCredential },
-    }),
-  );
-  const refreshed: StoredIdentity = {
-    ...existing,
-    userId: session.userId,
-    sessionToken: session.sessionToken,
-    expiresAt: session.expiresAt,
-  };
-  await persistIdentity(refreshed);
+  const refreshed = await exchangeSession(existing);
   syncPushToken(refreshed);
   return refreshed;
 }

@@ -207,6 +207,92 @@ describe('saveIncomingEvents', () => {
       eventId: store.events[0]!.id,
     });
   });
+
+  it('schedules a notification plan for a verified publisher and skips it otherwise', async () => {
+    const store = createMemoryIngestStore();
+    const future = {
+      ...bandy,
+      externalId: 'cbis:future',
+      startsAt: '2027-06-01T18:00:00.000Z',
+      endsAt: '2027-06-01T21:00:00.000Z',
+    };
+    const trusted: SourceRecord = { ...source, trust: 'auto_publish' };
+    store.linkPublisher({
+      sourceId: source.id,
+      organizerKey: future.organizerKey,
+      name: 'Broberg',
+      isTemporary: false,
+      verified: true,
+      importNotificationPlan: 'standard',
+    });
+    await saveIncomingEvents(store, trusted, [future]);
+    expect(store.scheduledNotifications).toEqual([
+      {
+        eventId: store.events[0]!.id,
+        planId: 'standard',
+        offsets: ['week', 'day'],
+        status: 'approved',
+      },
+    ]);
+
+    const quiet = createMemoryIngestStore();
+    quiet.linkPublisher({
+      sourceId: source.id,
+      organizerKey: future.organizerKey,
+      name: 'Broberg',
+      isTemporary: false,
+      verified: true,
+      importNotificationPlan: null,
+    });
+    await saveIncomingEvents(quiet, trusted, [future]);
+    expect(quiet.scheduledNotifications).toEqual([]);
+
+    const unverified = createMemoryIngestStore();
+    unverified.linkPublisher({
+      sourceId: source.id,
+      organizerKey: future.organizerKey,
+      name: 'Broberg',
+      isTemporary: false,
+      verified: false,
+      importNotificationPlan: 'full',
+    });
+    await saveIncomingEvents(unverified, trusted, [future]);
+    expect(unverified.scheduledNotifications).toEqual([]);
+  });
+
+  it('stores a review-trust import plan as pending until the event is published', async () => {
+    const store = createMemoryIngestStore();
+    const future = {
+      ...bandy,
+      externalId: 'cbis:review-future',
+      startsAt: '2027-06-01T18:00:00.000Z',
+      endsAt: '2027-06-01T21:00:00.000Z',
+    };
+    store.linkPublisher({
+      sourceId: source.id,
+      organizerKey: future.organizerKey,
+      name: 'Broberg',
+      isTemporary: false,
+      verified: true,
+      importNotificationPlan: 'standard',
+    });
+    const published: DomainEvent[] = [];
+    await saveIncomingEvents(store, source, [future], {
+      publish: async (event) => {
+        published.push(event);
+      },
+    });
+    expect(store.events[0]?.status).toBe('in_review');
+    expect(published).toEqual([]);
+    expect(store.scheduledNotifications).toEqual([
+      {
+        eventId: store.events[0]!.id,
+        planId: 'standard',
+        offsets: ['week', 'day'],
+        status: 'pending',
+      },
+    ]);
+  });
 });
 
 describe('event images', () => {
