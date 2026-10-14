@@ -1,3 +1,4 @@
+import { canAddSavedArea } from '@local-events/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -11,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import { AreaTagGroupsSheet } from '@/components/native/area-tag-groups-sheet';
 import { LocationMenu } from '@/components/native/location-menu';
 import { NotificationsSheet } from '@/components/native/notifications-sheet';
 import { PairingSheet, type PairingSheetTab } from '@/components/native/pairing-sheet';
@@ -31,8 +33,13 @@ import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
 import { queryPointForArea } from '@/lib/area-point';
 import { refreshDeviceLocation } from '@/lib/device-location';
-import { NEARBY_PLACE_ID, setDiscoveryPlaceId, useDiscoveryPoint } from '@/lib/use-discovery-point';
-import { setDiscoveryRadiusM } from '@/lib/discovery-radius-store';
+import {
+  NEARBY_PLACE_ID,
+  radiiForPlaces,
+  setDiscoveryPlaceId,
+  useDiscoveryPoint,
+} from '@/lib/use-discovery-point';
+import { setDiscoveryRadiusForPlace } from '@/lib/discovery-radius-store';
 import {
   acceptRegionSuggestion,
   bumpRegionActivity,
@@ -43,6 +50,8 @@ import {
 import { shouldReevaluateRegionSuggestion } from '@/lib/foreground-location';
 import { dateBadge } from '@/lib/event-format';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
+import { updateAreaTags } from '@/lib/preferences';
+import { cacheAreaTags, useAreaTagPrompt } from '@/lib/use-area-tag-prompt';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
@@ -65,7 +74,8 @@ export default function HomeScreen() {
   const [regionSheetOpen, setRegionSheetOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const { identity, preferences, point, placeId, radiusM, device } = useDiscoveryPoint();
+  const { identity, preferences, point, placeId, radiusM, radiusMap, device } = useDiscoveryPoint();
+  const areaTags = useAreaTagPrompt(identity.data);
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
     queryFn: () => listTags(),
@@ -76,7 +86,11 @@ export default function HomeScreen() {
     staleTime: Infinity,
   });
   const [tagDraft, setTagDraft] = useState<string[] | null>(null);
-  const selectedTagIds = tagDraft ?? storedTagIds.data ?? [];
+  const activeArea =
+    placeId === NEARBY_PLACE_ID
+      ? null
+      : (preferences.data?.areas ?? []).find((area) => area.id === placeId);
+  const selectedTagIds = tagDraft ?? (activeArea ? (activeArea.tagIds ?? []) : (storedTagIds.data ?? []));
   const selectedTagKey = [...selectedTagIds].sort().join('\n');
   const events = useInfinitePublicEvents(
     storedTagIds.isSuccess ? point.data : undefined,
@@ -117,8 +131,17 @@ export default function HomeScreen() {
     void bumpRegionActivity();
   }, []);
 
+  useEffect(() => {
+    setTagDraft(null);
+  }, [placeId]);
+
   function changeHomeTags(ids: string[]) {
     setTagDraft(ids);
+    if (activeArea && identity.data) {
+      cacheAreaTags(queryClient, identity.data.userId, activeArea.id, ids);
+      void updateAreaTags(identity.data, activeArea.id, ids);
+      return;
+    }
     queryClient.setQueryData(['home-tag-ids'], ids);
     void saveHomeTagIds(ids);
   }
@@ -325,6 +348,10 @@ export default function HomeScreen() {
     if (!queryPointForArea(area) || !area.name.trim()) return [];
     return [{ id: area.id, label: area.name }];
   });
+  const radiusByPlace = useMemo(
+    () => radiiForPlaces(radiusMap, preferences.data?.areas ?? []),
+    [preferences.data?.areas, radiusMap],
+  );
   const locationOptions = [
     { id: NEARBY_PLACE_ID, label: t('events.locationNearby') },
     ...savedPlaces,
@@ -380,11 +407,14 @@ export default function HomeScreen() {
                   options={locationOptions}
                   selectedId={placeId}
                   radiusM={radiusM}
-                  onRadiusChange={(next) => {
-                    void setDiscoveryRadiusM(next);
+                  radiusByPlace={radiusByPlace}
+                  onRadiusChange={(next, id) => {
+                    void setDiscoveryRadiusForPlace(id, next);
                   }}
                   isPresented={locationOpen}
                   onIsPresentedChange={setLocationOpen}
+                  canAdd={canAddSavedArea(preferences.data?.areas.length ?? 0)}
+                  onCreatePlace={areaTags.createFromPlace}
                   onSelect={(id) => {
                     setDiscoveryPlaceId(id);
                   }}
@@ -631,15 +661,17 @@ export default function HomeScreen() {
         neverLabel={t('regions.never')}
         onSaveNotify={() => {
           if (!identity.data || !regionSuggestion) return;
-          void acceptRegionSuggestion(identity.data, regionSuggestion, true).then(() =>
-            queryClient.invalidateQueries({ queryKey: ['preferences'] }),
-          );
+          void acceptRegionSuggestion(identity.data, regionSuggestion, true).then(async (area) => {
+            await queryClient.invalidateQueries({ queryKey: ['preferences'] });
+            areaTags.promptForArea({ id: area.id, name: area.name });
+          });
         }}
         onSaveQuiet={() => {
           if (!identity.data || !regionSuggestion) return;
-          void acceptRegionSuggestion(identity.data, regionSuggestion, false).then(() =>
-            queryClient.invalidateQueries({ queryKey: ['preferences'] }),
-          );
+          void acceptRegionSuggestion(identity.data, regionSuggestion, false).then(async (area) => {
+            await queryClient.invalidateQueries({ queryKey: ['preferences'] });
+            areaTags.promptForArea({ id: area.id, name: area.name });
+          });
         }}
         onNotNow={() => {
           if (!regionSuggestion) return;
@@ -653,6 +685,19 @@ export default function HomeScreen() {
           if (!regionSuggestion) return;
           void recordRegionDecline(regionSuggestion, true);
         }}
+      />
+
+      <AreaTagGroupsSheet
+        name={areaTags.target?.name ?? ''}
+        isPresented={areaTags.target != null}
+        busy={areaTags.busy}
+        onSave={(ids) => {
+          void areaTags.save(ids);
+        }}
+        onSkip={() => {
+          void areaTags.skip();
+        }}
+        onDismiss={areaTags.dismiss}
       />
     </View>
   );

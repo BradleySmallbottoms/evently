@@ -82,7 +82,8 @@ export interface GladaProduct {
   links: GladaLink[];
   occasions: GladaOccasion[];
   location?: { lat: number; lng: number };
-  tag?: TagChoice;
+  /** Tags chosen by the model for a product that had none stored yet. */
+  tags?: TagChoice[];
   /** Tags already stored for this product's events. Set means the model is not asked again. */
   keptTags?: { externalId: string; tags: TagChoice[] }[];
 }
@@ -495,7 +496,7 @@ function tagsForMappedEvent(product: GladaProduct, externalId: string): TagChoic
   if (kept && kept.length > 0) return kept;
   const inherited = product.keptTags?.find((row) => row.tags.length > 0)?.tags;
   if (inherited) return inherited;
-  return product.tag ? [product.tag] : [];
+  return product.tags ?? [];
 }
 
 async function assignTags(
@@ -531,7 +532,7 @@ async function assignTags(
       ctx.log('glada-hudik tag matcher unavailable');
       return;
     }
-    if (result.tag) product.tag = result.tag;
+    if (result.tags.length > 0) product.tags = result.tags;
   }
 }
 
@@ -541,68 +542,96 @@ async function readJson(response: Response): Promise<{ totalCount?: number; item
   return body as { totalCount?: number; items?: unknown[] };
 }
 
+async function fetchList(ctx: {
+  config: Record<string, unknown>;
+  fetch: typeof fetch;
+}): Promise<ListHit[]> {
+  const origin = originFromConfig(ctx.config);
+  const nodeId = nodeIdFromConfig(ctx.config);
+  const language = languageFromConfig(ctx.config);
+  const delayMs = delayMsFromConfig(ctx.config);
+  const hits: ListHit[] = [];
+  let total = Number.POSITIVE_INFINITY;
+  for (let page = 0; page < MAX_LIST_PAGES && hits.length < total; page += 1) {
+    const url = new URL(`/${language}/api/cbis-product-list`, origin);
+    url.searchParams.set('nodeId', String(nodeId));
+    url.searchParams.set('page', String(page));
+    const response = await ctx.fetch(url);
+    if (!response.ok) throw new Error(`glada-hudik list failed (${response.status})`);
+    if (!sameHost(origin, responseUrl(response, url))) {
+      throw new Error('glada-hudik list redirected off the calendar host');
+    }
+    const body = await readJson(response);
+    const items = Array.isArray(body.items) ? body.items : [];
+    if (typeof body.totalCount === 'number') total = body.totalCount;
+    if (items.length === 0) break;
+    for (const item of items) {
+      if (typeof item !== 'string') continue;
+      const hit = parseListItem(item);
+      if (hit && !hits.some((existing) => existing.id === hit.id)) hits.push(hit);
+    }
+    if (page + 1 < MAX_LIST_PAGES && hits.length < total) await sleep(delayMs);
+  }
+  if (total > 0 && hits.length === 0) {
+    throw new Error('glada-hudik list had events but none could be parsed');
+  }
+  return hits;
+}
+
+/** List every event, then yield one product after its page and tags are ready. */
+async function* eachProduct(ctx: {
+  config: Record<string, unknown>;
+  fetch: typeof fetch;
+  log: (message: string, data?: Record<string, unknown>) => void;
+}): AsyncGenerator<GladaRaw> {
+  const origin = originFromConfig(ctx.config);
+  const delayMs = delayMsFromConfig(ctx.config);
+  const hits = await fetchList(ctx);
+  let yielded = 0;
+  for (const hit of hits) {
+    console.log('hit', hit);
+    const pageUrl = new URL(hit.path, origin);
+    if (!sameHost(origin, pageUrl)) continue;
+    await sleep(delayMs);
+    const response = await ctx.fetch(pageUrl);
+    if (!response.ok || !sameHost(origin, responseUrl(response, pageUrl))) {
+      ctx.log('glada-hudik skipped event page', { id: hit.id, status: response.status });
+      continue;
+    }
+    const product = parseEventPage(await response.text(), hit.id, pageUrl.pathname);
+    if (!product || product.occasions.length === 0) {
+      ctx.log('glada-hudik skipped event with no occasions', { id: hit.id });
+      continue;
+    }
+    await assignTags(ctx, [product]);
+    yielded += 1;
+    yield { now: new Date().toISOString(), origin: origin.origin, products: [product] };
+  }
+  if (hits.length > 0 && yielded === 0) {
+    throw new Error('glada-hudik event pages had no occasions');
+  }
+}
+
 export const gladaHudik = defineAdapter<GladaRaw>({
   slug: 'glada-hudik',
   kind: 'scraper',
+  each: eachProduct,
   async fetchRaw(ctx) {
-    const origin = originFromConfig(ctx.config);
-    const nodeId = nodeIdFromConfig(ctx.config);
-    const language = languageFromConfig(ctx.config);
-    const delayMs = delayMsFromConfig(ctx.config);
-    const hits: ListHit[] = [];
-    let total = Number.POSITIVE_INFINITY;
-    for (let page = 0; page < MAX_LIST_PAGES && hits.length < total; page += 1) {
-      const url = new URL(`/${language}/api/cbis-product-list`, origin);
-      url.searchParams.set('nodeId', String(nodeId));
-      url.searchParams.set('page', String(page));
-      const response = await ctx.fetch(url);
-      if (!response.ok) throw new Error(`glada-hudik list failed (${response.status})`);
-      if (!sameHost(origin, responseUrl(response, url))) {
-        throw new Error('glada-hudik list redirected off the calendar host');
-      }
-      const body = await readJson(response);
-      const items = Array.isArray(body.items) ? body.items : [];
-      if (typeof body.totalCount === 'number') total = body.totalCount;
-      if (items.length === 0) break;
-      for (const item of items) {
-        if (typeof item !== 'string') continue;
-        const hit = parseListItem(item);
-        if (hit && !hits.some((existing) => existing.id === hit.id)) hits.push(hit);
-      }
-      if (page + 1 < MAX_LIST_PAGES && hits.length < total) await sleep(delayMs);
-    }
-    if (total > 0 && hits.length === 0) {
-      throw new Error('glada-hudik list had events but none could be parsed');
-    }
     const products: GladaProduct[] = [];
-    for (const hit of hits) {
-      // if (hit.id !== 'cbis:2882123') { // && hit.id !== 'cbis:2866536') {
-      //   continue;
-      // }
-      console.log('hit', hit);
-      const pageUrl = new URL(hit.path, origin);
-      if (!sameHost(origin, pageUrl)) continue;
-      await sleep(delayMs);
-      const response = await ctx.fetch(pageUrl);
-      if (!response.ok || !sameHost(origin, responseUrl(response, pageUrl))) {
-        ctx.log('glada-hudik skipped event page', { id: hit.id, status: response.status });
-        continue;
-      }
-      const product = parseEventPage(await response.text(), hit.id, pageUrl.pathname);
-      if (product && product.occasions.length > 0) products.push(product);
-      else ctx.log('glada-hudik skipped event with no occasions', { id: hit.id });
+    let origin = '';
+    let now = new Date().toISOString();
+    for await (const raw of eachProduct(ctx)) {
+      origin = raw.origin;
+      now = raw.now;
+      products.push(...raw.products);
     }
-    if (hits.length > 0 && products.length === 0) {
-      throw new Error('glada-hudik event pages had no occasions');
-    }
-    await assignTags(ctx, products);
-    return { now: new Date().toISOString(), origin: origin.origin, products };
+    return { now, origin, products };
   },
   tags(raw) {
     const byId = new Map<string, string>();
     for (const product of raw.products) {
       const choices = [
-        ...(product.tag ? [product.tag] : []),
+        ...(product.tags ?? []),
         ...(product.keptTags?.flatMap((row) => row.tags) ?? []),
       ];
       for (const tag of choices) byId.set(tag.externalId, tag.name);

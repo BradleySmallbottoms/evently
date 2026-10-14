@@ -45,6 +45,7 @@ function toUserArea(row: {
   polygon: { lat: number; lng: number }[] | null;
   notify: boolean;
   active: boolean;
+  tagIds: string[];
   createdAt: Date;
 }): UserArea {
   return {
@@ -58,8 +59,17 @@ function toUserArea(row: {
     polygon: row.polygon,
     notify: row.notify,
     active: row.active,
+    tagIds: row.tagIds,
     createdAt: row.createdAt.toISOString(),
   };
+}
+
+function uniqueTagIds(tagIds: readonly string[] | undefined, known: { has: (id: string) => boolean }): string[] {
+  const unique = [...new Set(tagIds ?? [])];
+  for (const id of unique) {
+    if (!known.has(id)) throw new PreferenceError('unknown_tag');
+  }
+  return unique;
 }
 
 export function createMemoryPreferenceServices(
@@ -210,6 +220,7 @@ export function createMemoryPreferenceServices(
         throw new PreferenceError('invalid_area');
       }
 
+      const tagIds = uniqueTagIds(input.tagIds, tags);
       const id = randomUUID();
       const row = {
         id,
@@ -223,6 +234,7 @@ export function createMemoryPreferenceServices(
         polygon,
         notify: input.notify ?? true,
         active: input.active ?? true,
+        tagIds,
         createdAt: env.now(),
       };
       userAreas.set(id, row);
@@ -253,6 +265,8 @@ export function createMemoryPreferenceServices(
       } else if (input.center || input.radiusM != null) {
         throw new PreferenceError('invalid_area');
       }
+
+      if (input.tagIds !== undefined) row.tagIds = uniqueTagIds(input.tagIds, tags);
 
       return toUserArea(row);
     },

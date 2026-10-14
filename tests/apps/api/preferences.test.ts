@@ -82,8 +82,9 @@ describe('user preferences', () => {
       }),
     });
     expect(circle.status).toBe(201);
-    const circleBody = (await circle.json()) as { id: string; radiusM: number };
+    const circleBody = (await circle.json()) as { id: string; radiusM: number; tagIds: string[] };
     expect(circleBody.radiusM).toBe(15_000);
+    expect(circleBody.tagIds).toEqual([]);
 
     const polygon = await app.request('/v1/me/areas', {
       method: 'POST',
@@ -117,6 +118,30 @@ describe('user preferences', () => {
     });
     expect(patched.status).toBe(200);
     expect(await patched.json()).toMatchObject({ name: 'Home', notify: false });
+
+    const withTags = await app.request(`/v1/me/areas/${circleBody.id}`, {
+      method: 'PATCH',
+      headers: { ...authHeader, 'content-type': 'application/json' },
+      body: JSON.stringify({ tagIds: [SPORT, BANDY] }),
+    });
+    expect(withTags.status).toBe(200);
+    expect(await withTags.json()).toMatchObject({ tagIds: [SPORT, BANDY] });
+
+    const clearedTags = await app.request(`/v1/me/areas/${circleBody.id}`, {
+      method: 'PATCH',
+      headers: { ...authHeader, 'content-type': 'application/json' },
+      body: JSON.stringify({ tagIds: [] }),
+    });
+    expect(clearedTags.status).toBe(200);
+    expect(await clearedTags.json()).toMatchObject({ tagIds: [] });
+
+    const unknownTag = await app.request(`/v1/me/areas/${circleBody.id}`, {
+      method: 'PATCH',
+      headers: { ...authHeader, 'content-type': 'application/json' },
+      body: JSON.stringify({ tagIds: ['00000000-0000-4000-8000-000000000099'] }),
+    });
+    expect(unknownTag.status).toBe(400);
+    expect(await unknownTag.json()).toMatchObject({ error: { code: 'unknown_tag' } });
 
     const deleted = await app.request(`/v1/me/areas/${circleBody.id}`, {
       method: 'DELETE',

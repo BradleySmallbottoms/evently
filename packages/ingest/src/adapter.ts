@@ -19,6 +19,11 @@ export interface SourceAdapter<Raw = unknown> {
   slug: string;
   kind: SourceKind;
   fetchRaw(ctx: SourceRunContext): Promise<Raw>;
+  /**
+   * Yield one payload per event. The pipeline saves that payload before the next
+   * event is fetched. Adapters without this still fetch and save the whole run at once.
+   */
+  each?(ctx: SourceRunContext): AsyncIterable<Raw>;
   map(raw: Raw, ctx: SourceRunContext): IncomingEvent[] | Promise<IncomingEvent[]>;
   /** Tag vocabulary from this payload. Persisted before events are tagged. */
   tags?(raw: Raw, ctx: SourceRunContext): { externalId: string; name: string }[];

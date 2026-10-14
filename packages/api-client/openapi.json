@@ -2030,6 +2030,13 @@
                           "active": {
                             "type": "boolean"
                           },
+                          "tagIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            }
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -2046,6 +2053,7 @@
                           "polygon",
                           "notify",
                           "active",
+                          "tagIds",
                           "createdAt"
                         ]
                       }
@@ -2331,6 +2339,13 @@
                           "active": {
                             "type": "boolean"
                           },
+                          "tagIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            }
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -2347,6 +2362,7 @@
                           "polygon",
                           "notify",
                           "active",
+                          "tagIds",
                           "createdAt"
                         ]
                       }
@@ -2468,6 +2484,14 @@
                   "regionId": {
                     "type": "string",
                     "format": "uuid"
+                  },
+                  "tagIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 100
                   }
                 },
                 "required": [
@@ -2564,6 +2588,13 @@
                     "active": {
                       "type": "boolean"
                     },
+                    "tagIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -2580,6 +2611,7 @@
                     "polygon",
                     "notify",
                     "active",
+                    "tagIds",
                     "createdAt"
                   ]
                 }
@@ -2757,6 +2789,14 @@
                     },
                     "minItems": 3,
                     "maxItems": 100
+                  },
+                  "tagIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 100
                   }
                 }
               }
@@ -2850,6 +2890,13 @@
                     "active": {
                       "type": "boolean"
                     },
+                    "tagIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -2866,6 +2913,7 @@
                     "polygon",
                     "notify",
                     "active",
+                    "tagIds",
                     "createdAt"
                   ]
                 }

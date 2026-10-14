@@ -351,6 +351,28 @@ export const userAreas = pgTable(
   ],
 );
 
+/**
+ * Tags selected for one saved area. Home filters follow the area that is selected.
+ * Cascade with the area and with the tag. Included in user export/deletion via `user_areas`.
+ */
+export const userAreaTags = pgTable(
+  'user_area_tags',
+  {
+    areaId: uuid('area_id')
+      .notNull()
+      .references(() => userAreas.id, { onDelete: 'cascade' }),
+    tagId: uuid('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.areaId, t.tagId] }),
+    index('user_area_tags_area_id_idx').on(t.areaId),
+    index('user_area_tags_tag_id_idx').on(t.tagId),
+  ],
+);
+
 export const events = pgTable(
   'events',
   {

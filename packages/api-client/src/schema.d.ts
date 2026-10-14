@@ -1299,6 +1299,7 @@ export interface paths {
                                 }[] | null;
                                 notify: boolean;
                                 active: boolean;
+                                tagIds: string[];
                                 /** Format: date-time */
                                 createdAt: string;
                             }[];
@@ -1451,6 +1452,7 @@ export interface paths {
                                 }[] | null;
                                 notify: boolean;
                                 active: boolean;
+                                tagIds: string[];
                                 /** Format: date-time */
                                 createdAt: string;
                             }[];
@@ -1500,6 +1502,7 @@ export interface paths {
                         }[];
                         /** Format: uuid */
                         regionId?: string;
+                        tagIds?: string[];
                     };
                 };
             };
@@ -1531,6 +1534,7 @@ export interface paths {
                             }[] | null;
                             notify: boolean;
                             active: boolean;
+                            tagIds: string[];
                             /** Format: date-time */
                             createdAt: string;
                         };
@@ -1670,6 +1674,7 @@ export interface paths {
                             lat: number;
                             lng: number;
                         }[];
+                        tagIds?: string[];
                     };
                 };
             };
@@ -1701,6 +1706,7 @@ export interface paths {
                             }[] | null;
                             notify: boolean;
                             active: boolean;
+                            tagIds: string[];
                             /** Format: date-time */
                             createdAt: string;
                         };

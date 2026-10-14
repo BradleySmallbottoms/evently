@@ -15,7 +15,7 @@ import {
   validateCircleArea,
   validatePolygonArea,
 } from '@local-events/domain';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { AuthServices } from '../auth/types';
 import { PreferenceError, type PreferenceEnv, type PreferenceServices } from './types';
@@ -49,6 +49,7 @@ type AreaRow = {
   notify: boolean;
   active: boolean;
   createdAt: Date;
+  tagIds: string[];
 };
 
 function parsePolygon(geoJson: string | null): { lat: number; lng: number }[] | null {
@@ -78,6 +79,7 @@ function mapArea(row: AreaRow): UserArea {
     polygon: parsePolygon(row.polygonGeoJson),
     notify: row.notify,
     active: row.active,
+    tagIds: row.tagIds,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -102,14 +104,49 @@ export function createDbPreferenceServices(
   auth: AuthServices,
   _env: PreferenceEnv = { now: () => new Date() },
 ): PreferenceServices {
-  const { userInterests, userAreas, tags, regions, users } = schema;
+  const { userInterests, userAreas, userAreaTags, tags, regions, users } = schema;
+
+  async function tagsByArea(areaIds: string[]): Promise<Map<string, string[]>> {
+    const grouped = new Map<string, string[]>();
+    if (areaIds.length === 0) return grouped;
+    const rows = await db
+      .select({ areaId: userAreaTags.areaId, tagId: userAreaTags.tagId })
+      .from(userAreaTags)
+      .where(inArray(userAreaTags.areaId, areaIds))
+      .orderBy(asc(userAreaTags.createdAt));
+    for (const row of rows) {
+      const list = grouped.get(row.areaId) ?? [];
+      list.push(row.tagId);
+      grouped.set(row.areaId, list);
+    }
+    return grouped;
+  }
 
   async function areasForUser(userId: string): Promise<UserArea[]> {
     const rows = await db
       .select(areaSelect)
       .from(userAreas)
       .where(eq(userAreas.userId, userId));
-    return rows.map(mapArea);
+    const tagsForAreas = await tagsByArea(rows.map((row) => row.id));
+    return rows.map((row) => mapArea({ ...row, tagIds: tagsForAreas.get(row.id) ?? [] }));
+  }
+
+  async function knownTagIds(tagIds: readonly string[]): Promise<string[]> {
+    const unique = [...new Set(tagIds)];
+    if (unique.length === 0) return unique;
+    const found = await db
+      .select({ id: tags.id })
+      .from(tags)
+      .where(inArray(tags.id, unique));
+    if (found.length !== unique.length) throw new PreferenceError('unknown_tag');
+    return unique;
+  }
+
+  async function areaById(areaId: string): Promise<UserArea> {
+    const [row] = await db.select(areaSelect).from(userAreas).where(eq(userAreas.id, areaId)).limit(1);
+    if (!row) throw new PreferenceError('not_found');
+    const tagsForAreas = await tagsByArea([areaId]);
+    return mapArea({ ...row, tagIds: tagsForAreas.get(areaId) ?? [] });
   }
 
   return {
@@ -311,6 +348,7 @@ export function createDbPreferenceServices(
       }
 
       const id = randomUUID();
+      const tagIds = await knownTagIds(input.tagIds ?? []);
       await db.transaction(async (tx) => {
         const [countRow] = await tx
           .select({ count: sql<number>`count(*)::int` })
@@ -353,15 +391,12 @@ export function createDbPreferenceServices(
             active: input.active ?? true,
           });
         }
+        if (tagIds.length > 0) {
+          await tx.insert(userAreaTags).values(tagIds.map((tagId) => ({ areaId: id, tagId })));
+        }
       });
 
-      const [row] = await db
-        .select(areaSelect)
-        .from(userAreas)
-        .where(eq(userAreas.id, id))
-        .limit(1);
-      if (!row) throw new PreferenceError('not_found');
-      return mapArea(row);
+      return areaById(id);
     },
 
     async updateArea(sessionToken, areaId, input: UpdateUserAreaRequest) {
@@ -401,20 +436,25 @@ export function createDbPreferenceServices(
         throw new PreferenceError('invalid_area');
       }
 
-      if (Object.keys(patch).length > 0) {
-        await db
-          .update(userAreas)
-          .set(patch)
-          .where(and(eq(userAreas.id, areaId), eq(userAreas.userId, userId)));
+      const nextTags = input.tagIds === undefined ? null : await knownTagIds(input.tagIds);
+      if (Object.keys(patch).length > 0 || nextTags) {
+        await db.transaction(async (tx) => {
+          if (Object.keys(patch).length > 0) {
+            await tx
+              .update(userAreas)
+              .set(patch)
+              .where(and(eq(userAreas.id, areaId), eq(userAreas.userId, userId)));
+          }
+          if (nextTags) {
+            await tx.delete(userAreaTags).where(eq(userAreaTags.areaId, areaId));
+            if (nextTags.length > 0) {
+              await tx.insert(userAreaTags).values(nextTags.map((tagId) => ({ areaId, tagId })));
+            }
+          }
+        });
       }
 
-      const [row] = await db
-        .select(areaSelect)
-        .from(userAreas)
-        .where(eq(userAreas.id, areaId))
-        .limit(1);
-      if (!row) throw new PreferenceError('not_found');
-      return mapArea(row);
+      return areaById(areaId);
     },
 
     async deleteArea(sessionToken, areaId) {

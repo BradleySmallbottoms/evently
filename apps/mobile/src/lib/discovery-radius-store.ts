@@ -3,12 +3,11 @@ import { Platform } from 'react-native';
 
 import {
   DISCOVERY_RADIUS_KEY,
-  parseDiscoveryRadiusM,
+  parseDiscoveryRadiusMap,
   resolveDiscoveryRadiusM,
-  DEFAULT_DISCOVERY_RADIUS_M,
 } from './discovery-radius';
 
-let discoveryRadiusM = DEFAULT_DISCOVERY_RADIUS_M;
+let radiiByPlace: Record<string, number> = {};
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -27,8 +26,8 @@ async function readStoredRadius(): Promise<string | null> {
   return SecureStore.getItemAsync(DISCOVERY_RADIUS_KEY);
 }
 
-async function writeStoredRadius(radiusM: number): Promise<void> {
-  const raw = String(radiusM);
+async function writeStoredRadius(radii: Record<string, number>): Promise<void> {
+  const raw = JSON.stringify(radii);
   if (Platform.OS === 'web') {
     globalThis.localStorage?.setItem(DISCOVERY_RADIUS_KEY, raw);
     return;
@@ -36,30 +35,29 @@ async function writeStoredRadius(radiusM: number): Promise<void> {
   await SecureStore.setItemAsync(DISCOVERY_RADIUS_KEY, raw);
 }
 
-let hydratePromise: Promise<number> | null = null;
+let hydratePromise: Promise<Record<string, number>> | null = null;
 
-/** Load the last search radius before discovery queries run. */
-export function hydrateDiscoveryRadius(): Promise<number> {
+/** Load each place's search radius before discovery queries run. */
+export function hydrateDiscoveryRadius(): Promise<Record<string, number>> {
   if (!hydratePromise) {
     hydratePromise = (async () => {
-      discoveryRadiusM = parseDiscoveryRadiusM(await readStoredRadius());
+      radiiByPlace = parseDiscoveryRadiusMap(await readStoredRadius());
       notify();
-      return discoveryRadiusM;
+      return radiiByPlace;
     })();
   }
   return hydratePromise;
 }
 
-export function getDiscoveryRadiusM() {
-  return discoveryRadiusM;
+export function getDiscoveryRadiusMap() {
+  return radiiByPlace;
 }
 
-/** Remember how far event search should look, in memory and on device. */
-export async function setDiscoveryRadiusM(next: number): Promise<void> {
+/** Remember how far event search should look for one place. */
+export async function setDiscoveryRadiusForPlace(placeId: string, next: number): Promise<void> {
   const radiusM = resolveDiscoveryRadiusM(next);
-  if (radiusM !== discoveryRadiusM) {
-    discoveryRadiusM = radiusM;
-    notify();
-  }
-  await writeStoredRadius(radiusM);
+  if (radiiByPlace[placeId] === radiusM) return;
+  radiiByPlace = { ...radiiByPlace, [placeId]: radiusM };
+  notify();
+  await writeStoredRadius(radiiByPlace);
 }

@@ -14,16 +14,12 @@ export interface RunSummary {
   raw: unknown;
 }
 
-/** Fetch, map and validate one source. Persistence is `persistSource`. */
-export async function runSource(
-  slug: string,
-  config: Record<string, unknown> = {},
-): Promise<RunSummary> {
-  const adapter = sources[slug];
-  if (!adapter)
-    throw new Error(`Unknown source "${slug}". Known: ${Object.keys(sources).join(', ')}`);
+export function sourceSavesEachEvent(slug: string): boolean {
+  return typeof sources[slug]?.each === 'function';
+}
 
-  const ctx: SourceRunContext = {
+function sourceContext(slug: string, config: Record<string, unknown>): SourceRunContext {
+  return {
     sourceSlug: slug,
     config,
     fetch: (input, init) =>
@@ -37,8 +33,14 @@ export async function runSource(
       }),
     log: (message, data) => console.log(JSON.stringify({ source: slug, message, ...data })),
   };
+}
 
-  const raw = await adapter.fetchRaw(ctx);
+async function summarize(
+  slug: string,
+  adapter: (typeof sources)[string],
+  raw: unknown,
+  ctx: SourceRunContext,
+): Promise<RunSummary> {
   const mapped = await adapter.map(raw, ctx);
   const summary: RunSummary = {
     source: slug,
@@ -50,7 +52,6 @@ export async function runSource(
     tags: adapter.tags?.(raw, ctx) ?? [],
     raw,
   };
-
   for (const item of mapped) {
     const parsed = IncomingEvent.safeParse(item);
     if (parsed.success) {
@@ -62,4 +63,30 @@ export async function runSource(
     }
   }
   return summary;
+}
+
+/** Fetch, map and validate one source. Persistence is `persistSource`. */
+export async function runSource(
+  slug: string,
+  config: Record<string, unknown> = {},
+): Promise<RunSummary> {
+  const adapter = sources[slug];
+  if (!adapter)
+    throw new Error(`Unknown source "${slug}". Known: ${Object.keys(sources).join(', ')}`);
+
+  const ctx = sourceContext(slug, config);
+  return summarize(slug, adapter, await adapter.fetchRaw(ctx), ctx);
+}
+
+/** One validated batch per event, for sources that save before fetching the next. */
+export async function* eachSourceRun(
+  slug: string,
+  config: Record<string, unknown> = {},
+): AsyncGenerator<RunSummary> {
+  const adapter = sources[slug];
+  if (!adapter?.each) throw new Error(`Source "${slug}" does not save one event at a time`);
+  const ctx = sourceContext(slug, config);
+  for await (const raw of adapter.each(ctx)) {
+    yield summarize(slug, adapter, raw, ctx);
+  }
 }

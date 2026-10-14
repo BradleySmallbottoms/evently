@@ -30,6 +30,9 @@ sequenceDiagram
       Mobile->>API: POST /me/areas<br/>{ regionId } or 15 km circle fallback
       API->>DB: INSERT user_areas<br/>kind=region, copy boundary
       API-->>Mobile: UserArea
+      Mobile-->>User: Pick category groups
+      Mobile->>API: PATCH /me/areas/{id}<br/>{ tagIds }
+      API->>DB: REPLACE user_area_tags
     else Not now / Never
       Mobile->>Mobile: Persist decline locally
     end
@@ -50,4 +53,5 @@ sequenceDiagram
 - Already has areas: still requires an active session and distance from saved areas. A nearby decline lasts 90 days.
 - The suggested name is the covering region from lookup. If lookup misses, the device geocoder supplies a locality, then a generic “Här” / “Here”.
 - Fallback geometry when lookup misses: circle with `REGION_SUGGESTION.fallbackRadiusM` (15 km).
-- Home and search list “Nära dig” plus each active saved area by that stored name. Choosing an area searches around it; “Nära dig” uses the device location.
+- Home and search list “Nära dig” plus each active saved area by that stored name. Choosing an area searches around it with that area’s remembered search radius and shows that area’s tags; “Nära dig” uses the device location, its own search radius, and the device home filters.
+- After a place is saved, the app asks for the same category groups as onboarding and stores them on the area. Skipping stores none, so that place shows every event until tags are chosen.

@@ -10,7 +10,7 @@ import { contentHash, isLikelySameEvent, type IncomingEvent } from '@local-event
 import { emitDomainEvent, noopDomainEvents, type DomainEventSink } from './domain-events';
 import { noopEventImageUploader, type EventImageUploader } from './event-images';
 import { noopRawPayloadSink, type RawPayloadSink } from './raw-payload';
-import { runSource } from './run';
+import { eachSourceRun, runSource, sourceSavesEachEvent } from './run';
 import type { IngestStore, PublisherLink, SourceRecord } from './store';
 
 export interface PersistSummary {
@@ -41,6 +41,103 @@ const UPDATED_FIELDS = [
   'tagIds',
 ];
 
+interface CollectedRun {
+  fetched: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  invalid: PersistSummary['invalid'];
+  rejected: PersistSummary['rejected'];
+  problems: string[];
+  raw: unknown;
+}
+
+function runProblems(
+  invalid: PersistSummary['invalid'],
+  rejected: PersistSummary['rejected'],
+): string[] {
+  return [
+    ...invalid.map((item) => item.issues),
+    ...rejected.map((item) => `${item.externalId}: ${item.reason}`),
+  ];
+}
+
+function archiveRaw(parts: unknown[]): unknown {
+  const products: unknown[] = [];
+  let now = '';
+  let origin = '';
+  for (const part of parts) {
+    if (!part || typeof part !== 'object' || !('products' in part)) return parts;
+    const record = part as { products?: unknown; now?: unknown; origin?: unknown };
+    if (!Array.isArray(record.products)) return parts;
+    products.push(...record.products);
+    if (typeof record.now === 'string') now = record.now;
+    if (typeof record.origin === 'string') origin = record.origin;
+  }
+  return { now, origin, products };
+}
+
+async function persistWholeRun(
+  store: IngestStore,
+  source: SourceRecord,
+  slug: string,
+  config: Record<string, unknown>,
+  enqueue: DomainEventSink,
+  images: EventImageUploader,
+): Promise<CollectedRun> {
+  const run = await runSource(slug, config);
+  await store.upsertTags([...run.tags, ...run.events.flatMap((event) => event.tags)]);
+  const saved = await saveIncomingEvents(store, source, run.events, enqueue, images);
+  return {
+    fetched: run.valid,
+    created: saved.created,
+    updated: saved.updated,
+    skipped: saved.skipped,
+    invalid: run.invalid,
+    rejected: saved.rejected,
+    problems: runProblems(run.invalid, saved.rejected),
+    raw: run.raw,
+  };
+}
+
+async function persistEachEvent(
+  store: IngestStore,
+  source: SourceRecord,
+  slug: string,
+  config: Record<string, unknown>,
+  enqueue: DomainEventSink,
+  images: EventImageUploader,
+): Promise<CollectedRun> {
+  const invalid: PersistSummary['invalid'] = [];
+  const rejected: PersistSummary['rejected'] = [];
+  const raws: unknown[] = [];
+  let fetched = 0;
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  for await (const batch of eachSourceRun(slug, config)) {
+    await store.upsertTags([...batch.tags, ...batch.events.flatMap((event) => event.tags)]);
+    const saved = await saveIncomingEvents(store, source, batch.events, enqueue, images);
+    fetched += batch.valid;
+    created += saved.created;
+    updated += saved.updated;
+    skipped += saved.skipped;
+    invalid.push(...batch.invalid);
+    rejected.push(...saved.rejected);
+    raws.push(batch.raw);
+  }
+  return {
+    fetched,
+    created,
+    updated,
+    skipped,
+    invalid,
+    rejected,
+    problems: runProblems(invalid, rejected),
+    raw: archiveRaw(raws),
+  };
+}
+
 /**
  * Fetch one source and upsert its events.
  * Review-trust and temporary publishers stay `in_review` and are not announced.
@@ -68,9 +165,11 @@ export async function persistSource(
             existingEventTags: await store.listEventTags(source.id),
           }
         : source.config;
-    const run = await runSource(slug, config);
+    const collected = sourceSavesEachEvent(slug)
+      ? await persistEachEvent(store, source, slug, config, enqueue, images)
+      : await persistWholeRun(store, source, slug, config, enqueue, images);
     try {
-      await rawSink.save({ sourceSlug: slug, runId, raw: run.raw });
+      await rawSink.save({ sourceSlug: slug, runId, raw: collected.raw });
     } catch (err) {
       // Best-effort: do not fail the DB upsert if raw archival fails.
       console.warn(
@@ -82,28 +181,25 @@ export async function persistSource(
         }),
       );
     }
-    await store.upsertTags([...run.tags, ...run.events.flatMap((event) => event.tags)]);
-    const saved = await saveIncomingEvents(store, source, run.events, enqueue, images);
-    const problems = [
-      ...run.invalid.map((item) => item.issues),
-      ...saved.rejected.map((item) => `${item.externalId}: ${item.reason}`),
-    ];
     await store.finishRun(runId, {
       status: 'ok',
-      fetched: run.valid,
-      created: saved.created,
-      updated: saved.updated,
-      skipped: saved.skipped,
-      error: problems.length > 0 ? problems.slice(0, 5).join('; ').slice(0, 500) : null,
+      fetched: collected.fetched,
+      created: collected.created,
+      updated: collected.updated,
+      skipped: collected.skipped,
+      error:
+        collected.problems.length > 0
+          ? collected.problems.slice(0, 5).join('; ').slice(0, 500)
+          : null,
     });
     return {
       source: slug,
-      fetched: run.valid,
-      created: saved.created,
-      updated: saved.updated,
-      skipped: saved.skipped,
-      invalid: run.invalid,
-      rejected: saved.rejected,
+      fetched: collected.fetched,
+      created: collected.created,
+      updated: collected.updated,
+      skipped: collected.skipped,
+      invalid: collected.invalid,
+      rejected: collected.rejected,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'ingestion failed';

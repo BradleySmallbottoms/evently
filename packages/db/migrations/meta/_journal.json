@@ -253,6 +253,13 @@
       "when": 1794000000000,
       "tag": "0035_seed_glada_hudik",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1794100000000,
+      "tag": "0036_lively_black_knight",
+      "breakpoints": true
     }
   ]
 }

@@ -26,6 +26,8 @@ export const UserArea = z.object({
   polygon: z.array(GeoPointSchema).nullable(),
   notify: z.boolean(),
   active: z.boolean(),
+  /** Home filters for this place. Empty means show every event. */
+  tagIds: z.array(Id),
   createdAt: z.iso.datetime(),
 });
 export type UserArea = z.infer<typeof UserArea>;
@@ -76,6 +78,8 @@ export const CreateUserAreaRequest = z
     polygon: z.array(GeoPointSchema).min(3).max(100).optional(),
     /** Subscribe using a seeded region boundary (copies into area). */
     regionId: Id.optional(),
+    /** Home filters stored on the area. Omitted means none. */
+    tagIds: z.array(Id).max(100).optional(),
   })
   .superRefine((val, ctx) => {
     const hasCircle = val.center != null && val.radiusM != null;
@@ -98,6 +102,8 @@ export const UpdateUserAreaRequest = z.object({
   center: GeoPointSchema.optional(),
   radiusM: z.number().int().min(500).max(100_000).optional(),
   polygon: z.array(GeoPointSchema).min(3).max(100).optional(),
+  /** Replaces the area's home filters when present. */
+  tagIds: z.array(Id).max(100).optional(),
 });
 export type UpdateUserAreaRequest = z.infer<typeof UpdateUserAreaRequest>;
 

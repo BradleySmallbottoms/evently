@@ -1,9 +1,11 @@
+import { canAddSavedArea } from '@local-events/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, TextInput, View } from 'react-native';
 
+import { AreaTagGroupsSheet } from '@/components/native/area-tag-groups-sheet';
 import { LocationMenu } from '@/components/native/location-menu';
 import { AppText } from '@/components/ui/app-text';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -16,8 +18,14 @@ import { listTags, namesForTagIds } from '@/lib/events';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { queryPointForArea } from '@/lib/area-point';
-import { NEARBY_PLACE_ID, setDiscoveryPlaceId, useDiscoveryPoint } from '@/lib/use-discovery-point';
-import { setDiscoveryRadiusM } from '@/lib/discovery-radius-store';
+import {
+  NEARBY_PLACE_ID,
+  radiiForPlaces,
+  setDiscoveryPlaceId,
+  useDiscoveryPoint,
+} from '@/lib/use-discovery-point';
+import { setDiscoveryRadiusForPlace } from '@/lib/discovery-radius-store';
+import { useAreaTagPrompt } from '@/lib/use-area-tag-prompt';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
@@ -77,7 +85,8 @@ export default function SearchScreen() {
     return () => clearTimeout(timer);
   }, [focus]);
 
-  const { identity, preferences, point, placeId, radiusM } = useDiscoveryPoint();
+  const { identity, preferences, point, placeId, radiusM, radiusMap } = useDiscoveryPoint();
+  const areaTags = useAreaTagPrompt(identity.data);
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
     queryFn: () => listTags(),
@@ -117,6 +126,10 @@ export default function SearchScreen() {
     { id: 'all', label: t('events.categoryAll') },
     ...(tags.data?.items ?? []).map((tag) => ({ id: tag.id, label: tag.name })),
   ];
+  const radiusByPlace = useMemo(
+    () => radiiForPlaces(radiusMap, preferences.data?.areas ?? []),
+    [preferences.data?.areas, radiusMap],
+  );
   const locationOptions = [
     { id: NEARBY_PLACE_ID, label: t('events.locationNearby') },
     ...(preferences.data?.areas ?? []).flatMap((area) => {
@@ -174,11 +187,14 @@ export default function SearchScreen() {
                   options={locationOptions}
                   selectedId={placeId}
                   radiusM={radiusM}
-                  onRadiusChange={(next) => {
-                    void setDiscoveryRadiusM(next);
+                  radiusByPlace={radiusByPlace}
+                  onRadiusChange={(next, id) => {
+                    void setDiscoveryRadiusForPlace(id, next);
                   }}
                   isPresented={locationOpen}
                   onIsPresentedChange={setLocationOpen}
+                  canAdd={canAddSavedArea(preferences.data?.areas.length ?? 0)}
+                  onCreatePlace={areaTags.createFromPlace}
                   onSelect={(id) => {
                     setDiscoveryPlaceId(id);
                   }}
@@ -253,6 +269,18 @@ export default function SearchScreen() {
             />
           </View>
         )}
+      />
+      <AreaTagGroupsSheet
+        name={areaTags.target?.name ?? ''}
+        isPresented={areaTags.target != null}
+        busy={areaTags.busy}
+        onSave={(ids) => {
+          void areaTags.save(ids);
+        }}
+        onSkip={() => {
+          void areaTags.skip();
+        }}
+        onDismiss={areaTags.dismiss}
       />
     </View>
   );

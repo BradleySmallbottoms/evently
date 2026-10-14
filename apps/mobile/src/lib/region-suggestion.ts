@@ -177,32 +177,31 @@ export async function acceptRegionSuggestion(
   identity: StoredIdentity,
   suggestion: RegionSuggestion,
   notify: boolean,
-): Promise<void> {
-  if (suggestion.regionId) {
-    throwIfError(
-      await api.POST('/me/areas', {
-        headers: { Authorization: `Bearer ${identity.sessionToken}` },
-        body: {
-          name: suggestion.name,
-          regionId: suggestion.regionId,
-          origin: 'suggested',
-          notify,
-        },
-      }),
-    );
-  } else {
-    throwIfError(
-      await api.POST('/me/areas', {
-        headers: { Authorization: `Bearer ${identity.sessionToken}` },
-        body: {
-          name: suggestion.name,
-          center: { lat: suggestion.lat, lng: suggestion.lng },
-          radiusM: REGION_SUGGESTION.fallbackRadiusM,
-          origin: 'suggested',
-          notify,
-        },
-      }),
-    );
-  }
+) {
+  const area = suggestion.regionId
+    ? throwIfError(
+        await api.POST('/me/areas', {
+          headers: { Authorization: `Bearer ${identity.sessionToken}` },
+          body: {
+            name: suggestion.name,
+            regionId: suggestion.regionId,
+            origin: 'suggested',
+            notify,
+          },
+        }),
+      )
+    : throwIfError(
+        await api.POST('/me/areas', {
+          headers: { Authorization: `Bearer ${identity.sessionToken}` },
+          body: {
+            name: suggestion.name,
+            center: { lat: suggestion.lat, lng: suggestion.lng },
+            radiusM: REGION_SUGGESTION.fallbackRadiusM,
+            origin: 'suggested',
+            notify,
+          },
+        }),
+      );
   await markRegionPromptShown();
+  return area;
 }

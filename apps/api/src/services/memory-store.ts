@@ -85,6 +85,7 @@ export type MemoryUserArea = {
   polygon: { lat: number; lng: number }[] | null;
   notify: boolean;
   active: boolean;
+  tagIds: string[];
   createdAt: Date;
 };
 export type MemoryRegion = {

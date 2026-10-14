@@ -139,8 +139,10 @@ Product invariants (enforced in domain, tested)
  farther than the profile setting “How far can you go”
  (default 25 km) the prompt can show again. Continuing the onboarding area step stores the
  chosen radius as that travel distance; skipping leaves the default. The onboarding tags step
- stores the chosen tags as notification interests and as the device home filters. Skip stores an
- empty selection.
+ stores the chosen tags as notification interests, as the device home filters, and on the area
+ just saved. Skip stores an empty selection. Each saved area keeps its own tags: the home filters
+ follow the area chosen in the location menu, and “Near you” keeps the device filters. The
+ location menu search radius is remembered per place on the device.
 - v1 has no subscription/paid plan UI anywhere. Plan limits go through `entitlementsFor()`, which
   returns the all-unlocked launch plan.
 

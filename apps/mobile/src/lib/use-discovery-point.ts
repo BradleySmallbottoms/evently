@@ -6,8 +6,9 @@ import { Platform } from 'react-native';
 
 import { resolveEventQueryPoint, type EventQueryPoint } from './events';
 import { getDeviceLocation, useDeviceLocation } from './device-location';
+import { discoveryRadiusForPlace } from './discovery-radius';
 import {
-  getDiscoveryRadiusM,
+  getDiscoveryRadiusMap,
   hydrateDiscoveryRadius,
   subscribeDiscoveryRadius,
 } from './discovery-radius-store';
@@ -17,6 +18,20 @@ import { getPreferences } from './preferences';
 
 /** Menu id for the device location. Saved areas use their own ids. */
 export const NEARBY_PLACE_ID = 'nearby';
+
+/** Slider value for “Near you” and each saved area, including areas with no stored choice yet. */
+export function radiiForPlaces(
+  radiusMap: Readonly<Record<string, number>>,
+  areas: ReadonlyArray<{ id: string } & Parameters<typeof queryPointForArea>[0]>,
+): Record<string, number> {
+  const radii: Record<string, number> = {
+    [NEARBY_PLACE_ID]: discoveryRadiusForPlace(NEARBY_PLACE_ID, radiusMap),
+  };
+  for (const area of areas) {
+    radii[area.id] = discoveryRadiusForPlace(area.id, radiusMap, queryPointForArea(area)?.radiusM);
+  }
+  return radii;
+}
 
 const DISCOVERY_PLACE_KEY = 'le.discoveryPlaceId';
 
@@ -83,8 +98,8 @@ export function useDiscoveryPlaceId() {
   return useSyncExternalStore(subscribeDiscoveryPlace, getDiscoveryPlaceId, getDiscoveryPlaceId);
 }
 
-export function useDiscoveryRadiusM() {
-  return useSyncExternalStore(subscribeDiscoveryRadius, getDiscoveryRadiusM, getDiscoveryRadiusM);
+export function useDiscoveryRadiusMap() {
+  return useSyncExternalStore(subscribeDiscoveryRadius, getDiscoveryRadiusMap, getDiscoveryRadiusMap);
 }
 
 function pointFromFix(fix: { lat: number; lng: number }, radiusM: number): EventQueryPoint {
@@ -108,7 +123,7 @@ export function useDiscoveryPoint() {
     staleTime: Infinity,
   });
   const placeId = useDiscoveryPlaceId();
-  const radiusM = useDiscoveryRadiusM();
+  const radiusMap = useDiscoveryRadiusMap();
   const identity = useQuery({
     queryKey: ['identity', locale],
     queryFn: () => ensureIdentity(locale),
@@ -126,6 +141,11 @@ export function useDiscoveryPoint() {
       : (preferences.data?.areas ?? []).find((area) => area.id === placeId);
   const selectedPoint = selectedArea ? queryPointForArea(selectedArea) : null;
   const nearby = placeId === NEARBY_PLACE_ID;
+  const radiusM = discoveryRadiusForPlace(
+    placeId,
+    radiusMap,
+    nearby ? null : selectedPoint?.radiusM,
+  );
 
   useEffect(() => {
     if (!hydration.isSuccess || !preferences.isSuccess) return;
@@ -167,5 +187,5 @@ export function useDiscoveryPoint() {
       (nearby ? device.fix != null : preferences.isSuccess),
     retry: false,
   });
-  return { identity, preferences, point, placeId, radiusM, device };
+  return { identity, preferences, point, placeId, radiusM, radiusMap, device };
 }

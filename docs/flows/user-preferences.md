@@ -31,10 +31,14 @@ sequenceDiagram
   API->>DB: INSERT user_areas<br/>(center geography / area polygon)
   API-->>Mobile: UserArea
 
+  Mobile->>API: PATCH /me/areas/{id}<br/>{ tagIds }
+  API->>DB: REPLACE user_area_tags
+  API-->>Mobile: UserArea
+
   Mobile->>API: GET /me/preferences
-  API->>DB: SELECT interests + areas
+  API->>DB: SELECT interests + areas + area tags
   API-->>Mobile: Preferences
-  Note over Mobile: Location menu lists Near you<br/>plus each saved area name
+  Note over Mobile: Location menu lists Near you<br/>plus each saved area name.<br/>Home filters follow the selected area.
 ```
 
 ## Notes
@@ -46,7 +50,13 @@ sequenceDiagram
   place is far enough to suggest saving. `PUT /me/travel-distance`. Continuing the onboarding
   area step sets it to the chosen radius (5, 25, 50, or 100 km). Skipping leaves the default.
 - The onboarding tags step does the same `PUT /me/interests`, then stores that selection as the
-  home chips on the device. Skip sends an empty list.
+  home chips on the device and, when the area step saved a place, on that area. Skip sends an empty list.
+- Home chips follow the saved area that is selected. “Near you” uses the device chips. Editing
+  chips while a saved area is selected replaces that area’s `user_area_tags`.
+- The search-radius slider belongs to the place selected in the menu. Confirming it stores that
+  radius on the device for that place. Switching back restores it. “Near you” has its own.
+- The location menu plus button geocodes a place, posts a 25 km circle, then asks for the
+  onboarding category groups. Saving a suggested region does the same after the area is created.
 - Circle = `center` + `radius_m`; drawn polygon = `area` geography.
 - Region kind (`regions` table + suggestion UI) is a later Phase 3 slice.
 - Soft cap: 20 areas (`MAX_SAVED_AREAS` in domain).

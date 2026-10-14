@@ -110,10 +110,11 @@ calls) in the same change as every new major feature.**
   Links in the description, information, and contact (including Facebook) are stored. The site
   footer is not. A long daily exhibition becomes one event; a concert or a monthly circle stays
   one event per occasion. The hero image is the page `og:image`.
-  Tag matching uses a local [Ollama](https://ollama.com) model (`ollama serve`, default
-  `qwen3:32b`). It may pick one existing tag and cannot invent one. An event that already has
-  tags keeps them and is not sent to the model again. If Ollama is not running, a new event is
-  still saved, without a tag. `OLLAMA_BASE_URL` must be a loopback URL.
+  The worker reads the list, then saves each event after its page and tags are ready, before
+  fetching the next page. Tag matching uses a local [Ollama](https://ollama.com) model
+  (`ollama serve`, default `qwen3:32b`). It may pick up to three existing tags and cannot invent
+  one. An event that already has tags keeps them and is not sent to the model again. If Ollama
+  is not running, a new event is still saved, without a tag. `OLLAMA_BASE_URL` must be a loopback URL.
   `pnpm --filter @local-events/data-workers dev -- --source glada-hudik` writes `in_review` events.
   The seeded row stays disabled. Flow: [docs/flows/glada-hudik.md](docs/flows/glada-hudik.md).
   Later sources and the build order: [docs/event-sources.md](docs/event-sources.md).
@@ -204,9 +205,10 @@ calls) in the same change as every new major feature.**
 - First launch shows an **onboarding carousel** (welcome → notifications → location → area →
   tags). Activate requests the OS permission; Skip stores the choice and deferred **reminders**
   reappear after every 5 app activations (one permission at a time). The tags step writes those
-  tags as notification interests (`PUT /v1/me/interests`) and as the device home filters
-  (`le.homeTagIds`). Each interest card selects that interest’s tags. **Skip** stores an empty
-  selection. Reset app data clears the device state; interests stay on the account until changed.
+  tags as notification interests (`PUT /v1/me/interests`), as the device home filters
+  (`le.homeTagIds`), and on the area saved in the previous step. Each interest card selects that
+  interest’s tags. **Skip** stores an empty selection. Reset app data clears the device state;
+  interests stay on the account until changed.
 - Home event queries use **existing** location permission only (no prompt). Check-in and onboarding
   / reminders own the permission request. “Near you” reads that location when the app becomes
   active and watches updates of about 100 m until the app backgrounds. Pull to refresh reads again.
@@ -260,7 +262,12 @@ calls) in the same change as every new major feature.**
   `GET/POST/PATCH/DELETE /v1/me/areas`, and `GET /v1/me/preferences`.
 - Circle areas store `center` + `radius_m`; polygons store geography `area`. Cap 20 areas.
 - The location menu always includes “Near you” (device location). Other rows are the user’s
-  active saved areas, labeled with the name stored on the area. Flow:
+  active saved areas, labeled with the name stored on the area. Each area keeps its own tags
+  (`user_area_tags`). Choosing an area shows those tags on home; “Near you” keeps the device
+  filters. Changing tags on home updates the selected area. The search-radius slider is remembered
+  per place on the device, so switching areas restores that place’s radius. A plus in the menu searches for a
+  place (25 km circle) and then asks for the onboarding category groups. The save-location
+  prompt asks for those groups after the area is created. Flow:
   [docs/flows/user-preferences.md](docs/flows/user-preferences.md).
 - **Regions:** `GET /v1/regions/lookup?lat&lng` uses `ST_Covers` on seeded fixtures (Söderhamn
   kommun / Gävleborg län). With no saved region, opening the app looks up that name and asks to

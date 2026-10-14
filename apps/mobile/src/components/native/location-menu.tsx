@@ -1,3 +1,4 @@
+import { ApiError } from '@local-events/api-client';
 import { BottomSheet, Host, Slider } from '@expo/ui';
 import { MenuView } from '@expo/ui/community/menu';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -8,6 +9,8 @@ import { useTranslation } from 'react-i18next';
 import { Dimensions, Pressable, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import { PlaceSearchField } from '@/components/ui/place-search-field';
+import type { NamedPlace } from '@/lib/place-lookup';
 import {
   DISCOVERY_RADIUS_STOPS_M,
   resolveDiscoveryRadiusM,
@@ -31,12 +34,19 @@ type Props = {
   /** First option is “near me”. The rest are saved places. */
   options: LocationMenuOption[];
   selectedId?: string;
-  /** Search radius in meters. Applied when the sheet confirms. */
+  /** Search radius in meters for the place already in use. */
   radiusM: number;
-  onRadiusChange: (radiusM: number) => void;
+  /** Remembered search radius for each option, including “near me”. */
+  radiusByPlace?: Record<string, number>;
+  /** Applied for the confirmed place when the sheet closes. */
+  onRadiusChange: (radiusM: number, placeId: string) => void;
   isPresented?: boolean;
   onIsPresentedChange?: (open: boolean) => void;
   onSelect: (id: string) => void;
+  /** False when the saved-area cap is already reached. */
+  canAdd?: boolean;
+  /** Saves a typed place. The caller then asks for category groups. */
+  onCreatePlace?: (place: NamedPlace) => Promise<void>;
 };
 
 const STOPS_KM = DISCOVERY_RADIUS_STOPS_M.map((meters) => meters / 1_000);
@@ -73,10 +83,13 @@ export function LocationMenu({
   options,
   selectedId,
   radiusM,
+  radiusByPlace,
   onRadiusChange,
   isPresented,
   onIsPresentedChange,
   onSelect,
+  canAdd = true,
+  onCreatePlace,
 }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -92,6 +105,9 @@ export function LocationMenu({
   const [savedId, setSavedId] = useState(savedOptions[0]?.id ?? '');
   const [radiusIndex, setRadiusIndex] = useState(() => indexForMeters(radiusM));
   const [menuWidth, setMenuWidth] = useState(0);
+  const [adding, setAdding] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const wasOpen = useRef(false);
 
   function setOpen(next: boolean) {
@@ -106,20 +122,46 @@ export function LocationMenu({
       const current = selectedId && options.some((option) => option.id === selectedId) ? selectedId : nearbyId;
       setDraftId(current);
       setSavedId(saved.some((option) => option.id === current) ? current : (saved[0]?.id ?? ''));
-      setRadiusIndex(indexForMeters(radiusM));
+      setRadiusIndex(indexForMeters(radiusByPlace?.[current] ?? radiusM));
+      setAdding(false);
+      setCreateError(null);
     }
     wasOpen.current = open;
-  }, [open, options, radiusM, selectedId]);
+  }, [open, options, radiusByPlace, radiusM, selectedId]);
 
   const nearbySelected = draftId === nearby?.id;
   const savedLabel =
     savedOptions.find((option) => option.id === savedId)?.label ?? t('events.savedPlacesEmpty');
 
+  function choosePlace(id: string) {
+    setDraftId(id);
+    const remembered = radiusByPlace?.[id];
+    if (remembered != null) setRadiusIndex(indexForMeters(remembered));
+  }
+
   function showEvents() {
     const meters = DISCOVERY_RADIUS_STOPS_M[radiusIndex] ?? DISCOVERY_RADIUS_STOPS_M[0];
-    onRadiusChange(meters);
-    if (draftId) onSelect(draftId);
+    if (draftId) {
+      onRadiusChange(meters, draftId);
+      onSelect(draftId);
+    }
     setOpen(false);
+  }
+
+  async function pickNewPlace(place: NamedPlace) {
+    if (!onCreatePlace || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      await onCreatePlace(place);
+      setAdding(false);
+      setOpen(false);
+    } catch (err) {
+      const limited = err instanceof ApiError && err.code === 'area_limit';
+      setCreateError(limited ? t('events.areaLimit') : t('events.areaSaveError'));
+    } finally {
+      setCreating(false);
+    }
   }
 
   function managePlaces() {
@@ -189,7 +231,7 @@ export function LocationMenu({
                 accessibilityRole="button"
                 accessibilityState={{ selected: nearbySelected }}
                 onPress={() => {
-                  if (nearby) setDraftId(nearby.id);
+                  if (nearby) choosePlace(nearby.id);
                 }}
                 style={{
                   flexDirection: 'row',
@@ -239,29 +281,32 @@ export function LocationMenu({
                 ) : null}
               </Pressable>
 
-              <Pressable
+              <View
                 style={{
                   gap: space.md,
                   padding: space.lg,
                   borderRadius: radius.lg,
                   borderCurve: 'continuous',
                   borderWidth: 1,
-                  opacity: savedOptions.length > 0 ? 1 : 0.5,
                   borderColor: nearbySelected ? colors.line : colors.secondarySoft,
                   backgroundColor: nearbySelected ? colors.card : colors.secondarySoft,
                 }}
-                onPress={() => {
-                  if (savedOptions.length > 0) {
-                    function pickFirstSaved() {
-                      const firstSaved = savedOptions[0]?.id;
-                      if (firstSaved) setSavedId(firstSaved);
-                      setDraftId(firstSaved ?? '');
-                    }
-                    pickFirstSaved();
-                  }
-                }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    const firstSaved = savedOptions[0]?.id;
+                    if (!firstSaved) return;
+                    setSavedId(firstSaved);
+                    choosePlace(firstSaved);
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: space.md,
+                    opacity: savedOptions.length > 0 ? 1 : 0.5,
+                  }}
+                >
                   <View
                     style={{
                       width: 40,
@@ -296,40 +341,83 @@ export function LocationMenu({
                       </AppText>
                     </View>
                   ) : null}
-                </View>
-                {savedOptions.length > 0 ? (
-                  <View
-                    style={{ alignSelf: 'stretch' }}
-                    onLayout={(event) => {
-                      const next = Math.round(event.nativeEvent.layout.width);
-                      setMenuWidth((current) => (current === next ? current : next));
-                    }}
-                  >
-                    <MenuView
-                      style={menuWidth > 0 ? { width: menuWidth } : undefined}
-                      actions={savedOptions.map((option) => ({
-                        id: option.id,
-                        title: option.label,
-                        state: option.id === savedId ? 'on' : 'off',
-                      }))}
-                      onPressAction={({ nativeEvent }) => {
-                        setSavedId(nativeEvent.event);
-                        setDraftId(nativeEvent.event);
+                </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
+                  <View style={{ flex: 1 }}>
+                    {adding ? (
+                      <PlaceSearchField
+                        autoFocus
+                        editable={!creating}
+                        onPick={(place) => {
+                          void pickNewPlace(place);
+                        }}
+                      />
+                    ) : savedOptions.length > 0 ? (
+                      <View
+                        style={{ alignSelf: 'stretch' }}
+                        onLayout={(event) => {
+                          const next = Math.round(event.nativeEvent.layout.width);
+                          setMenuWidth((current) => (current === next ? current : next));
+                        }}
+                      >
+                        <MenuView
+                          style={menuWidth > 0 ? { width: menuWidth } : undefined}
+                          actions={savedOptions.map((option) => ({
+                            id: option.id,
+                            title: option.label,
+                            state: option.id === savedId ? 'on' : 'off',
+                          }))}
+                          onPressAction={({ nativeEvent }) => {
+                            setSavedId(nativeEvent.event);
+                            choosePlace(nativeEvent.event);
+                          }}
+                        >
+                          <View
+                            accessibilityRole="button"
+                            accessibilityLabel={savedLabel}
+                            style={menuWidth > 0 ? { width: menuWidth } : undefined}
+                          >
+                            {savedField}
+                          </View>
+                        </MenuView>
+                      </View>
+                    ) : (
+                      savedField
+                    )}
+                    {createError ? (
+                      <AppText variant="caption" style={{ color: colors.danger, marginTop: space.xs }}>
+                        {createError}
+                      </AppText>
+                    ) : null}
+                  </View>
+                  {onCreatePlace ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={adding ? t('events.cancelAddPlace') : t('events.addSavedPlace')}
+                      disabled={creating || (!canAdd && !adding)}
+                      onPress={() => {
+                        setCreateError(null);
+                        setAdding((current) => !current);
+                      }}
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: radius.pill,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: nearbySelected ? colors.accent : colors.secondarySoftAlpha,
+                        opacity: creating || (!canAdd && !adding) ? 0.4 : 1,
                       }}
                     >
-                      <View
-                        accessibilityRole="button"
-                        accessibilityLabel={savedLabel}
-                        style={menuWidth > 0 ? { width: menuWidth } : undefined}
-                      >
-                        {savedField}
-                      </View>
-                    </MenuView>
-                  </View>
-                ) : (
-                  savedField
-                )}
-              </Pressable>
+                      <Glyph
+                        sf={adding ? 'xmark' : 'plus'}
+                        md={adding ? 'close' : 'add'}
+                        color={nearbySelected ? colors.accent as string : colors.secondarySoft as string}
+                      />
+                    </Pressable>
+                  ) : null}
+                </View>
+              </View>
 
               <View
                 style={{
