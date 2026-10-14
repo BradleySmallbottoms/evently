@@ -588,34 +588,23 @@ export function createDbEventServices(
           : query.sort === 'distance'
             ? [
                 desc(events.featured),
-                sql`${events.location} IS NULL`,
                 sql`ST_Distance(${events.location}, ST_GeogFromText(${point}))`,
                 asc(events.startsAt),
                 asc(events.id),
               ]
             : [desc(events.featured), asc(events.startsAt), asc(events.id)];
 
-      // isPubliclyListedEvent: a point inside the radius, or tags and no point.
-      // Neither is omitted. No point stays off the map.
+      // isPubliclyListedEvent: a point inside the radius. No point is omitted.
       const rows = await selectEvents()
         .where(
           and(
             ...filters,
             sql`(
-              (
-                ${events.location} IS NOT NULL
-                AND ST_DWithin(
-                  ${events.location},
-                  ST_GeogFromText(${point}),
-                  ${query.radiusM}
-                )
-              )
-              OR (
-                ${events.location} IS NULL
-                AND exists (
-                  select 1 from ${eventTags}
-                  where ${eventTags.eventId} = ${events.id}
-                )
+              ${events.location} IS NOT NULL
+              AND ST_DWithin(
+                ${events.location},
+                ST_GeogFromText(${point}),
+                ${query.radiusM}
               )
             )`,
           ),

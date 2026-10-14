@@ -123,9 +123,8 @@ Product invariants (enforced in domain, tested)
 
 - A user id never authenticates; the app holds a device credential in secure storage.
 - Events from unverified publishers are `awaiting_verification`: not listed, searched or pushed.
-- An event with neither a point nor a tag is omitted from the public event list. One with tags
-  and no point stays in that list, has no map pin, and does not match nearby push. Direct lookup
-  by id still returns it.
+- An event without a point is omitted from the public event list. Tags do not replace a missing
+  point. It has no map pin and does not match nearby push. Direct lookup by id still returns it.
 - Imported events from temporary publishers or review-trust sources go to `in_review`.
 - Deleting an `in_review` import removes the event and skips that source id on later imports.
   Rejecting it cancels the event and leaves the row.

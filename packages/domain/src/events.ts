@@ -21,13 +21,12 @@ export function validateEventFields(
 }
 
 /**
- * The public event list includes an event that has a point, or at least one tag.
- * An event with neither is omitted. A point still has to fall inside the search
- * radius. Direct lookup by id is unchanged, and an event without a point stays
- * off the map.
+ * The public event list includes an event only when it has a point inside the
+ * search radius. Tags do not replace a missing point. Direct lookup by id is
+ * unchanged.
  */
-export function isPubliclyListedEvent(input: { hasLocation: boolean; tagCount: number }): boolean {
-  return input.hasLocation || input.tagCount > 0;
+export function isPubliclyListedEvent(input: { hasLocation: boolean }): boolean {
+  return input.hasLocation;
 }
 
 export function canEditEvent(status: string): boolean {

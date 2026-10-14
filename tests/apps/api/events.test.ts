@@ -384,7 +384,7 @@ describe('events', () => {
     expect(onlyOtherBody.items.map((item) => item.id)).toEqual([soonerId]);
   });
 
-  it('omits a published event that has neither a point nor a tag', async () => {
+  it('omits a published event that has no point', async () => {
     const store = createMemoryStore();
     const auth = createMemoryAuthServices(store);
     const app = createApp({
@@ -446,10 +446,12 @@ describe('events', () => {
 
     const page = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000');
     const body = (await page.json()) as { items: { id: string }[] };
-    expect(body.items.map((item) => item.id).sort()).toEqual([placedId, taggedId].sort());
+    expect(body.items.map((item) => item.id)).toEqual([placedId]);
 
     const detail = await app.request(`/v1/events/${blankId}`);
     expect(detail.status).toBe(200);
+    const taggedDetail = await app.request(`/v1/events/${taggedId}`);
+    expect(taggedDetail.status).toBe(200);
   });
 
   it('sorts popular events by saves plus coming marks', async () => {

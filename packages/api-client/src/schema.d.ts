@@ -3705,7 +3705,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Published events near a point, plus published events that have a tag and no point. Events with neither a point nor a tag are omitted. Default order is featured first, then soonest. sort=popular orders by saves plus coming marks (at least 1) and then soonest. Use offset to page. */
+                /** @description Published events that have a point inside the search radius. Events without a point are omitted. Default order is featured first, then soonest. sort=popular orders by saves plus coming marks (at least 1) and then soonest. Use offset to page. */
                 200: {
                     headers: {
                         [name: string]: unknown;

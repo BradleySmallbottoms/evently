@@ -15,9 +15,9 @@ Core concepts:
   Users can subscribe to a publisher and are notified when it publishes. Publishers for imported
   events are created automatically and can be claimed later by the real organizer.
 - **Event** — physical (venue, optional point and geofence) or digital (online, with a live
-  check-in code). A physical event without a point stays in the public list when it has at
-  least one tag. An event with neither a point nor a tag is left out of that list. It has no
-  map pin and does not match nearby push. Has tags, a schedule, and optional attendee-only content (maps,
+  check-in code). The public app lists an event only when it has a point inside the search
+  radius. Tags and an online URL do not replace a missing point. Direct lookup by id still
+  returns it. It has no map pin and does not match nearby push. Has tags, a schedule, and optional attendee-only content (maps,
   schedules, info). Users can subscribe to an event and are notified when it changes.
 - **User** — anonymous by default: the app creates an identity on first launch, no registration.
   Sets notification areas (radius around a point, a drawn area, or a region

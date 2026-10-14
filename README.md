@@ -170,8 +170,9 @@ calls) in the same change as every new major feature.**
 
 ### Public events & publishers
 
-- Public `GET /v1/events` only returns **`status = published`**. An event with neither a point
-  nor a tag is left out. One with tags and no point stays in the list and off the map. Unverified
+- Public `GET /v1/events` only returns **`status = published`** events that have a point inside
+  the search radius. An event without a point is left out of the app list and the map. Direct
+  lookup by id still returns it. Unverified
   publishers’ events stay `awaiting_verification` until an admin verifies the publisher (which
   releases upcoming events).
 - **Push drafts:** publishing creates a `push_messages` row. Trusted publishers auto-approve;

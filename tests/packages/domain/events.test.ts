@@ -38,10 +38,9 @@ describe('validateEventFields', () => {
 });
 
 describe('isPubliclyListedEvent', () => {
-  it('omits an event that has neither a point nor a tag', () => {
-    expect(isPubliclyListedEvent({ hasLocation: false, tagCount: 0 })).toBe(false);
-    expect(isPubliclyListedEvent({ hasLocation: true, tagCount: 0 })).toBe(true);
-    expect(isPubliclyListedEvent({ hasLocation: false, tagCount: 1 })).toBe(true);
+  it('requires a point', () => {
+    expect(isPubliclyListedEvent({ hasLocation: false })).toBe(false);
+    expect(isPubliclyListedEvent({ hasLocation: true })).toBe(true);
   });
 });
 

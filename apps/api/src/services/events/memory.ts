@@ -281,9 +281,9 @@ export function createMemoryEventServices(
       const matched = [...events.values()]
         .filter((e) => e.status === 'published')
         .filter((e) =>
-          isPubliclyListedEvent({ hasLocation: e.location != null, tagCount: e.tagIds.length }),
+          isPubliclyListedEvent({ hasLocation: e.location != null }),
         )
-        .filter((e) => !e.location || haversineM(center, e.location) <= query.radiusM)
+        .filter((e) => e.location != null && haversineM(center, e.location) <= query.radiusM)
         .filter((e) => !from || e.endsAtDate >= from)
         .filter((e) => !to || e.startsAtDate <= to)
         .filter((e) => {
