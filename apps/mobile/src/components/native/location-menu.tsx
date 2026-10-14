@@ -1,5 +1,4 @@
 import { BottomSheet, Host, Slider } from '@expo/ui';
-import { frame, tint } from '@expo/ui/swift-ui/modifiers';
 import { MenuView } from '@expo/ui/community/menu';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
@@ -16,6 +15,7 @@ import {
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
+import { accentSliderTint, locationSheetFrame } from './location-menu-modifiers';
 import { SheetBody } from './sheet-body';
 
 export type LocationMenuOption = {
@@ -174,11 +174,7 @@ export function LocationMenu({
           snapPoints={[{ fraction: 0.82 }]}
           containerColor={colors.card}
           contentPadding={{ top: space.lg, bottom: space.lg, left: space.xl, right: space.xl }}
-          modifiers={
-            process.env.EXPO_OS === 'ios'
-              ? [frame({ minWidth: screenWidth, maxWidth: Infinity, alignment: 'top' })]
-              : undefined
-          }
+          modifiers={locationSheetFrame(screenWidth)}
         >
           <SheetBody>
             <View style={{ gap: space.lg, width: contentWidth }}>
@@ -359,7 +355,7 @@ export function LocationMenu({
                     min={0}
                     max={LAST_INDEX}
                     step={1}
-                    modifiers={process.env.EXPO_OS === 'ios' ? [tint(colors.accent)] : undefined}
+                    modifiers={accentSliderTint()}
                     onValueChange={(next) => {
                       const snapped = Math.min(LAST_INDEX, Math.max(0, Math.round(next)));
                       setRadiusIndex(snapped);
