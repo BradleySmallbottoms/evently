@@ -10,9 +10,9 @@ import { defineConfig } from '@playwright/test';
  * e2e stack on those ports.
  */
 const E2E_DATABASE_URL =
-  process.env.E2E_DATABASE_URL ?? 'postgres://events:events@localhost:5432/events_e2e';
-const E2E_API_PORT = process.env.E2E_API_PORT ?? '3090';
-const E2E_WEB_PORT = process.env.E2E_WEB_PORT ?? '3190';
+  process.env.E2E_DATABASE_URL ?? 'postgres://events:events@localhost:15432/events_e2e';
+const E2E_API_PORT = process.env.E2E_API_PORT ?? '13090';
+const E2E_WEB_PORT = process.env.E2E_WEB_PORT ?? '13190';
 const E2E_API_ORIGIN = `http://localhost:${E2E_API_PORT}`;
 const E2E_WEB_ORIGIN = `http://localhost:${E2E_WEB_PORT}`;
 const reuse = process.env.E2E_REUSE_SERVER === '1';

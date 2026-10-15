@@ -125,7 +125,9 @@ Closed beta around week 15, store launch around week 19.
 - [x] `ingest` package: `IncomingEvent`, adapter interface, content hash, dedupe pre-check
 - [x] Runner with an example fixture adapter
 - [x] Persist: publisher resolution via `publisher_aliases`, dedupe, upsert, `external_refs`,
-      `ingestion_runs`. Published imports enqueue domain events; review imports stay `in_review`
+      `ingestion_runs`. Published imports enqueue domain events; review imports stay `in_review`.
+      A lookalike within 500 m on the same Stockholm date is a new `in_review` event flagged in
+      `meta.possibleDuplicate`. Every worker can tag with the local Ollama model.
 - [x] Raw ingestion payloads to S3 (`raw/<slug>/<runId>`; no-op when `RAW_INGESTION_BUCKET` unset)
 - [x] Fargate task definition + EventBridge Scheduler schedules in CDK
 - [x] First real source: Visit Söderhamn adapter (Citybreak, Evenemang only, one event per occasion)
@@ -134,7 +136,8 @@ Closed beta around week 15, store launch around week 19.
       `<img>`) and stores the other crawled images as gallery roles
 - [x] Remaining launch-area sources (generic `ics-feed` adapter + seed; configure `feedUrl` per
       calendar — Visit Gävle has no public ICS yet)
-- [x] Glada Hudik public calendar (`glada-hudik`, no API key). Tag matching attaches up to five tags scored above 90, skips an event that already has tags, and saves each event before the next page is fetched. Later sources:
+- [x] Glada Hudik public calendar (`glada-hudik`, no API key). Tag matching attaches up to five tags scored above 90, skips an event that already has tags, and saves each event before the next page is fetched. A page without a map point is geocoded from the location pin, then the contact address, otherwise Hudiksvall centre.
+- [x] Destination Hälsingland public calendar JSON (`destination-halsingland`, no API key). The worker reads the event list (`filter=c=4559`), then each product’s text and occasions, and saves that product before the next one is fetched. A missing coordinate stays missing. Later sources:
       `docs/event-sources.md`
 - **Exit:** sources run on schedule unattended, and an imported event notifies users exactly like a
   native one.

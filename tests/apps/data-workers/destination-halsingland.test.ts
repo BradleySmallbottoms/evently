@@ -1,0 +1,323 @@
+import { createMemoryIngestStore } from '../../../apps/data-workers/src/memory-store';
+import { persistSource } from '../../../apps/data-workers/src/persist';
+import { IncomingEvent, type SourceRunContext } from '../../../packages/ingest/src/index';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('../../../apps/data-workers/src/http1', () => ({
+  HTTP1_HEADER: 'x-local-events-http1',
+  http1Fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
+}));
+import fixture from '../../../apps/data-workers/src/sources/destination-halsingland/fixture.json' with { type: 'json' };
+import {
+  destinationHalsingland,
+  pointFromCoordinates,
+  type HalsinglandProduct,
+  type HalsinglandRaw,
+} from '../../../apps/data-workers/src/sources/destination-halsingland';
+
+const raw = fixture as HalsinglandRaw;
+
+function ctx(
+  fetchImpl: SourceRunContext['fetch'],
+  config: Record<string, unknown> = {},
+): SourceRunContext {
+  return {
+    sourceSlug: 'destination-halsingland',
+    config: { delayMs: 0, ...config },
+    fetch: fetchImpl,
+    log: () => undefined,
+  };
+}
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+const listItem = {
+  id: 'todo-2826465',
+  name: 'Billy Opel - Kulturhuset Bollnäs',
+  url: 'https://visit.destinationhalsingland.se/sv/se-gora/2826465/billy-opel-kulturhuset-bollnas/detaljer?filter=c%3D4559',
+  location: 'Bollnäs',
+  coordinates: [16.3952167, 61.3505711],
+  introduction: '14 november | Billy tar oss med på en resa.',
+  images: [{ url: 'https://images.citybreakcdn.com/image.aspx?ImageId=15326619' }],
+  attributes: [{ name: 'Åldersgräns 18', iconClassName: '' }],
+  pricing: { priceAndCurrency: '' },
+};
+
+const content = {
+  title: 'Billy Opel - Kulturhuset Bollnäs',
+  location: 'Bollnäs',
+  introduction: '14 november | Billy tar oss med på en resa.',
+  description: 'Biljetter på <a href="https://www.tickster.com/se/billy">Tickster</a>.',
+  goodToKnow: [
+    {
+      name: 'Evenemangslänk',
+      attributes: [
+        {
+          name: '<a href="https://kulturhuset.example/billy">kulturhuset.example/billy</a>',
+        },
+      ],
+    },
+  ],
+  images: [{ url: 'https://images.citybreakcdn.com/image.aspx?ImageId=15326619' }],
+};
+
+const booking = {
+  price: { priceAndCurrency: '200 SEK' },
+  externalBookingUrl: null,
+  occasions: [{ date: '2026-11-14', period: '19:00 - 20:30', arena: 'Kulturhuset Bollnäs' }],
+};
+
+describe('destination-halsingland map', () => {
+  const [event] = destinationHalsingland.map(raw);
+
+  it('emits a Stockholm time and the list coordinate', () => {
+    expect(IncomingEvent.safeParse(event).success).toBe(true);
+    expect(event?.externalId).toBe('2826465:2026-11-14T19:00:00:2026-11-14T20:30:00');
+    expect(event?.startsAt).toBe('2026-11-14T19:00:00+01:00');
+    expect(event?.endsAt).toBe('2026-11-14T20:30:00+01:00');
+    expect(event?.priceAmount).toBe(20_000);
+    expect(event?.currency).toBe('SEK');
+    expect(event?.venueName).toBe('Kulturhuset Bollnäs');
+    expect(event?.address).toBe('Bollnäs');
+    expect(event?.location).toEqual({ lat: 61.3505711, lng: 16.3952167 });
+    expect(event?.sourceUrl).toBe(
+      'https://visit.destinationhalsingland.se/sv/se-gora/2826465/billy-opel-kulturhuset-bollnas/detaljer',
+    );
+  });
+
+  it('reads longitude first and swaps a latitude-first pair', () => {
+    expect(pointFromCoordinates([16.3952167, 61.3505711])).toEqual({
+      lat: 61.3505711,
+      lng: 16.3952167,
+    });
+    expect(pointFromCoordinates([61.3505711, 16.3952167])).toEqual({
+      lat: 61.3505711,
+      lng: 16.3952167,
+    });
+    expect(pointFromCoordinates(null)).toBeUndefined();
+  });
+
+  it('collapses a long daily exhibition into one span', () => {
+    const occasions: HalsinglandProduct['occasions'] = [];
+    for (let day = 0; day < 40; day += 1) {
+      const date = new Date(Date.UTC(2026, 10, 13 + day));
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const dateNumber = String(date.getUTCDate()).padStart(2, '0');
+      occasions.push({
+        date: `${date.getUTCFullYear()}-${month}-${dateNumber}`,
+        start: '10:00',
+        end: '18:00',
+        venue: 'Mobackes Trädgårdscenter, Bollnäs',
+      });
+    }
+    const product: HalsinglandProduct = {
+      ...raw.products[0]!,
+      id: '1960936',
+      title: 'Amaryllisutställningen på Mobackes 2026',
+      freeEntry: true,
+      priceText: undefined,
+      organizerKey: 'mobackes.se',
+      organizerName: 'Mobackes Trädgårdscenter',
+      occasions,
+    };
+    const [span] = destinationHalsingland.map({ ...raw, products: [product] });
+    expect(span?.externalId).toBe('1960936:span');
+    expect(span?.startsAt).toBe('2026-11-13T10:00:00+01:00');
+    expect(span?.endsAt).toBe('2026-12-22T18:00:00+01:00');
+    expect(span?.priceAmount).toBe(0);
+    expect(span?.meta).toEqual({ freeEntry: true });
+    expect(span?.venueName).toBe('Mobackes Trädgårdscenter, Bollnäs');
+  });
+
+  it('rolls an end after midnight onto the next day', () => {
+    const product: HalsinglandProduct = {
+      ...raw.products[0]!,
+      occasions: [
+        { date: '2026-11-14', start: '22:00', end: '00:30', venue: 'Kulturhuset Bollnäs' },
+      ],
+    };
+    const [event] = destinationHalsingland.map({ ...raw, products: [product] });
+    expect(event?.startsAt).toBe('2026-11-14T22:00:00+01:00');
+    expect(event?.endsAt).toBe('2026-11-15T00:30:00+01:00');
+  });
+});
+
+describe('destination-halsingland fetch', () => {
+  it('loads the event list and then each product JSON', async () => {
+    const calls: string[] = [];
+    const agents: string[] = [];
+    const fetched = await destinationHalsingland.fetchRaw(
+      ctx(async (input, init) => {
+        const url = String(input);
+        calls.push(url);
+        const headers = new Headers(init?.headers);
+        agents.push(headers.get('user-agent') ?? '');
+        if (headers.get('x-local-events-http1') !== '1') {
+          throw new Error('calendar request was not marked for HTTP/1.1');
+        }
+        if (url.includes('/se-och-gora/products')) {
+          const page = new URL(url).searchParams.get('page');
+          if (page === '1') return json({ page: 1, totalResults: 1, items: [listItem] });
+          return json({ page: 2, totalResults: 1, items: [] });
+        }
+        if (url.includes('/product/productcontent')) return json(content);
+        if (url.includes('/todobookingcontrolcontext')) return json(booking);
+        return json({}, 404);
+      }),
+    );
+    expect(calls[0]).toBe(
+      'https://visit.destinationhalsingland.se/sv/se-och-gora/products?page=1&pageSize=10&filter=c%3D4559&sorting=st%3Da%3Bso%3Da%3Bsplit%3Dhl',
+    );
+    expect(agents.every((agent) => agent === 'PostmanRuntime/2.11.0')).toBe(true);
+    expect(calls.some((url) => url.includes('/product/productcontent?cbisProductId=2826465'))).toBe(
+      true,
+    );
+    expect(
+      calls.some((url) => url.includes('/todobookingcontrolcontext?cbisProductId=2826465')),
+    ).toBe(true);
+    expect(fetched.products).toHaveLength(1);
+    const [event] = destinationHalsingland.map(fetched);
+    expect(event?.priceAmount).toBe(20_000);
+    expect(event?.meta).toEqual({ ageLimit: 18 });
+    expect(event?.organizerKey).toBe('kulturhuset.example');
+    expect(event?.links).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'tickets',
+          url: 'https://www.tickster.com/se/billy',
+        }),
+        expect.objectContaining({
+          type: 'info',
+          url: 'https://kulturhuset.example/billy',
+        }),
+      ]),
+    );
+    expect(event?.location).toEqual({ lat: 61.3505711, lng: 16.3952167 });
+  });
+
+  it('treats a free-admission label as free and leaves parking text alone', async () => {
+    async function load(attribute: string) {
+      return destinationHalsingland.fetchRaw(
+        ctx(async (input) => {
+          const url = String(input);
+          if (url.includes('/se-och-gora/products')) {
+            const page = new URL(url).searchParams.get('page');
+            if (page === '1') return json({ totalResults: 1, items: [listItem] });
+            return json({ totalResults: 1, items: [] });
+          }
+          if (url.includes('/product/productcontent')) {
+            return json({
+              ...content,
+              goodToKnow: [{ name: 'Prisinformation', attributes: [{ name: attribute }] }],
+            });
+          }
+          return json({ ...booking, price: { priceAndCurrency: '' } });
+        }),
+      );
+    }
+    const [free] = destinationHalsingland.map(await load('Fritt inträde'));
+    expect(free?.priceAmount).toBe(0);
+    expect(free?.meta).toMatchObject({ freeEntry: true, ageLimit: 18 });
+    const [parking] = destinationHalsingland.map(await load('Gratis parkering'));
+    expect(parking?.priceAmount).toBeUndefined();
+    expect(parking?.meta).toEqual({ ageLimit: 18 });
+  });
+
+  it('keeps an event that has occasions but no coordinate', async () => {
+    const fetched = await destinationHalsingland.fetchRaw(
+      ctx(async (input) => {
+        const url = String(input);
+        if (url.includes('/se-och-gora/products')) {
+          const page = new URL(url).searchParams.get('page');
+          if (page === '1') {
+            return json({
+              totalResults: 1,
+              items: [{ ...listItem, id: 'todo-2902955', coordinates: null, location: null }],
+            });
+          }
+          return json({ totalResults: 1, items: [] });
+        }
+        if (url.includes('/product/productcontent')) {
+          return json({ ...content, title: 'Bubbelprovning', location: null, goodToKnow: [] });
+        }
+        return json({
+          occasions: [
+            { date: '2026-10-31', period: '15:00 - 18:00', arena: 'Mellanfjärdens Deli' },
+          ],
+        });
+      }),
+    );
+    const [event] = destinationHalsingland.map(fetched);
+    expect(event?.location).toBeUndefined();
+    expect(event?.startsAt).toBe('2026-10-31T15:00:00+01:00');
+    expect(event?.venueName).toBe('Mellanfjärdens Deli');
+  });
+
+  it('saves each event before fetching the next product', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push({
+      id: '55555555-5555-4555-8555-555555555501',
+      slug: 'destination-halsingland',
+      trust: 'review',
+      config: { delayMs: 0 },
+      enabled: true,
+    });
+    let savedBeforeSecond = -1;
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('cbisProductId=2') && savedBeforeSecond < 0) {
+        savedBeforeSecond = store.events.length;
+      }
+      if (url.includes('/se-och-gora/products')) {
+        const page = new URL(url).searchParams.get('page');
+        if (page === '1') {
+          return json({
+            totalResults: 2,
+            items: [
+              { ...listItem, id: 'todo-1', name: 'One' },
+              {
+                ...listItem,
+                id: 'todo-2',
+                name: 'Two',
+                url: 'https://visit.destinationhalsingland.se/sv/se-gora/2/two/detaljer',
+              },
+            ],
+          });
+        }
+        return json({ totalResults: 2, items: [] });
+      }
+      const id = new URL(url).searchParams.get('cbisProductId');
+      if (url.includes('/product/productcontent')) {
+        return json({ ...content, title: id === '2' ? 'Two' : 'One', goodToKnow: [] });
+      }
+      return json({
+        occasions: [
+          {
+            date: id === '2' ? '2026-11-15' : '2026-11-14',
+            period: '19:00 - 20:30',
+            arena: 'Kulturhuset Bollnäs',
+          },
+        ],
+      });
+    });
+    try {
+      const summary = await persistSource(store, 'destination-halsingland');
+      expect(savedBeforeSecond).toBe(1);
+      expect(summary.fetched).toBe(2);
+      expect(summary.created + summary.skipped).toBe(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('refuses an origin outside the calendar host', async () => {
+    await expect(
+      destinationHalsingland.fetchRaw(ctx(async () => json({}), { origin: 'https://example.com' })),
+    ).rejects.toThrow(/visit\.destinationhalsingland\.se/);
+  });
+});

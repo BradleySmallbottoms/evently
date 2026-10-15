@@ -1,0 +1,441 @@
+{
+  "page": 1,
+  "totalResults": 275,
+  "items": [
+    {
+      "id": "todo-1960936",
+      "name": "Amaryllisutställningen på Mobackes 2026",
+      "url": "https://visit.destinationhalsingland.se/sv/se-gora/1960936/amaryllisutst%c3%a4llningen-p%c3%a5-mobackes-2026/detaljer?sorting=st%3Da%3Bso%3Da%3Bsplit%3Dhl&filter=c%3D4559",
+      "rating": null,
+      "location": "Bollnäs",
+      "coordinates": [16.3902282714844, 61.3457247579754],
+      "introduction": "Vi bjuder er alla att fira vårt 20-års jubileum med en blomstrande, glimrande och alldeles, alldeles underbar...\r\n\r\nBal på slottet\r\n\r\n\r\n",
+      "attributes": [],
+      "images": [
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=24062297&width=700&height=700&fitaspect=1",
+          "description": null,
+          "lqip": null,
+          "srcset": null
+        },
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=13490022&width=700&height=700&fitaspect=1",
+          "description": null,
+          "lqip": null,
+          "srcset": null
+        },
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=13490023&width=700&height=700&fitaspect=1",
+          "description": null,
+          "lqip": null,
+          "srcset": null
+        }
+      ],
+      "badges": [
+        {
+          "type": "default",
+          "value": "Rekommenderad"
+        }
+      ],
+      "prepend": "",
+      "pricing": {
+        "priceAndCurrency": "",
+        "priceDescription": null,
+        "originalPriceAndCurrency": null,
+        "youSavePriceAndCurrency": null,
+        "isPriceFrom": true
+      },
+      "isBookable": false,
+      "bookingControlWidgetUrl": null,
+      "bookingControlWidgetContainerId": null,
+      "guestReviewsWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/guestreviewswidget?cbisProductId=1960936",
+      "guestReviewsWidgetContainerId": "citybreak_guest_reviews_widget-1960936",
+      "productContentWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/widget?cbisProductId=1960936",
+      "productContentWidgetContainerId": "citybreak_product_content_modal_widget-1960936",
+      "reviewCount": null
+    },
+    {
+      "id": "todo-2822926",
+      "name": "Babblarna & Klonks Klapp-kalas - Kulturhuset Bollnäs",
+      "url": "https://visit.destinationhalsingland.se/sv/se-gora/2822926/babblarna-klonks-klapp-kalas-kulturhuset-bolln%c3%a4s/detaljer?sorting=st%3Da%3Bso%3Da%3Bsplit%3Dhl&filter=c%3D4559",
+      "rating": null,
+      "location": "Bollnäs",
+      "coordinates": [16.3952167, 61.3505711],
+      "introduction": "20 mars 2027 | Babblarna är tillbaka–och bjuder in till ett magiskt kalas!\r\n\r\n",
+      "attributes": [],
+      "images": [
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=14791175&width=700&height=700&fitaspect=1",
+          "description": null,
+          "lqip": null,
+          "srcset": null
+        }
+      ],
+      "badges": [
+        {
+          "type": "default",
+          "value": "Rekommenderad"
+        }
+      ],
+      "prepend": "",
+      "pricing": {
+        "priceAndCurrency": "",
+        "priceDescription": null,
+        "originalPriceAndCurrency": null,
+        "youSavePriceAndCurrency": null,
+        "isPriceFrom": true
+      },
+      "isBookable": false,
+      "bookingControlWidgetUrl": null,
+      "bookingControlWidgetContainerId": null,
+      "guestReviewsWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/guestreviewswidget?cbisProductId=2822926",
+      "guestReviewsWidgetContainerId": "citybreak_guest_reviews_widget-2822926",
+      "productContentWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/widget?cbisProductId=2822926",
+      "productContentWidgetContainerId": "citybreak_product_content_modal_widget-2822926",
+      "reviewCount": null
+    },
+    {
+      "id": "todo-2826465",
+      "name": "Billy Opel - Kulturhuset Bollnäs",
+      "url": "https://visit.destinationhalsingland.se/sv/se-gora/2826465/billy-opel-kulturhuset-bolln%c3%a4s/detaljer?sorting=st%3Da%3Bso%3Da%3Bsplit%3Dhl&filter=c%3D4559",
+      "rating": null,
+      "location": "Bollnäs",
+      "coordinates": [16.3952167, 61.3505711],
+      "introduction": "14 november | Billy tar oss med på en resa in i låtskriveriets galna värld....\r\n\r\n",
+      "attributes": [],
+      "images": [
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=15326619&width=700&height=700&fitaspect=1",
+          "description": null,
+          "lqip": null,
+          "srcset": null
+        }
+      ],
+      "badges": [
+        {
+          "type": "default",
+          "value": "Rekommenderad"
+        }
+      ],
+      "prepend": "",
+      "pricing": {
+        "priceAndCurrency": "",
+        "priceDescription": null,
+        "originalPriceAndCurrency": null,
+        "youSavePriceAndCurrency": null,
+        "isPriceFrom": true
+      },
+      "isBookable": false,
+      "bookingControlWidgetUrl": null,
+      "bookingControlWidgetContainerId": null,
+      "guestReviewsWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/guestreviewswidget?cbisProductId=2826465",
+      "guestReviewsWidgetContainerId": "citybreak_guest_reviews_widget-2826465",
+      "productContentWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/widget?cbisProductId=2826465",
+      "productContentWidgetContainerId": "citybreak_product_content_modal_widget-2826465",
+      "reviewCount": null
+    },
+    {
+      "id": "todo-2866559",
+      "name": "Blomstrande väggar – 1800-talets måleri i hälsingegårdar",
+      "url": "https://visit.destinationhalsingland.se/sv/se-gora/2866559/blomstrande-v%c3%a4ggar-%e2%80%93-1800-talets-m%c3%a5leri-i-h%c3%a4lsingeg%c3%a5rdar/detaljer?sorting=st%3Da%3Bso%3Da%3Bsplit%3Dhl&filter=c%3D4559",
+      "rating": null,
+      "location": "Hudiksvall",
+      "coordinates": [17.1077112, 61.7279731],
+      "introduction": "Utställning på Hälsinglands Museum",
+      "attributes": [],
+      "images": [
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=17830813&width=700&height=700&fitaspect=1",
+          "description": null,
+          "lqip": null,
+          "srcset": null
+        }
+      ],
+      "badges": [
+        {
+          "type": "default",
+          "value": "Rekommenderad"
+        }
+      ],
+      "prepend": "",
+      "pricing": {
+        "priceAndCurrency": "",
+        "priceDescription": null,
+        "originalPriceAndCurrency": null,
+        "youSavePriceAndCurrency": null,
+        "isPriceFrom": true
+      },
+      "isBookable": false,
+      "bookingControlWidgetUrl": null,
+      "bookingControlWidgetContainerId": null,
+      "guestReviewsWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/guestreviewswidget?cbisProductId=2866559",
+      "guestReviewsWidgetContainerId": "citybreak_guest_reviews_widget-2866559",
+      "productContentWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/widget?cbisProductId=2866559",
+      "productContentWidgetContainerId": "citybreak_product_content_modal_widget-2866559",
+      "reviewCount": null
+    },
+    {
+      "id": "todo-485158",
+      "name": "Bollnäs mest spännande lunch - Bollnästravet!",
+      "url": "https://visit.destinationhalsingland.se/sv/se-gora/485158/bolln%c3%a4s-mest-sp%c3%a4nnande-lunch-bolln%c3%a4stravet/detaljer?sorting=st%3Da%3Bso%3Da%3Bsplit%3Dhl&filter=c%3D4559",
+      "rating": null,
+      "location": "Bollnäs",
+      "coordinates": [16.3346214, 61.3403999],
+      "introduction": "Välkommen till Bollnästravet och en god lunchbuffé! Fri entré - ingen bordsbokning behövs på lunchtrav!",
+      "attributes": [],
+      "images": [
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=5938080&width=700&height=700&fitaspect=1",
+          "description": "Lunchtrav Bollnästravet Travtävling Hälsingland",
+          "lqip": null,
+          "srcset": null
+        },
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=2206347&width=700&height=700&fitaspect=1",
+          "description": null,
+          "lqip": null,
+          "srcset": null
+        },
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=5938081&width=700&height=700&fitaspect=1",
+          "description": "Lunchtrav Bollnästravet Travtävling Hälsingland",
+          "lqip": null,
+          "srcset": null
+        }
+      ],
+      "badges": [
+        {
+          "type": "default",
+          "value": "Rekommenderad"
+        }
+      ],
+      "prepend": "",
+      "pricing": {
+        "priceAndCurrency": "",
+        "priceDescription": null,
+        "originalPriceAndCurrency": null,
+        "youSavePriceAndCurrency": null,
+        "isPriceFrom": true
+      },
+      "isBookable": false,
+      "bookingControlWidgetUrl": null,
+      "bookingControlWidgetContainerId": null,
+      "guestReviewsWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/guestreviewswidget?cbisProductId=485158",
+      "guestReviewsWidgetContainerId": "citybreak_guest_reviews_widget-485158",
+      "productContentWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/widget?cbisProductId=485158",
+      "productContentWidgetContainerId": "citybreak_product_content_modal_widget-485158",
+      "reviewCount": null
+    },
+    {
+      "id": "todo-2902955",
+      "name": "Bubbelprovning hos Mellanfjärdens Deli",
+      "url": "https://visit.destinationhalsingland.se/sv/se-gora/2902955/bubbelprovning-hos-mellanfj%c3%a4rdens-deli/detaljer?sorting=st%3Da%3Bso%3Da%3Bsplit%3Dhl&filter=c%3D4559",
+      "rating": null,
+      "location": null,
+      "coordinates": null,
+      "introduction": "31 oktober |  En inspirerande eftermiddag där fokus ligger på mat & dryck i kombination, vi kombinerar olika mousserande viner med mindre smårätter. Klockan 15-18 hos Mellanfjärdens Deli!\r\n",
+      "attributes": [
+        {
+          "name": "Åldersgräns 18",
+          "iconClassName": ""
+        }
+      ],
+      "images": [
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=23955249&width=700&height=700&fitaspect=1",
+          "description": null,
+          "lqip": null,
+          "srcset": null
+        },
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=23955383&width=700&height=700&fitaspect=1",
+          "description": null,
+          "lqip": null,
+          "srcset": null
+        }
+      ],
+      "badges": [
+        {
+          "type": "default",
+          "value": "Rekommenderad"
+        }
+      ],
+      "prepend": "",
+      "pricing": {
+        "priceAndCurrency": "",
+        "priceDescription": null,
+        "originalPriceAndCurrency": null,
+        "youSavePriceAndCurrency": null,
+        "isPriceFrom": true
+      },
+      "isBookable": false,
+      "bookingControlWidgetUrl": null,
+      "bookingControlWidgetContainerId": null,
+      "guestReviewsWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/guestreviewswidget?cbisProductId=2902955",
+      "guestReviewsWidgetContainerId": "citybreak_guest_reviews_widget-2902955",
+      "productContentWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/widget?cbisProductId=2902955",
+      "productContentWidgetContainerId": "citybreak_product_content_modal_widget-2902955",
+      "reviewCount": null
+    },
+    {
+      "id": "todo-2857686",
+      "name": "Christmas Night - Kulturhuset Bollnäs",
+      "url": "https://visit.destinationhalsingland.se/sv/se-gora/2857686/christmas-night-kulturhuset-bolln%c3%a4s/detaljer?sorting=st%3Da%3Bso%3Da%3Bsplit%3Dhl&filter=c%3D4559",
+      "rating": null,
+      "location": "Bollnäs",
+      "coordinates": [16.3952167, 61.3505711],
+      "introduction": "20 november | Christmas Night är julstämning lika mysig som att återse en kär gammal vän, lika härlig som en välförtjänt ledighet och lika lyxig som en överdådig högtid. \r\n\r\n",
+      "attributes": [],
+      "images": [
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=17611046&width=700&height=700&fitaspect=1",
+          "description": null,
+          "lqip": null,
+          "srcset": null
+        }
+      ],
+      "badges": [
+        {
+          "type": "default",
+          "value": "Rekommenderad"
+        }
+      ],
+      "prepend": "",
+      "pricing": {
+        "priceAndCurrency": "",
+        "priceDescription": null,
+        "originalPriceAndCurrency": null,
+        "youSavePriceAndCurrency": null,
+        "isPriceFrom": true
+      },
+      "isBookable": false,
+      "bookingControlWidgetUrl": null,
+      "bookingControlWidgetContainerId": null,
+      "guestReviewsWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/guestreviewswidget?cbisProductId=2857686",
+      "guestReviewsWidgetContainerId": "citybreak_guest_reviews_widget-2857686",
+      "productContentWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/widget?cbisProductId=2857686",
+      "productContentWidgetContainerId": "citybreak_product_content_modal_widget-2857686",
+      "reviewCount": null
+    },
+    {
+      "id": "todo-2838927",
+      "name": "Christoffer Nyqvist - \"Lejonet från Norden\" - Kulturhuset Bollnäs",
+      "url": "https://visit.destinationhalsingland.se/sv/se-gora/2838927/christoffer-nyqvist-lejonet-fr%c3%a5n-norden-kulturhuset-boll/detaljer?sorting=st%3Da%3Bso%3Da%3Bsplit%3Dhl&filter=c%3D4559",
+      "rating": null,
+      "location": "Bollnäs",
+      "coordinates": [16.3952167, 61.3505711],
+      "introduction": "12 december | Med sin unika förmåga att balansera det absurda med igenkänning har Christoffer Nyqvist blivit en av Sveriges mest älskade unga komiker. \r\n",
+      "attributes": [],
+      "images": [
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=15923653&width=700&height=700&fitaspect=1",
+          "description": null,
+          "lqip": null,
+          "srcset": null
+        }
+      ],
+      "badges": [
+        {
+          "type": "default",
+          "value": "Rekommenderad"
+        }
+      ],
+      "prepend": "",
+      "pricing": {
+        "priceAndCurrency": "",
+        "priceDescription": null,
+        "originalPriceAndCurrency": null,
+        "youSavePriceAndCurrency": null,
+        "isPriceFrom": true
+      },
+      "isBookable": false,
+      "bookingControlWidgetUrl": null,
+      "bookingControlWidgetContainerId": null,
+      "guestReviewsWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/guestreviewswidget?cbisProductId=2838927",
+      "guestReviewsWidgetContainerId": "citybreak_guest_reviews_widget-2838927",
+      "productContentWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/widget?cbisProductId=2838927",
+      "productContentWidgetContainerId": "citybreak_product_content_modal_widget-2838927",
+      "reviewCount": null
+    },
+    {
+      "id": "todo-2822928",
+      "name": "Creedence Tribute, Best of CCR & John Fogerty Tour - Kulturhuset Bollnäs",
+      "url": "https://visit.destinationhalsingland.se/sv/se-gora/2822928/creedence-tribute-best-of-ccr-john-fogerty-tour-kulturhu/detaljer?sorting=st%3Da%3Bso%3Da%3Bsplit%3Dhl&filter=c%3D4559",
+      "rating": null,
+      "location": "Bollnäs",
+      "coordinates": [16.3952167, 61.3505711],
+      "introduction": "31 oktober | Creedence Tribute förlänger succéshowen. Creedence Tribute anses som ett av Europas bästa hyllningsband till Creedence Clearwater Revival och John Fogerty. ",
+      "attributes": [],
+      "images": [
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=14789883&width=700&height=700&fitaspect=1",
+          "description": null,
+          "lqip": null,
+          "srcset": null
+        }
+      ],
+      "badges": [
+        {
+          "type": "default",
+          "value": "Rekommenderad"
+        }
+      ],
+      "prepend": "",
+      "pricing": {
+        "priceAndCurrency": "",
+        "priceDescription": null,
+        "originalPriceAndCurrency": null,
+        "youSavePriceAndCurrency": null,
+        "isPriceFrom": true
+      },
+      "isBookable": false,
+      "bookingControlWidgetUrl": null,
+      "bookingControlWidgetContainerId": null,
+      "guestReviewsWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/guestreviewswidget?cbisProductId=2822928",
+      "guestReviewsWidgetContainerId": "citybreak_guest_reviews_widget-2822928",
+      "productContentWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/widget?cbisProductId=2822928",
+      "productContentWidgetContainerId": "citybreak_product_content_modal_widget-2822928",
+      "reviewCount": null
+    },
+    {
+      "id": "todo-2775531",
+      "name": "Dans till Carisma, Folkan Iggesund",
+      "url": "https://visit.destinationhalsingland.se/sv/se-gora/2775531/dans-till-carisma-folkan-iggesund/detaljer?sorting=st%3Da%3Bso%3Da%3Bsplit%3Dhl&filter=c%3D4559",
+      "rating": null,
+      "location": "Hudiksvall",
+      "coordinates": [17.0777937, 61.6424192],
+      "introduction": "24 november | Carisma bjuder upp till dans!",
+      "attributes": [],
+      "images": [
+        {
+          "url": "https://images.citybreakcdn.com/image.aspx?ImageId=13128147&width=700&height=700&fitaspect=1",
+          "description": null,
+          "lqip": null,
+          "srcset": null
+        }
+      ],
+      "badges": [
+        {
+          "type": "default",
+          "value": "Rekommenderad"
+        }
+      ],
+      "prepend": "",
+      "pricing": {
+        "priceAndCurrency": "200 SEK",
+        "priceDescription": "",
+        "originalPriceAndCurrency": null,
+        "youSavePriceAndCurrency": null,
+        "isPriceFrom": true
+      },
+      "isBookable": false,
+      "bookingControlWidgetUrl": null,
+      "bookingControlWidgetContainerId": null,
+      "guestReviewsWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/guestreviewswidget?cbisProductId=2775531",
+      "guestReviewsWidgetContainerId": "citybreak_guest_reviews_widget-2775531",
+      "productContentWidgetUrl": "https://visit.destinationhalsingland.se/sv/product/widget?cbisProductId=2775531",
+      "productContentWidgetContainerId": "citybreak_product_content_modal_widget-2775531",
+      "reviewCount": null
+    }
+  ]
+}

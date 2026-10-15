@@ -1,13 +1,16 @@
 import type { Db } from '@local-events/db';
+import { readEventMeta } from '@local-events/contracts';
 import { insertApprovedEventReminders, pointEwkt, schema } from '@local-events/db';
 import {
+  DUPLICATE_RADIUS_M,
   IMPORT_NOTIFICATION_AUDIENCE,
   importNotificationMessages,
   pushStatusForEvent,
   slugifyPublisherName,
+  stockholmDayRange,
   tagSlug,
 } from '@local-events/domain';
-import { and, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, lt, lte, notInArray, sql } from 'drizzle-orm';
 import type { ImportedEventWrite, IngestStore, NearbyEvent } from './store';
 
 const NEAR_MS = 30 * 60 * 1000;
@@ -30,6 +33,8 @@ function eventValues(input: ImportedEventWrite) {
     priceAmount: input.event.priceAmount ?? null,
     currency: input.event.currency ?? 'SEK',
     meta: input.event.meta ?? {},
+    refId: input.refId,
+    workerId: input.workerId,
   };
 }
 
@@ -58,6 +63,7 @@ async function replaceLinks(
 export function createDbIngestStore(db: Db): IngestStore {
   const {
     events,
+    eventLinks,
     eventTags,
     eventImages,
     tags,
@@ -233,6 +239,71 @@ export function createDbIngestStore(db: Db): IngestStore {
         location: row.lat != null && row.lng != null ? { lat: row.lat, lng: row.lng } : undefined,
       }));
     },
+    async duplicateCandidates(input) {
+      const range = stockholmDayRange(input.startsAt);
+      const point = pointEwkt(input.location);
+      const rows = await db
+        .select({
+          eventId: events.id,
+          title: events.title,
+          startsAt: events.startsAt,
+          sourceUrl: events.sourceUrl,
+          refId: events.refId,
+          workerId: events.workerId,
+          lat: sql<number | null>`ST_Y(${events.location}::geometry)`,
+          lng: sql<number | null>`ST_X(${events.location}::geometry)`,
+          distanceM: sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${point}))`,
+        })
+        .from(events)
+        .where(
+          and(
+            isNotNull(events.location),
+            sql`ST_DWithin(${events.location}, ST_GeogFromText(${point}), ${DUPLICATE_RADIUS_M})`,
+            gte(events.startsAt, range.start),
+            lt(events.startsAt, range.end),
+            notInArray(events.status, ['cancelled', 'ended']),
+          ),
+        );
+      if (rows.length === 0) return [];
+      const ids = rows.map((row) => row.eventId);
+      const linkRows = await db
+        .select({ eventId: eventLinks.eventId, url: eventLinks.url })
+        .from(eventLinks)
+        .where(inArray(eventLinks.eventId, ids));
+      const refRows = await db
+        .select({ eventId: externalRefs.eventId, externalId: externalRefs.externalId })
+        .from(externalRefs)
+        .where(inArray(externalRefs.eventId, ids));
+      const linksByEvent = new Map<string, string[]>();
+      for (const link of linkRows) {
+        const list = linksByEvent.get(link.eventId) ?? [];
+        list.push(link.url);
+        linksByEvent.set(link.eventId, list);
+      }
+      const idsByEvent = new Map<string, string[]>();
+      for (const ref of refRows) {
+        const list = idsByEvent.get(ref.eventId) ?? [];
+        list.push(ref.externalId);
+        idsByEvent.set(ref.eventId, list);
+      }
+      return rows.flatMap((row) => {
+        if (row.lat == null || row.lng == null) return [];
+        return [
+          {
+            eventId: row.eventId,
+            title: row.title,
+            startsAt: row.startsAt,
+            location: { lat: row.lat, lng: row.lng },
+            sourceUrl: row.sourceUrl,
+            links: linksByEvent.get(row.eventId) ?? [],
+            refId: row.refId,
+            workerId: row.workerId,
+            externalIds: idsByEvent.get(row.eventId) ?? [],
+            distanceM: Number(row.distanceM),
+          },
+        ];
+      });
+    },
     async listTags() {
       const rows = await db
         .select({
@@ -325,6 +396,17 @@ export function createDbIngestStore(db: Db): IngestStore {
     async updateImported(eventId, input) {
       const values = eventValues(input);
       await db.transaction(async (tx) => {
+        const [current] = await tx
+          .select({ meta: events.meta })
+          .from(events)
+          .where(eq(events.id, eventId))
+          .limit(1);
+        const stored = readEventMeta(current?.meta);
+        const meta = values.meta.possibleDuplicate
+          ? values.meta
+          : stored.possibleDuplicate
+            ? { ...values.meta, possibleDuplicate: stored.possibleDuplicate }
+            : values.meta;
         await tx
           .update(events)
           .set({
@@ -341,7 +423,9 @@ export function createDbIngestStore(db: Db): IngestStore {
             ...(input.event.onlineUrl !== undefined ? { onlineUrl: values.onlineUrl } : {}),
             ...(input.event.priceAmount !== undefined ? { priceAmount: values.priceAmount } : {}),
             ...(input.event.currency !== undefined ? { currency: values.currency } : {}),
-            meta: values.meta,
+            meta,
+            refId: values.refId,
+            workerId: values.workerId,
             updatedAt: new Date(),
           })
           .where(eq(events.id, eventId));

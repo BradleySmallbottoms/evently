@@ -16,6 +16,7 @@
     "@local-events/contracts": "workspace:*",
     "@local-events/db": "workspace:*",
     "@local-events/domain": "workspace:*",
+    "@local-events/geo": "workspace:*",
     "@local-events/ingest": "workspace:*",
     "@sentry/node": "^11.4.0",
     "cheerio": "^1.2.0",

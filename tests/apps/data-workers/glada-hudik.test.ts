@@ -13,6 +13,12 @@ import {
   type GladaRaw,
 } from '../../../apps/data-workers/src/sources/glada-hudik';
 import {
+  createLocationLookupState,
+  GLADA_HUDIK_DEFAULT_LOCATION,
+  gladaLocationQueries,
+  resolveGladaLocation,
+} from '../../../apps/data-workers/src/sources/glada-hudik/location';
+import {
   keptTagsForProduct,
   matchEventTag,
   ollamaBaseUrl,
@@ -56,7 +62,9 @@ describe('glada-hudik page parse', () => {
       priceText: '450 SEK',
       organizerName: 'Skene Comedy',
       organizerEmail: 'info@skenecomedy.se',
+      placeName: 'Kulturhuset Glada Hudik',
       address: 'Kulturhuset Glada Hudik, Storgatan 37, 824 52 Hudiksvall',
+      city: 'Hudiksvall',
       imageUrl:
         'https://www.gladahudik.se/sites/cb_gladahudik/files/styles/slide_large/http/images.citybreak.com/14859640.jpeg.webp?itok=pvyz9-L6',
       location: { lat: 61.7279731, lng: 17.1077112 },
@@ -187,8 +195,79 @@ describe('glada-hudik fetch', () => {
       calls.some((url) => /[?&](order|occasion|filter|search|categories|geo|arena)=/.test(url)),
     ).toBe(false);
     expect(calls[1]).toBe('https://www.gladahudik.se/sv/fredrik-andersson-too-soon');
+    expect(calls.some((url) => url.includes('photon.komoot.io'))).toBe(false);
     expect(fetched.products).toHaveLength(1);
     expect(fetched.products[0]?.title).toBe('Fredrik Andersson - TOO SOON');
+  });
+
+  it('geocodes the pin when the page has no map', async () => {
+    const noMap = showHtml.replace(/<div class="sidebar-map[^>]*><\/div>/, '');
+    const calls: string[] = [];
+    const card = '<a href="/sv/fredrik-andersson-too-soon" data-productid="cbis:2823720">Show</a>';
+    const fetched = await gladaHudik.fetchRaw(
+      ctx(
+        async (input) => {
+          const url = String(input);
+          calls.push(url);
+          if (url.includes('/api/cbis-product-list')) {
+            const page = new URL(url).searchParams.get('page');
+            if (page === '0') return json({ totalCount: 1, items: [card] });
+            return json({ totalCount: 1, items: [] });
+          }
+          if (url.includes('photon.komoot.io')) {
+            return json({
+              features: [
+                {
+                  geometry: { coordinates: [17.1115273, 61.7277652] },
+                  properties: {
+                    name: 'Glada Hudik Kulturhus',
+                    city: 'Hudiksvall',
+                    countrycode: 'SE',
+                  },
+                },
+              ],
+            });
+          }
+          return new Response(noMap, { status: 200, headers: { 'content-type': 'text/html' } });
+        },
+        { geocodeDelayMs: 0 },
+      ),
+    );
+    const lookup = calls.find((url) => url.includes('photon.komoot.io'));
+    expect(lookup).toBeDefined();
+    expect(new URL(lookup!).searchParams.get('q')).toBe('Kulturhuset Glada Hudik');
+    expect(fetched.products[0]?.location).toEqual({ lat: 61.7277652, lng: 17.1115273 });
+    const [event] = gladaHudik.map(fetched);
+    expect(event?.location).toEqual({ lat: 61.7277652, lng: 17.1115273 });
+    expect(event?.venueName).toBe('Kulturhuset Glada Hudik');
+  });
+
+  it('leaves a digital showing without a point', async () => {
+    const digital = showHtml
+      .replace(/<div class="sidebar-map[^>]*><\/div>/, '')
+      .replace('<span>Kulturhuset Glada Hudik</span>', '<span>Digitalt</span>');
+    const calls: string[] = [];
+    const card = '<a href="/sv/digitalt" data-productid="cbis:9">Digital</a>';
+    const fetched = await gladaHudik.fetchRaw(
+      ctx(
+        async (input) => {
+          const url = String(input);
+          calls.push(url);
+          if (url.includes('/api/cbis-product-list')) {
+            const page = new URL(url).searchParams.get('page');
+            if (page === '0') return json({ totalCount: 1, items: [card] });
+            return json({ totalCount: 1, items: [] });
+          }
+          return new Response(digital, { status: 200, headers: { 'content-type': 'text/html' } });
+        },
+        { geocodeDelayMs: 0 },
+      ),
+    );
+    expect(calls.some((url) => url.includes('photon.komoot.io'))).toBe(false);
+    expect(fetched.products[0]?.location).toBeUndefined();
+    const [event] = gladaHudik.map(fetched);
+    expect(event?.mode).toBe('digital');
+    expect(event?.location).toBeUndefined();
   });
 
   it('keeps a stored tag and does not ask Ollama', async () => {
@@ -289,6 +368,99 @@ describe('glada-hudik fetch', () => {
   });
 });
 
+describe('glada-hudik location lookup', () => {
+  const show = {
+    id: 'cbis:2823720',
+    placeName: 'Kulturhuset Glada Hudik',
+    address: 'Kulturhuset Glada Hudik, Storgatan 37, 824 52 Hudiksvall',
+    city: 'Hudiksvall',
+  };
+
+  function lookup(
+    fetchImpl: typeof fetch,
+    input: Parameters<typeof resolveGladaLocation>[0] = show,
+  ) {
+    return resolveGladaLocation(input, fetchImpl, {
+      delayMs: 0,
+      state: createLocationLookupState(),
+    });
+  }
+
+  function photon(features: unknown[]) {
+    return json({ features });
+  }
+
+  it('asks for the pin before the contact address', () => {
+    expect(gladaLocationQueries(show).map((query) => query.step)).toEqual([
+      'pin',
+      'pin',
+      'contact',
+      'city',
+    ]);
+    expect(gladaLocationQueries(show)[0]?.text).toBe('Kulturhuset Glada Hudik');
+    expect(gladaLocationQueries(show)[2]?.text).toContain('Storgatan 37');
+  });
+
+  it('uses the contact address when the pin is outside Hudiksvall', async () => {
+    const queries: string[] = [];
+    const point = await lookup(async (input) => {
+      const query = new URL(String(input)).searchParams.get('q');
+      queries.push(query ?? '');
+      if (query === 'Kulturhuset Glada Hudik, Storgatan 37, 824 52 Hudiksvall') {
+        return photon([
+          {
+            geometry: { coordinates: [17.1098132, 61.7277361] },
+            properties: { street: 'Storgatan', city: 'Hudiksvall', countrycode: 'SE' },
+          },
+        ]);
+      }
+      return photon([
+        {
+          geometry: { coordinates: [12.0, 57.7] },
+          properties: { name: 'Kulturhuset', city: 'Göteborg', countrycode: 'SE' },
+        },
+      ]);
+    });
+    expect(queries[0]).toBe('Kulturhuset Glada Hudik');
+    expect(point).toEqual({ lat: 61.7277361, lng: 17.1098132 });
+  });
+
+  it('uses Hudiksvall centre when no lookup hits', async () => {
+    const point = await lookup(async () => photon([]));
+    expect(point).toEqual(GLADA_HUDIK_DEFAULT_LOCATION);
+  });
+
+  it('keeps a map point and does not geocode', async () => {
+    let called = false;
+    const point = await lookup(
+      async () => {
+        called = true;
+        return photon([]);
+      },
+      { ...show, location: { lat: 61.72, lng: 17.1 } },
+    );
+    expect(called).toBe(false);
+    expect(point).toEqual({ lat: 61.72, lng: 17.1 });
+  });
+
+  it('ignores a hit that does not share a name with the query', async () => {
+    const point = await lookup(async () =>
+      photon([
+        {
+          geometry: { coordinates: [17.11, 61.72] },
+          properties: {
+            name: 'Fonus',
+            street: 'Drottninggatan',
+            city: 'Hudiksvall',
+            countrycode: 'SE',
+          },
+        },
+      ]),
+    );
+    expect(point).toEqual(GLADA_HUDIK_DEFAULT_LOCATION);
+  });
+});
+
 describe('glada-hudik tag match', () => {
   const catalog = [
     { externalId: 'visit-soderhamn:30224', name: 'Utställning' },
@@ -338,6 +510,20 @@ describe('glada-hudik tag match', () => {
 
   it('refuses an Ollama URL that is not on this machine', () => {
     expect(() => ollamaBaseUrl({ ollamaBaseUrl: 'http://10.0.0.8:11434' })).toThrow(/loopback/);
+  });
+
+  it('skips the model when OLLAMA_DISABLED is set', async () => {
+    const previous = process.env.OLLAMA_DISABLED;
+    process.env.OLLAMA_DISABLED = '1';
+    try {
+      const result = await matchEventTag({ title: 'Konsert' }, catalog, {}, async () => {
+        throw new Error('ollama should not be called');
+      });
+      expect(result).toEqual({ ok: true, tags: [] });
+    } finally {
+      if (previous === undefined) delete process.env.OLLAMA_DISABLED;
+      else process.env.OLLAMA_DISABLED = previous;
+    }
   });
 
   it('stores the tag the local model returns', async () => {

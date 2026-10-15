@@ -34,10 +34,10 @@ import { initSentry } from './sentry';
 
 initSentry('api');
 
-const port = Number(process.env.API_PORT ?? 3000);
-/** Web (3100), Expo web (8081), and 127.0.0.1 variants. Override with CORS_ORIGINS. */
+const port = Number(process.env.API_PORT ?? 13000);
+/** Web (13100), Expo web (18081), and 127.0.0.1 variants. Override with CORS_ORIGINS. */
 const DEFAULT_DEV_CORS =
-  'http://localhost:3100,http://127.0.0.1:3100,http://localhost:8081,http://127.0.0.1:8081';
+  'http://localhost:13100,http://127.0.0.1:13100,http://localhost:18081,http://127.0.0.1:18081';
 const corsOriginList = (process.env.CORS_ORIGINS ?? DEFAULT_DEV_CORS)
   .split(',')
   .map((o) => o.trim())

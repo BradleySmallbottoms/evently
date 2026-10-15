@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import { createApiClient, throwIfError } from '@local-events/api-client';
 
 /** Base URL including the version prefix (OpenAPI paths are unversioned). */
-const configured = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:3000/v1';
+const configured = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:13000/v1';
 
 /**
  * The iOS Simulator shares the Mac, but `localhost` resolves to IPv6 (::1) and

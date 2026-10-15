@@ -1,6 +1,9 @@
 # Local dependencies: PostgreSQL + PostGIS, Valkey, ElasticMQ (SQS), and Garage (S3).
 # Official postgis/postgis is amd64-only; imresamu/postgis is the multi-arch mirror
 # (arm64 Macs included). Same tags as postgis/postgis — bump together when updating.
+#
+# Published host ports are offset (prefix 1) so this stack can run next to other
+# Postgres, Valkey, and app processes. Containers still listen on the image default.
 services:
   postgres:
     image: imresamu/postgis:17-3.5
@@ -9,7 +12,7 @@ services:
       POSTGRES_PASSWORD: events
       POSTGRES_DB: events
     ports:
-      - '5432:5432'
+      - '15432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/local/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -18,14 +21,14 @@ services:
   valkey:
     image: valkey/valkey:8
     ports:
-      - '6379:6379'
+      - '16379:6379'
   # SQS stand-in for domain events (+ DLQ). Same AWS SDK clients as prod; point
   # DOMAIN_EVENTS_QUEUE_URL + AWS_ENDPOINT_URL_SQS at this host (see .env.example).
   elasticmq:
     image: softwaremill/elasticmq-native:1.6.12
     ports:
-      - '9324:9324' # SQS API
-      - '9325:9325' # stats / queue UI
+      - '19324:9324' # SQS API
+      - '19325:9325' # stats / queue UI
     volumes:
       - ./infra/local/elasticmq.conf:/opt/elasticmq.conf:ro
   # S3 stand-in for public event images. Same AWS SDK client as prod; S3_ENDPOINT
@@ -40,19 +43,19 @@ services:
       GARAGE_DEFAULT_SECRET_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       GARAGE_DEFAULT_BUCKET: local-events-assets
     ports:
-      - '3900:3900' # S3 API
-      - '3902:3902' # website (http://local-events-assets.localhost:3902)
+      - '13900:3900' # S3 API
+      - '13902:3902' # website (http://local-events-assets.localhost:13902)
     volumes:
       - ./infra/local/garage.toml:/etc/garage.toml:ro
       - garagedata:/var/lib/garage
   # Browse local buckets. Talks to Garage's admin API on the compose network.
-  # http://localhost:3909
+  # http://localhost:13909
   garage-webui:
     image: khairul169/garage-webui:1.1.0
     depends_on:
       - garage
     ports:
-      - '3909:3909'
+      - '13909:3909'
     volumes:
       - ./infra/local/garage.toml:/etc/garage.toml:ro
     environment:

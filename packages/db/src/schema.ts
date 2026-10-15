@@ -377,6 +377,10 @@ export const events = pgTable(
     status: eventStatus('status').notNull().default('draft'),
     origin: origin('origin').notNull().default('native'),
     sourceUrl: text('source_url'),
+    /** Id of this event in the source. Null on a native event. */
+    refId: text('ref_id'),
+    /** Data-worker slug that imported the event. Null on a native event. */
+    workerId: text('worker_id'),
     startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
     endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
     timezone: text('timezone').notNull().default('Europe/Stockholm'),
@@ -402,6 +406,7 @@ export const events = pgTable(
   (t) => [
     index('events_location_gist').using('gist', t.location),
     index('events_status_starts_idx').on(t.status, t.startsAt),
+    index('events_worker_ref_idx').on(t.workerId, t.refId),
   ],
 );
 

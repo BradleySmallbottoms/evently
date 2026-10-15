@@ -1,5 +1,5 @@
 import type { DomainEvent, Event, EventLink, UserEventList } from '@local-events/contracts';
-import { readEventMeta } from '@local-events/contracts';
+import { publicEventMeta } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import {
@@ -67,7 +67,7 @@ function mapRow(
     onlineUrl: row.onlineUrl,
     priceAmount: row.priceAmount,
     currency: row.currency,
-    meta: readEventMeta(row.meta),
+    meta: publicEventMeta(row.meta),
     publisherName: row.publisherName,
     links,
     imageUrl,

@@ -13,7 +13,7 @@ pnpm api-client:generate
 import { createApiClient, throwIfError } from '@local-events/api-client';
 
 const client = createApiClient({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/v1',
+  baseUrl: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:13000/v1',
   credentials: 'include', // publisher cookie sessions on web
 });
 

@@ -1,6 +1,6 @@
 /** Admin API base including version prefix. */
 export const ADMIN_API_URL =
-  process.env.NEXT_PUBLIC_ADMIN_API_URL ?? 'http://localhost:3001/v1';
+  process.env.NEXT_PUBLIC_ADMIN_API_URL ?? 'http://localhost:13001/v1';
 
 export class AdminApiError extends Error {
   constructor(

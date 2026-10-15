@@ -6,7 +6,7 @@ import type {
   PublicEventListQuery,
   UpdateEventRequest,
 } from '@local-events/contracts';
-import { publicEventTagIds, readEventMeta } from '@local-events/contracts';
+import { publicEventMeta, publicEventTagIds } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { cancelOpenPushMessages, pointEwkt, schema } from '@local-events/db';
 import {
@@ -93,7 +93,7 @@ function mapEvent(
     onlineUrl: row.onlineUrl,
     priceAmount: row.priceAmount,
     currency: row.currency,
-    meta: readEventMeta(row.meta),
+    meta: publicEventMeta(row.meta),
     publisherName: row.publisherName,
     links,
     imageUrl: publicAssetUrl(baseUrl, imageKey),

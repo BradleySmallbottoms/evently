@@ -14,12 +14,13 @@ import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -48,21 +49,46 @@ const STATUSES = [
 
 type BulkAction = 'approve' | 'cancel' | 'delete';
 
+const PAGE_SIZE = 50;
+
 export function EventCatalog() {
   const t = useTranslations('EventCatalog');
   const tApp = useTranslations('App');
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [bulkError, setBulkError] = useState(false);
+  const appliedSearch = useRef('');
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const next = searchInput.trim();
+      if (appliedSearch.current === next) return;
+      appliedSearch.current = next;
+      setQ(next);
+      setPage(0);
+      setSelected(new Set());
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
 
   const list = useQuery({
-    queryKey: ['admin-events-catalog', statusFilter],
-    queryFn: () =>
-      adminFetch<{ items: EventRow[] }>(
-        statusFilter ? `/events?status=${statusFilter}` : '/events',
-      ),
+    queryKey: ['admin-events-catalog', statusFilter, q, page],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (statusFilter) params.set('status', statusFilter);
+      if (q) params.set('q', q);
+      params.set('limit', String(PAGE_SIZE));
+      params.set('offset', String(page * PAGE_SIZE));
+      return adminFetch<{ items: EventRow[]; total: number; nextOffset: number | null }>(
+        `/events?${params.toString()}`,
+      );
+    },
+    placeholderData: keepPreviousData,
     retry: false,
   });
 
@@ -134,6 +160,7 @@ export function EventCatalog() {
   }
 
   const items = list.data?.items ?? [];
+  const total = list.data?.total ?? 0;
   const selectedIds = [...selected].filter((id) => items.some((item) => item.id === id));
   const selectedItems = items.filter((item) => selected.has(item.id));
   const allSelected = items.length > 0 && selectedIds.length === items.length;
@@ -211,21 +238,34 @@ export function EventCatalog() {
         ) : null}
       </Stack>
       {bulkError ? <Alert severity="error">{t('bulkError')}</Alert> : null}
-      <TextField
-        select
-        size="small"
-        label={t('statusFilter')}
-        value={statusFilter}
-        onChange={(e) => setStatusFilter(e.target.value)}
-        sx={{ maxWidth: 240 }}
-      >
-        <MenuItem value="">{t('allStatuses')}</MenuItem>
-        {STATUSES.map((s) => (
-          <MenuItem key={s} value={s}>
-            {s}
-          </MenuItem>
-        ))}
-      </TextField>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+        <TextField
+          size="small"
+          label={t('search')}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          sx={{ flex: 1, maxWidth: { sm: 420 } }}
+        />
+        <TextField
+          select
+          size="small"
+          label={t('statusFilter')}
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(0);
+            setSelected(new Set());
+          }}
+          sx={{ minWidth: 180, maxWidth: 240 }}
+        >
+          <MenuItem value="">{t('allStatuses')}</MenuItem>
+          {STATUSES.map((s) => (
+            <MenuItem key={s} value={s}>
+              {s}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Stack>
       {list.isLoading ? <Typography color="text.secondary">{tApp('loading')}</Typography> : null}
       {!list.isLoading && items.length === 0 ? (
         <Typography color="text.secondary">{t('empty')}</Typography>
@@ -305,6 +345,29 @@ export function EventCatalog() {
             ))}
           </TableBody>
         </Table>
+      ) : null}
+      {total > 0 ? (
+        <TablePagination
+          component="div"
+          count={total}
+          page={page}
+          onPageChange={(_, next) => {
+            setSelected(new Set());
+            setPage(next);
+          }}
+          rowsPerPage={PAGE_SIZE}
+          rowsPerPageOptions={[]}
+          labelDisplayedRows={({ from, to, count }) => t('pageRange', { from, to, count })}
+          getItemAriaLabel={(type) =>
+            type === 'next'
+              ? t('pageNext')
+              : type === 'previous'
+                ? t('pagePrev')
+                : type === 'first'
+                  ? t('pageFirst')
+                  : t('pageLast')
+          }
+        />
       ) : null}
       <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
         <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>

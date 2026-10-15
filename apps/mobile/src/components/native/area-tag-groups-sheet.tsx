@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 
+import { ConfirmAction } from '@/components/native/confirm-action';
 import { SheetBody } from '@/components/native/sheet-body';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -65,11 +66,13 @@ export function AreaTagGroupsSheet({
   const [tags, setTags] = useState<HomeTag[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirmEmpty, setConfirmEmpty] = useState(false);
   const [gridWidth, setGridWidth] = useState(0);
 
   useEffect(() => {
     if (!isPresented) {
       setSelectedIds([]);
+      setConfirmEmpty(false);
       return;
     }
     let cancelled = false;
@@ -87,6 +90,14 @@ export function AreaTagGroupsSheet({
   }, [isPresented]);
 
   const cardWidth = gridWidth > 0 ? Math.floor((gridWidth - GAP * 2) / 3) : 0;
+
+  function requestSave(tagIds: string[]) {
+    if (tagIds.length === 0) {
+      setConfirmEmpty(true);
+      return;
+    }
+    onSave(tagIds);
+  }
 
   return (
     <Host style={{ position: 'absolute', width: 0, height: 0 }}>
@@ -119,7 +130,12 @@ export function AreaTagGroupsSheet({
               ) : (
                 <View
                   onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}
-                  style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP, paddingBottom: space.md }}
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    gap: GAP,
+                    paddingBottom: space.md,
+                  }}
                 >
                   {cardWidth > 0
                     ? ONBOARDING_INTERESTS.flatMap((interest) => {
@@ -193,12 +209,12 @@ export function AreaTagGroupsSheet({
               label={t('events.areaTagsSave')}
               loading={busy}
               disabled={tags == null && !failed}
-              onPress={() => onSave(selectedIds)}
+              onPress={() => requestSave(selectedIds)}
             />
             <Pressable
               accessibilityRole="button"
               disabled={busy}
-              onPress={onSkip}
+              onPress={() => setConfirmEmpty(true)}
               style={{ alignItems: 'center', minHeight: 44, justifyContent: 'center' }}
             >
               <AppText variant="subtitle" style={{ fontWeight: '600', color: colors.inkMuted }}>
@@ -207,6 +223,15 @@ export function AreaTagGroupsSheet({
             </Pressable>
           </View>
         </SheetBody>
+        <ConfirmAction
+          title={t('onboarding.skipTagsTitle')}
+          message={t('onboarding.skipTagsMessage')}
+          confirmLabel={t('onboarding.skipConfirm')}
+          cancelLabel={t('onboarding.skipCancel')}
+          isPresented={confirmEmpty}
+          onIsPresentedChange={setConfirmEmpty}
+          onConfirm={onSkip}
+        />
       </BottomSheet>
     </Host>
   );

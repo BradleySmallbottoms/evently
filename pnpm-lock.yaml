@@ -379,6 +379,9 @@ importers:
       '@local-events/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@local-events/geo':
+        specifier: workspace:*
+        version: link:../../packages/geo
       '@local-events/ingest':
         specifier: workspace:*
         version: link:../../packages/ingest

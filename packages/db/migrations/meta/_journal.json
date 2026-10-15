@@ -288,6 +288,20 @@
       "when": 1794300000001,
       "tag": "0040_lively_calypso",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1794400000000,
+      "tag": "0041_seed_destination_halsingland",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1794400000001,
+      "tag": "0042_talented_prima",
+      "breakpoints": true
     }
   ]
 }

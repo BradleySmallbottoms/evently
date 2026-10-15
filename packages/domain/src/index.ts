@@ -13,6 +13,7 @@ export * from './event-content';
 export * from './notifications';
 export * from './push-messages';
 export * from './digital-codes';
+export * from './duplicates';
 export * from './preferences';
 export * from './price';
 export * from './profile';

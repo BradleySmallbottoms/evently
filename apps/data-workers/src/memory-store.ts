@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { SEED_TAGS } from '@local-events/db';
 import type { EventMeta } from '@local-events/contracts';
+import { distanceMeters } from '@local-events/geo';
 import {
+  DUPLICATE_RADIUS_M,
   importNotificationMessages,
   pushStatusForEvent,
   slugifyPublisherName,
+  stockholmCalendarDate,
   tagSlug,
   type MarketingPushPlanId,
 } from '@local-events/domain';
@@ -38,6 +41,8 @@ interface StoredEvent {
   status: ExternalRefHit['status'];
   origin: 'native' | 'imported';
   sourceUrl: string;
+  refId?: string | null;
+  workerId?: string | null;
   startsAt: Date;
   endsAt: Date;
   venueName: string | null;
@@ -111,6 +116,8 @@ function eventFromWrite(id: string, input: ImportedEventWrite): StoredEvent {
     status: input.status,
     origin: 'imported',
     sourceUrl: input.event.sourceUrl,
+    refId: input.refId,
+    workerId: input.workerId,
     startsAt: new Date(input.event.startsAt),
     endsAt: new Date(input.endsAt),
     venueName: input.event.venueName ?? null,
@@ -274,8 +281,34 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           eventId: event.id,
           title: event.title,
           startsAt: event.startsAt,
-          location: event.location,
-        }));
+        location: event.location,
+      }));
+    },
+    async duplicateCandidates(input) {
+      const day = stockholmCalendarDate(input.startsAt);
+      return events.flatMap((event) => {
+        if (event.status === 'cancelled' || event.status === 'ended' || !event.location) return [];
+        if (stockholmCalendarDate(event.startsAt) !== day) return [];
+        const distanceM = distanceMeters(input.location, event.location);
+        if (distanceM > DUPLICATE_RADIUS_M) return [];
+        const externalIds = refs
+          .filter((ref) => ref.eventId === event.id)
+          .map((ref) => ref.externalId);
+        return [
+          {
+            eventId: event.id,
+            title: event.title,
+            startsAt: event.startsAt,
+            location: event.location,
+            sourceUrl: event.sourceUrl,
+            links: (event.links ?? []).map((link) => link.url),
+            refId: event.refId ?? null,
+            workerId: event.workerId ?? null,
+            externalIds,
+            distanceM,
+          },
+        ];
+      });
     },
     async listTags() {
       return [...tags.values()].map((tag) => ({
@@ -354,6 +387,9 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       if (input.event.priceAmount === undefined) next.priceAmount = event.priceAmount;
       if (input.event.currency === undefined) next.currency = event.currency;
       if (input.event.links === undefined) next.links = event.links;
+      if (!next.meta.possibleDuplicate && event.meta.possibleDuplicate) {
+        next.meta = { ...next.meta, possibleDuplicate: event.meta.possibleDuplicate };
+      }
       Object.assign(event, next);
       const ref = refs.find(
         (item) => item.sourceId === input.sourceId && item.externalId === input.externalId,

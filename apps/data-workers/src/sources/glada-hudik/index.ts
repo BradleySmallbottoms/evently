@@ -1,6 +1,7 @@
 import { parseLinksFromText, priceAmountFromText } from '@local-events/domain';
 import { defineAdapter, type IncomingEvent } from '@local-events/ingest';
 import { load } from 'cheerio';
+import { createLocationLookupState, geocodeDelayMs, resolveGladaLocation } from './location';
 import {
   existingEventTags,
   keptTagsForProduct,
@@ -14,6 +15,8 @@ import {
  * No API key. The list is GET /sv/api/cbis-product-list?nodeId=&page= only.
  * robots.txt disallows filtered queries (order, occasion, filter, search, categories, geo, arena).
  * A dense run of daily opening hours longer than 21 days becomes one event.
+ * A page without map coordinates is geocoded from the location pin, then the
+ * contact address, then Hudiksvall centre.
  */
 
 const DEFAULT_ORIGIN = 'https://www.gladahudik.se';
@@ -78,7 +81,11 @@ export interface GladaProduct {
   priceText?: string;
   organizerName?: string;
   organizerEmail?: string;
+  /** Location pin under the price. A venue name or a street address. */
+  placeName?: string;
   address?: string;
+  /** Town from the contact block, such as Hudiksvall or Bjuråker. */
+  city?: string;
   links: GladaLink[];
   occasions: GladaOccasion[];
   location?: { lat: number; lng: number };
@@ -218,6 +225,7 @@ function parseContact(texts: string[]): {
   organizerName?: string;
   organizerEmail?: string;
   address?: string;
+  city?: string;
 } {
   const email = texts.find((item) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item))?.toLowerCase();
   const postalIndex = texts.findIndex((item) => /^\d{3}\s?\d{2}$/.test(item));
@@ -236,7 +244,28 @@ function parseContact(texts: string[]): {
     ...(organizerName ? { organizerName } : {}),
     ...(email ? { organizerEmail: email } : {}),
     ...(address ? { address } : {}),
+    ...(city ? { city } : {}),
   };
+}
+
+/** The pin in the information list, under the price. */
+function parsePlaceName($: ReturnType<typeof load>): string | undefined {
+  const text = textOf(
+    $(
+      '.cbis-item-attributes i.fa-map-marker-alt, .cbis-item-attributes i.fa-map-marker, .cbis-item-attributes i.fa-location-dot',
+    )
+      .first()
+      .parent()
+      .text(),
+  );
+  return text || undefined;
+}
+
+function isDigitalProduct(product: GladaProduct): boolean {
+  const venues = product.occasions
+    .map((occasion) => occasion.venue?.toLocaleLowerCase('sv'))
+    .filter((venue): venue is string => Boolean(venue));
+  return venues.length > 0 && venues.every((venue) => venue === 'digitalt');
 }
 
 /** Event page: title, occasions, price, links, contact, hero image. */
@@ -261,6 +290,7 @@ export function parseEventPage(html: string, id: string, path: string): GladaPro
     .filter((occasion): occasion is GladaOccasion => occasion !== null);
   const links = collectLinks($);
   const location = parseMap($);
+  const placeName = parsePlaceName($);
   const contact = parseContact(
     $('.cbis-item-contact li')
       .toArray()
@@ -276,6 +306,7 @@ export function parseEventPage(html: string, id: string, path: string): GladaPro
     ...(imageUrl ? { imageUrl } : {}),
     ...(priceText ? { priceText } : {}),
     ...contact,
+    ...(placeName ? { placeName } : {}),
     links,
     occasions,
     ...(location ? { location } : {}),
@@ -587,9 +618,10 @@ async function* eachProduct(ctx: {
   const origin = originFromConfig(ctx.config);
   const delayMs = delayMsFromConfig(ctx.config);
   const hits = await fetchList(ctx);
+  const locations = createLocationLookupState();
+  const delayMsForGeocode = geocodeDelayMs(ctx.config);
   let yielded = 0;
   for (const hit of hits) {
-    console.log('hit', hit);
     const pageUrl = new URL(hit.path, origin);
     if (!sameHost(origin, pageUrl)) continue;
     await sleep(delayMs);
@@ -602,6 +634,13 @@ async function* eachProduct(ctx: {
     if (!product || product.occasions.length === 0) {
       ctx.log('glada-hudik skipped event with no occasions', { id: hit.id });
       continue;
+    }
+    if (!product.location && !isDigitalProduct(product)) {
+      product.location = await resolveGladaLocation(product, ctx.fetch, {
+        delayMs: delayMsForGeocode,
+        state: locations,
+        log: ctx.log,
+      });
     }
     await assignTags(ctx, [product]);
     yielded += 1;

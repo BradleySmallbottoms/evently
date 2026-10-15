@@ -29,6 +29,19 @@ export interface NearbyEvent {
   location?: { lat: number; lng: number };
 }
 
+export interface DuplicateCandidate {
+  eventId: string;
+  title: string;
+  startsAt: Date;
+  location: { lat: number; lng: number };
+  sourceUrl: string | null;
+  links: string[];
+  refId: string | null;
+  workerId: string | null;
+  externalIds: string[];
+  distanceM: number;
+}
+
 export interface ImportedEventWrite {
   sourceId: string;
   externalId: string;
@@ -38,6 +51,8 @@ export interface ImportedEventWrite {
   event: IncomingEvent;
   endsAt: string;
   tagIds: string[];
+  refId: string;
+  workerId: string;
 }
 
 export interface IngestStore {
@@ -66,6 +81,11 @@ export interface IngestStore {
   /** True when this source's publisher alias owns the event, so a re-import may update it. */
   sourceOwnsEvent(sourceId: string, eventId: string): Promise<boolean>;
   candidatesNear(startsAt: Date): Promise<NearbyEvent[]>;
+  /** Live events within 500 m on the same Stockholm calendar date. */
+  duplicateCandidates(input: {
+    location: { lat: number; lng: number };
+    startsAt: Date;
+  }): Promise<DuplicateCandidate[]>;
   upsertTags(tags: { externalId: string; name: string }[]): Promise<void>;
   /** Existing tag vocabulary, used when a source matches events onto tags. */
   listTags(): Promise<{ externalId: string; name: string; slug: string }[]>;

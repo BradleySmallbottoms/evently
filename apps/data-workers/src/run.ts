@@ -1,4 +1,5 @@
 import { contentHash, IncomingEvent, type SourceRunContext } from '@local-events/ingest';
+import { HTTP1_HEADER, http1Fetch } from './http1';
 import { sources } from './sources';
 
 export interface RunSummary {
@@ -22,15 +23,16 @@ function sourceContext(slug: string, config: Record<string, unknown>): SourceRun
   return {
     sourceSlug: slug,
     config,
-    fetch: (input, init) =>
-      fetch(input, {
-        ...init,
-        headers: {
-          'user-agent': 'LocalEventsBot/0.1 (+contact: set-me@example.com)',
-          ...init?.headers,
-        },
-        signal: AbortSignal.timeout(30_000),
-      }),
+    fetch: (input, init) => {
+      const headers = new Headers(init?.headers);
+      const useHttp1 = headers.get(HTTP1_HEADER) === '1';
+      headers.delete(HTTP1_HEADER);
+      if (!headers.has('user-agent')) {
+        headers.set('user-agent', 'LocalEventsBot/0.1 (+contact: set-me@example.com)');
+      }
+      const next = { ...init, headers, signal: AbortSignal.timeout(30_000) };
+      return useHttp1 ? http1Fetch(input, next) : fetch(input, next);
+    },
     log: (message, data) => console.log(JSON.stringify({ source: slug, message, ...data })),
   };
 }

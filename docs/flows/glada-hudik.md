@@ -10,7 +10,13 @@ The list request sends only `nodeId` and `page`. `robots.txt` disallows filtered
 A dense run of daily opening hours longer than 21 days becomes one event (`externalId`
 `cbis:{id}:span`). A concert, a film week, or a monthly circle stays one event per occasion.
 The hero is the event page `og:image`. `data-lat` and `data-lng` on the page map become the
-event point. A booking link (`Bokningslänk`) is `tickets`. Event, website, and Facebook links in
+event point. A page without that map is geocoded from the location pin under the price, then
+the contact address (and, if that misses, the contact town). A hit is kept only when it falls
+inside Hudiksvall municipality. Otherwise the event uses Hudiksvall centre
+(61.728161, 17.105575). Lookups go to the public Photon geocoder, one unique query at a time.
+A digital showing stays without a point.
+
+A booking link (`Bokningslänk`) is `tickets`. Event, website, and Facebook links in
 the description or contact block are `info`. The destination site’s footer links are left out.
 Organizer key is the contact email when the page has one.
 
@@ -18,7 +24,7 @@ The worker reads the whole list first. It then takes one event at a time: the ev
 up to five tags from a local Ollama model (`qwen3:32b` unless `OLLAMA_MODEL` is set). The
 answer has to be ids already in the database, each with a fit score above 90. That event is
 saved before the next page is fetched. An event that already has tags keeps them and is not
-sent to the model again. No running model means a new event is saved without a tag.
+sent to the model again. No running model, or `OLLAMA_DISABLED=1`, means a new event is saved without a tag.
 
 ```mermaid
 sequenceDiagram
@@ -31,7 +37,7 @@ sequenceDiagram
   end
   loop each event, save before the next page
     Runner->>Site: GET /sv/{event}
-    Note over Runner: one event per occasion<br/>daily opening hours over 21 days become one span<br/>map data-lat / data-lng<br/>Europe/Stockholm offset<br/>organizer key = contact email<br/>Bokningslänk → tickets<br/>Facebook and other content links → info
+    Note over Runner: one event per occasion<br/>daily opening hours over 21 days become one span<br/>map data-lat / data-lng, else pin, contact, Hudiksvall centre<br/>Europe/Stockholm offset<br/>organizer key = contact email<br/>Bokningslänk → tickets<br/>Facebook and other content links → info
     Runner->>Runner: Ollama on localhost<br/>only when the event has no tags yet
     Runner->>DB: insert temporary publisher + publisher_aliases<br/>when the organizer key is new
     Runner->>DB: insert this event (status in_review, origin imported)<br/>external_refs

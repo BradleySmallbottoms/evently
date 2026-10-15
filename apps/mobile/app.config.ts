@@ -4,7 +4,7 @@ import appJson from './app.json' with { type: 'json' };
 
 /** Host for Universal Links / App Links; null for localhost (HTTPS association required). */
 function associatedWebHost(): string | null {
-  const raw = process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:3100';
+  const raw = process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:13100';
   try {
     const { hostname, host, protocol } = new URL(raw);
     if (hostname === 'localhost' || hostname === '127.0.0.1') return null;

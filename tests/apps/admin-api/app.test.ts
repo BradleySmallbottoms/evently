@@ -1069,4 +1069,167 @@ describe('admin api', () => {
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z - GET - \/health\?probe=1 - admin-req-1 - 2001:db8::1$/,
     );
   });
+
+  it('pages and searches the event catalog', async () => {
+    const { auth } = await seededAuth();
+    const publisherA = '22222222-2222-4222-8222-222222222201';
+    const publisherB = '22222222-2222-4222-8222-222222222202';
+    const eventStore = {
+      publishers: new Map([
+        [publisherA, { id: publisherA, name: 'Jazz Club' }],
+        [publisherB, { id: publisherB, name: 'Other Hall' }],
+      ]),
+      events: new Map(
+        [
+          ['Jazz Night', '2026-08-03T18:00:00.000Z', 'Storan', publisherA, 'published'],
+          ['Market', '2026-08-02T18:00:00.000Z', 'Square', publisherA, 'published'],
+          ['Choir', '2026-08-01T18:00:00.000Z', 'Jazzkällaren', publisherB, 'cancelled'],
+          ['100% fun', '2026-08-04T18:00:00.000Z', 'Park', publisherB, 'published'],
+        ].map(([title, startsAt, venueName, publisherId, status], index) => {
+          const id = `44444444-4444-4444-8444-44444444440${index + 1}`;
+          return [
+            id,
+            {
+              id,
+              publisherId,
+              title,
+              mode: 'physical' as const,
+              status,
+              origin: 'imported' as const,
+              startsAt,
+              endsAt: '2026-08-04T21:00:00.000Z',
+              venueName,
+              sourceUrl: null,
+              createdAt: '2026-01-01T00:00:00.000Z',
+              updatedAt: '2026-01-01T00:00:00.000Z',
+            },
+          ] as const;
+        }),
+      ),
+    };
+    const { createMemoryAdminEventServices } =
+      await import('../../../apps/admin-api/src/services/events');
+    const app = createApp({
+      auth,
+      events: createMemoryAdminEventServices(eventStore),
+    });
+    const cookie = await loginSession(app);
+
+    const denied = await app.request('/v1/events?limit=2');
+    expect(denied.status).toBe(401);
+
+    const page = await app.request('/v1/events?limit=2&offset=0', { headers: { cookie } });
+    expect(page.status).toBe(200);
+    const first = (await page.json()) as {
+      items: { title: string }[];
+      total: number;
+      nextOffset: number | null;
+    };
+    expect(first.total).toBe(4);
+    expect(first.nextOffset).toBe(2);
+    expect(first.items.map((item) => item.title)).toEqual(['100% fun', 'Jazz Night']);
+
+    const last = await app.request('/v1/events?limit=2&offset=2', { headers: { cookie } });
+    const second = (await last.json()) as { items: { title: string }[]; nextOffset: number | null };
+    expect(second.items.map((item) => item.title)).toEqual(['Market', 'Choir']);
+    expect(second.nextOffset).toBeNull();
+
+    const search = await app.request('/v1/events?q=jazz&limit=50', { headers: { cookie } });
+    const found = (await search.json()) as { items: { title: string }[]; total: number };
+    expect(found.total).toBe(3);
+    expect(found.items.map((item) => item.title).sort()).toEqual([
+      'Choir',
+      'Jazz Night',
+      'Market',
+    ]);
+
+    const literal = await app.request(
+      `/v1/events?q=${encodeURIComponent('%')}&limit=50`,
+      { headers: { cookie } },
+    );
+    const percent = (await literal.json()) as { items: { title: string }[] };
+    expect(percent.items.map((item) => item.title)).toEqual(['100% fun']);
+
+    const filtered = await app.request('/v1/events?status=cancelled&limit=50', {
+      headers: { cookie },
+    });
+    const cancelled = (await filtered.json()) as { items: { title: string }[]; total: number };
+    expect(cancelled.total).toBe(1);
+    expect(cancelled.items[0]?.title).toBe('Choir');
+  });
+
+  it('pages the review queue oldest created first', async () => {
+    const { auth } = await seededAuth();
+    const publisherId = '22222222-2222-4222-8222-222222222201';
+    const rows = [
+      ['Newest', '2026-03-01T00:00:00.000Z', 'Hall'],
+      ['Oldest', '2026-01-01T00:00:00.000Z', 'Park'],
+      ['Middle', '2026-02-01T00:00:00.000Z', 'Square'],
+    ] as const;
+    const eventStore = {
+      publishers: new Map([[publisherId, { id: publisherId, name: 'Imported Band' }]]),
+      events: new Map(
+        rows.map(([title, createdAt, venueName], index) => {
+          const id = `44444444-4444-4444-8444-44444444440${index + 1}`;
+          return [
+            id,
+            {
+              id,
+              publisherId,
+              title,
+              mode: 'physical' as const,
+              status: 'in_review' as const,
+              origin: 'imported' as const,
+              startsAt: '2026-08-01T18:00:00.000Z',
+              endsAt: '2026-08-01T21:00:00.000Z',
+              venueName,
+              sourceUrl: 'https://example.com/show',
+              createdAt,
+              updatedAt: createdAt,
+            },
+          ] as const;
+        }),
+      ),
+    };
+    const { createMemoryAdminEventServices } =
+      await import('../../../apps/admin-api/src/services/events');
+    const app = createApp({
+      auth,
+      events: createMemoryAdminEventServices(eventStore),
+    });
+    const cookie = await loginSession(app);
+
+    const tooBig = await app.request('/v1/events?status=in_review&sort=created&limit=101', {
+      headers: { cookie },
+    });
+    expect(tooBig.status).toBe(400);
+
+    const page = await app.request('/v1/events?status=in_review&sort=created&limit=2&offset=0', {
+      headers: { cookie },
+    });
+    expect(page.status).toBe(200);
+    const first = (await page.json()) as {
+      items: { title: string; sourceUrl: string | null }[];
+      total: number;
+      nextOffset: number | null;
+    };
+    expect(first.total).toBe(3);
+    expect(first.nextOffset).toBe(2);
+    expect(first.items.map((item) => item.title)).toEqual(['Oldest', 'Middle']);
+    expect(first.items[0]?.sourceUrl).toBe('https://example.com/show');
+
+    const last = await app.request('/v1/events?status=in_review&sort=created&limit=2&offset=2', {
+      headers: { cookie },
+    });
+    const second = (await last.json()) as { items: { title: string }[]; nextOffset: number | null };
+    expect(second.items.map((item) => item.title)).toEqual(['Newest']);
+    expect(second.nextOffset).toBeNull();
+
+    const search = await app.request('/v1/events?status=in_review&sort=created&q=park&limit=100', {
+      headers: { cookie },
+    });
+    const found = (await search.json()) as { items: { title: string }[]; total: number };
+    expect(found.total).toBe(1);
+    expect(found.items[0]?.title).toBe('Oldest');
+  });
 });

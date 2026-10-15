@@ -4,7 +4,7 @@ import type { IncomingEvent } from '../../../packages/ingest/src/index';
 import { createMemoryIngestStore } from '../../../apps/data-workers/src/memory-store';
 import { persistSource, saveIncomingEvents } from '../../../apps/data-workers/src/persist';
 import type { SourceRecord } from '../../../apps/data-workers/src/store';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 const BANDY_TAGS = [visitTagId(30192), visitTagId(30194), visitTagId(30203)];
 
@@ -158,10 +158,10 @@ describe('saveIncomingEvents', () => {
     expect(store.events[0]?.status).toBe('cancelled');
   });
 
-  it('links a cross-source match instead of creating a second event', async () => {
+  it('saves a lookalike as its own review event and names the existing one', async () => {
     const store = createMemoryIngestStore();
     store.events.push({
-      id: 'native-1',
+      id: '11111111-1111-4111-8111-111111111111',
       publisherId: 'native-publisher',
       title: bandy.title,
       description: null,
@@ -173,17 +173,153 @@ describe('saveIncomingEvents', () => {
       venueName: null,
       location: bandy.location,
       tagIds: [],
+      refId: 'native-bandy',
+      workerId: 'glada-hudik',
     });
     const counts = await saveIncomingEvents(store, source, [bandy]);
-    expect(counts).toMatchObject({ created: 0, skipped: 1 });
-    expect(store.events).toHaveLength(1);
-    expect(store.refs[0]).toMatchObject({ eventId: 'native-1', externalId: bandy.externalId });
+    expect(counts).toMatchObject({ created: 1, skipped: 0 });
+    expect(store.events).toHaveLength(2);
+    expect(store.events[0]?.title).toBe(bandy.title);
+    expect(store.events[1]).toMatchObject({
+      status: 'in_review',
+      refId: bandy.externalId,
+      workerId: source.slug,
+      meta: {
+        possibleDuplicate: {
+          eventId: '11111111-1111-4111-8111-111111111111',
+          title: bandy.title,
+          refId: 'native-bandy',
+          workerId: 'glada-hudik',
+          matchedOn: 'title',
+        },
+      },
+    });
 
     const again = await saveIncomingEvents(store, source, [
       { ...bandy, title: 'Should not replace the native event' },
     ]);
-    expect(again.skipped).toBe(1);
+    expect(again.updated).toBe(1);
     expect(store.events[0]?.title).toBe(bandy.title);
+    expect(store.events[1]?.title).toBe('Should not replace the native event');
+  });
+
+  it('flags a shared ticket url at the same place on the same day', async () => {
+    const store = createMemoryIngestStore();
+    const ticket = 'https://www.tickster.com/sv/event/example/';
+    store.events.push({
+      id: '22222222-2222-4222-8222-222222222222',
+      publisherId: 'native-publisher',
+      title: 'A different title from another source',
+      description: null,
+      status: 'published',
+      origin: 'native',
+      sourceUrl: 'https://www.gladahudik.se/sv/example',
+      startsAt: new Date(bandy.startsAt),
+      endsAt: new Date(bandy.endsAt!),
+      venueName: null,
+      location: bandy.location,
+      tagIds: [],
+      links: [{ type: 'tickets', url: 'https://www.tickster.com/sv/event/example' }],
+    });
+    const counts = await saveIncomingEvents(store, source, [
+      { ...bandy, title: 'Hälsingland title', links: [{ type: 'tickets', url: ticket }] },
+    ]);
+    expect(counts.created).toBe(1);
+    expect(store.events).toHaveLength(2);
+    expect(store.events[1]?.meta).toMatchObject({
+      possibleDuplicate: {
+        eventId: '22222222-2222-4222-8222-222222222222',
+        matchedOn: 'link',
+      },
+    });
+    expect(store.events[0]?.title).toBe('A different title from another source');
+  });
+
+  it('does not treat a ticket shop root as the same event', async () => {
+    const store = createMemoryIngestStore();
+    const shop = 'https://brobergsoderhamn.ticketco.events/se/sv';
+    store.events.push({
+      id: '33333333-3333-4333-8333-333333333333',
+      publisherId: 'native-publisher',
+      title: 'Some other match',
+      description: null,
+      status: 'published',
+      origin: 'native',
+      sourceUrl: 'https://www.gladahudik.se/sv/other',
+      startsAt: new Date(bandy.startsAt),
+      endsAt: new Date(bandy.endsAt!),
+      venueName: null,
+      location: bandy.location,
+      tagIds: [],
+      links: [{ type: 'tickets', url: shop }],
+    });
+    const counts = await saveIncomingEvents(store, source, [
+      { ...bandy, title: 'Hälsingland title', links: [{ type: 'tickets', url: shop }] },
+    ]);
+    expect(counts.created).toBe(1);
+    expect(store.events[1]?.meta?.possibleDuplicate).toBeUndefined();
+  });
+
+  it('does not flag a cancelled event', async () => {
+    const store = createMemoryIngestStore();
+    store.events.push({
+      id: '44444444-4444-4444-8444-444444444444',
+      publisherId: 'native-publisher',
+      title: bandy.title,
+      description: null,
+      status: 'cancelled',
+      origin: 'native',
+      sourceUrl: 'https://www.gladahudik.se/sv/old',
+      startsAt: new Date(bandy.startsAt),
+      endsAt: new Date(bandy.endsAt!),
+      venueName: null,
+      location: bandy.location,
+      tagIds: [],
+    });
+    const counts = await saveIncomingEvents(store, source, [bandy]);
+    expect(counts.created).toBe(1);
+    expect(store.events[1]?.meta?.possibleDuplicate).toBeUndefined();
+  });
+
+  it('flags another occasion that shares a ticket url on the same day', async () => {
+    const store = createMemoryIngestStore();
+    const ticket = 'https://www.tickster.com/sv/event/example';
+    await saveIncomingEvents(store, source, [
+      { ...bandy, links: [{ type: 'tickets', url: ticket }] },
+    ]);
+    const later: IncomingEvent = {
+      ...bandy,
+      externalId: 'cbis:2678865:2025-01-31T19:20:00:2025-01-31T21:20:00',
+      title: 'A second listing',
+      startsAt: '2025-01-31T19:20:00+01:00',
+      endsAt: '2025-01-31T21:20:00+01:00',
+      links: [{ type: 'tickets', url: ticket }],
+    };
+    const counts = await saveIncomingEvents(store, source, [later]);
+    expect(counts.created).toBe(1);
+    expect(store.events).toHaveLength(2);
+    expect(store.events[1]?.meta?.possibleDuplicate?.matchedOn).toBe('link');
+  });
+
+  it('flags the same title later the same day', async () => {
+    const store = createMemoryIngestStore();
+    store.events.push({
+      id: '55555555-5555-4555-8555-555555555555',
+      publisherId: 'native-publisher',
+      title: bandy.title,
+      description: null,
+      status: 'published',
+      origin: 'native',
+      sourceUrl: 'https://www.gladahudik.se/sv/example',
+      startsAt: new Date('2025-01-31T16:00:00+01:00'),
+      endsAt: new Date('2025-01-31T18:00:00+01:00'),
+      venueName: null,
+      location: bandy.location,
+      tagIds: [],
+    });
+    const counts = await saveIncomingEvents(store, source, [bandy]);
+    expect(counts.created).toBe(1);
+    expect(store.events[1]?.meta?.possibleDuplicate?.matchedOn).toBe('title');
   });
 
   it('saves a physical event that has no location', async () => {
@@ -343,10 +479,10 @@ describe('event images', () => {
     expect(puts).toEqual([withImage.imageUrl]);
   });
 
-  it('does not attach an image to a cross-source match', async () => {
+  it('does not attach an image to the event a duplicate points at', async () => {
     const store = createMemoryIngestStore();
     store.events.push({
-      id: 'native-1',
+      id: '11111111-1111-4111-8111-111111111111',
       publisherId: 'native-publisher',
       title: bandy.title,
       description: null,
@@ -363,11 +499,12 @@ describe('event images', () => {
     await saveIncomingEvents(store, source, [withImage], enqueue, {
       put: async ({ sourceUrl }) => {
         puts.push(sourceUrl);
-        return { s3Key: 'events/native-1/main', contentType: 'image/jpeg' };
+        return { s3Key: 'events/imported/main', contentType: 'image/jpeg' };
       },
     });
-    expect(puts).toEqual([]);
-    expect(store.images).toHaveLength(0);
+    expect(puts).toEqual([withImage.imageUrl]);
+    expect(store.images).toHaveLength(1);
+    expect(store.images[0]?.eventId).not.toBe('11111111-1111-4111-8111-111111111111');
   });
 
   it('retries the image on a later run when the first copy did not store one', async () => {
@@ -454,13 +591,20 @@ describe('persistSource', () => {
       config: {},
       enabled: true,
     });
-    const first = await persistSource(store, 'example-fixture');
-    expect(first).toMatchObject({ fetched: 2, created: 2, updated: 0, skipped: 0, rejected: [] });
-    expect(store.runs[0]).toMatchObject({ status: 'ok', created: 2 });
-    expect(store.events.every((event) => event.status === 'in_review')).toBe(true);
+    vi.stubGlobal('fetch', async () => {
+      throw new Error('ollama is not running');
+    });
+    try {
+      const first = await persistSource(store, 'example-fixture');
+      expect(first).toMatchObject({ fetched: 2, created: 2, updated: 0, skipped: 0, rejected: [] });
+      expect(store.runs[0]).toMatchObject({ status: 'ok', created: 2 });
+      expect(store.events.every((event) => event.status === 'in_review')).toBe(true);
 
-    const second = await persistSource(store, 'example-fixture');
-    expect(second).toMatchObject({ created: 0, skipped: 2 });
-    expect(store.events).toHaveLength(2);
+      const second = await persistSource(store, 'example-fixture');
+      expect(second).toMatchObject({ created: 0, skipped: 2 });
+      expect(store.events).toHaveLength(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

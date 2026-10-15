@@ -7,7 +7,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AppLink } from '@/components/app-link';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:13000/v1';
 
 function safeHttpUrl(value: string | null): string | null {
   if (!value) return null;

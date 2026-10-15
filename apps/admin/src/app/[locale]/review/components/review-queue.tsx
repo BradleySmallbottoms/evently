@@ -13,11 +13,13 @@ import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -31,7 +33,15 @@ type ReviewItem = {
   sourceUrl: string | null;
 };
 
+type ReviewPage = {
+  items: ReviewItem[];
+  total: number;
+  nextOffset: number | null;
+};
+
 type BulkAction = 'approve' | 'reject' | 'delete';
+
+const PAGE_SIZE = 100;
 
 function httpUrl(value: string | null): string | null {
   if (!value) return null;
@@ -48,14 +58,47 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   const t = useTranslations('Events');
   const tApp = useTranslations('App');
   const queryClient = useQueryClient();
+  const [searchInput, setSearchInput] = useState('');
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [bulkError, setBulkError] = useState(false);
+  const appliedSearch = useRef('');
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const next = searchInput.trim();
+      if (appliedSearch.current === next) return;
+      appliedSearch.current = next;
+      setQ(next);
+      setPage(0);
+      setSelected(new Set());
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
+
   const list = useQuery({
-    queryKey: ['admin-events-in-review'],
-    queryFn: () => adminFetch<{ items: ReviewItem[] }>('/events?status=in_review'),
+    queryKey: ['admin-events-in-review', q, page],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        status: 'in_review',
+        sort: 'created',
+        limit: String(PAGE_SIZE),
+        offset: String(page * PAGE_SIZE),
+      });
+      if (q) params.set('q', q);
+      return adminFetch<ReviewPage>(`/events?${params.toString()}`);
+    },
+    placeholderData: keepPreviousData,
     retry: false,
   });
+
+  useEffect(() => {
+    if (!list.data) return;
+    const lastPage = Math.max(0, Math.ceil(list.data.total / PAGE_SIZE) - 1);
+    if (page > lastPage) setPage(lastPage);
+  }, [list.data, page]);
 
   const decide = useMutation({
     mutationFn: async (input: { id: string; action: 'approve' | 'reject' }) =>
@@ -101,6 +144,8 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   }
 
   const items = list.data?.items ?? [];
+  const total = list.data?.total ?? 0;
+  const waitingForPage = list.isLoading || (total > 0 && items.length === 0);
   const selectedIds = [...selected].filter((id) => items.some((item) => item.id === id));
   const allSelected = items.length > 0 && selectedIds.length === items.length;
   const someSelected = selectedIds.length > 0 && !allSelected;
@@ -172,9 +217,16 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
         ) : null}
       </Stack>
       {bulkError ? <Alert severity="error">{t('bulkError')}</Alert> : null}
-      {list.isLoading ? <Typography color="text.secondary">{tApp('loading')}</Typography> : null}
-      {!list.isLoading && items.length === 0 ? (
-        <Typography color="text.secondary">{t('reviewEmpty')}</Typography>
+      <TextField
+        size="small"
+        label={t('search')}
+        value={searchInput}
+        onChange={(event) => setSearchInput(event.target.value)}
+        sx={{ maxWidth: { sm: 420 } }}
+      />
+      {waitingForPage ? <Typography color="text.secondary">{tApp('loading')}</Typography> : null}
+      {!waitingForPage && items.length === 0 ? (
+        <Typography color="text.secondary">{q ? t('reviewNoMatch') : t('reviewEmpty')}</Typography>
       ) : null}
       {items.length > 0 ? (
         <Table size="small">
@@ -253,6 +305,29 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
             })}
           </TableBody>
         </Table>
+      ) : null}
+      {total > 0 ? (
+        <TablePagination
+          component="div"
+          count={total}
+          page={page}
+          onPageChange={(_, next) => {
+            setSelected(new Set());
+            setPage(next);
+          }}
+          rowsPerPage={PAGE_SIZE}
+          rowsPerPageOptions={[]}
+          labelDisplayedRows={({ from, to, count }) => t('pageRange', { from, to, count })}
+          getItemAriaLabel={(type) =>
+            type === 'next'
+              ? t('pageNext')
+              : type === 'previous'
+                ? t('pagePrev')
+                : type === 'first'
+                  ? t('pageFirst')
+                  : t('pageLast')
+          }
+        />
       ) : null}
       <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
         <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>

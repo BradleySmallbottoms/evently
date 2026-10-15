@@ -36,7 +36,7 @@ import { initSentry } from './sentry';
 
 initSentry('admin-api');
 
-const port = Number(process.env.ADMIN_API_PORT ?? 3001);
+const port = Number(process.env.ADMIN_API_PORT ?? 13001);
 const databaseUrl = resolveDatabaseUrl();
 const queueUrl = process.env.DOMAIN_EVENTS_QUEUE_URL?.trim();
 const domainEvents = queueUrl
@@ -44,7 +44,7 @@ const domainEvents = queueUrl
   : createMemoryDomainEventPublisher();
 
 const DEFAULT_DEV_CORS =
-  'http://localhost:3200,http://127.0.0.1:3200';
+  'http://localhost:13200,http://127.0.0.1:13200';
 const corsOriginList = (process.env.ADMIN_CORS_ORIGINS ?? DEFAULT_DEV_CORS)
   .split(',')
   .map((o) => o.trim())

@@ -34,7 +34,7 @@ pnpm db:up          # Postgres + PostGIS + Valkey + ElasticMQ (local SQS) + Gara
 pnpm db:migrate     # apply packages/db/migrations
 pnpm typecheck
 pnpm test
-pnpm dev            # API :3000, admin-api :3001, web :3100, admin :3200, mobile Metro :8081
+pnpm dev            # API :13000, admin-api :13001, web :13100, admin :13200, mobile Metro :18081
 ```
 
 Useful singles:
@@ -99,11 +99,11 @@ calls) in the same change as every new major feature.**
   After the first Garage start,
   allow anonymous reads once:
   `docker compose exec garage /garage bucket website --allow local-events-assets`.
-  Objects are then `http://local-events-assets.localhost:3902/events/{eventId}/main`.
+  Objects are then `http://local-events-assets.localhost:13902/events/{eventId}/main`.
   A phone running Expo Go cannot open `*.localhost`. The app rewrites those image
   URLs to `GET /v1/assets/…` on the API host, and the API fetches Garage. The phone
   still needs `EXPO_PUBLIC_API_URL` set to this computer's LAN address.
-  Browse the buckets at `http://localhost:3909` (Garage Web UI).
+  Browse the buckets at `http://localhost:13909` (Garage Web UI).
   In AWS the same key is served from CloudFront (`ASSETS_PUBLIC_BASE_URL`).
 
 ### Glada Hudik import
@@ -111,22 +111,39 @@ calls) in the same change as every new major feature.**
 - Hudiksvall’s public calendar, with no Citybreak API key. The worker reads the unfiltered product
   list (`nodeId` 841) and then each event page. Filtered list queries are left out because
   `robots.txt` disallows them. The page map’s `data-lat` and `data-lng` become the event point.
+  A page without a map is geocoded from the location pin, then the contact address, and otherwise
+  uses Hudiksvall centre so the event still has a point. A digital showing stays without one.
   Links in the description, information, and contact (including Facebook) are stored. The site
   footer is not. A long daily exhibition becomes one event; a concert or a monthly circle stays
   one event per occasion. The hero image is the page `og:image`.
   The worker reads the list, then saves each event after its page and tags are ready, before
   fetching the next page. Tag matching uses a local [Ollama](https://ollama.com) model
-  (`ollama serve`, default `qwen3:32b`). It may pick up to five existing tags scored above 90 and cannot invent
+  (`ollama serve`, default `qwen3:32b`) and the same matcher runs for every data worker. It may pick up to five existing tags scored above 90 and cannot invent
   one. An event that already has tags keeps them and is not sent to the model again. If Ollama
-  is not running, a new event is still saved, without a tag. `OLLAMA_BASE_URL` must be a loopback URL.
+  is not running, or `OLLAMA_DISABLED=1`, a new event is still saved, without a tag. `OLLAMA_BASE_URL` must be a loopback URL.
   `pnpm --filter @local-events/data-workers dev -- --source glada-hudik` writes `in_review` events.
   The seeded row stays disabled. Flow: [docs/flows/glada-hudik.md](docs/flows/glada-hudik.md).
+
+### Destination Hälsingland import
+
+- Hälsingland’s public calendar, with no Citybreak API key. The worker calls the JSON the calendar
+  page already loads: the event list (`filter=c=4559`, Evenemang i hela Hälsingland), then each
+  product’s text and occasions. It does not read HTML. List coordinates are longitude then
+  latitude. A product with no coordinate is still saved, without a map point. A long daily
+  exhibition becomes one event; a concert stays one event per occasion. A lookalike within 500 m
+  on the same Stockholm date is saved as its own review event and flagged in `meta`. That product
+  is saved
+  before the next product is fetched. Those requests go through `curl` over HTTP/1.1 with
+  `PostmanRuntime/2.11.0`. Node's own HTTPS client is answered with a Cloudflare challenge.
+  `pnpm --filter @local-events/data-workers dev -- --source destination-halsingland` writes
+  `in_review` events. The seeded row stays disabled. Flow:
+  [docs/flows/destination-halsingland.md](docs/flows/destination-halsingland.md).
   Later sources and the build order: [docs/event-sources.md](docs/event-sources.md).
 
 ### Event share links
 
 - Mobile share uses the OS sheet with `EXPO_PUBLIC_WEB_URL/events/{id}` (default local web
-  `http://localhost:3100`). Copy link uses the same URL.
+  `http://localhost:13100`). Copy link uses the same URL.
 - Opening that HTTPS URL in the installed app needs Universal / App Links: set
   `EXPO_PUBLIC_WEB_URL` to the https production host (rebuild native so
   `associatedDomains` / `intentFilters` apply), and on web set `APPLE_TEAM_ID` plus
@@ -244,11 +261,11 @@ calls) in the same change as every new major feature.**
   stores and restarts onboarding. Offline does not wipe. Flow:
   [docs/flows/identity-reset.md](docs/flows/identity-reset.md). On the iOS Simulator set
   `EXPO_PUBLIC_API_URL` to
-  `http://127.0.0.1:3000/v1` (`localhost` resolves to IPv6 and the request fails). A physical phone
+  `http://127.0.0.1:13000/v1` (`localhost` resolves to IPv6 and the request fails). A physical phone
   needs the Mac's LAN address.
-- Dev CORS defaults allow web `:3100` and Expo web `:8081` with credentials. Override with
+- Dev CORS defaults allow web `:13100` and Expo web `:18081` with credentials. Override with
   `CORS_ORIGINS`.
-- **Admin console host aliases:** prefer `http://localhost:3200`. Opening via an `/etc/hosts`
+- **Admin console host aliases:** prefer `http://localhost:13200`. Opening via an `/etc/hosts`
   alias requires `ALLOWED_DEV_ORIGINS` (admin Next config) and matching `ADMIN_CORS_ORIGINS`,
   otherwise `/_next` is 403 and the login form appears to do nothing. Session cookies are
   `SameSite=Lax` on the admin API host — keep the UI and `NEXT_PUBLIC_ADMIN_API_URL` on the
@@ -258,7 +275,7 @@ calls) in the same change as every new major feature.**
   reject, or delete them. Publisher lists can select rows and verify them.
   Delete removes the event and keeps the source id out of later imports
   ([docs/flows/import-review-delete.md](docs/flows/import-review-delete.md)). `/events` redirects there. `/events/manage`
-  patches status. `/publishers` verifies, remaps/completes temporary publishers, and toggles
+  pages the catalog 50 at a time and searches title, venue, and publisher, then patches status. `/publishers` verifies, remaps/completes temporary publishers, and toggles
   verified. `/moderation` hides ratings and bans users (banned users cannot create sessions or
   use existing ones). `/audit-log` lists admin actions. Ingest raw payloads go to S3 as
   `raw/<source>/<runId>` when `RAW_INGESTION_BUCKET` is set.
@@ -280,8 +297,10 @@ calls) in the same change as every new major feature.**
   per place, on the device and on the user: a saved area stores `search_radius_m`, and “Near you”
   stores `discovery_radius_m`. A new circle starts with `search_radius_m` equal to its
   notification radius. A plus in the menu searches for a
-  place (25 km circle) and then asks for the onboarding category groups. The save-location
-  prompt asks for those groups after the area is created. Flow:
+  place (25 km circle) and then asks for the onboarding category groups. Saving or skipping
+  with none selected shows the same confirmation as onboarding Skip before that area’s
+  notifications are turned off. The save-location prompt asks for those groups after the area
+  is created. Flow:
   [docs/flows/user-preferences.md](docs/flows/user-preferences.md).
 - **Regions:** `GET /v1/regions/lookup?lat&lng` uses `ST_Covers` on seeded fixtures (Söderhamn
   kommun / Gävleborg län). With no saved region, opening the app looks up that name and asks to
@@ -298,7 +317,7 @@ calls) in the same change as every new major feature.**
 - Mobile calls `PUT /v1/me/push-token` with Bearer session + `deviceCredential` + Expo token once
   identity is ready and again after a session refresh. The OS prompt happens only from onboarding
   Activate and reminders. No-op on web, or when permission is still denied.
-- Local queues: `pnpm db:up` starts **ElasticMQ** (SQS-compatible) on `:9324` (UI `:9325`). Copy
+- Local queues: `pnpm db:up` starts **ElasticMQ** (SQS-compatible) on `:19324` (UI `:19325`). Copy
   `DOMAIN_EVENTS_QUEUE_URL` / `AWS_ENDPOINT_URL_SQS` from `.env.example`. Queue definitions live in
   `infra/local/elasticmq.conf` (add new queues there as consumers appear).
 - Publishing a **`published`** event (or admin verify releasing one) enqueues
@@ -327,15 +346,27 @@ calls) in the same change as every new major feature.**
 
 ### Ports (local)
 
-| App        | Port |
-| ---------- | ---- |
-| API        | 3000 |
-| Admin API  | 3001 |
-| Web        | 3100 |
-| Admin      | 3200 |
-| Mobile web | 8081 |
-| E2E API    | 3090 |
-| E2E web    | 3190 |
+Host ports are offset so this stack can run next to other Postgres, Valkey, and app
+processes. Containers still listen on the image default (the right-hand side of the
+compose mapping). `docker compose exec postgres psql` still uses that internal port.
+AWS keeps 5432, 6379, 3000, and 3001 inside the VPC.
+
+| Service        | Host port |
+| -------------- | --------- |
+| API            | 13000     |
+| Admin API      | 13001     |
+| Web            | 13100     |
+| Admin          | 13200     |
+| Mobile (Metro) | 18081     |
+| E2E API        | 13090     |
+| E2E web        | 13190     |
+| Postgres       | 15432     |
+| Valkey         | 16379     |
+| ElasticMQ      | 19324     |
+| ElasticMQ UI   | 19325     |
+| Garage S3      | 13900     |
+| Garage website | 13902     |
+| Garage Web UI  | 13909     |
 
 ### Event reminders
 
@@ -386,26 +417,26 @@ calls) in the same change as every new major feature.**
 ### E2E vs local data
 
 - Vitest uses in-memory stores — never touches Postgres.
-- Playwright (`pnpm test:e2e`) starts its own API/web on **3090/3190** against the disposable
+- Playwright (`pnpm test:e2e`) starts its own API/web on **13090/13190** against the disposable
   `events_e2e` database (created by `pnpm db:e2e:setup`). It does **not** reuse `pnpm dev` on
-  :3000/:3100, so your day-to-day `events` DB stays clean. Wipe e2e data anytime with
+  :13000/:13100, so your day-to-day `events` DB stays clean. Wipe e2e data anytime with
   `docker compose exec postgres psql -U events -c 'DROP DATABASE events_e2e'` then
   `pnpm db:e2e:setup`.
 
 ## Scripts
 
-| Command                                | What it does                                             |
-| -------------------------------------- | -------------------------------------------------------- |
-| `pnpm dev`                             | Runs every app's `dev` task through Turborepo            |
-| `pnpm build`                           | Builds all apps (esbuild bundles for the Node services)  |
-| `pnpm typecheck`                       | TypeScript in every workspace                            |
-| `pnpm test`                            | Vitest in every workspace                                |
-| `pnpm db:e2e:setup`                    | Create/migrate disposable `events_e2e` DB for Playwright |
-| `pnpm test:e2e`                        | Playwright smoke against `events_e2e` (ports 3090/3190)  |
-| `pnpm format` / `pnpm format:check`    | Prettier                                                 |
-| `pnpm db:up` / `pnpm db:down`          | Start/stop local Postgres, Valkey, ElasticMQ, and Garage |
-| `pnpm db:generate` / `pnpm db:migrate` | Create / apply Drizzle migrations                        |
-| `pnpm api-client:generate`             | Export OpenAPI → `packages/api-client` types             |
+| Command                                | What it does                                              |
+| -------------------------------------- | --------------------------------------------------------- |
+| `pnpm dev`                             | Runs every app's `dev` task through Turborepo             |
+| `pnpm build`                           | Builds all apps (esbuild bundles for the Node services)   |
+| `pnpm typecheck`                       | TypeScript in every workspace                             |
+| `pnpm test`                            | Vitest in every workspace                                 |
+| `pnpm db:e2e:setup`                    | Create/migrate disposable `events_e2e` DB for Playwright  |
+| `pnpm test:e2e`                        | Playwright smoke against `events_e2e` (ports 13090/13190) |
+| `pnpm format` / `pnpm format:check`    | Prettier                                                  |
+| `pnpm db:up` / `pnpm db:down`          | Start/stop local Postgres, Valkey, ElasticMQ, and Garage  |
+| `pnpm db:generate` / `pnpm db:migrate` | Create / apply Drizzle migrations                         |
+| `pnpm api-client:generate`             | Export OpenAPI → `packages/api-client` types              |
 
 ## Repository layout
 

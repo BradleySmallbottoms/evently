@@ -1,0 +1,263 @@
+{
+  "productDetailsWidgetContext": {
+    "url": "https://visit.destinationhalsingland.se/sv/activitywidget/widget?nocss=True&cbisProductId=1960936&enablePromocode=True&proceedToBasket=True",
+    "containerId": "citybreak_activity_booking_widget-1960936",
+    "displayType": "Sidebar"
+  },
+  "price": {
+    "priceAndCurrency": "",
+    "priceDescription": null,
+    "originalPriceAndCurrency": null,
+    "youSavePriceAndCurrency": null,
+    "isPriceFrom": true
+  },
+  "externalBookingUrl": null,
+  "isBookable": false,
+  "occasions": [
+    {
+      "date": "2026-11-13",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-14",
+      "period": "10:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-15",
+      "period": "11:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-16",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-17",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-18",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-19",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-20",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-21",
+      "period": "10:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-22",
+      "period": "11:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-23",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-24",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-25",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-26",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-27",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-28",
+      "period": "10:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-29",
+      "period": "11:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-11-30",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-01",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-02",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-03",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-04",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-05",
+      "period": "10:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-06",
+      "period": "11:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-07",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-08",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-09",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-10",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-11",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-12",
+      "period": "10:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-13",
+      "period": "11:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-14",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-15",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-16",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-17",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-18",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-19",
+      "period": "10:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-20",
+      "period": "11:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-21",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-22",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-23",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-24",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-25",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-26",
+      "period": "10:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-27",
+      "period": "11:00 - 16:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-28",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-29",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-30",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    },
+    {
+      "date": "2026-12-31",
+      "period": "10:00 - 18:00",
+      "arena": "Mobackes Trädgårdscenter, Bollnäs"
+    }
+  ]
+}

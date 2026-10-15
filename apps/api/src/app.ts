@@ -109,10 +109,10 @@ export function createApp(options: CreateAppOptions = {}) {
     '*',
     cors({
       origin: options.corsOrigin ?? [
-        'http://localhost:3100',
-        'http://127.0.0.1:3100',
-        'http://localhost:8081',
-        'http://127.0.0.1:8081',
+        'http://localhost:13100',
+        'http://127.0.0.1:13100',
+        'http://localhost:18081',
+        'http://127.0.0.1:18081',
       ],
       credentials: true,
       allowHeaders: ['Content-Type', 'Authorization', 'X-Stats-Worker-Token', 'X-Request-Id'],

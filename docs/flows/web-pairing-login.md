@@ -39,5 +39,5 @@ sequenceDiagram
 
 - Exchange **only from the browser** (`credentials: 'include'`). Server-side `fetch` to the API
   consumes the code but never sets the user’s cookie.
-- CORS must allow the web origin (`http://localhost:3100` in dev) with `credentials: true`.
+- CORS must allow the web origin (`http://localhost:13100` in dev) with `credentials: true`.
 - Reusing a code returns `401 invalid_pairing_code`.

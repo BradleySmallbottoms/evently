@@ -31,7 +31,7 @@ const statsReconcileMs = Number(process.env.STATS_RECONCILE_MS ?? 86_400_000);
 /** Poll approved push_messages for due delivery. */
 const pushPollMs = Number(process.env.PUSH_POLL_MS ?? 30_000);
 const databaseUrl = resolveDatabaseUrl();
-/** Public API base including version prefix, e.g. http://localhost:3000/v1 */
+/** Public API base including version prefix, e.g. http://localhost:13000/v1 */
 const statsApiUrl = process.env.STATS_API_URL?.trim() || process.env.API_URL?.trim();
 const statsWorkerToken = process.env.STATS_WORKER_TOKEN?.trim();
 const sqsEndpoint =

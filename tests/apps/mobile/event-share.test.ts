@@ -27,8 +27,8 @@ describe('event-share', () => {
   });
 
   it('falls back to local web in development when the env URL is missing or invalid', () => {
-    expect(webBaseUrl(undefined)).toBe('http://localhost:3100');
-    expect(webBaseUrl('not a url')).toBe('http://localhost:3100');
+    expect(webBaseUrl(undefined)).toBe('http://localhost:13100');
+    expect(webBaseUrl('not a url')).toBe('http://localhost:13100');
   });
 
   it('puts the event URL in the shared text', () => {

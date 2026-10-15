@@ -287,14 +287,29 @@ export const AdminEventListItem = z.object({
   startsAt: z.iso.datetime(),
   endsAt: z.iso.datetime(),
   venueName: z.string().nullable(),
+  sourceUrl: z.string().nullable(),
   featured: z.boolean(),
   checkInEnabled: z.boolean(),
   createdAt: z.iso.datetime(),
 });
 export type AdminEventListItem = z.infer<typeof AdminEventListItem>;
 
+export const AdminEventListQuery = z.object({
+  status: AdminEventListItem.shape.status.optional(),
+  /** Matches title, venue, or publisher name. */
+  q: z.string().trim().min(1).max(200).optional(),
+  /** `starts` is newest start time first. `created` is oldest created first. */
+  sort: z.enum(['starts', 'created']).optional().default('starts'),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+  offset: z.coerce.number().int().min(0).max(100_000).optional().default(0),
+});
+export type AdminEventListQuery = z.infer<typeof AdminEventListQuery>;
+
 export const AdminEventListResponse = z.object({
   items: z.array(AdminEventListItem),
+  total: z.number().int().nonnegative(),
+  /** Pass as `offset` to load the next page. Null on the last page. */
+  nextOffset: z.number().int().nonnegative().nullable(),
 });
 export type AdminEventListResponse = z.infer<typeof AdminEventListResponse>;
 
@@ -312,8 +327,12 @@ export const AdminEventDetail = AdminEventListItem.extend({
   priceAmount: z.number().int().nonnegative().nullable(),
   currency: z.string(),
   meta: EventMeta,
-  sourceUrl: z.string().nullable(),
-  tagIds: z.array(Id),
+    sourceUrl: z.string().nullable(),
+    /** Source event id. Null on a native event. */
+    refId: z.string().nullable(),
+    /** Data-worker slug. Null on a native event. */
+    workerId: z.string().nullable(),
+    tagIds: z.array(Id),
   links: z.array(EventLink),
   /** Hero image. Null when the event has none or the public asset host is unset. */
   imageUrl: z.url().nullable(),

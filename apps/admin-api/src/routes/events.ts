@@ -3,6 +3,7 @@ import {
   AdminEventDecisionResponse,
   AdminEventDeleteResponse,
   AdminEventDetail,
+  AdminEventListQuery,
   AdminEventListResponse,
   AdminEventPatchRequest,
   AdminEventReviewListResponse,
@@ -35,11 +36,7 @@ export function registerAdminEventRoutes(
     method: 'get',
     path: '/events',
     request: {
-      query: z.object({
-        status: z
-          .enum(['draft', 'awaiting_verification', 'in_review', 'published', 'cancelled', 'ended'])
-          .optional(),
-      }),
+      query: AdminEventListQuery,
     },
     responses: {
       200: {
@@ -59,11 +56,16 @@ export function registerAdminEventRoutes(
   app.openapi(list, async (c) => {
     try {
       await auth.requireSession(readAdminSessionToken(c));
-      const { status } = c.req.valid('query');
-      if (status === 'in_review') {
+      const query = c.req.valid('query');
+      // The review queue pages with sort=created. An unpaged in_review call keeps the review shape.
+      const paged =
+        query.q !== undefined ||
+        c.req.query('limit') !== undefined ||
+        c.req.query('offset') !== undefined;
+      if (query.status === 'in_review' && !paged) {
         return c.json({ items: await events.listInReview() }, 200);
       }
-      return c.json({ items: await events.list(status) }, 200);
+      return c.json(await events.list(query), 200);
     } catch (err) {
       return adminAuthErrorResponse(c, err);
     }

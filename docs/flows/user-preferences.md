@@ -57,7 +57,9 @@ sequenceDiagram
   for “Near you”. A new circle copies its notification radius into `search_radius_m`. Switching
   back restores the saved radius.
 - The location menu plus button geocodes a place, posts a 25 km circle, then asks for the
-  onboarding category groups. Saving a suggested region does the same after the area is created.
+  onboarding category groups. Saving or skipping with none selected shows the same confirmation
+  as onboarding Skip before storing an empty list and turning that area’s notifications off.
+  Saving a suggested region does the same after the area is created.
 - Circle = `center` + `radius_m`; drawn polygon = `area` geography.
 - Region kind (`regions` table + suggestion UI) is a later Phase 3 slice.
 - Soft cap: 20 areas (`MAX_SAVED_AREAS` in domain).

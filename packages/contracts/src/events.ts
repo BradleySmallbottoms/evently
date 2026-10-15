@@ -95,13 +95,34 @@ export const EventMeta = z.object({
   allergyAdapted: z.boolean().optional(),
   smokeFree: z.boolean().optional(),
   wc: z.boolean().optional(),
+  /** Set when an import looks like another event. The new row stays in review. */
+  possibleDuplicate: z
+    .object({
+      eventId: z.uuid(),
+      title: z.string(),
+      startsAt: z.iso.datetime(),
+      refId: z.string().nullable(),
+      workerId: z.string().nullable(),
+      matchedOn: z.enum(['title', 'link', 'id']),
+    })
+    .optional(),
 });
 export type EventMeta = z.infer<typeof EventMeta>;
+
+/** Public events omit the import duplicate note. */
+export const PublicEventMeta = EventMeta.omit({ possibleDuplicate: true });
+export type PublicEventMeta = z.infer<typeof PublicEventMeta>;
 
 /** Drops a stored object that does not match {@link EventMeta}. */
 export function readEventMeta(value: unknown): EventMeta {
   const parsed = EventMeta.safeParse(value && typeof value === 'object' ? value : {});
   return parsed.success ? parsed.data : {};
+}
+
+/** Same as {@link readEventMeta}, without the import duplicate note. */
+export function publicEventMeta(value: unknown): PublicEventMeta {
+  const { possibleDuplicate: _flag, ...meta } = readEventMeta(value);
+  return meta;
 }
 
 /** Minor units. Null is unknown; 0 is free. */
@@ -131,7 +152,7 @@ export const Event = z.object({
   priceAmount: z.number().int().nonnegative().nullable(),
   currency: z.string(),
   /** Extra source facts. `{}` when the event has none. */
-  meta: EventMeta,
+  meta: PublicEventMeta,
   publisherName: z.string(),
   links: z.array(EventLink),
   /** Hero image. Null when the event has none or the public asset host is unset. */

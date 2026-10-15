@@ -1,17 +1,17 @@
 # apps
 
-| App             | Status                  | Port (dev) | Talks to       |
-| --------------- | ----------------------- | ---------- | -------------- |
-| `api/`          | Skeleton (Hono)         | 3000       | DB, SQS, S3    |
-| `admin-api/`    | Skeleton (Hono)         | 3001       | DB, SQS, S3    |
-| `worker/`       | Skeleton (SQS handlers) | –          | DB, Expo Push  |
-| `data-workers/` | One-shot ingest runner  | –          | DB, SQS, S3    |
-| `mobile/`       | Scaffolded (Expo)       | Expo       | public API     |
+| App             | Status                  | Port (dev) | Talks to      |
+| --------------- | ----------------------- | ---------- | ------------- |
+| `api/`          | Skeleton (Hono)         | 13000      | DB, SQS, S3   |
+| `admin-api/`    | Skeleton (Hono)         | 13001      | DB, SQS, S3   |
+| `worker/`       | Skeleton (SQS handlers) | –          | DB, Expo Push |
+| `data-workers/` | One-shot ingest runner  | –          | DB, SQS, S3   |
+| `mobile/`       | Scaffolded (Expo)       | 18081      | public API    |
 
 `pnpm dev` starts the long-running apps only (data-workers is excluded — run it with a source
 slug when you need a fetch: `pnpm --filter @local-events/data-workers dev -- --source example-fixture`).
-| `web/`          | Scaffolded (Next.js)    | 3100       | public API     |
-| `admin/`        | Scaffolded (Next.js)    | 3200       | admin API only |
+| `web/` | Scaffolded (Next.js) | 13100 | public API |
+| `admin/` | Scaffolded (Next.js) | 13200 | admin API only |
 
 The three frontends are created with their official scaffolders so they start on current
 framework defaults. The steps below were tested inside this monorepo (Expo SDK 57, Next.js 16.4,
@@ -49,7 +49,7 @@ In `apps/mobile/package.json` set `"name": "@local-events/mobile"` and add scrip
 
 ```json
 "scripts": {
-  "dev": "expo start",
+  "dev": "expo start --port 18081",
   "typecheck": "tsc --noEmit",
   "lint": "expo lint"
 }
@@ -156,9 +156,9 @@ In `apps/web/package.json`:
 
 ```json
 "scripts": {
-  "dev": "next dev -p 3100",
+  "dev": "next dev -p 13100",
   "build": "next build",
-  "start": "next start -p 3100",
+  "start": "next start -p 13100",
   "lint": "eslint",
   "typecheck": "next typegen && tsc --noEmit"
 }
@@ -191,7 +191,7 @@ Wire MUI App Router SSR in the locale layout with `AppRouterCacheProvider` from
 
 ### 3. Configure
 
-- `apps/web/.env.local`: `NEXT_PUBLIC_API_URL=http://localhost:3000/v1`
+- `apps/web/.env.local`: `NEXT_PUBLIC_API_URL=http://localhost:13000/v1`
 - i18n with `next-intl`: locales `sv` (default) and `en`.
 - The web app hosts public event pages (SEO), the publisher workspace (email login) and the
   "sign in with the app" pairing page.
@@ -218,8 +218,8 @@ rm apps/admin/pnpm-workspace.yaml
 
 ### 2. Join the workspace
 
-Same as the web app, with `"name": "@local-events/admin"` and port **3200**
-(`next dev -p 3200`, `next start -p 3200`), the same `typecheck` script and the same
+Same as the web app, with `"name": "@local-events/admin"` and port **13200**
+(`next dev -p 13200`, `next start -p 13200`), the same `typecheck` script and the same
 `transpilePackages` (admin omits `geo` / `api-client`).
 
 ```bash
@@ -243,7 +243,7 @@ Component placement (also in `CLAUDE.md`):
 
 ### 4. Configure
 
-- `apps/admin/.env.local`: `NEXT_PUBLIC_ADMIN_API_URL=http://localhost:3001/v1`
+- `apps/admin/.env.local`: `NEXT_PUBLIC_ADMIN_API_URL=http://localhost:13001/v1`
 - The admin app calls the **admin API only**, never the public API.
 - In AWS it sits behind the WAF IP allowlist like the admin API.
 

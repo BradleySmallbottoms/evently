@@ -1,0 +1,28 @@
+{
+  "now": "2026-10-15T08:00:00.000Z",
+  "origin": "https://visit.destinationhalsingland.se",
+  "products": [
+    {
+      "id": "2826465",
+      "title": "Billy Opel - Kulturhuset Bollnäs",
+      "sourceUrl": "https://visit.destinationhalsingland.se/sv/se-gora/2826465/billy-opel-kulturhuset-bollnas/detaljer",
+      "intro": "14 november | Billy tar oss med på en resa in i låtskriveriets galna värld.",
+      "town": "Bollnäs",
+      "location": { "lat": 61.3505711, "lng": 16.3952167 },
+      "imageUrl": "https://images.citybreakcdn.com/image.aspx?ImageId=15326619",
+      "imageUrls": [],
+      "priceText": "200 SEK",
+      "organizerKey": "kulturhuset bollnäs",
+      "organizerName": "Kulturhuset Bollnäs",
+      "links": [],
+      "occasions": [
+        {
+          "date": "2026-11-14",
+          "start": "19:00",
+          "end": "20:30",
+          "venue": "Kulturhuset Bollnäs"
+        }
+      ]
+    }
+  ]
+}

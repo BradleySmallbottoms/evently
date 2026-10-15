@@ -10,7 +10,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "db:e2e:setup": "pnpm --filter @local-events/db exec tsx ../../scripts/ensure-e2e-db.ts && DATABASE_URL=${E2E_DATABASE_URL:-postgres://events:events@localhost:5432/events_e2e} pnpm db:migrate",
+    "db:e2e:setup": "pnpm --filter @local-events/db exec tsx ../../scripts/ensure-e2e-db.ts && DATABASE_URL=${E2E_DATABASE_URL:-postgres://events:events@localhost:15432/events_e2e} pnpm db:migrate",
     "test:e2e": "pnpm db:e2e:setup && playwright test -c tests/e2e/playwright.config.ts",
     "test:e2e:headed": "pnpm db:e2e:setup && playwright test -c tests/e2e/playwright.config.ts --headed",
     "lint": "turbo run lint",

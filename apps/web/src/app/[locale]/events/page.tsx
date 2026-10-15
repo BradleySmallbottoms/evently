@@ -9,7 +9,7 @@ import { PublicEventCard, type PublicEventCardData } from './components/public-e
 const FALLBACK_LAT = 61.3037;
 const FALLBACK_LNG = 17.0592;
 const FALLBACK_RADIUS_M = 50_000;
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:13000/v1';
 
 export default async function PublicEventsPage({
   params,

@@ -1,17 +1,30 @@
 import {
+  eventUrlKey,
+  importPlanToSchedule,
+  isSpecificTicketUrl,
   mergeImportedLinks,
   shouldEnqueueNotifications,
-  importPlanToSchedule,
   statusOnPublish,
+  stockholmCalendarDate,
+  duplicateSignal,
+  type DuplicateSignal,
   type EventStatus,
   validateEventFields,
 } from '@local-events/domain';
-import { contentHash, isLikelySameEvent, type IncomingEvent } from '@local-events/ingest';
+import {
+  contentHash,
+  existingEventTags,
+  matchEventTag,
+  tagCatalog,
+  titleSimilarity,
+  type IncomingEvent,
+  type TagChoice,
+} from '@local-events/ingest';
 import { emitDomainEvent, noopDomainEvents, type DomainEventSink } from './domain-events';
 import { noopEventImageUploader, type EventImageUploader } from './event-images';
 import { noopRawPayloadSink, type RawPayloadSink } from './raw-payload';
 import { eachSourceRun, runSource, sourceSavesEachEvent } from './run';
-import type { IngestStore, PublisherLink, SourceRecord } from './store';
+import type { DuplicateCandidate, IngestStore, PublisherLink, SourceRecord } from './store';
 
 export interface PersistSummary {
   source: string;
@@ -77,6 +90,58 @@ function archiveRaw(parts: unknown[]): unknown {
   return { now, origin, products };
 }
 
+async function attachMatchedTags(
+  events: IncomingEvent[],
+  config: Record<string, unknown>,
+): Promise<IncomingEvent[]> {
+  const catalog = tagCatalog(config);
+  if (catalog.length === 0) return events;
+  const stored = existingEventTags(config);
+  let unavailable = false;
+  const cache = new Map<string, TagChoice[]>();
+  const tagged: IncomingEvent[] = [];
+  for (const event of events) {
+    if (event.tags.length > 0) {
+      tagged.push(event);
+      continue;
+    }
+    const kept = stored
+      .filter((row) => row.externalId === event.externalId)
+      .map((row) => row.tag);
+    if (kept.length > 0) {
+      tagged.push({ ...event, tags: kept });
+      continue;
+    }
+    if (unavailable) {
+      tagged.push(event);
+      continue;
+    }
+    const cached = cache.get(event.title);
+    if (cached) {
+      tagged.push({ ...event, tags: cached });
+      continue;
+    }
+    const result = await matchEventTag(
+      {
+        title: event.title,
+        ...(event.description ? { description: event.description } : {}),
+        ...(event.venueName ? { venue: event.venueName } : {}),
+      },
+      catalog,
+      config,
+      fetch,
+    );
+    if (!result.ok) {
+      unavailable = true;
+      tagged.push(event);
+      continue;
+    }
+    cache.set(event.title, result.tags);
+    tagged.push(result.tags.length > 0 ? { ...event, tags: result.tags } : event);
+  }
+  return tagged;
+}
+
 async function persistWholeRun(
   store: IngestStore,
   source: SourceRecord,
@@ -87,7 +152,13 @@ async function persistWholeRun(
 ): Promise<CollectedRun> {
   const run = await runSource(slug, config);
   await store.upsertTags([...run.tags, ...run.events.flatMap((event) => event.tags)]);
-  const saved = await saveIncomingEvents(store, source, run.events, enqueue, images);
+  const saved = await saveIncomingEvents(
+    store,
+    source,
+    await attachMatchedTags(run.events, config),
+    enqueue,
+    images,
+  );
   return {
     fetched: run.valid,
     created: saved.created,
@@ -117,7 +188,13 @@ async function persistEachEvent(
   let skipped = 0;
   for await (const batch of eachSourceRun(slug, config)) {
     await store.upsertTags([...batch.tags, ...batch.events.flatMap((event) => event.tags)]);
-    const saved = await saveIncomingEvents(store, source, batch.events, enqueue, images);
+    const saved = await saveIncomingEvents(
+      store,
+      source,
+      await attachMatchedTags(batch.events, config),
+      enqueue,
+      images,
+    );
     fetched += batch.valid;
     created += saved.created;
     updated += saved.updated;
@@ -143,8 +220,8 @@ async function persistEachEvent(
  * Review-trust and temporary publishers stay `in_review` and are not announced.
  * A verified publisher with a plan still gets reminders: approved when the event
  * is published, pending while it is in review.
- * An unchanged content hash is skipped. A cross-source match links the ref and
- * leaves the existing event alone.
+ * An unchanged content hash is skipped. A lookalike within 500 m on the same
+ * Stockholm date is saved as its own in_review event and flagged in meta.
  */
 export async function persistSource(
   store: IngestStore,
@@ -157,14 +234,11 @@ export async function persistSource(
   if (!source) throw new Error(`No data_sources row for "${slug}"`);
   const runId = await store.startRun(source.id);
   try {
-    const config =
-      slug === 'glada-hudik'
-        ? {
-            ...source.config,
-            tagCatalog: await store.listTags(),
-            existingEventTags: await store.listEventTags(source.id),
-          }
-        : source.config;
+    const config = {
+      ...source.config,
+      tagCatalog: await store.listTags(),
+      existingEventTags: await store.listEventTags(source.id),
+    };
     const collected = sourceSavesEachEvent(slug)
       ? await persistEachEvent(store, source, slug, config, enqueue, images)
       : await persistWholeRun(store, source, slug, config, enqueue, images);
@@ -313,6 +387,65 @@ async function scheduleImportedNotifications(
   });
 }
 
+function specificUrlKeys(urls: (string | null | undefined)[]): Set<string> {
+  const keys = new Set<string>();
+  for (const url of urls) {
+    if (!url || !isSpecificTicketUrl(url)) continue;
+    const key = eventUrlKey(url);
+    if (key) keys.add(key);
+  }
+  return keys;
+}
+
+async function possibleDuplicate(
+  store: IngestStore,
+  event: IncomingEvent,
+  startsAt: Date,
+  location: { lat: number; lng: number },
+  workerId: string,
+) {
+  const incomingDay = stockholmCalendarDate(startsAt);
+  const incomingKeys = specificUrlKeys([
+    event.sourceUrl,
+    ...(event.links ?? []).map((link) => link.url),
+  ]);
+  let best: { candidate: DuplicateCandidate; signal: DuplicateSignal } | null = null;
+  for (const candidate of await store.duplicateCandidates({ location, startsAt })) {
+    const sameRow =
+      candidate.workerId === workerId &&
+      (candidate.refId === event.externalId || candidate.externalIds.includes(event.externalId));
+    if (sameRow) continue;
+    const storedKeys = specificUrlKeys([candidate.sourceUrl, ...candidate.links]);
+    const signal = duplicateSignal({
+      distanceM: candidate.distanceM,
+      sameDate: stockholmCalendarDate(candidate.startsAt) === incomingDay,
+      titleSimilarity: titleSimilarity(event.title, candidate.title),
+      sharedLink: [...incomingKeys].some((key) => storedKeys.has(key)),
+      sameId:
+        candidate.refId === event.externalId || candidate.externalIds.includes(event.externalId),
+    });
+    if (!signal) continue;
+    const rank = signal === 'id' ? 0 : signal === 'link' ? 1 : 2;
+    const bestRank = best ? (best.signal === 'id' ? 0 : best.signal === 'link' ? 1 : 2) : 3;
+    if (
+      !best ||
+      rank < bestRank ||
+      (rank === bestRank && candidate.distanceM < best.candidate.distanceM)
+    ) {
+      best = { candidate, signal };
+    }
+  }
+  if (!best) return null;
+  return {
+    eventId: best.candidate.eventId,
+    title: best.candidate.title,
+    startsAt: best.candidate.startsAt.toISOString(),
+    refId: best.candidate.refId,
+    workerId: best.candidate.workerId,
+    matchedOn: best.signal,
+  };
+}
+
 async function saveOne(
   store: IngestStore,
   source: SourceRecord,
@@ -354,6 +487,8 @@ async function saveOne(
     event: linked,
     endsAt: event.endsAt ?? event.startsAt,
     tagIds: await store.tagIdsForExternalIds(event.tags.map((tag) => tag.externalId)),
+    refId: event.externalId,
+    workerId: source.slug,
   };
 
   const existing = await store.findExternalRef(source.id, event.externalId);
@@ -391,17 +526,15 @@ async function saveOne(
   }
 
   const startsAt = new Date(event.startsAt);
-  const match = (await store.candidatesNear(startsAt)).find((candidate) =>
-    isLikelySameEvent({ title: event.title, startsAt, location: event.location }, candidate),
-  );
-  if (match) {
-    await store.linkExisting({
-      sourceId: source.id,
-      externalId: event.externalId,
-      eventId: match.eventId,
-      contentHash: write.contentHash,
-    });
-    return 'skipped';
+  const duplicate = event.location
+    ? await possibleDuplicate(store, linked, startsAt, event.location, source.slug)
+    : null;
+  if (duplicate) {
+    write.status = 'in_review';
+    write.event = {
+      ...write.event,
+      meta: { ...write.event.meta, possibleDuplicate: duplicate },
+    };
   }
 
   const eventId = await store.insertImported(write);

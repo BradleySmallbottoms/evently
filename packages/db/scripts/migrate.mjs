@@ -22,7 +22,7 @@ const migrations = journal.entries.map((entry) => {
   return { tag: entry.tag, when: entry.when, hash: migrationHash(sqlText), statements };
 });
 
-const databaseUrl = process.env.DATABASE_URL ?? 'postgres://events:events@localhost:5432/events';
+const databaseUrl = process.env.DATABASE_URL ?? 'postgres://events:events@localhost:15432/events';
 const sql = postgres(databaseUrl, { max: 1, onnotice() {} });
 
 try {

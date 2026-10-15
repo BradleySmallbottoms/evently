@@ -19,7 +19,8 @@ function decodeEntities(value: string): string {
     .replace(/&gt;/gi, '>');
 }
 
-function linkKey(raw: string): string | null {
+/** Stable http(s) identity: lowercase host, no hash, no trailing slash. */
+export function eventUrlKey(raw: string): string | null {
   let value = decodeEntities(raw).trim().replace(/[.,;:!?)]+$/, '');
   if (!value) return null;
   try {
@@ -31,6 +32,32 @@ function linkKey(raw: string): string | null {
   } catch {
     return null;
   }
+}
+
+const TICKET_LOCALE = /^(sv|en|se|no|da|fi|de|fr|es|nb|nn)$/i;
+const GENERIC_TICKET_SEGMENT = new Set([
+  'ticket',
+  'tickets',
+  'biljett',
+  'biljetter',
+  'booking',
+  'bokning',
+  'event',
+  'events',
+  'evenemang',
+  'show',
+  'shows',
+  'e',
+]);
+
+/** A ticket page for one event. A host, a language prefix, or a shop root does not count. */
+export function isSpecificTicketUrl(raw: string): boolean {
+  const key = eventUrlKey(raw);
+  if (!key) return false;
+  const parts = new URL(key).pathname.split('/').filter(Boolean);
+  return parts.some(
+    (part) => !TICKET_LOCALE.test(part) && !GENERIC_TICKET_SEGMENT.has(part.toLowerCase()),
+  );
 }
 
 function isImageUrl(key: string): boolean {
@@ -66,7 +93,7 @@ function pushLink(
   label?: string,
 ): void {
   if (links.length >= MAX_EVENT_LINKS) return;
-  const key = linkKey(rawUrl);
+  const key = eventUrlKey(rawUrl);
   if (!key || seen.has(key) || isImageUrl(key)) return;
   seen.add(key);
   const type = kindFor(key, label);
@@ -102,7 +129,7 @@ export function mergeImportedLinks(
   const links: ImportEventLink[] = [];
   const seen = new Set<string>();
   for (const link of existing ?? []) {
-    const key = linkKey(link.url);
+    const key = eventUrlKey(link.url);
     if (!key || seen.has(key)) continue;
     if (links.length >= MAX_EVENT_LINKS) break;
     seen.add(key);
@@ -110,7 +137,7 @@ export function mergeImportedLinks(
     links.push(label ? { type: link.type, url: link.url, label } : { type: link.type, url: link.url });
   }
   for (const link of parseLinksFromText(description ?? '')) {
-    const key = linkKey(link.url);
+    const key = eventUrlKey(link.url);
     if (!key || seen.has(key)) continue;
     if (links.length >= MAX_EVENT_LINKS) break;
     seen.add(key);

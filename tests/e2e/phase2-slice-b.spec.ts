@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-/** Isolated e2e API (see playwright.config.ts) — never the `pnpm dev` :3000 instance. */
-const API = process.env.E2E_API_ORIGIN ?? 'http://localhost:3090';
+/** Isolated e2e API (see playwright.config.ts) — never the `pnpm dev` :13000 instance. */
+const API = process.env.E2E_API_ORIGIN ?? 'http://localhost:13090';
 
 const NEXT_REACT_CONSOLE_WARNING =
   /(next\.?js|react|hydration|did not match|text content does not match|rendered more hooks|cannot update a component while rendering|minified react error)/i;

@@ -107,8 +107,8 @@ export function createApp(options: CreateAdminAppOptions = {}) {
     '*',
     cors({
       origin: options.corsOrigin ?? [
-        'http://localhost:3200',
-        'http://127.0.0.1:3200',
+        'http://localhost:13200',
+        'http://127.0.0.1:13200',
       ],
       credentials: true,
       allowHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],

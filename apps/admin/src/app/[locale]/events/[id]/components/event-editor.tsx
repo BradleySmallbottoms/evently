@@ -52,6 +52,18 @@ type EventDetail = {
   priceAmount: number | null;
   currency: string;
   sourceUrl: string | null;
+  refId: string | null;
+  workerId: string | null;
+  meta: {
+    possibleDuplicate?: {
+      eventId: string;
+      title: string;
+      startsAt: string;
+      refId: string | null;
+      workerId: string | null;
+      matchedOn: 'title' | 'link' | 'id';
+    };
+  };
   tagIds: string[];
   featured: boolean;
   checkInEnabled: boolean;
@@ -343,6 +355,22 @@ export function EventEditor({ eventId }: { eventId: string }) {
             </>
           ) : null}
         </Typography>
+      ) : null}
+      {event?.meta.possibleDuplicate ? (
+        <Alert severity="warning">
+          {event.meta.possibleDuplicate.workerId || event.meta.possibleDuplicate.refId
+            ? t('possibleDuplicate', {
+                matchedOn: event.meta.possibleDuplicate.matchedOn,
+                worker: event.meta.possibleDuplicate.workerId ?? '',
+                ref: event.meta.possibleDuplicate.refId ?? '',
+              })
+            : t('possibleDuplicateSame', {
+                matchedOn: event.meta.possibleDuplicate.matchedOn,
+              })}{' '}
+          <AppLink href={`/events/${event.meta.possibleDuplicate.eventId}`}>
+            {event.meta.possibleDuplicate.title}
+          </AppLink>
+        </Alert>
       ) : null}
       <Tabs
         value={tab}

@@ -10,9 +10,9 @@ async function main() {
   const adminUrl =
     process.env.E2E_ADMIN_DATABASE_URL ??
     process.env.DATABASE_URL?.replace(/\/[^/]+$/, '/postgres') ??
-    'postgres://events:events@localhost:5432/postgres';
+    'postgres://events:events@localhost:15432/postgres';
   const e2eUrl =
-    process.env.E2E_DATABASE_URL ?? 'postgres://events:events@localhost:5432/events_e2e';
+    process.env.E2E_DATABASE_URL ?? 'postgres://events:events@localhost:15432/events_e2e';
 
   const dbName = new URL(e2eUrl).pathname.replace(/^\//, '') || 'events_e2e';
 

@@ -3,6 +3,7 @@ import {
   type AdminEventDecisionResponse,
   type AdminEventDeleteResponse,
   type AdminEventDetail,
+  type AdminEventListQuery,
   type AdminEventListResponse,
   type AdminEventPatchRequest,
   type AdminEventReviewListResponse,
@@ -27,7 +28,7 @@ import {
   importPlanToSchedule,
   validateEventFields,
 } from '@local-events/domain';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import type { AdminAuditServices } from './audit';
 import { noopAudit } from './audit';
 import { createMemoryDomainEventPublisher } from './domain-events/memory';
@@ -47,7 +48,7 @@ export class AdminEventError extends Error {
 
 export type AdminEventServices = {
   listInReview: () => Promise<AdminEventReviewListResponse['items']>;
-  list: (status?: string) => Promise<AdminEventListResponse['items']>;
+  list: (query: AdminEventListQuery) => Promise<AdminEventListResponse>;
   listTags: () => Promise<Tag[]>;
   get: (eventId: string) => Promise<AdminEventDetail | null>;
   approve: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
@@ -95,6 +96,8 @@ type MemoryEvent = {
   currency?: string;
   meta?: AdminEventDetail['meta'];
   sourceUrl: string | null;
+  refId?: string | null;
+  workerId?: string | null;
   tagIds?: string[];
   links?: MemoryEventLink[];
   featured?: boolean;
@@ -267,10 +270,18 @@ function asListItem(
     startsAt: e.startsAt,
     endsAt: e.endsAt,
     venueName: e.venueName,
+    sourceUrl: e.sourceUrl,
     featured: e.featured ?? false,
     checkInEnabled: e.checkInEnabled ?? false,
     createdAt: e.createdAt,
   };
+}
+
+function compareListed(a: MemoryEvent, b: MemoryEvent, sort: AdminEventListQuery['sort']): number {
+  if (sort === 'created') {
+    return a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id);
+  }
+  return b.startsAt.localeCompare(a.startsAt) || b.id.localeCompare(a.id);
 }
 
 function imageFields(
@@ -300,6 +311,8 @@ function asDetail(
     currency: e.currency ?? 'SEK',
     meta: readEventMeta(e.meta),
     sourceUrl: e.sourceUrl,
+    refId: e.refId ?? null,
+    workerId: e.workerId ?? null,
     tagIds: e.tagIds ?? [],
     links: e.links ?? [],
     ...imageFields(e.images ?? [], assetsPublicBaseUrl),
@@ -346,6 +359,7 @@ export function createMemoryAdminEventServices(
     async listInReview() {
       return [...store.events.values()]
         .filter((e) => e.status === 'in_review')
+        .sort((a, b) => compareListed(a, b, 'created'))
         .map((e) => ({
           id: e.id,
           publisherId: e.publisherId,
@@ -361,10 +375,29 @@ export function createMemoryAdminEventServices(
           createdAt: e.createdAt,
         }));
     },
-    async list(status) {
-      return [...store.events.values()]
-        .filter((e) => (status ? e.status === status : true))
+    async list(query) {
+      const needle = query.q?.toLocaleLowerCase();
+      const matched = [...store.events.values()]
+        .filter((e) => {
+          if (query.status && e.status !== query.status) return false;
+          if (!needle) return true;
+          const publisherName = store.publishers.get(e.publisherId)?.name ?? 'Unknown';
+          return (
+            e.title.toLocaleLowerCase().includes(needle) ||
+            (e.venueName?.toLocaleLowerCase().includes(needle) ?? false) ||
+            publisherName.toLocaleLowerCase().includes(needle)
+          );
+        })
+        .sort((a, b) => compareListed(a, b, query.sort));
+      const items = matched
+        .slice(query.offset, query.offset + query.limit)
         .map((e) => asListItem(e, store.publishers.get(e.publisherId)?.name ?? 'Unknown'));
+      const next = query.offset + items.length;
+      return {
+        items,
+        total: matched.length,
+        nextOffset: next < matched.length ? next : null,
+      };
     },
     async listTags() {
       return [...(store.tags?.values() ?? [])];
@@ -532,6 +565,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         currency: schema.events.currency,
         meta: schema.events.meta,
         sourceUrl: schema.events.sourceUrl,
+        refId: schema.events.refId,
+        workerId: schema.events.workerId,
         featured: schema.events.featured,
         checkInEnabled: schema.events.checkInEnabled,
         createdAt: schema.events.createdAt,
@@ -567,6 +602,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       currency: row.currency,
       meta: readEventMeta(row.meta),
       sourceUrl: row.sourceUrl,
+      refId: row.refId,
+      workerId: row.workerId,
       tagIds: await tagIdsFor(eventId),
       links: await linksFor(eventId),
       ...(await imagesFor(eventId)),
@@ -632,7 +669,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .from(schema.events)
         .innerJoin(schema.publishers, eq(schema.events.publisherId, schema.publishers.id))
         .where(eq(schema.events.status, 'in_review'))
-        .orderBy(desc(schema.events.startsAt))
+        .orderBy(asc(schema.events.createdAt), asc(schema.events.id))
         .limit(200);
       return rows
         .filter((r) => r.status === 'in_review')
@@ -651,66 +688,73 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           createdAt: r.createdAt.toISOString(),
         }));
     },
-    async list(status) {
-      const rows = status
-        ? await db
-            .select({
-              id: schema.events.id,
-              publisherId: schema.events.publisherId,
-              publisherName: schema.publishers.name,
-              title: schema.events.title,
-              mode: schema.events.mode,
-              status: schema.events.status,
-              origin: schema.events.origin,
-              startsAt: schema.events.startsAt,
-              endsAt: schema.events.endsAt,
-              venueName: schema.events.venueName,
-              featured: schema.events.featured,
-              checkInEnabled: schema.events.checkInEnabled,
-              createdAt: schema.events.createdAt,
-            })
-            .from(schema.events)
-            .innerJoin(schema.publishers, eq(schema.events.publisherId, schema.publishers.id))
-            .where(
-              eq(schema.events.status, status as (typeof schema.events.status.enumValues)[number]),
-            )
-            .orderBy(desc(schema.events.startsAt))
-            .limit(200)
-        : await db
-            .select({
-              id: schema.events.id,
-              publisherId: schema.events.publisherId,
-              publisherName: schema.publishers.name,
-              title: schema.events.title,
-              mode: schema.events.mode,
-              status: schema.events.status,
-              origin: schema.events.origin,
-              startsAt: schema.events.startsAt,
-              endsAt: schema.events.endsAt,
-              venueName: schema.events.venueName,
-              featured: schema.events.featured,
-              checkInEnabled: schema.events.checkInEnabled,
-              createdAt: schema.events.createdAt,
-            })
-            .from(schema.events)
-            .innerJoin(schema.publishers, eq(schema.events.publisherId, schema.publishers.id))
-            .orderBy(desc(schema.events.startsAt))
-            .limit(200);
-      return rows.map((r) => ({
-        id: r.id,
-        publisherId: r.publisherId,
-        publisherName: r.publisherName,
-        title: r.title,
-        mode: r.mode,
-        status: r.status,
-        origin: r.origin,
-        startsAt: r.startsAt.toISOString(),
-        endsAt: r.endsAt.toISOString(),
-        venueName: r.venueName,
-        featured: r.featured,
-        checkInEnabled: r.checkInEnabled,
-        createdAt: r.createdAt.toISOString(),
-      }));
+    async list(query) {
+      const filters = [];
+      if (query.status) filters.push(eq(schema.events.status, query.status));
+      if (query.q) {
+        const pattern = `%${query.q.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+        const match = or(
+          ilike(schema.events.title, pattern),
+          ilike(schema.events.venueName, pattern),
+          ilike(schema.publishers.name, pattern),
+        );
+        if (match) filters.push(match);
+      }
+      const where = filters.length > 0 ? and(...filters) : undefined;
+      const listed = db
+        .select({
+          id: schema.events.id,
+          publisherId: schema.events.publisherId,
+          publisherName: schema.publishers.name,
+          title: schema.events.title,
+          mode: schema.events.mode,
+          status: schema.events.status,
+          origin: schema.events.origin,
+          startsAt: schema.events.startsAt,
+          endsAt: schema.events.endsAt,
+          venueName: schema.events.venueName,
+          sourceUrl: schema.events.sourceUrl,
+          featured: schema.events.featured,
+          checkInEnabled: schema.events.checkInEnabled,
+          createdAt: schema.events.createdAt,
+        })
+        .from(schema.events)
+        .innerJoin(schema.publishers, eq(schema.events.publisherId, schema.publishers.id));
+      const counted = db
+        .select({ n: count() })
+        .from(schema.events)
+        .innerJoin(schema.publishers, eq(schema.events.publisherId, schema.publishers.id));
+      const filtered = where ? listed.where(where) : listed;
+      const ordered =
+        query.sort === 'created'
+          ? filtered.orderBy(asc(schema.events.createdAt), asc(schema.events.id))
+          : filtered.orderBy(desc(schema.events.startsAt), desc(schema.events.id));
+      const [rows, [totalRow]] = await Promise.all([
+        ordered.limit(query.limit).offset(query.offset),
+        where ? counted.where(where) : counted,
+      ]);
+      const total = Number(totalRow?.n ?? 0);
+      const next = query.offset + rows.length;
+      return {
+        items: rows.map((r) => ({
+          id: r.id,
+          publisherId: r.publisherId,
+          publisherName: r.publisherName,
+          title: r.title,
+          mode: r.mode,
+          status: r.status,
+          origin: r.origin,
+          startsAt: r.startsAt.toISOString(),
+          endsAt: r.endsAt.toISOString(),
+          venueName: r.venueName,
+          sourceUrl: r.sourceUrl,
+          featured: r.featured,
+          checkInEnabled: r.checkInEnabled,
+          createdAt: r.createdAt.toISOString(),
+        })),
+        total,
+        nextOffset: next < total ? next : null,
+      };
     },
     async listTags() {
       const rows = await db.select().from(schema.tags).orderBy(asc(schema.tags.slug));
