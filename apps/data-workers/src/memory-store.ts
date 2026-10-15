@@ -7,22 +7,19 @@ import {
   importNotificationMessages,
   pushStatusForEvent,
   slugifyPublisherName,
-  stockholmCalendarDate,
   tagSlug,
+  withinDuplicateWindow,
   type MarketingPushPlanId,
 } from '@local-events/domain';
 import type {
   ExternalRefHit,
   ImportedEventWrite,
   IngestStore,
-  NearbyEvent,
   PublisherLink,
   SourceRecord,
 } from './store';
 
 type StoredTag = { id: string; slug: string; name: string; externalId: string };
-
-const NEAR_MS = 30 * 60 * 1000;
 
 interface StoredPublisher {
   id: string;
@@ -184,19 +181,22 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       if (!run) throw new Error(`Unknown ingestion run ${runId}`);
       Object.assign(run, result);
     },
-    async findPublisher(sourceId, organizerKey) {
-      const alias = aliases.find(
-        (item) => item.sourceId === sourceId && item.organizerKey === organizerKey,
-      );
-      if (!alias) return null;
-      const publisher = publishers.find((item) => item.id === alias.publisherId);
-      if (!publisher) return null;
-      return {
-        publisherId: publisher.id,
-        isTemporary: publisher.isTemporary,
-        verified: publisher.verified,
-        importNotificationPlan: publisher.importNotificationPlan,
-      };
+    async findPublisher(sourceId, organizerKeys) {
+      for (const organizerKey of organizerKeys) {
+        const alias = aliases.find(
+          (item) => item.sourceId === sourceId && item.organizerKey === organizerKey,
+        );
+        if (!alias) continue;
+        const publisher = publishers.find((item) => item.id === alias.publisherId);
+        if (!publisher) continue;
+        return {
+          publisherId: publisher.id,
+          isTemporary: publisher.isTemporary,
+          verified: publisher.verified,
+          importNotificationPlan: publisher.importNotificationPlan,
+        };
+      }
+      return null;
     },
     async createTemporaryPublisher(input) {
       const id = randomUUID();
@@ -208,17 +208,24 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         verified: false,
         importNotificationPlan: null,
       });
-      aliases.push({
-        sourceId: input.sourceId,
-        organizerKey: input.organizerKey,
-        publisherId: id,
-      });
+      for (const organizerKey of input.organizerKeys) {
+        aliases.push({ sourceId: input.sourceId, organizerKey, publisherId: id });
+      }
       return {
         publisherId: id,
         isTemporary: true,
         verified: false,
         importNotificationPlan: null,
       };
+    },
+    async rememberOrganizerKeys(sourceId, publisherId, organizerKeys) {
+      for (const organizerKey of organizerKeys) {
+        const taken = aliases.some(
+          (item) => item.sourceId === sourceId && item.organizerKey === organizerKey,
+        );
+        if (taken) continue;
+        aliases.push({ sourceId, organizerKey, publisherId });
+      }
     },
     linkPublisher(input) {
       const id = randomUUID();
@@ -274,21 +281,10 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       if (!event) return null;
       return { eventId: event.id, contentHash: ref.contentHash, status: event.status };
     },
-    async candidatesNear(startsAt) {
-      return events
-        .filter((event) => Math.abs(event.startsAt.getTime() - startsAt.getTime()) <= NEAR_MS)
-        .map((event): NearbyEvent => ({
-          eventId: event.id,
-          title: event.title,
-          startsAt: event.startsAt,
-        location: event.location,
-      }));
-    },
     async duplicateCandidates(input) {
-      const day = stockholmCalendarDate(input.startsAt);
       return events.flatMap((event) => {
         if (event.status === 'cancelled' || event.status === 'ended' || !event.location) return [];
-        if (stockholmCalendarDate(event.startsAt) !== day) return [];
+        if (!withinDuplicateWindow(input.startsAt, event.startsAt)) return [];
         const distanceM = distanceMeters(input.location, event.location);
         if (distanceM > DUPLICATE_RADIUS_M) return [];
         const externalIds = refs
@@ -397,9 +393,6 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       if (!ref) throw new Error(`Unknown external ref ${input.externalId}`);
       ref.contentHash = input.contentHash;
       ref.lastSeenAt = new Date();
-    },
-    async linkExisting(input) {
-      refs.push({ ...input, lastSeenAt: new Date() });
     },
     async touchRef(sourceId, externalId) {
       const ref = refs.find((item) => item.sourceId === sourceId && item.externalId === externalId);

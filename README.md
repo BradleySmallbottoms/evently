@@ -130,8 +130,8 @@ calls) in the same change as every new major feature.**
   page already loads: the event list (`filter=c=4559`, Evenemang i hela Hälsingland), then each
   product’s text and occasions. It does not read HTML. List coordinates are longitude then
   latitude. A product with no coordinate is still saved, without a map point. A long daily
-  exhibition becomes one event; a concert stays one event per occasion. A lookalike within 500 m
-  on the same Stockholm date is saved as its own review event and flagged in `meta`. That product
+  exhibition becomes one event; a concert stays one event per occasion. A lookalike within 200 m
+  and 30 minutes is saved as its own review event and flagged in `meta`. That product
   is saved
   before the next product is fetched. Those requests go through `curl` over HTTP/1.1 with
   `PostmanRuntime/2.11.0`. Node's own HTTPS client is answered with a Cloudflare challenge.

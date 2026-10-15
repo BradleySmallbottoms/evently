@@ -1,3 +1,4 @@
+import { organizerKeys } from '@local-events/domain';
 import { defineAdapter, type IncomingEvent } from '@local-events/ingest';
 import fixture from './fixture.json' with { type: 'json' };
 
@@ -36,7 +37,7 @@ export const exampleFixture = defineAdapter<RawItem[]>({
       location: { lat: item.lat, lng: item.lng },
       sourceUrl: item.url,
       links: [{ type: 'info', url: item.url }],
-      organizerKey: item.organizer.id,
+      organizerKeys: organizerKeys({ ids: [item.organizer.id], fallback: 'example-fixture' }),
       organizerName: item.organizer.name,
       categoryHints: item.tags,
       tags: [],

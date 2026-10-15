@@ -27,7 +27,7 @@ const bandy: IncomingEvent = {
   venueName: 'Helsingehus Arena, Hällåsen',
   location: { lat: 61.2887, lng: 17.0729 },
   sourceUrl: 'https://brobergsoderhamn.se/',
-  organizerKey: 'kansli@brobergsoderhamn.se',
+  organizerKeys: ['kansli@brobergsoderhamn.se', 'brobergsoderhamn.se'],
   organizerName: 'Kansliet, Broberg/Söderhamn Bandy',
   categoryHints: ['Idrott & Tävlingar', 'Bandy & Innebandy', 'Tävlingar'],
   tags: [
@@ -235,6 +235,36 @@ describe('saveIncomingEvents', () => {
     expect(store.events[0]?.title).toBe('A different title from another source');
   });
 
+  it('matches a Citybreak product id whether or not it has the cbis prefix', async () => {
+    const store = createMemoryIngestStore();
+    store.events.push({
+      id: '66666666-6666-4666-8666-666666666666',
+      publisherId: 'native-publisher',
+      title: 'A different title from Glada Hudik',
+      description: null,
+      status: 'published',
+      origin: 'imported',
+      sourceUrl: 'https://www.gladahudik.se/sv/example',
+      startsAt: new Date(bandy.startsAt),
+      endsAt: new Date(bandy.endsAt!),
+      venueName: null,
+      location: bandy.location,
+      tagIds: [],
+      refId: 'cbis:2678865:2025-01-31T19:00:00:2025-01-31T21:00:00',
+      workerId: 'glada-hudik',
+    });
+    const counts = await saveIncomingEvents(store, source, [
+      {
+        ...bandy,
+        externalId: '2678865:2025-01-31T19:00:00:2025-01-31T21:00:00',
+        title: 'Hälsingland title',
+        links: [],
+      },
+    ]);
+    expect(counts.created).toBe(1);
+    expect(store.events[1]?.meta?.possibleDuplicate?.matchedOn).toBe('id');
+  });
+
   it('does not treat a ticket shop root as the same event', async () => {
     const store = createMemoryIngestStore();
     const shop = 'https://brobergsoderhamn.ticketco.events/se/sv';
@@ -281,7 +311,7 @@ describe('saveIncomingEvents', () => {
     expect(store.events[1]?.meta?.possibleDuplicate).toBeUndefined();
   });
 
-  it('flags another occasion that shares a ticket url on the same day', async () => {
+  it('flags another occasion within 30 minutes that shares a product id', async () => {
     const store = createMemoryIngestStore();
     const ticket = 'https://www.tickster.com/sv/event/example';
     await saveIncomingEvents(store, source, [
@@ -298,10 +328,10 @@ describe('saveIncomingEvents', () => {
     const counts = await saveIncomingEvents(store, source, [later]);
     expect(counts.created).toBe(1);
     expect(store.events).toHaveLength(2);
-    expect(store.events[1]?.meta?.possibleDuplicate?.matchedOn).toBe('link');
+    expect(store.events[1]?.meta?.possibleDuplicate?.matchedOn).toBe('id');
   });
 
-  it('flags the same title later the same day', async () => {
+  it('does not flag the same title three hours later', async () => {
     const store = createMemoryIngestStore();
     store.events.push({
       id: '55555555-5555-4555-8555-555555555555',
@@ -319,7 +349,70 @@ describe('saveIncomingEvents', () => {
     });
     const counts = await saveIncomingEvents(store, source, [bandy]);
     expect(counts.created).toBe(1);
+    expect(store.events[1]?.meta?.possibleDuplicate).toBeUndefined();
+  });
+
+  it('flags the same title 20 minutes later', async () => {
+    const store = createMemoryIngestStore();
+    store.events.push({
+      id: '55555555-5555-4555-8555-555555555556',
+      publisherId: 'native-publisher',
+      title: bandy.title,
+      description: null,
+      status: 'published',
+      origin: 'native',
+      sourceUrl: 'https://www.gladahudik.se/sv/example',
+      startsAt: new Date('2025-01-31T18:40:00+01:00'),
+      endsAt: new Date('2025-01-31T20:40:00+01:00'),
+      venueName: null,
+      location: bandy.location,
+      tagIds: [],
+    });
+    const counts = await saveIncomingEvents(store, source, [bandy]);
+    expect(counts.created).toBe(1);
     expect(store.events[1]?.meta?.possibleDuplicate?.matchedOn).toBe('title');
+  });
+
+  it('reuses a publisher when a later key matches and remembers the stronger key', async () => {
+    const store = createMemoryIngestStore();
+    await saveIncomingEvents(store, source, [
+      { ...bandy, organizerKeys: ['brobergsoderhamn.se'] },
+    ]);
+    const later = {
+      ...bandy,
+      externalId: 'cbis:later',
+      title: 'Träning',
+      organizerKeys: ['kansli@brobergsoderhamn.se', 'brobergsoderhamn.se'],
+    };
+    await saveIncomingEvents(store, source, [later]);
+    expect(store.publishers).toHaveLength(1);
+    expect(store.events[1]?.publisherId).toBe(store.events[0]?.publisherId);
+
+    const byEmail = {
+      ...bandy,
+      externalId: 'cbis:email-only',
+      title: 'Möte',
+      organizerKeys: ['kansli@brobergsoderhamn.se'],
+    };
+    await saveIncomingEvents(store, source, [byEmail]);
+    expect(store.publishers).toHaveLength(1);
+    expect(store.events[2]?.publisherId).toBe(store.events[0]?.publisherId);
+  });
+
+  it('creates another publisher when no organizer key matches', async () => {
+    const store = createMemoryIngestStore();
+    await saveIncomingEvents(store, source, [bandy]);
+    await saveIncomingEvents(store, source, [
+      {
+        ...bandy,
+        externalId: 'cbis:other-org',
+        title: 'Annan arrangör',
+        organizerKeys: ['other@example.com'],
+        organizerName: 'Annan',
+      },
+    ]);
+    expect(store.publishers).toHaveLength(2);
+    expect(store.events[1]?.publisherId).not.toBe(store.events[0]?.publisherId);
   });
 
   it('saves a physical event that has no location', async () => {
@@ -333,7 +426,7 @@ describe('saveIncomingEvents', () => {
     const store = createMemoryIngestStore();
     const link = store.linkPublisher({
       sourceId: source.id,
-      organizerKey: bandy.organizerKey,
+      organizerKey: bandy.organizerKeys[0]!,
       name: 'Broberg',
       isTemporary: false,
     });
@@ -373,7 +466,7 @@ describe('saveIncomingEvents', () => {
     const trusted: SourceRecord = { ...source, trust: 'auto_publish' };
     store.linkPublisher({
       sourceId: source.id,
-      organizerKey: future.organizerKey,
+      organizerKey: future.organizerKeys[0]!,
       name: 'Broberg',
       isTemporary: false,
       verified: true,
@@ -392,7 +485,7 @@ describe('saveIncomingEvents', () => {
     const quiet = createMemoryIngestStore();
     quiet.linkPublisher({
       sourceId: source.id,
-      organizerKey: future.organizerKey,
+      organizerKey: future.organizerKeys[0]!,
       name: 'Broberg',
       isTemporary: false,
       verified: true,
@@ -404,7 +497,7 @@ describe('saveIncomingEvents', () => {
     const unverified = createMemoryIngestStore();
     unverified.linkPublisher({
       sourceId: source.id,
-      organizerKey: future.organizerKey,
+      organizerKey: future.organizerKeys[0]!,
       name: 'Broberg',
       isTemporary: false,
       verified: false,
@@ -424,7 +517,7 @@ describe('saveIncomingEvents', () => {
     };
     store.linkPublisher({
       sourceId: source.id,
-      organizerKey: future.organizerKey,
+      organizerKey: future.organizerKeys[0]!,
       name: 'Broberg',
       isTemporary: false,
       verified: true,

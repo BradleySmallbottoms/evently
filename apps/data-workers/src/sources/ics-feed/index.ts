@@ -1,3 +1,4 @@
+import { organizerKeys } from '@local-events/domain';
 import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
 
 /**
@@ -147,21 +148,25 @@ export function icsDateToIso(value: string, params = ''): string | null {
   return `${String(y).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}T${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}:${String(s).padStart(2, '0')}${offset}`;
 }
 
-function organizerKey(event: VEvent, feedUrl: string): { key: string; name?: string } {
+function organizerIdentity(event: VEvent, feedUrl: string): { organizerKeys: string[]; name?: string } {
   const org = event.ORGANIZER;
-  if (org) {
-    const mail = /mailto:([^;]+)/i.exec(org)?.[1] ?? org;
-    const cn = /CN=([^;:]+)/i.exec(event.ORGANIZER_PARAMS ?? '')?.[1];
-    return {
-      key: mail.trim().toLowerCase(),
-      name: cn ? unescapeIcs(cn.replace(/^"|"$/g, '')) : undefined,
-    };
-  }
+  const mail = org ? (/mailto:([^;]+)/i.exec(org)?.[1] ?? org) : undefined;
+  const cn = /CN=([^;:]+)/i.exec(event.ORGANIZER_PARAMS ?? '')?.[1];
+  const name = cn ? unescapeIcs(cn.replace(/^"|"$/g, '')) : undefined;
+  let fallback = 'ics-feed';
   try {
-    return { key: new URL(feedUrl).hostname, name: new URL(feedUrl).hostname };
+    fallback = new URL(feedUrl).hostname;
   } catch {
-    return { key: 'ics-feed', name: 'ICS feed' };
+    /* keep ics-feed */
   }
+  return {
+    organizerKeys: organizerKeys({
+      emails: [mail],
+      names: [name],
+      fallback,
+    }),
+    ...(name ? { name } : {}),
+  };
 }
 
 function mapEvent(event: VEvent, feedUrl: string): IncomingEvent | null {
@@ -182,7 +187,7 @@ function mapEvent(event: VEvent, feedUrl: string): IncomingEvent | null {
       /* keep feedUrl */
     }
   }
-  const { key, name } = organizerKey(event, feedUrl);
+  const { organizerKeys: keys, name } = organizerIdentity(event, feedUrl);
   const description = event.DESCRIPTION ? unescapeIcs(event.DESCRIPTION).trim() : undefined;
   const venueName = event.LOCATION ? unescapeIcs(event.LOCATION).trim() : undefined;
   return {
@@ -196,7 +201,7 @@ function mapEvent(event: VEvent, feedUrl: string): IncomingEvent | null {
     venueName: venueName || undefined,
     sourceUrl,
     ...(sourceUrl !== feedUrl ? { links: [{ type: 'info' as const, url: sourceUrl }] } : {}),
-    organizerKey: key,
+    organizerKeys: keys,
     organizerName: name,
     categoryHints: [],
     tags: [],

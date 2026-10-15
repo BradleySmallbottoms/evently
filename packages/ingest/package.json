@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@local-events/contracts": "workspace:*",
+    "@local-events/domain": "workspace:*",
     "@local-events/geo": "workspace:*",
     "zod": "^4.6.5"
   },

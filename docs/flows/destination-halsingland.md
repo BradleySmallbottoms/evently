@@ -22,11 +22,11 @@ occasion. Times use the Europe/Stockholm offset.
 
 `priceAndCurrency` such as `200 SEK` is stored in öre. “Fritt inträde” sets the price to 0 and
 `meta.freeEntry`. “Åldersgräns N” sets `meta.ageLimit`. Ticket and info links come from the
-product text and `externalBookingUrl`. A lookalike within 500 m on the same Stockholm date is
+product text and `externalBookingUrl`. A lookalike within 200 m and 30 minutes is
 saved as its own `in_review` event, and `meta.possibleDuplicate` points at the existing one.
-The organizer key is an email when the text has one, otherwise the host of an info link,
-otherwise the arena name. A publisher is reused only when this source already stored that same
-organizer key.
+The organizer keys are the same for every worker: email, then an info-link website, then the
+arena name. The source slug is used only when none of those exist. Lookup tries that list on
+this source and keeps the first publisher it finds.
 
 Those requests go through `curl` over HTTP/1.1 with `PostmanRuntime/2.11.0`. Node's own HTTPS
 client is answered with a Cloudflare challenge. The seeded row stays disabled until a manual
@@ -44,8 +44,8 @@ sequenceDiagram
   loop each product, save before the next
     Runner->>Site: GET /sv/product/productcontent
     Runner->>Site: GET /sv/se-gora/todobookingcontrolcontext
-    Note over Runner: one event per occasion<br/>daily opening hours over 21 days become one span<br/>coordinates are longitude, latitude<br/>no coordinate stays without a point<br/>Europe/Stockholm offset<br/>a lookalike within 500 m on the same date is flagged in meta
-    Runner->>DB: reuse publisher_aliases for this organizer key, or insert a temporary publisher
+    Note over Runner: one event per occasion<br/>daily opening hours over 21 days become one span<br/>coordinates are longitude, latitude<br/>no coordinate stays without a point<br/>Europe/Stockholm offset<br/>a lookalike within 200 m and 30 minutes is flagged in meta
+    Runner->>DB: reuse the first matching organizer key, or insert a temporary publisher
     Runner->>DB: insert this event (status in_review, origin imported)<br/>ref_id, worker_id, external_refs
   end
   Runner->>DB: finish ingestion_runs

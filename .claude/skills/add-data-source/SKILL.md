@@ -13,7 +13,7 @@ resolution (`publisher_aliases`), dedupe, upsert and domain events are the pipel
 - Prefer, in order: official API → ICS feed → RSS/JSON feed → HTML scraping. Look for an
   "iCal/ICS", "RSS" or API link before writing a scraper.
 - Read the site's terms and `robots.txt`. If scraping isn't allowed, stop and tell the user.
-- Note how organizers are identified; that becomes `organizerKey` (stable per organizer).
+- Note how organizers are identified. Call `organizerKeys()` from `@local-events/domain` and put the result on `organizerKeys`. Do not pick a single key in the adapter.
 
 ## 2. Create the adapter
 

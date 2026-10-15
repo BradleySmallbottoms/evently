@@ -436,10 +436,10 @@ Flow: [docs/flows/event-coming.md](docs/flows/event-coming.md).
 1. EventBridge Scheduler starts one Fargate task per source on its cron, passing the source slug.
 2. The adapter fetches and maps items to `IncomingEvent`. Raw payloads are not written to S3 yet.
 3. `ingest` validates, geocodes, upserts source tags, copies http(s) links from the description onto the event, and resolves the publisher via `publisher_aliases`.
-   A first-seen organizer gets a temporary publisher, and its events wait in review.
+   Each adapter returns the same ordered organizer keys: a source id, then email, then an info-link website, then the organizer name. The source slug is used only when nothing else is known. Lookup tries that list on this source and keeps the first hit. A miss creates one temporary publisher and stores every key as an alias. A first-seen organizer's events wait in review.
 4. Dedupe: the same source and source id update the existing row via `external_refs`.
-   A different event within 500 m on the same Stockholm date is saved as a new `in_review`
-   event when the title, a specific link, or the source id matches. `meta.possibleDuplicate`
+   A different event within 200 m and 30 minutes is saved as a new `in_review`
+   event when the title, a specific link, or the source id matches. A Citybreak id matches with or without the `cbis:` prefix. `meta.possibleDuplicate`
    records the existing event. `ref_id` and `worker_id` record this import. An event with no
    point is not compared. Every worker may attach existing tags with the local Ollama model,
    unless `OLLAMA_DISABLED=1`.

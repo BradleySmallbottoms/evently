@@ -12,7 +12,7 @@
       "imageUrl": "https://images.citybreakcdn.com/image.aspx?ImageId=15326619",
       "imageUrls": [],
       "priceText": "200 SEK",
-      "organizerKey": "kulturhuset bollnäs",
+      "organizerKeys": ["kulturhuset bollnäs"],
       "organizerName": "Kulturhuset Bollnäs",
       "links": [],
       "occasions": [

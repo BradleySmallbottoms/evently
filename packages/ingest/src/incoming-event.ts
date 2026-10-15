@@ -36,8 +36,11 @@ export const IncomingEvent = z.object({
     .max(10)
     .optional(),
   sourceUrl: z.url(),
-  /** Stable key for the organizer within this source; resolved via publisher_aliases. */
-  organizerKey: z.string().min(1),
+  /**
+   * Organizer keys for this source, strongest first.
+   * Lookup tries each one against publisher_aliases and keeps the first hit.
+   */
+  organizerKeys: z.array(z.string().trim().min(1).max(200)).min(1).max(8),
   organizerName: z.string().optional(),
   categoryHints: z.array(z.string()).default([]),
   /** Source tags to upsert and attach. Visit Söderhamn uses `visit-soderhamn:{citybreakId}`. */

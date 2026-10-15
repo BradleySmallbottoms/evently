@@ -126,7 +126,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Runner with an example fixture adapter
 - [x] Persist: publisher resolution via `publisher_aliases`, dedupe, upsert, `external_refs`,
       `ingestion_runs`. Published imports enqueue domain events; review imports stay `in_review`.
-      A lookalike within 500 m on the same Stockholm date is a new `in_review` event flagged in
+      A lookalike within 200 m and 30 minutes is a new `in_review` event flagged in
       `meta.possibleDuplicate`. Every worker can tag with the local Ollama model.
 - [x] Raw ingestion payloads to S3 (`raw/<slug>/<runId>`; no-op when `RAW_INGESTION_BUCKET` unset)
 - [x] Fargate task definition + EventBridge Scheduler schedules in CDK

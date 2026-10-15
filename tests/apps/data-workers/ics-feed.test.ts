@@ -40,7 +40,7 @@ describe('ics-feed adapter', () => {
       externalId: 'fixture-concert-2026-07-01@example.com',
       title: 'Sommarkonsert i Söderhamn',
       venueName: 'Söderhamns hamn',
-      organizerKey: 'kultur@example.com',
+      organizerKeys: ['kultur@example.com', 'kultur söderhamn'],
       links: [{ type: 'info', url: 'https://example.com/events/sommarkonsert' }],
     });
     expect(mapped[1]?.venueName).toBe('Torget, Söderhamn');

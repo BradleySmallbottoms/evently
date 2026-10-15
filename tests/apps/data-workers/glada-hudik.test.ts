@@ -114,7 +114,11 @@ describe('glada-hudik map', () => {
     expect(event.currency).toBe('SEK');
     expect(event.venueName).toBe('Kulturhuset Glada Hudik');
     expect(event.location).toEqual({ lat: 61.7279731, lng: 17.1077112 });
-    expect(event.organizerKey).toBe('info@skenecomedy.se');
+    expect(event.organizerKeys).toEqual([
+      'info@skenecomedy.se',
+      'fredrikanderssonproductions.com',
+      'skene comedy',
+    ]);
     expect(event.sourceUrl).toBe('https://www.gladahudik.se/sv/fredrik-andersson-too-soon');
     expect(event.links?.[0]).toMatchObject({ type: 'info' });
     expect(event.links?.[1]).toMatchObject({ type: 'tickets' });

@@ -6,7 +6,7 @@ const raw = {
   title: 'Jazzkväll på Gamla Teatern',
   startsAt: '2026-11-07T19:00:00+01:00',
   sourceUrl: 'https://example.org/events/abc-1',
-  organizerKey: 'gamla-teatern',
+  organizerKeys: ['gamla-teatern'],
 };
 
 describe('IncomingEvent', () => {
@@ -31,16 +31,32 @@ describe('dedupe', () => {
     ).toBeGreaterThan(0.5);
     expect(
       isLikelySameEvent(
-        { title: 'Jazzkväll på Gamla Teatern', startsAt: new Date('2026-11-07T18:00:00Z') },
-        { title: 'Jazzkväll - Gamla Teatern', startsAt: new Date('2026-11-07T18:15:00Z') },
+        {
+          title: 'Jazzkväll på Gamla Teatern',
+          startsAt: new Date('2026-11-07T18:00:00Z'),
+          location: { lat: 61.3, lng: 17.07 },
+        },
+        {
+          title: 'Jazzkväll - Gamla Teatern',
+          startsAt: new Date('2026-11-07T18:15:00Z'),
+          location: { lat: 61.301, lng: 17.071 },
+        },
       ),
     ).toBe(true);
   });
   it('does not match different days', () => {
     expect(
       isLikelySameEvent(
-        { title: 'Jazzkväll', startsAt: new Date('2026-11-07T18:00:00Z') },
-        { title: 'Jazzkväll', startsAt: new Date('2026-11-14T18:00:00Z') },
+        {
+          title: 'Jazzkväll',
+          startsAt: new Date('2026-11-07T18:00:00Z'),
+          location: { lat: 61.3, lng: 17.07 },
+        },
+        {
+          title: 'Jazzkväll',
+          startsAt: new Date('2026-11-14T18:00:00Z'),
+          location: { lat: 61.3, lng: 17.07 },
+        },
       ),
     ).toBe(false);
   });

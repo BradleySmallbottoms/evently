@@ -75,7 +75,11 @@ describe('visit-soderhamn map', () => {
       { type: 'tickets', url: 'https://www.nortic.se/ticket/event/82243' },
       { type: 'info', url: 'https://brobergsoderhamn.se/' },
     ]);
-    expect(bandy.organizerKey).toBe('kansli@brobergsoderhamn.se');
+    expect(bandy.organizerKeys).toEqual([
+      'kansli@brobergsoderhamn.se',
+      'brobergsoderhamn.se',
+      'kansliet, broberg/söderhamn bandy',
+    ]);
     expect(bandy.organizerName).toBe('Kansliet, Broberg/Söderhamn Bandy');
     expect(bandy.categoryHints).toEqual(['Idrott & Tävlingar', 'Bandy & Innebandy', 'Tävlingar']);
     expect(bandy.tags).toEqual([
@@ -180,7 +184,7 @@ describe('visit-soderhamn map', () => {
     expect(mapped).toEqual([]);
   });
 
-  it('falls back to the source name when the product has no contact', () => {
+  it('uses the website when the product has no contact, and the source name when that is missing too', () => {
     const product: VisitProduct = {
       ...raw.products[0]!,
       Information: raw.products[0]!.Information?.filter(
@@ -188,8 +192,19 @@ describe('visit-soderhamn map', () => {
       ),
     };
     const [event] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
-    expect(event?.organizerKey).toBe('visit-soderhamn');
+    expect(event?.organizerKeys).toEqual(['brobergsoderhamn.se']);
     expect(event?.organizerName).toBeUndefined();
+
+    const bare: VisitProduct = {
+      ...product,
+      Information: product.Information?.map((item) =>
+        item.Id === 110 || item.Id === 125
+          ? { ...item, Value: 'https://www.visitsoderhamn.se/evenemang' }
+          : item,
+      ),
+    };
+    const [fallback] = visitSoderhamn.map({ categories: [], products: [bare] }, mapCtx);
+    expect(fallback?.organizerKeys).toEqual(['visit-soderhamn']);
   });
 
   it('uses the arena position ahead of the product position', () => {

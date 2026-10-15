@@ -1,5 +1,5 @@
 import type { EventMeta } from '@local-events/contracts';
-import { mergeImportedLinks, priceAmountFromText } from '@local-events/domain';
+import { mergeImportedLinks, organizerKeys, priceAmountFromText } from '@local-events/domain';
 import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
 import { crawlLinkImages } from './page-images';
 
@@ -538,7 +538,13 @@ function mapProduct(
       ...(location ? { location } : {}),
       sourceUrl,
       ...(links.length > 0 ? { links } : {}),
-      organizerKey: email?.toLowerCase() ?? contact?.toLowerCase() ?? 'visit-soderhamn',
+      organizerKeys: organizerKeys({
+        emails: [email],
+        infoUrls: links.filter((link) => link.type === 'info').map((link) => link.url),
+        names: [contact],
+        fallback: 'visit-soderhamn',
+        skipHosts: ['visitsoderhamn.se'],
+      }),
       ...(contact || email ? { organizerName: contact ?? email } : {}),
       categoryHints: tags.map((tag) => tag.name),
       tags,

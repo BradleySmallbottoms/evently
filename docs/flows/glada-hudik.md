@@ -37,9 +37,9 @@ sequenceDiagram
   end
   loop each event, save before the next page
     Runner->>Site: GET /sv/{event}
-    Note over Runner: one event per occasion<br/>daily opening hours over 21 days become one span<br/>map data-lat / data-lng, else pin, contact, Hudiksvall centre<br/>Europe/Stockholm offset<br/>organizer key = contact email<br/>Bokningslänk → tickets<br/>Facebook and other content links → info
+    Note over Runner: one event per occasion<br/>daily opening hours over 21 days become one span<br/>map data-lat / data-lng, else pin, contact, Hudiksvall centre<br/>Europe/Stockholm offset<br/>organizer keys = email, website, name<br/>Bokningslänk → tickets<br/>Facebook and other content links → info
     Runner->>Runner: Ollama on localhost<br/>only when the event has no tags yet
-    Runner->>DB: insert temporary publisher + publisher_aliases<br/>when the organizer key is new
+    Runner->>DB: insert temporary publisher + publisher_aliases<br/>when none of the organizer keys match
     Runner->>DB: insert this event (status in_review, origin imported)<br/>external_refs
   end
   Runner->>DB: finish ingestion_runs

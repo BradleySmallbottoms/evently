@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
+  duplicateIds,
+  duplicateIdsMatch,
+  duplicateLinkKeys,
   DUPLICATE_RADIUS_M,
   duplicateSignal,
   stockholmCalendarDate,
 } from '../../../packages/domain/src/duplicates';
 
 describe('duplicateSignal', () => {
-  it('requires the same date and a point within 500 m', () => {
+  it('requires a start within 30 minutes and a point within 200 m', () => {
     expect(
       duplicateSignal({
         distanceM: DUPLICATE_RADIUS_M,
-        sameDate: true,
+        withinWindow: true,
         titleSimilarity: 1,
         sharedLink: false,
         sameId: false,
@@ -19,7 +22,7 @@ describe('duplicateSignal', () => {
     expect(
       duplicateSignal({
         distanceM: DUPLICATE_RADIUS_M + 1,
-        sameDate: true,
+        withinWindow: true,
         titleSimilarity: 1,
         sharedLink: true,
         sameId: true,
@@ -28,7 +31,7 @@ describe('duplicateSignal', () => {
     expect(
       duplicateSignal({
         distanceM: 10,
-        sameDate: false,
+        withinWindow: false,
         titleSimilarity: 1,
         sharedLink: true,
         sameId: true,
@@ -40,7 +43,7 @@ describe('duplicateSignal', () => {
     expect(
       duplicateSignal({
         distanceM: 20,
-        sameDate: true,
+        withinWindow: true,
         titleSimilarity: 0.2,
         sharedLink: false,
         sameId: true,
@@ -49,12 +52,35 @@ describe('duplicateSignal', () => {
     expect(
       duplicateSignal({
         distanceM: 20,
-        sameDate: true,
+        withinWindow: true,
         titleSimilarity: 0.9,
         sharedLink: true,
         sameId: false,
       }),
     ).toBe('link');
+  });
+});
+
+describe('duplicate keys', () => {
+  it('treats a Citybreak product id as the same id with or without the cbis prefix', () => {
+    expect(duplicateIds(['cbis:2823720:2026-10-15T19:00:00:2026-10-15T20:20:00'])).toEqual([
+      'cbis:2823720:2026-10-15T19:00:00:2026-10-15T20:20:00',
+      '2823720',
+    ]);
+    expect(
+      duplicateIdsMatch(
+        ['cbis:2823720:2026-10-15T19:00:00:2026-10-15T20:20:00'],
+        ['2823720:2026-10-15T19:00:00:2026-10-15T20:20:00'],
+      ),
+    ).toBe(true);
+    expect(duplicateIdsMatch(['fixture-concert@example.com'], ['2823720'])).toBe(false);
+  });
+
+  it('keeps a specific event url and drops a shop root', () => {
+    expect(duplicateLinkKeys(['https://www.tickster.com/sv/event/example/'])).toEqual([
+      'https://www.tickster.com/sv/event/example',
+    ]);
+    expect(duplicateLinkKeys(['https://brobergsoderhamn.ticketco.events/se/sv'])).toEqual([]);
   });
 });
 

@@ -1,11 +1,12 @@
 import {
-  eventUrlKey,
+  duplicateIdsMatch,
+  duplicateLinksMatch,
   importPlanToSchedule,
-  isSpecificTicketUrl,
   mergeImportedLinks,
+  preferDuplicate,
   shouldEnqueueNotifications,
   statusOnPublish,
-  stockholmCalendarDate,
+  withinDuplicateWindow,
   duplicateSignal,
   type DuplicateSignal,
   type EventStatus,
@@ -220,8 +221,8 @@ async function persistEachEvent(
  * Review-trust and temporary publishers stay `in_review` and are not announced.
  * A verified publisher with a plan still gets reminders: approved when the event
  * is published, pending while it is in review.
- * An unchanged content hash is skipped. A lookalike within 500 m on the same
- * Stockholm date is saved as its own in_review event and flagged in meta.
+ * An unchanged content hash is skipped. A lookalike within 200 m and 30 minutes
+ * is saved as its own in_review event and flagged in meta.
  */
 export async function persistSource(
   store: IngestStore,
@@ -387,16 +388,6 @@ async function scheduleImportedNotifications(
   });
 }
 
-function specificUrlKeys(urls: (string | null | undefined)[]): Set<string> {
-  const keys = new Set<string>();
-  for (const url of urls) {
-    if (!url || !isSpecificTicketUrl(url)) continue;
-    const key = eventUrlKey(url);
-    if (key) keys.add(key);
-  }
-  return keys;
-}
-
 async function possibleDuplicate(
   store: IngestStore,
   event: IncomingEvent,
@@ -404,33 +395,28 @@ async function possibleDuplicate(
   location: { lat: number; lng: number },
   workerId: string,
 ) {
-  const incomingDay = stockholmCalendarDate(startsAt);
-  const incomingKeys = specificUrlKeys([
-    event.sourceUrl,
-    ...(event.links ?? []).map((link) => link.url),
-  ]);
+  const incomingIds = [event.externalId];
+  const incomingUrls = [event.sourceUrl, ...(event.links ?? []).map((link) => link.url)];
   let best: { candidate: DuplicateCandidate; signal: DuplicateSignal } | null = null;
   for (const candidate of await store.duplicateCandidates({ location, startsAt })) {
     const sameRow =
       candidate.workerId === workerId &&
       (candidate.refId === event.externalId || candidate.externalIds.includes(event.externalId));
     if (sameRow) continue;
-    const storedKeys = specificUrlKeys([candidate.sourceUrl, ...candidate.links]);
     const signal = duplicateSignal({
       distanceM: candidate.distanceM,
-      sameDate: stockholmCalendarDate(candidate.startsAt) === incomingDay,
+      withinWindow: withinDuplicateWindow(startsAt, candidate.startsAt),
       titleSimilarity: titleSimilarity(event.title, candidate.title),
-      sharedLink: [...incomingKeys].some((key) => storedKeys.has(key)),
-      sameId:
-        candidate.refId === event.externalId || candidate.externalIds.includes(event.externalId),
+      sharedLink: duplicateLinksMatch(incomingUrls, [candidate.sourceUrl, ...candidate.links]),
+      sameId: duplicateIdsMatch(incomingIds, [candidate.refId, ...candidate.externalIds]),
     });
     if (!signal) continue;
-    const rank = signal === 'id' ? 0 : signal === 'link' ? 1 : 2;
-    const bestRank = best ? (best.signal === 'id' ? 0 : best.signal === 'link' ? 1 : 2) : 3;
     if (
       !best ||
-      rank < bestRank ||
-      (rank === bestRank && candidate.distanceM < best.candidate.distanceM)
+      preferDuplicate(
+        { signal: best.signal, distanceM: best.candidate.distanceM },
+        { signal, distanceM: candidate.distanceM },
+      )
     ) {
       best = { candidate, signal };
     }
@@ -466,13 +452,15 @@ async function saveOne(
     links: mergeImportedLinks(event.links, event.description),
   };
 
-  let publisher = await store.findPublisher(source.id, event.organizerKey);
+  let publisher = await store.findPublisher(source.id, event.organizerKeys);
   if (!publisher) {
     publisher = await store.createTemporaryPublisher({
       sourceId: source.id,
-      organizerKey: event.organizerKey,
-      name: event.organizerName?.trim() || event.organizerKey,
+      organizerKeys: event.organizerKeys,
+      name: event.organizerName?.trim() || event.organizerKeys[0]!,
     });
+  } else {
+    await store.rememberOrganizerKeys(source.id, publisher.publisherId, event.organizerKeys);
   }
   const write = {
     sourceId: source.id,

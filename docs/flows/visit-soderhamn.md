@@ -32,13 +32,13 @@ sequenceDiagram
   loop POST /v1/api/product page until TotalResults
     Runner->>CBIS: Categories [30172], Page, PageSize 20
   end
-  Note over Runner: one IncomingEvent per occasion<br/>Europe/Stockholm offset<br/>arena position, else product position<br/>organizer key = contact email<br/>every Bokningslänk → tickets<br/>every event link and website → info<br/>description URLs → event links<br/>Price From, then Prisinformation, then “N kr” or gratis<br/>age limit and true accessibility flags → events.meta
+  Note over Runner: one IncomingEvent per occasion<br/>Europe/Stockholm offset<br/>arena position, else product position<br/>organizer keys = email, website, name<br/>every Bokningslänk → tickets<br/>every event link and website → info<br/>description URLs → event links<br/>Price From, then Prisinformation, then “N kr” or gratis<br/>age limit and true accessibility flags → events.meta
   loop each event link, https only
     Runner->>Runner: GET the page<br/>og:image, then img
   end
   Note over Runner: hero stays the Citybreak image<br/>if that image is missing, first og:image, then first img<br/>further crawled images are gallery-1, gallery-2, …
   Runner->>Store: PUT raw/visit-soderhamn/{runId}<br/>when RAW_INGESTION_BUCKET is set
-  Runner->>DB: insert temporary publisher + publisher_aliases<br/>when the organizer key is new
+  Runner->>DB: insert temporary publisher + publisher_aliases<br/>when none of the organizer keys match
   Runner->>DB: upsert tags from categories under Evenemang<br/>insert events (status in_review, origin imported)<br/>event_tags, external_refs
   Runner->>CBIS: GET the product main image, or a crawled image when Citybreak has none
   Runner->>Store: PUT events/{eventId}/main and events/{eventId}/gallery-N

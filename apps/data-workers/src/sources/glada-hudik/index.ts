@@ -1,4 +1,4 @@
-import { parseLinksFromText, priceAmountFromText } from '@local-events/domain';
+import { parseLinksFromText, priceAmountFromText, organizerKeys } from '@local-events/domain';
 import { defineAdapter, type IncomingEvent } from '@local-events/ingest';
 import { load } from 'cheerio';
 import { createLocationLookupState, geocodeDelayMs, resolveGladaLocation } from './location';
@@ -484,7 +484,13 @@ function mapProduct(product: GladaProduct, origin: string, now: Date): IncomingE
     ...(onlineUrl ? { onlineUrl } : {}),
     sourceUrl,
     ...(links.length > 0 ? { links } : {}),
-    organizerKey: product.organizerEmail ?? product.organizerName?.toLowerCase() ?? 'glada-hudik',
+    organizerKeys: organizerKeys({
+      emails: [product.organizerEmail],
+      infoUrls: links.filter((link) => link.type === 'info').map((link) => link.url),
+      names: [product.organizerName],
+      fallback: 'glada-hudik',
+      skipHosts: ['gladahudik.se'],
+    }),
     ...(product.organizerName ? { organizerName: product.organizerName } : {}),
     ...(product.imageUrl ? { imageUrl: product.imageUrl } : {}),
   };

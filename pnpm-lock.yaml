@@ -829,6 +829,9 @@ importers:
       '@local-events/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@local-events/domain':
+        specifier: workspace:*
+        version: link:../domain
       '@local-events/geo':
         specifier: workspace:*
         version: link:../geo

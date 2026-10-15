@@ -3,17 +3,15 @@ import { readEventMeta } from '@local-events/contracts';
 import { insertApprovedEventReminders, pointEwkt, schema } from '@local-events/db';
 import {
   DUPLICATE_RADIUS_M,
+  DUPLICATE_WINDOW_MINUTES,
   IMPORT_NOTIFICATION_AUDIENCE,
   importNotificationMessages,
   pushStatusForEvent,
   slugifyPublisherName,
-  stockholmDayRange,
   tagSlug,
 } from '@local-events/domain';
-import { and, eq, gte, inArray, isNotNull, lt, lte, notInArray, sql } from 'drizzle-orm';
-import type { ImportedEventWrite, IngestStore, NearbyEvent } from './store';
-
-const NEAR_MS = 30 * 60 * 1000;
+import { and, eq, gte, inArray, isNotNull, lte, notInArray, sql } from 'drizzle-orm';
+import type { ImportedEventWrite, IngestStore } from './store';
 
 function eventValues(input: ImportedEventWrite) {
   return {
@@ -130,9 +128,11 @@ export function createDbIngestStore(db: Db): IngestStore {
         })
         .where(eq(ingestionRuns.id, runId));
     },
-    async findPublisher(sourceId, organizerKey) {
-      const [row] = await db
+    async findPublisher(sourceId, organizerKeys) {
+      if (organizerKeys.length === 0) return null;
+      const rows = await db
         .select({
+          organizerKey: publisherAliases.externalOrganizerKey,
           publisherId: publisherAliases.publisherId,
           isTemporary: publishers.isTemporary,
           verified: publishers.verified,
@@ -143,11 +143,20 @@ export function createDbIngestStore(db: Db): IngestStore {
         .where(
           and(
             eq(publisherAliases.sourceId, sourceId),
-            eq(publisherAliases.externalOrganizerKey, organizerKey),
+            inArray(publisherAliases.externalOrganizerKey, organizerKeys),
           ),
-        )
-        .limit(1);
-      return row ?? null;
+        );
+      for (const key of organizerKeys) {
+        const row = rows.find((item) => item.organizerKey === key);
+        if (!row) continue;
+        return {
+          publisherId: row.publisherId,
+          isTemporary: row.isTemporary,
+          verified: row.verified,
+          importNotificationPlan: row.importNotificationPlan,
+        };
+      }
+      return null;
     },
     async createTemporaryPublisher(input) {
       const slug = await uniqueSlug(input.name);
@@ -164,11 +173,15 @@ export function createDbIngestStore(db: Db): IngestStore {
           })
           .returning({ id: publishers.id });
         if (!publisher) throw new Error('Failed to create temporary publisher');
-        await tx.insert(publisherAliases).values({
-          sourceId: input.sourceId,
-          externalOrganizerKey: input.organizerKey,
-          publisherId: publisher.id,
-        });
+        if (input.organizerKeys.length > 0) {
+          await tx.insert(publisherAliases).values(
+            input.organizerKeys.map((organizerKey) => ({
+              sourceId: input.sourceId,
+              externalOrganizerKey: organizerKey,
+              publisherId: publisher.id,
+            })),
+          );
+        }
         return {
           publisherId: publisher.id,
           isTemporary: true,
@@ -176,6 +189,28 @@ export function createDbIngestStore(db: Db): IngestStore {
           importNotificationPlan: null,
         };
       });
+    },
+    async rememberOrganizerKeys(sourceId, publisherId, organizerKeys) {
+      if (organizerKeys.length === 0) return;
+      const existing = await db
+        .select({ organizerKey: publisherAliases.externalOrganizerKey })
+        .from(publisherAliases)
+        .where(
+          and(
+            eq(publisherAliases.sourceId, sourceId),
+            inArray(publisherAliases.externalOrganizerKey, organizerKeys),
+          ),
+        );
+      const taken = new Set(existing.map((row) => row.organizerKey));
+      const fresh = organizerKeys.filter((key) => !taken.has(key));
+      if (fresh.length === 0) return;
+      await db.insert(publisherAliases).values(
+        fresh.map((organizerKey) => ({
+          sourceId,
+          externalOrganizerKey: organizerKey,
+          publisherId,
+        })),
+      );
     },
     async sourceOwnsEvent(sourceId, eventId) {
       const [row] = await db
@@ -218,29 +253,10 @@ export function createDbIngestStore(db: Db): IngestStore {
         .limit(1);
       return row ?? null;
     },
-    async candidatesNear(startsAt) {
-      const from = new Date(startsAt.getTime() - NEAR_MS);
-      const to = new Date(startsAt.getTime() + NEAR_MS);
-      const rows = await db
-        .select({
-          eventId: events.id,
-          title: events.title,
-          startsAt: events.startsAt,
-          lat: sql<number | null>`ST_Y(${events.location}::geometry)`,
-          lng: sql<number | null>`ST_X(${events.location}::geometry)`,
-        })
-        .from(events)
-        .where(and(gte(events.startsAt, from), lte(events.startsAt, to)))
-        .limit(100);
-      return rows.map((row): NearbyEvent => ({
-        eventId: row.eventId,
-        title: row.title,
-        startsAt: row.startsAt,
-        location: row.lat != null && row.lng != null ? { lat: row.lat, lng: row.lng } : undefined,
-      }));
-    },
     async duplicateCandidates(input) {
-      const range = stockholmDayRange(input.startsAt);
+      const windowMs = DUPLICATE_WINDOW_MINUTES * 60_000;
+      const from = new Date(input.startsAt.getTime() - windowMs);
+      const to = new Date(input.startsAt.getTime() + windowMs);
       const point = pointEwkt(input.location);
       const rows = await db
         .select({
@@ -259,8 +275,8 @@ export function createDbIngestStore(db: Db): IngestStore {
           and(
             isNotNull(events.location),
             sql`ST_DWithin(${events.location}, ST_GeogFromText(${point}), ${DUPLICATE_RADIUS_M})`,
-            gte(events.startsAt, range.start),
-            lt(events.startsAt, range.end),
+            gte(events.startsAt, from),
+            lte(events.startsAt, to),
             notInArray(events.status, ['cancelled', 'ended']),
           ),
         );
@@ -440,15 +456,6 @@ export function createDbIngestStore(db: Db): IngestStore {
               eq(externalRefs.externalId, input.externalId),
             ),
           );
-      });
-    },
-    async linkExisting(input) {
-      await db.insert(externalRefs).values({
-        sourceId: input.sourceId,
-        externalId: input.externalId,
-        eventId: input.eventId,
-        contentHash: input.contentHash,
-        lastSeenAt: new Date(),
       });
     },
     async touchRef(sourceId, externalId) {

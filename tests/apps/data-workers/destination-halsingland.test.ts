@@ -121,7 +121,7 @@ describe('destination-halsingland map', () => {
       title: 'Amaryllisutställningen på Mobackes 2026',
       freeEntry: true,
       priceText: undefined,
-      organizerKey: 'mobackes.se',
+      organizerKeys: ['mobackes.se'],
       organizerName: 'Mobackes Trädgårdscenter',
       occasions,
     };
@@ -184,7 +184,7 @@ describe('destination-halsingland fetch', () => {
     const [event] = destinationHalsingland.map(fetched);
     expect(event?.priceAmount).toBe(20_000);
     expect(event?.meta).toEqual({ ageLimit: 18 });
-    expect(event?.organizerKey).toBe('kulturhuset.example');
+    expect(event?.organizerKeys).toEqual(['kulturhuset.example', 'kulturhuset bollnäs']);
     expect(event?.links).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

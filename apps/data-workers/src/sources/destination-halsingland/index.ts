@@ -1,5 +1,5 @@
 import type { EventMeta } from '@local-events/contracts';
-import { parseLinksFromText, priceAmountFromText } from '@local-events/domain';
+import { organizerKeys, parseLinksFromText, priceAmountFromText } from '@local-events/domain';
 import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
 import { HTTP1_HEADER } from '../../http1';
 
@@ -23,22 +23,7 @@ const CALENDAR_USER_AGENT = 'PostmanRuntime/2.11.0';
 const MAX_LIST_PAGES = 40;
 const LONG_SPAN_DAYS = 21;
 const DENSE_SHARE = 0.6;
-const ORGANIZER_HOST_SKIP = new Set([
-  'visit.destinationhalsingland.se',
-  'destinationhalsingland.se',
-  'www.destinationhalsingland.se',
-  'facebook.com',
-  'www.facebook.com',
-  'instagram.com',
-  'www.instagram.com',
-  'm.facebook.com',
-  'youtube.com',
-  'www.youtube.com',
-  'youtu.be',
-  'linkedin.com',
-  'www.linkedin.com',
-  'images.citybreakcdn.com',
-]);
+const SOURCE_SKIP_HOSTS = ['visit.destinationhalsingland.se', 'destinationhalsingland.se'];
 
 export interface HalsinglandOccasion {
   date: string;
@@ -66,7 +51,7 @@ export interface HalsinglandProduct {
   priceText?: string;
   freeEntry?: boolean;
   ageLimit?: number;
-  organizerKey: string;
+  organizerKeys: string[];
   organizerName?: string;
   links: HalsinglandLink[];
   occasions: HalsinglandOccasion[];
@@ -362,24 +347,12 @@ function emailOf(content: ContentBody | undefined): string | undefined {
   return match?.[0].toLowerCase();
 }
 
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname.toLowerCase();
-  } catch {
-    return '';
-  }
-}
-
 function organizerOf(
   links: HalsinglandLink[],
   venue: string | undefined,
   town: string | undefined,
   email: string | undefined,
-): { organizerKey: string; organizerName?: string } {
-  const site = links
-    .filter((link) => link.type === 'info')
-    .map((link) => hostOf(link.url))
-    .find((host) => host && !ORGANIZER_HOST_SKIP.has(host));
+): { organizerKeys: string[]; organizerName?: string } {
   const arena = venue?.trim();
   const place =
     arena && town && arena.toLocaleLowerCase('sv').endsWith(`, ${town.toLocaleLowerCase('sv')}`)
@@ -387,8 +360,14 @@ function organizerOf(
       : arena;
   const organizerName = place || undefined;
   return {
-    organizerKey:
-      email || site || organizerName?.toLocaleLowerCase('sv') || 'destination-halsingland',
+    organizerKeys: organizerKeys({
+      emails: [email],
+      infoUrls: links.filter((link) => link.type === 'info').map((link) => link.url),
+      names: [organizerName],
+      town,
+      fallback: 'destination-halsingland',
+      skipHosts: SOURCE_SKIP_HOSTS,
+    }),
     ...(organizerName ? { organizerName } : {}),
   };
 }
@@ -606,7 +585,7 @@ function mapProduct(product: HalsinglandProduct): IncomingEvent[] {
     ...(onlineUrl ? { onlineUrl } : {}),
     sourceUrl: product.sourceUrl,
     ...(product.links.length > 0 ? { links: product.links } : {}),
-    organizerKey: product.organizerKey,
+    organizerKeys: product.organizerKeys,
     ...(product.organizerName ? { organizerName: product.organizerName } : {}),
     ...(product.imageUrl ? { imageUrl: product.imageUrl } : {}),
     ...(product.imageUrls ? { imageUrls: product.imageUrls } : {}),
@@ -667,7 +646,7 @@ async function fetchList(ctx: SourceRunContext, origin: URL): Promise<ListItem[]
   const delayMs = delayMsFromConfig(ctx.config);
   const hits: ListItem[] = [];
   let total = Number.POSITIVE_INFINITY;
-  for (let page = 26; page <= 27 && hits.length < total; page += 1) {
+  for (let page = 1; page <= MAX_LIST_PAGES && hits.length < total; page += 1) {
     const url = new URL(`/${language}/se-och-gora/products`, origin);
     url.searchParams.set('page', String(page));
     url.searchParams.set('pageSize', String(pageSize));
@@ -689,11 +668,9 @@ async function fetchList(ctx: SourceRunContext, origin: URL): Promise<ListItem[]
     for (const item of items) {
       if (!item || typeof item !== 'object') continue;
       const row = item as ListItem;
-      if(row.id != 'todo-2898749') continue;
       const id = productIdOf(row.id);
       if (!id || hits.some((existing) => productIdOf(existing.id) === id)) continue;
       hits.push(row);
-      break;
     }
     if (items.length < pageSize) break;
     if (page < MAX_LIST_PAGES && hits.length < total) await sleep(delayMs);

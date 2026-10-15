@@ -22,13 +22,6 @@ export interface ExternalRefHit {
   status: EventStatus;
 }
 
-export interface NearbyEvent {
-  eventId: string;
-  title: string;
-  startsAt: Date;
-  location?: { lat: number; lng: number };
-}
-
 export interface DuplicateCandidate {
   eventId: string;
   title: string;
@@ -69,19 +62,21 @@ export interface IngestStore {
       error: string | null;
     },
   ): Promise<void>;
-  findPublisher(sourceId: string, organizerKey: string): Promise<PublisherLink | null>;
+  /** First alias for this source whose key appears in `organizerKeys`, in that order. */
+  findPublisher(sourceId: string, organizerKeys: string[]): Promise<PublisherLink | null>;
   createTemporaryPublisher(input: {
     sourceId: string;
-    organizerKey: string;
+    organizerKeys: string[];
     name: string;
   }): Promise<PublisherLink>;
+  /** Store keys from this event on the publisher when this source does not already use them. */
+  rememberOrganizerKeys(sourceId: string, publisherId: string, organizerKeys: string[]): Promise<void>;
   findExternalRef(sourceId: string, externalId: string): Promise<ExternalRefHit | null>;
   /** True when an admin deleted this source id from review, so a later import must skip it. */
   isImportSuppressed(sourceId: string, externalId: string): Promise<boolean>;
   /** True when this source's publisher alias owns the event, so a re-import may update it. */
   sourceOwnsEvent(sourceId: string, eventId: string): Promise<boolean>;
-  candidatesNear(startsAt: Date): Promise<NearbyEvent[]>;
-  /** Live events within 500 m on the same Stockholm calendar date. */
+  /** Live events within 200 m whose start is within 30 minutes. */
   duplicateCandidates(input: {
     location: { lat: number; lng: number };
     startsAt: Date;
@@ -104,12 +99,6 @@ export interface IngestStore {
     planId: MarketingPushPlanId;
     /** Event status after this import. Published rows are approved; others stay pending. */
     status: EventStatus;
-  }): Promise<void>;
-  linkExisting(input: {
-    sourceId: string;
-    externalId: string;
-    eventId: string;
-    contentHash: string;
   }): Promise<void>;
   touchRef(sourceId: string, externalId: string): Promise<void>;
   /** Record a new hash on an existing ref without changing which event it points at. */
