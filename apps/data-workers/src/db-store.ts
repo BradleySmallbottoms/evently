@@ -2,15 +2,19 @@ import type { Db } from '@local-events/db';
 import { readEventMeta } from '@local-events/contracts';
 import { insertApprovedEventReminders, pointEwkt, schema } from '@local-events/db';
 import {
+  choosePublisher,
   DUPLICATE_RADIUS_M,
   DUPLICATE_WINDOW_MINUTES,
   IMPORT_NOTIFICATION_AUDIENCE,
   importNotificationMessages,
+  PUBLISHER_NAME_RADIUS_M,
   pushStatusForEvent,
+  sharedOrganizerKeyKind,
   slugifyPublisherName,
   tagSlug,
+  type PublisherCandidate,
 } from '@local-events/domain';
-import { and, eq, gte, inArray, isNotNull, lte, notInArray, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, lte, notInArray, or, sql } from 'drizzle-orm';
 import type { ImportedEventWrite, IngestStore } from './store';
 
 function eventValues(input: ImportedEventWrite) {
@@ -128,35 +132,106 @@ export function createDbIngestStore(db: Db): IngestStore {
         })
         .where(eq(ingestionRuns.id, runId));
     },
-    async findPublisher(sourceId, organizerKeys) {
+    async findPublisher(sourceId, organizerKeys, near) {
       if (organizerKeys.length === 0) return null;
-      const rows = await db
+      const localSlugs = near?.localSlugs ?? [];
+      const nameKeys = organizerKeys.filter(
+        (key) => sharedOrganizerKeyKind(key, localSlugs) === 'name',
+      );
+      const slugKeys = [
+        ...new Set(nameKeys.flatMap((key) => [key, slugifyPublisherName(key)])),
+      ];
+      const aliasRows = await db
         .select({
           organizerKey: publisherAliases.externalOrganizerKey,
+          sourceId: publisherAliases.sourceId,
           publisherId: publisherAliases.publisherId,
           isTemporary: publishers.isTemporary,
           verified: publishers.verified,
           importNotificationPlan: publishers.importNotificationPlan,
+          createdAt: publishers.createdAt,
         })
         .from(publisherAliases)
         .innerJoin(publishers, eq(publishers.id, publisherAliases.publisherId))
-        .where(
-          and(
-            eq(publisherAliases.sourceId, sourceId),
-            inArray(publisherAliases.externalOrganizerKey, organizerKeys),
-          ),
-        );
-      for (const key of organizerKeys) {
-        const row = rows.find((item) => item.organizerKey === key);
-        if (!row) continue;
-        return {
-          publisherId: row.publisherId,
-          isTemporary: row.isTemporary,
-          verified: row.verified,
-          importNotificationPlan: row.importNotificationPlan,
-        };
+        .where(inArray(publisherAliases.externalOrganizerKey, organizerKeys));
+      const namedRows =
+        nameKeys.length === 0
+          ? []
+          : await db
+              .select({
+                publisherId: publishers.id,
+                name: publishers.name,
+                slug: publishers.slug,
+                isTemporary: publishers.isTemporary,
+                verified: publishers.verified,
+                importNotificationPlan: publishers.importNotificationPlan,
+                createdAt: publishers.createdAt,
+              })
+              .from(publishers)
+              .where(
+                or(
+                  inArray(sql`lower(${publishers.name})`, nameKeys),
+                  inArray(publishers.slug, slugKeys),
+                ),
+              );
+      const nearIds = new Set<string>();
+      if (near?.location) {
+        const ids = [
+          ...new Set([
+            ...aliasRows.map((row) => row.publisherId),
+            ...namedRows.map((row) => row.publisherId),
+          ]),
+        ];
+        if (ids.length > 0) {
+          const point = pointEwkt(near.location);
+          const nearby = await db
+            .select({ publisherId: events.publisherId })
+            .from(events)
+            .where(
+              and(
+                inArray(events.publisherId, ids),
+                isNotNull(events.location),
+                notInArray(events.status, ['cancelled', 'ended']),
+                sql`ST_DWithin(${events.location}, ST_GeogFromText(${point}), ${PUBLISHER_NAME_RADIUS_M})`,
+              ),
+            );
+          for (const row of nearby) nearIds.add(row.publisherId);
+        }
       }
-      return null;
+      const candidates: PublisherCandidate[] = aliasRows.map((row) => ({
+        publisherId: row.publisherId,
+        sourceId: row.sourceId,
+        key: row.organizerKey,
+        verified: row.verified,
+        createdAt: row.createdAt.getTime(),
+        near: nearIds.has(row.publisherId),
+      }));
+      for (const publisher of namedRows) {
+        const nameKey = nameKeys.find(
+          (key) =>
+            publisher.name.toLocaleLowerCase('sv') === key ||
+            publisher.slug === key ||
+            publisher.slug === slugifyPublisherName(key),
+        );
+        if (!nameKey) continue;
+        candidates.push({
+          publisherId: publisher.publisherId,
+          sourceId: null,
+          key: nameKey,
+          verified: publisher.verified,
+          createdAt: publisher.createdAt.getTime(),
+          near: nearIds.has(publisher.publisherId),
+        });
+      }
+      const chosen = choosePublisher(sourceId, organizerKeys, localSlugs, candidates);
+      const match = [...aliasRows, ...namedRows].find((row) => row.publisherId === chosen?.publisherId);
+      if (!match) return null;
+      return {
+        publisherId: match.publisherId,
+        isTemporary: match.isTemporary,
+        verified: match.verified,
+        importNotificationPlan: match.importNotificationPlan,
+      };
     },
     async createTemporaryPublisher(input) {
       const slug = await uniqueSlug(input.name);

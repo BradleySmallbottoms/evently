@@ -1,4 +1,9 @@
-import { parseLinksFromText, priceAmountFromText, organizerKeys } from '@local-events/domain';
+import {
+  parseLinksFromText,
+  priceAmountFromText,
+  organizerKeys,
+  stockholmWallTime,
+} from '@local-events/domain';
 import { defineAdapter, type IncomingEvent } from '@local-events/ingest';
 import { load } from 'cheerio';
 import { createLocationLookupState, geocodeDelayMs, resolveGladaLocation } from './location';
@@ -372,48 +377,9 @@ export function assignOccasionYears(occasions: GladaOccasion[], now: Date): numb
   return years;
 }
 
-function stockholmOffsetMinutes(instant: Date): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Europe/Stockholm',
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(instant);
-  const pick = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(parts.find((part) => part.type === type)?.value);
-  let day = pick('day');
-  let hour = pick('hour');
-  if (hour === 24) {
-    hour = 0;
-    day += 1;
-  }
-  const asUtc = Date.UTC(
-    pick('year'),
-    pick('month') - 1,
-    day,
-    hour,
-    pick('minute'),
-    pick('second'),
-  );
-  return Math.round((asUtc - instant.getTime()) / 60_000);
-}
-
 function withStockholmOffset(year: number, month: number, day: number, time: string): string {
-  const [hour, minute] = time.split(':');
-  const wallUtc = Date.UTC(year, month - 1, day, Number(hour), Number(minute), 0);
-  let offset = stockholmOffsetMinutes(new Date(wallUtc));
-  offset = stockholmOffsetMinutes(new Date(wallUtc - offset * 60_000));
-  const sign = offset >= 0 ? '+' : '-';
-  const abs = Math.abs(offset);
-  const offsetHour = String(Math.floor(abs / 60)).padStart(2, '0');
-  const offsetMinute = String(abs % 60).padStart(2, '0');
-  const monthText = String(month).padStart(2, '0');
-  const dayText = String(day).padStart(2, '0');
-  return `${year}-${monthText}-${dayText}T${hour!.padStart(2, '0')}:${minute}:00${sign}${offsetHour}:${offsetMinute}`;
+  const [hour, minute] = time.split(':').map(Number);
+  return stockholmWallTime({ year, month, day, hour: hour!, minute: minute! });
 }
 
 function resolveOccasions(product: GladaProduct, now: Date): ResolvedOccasion[] {

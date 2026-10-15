@@ -1,6 +1,7 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
 import Dialog from '@mui/material/Dialog';
@@ -9,6 +10,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
+import SvgIcon from '@mui/material/SvgIcon';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -16,12 +18,20 @@ import TableHead from '@mui/material/TableHead';
 import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
+
+type ReviewWarning = {
+  code: 'possible_duplicate';
+  eventId: string;
+  title: string;
+  matchedOn: 'title' | 'link' | 'id';
+};
 
 type ReviewItem = {
   id: string;
@@ -31,6 +41,7 @@ type ReviewItem = {
   startsAt: string;
   venueName: string | null;
   sourceUrl: string | null;
+  warnings: ReviewWarning[];
 };
 
 type ReviewPage = {
@@ -42,6 +53,34 @@ type ReviewPage = {
 type BulkAction = 'approve' | 'reject' | 'delete';
 
 const PAGE_SIZE = 100;
+
+function warningLabel(warnings: ReviewWarning[], labelFor: (title: string) => string): string {
+  return warnings
+    .map((warning) => {
+      switch (warning.code) {
+        case 'possible_duplicate':
+          return labelFor(warning.title);
+      }
+    })
+    .join(' ');
+}
+
+function ReviewWarningIcon({ label }: { label: string }) {
+  return (
+    <Tooltip title={label}>
+      <Box
+        component="span"
+        role="img"
+        aria-label={label}
+        sx={{ display: 'inline-flex', color: 'warning.main', flexShrink: 0 }}
+      >
+        <SvgIcon fontSize="small" aria-hidden>
+          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+        </SvgIcon>
+      </Box>
+    </Tooltip>
+  );
+}
 
 function httpUrl(value: string | null): string | null {
   if (!value) return null;
@@ -251,6 +290,9 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
           <TableBody>
             {items.map((item) => {
               const source = httpUrl(item.sourceUrl);
+              const attention = warningLabel(item.warnings ?? [], (title) =>
+                t('warningPossibleDuplicate', { title }),
+              );
               return (
                 <TableRow key={item.id} selected={selected.has(item.id)}>
                   <TableCell padding="checkbox">
@@ -262,7 +304,10 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
                     />
                   </TableCell>
                   <TableCell>
-                    <Link href={`/events/${item.id}`}>{item.title}</Link>
+                    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                      {attention ? <ReviewWarningIcon label={attention} /> : null}
+                      <Link href={`/events/${item.id}`}>{item.title}</Link>
+                    </Stack>
                   </TableCell>
                   <TableCell>
                     <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>

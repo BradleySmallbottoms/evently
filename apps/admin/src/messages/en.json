@@ -90,6 +90,7 @@
     "cancel": "Cancel",
     "bulkError": "Some events could not be updated.",
     "view": "View",
+    "warningPossibleDuplicate": "Possible duplicate of {title}",
     "loadError": "Could not load events.",
     "needLogin": "Sign in to review imports."
   },
@@ -171,6 +172,7 @@
   },
   "EventCatalog": {
     "title": "Events",
+    "venue": "Venue",
     "empty": "No events match.",
     "titleCol": "Title",
     "publisher": "Publisher",

@@ -169,6 +169,17 @@ describe('visit-soderhamn map', () => {
     expect(event?.endsAt).toBe('2026-07-01T21:00:00+02:00');
   });
 
+  it('keeps a Citybreak Z timestamp as UTC', () => {
+    const product: VisitProduct = {
+      ...raw.products[0]!,
+      Occasions: [{ Start: '2026-10-28T15:00:00Z', End: '2026-10-28T16:00:00Z' }],
+    };
+    const [event] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
+    expect(event?.startsAt).toBe('2026-10-28T15:00:00.000Z');
+    expect(event?.endsAt).toBe('2026-10-28T16:00:00.000Z');
+    expect(event?.externalId).toBe(`${product.Id}:2026-10-28T15:00:00Z:2026-10-28T16:00:00Z`);
+  });
+
   it('drops products with no occasion or no source url', () => {
     const withoutUrl: VisitProduct = {
       ...raw.products[0]!,

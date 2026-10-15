@@ -26,6 +26,7 @@ import {
   publicGalleryUrls,
   shouldEnqueueNotifications,
   importPlanToSchedule,
+  reviewWarnings,
   validateEventFields,
 } from '@local-events/domain';
 import { and, asc, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
@@ -255,6 +256,10 @@ function auditSnapshot(detail: AdminEventDetail): Record<string, unknown> {
   };
 }
 
+function warningsFor(meta: unknown) {
+  return reviewWarnings(readEventMeta(meta));
+}
+
 function asListItem(
   e: MemoryEvent,
   publisherName: string,
@@ -273,6 +278,7 @@ function asListItem(
     sourceUrl: e.sourceUrl,
     featured: e.featured ?? false,
     checkInEnabled: e.checkInEnabled ?? false,
+    warnings: warningsFor(e.meta),
     createdAt: e.createdAt,
   };
 }
@@ -372,6 +378,7 @@ export function createMemoryAdminEventServices(
           endsAt: e.endsAt,
           venueName: e.venueName,
           sourceUrl: e.sourceUrl,
+          warnings: warningsFor(e.meta),
           createdAt: e.createdAt,
         }));
     },
@@ -609,6 +616,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       ...(await imagesFor(eventId)),
       featured: row.featured,
       checkInEnabled: row.checkInEnabled,
+      warnings: warningsFor(row.meta),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
@@ -664,6 +672,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           endsAt: schema.events.endsAt,
           venueName: schema.events.venueName,
           sourceUrl: schema.events.sourceUrl,
+          meta: schema.events.meta,
           createdAt: schema.events.createdAt,
         })
         .from(schema.events)
@@ -685,6 +694,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           endsAt: r.endsAt.toISOString(),
           venueName: r.venueName,
           sourceUrl: r.sourceUrl,
+          warnings: warningsFor(r.meta),
           createdAt: r.createdAt.toISOString(),
         }));
     },
@@ -716,6 +726,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           sourceUrl: schema.events.sourceUrl,
           featured: schema.events.featured,
           checkInEnabled: schema.events.checkInEnabled,
+          meta: schema.events.meta,
           createdAt: schema.events.createdAt,
         })
         .from(schema.events)
@@ -750,6 +761,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           sourceUrl: r.sourceUrl,
           featured: r.featured,
           checkInEnabled: r.checkInEnabled,
+          warnings: warningsFor(r.meta),
           createdAt: r.createdAt.toISOString(),
         })),
         total,

@@ -1232,4 +1232,85 @@ describe('admin api', () => {
     expect(found.total).toBe(1);
     expect(found.items[0]?.title).toBe('Oldest');
   });
+
+  it('marks a possible duplicate on the review list', async () => {
+    const { auth } = await seededAuth();
+    const publisherId = '22222222-2222-4222-8222-222222222201';
+    const flaggedId = '44444444-4444-4444-8444-444444444401';
+    const cleanId = '44444444-4444-4444-8444-444444444402';
+    const matchedId = '55555555-5555-4555-8555-555555555501';
+    const eventStore = {
+      publishers: new Map([[publisherId, { id: publisherId, name: 'Imported Band' }]]),
+      events: new Map([
+        [
+          flaggedId,
+          {
+            id: flaggedId,
+            publisherId,
+            title: 'Concert',
+            mode: 'physical' as const,
+            status: 'in_review' as const,
+            origin: 'imported' as const,
+            startsAt: '2026-08-01T18:00:00.000Z',
+            endsAt: '2026-08-01T21:00:00.000Z',
+            venueName: 'Arena',
+            sourceUrl: 'https://example.com/show',
+            meta: {
+              possibleDuplicate: {
+                eventId: matchedId,
+                title: 'Existing concert',
+                startsAt: '2026-08-01T18:00:00.000Z',
+                refId: 'cbis:1',
+                workerId: 'visit-soderhamn',
+                matchedOn: 'title' as const,
+              },
+            },
+            createdAt: '2026-01-02T00:00:00.000Z',
+            updatedAt: '2026-01-02T00:00:00.000Z',
+          },
+        ],
+        [
+          cleanId,
+          {
+            id: cleanId,
+            publisherId,
+            title: 'Market',
+            mode: 'physical' as const,
+            status: 'in_review' as const,
+            origin: 'imported' as const,
+            startsAt: '2026-08-02T18:00:00.000Z',
+            endsAt: '2026-08-02T21:00:00.000Z',
+            venueName: 'Square',
+            sourceUrl: null,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+      ]),
+    };
+    const { createMemoryAdminEventServices } =
+      await import('../../../apps/admin-api/src/services/events');
+    const app = createApp({
+      auth,
+      events: createMemoryAdminEventServices(eventStore),
+    });
+    const cookie = await loginSession(app);
+
+    const page = await app.request('/v1/events?status=in_review&sort=created&limit=100', {
+      headers: { cookie },
+    });
+    expect(page.status).toBe(200);
+    const body = (await page.json()) as {
+      items: { id: string; warnings: { code: string; title: string; eventId: string }[] }[];
+    };
+    expect(body.items.find((item) => item.id === cleanId)?.warnings).toEqual([]);
+    expect(body.items.find((item) => item.id === flaggedId)?.warnings).toEqual([
+      {
+        code: 'possible_duplicate',
+        eventId: matchedId,
+        title: 'Existing concert',
+        matchedOn: 'title',
+      },
+    ]);
+  });
 });

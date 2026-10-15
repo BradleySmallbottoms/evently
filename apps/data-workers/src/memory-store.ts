@@ -3,13 +3,17 @@ import { SEED_TAGS } from '@local-events/db';
 import type { EventMeta } from '@local-events/contracts';
 import { distanceMeters } from '@local-events/geo';
 import {
+  choosePublisher,
   DUPLICATE_RADIUS_M,
   importNotificationMessages,
+  PUBLISHER_NAME_RADIUS_M,
   pushStatusForEvent,
+  sharedOrganizerKeyKind,
   slugifyPublisherName,
   tagSlug,
   withinDuplicateWindow,
   type MarketingPushPlanId,
+  type PublisherCandidate,
 } from '@local-events/domain';
 import type {
   ExternalRefHit,
@@ -28,6 +32,7 @@ interface StoredPublisher {
   isTemporary: boolean;
   verified: boolean;
   importNotificationPlan: MarketingPushPlanId | null;
+  createdAt: number;
 }
 
 interface StoredEvent {
@@ -137,6 +142,11 @@ export function createMemoryIngestStore(): MemoryIngestStore {
   const refs: StoredRef[] = [];
   const suppressions: MemoryIngestStore['suppressions'] = [];
   const runs: StoredRun[] = [];
+  let createdAt = 0;
+  const stamp = () => {
+    createdAt += 1;
+    return createdAt;
+  };
   const images: StoredImage[] = [];
   const scheduledNotifications: MemoryIngestStore['scheduledNotifications'] = [];
 
@@ -181,22 +191,61 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       if (!run) throw new Error(`Unknown ingestion run ${runId}`);
       Object.assign(run, result);
     },
-    async findPublisher(sourceId, organizerKeys) {
-      for (const organizerKey of organizerKeys) {
-        const alias = aliases.find(
-          (item) => item.sourceId === sourceId && item.organizerKey === organizerKey,
-        );
-        if (!alias) continue;
+    async findPublisher(sourceId, organizerKeys, near) {
+      if (organizerKeys.length === 0) return null;
+      const localSlugs = near?.localSlugs ?? [];
+      const nameKeys = organizerKeys.filter(
+        (key) => sharedOrganizerKeyKind(key, localSlugs) === 'name',
+      );
+      const nearIds = new Set<string>();
+      if (near?.location) {
+        for (const event of events) {
+          if (event.status === 'cancelled' || event.status === 'ended' || !event.location) continue;
+          if (distanceMeters(near.location, event.location) <= PUBLISHER_NAME_RADIUS_M) {
+            nearIds.add(event.publisherId);
+          }
+        }
+      }
+      const candidates: PublisherCandidate[] = [];
+      for (const alias of aliases) {
+        if (!organizerKeys.includes(alias.organizerKey)) continue;
         const publisher = publishers.find((item) => item.id === alias.publisherId);
         if (!publisher) continue;
-        return {
+        candidates.push({
           publisherId: publisher.id,
-          isTemporary: publisher.isTemporary,
+          sourceId: alias.sourceId,
+          key: alias.organizerKey,
           verified: publisher.verified,
-          importNotificationPlan: publisher.importNotificationPlan,
-        };
+          createdAt: publisher.createdAt,
+          near: nearIds.has(publisher.id),
+        });
       }
-      return null;
+      for (const publisher of publishers) {
+        const nameKey = nameKeys.find(
+          (key) =>
+            publisher.name.toLocaleLowerCase('sv') === key ||
+            publisher.slug === key ||
+            publisher.slug === slugifyPublisherName(key),
+        );
+        if (!nameKey) continue;
+        candidates.push({
+          publisherId: publisher.id,
+          sourceId: null,
+          key: nameKey,
+          verified: publisher.verified,
+          createdAt: publisher.createdAt,
+          near: nearIds.has(publisher.id),
+        });
+      }
+      const chosen = choosePublisher(sourceId, organizerKeys, localSlugs, candidates);
+      const publisher = publishers.find((item) => item.id === chosen?.publisherId);
+      if (!publisher) return null;
+      return {
+        publisherId: publisher.id,
+        isTemporary: publisher.isTemporary,
+        verified: publisher.verified,
+        importNotificationPlan: publisher.importNotificationPlan,
+      };
     },
     async createTemporaryPublisher(input) {
       const id = randomUUID();
@@ -207,6 +256,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         isTemporary: true,
         verified: false,
         importNotificationPlan: null,
+        createdAt: stamp(),
       });
       for (const organizerKey of input.organizerKeys) {
         aliases.push({ sourceId: input.sourceId, organizerKey, publisherId: id });
@@ -238,6 +288,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         isTemporary: input.isTemporary,
         verified,
         importNotificationPlan,
+        createdAt: stamp(),
       });
       aliases.push({
         sourceId: input.sourceId,

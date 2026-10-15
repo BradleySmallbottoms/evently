@@ -68,6 +68,7 @@ calls) in the same change as every new major feature.**
 
 - First external source is the Citybreak API used by Visit Söderhamn. The worker loads the category
   tree, then products in **Evenemang** (category `30172`) only. Each occasion becomes its own event.
+  A Citybreak time ending in `Z`, or with a numeric offset, is stored as that instant. A time with no zone is Europe/Stockholm. Hälsingland and Hudiksvall date-and-period values are Stockholm wall time too.
   Categories under Evenemang are stored as tags (`external_id` `visit-soderhamn:{id}`) and attached
   to the imported event. `GET /v1/tags` is that list. The mobile home and search call it with
   `?upcoming=true`, which keeps only tags on a published event that has not ended. Choosing
@@ -271,7 +272,8 @@ calls) in the same change as every new major feature.**
   `SameSite=Lax` on the admin API host — keep the UI and `NEXT_PUBLIC_ADMIN_API_URL` on the
   same site (e.g. both `localhost`, or both `*.your-alias`) or the cookie will not stick.
 - **Admin queues:** `/review` lists imports in `in_review`, unverified publishers, and `pending`
-  notifications (approve/reject). Import review and the event catalog can select rows and publish,
+  notifications (approve/reject). A warning icon marks a row that needs a closer look, such as a
+  possible duplicate. Import review and the event catalog can select rows and publish,
   reject, or delete them. Publisher lists can select rows and verify them.
   Delete removes the event and keeps the source id out of later imports
   ([docs/flows/import-review-delete.md](docs/flows/import-review-delete.md)). `/events` redirects there. `/events/manage`

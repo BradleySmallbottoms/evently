@@ -52,6 +52,17 @@ export const AdminSessionResponse = z.object({
 });
 export type AdminSessionResponse = z.infer<typeof AdminSessionResponse>;
 
+/** Why the review queue marks an event. Empty means nothing looks off. */
+export const AdminEventWarning = z.discriminatedUnion('code', [
+  z.object({
+    code: z.literal('possible_duplicate'),
+    eventId: Id,
+    title: z.string(),
+    matchedOn: z.enum(['title', 'link', 'id']),
+  }),
+]);
+export type AdminEventWarning = z.infer<typeof AdminEventWarning>;
+
 export const AdminEventReviewItem = z.object({
   id: Id,
   publisherId: Id,
@@ -64,6 +75,7 @@ export const AdminEventReviewItem = z.object({
   endsAt: z.iso.datetime(),
   venueName: z.string().nullable(),
   sourceUrl: z.string().nullable(),
+  warnings: z.array(AdminEventWarning),
   createdAt: z.iso.datetime(),
 });
 export type AdminEventReviewItem = z.infer<typeof AdminEventReviewItem>;
@@ -290,6 +302,7 @@ export const AdminEventListItem = z.object({
   sourceUrl: z.string().nullable(),
   featured: z.boolean(),
   checkInEnabled: z.boolean(),
+  warnings: z.array(AdminEventWarning),
   createdAt: z.iso.datetime(),
 });
 export type AdminEventListItem = z.infer<typeof AdminEventListItem>;

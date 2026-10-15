@@ -1,5 +1,10 @@
 import type { EventMeta } from '@local-events/contracts';
-import { mergeImportedLinks, organizerKeys, priceAmountFromText } from '@local-events/domain';
+import {
+  mergeImportedLinks,
+  organizerKeys,
+  priceAmountFromText,
+  sourceDateTime,
+} from '@local-events/domain';
 import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
 import { crawlLinkImages } from './page-images';
 
@@ -402,58 +407,6 @@ export function visitTags(
     .sort((a, b) => a.externalId.localeCompare(b.externalId, 'en'));
 }
 
-/** Citybreak occasion times are naive Europe/Stockholm datetimes. */
-function withStockholmOffset(local: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/.exec(local.trim());
-  if (!match) throw new Error(`Visit occasion time is not a local datetime: ${local}`);
-  const [, year, month, day, hour, minute, second] = match;
-  const wallUtc = Date.UTC(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-    Number(second),
-  );
-  let offset = stockholmOffsetMinutes(new Date(wallUtc));
-  offset = stockholmOffsetMinutes(new Date(wallUtc - offset * 60_000));
-  const sign = offset >= 0 ? '+' : '-';
-  const abs = Math.abs(offset);
-  const offsetHour = String(Math.floor(abs / 60)).padStart(2, '0');
-  const offsetMinute = String(abs % 60).padStart(2, '0');
-  return `${year}-${month}-${day}T${hour}:${minute}:${second}${sign}${offsetHour}:${offsetMinute}`;
-}
-
-function stockholmOffsetMinutes(instant: Date): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Europe/Stockholm',
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(instant);
-  const pick = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(parts.find((part) => part.type === type)?.value);
-  let day = pick('day');
-  let hour = pick('hour');
-  if (hour === 24) {
-    hour = 0;
-    day += 1;
-  }
-  const asUtc = Date.UTC(
-    pick('year'),
-    pick('month') - 1,
-    day,
-    hour,
-    pick('minute'),
-    pick('second'),
-  );
-  return Math.round((asUtc - instant.getTime()) / 60_000);
-}
-
 function linksForProduct(product: VisitProduct): string[] {
   const description = textField(product, DESCRIPTION) ?? textField(product, INGRESS);
   return (mergeImportedLinks(productLinks(product), description) ?? []).map((link) => link.url);
@@ -530,8 +483,8 @@ function mapProduct(
         : {}),
       ...(meta ? { meta } : {}),
       mode: 'physical',
-      startsAt: withStockholmOffset(occasion.Start),
-      ...(occasion.End ? { endsAt: withStockholmOffset(occasion.End) } : {}),
+      startsAt: sourceDateTime(occasion.Start),
+      ...(occasion.End ? { endsAt: sourceDateTime(occasion.End) } : {}),
       timezone: 'Europe/Stockholm',
       ...(venue ? { venueName: venue } : {}),
       ...(address ? { address } : {}),

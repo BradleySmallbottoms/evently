@@ -1,4 +1,5 @@
 import { eventUrlKey, isSpecificTicketUrl } from './event-links';
+import { stockholmOffsetMinutes } from './source-time';
 
 /** A lookalike has to be at least this close, and start within 30 minutes. */
 export const DUPLICATE_RADIUS_M = 200;
@@ -19,29 +20,6 @@ export function stockholmCalendarDate(instant: Date): string {
     month: '2-digit',
     day: '2-digit',
   }).format(instant);
-}
-
-function stockholmOffsetMinutes(instant: Date): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Europe/Stockholm',
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(instant);
-  const pick = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(parts.find((part) => part.type === type)?.value);
-  let day = pick('day');
-  let hour = pick('hour');
-  if (hour === 24) {
-    hour = 0;
-    day += 1;
-  }
-  const asUtc = Date.UTC(pick('year'), pick('month') - 1, day, hour, pick('minute'), pick('second'));
-  return Math.round((asUtc - instant.getTime()) / 60_000);
 }
 
 /** Start of the Stockholm calendar day, and the start of the next one. */

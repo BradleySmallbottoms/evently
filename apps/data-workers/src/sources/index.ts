@@ -13,3 +13,6 @@ export const sources: Record<string, SourceAdapter<any>> = {
   [destinationHalsingland.slug]: destinationHalsingland,
   [icsFeed.slug]: icsFeed,
 };
+
+/** Slugs that identify a data source, not an organizer. They never match across workers. */
+export const LOCAL_ORGANIZER_SLUGS = Object.keys(sources);

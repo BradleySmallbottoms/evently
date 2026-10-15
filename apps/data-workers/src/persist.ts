@@ -25,6 +25,7 @@ import { emitDomainEvent, noopDomainEvents, type DomainEventSink } from './domai
 import { noopEventImageUploader, type EventImageUploader } from './event-images';
 import { noopRawPayloadSink, type RawPayloadSink } from './raw-payload';
 import { eachSourceRun, runSource, sourceSavesEachEvent } from './run';
+import { LOCAL_ORGANIZER_SLUGS } from './sources';
 import type { DuplicateCandidate, IngestStore, PublisherLink, SourceRecord } from './store';
 
 export interface PersistSummary {
@@ -452,7 +453,10 @@ async function saveOne(
     links: mergeImportedLinks(event.links, event.description),
   };
 
-  let publisher = await store.findPublisher(source.id, event.organizerKeys);
+  let publisher = await store.findPublisher(source.id, event.organizerKeys, {
+    ...(event.location ? { location: event.location } : {}),
+    localSlugs: [...new Set([source.slug, ...LOCAL_ORGANIZER_SLUGS])],
+  });
   if (!publisher) {
     publisher = await store.createTemporaryPublisher({
       sourceId: source.id,

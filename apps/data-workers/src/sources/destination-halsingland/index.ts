@@ -1,5 +1,10 @@
 import type { EventMeta } from '@local-events/contracts';
-import { organizerKeys, parseLinksFromText, priceAmountFromText } from '@local-events/domain';
+import {
+  organizerKeys,
+  parseLinksFromText,
+  priceAmountFromText,
+  stockholmWallTime,
+} from '@local-events/domain';
 import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
 import { HTTP1_HEADER } from '../../http1';
 
@@ -452,47 +457,16 @@ function normalizeProduct(
   };
 }
 
-function stockholmOffsetMinutes(instant: Date): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Europe/Stockholm',
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(instant);
-  const pick = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(parts.find((part) => part.type === type)?.value);
-  let day = pick('day');
-  let hour = pick('hour');
-  if (hour === 24) {
-    hour = 0;
-    day += 1;
-  }
-  const asUtc = Date.UTC(
-    pick('year'),
-    pick('month') - 1,
-    day,
-    hour,
-    pick('minute'),
-    pick('second'),
-  );
-  return Math.round((asUtc - instant.getTime()) / 60_000);
-}
-
 function withStockholmOffset(date: string, time: string): string {
   const [year, month, day] = date.split('-').map(Number);
-  const [hour, minute] = time.split(':');
-  const wallUtc = Date.UTC(year!, month! - 1, day!, Number(hour), Number(minute), 0);
-  let offset = stockholmOffsetMinutes(new Date(wallUtc));
-  offset = stockholmOffsetMinutes(new Date(wallUtc - offset * 60_000));
-  const sign = offset >= 0 ? '+' : '-';
-  const abs = Math.abs(offset);
-  const offsetHour = String(Math.floor(abs / 60)).padStart(2, '0');
-  const offsetMinute = String(abs % 60).padStart(2, '0');
-  return `${date}T${hour!.padStart(2, '0')}:${minute}:00${sign}${offsetHour}:${offsetMinute}`;
+  const [hour, minute] = time.split(':').map(Number);
+  return stockholmWallTime({
+    year: year!,
+    month: month!,
+    day: day!,
+    hour: hour!,
+    minute: minute!,
+  });
 }
 
 function clockMinutes(time: string): number {

@@ -415,6 +415,110 @@ describe('saveIncomingEvents', () => {
     expect(store.events[1]?.publisherId).not.toBe(store.events[0]?.publisherId);
   });
 
+  it('reuses a publisher another worker stored for the same email', async () => {
+    const store = createMemoryIngestStore();
+    const other = '33333333-3333-4333-8333-333333333399';
+    const existing = store.linkPublisher({
+      sourceId: other,
+      organizerKey: 'kansli@brobergsoderhamn.se',
+      name: 'Broberg',
+      isTemporary: true,
+    });
+    const counts = await saveIncomingEvents(store, source, [bandy]);
+    expect(counts.created).toBe(1);
+    expect(store.publishers).toHaveLength(1);
+    expect(store.events[0]?.publisherId).toBe(existing.publisherId);
+  });
+
+  it('reuses a publisher with the same name when it already has an event nearby', async () => {
+    const store = createMemoryIngestStore();
+    const other = '33333333-3333-4333-8333-333333333399';
+    const existing = store.linkPublisher({
+      sourceId: other,
+      organizerKey: 'other-email@example.com',
+      name: 'Kulturhuset',
+      isTemporary: true,
+    });
+    store.events.push({
+      id: '77777777-7777-4777-8777-777777777777',
+      publisherId: existing.publisherId,
+      title: 'Existing show',
+      description: null,
+      status: 'published',
+      origin: 'imported',
+      sourceUrl: 'https://www.gladahudik.se/sv/example',
+      startsAt: new Date(bandy.startsAt),
+      endsAt: new Date(bandy.endsAt!),
+      venueName: null,
+      location: bandy.location,
+      tagIds: [],
+    });
+    const counts = await saveIncomingEvents(store, source, [
+      {
+        ...bandy,
+        externalId: 'name-near',
+        title: 'A different title',
+        organizerKeys: ['kulturhuset'],
+        organizerName: 'Kulturhuset',
+      },
+    ]);
+    expect(counts.created).toBe(1);
+    expect(store.publishers).toHaveLength(1);
+    expect(store.events[1]?.publisherId).toBe(existing.publisherId);
+  });
+
+  it('does not reuse the same name when that publisher has no event nearby', async () => {
+    const store = createMemoryIngestStore();
+    const other = '33333333-3333-4333-8333-333333333399';
+    store.linkPublisher({
+      sourceId: other,
+      organizerKey: 'other-email@example.com',
+      name: 'Kulturhuset',
+      isTemporary: true,
+    });
+    store.events.push({
+      id: '77777777-7777-4777-8777-777777777778',
+      publisherId: store.publishers[0]!.id,
+      title: 'Far show',
+      description: null,
+      status: 'published',
+      origin: 'imported',
+      sourceUrl: 'https://www.gladahudik.se/sv/far',
+      startsAt: new Date(bandy.startsAt),
+      endsAt: new Date(bandy.endsAt!),
+      venueName: null,
+      location: { lat: (bandy.location?.lat ?? 0) + 1, lng: bandy.location?.lng ?? 0 },
+      tagIds: [],
+    });
+    const counts = await saveIncomingEvents(store, source, [
+      {
+        ...bandy,
+        externalId: 'name-far',
+        title: 'A different title',
+        organizerKeys: ['kulturhuset'],
+        organizerName: 'Kulturhuset',
+      },
+    ]);
+    expect(counts.created).toBe(1);
+    expect(store.publishers).toHaveLength(2);
+    expect(store.events[1]?.publisherId).not.toBe(store.publishers[0]?.id);
+  });
+
+  it('does not reuse another worker source slug', async () => {
+    const store = createMemoryIngestStore();
+    const existing = store.linkPublisher({
+      sourceId: '33333333-3333-4333-8333-333333333399',
+      organizerKey: 'glada-hudik',
+      name: 'Glada Hudik',
+      isTemporary: true,
+    });
+    const counts = await saveIncomingEvents(store, source, [
+      { ...bandy, externalId: 'slug-only', organizerKeys: ['glada-hudik'] },
+    ]);
+    expect(counts.created).toBe(1);
+    expect(store.events[0]?.publisherId).not.toBe(existing.publisherId);
+  });
+
   it('saves a physical event that has no location', async () => {
     const store = createMemoryIngestStore();
     const counts = await saveIncomingEvents(store, source, [{ ...bandy, location: undefined }]);

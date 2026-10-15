@@ -1,4 +1,4 @@
-import { organizerKeys } from '@local-events/domain';
+import { organizerKeys, stockholmWallTime } from '@local-events/domain';
 import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
 
 /**
@@ -124,31 +124,21 @@ export function icsDateToIso(value: string, params = ''): string | null {
   const dateOnly = /^\d{8}$/.test(v);
   const local = /^\d{8}T\d{6}$/.test(v);
   if (!dateOnly && !local) return null;
-  const y = Number(v.slice(0, 4));
-  const mo = Number(v.slice(4, 6));
-  const d = Number(v.slice(6, 8));
-  const h = local ? Number(v.slice(9, 11)) : 0;
-  const mi = local ? Number(v.slice(11, 13)) : 0;
-  const s = local ? Number(v.slice(13, 15)) : 0;
-  // Europe/Stockholm: CET UTC+1 / CEST UTC+2. Approximate via Intl.
-  const approx = new Date(Date.UTC(y, mo - 1, d, h, mi, s));
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Europe/Stockholm',
-    timeZoneName: 'shortOffset',
-  }).formatToParts(approx);
-  const tzName = parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+1';
-  const m = /GMT([+-]\d+)(?::(\d+))?/.exec(tzName);
-  const offH = m ? Number(m[1]) : 1;
-  const offM = m?.[2] ? Number(m[2]) : 0;
-  const sign = offH >= 0 ? '+' : '-';
-  const absH = Math.abs(offH);
-  const offset = `${sign}${String(absH).padStart(2, '0')}:${String(offM).padStart(2, '0')}`;
-  // Value is wall time in Stockholm; encode with that offset.
   void params;
-  return `${String(y).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}T${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}:${String(s).padStart(2, '0')}${offset}`;
+  return stockholmWallTime({
+    year: Number(v.slice(0, 4)),
+    month: Number(v.slice(4, 6)),
+    day: Number(v.slice(6, 8)),
+    hour: local ? Number(v.slice(9, 11)) : 0,
+    minute: local ? Number(v.slice(11, 13)) : 0,
+    second: local ? Number(v.slice(13, 15)) : 0,
+  });
 }
 
-function organizerIdentity(event: VEvent, feedUrl: string): { organizerKeys: string[]; name?: string } {
+function organizerIdentity(
+  event: VEvent,
+  feedUrl: string,
+): { organizerKeys: string[]; name?: string } {
   const org = event.ORGANIZER;
   const mail = org ? (/mailto:([^;]+)/i.exec(org)?.[1] ?? org) : undefined;
   const cn = /CN=([^;:]+)/i.exec(event.ORGANIZER_PARAMS ?? '')?.[1];
@@ -174,9 +164,7 @@ function mapEvent(event: VEvent, feedUrl: string): IncomingEvent | null {
   const summary = event.SUMMARY ? unescapeIcs(event.SUMMARY).trim() : '';
   const dtStart = event.DTSTART ? icsDateToIso(event.DTSTART, event.DTSTART_PARAMS) : null;
   if (!uid || !summary || !dtStart) return null;
-  const dtEnd = event.DTEND
-    ? icsDateToIso(event.DTEND, event.DTEND_PARAMS)
-    : undefined;
+  const dtEnd = event.DTEND ? icsDateToIso(event.DTEND, event.DTEND_PARAMS) : undefined;
   const urlRaw = event.URL?.trim();
   let sourceUrl = feedUrl;
   if (urlRaw) {

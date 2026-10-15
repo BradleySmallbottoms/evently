@@ -62,8 +62,18 @@ export interface IngestStore {
       error: string | null;
     },
   ): Promise<void>;
-  /** First alias for this source whose key appears in `organizerKeys`, in that order. */
-  findPublisher(sourceId: string, organizerKeys: string[]): Promise<PublisherLink | null>;
+  /**
+   * This source's alias wins. Otherwise an email or website from any source.
+   * A name or slug matches only when that publisher has an event near `location`.
+   */
+  findPublisher(
+    sourceId: string,
+    organizerKeys: string[],
+    near?: {
+      location?: { lat: number; lng: number };
+      localSlugs?: string[];
+    },
+  ): Promise<PublisherLink | null>;
   createTemporaryPublisher(input: {
     sourceId: string;
     organizerKeys: string[];

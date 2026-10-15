@@ -289,6 +289,7 @@ export function EventCatalog() {
               <TableCell>{t('featured')}</TableCell>
               <TableCell>{t('checkIn')}</TableCell>
               <TableCell>{t('starts')}</TableCell>
+              <TableCell>{t('venue')}</TableCell>
               <TableCell align="right">{t('actions')}</TableCell>
             </TableRow>
           </TableHead>
@@ -313,6 +314,7 @@ export function EventCatalog() {
                 <TableCell>{item.featured ? t('featuredYes') : t('featuredNo')}</TableCell>
                 <TableCell>{item.checkInEnabled ? t('featuredYes') : t('featuredNo')}</TableCell>
                 <TableCell>{new Date(item.startsAt).toLocaleString()}</TableCell>
+                <TableCell>{item.venueName}</TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
                     {item.status === 'in_review' ? (
