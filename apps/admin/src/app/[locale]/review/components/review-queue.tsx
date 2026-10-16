@@ -32,6 +32,7 @@ type ReviewItem = {
   startsAt: string;
   venueName: string | null;
   sourceUrl: string | null;
+  origin: 'native' | 'imported';
   warnings: EventWarning[];
 };
 
@@ -41,7 +42,7 @@ type ReviewPage = {
   nextOffset: number | null;
 };
 
-type BulkAction = 'approve' | 'reject' | 'delete';
+type BulkAction = 'approve' | 'reject' | 'delete' | 'wipe';
 
 const PAGE_SIZE = 100;
 
@@ -65,6 +66,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmWipe, setConfirmWipe] = useState(false);
   const [bulkError, setBulkError] = useState(false);
   const appliedSearch = useRef('');
 
@@ -113,17 +115,22 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   const bulk = useMutation({
     mutationFn: async (input: { action: BulkAction; ids: string[] }) => {
       const results = await Promise.allSettled(
-        input.ids.map((id) =>
-          input.action === 'delete'
-            ? adminFetch(`/events/${id}`, { method: 'DELETE' })
-            : adminFetch(`/events/${id}/${input.action}`, { method: 'POST' }),
-        ),
+        input.ids.map((id) => {
+          if (input.action === 'delete') {
+            return adminFetch(`/events/${id}`, { method: 'DELETE' });
+          }
+          if (input.action === 'wipe') {
+            return adminFetch(`/events/${id}/wipe`, { method: 'POST' });
+          }
+          return adminFetch(`/events/${id}/${input.action}`, { method: 'POST' });
+        }),
       );
       const failedIds = input.ids.filter((_, index) => results[index]?.status === 'rejected');
       return { failedIds };
     },
     onSuccess: async ({ failedIds }) => {
       setConfirmDelete(false);
+      setConfirmWipe(false);
       setSelected(new Set(failedIds));
       setBulkError(failedIds.length > 0);
       await queryClient.invalidateQueries({ queryKey: ['admin-events-in-review'] });
@@ -168,10 +175,15 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
     });
   }
 
+  const importedIds = selectedIds.filter(
+    (id) => items.find((item) => item.id === id)?.origin === 'imported',
+  );
+
   function runBulk(action: BulkAction) {
-    if (selectedIds.length === 0) return;
+    const ids = action === 'wipe' || action === 'delete' ? importedIds : selectedIds;
+    if (ids.length === 0) return;
     setBulkError(false);
-    bulk.mutate({ action, ids: selectedIds });
+    bulk.mutate({ action, ids });
   }
 
   return (
@@ -195,10 +207,19 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
               size="small"
               color="error"
               variant="outlined"
-              disabled={selectedIds.length === 0 || busy}
+              disabled={importedIds.length === 0 || busy}
               onClick={() => setConfirmDelete(true)}
             >
               {t('delete')}
+            </Button>
+            <Button
+              size="small"
+              color="error"
+              variant="outlined"
+              disabled={importedIds.length === 0 || busy}
+              onClick={() => setConfirmWipe(true)}
+            >
+              {t('wipe')}
             </Button>
             <Button
               size="small"
@@ -338,7 +359,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
         <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {t('deleteConfirmBody', { count: selectedIds.length })}
+            {t('deleteConfirmBody', { count: importedIds.length })}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -346,10 +367,29 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
           <Button
             color="error"
             variant="contained"
-            disabled={busy || selectedIds.length === 0}
+            disabled={busy || importedIds.length === 0}
             onClick={() => runBulk('delete')}
           >
             {t('delete')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={confirmWipe} onClose={() => setConfirmWipe(false)}>
+        <DialogTitle>{t('wipeConfirmTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t('wipeConfirmBody', { count: importedIds.length })}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmWipe(false)}>{t('cancel')}</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={busy || importedIds.length === 0}
+            onClick={() => runBulk('wipe')}
+          >
+            {t('wipe')}
           </Button>
         </DialogActions>
       </Dialog>

@@ -196,8 +196,8 @@ export function registerAdminEventRoutes(
     request: { params: z.object({ id: z.uuid() }) },
     responses: {
       200: {
-        description: 'Imported event removed from review',
-        content: { 'application/json': { schema: AdminEventDeleteResponse } },
+        description: 'Imported event cancelled and kept',
+        content: { 'application/json': { schema: AdminEventDecisionResponse } },
       },
       401: {
         description: 'Admin session required',
@@ -212,7 +212,39 @@ export function registerAdminEventRoutes(
   app.openapi(remove, async (c) => {
     try {
       const session = await auth.requireSession(readAdminSessionToken(c));
-      const result = await events.remove(c.req.valid('param').id, session.adminId);
+      const result = await events.softDelete(c.req.valid('param').id, session.adminId);
+      if (!result) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json(result, 200);
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
+  const wipe = createRoute({
+    method: 'post',
+    path: '/events/{id}/wipe',
+    request: { params: z.object({ id: z.uuid() }) },
+    responses: {
+      200: {
+        description: 'Imported event removed',
+        content: { 'application/json': { schema: AdminEventDeleteResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Not found, not in review, or someone has already checked in',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(wipe, async (c) => {
+    try {
+      const session = await auth.requireSession(readAdminSessionToken(c));
+      const result = await events.wipe(c.req.valid('param').id, session.adminId);
       if (!result) {
         return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
       }

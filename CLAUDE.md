@@ -132,7 +132,9 @@ Product invariants (enforced in domain, tested)
   `meta.possibleDuplicate` pointing at the existing event. A link matches on host and path;
   protocol, query, and a trailing slash are ignored. A Citybreak product id matches with or
   without the `cbis:` prefix. The same source id updates its own row.
-- Deleting an `in_review` import removes the event and skips that source id on later imports.
+- Deleting an imported `in_review` event cancels it and leaves the row, so a later import
+  stays cancelled. Wiping it removes the row and skips that source id on later imports.
+  Wipe refuses when someone has checked in, saved, rated, or been notified.
   Rejecting it cancels the event and leaves the row.
 - Script-imported events are notified only when the publisher is verified and its import
   notification plan is set. Future reminders are approved when the event is published, and

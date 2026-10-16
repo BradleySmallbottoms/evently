@@ -47,7 +47,10 @@ export function canRejectImportedEvent(status: string): boolean {
   return status === 'in_review';
 }
 
-/** Admin removal of an imported event that is still waiting in the review queue. */
+/**
+ * An imported event still in review can be soft-deleted or wiped.
+ * Soft delete cancels it and leaves the row. Wipe removes the row.
+ */
 export function canDeleteImportedEvent(input: { status: string; origin: string }): boolean {
   return input.status === 'in_review' && input.origin === 'imported';
 }

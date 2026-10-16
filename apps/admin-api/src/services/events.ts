@@ -54,7 +54,10 @@ export type AdminEventServices = {
   get: (eventId: string) => Promise<AdminEventDetail | null>;
   approve: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
   reject: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
-  remove: (eventId: string, actor: string) => Promise<AdminEventDeleteResponse | null>;
+  /** Cancel an in-review import and leave the row, even when people have checked in. */
+  softDelete: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
+  /** Remove an in-review import. Refuses when anyone has checked in, saved, rated, or been notified. */
+  wipe: (eventId: string, actor: string) => Promise<AdminEventDeleteResponse | null>;
   patch: (
     eventId: string,
     body: AdminEventPatchRequest,
@@ -453,14 +456,30 @@ export function createMemoryAdminEventServices(
       });
       return { id: row.id, status: 'cancelled' as const };
     },
-    async remove(eventId, actor) {
+    async softDelete(eventId, actor) {
+      const row = store.events.get(eventId);
+      if (!row || !canDeleteImportedEvent(row)) return null;
+      const before = { status: row.status };
+      row.status = 'cancelled';
+      row.updatedAt = now().toISOString();
+      await audit.write({
+        actor,
+        action: 'event.delete',
+        entityType: 'event',
+        entityId: eventId,
+        before,
+        after: { status: 'cancelled' },
+      });
+      return { id: row.id, status: 'cancelled' as const };
+    },
+    async wipe(eventId, actor) {
       const row = store.events.get(eventId);
       if (!row || !canDeleteImportedEvent(row)) return null;
       const before = { status: row.status, title: row.title };
       store.events.delete(eventId);
       await audit.write({
         actor,
-        action: 'event.delete',
+        action: 'event.wipe',
         entityType: 'event',
         entityId: eventId,
         before,
@@ -863,7 +882,42 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       });
       return { id: eventId, status: 'cancelled' as const };
     },
-    async remove(eventId, actor) {
+    async softDelete(eventId, actor) {
+      const [row] = await db
+        .select({
+          id: schema.events.id,
+          status: schema.events.status,
+          origin: schema.events.origin,
+        })
+        .from(schema.events)
+        .where(eq(schema.events.id, eventId))
+        .limit(1);
+      if (!row || !canDeleteImportedEvent(row)) return null;
+      const at = now();
+      const updated = await db
+        .update(schema.events)
+        .set({ status: 'cancelled', updatedAt: at })
+        .where(
+          and(
+            eq(schema.events.id, eventId),
+            eq(schema.events.status, 'in_review'),
+            eq(schema.events.origin, 'imported'),
+          ),
+        )
+        .returning({ id: schema.events.id });
+      if (!updated[0]) return null;
+      await cancelOpenPushMessages(db, eventId, at);
+      await audit.write({
+        actor,
+        action: 'event.delete',
+        entityType: 'event',
+        entityId: eventId,
+        before: { status: row.status },
+        after: { status: 'cancelled' },
+      });
+      return { id: eventId, status: 'cancelled' as const };
+    },
+    async wipe(eventId, actor) {
       const deleted = await db.transaction(async (tx) => {
         const [row] = await tx
           .select({
@@ -918,7 +972,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       if (!deleted) return null;
       await audit.write({
         actor,
-        action: 'event.delete',
+        action: 'event.wipe',
         entityType: 'event',
         entityId: eventId,
         before: deleted.before,

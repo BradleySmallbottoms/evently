@@ -275,7 +275,9 @@ calls) in the same change as every new major feature.**
   notifications (approve/reject). A warning icon marks a row that needs a closer look, such as a
   possible duplicate. Import review and the event catalog can select rows and publish,
   reject, or delete them. Publisher lists can select rows and verify them.
-  Delete removes the event and keeps the source id out of later imports
+  Delete cancels an imported review event and keeps the row. Wipe removes it and keeps
+  the source id out of later imports, and leaves the row when someone has already
+  checked in, saved, rated, or been notified
   ([docs/flows/import-review-delete.md](docs/flows/import-review-delete.md)). `/events` redirects there. `/events/manage`
   pages the catalog 50 at a time and searches title, venue, and publisher, then patches status. `/publishers` verifies, remaps/completes temporary publishers, and toggles
   verified. `/moderation` hides ratings and bans users (banned users cannot create sessions or
