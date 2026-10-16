@@ -109,6 +109,7 @@ function scanInputFor(row: PendingScanRow): ScanInput {
     ...(row.description ? { description: row.description } : {}),
     ...(row.venueName ? { venue: row.venueName } : {}),
     startsAt: row.startsAt.toISOString(),
+    endsAt: row.endsAt.toISOString(),
     ...(row.location ? { location: row.location } : {}),
     ...(row.sourceUrl ? { sourceUrl: row.sourceUrl } : {}),
     links: row.links,

@@ -8,6 +8,7 @@ export interface ScanInput {
   description?: string;
   venue?: string;
   startsAt: string;
+  endsAt: string;
   location?: { lat: number; lng: number };
   sourceUrl?: string;
   links: string[];

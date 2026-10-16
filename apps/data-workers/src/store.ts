@@ -192,6 +192,7 @@ export interface PendingScanRow {
   description: string | null;
   venueName: string | null;
   startsAt: Date;
+  endsAt: Date;
   location: { lat: number; lng: number } | null;
   sourceUrl: string | null;
   links: string[];
