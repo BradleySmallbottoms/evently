@@ -2365,6 +2365,19 @@ export interface paths {
                                     allergyAdapted?: boolean;
                                     smokeFree?: boolean;
                                     wc?: boolean;
+                                    occasionGroupId?: string;
+                                    collapsed?: boolean;
+                                    occasions?: {
+                                        /** Format: date-time */
+                                        startsAt: string;
+                                        /** Format: date-time */
+                                        endsAt?: string;
+                                        venueName?: string;
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    }[];
                                 };
                                 publisherName: string;
                                 links: {
@@ -2591,6 +2604,19 @@ export interface paths {
                                     allergyAdapted?: boolean;
                                     smokeFree?: boolean;
                                     wc?: boolean;
+                                    occasionGroupId?: string;
+                                    collapsed?: boolean;
+                                    occasions?: {
+                                        /** Format: date-time */
+                                        startsAt: string;
+                                        /** Format: date-time */
+                                        endsAt?: string;
+                                        venueName?: string;
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    }[];
                                 };
                                 publisherName: string;
                                 links: {
@@ -2823,6 +2849,19 @@ export interface paths {
                                         allergyAdapted?: boolean;
                                         smokeFree?: boolean;
                                         wc?: boolean;
+                                        occasionGroupId?: string;
+                                        collapsed?: boolean;
+                                        occasions?: {
+                                            /** Format: date-time */
+                                            startsAt: string;
+                                            /** Format: date-time */
+                                            endsAt?: string;
+                                            venueName?: string;
+                                            location?: {
+                                                lat: number;
+                                                lng: number;
+                                            };
+                                        }[];
                                     };
                                     publisherName: string;
                                     links: {
@@ -2937,6 +2976,19 @@ export interface paths {
                                     allergyAdapted?: boolean;
                                     smokeFree?: boolean;
                                     wc?: boolean;
+                                    occasionGroupId?: string;
+                                    collapsed?: boolean;
+                                    occasions?: {
+                                        /** Format: date-time */
+                                        startsAt: string;
+                                        /** Format: date-time */
+                                        endsAt?: string;
+                                        venueName?: string;
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    }[];
                                 };
                                 publisherName: string;
                                 links: {
@@ -3131,6 +3183,19 @@ export interface paths {
                                     allergyAdapted?: boolean;
                                     smokeFree?: boolean;
                                     wc?: boolean;
+                                    occasionGroupId?: string;
+                                    collapsed?: boolean;
+                                    occasions?: {
+                                        /** Format: date-time */
+                                        startsAt: string;
+                                        /** Format: date-time */
+                                        endsAt?: string;
+                                        venueName?: string;
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    }[];
                                 };
                                 publisherName: string;
                                 links: {
@@ -3474,6 +3539,19 @@ export interface paths {
                                     allergyAdapted?: boolean;
                                     smokeFree?: boolean;
                                     wc?: boolean;
+                                    occasionGroupId?: string;
+                                    collapsed?: boolean;
+                                    occasions?: {
+                                        /** Format: date-time */
+                                        startsAt: string;
+                                        /** Format: date-time */
+                                        endsAt?: string;
+                                        venueName?: string;
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    }[];
                                 };
                                 publisherName: string;
                                 links: {
@@ -3613,6 +3691,19 @@ export interface paths {
                                 allergyAdapted?: boolean;
                                 smokeFree?: boolean;
                                 wc?: boolean;
+                                occasionGroupId?: string;
+                                collapsed?: boolean;
+                                occasions?: {
+                                    /** Format: date-time */
+                                    startsAt: string;
+                                    /** Format: date-time */
+                                    endsAt?: string;
+                                    venueName?: string;
+                                    location?: {
+                                        lat: number;
+                                        lng: number;
+                                    };
+                                }[];
                             };
                             publisherName: string;
                             links: {
@@ -3753,6 +3844,19 @@ export interface paths {
                                     allergyAdapted?: boolean;
                                     smokeFree?: boolean;
                                     wc?: boolean;
+                                    occasionGroupId?: string;
+                                    collapsed?: boolean;
+                                    occasions?: {
+                                        /** Format: date-time */
+                                        startsAt: string;
+                                        /** Format: date-time */
+                                        endsAt?: string;
+                                        venueName?: string;
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    }[];
                                 };
                                 publisherName: string;
                                 links: {
@@ -3857,6 +3961,19 @@ export interface paths {
                                 allergyAdapted?: boolean;
                                 smokeFree?: boolean;
                                 wc?: boolean;
+                                occasionGroupId?: string;
+                                collapsed?: boolean;
+                                occasions?: {
+                                    /** Format: date-time */
+                                    startsAt: string;
+                                    /** Format: date-time */
+                                    endsAt?: string;
+                                    venueName?: string;
+                                    location?: {
+                                        lat: number;
+                                        lng: number;
+                                    };
+                                }[];
                             };
                             publisherName: string;
                             links: {
@@ -3973,6 +4090,19 @@ export interface paths {
                                 allergyAdapted?: boolean;
                                 smokeFree?: boolean;
                                 wc?: boolean;
+                                occasionGroupId?: string;
+                                collapsed?: boolean;
+                                occasions?: {
+                                    /** Format: date-time */
+                                    startsAt: string;
+                                    /** Format: date-time */
+                                    endsAt?: string;
+                                    venueName?: string;
+                                    location?: {
+                                        lat: number;
+                                        lng: number;
+                                    };
+                                }[];
                             };
                             publisherName: string;
                             links: {
@@ -4139,6 +4269,19 @@ export interface paths {
                                 allergyAdapted?: boolean;
                                 smokeFree?: boolean;
                                 wc?: boolean;
+                                occasionGroupId?: string;
+                                collapsed?: boolean;
+                                occasions?: {
+                                    /** Format: date-time */
+                                    startsAt: string;
+                                    /** Format: date-time */
+                                    endsAt?: string;
+                                    venueName?: string;
+                                    location?: {
+                                        lat: number;
+                                        lng: number;
+                                    };
+                                }[];
                             };
                             publisherName: string;
                             links: {
@@ -4273,6 +4416,19 @@ export interface paths {
                                 allergyAdapted?: boolean;
                                 smokeFree?: boolean;
                                 wc?: boolean;
+                                occasionGroupId?: string;
+                                collapsed?: boolean;
+                                occasions?: {
+                                    /** Format: date-time */
+                                    startsAt: string;
+                                    /** Format: date-time */
+                                    endsAt?: string;
+                                    venueName?: string;
+                                    location?: {
+                                        lat: number;
+                                        lng: number;
+                                    };
+                                }[];
                             };
                             publisherName: string;
                             links: {
@@ -4403,6 +4559,19 @@ export interface paths {
                                 allergyAdapted?: boolean;
                                 smokeFree?: boolean;
                                 wc?: boolean;
+                                occasionGroupId?: string;
+                                collapsed?: boolean;
+                                occasions?: {
+                                    /** Format: date-time */
+                                    startsAt: string;
+                                    /** Format: date-time */
+                                    endsAt?: string;
+                                    venueName?: string;
+                                    location?: {
+                                        lat: number;
+                                        lng: number;
+                                    };
+                                }[];
                             };
                             publisherName: string;
                             links: {

@@ -130,8 +130,29 @@ describe('destination-halsingland map', () => {
     expect(span?.startsAt).toBe('2026-11-13T10:00:00+01:00');
     expect(span?.endsAt).toBe('2026-12-22T18:00:00+01:00');
     expect(span?.priceAmount).toBe(0);
-    expect(span?.meta).toEqual({ freeEntry: true });
+    expect(span?.meta?.freeEntry).toBe(true);
+    expect(span?.meta?.collapsed).toBe(true);
+    expect(span?.meta?.occasions).toHaveLength(40);
+    expect(span?.meta?.occasions?.[0]).toEqual({
+      startsAt: '2026-11-13T10:00:00+01:00',
+      endsAt: '2026-11-13T18:00:00+01:00',
+      venueName: 'Mobackes Trädgårdscenter, Bollnäs',
+    });
+    expect(span?.meta?.occasions?.at(-1)?.endsAt).toBe('2026-12-22T18:00:00+01:00');
     expect(span?.venueName).toBe('Mobackes Trädgårdscenter, Bollnäs');
+  });
+
+  it('stamps the product id when two occasions stay separate', () => {
+    const product: HalsinglandProduct = {
+      ...raw.products[0]!,
+      occasions: [
+        { date: '2026-11-14', start: '19:00', end: '20:30', venue: 'Kulturhuset Bollnäs' },
+        { date: '2026-12-12', start: '19:00', end: '20:30', venue: 'Kulturhuset Bollnäs' },
+      ],
+    };
+    const events = destinationHalsingland.map({ ...raw, products: [product] });
+    expect(events).toHaveLength(2);
+    expect(events.map((event) => event.meta?.occasionGroupId)).toEqual(['2826465', '2826465']);
   });
 
   it('rolls an end after midnight onto the next day', () => {

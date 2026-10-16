@@ -4106,6 +4106,45 @@
                               },
                               "wc": {
                                 "type": "boolean"
+                              },
+                              "occasionGroupId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "collapsed": {
+                                "type": "boolean"
+                              },
+                              "occasions": {
+                                "type": "array",
+                                "maxItems": 2000,
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "startsAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "endsAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "venueName": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    },
+                                    "location": {
+                                      "type": "object",
+                                      "properties": {
+                                        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                                        "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                                      },
+                                      "required": ["lat", "lng"]
+                                    }
+                                  },
+                                  "required": ["startsAt"]
+                                }
                               }
                             }
                           },
@@ -4572,6 +4611,45 @@
                               },
                               "wc": {
                                 "type": "boolean"
+                              },
+                              "occasionGroupId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "collapsed": {
+                                "type": "boolean"
+                              },
+                              "occasions": {
+                                "type": "array",
+                                "maxItems": 2000,
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "startsAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "endsAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "venueName": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    },
+                                    "location": {
+                                      "type": "object",
+                                      "properties": {
+                                        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                                        "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                                      },
+                                      "required": ["lat", "lng"]
+                                    }
+                                  },
+                                  "required": ["startsAt"]
+                                }
                               }
                             }
                           },
@@ -5054,6 +5132,45 @@
                                     },
                                     "wc": {
                                       "type": "boolean"
+                                    },
+                                    "occasionGroupId": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200
+                                    },
+                                    "collapsed": {
+                                      "type": "boolean"
+                                    },
+                                    "occasions": {
+                                      "type": "array",
+                                      "maxItems": 2000,
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "startsAt": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                          },
+                                          "endsAt": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                          },
+                                          "venueName": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 500
+                                          },
+                                          "location": {
+                                            "type": "object",
+                                            "properties": {
+                                              "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                                              "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                                            },
+                                            "required": ["lat", "lng"]
+                                          }
+                                        },
+                                        "required": ["startsAt"]
+                                      }
                                     }
                                   }
                                 },
@@ -5400,6 +5517,45 @@
                               },
                               "wc": {
                                 "type": "boolean"
+                              },
+                              "occasionGroupId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "collapsed": {
+                                "type": "boolean"
+                              },
+                              "occasions": {
+                                "type": "array",
+                                "maxItems": 2000,
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "startsAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "endsAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "venueName": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    },
+                                    "location": {
+                                      "type": "object",
+                                      "properties": {
+                                        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                                        "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                                      },
+                                      "required": ["lat", "lng"]
+                                    }
+                                  },
+                                  "required": ["startsAt"]
+                                }
                               }
                             }
                           },
@@ -5783,6 +5939,45 @@
                               },
                               "wc": {
                                 "type": "boolean"
+                              },
+                              "occasionGroupId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "collapsed": {
+                                "type": "boolean"
+                              },
+                              "occasions": {
+                                "type": "array",
+                                "maxItems": 2000,
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "startsAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "endsAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "venueName": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    },
+                                    "location": {
+                                      "type": "object",
+                                      "properties": {
+                                        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                                        "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                                      },
+                                      "required": ["lat", "lng"]
+                                    }
+                                  },
+                                  "required": ["startsAt"]
+                                }
                               }
                             }
                           },
@@ -6551,6 +6746,45 @@
                               },
                               "wc": {
                                 "type": "boolean"
+                              },
+                              "occasionGroupId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "collapsed": {
+                                "type": "boolean"
+                              },
+                              "occasions": {
+                                "type": "array",
+                                "maxItems": 2000,
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "startsAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "endsAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "venueName": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    },
+                                    "location": {
+                                      "type": "object",
+                                      "properties": {
+                                        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                                        "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                                      },
+                                      "required": ["lat", "lng"]
+                                    }
+                                  },
+                                  "required": ["startsAt"]
+                                }
                               }
                             }
                           },
@@ -6995,6 +7229,45 @@
                         },
                         "wc": {
                           "type": "boolean"
+                        },
+                        "occasionGroupId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "collapsed": {
+                          "type": "boolean"
+                        },
+                        "occasions": {
+                          "type": "array",
+                          "maxItems": 2000,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "startsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "endsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "venueName": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "location": {
+                                "type": "object",
+                                "properties": {
+                                  "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                                  "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                                },
+                                "required": ["lat", "lng"]
+                              }
+                            },
+                            "required": ["startsAt"]
+                          }
                         }
                       }
                     },
@@ -7456,6 +7729,45 @@
                               },
                               "wc": {
                                 "type": "boolean"
+                              },
+                              "occasionGroupId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "collapsed": {
+                                "type": "boolean"
+                              },
+                              "occasions": {
+                                "type": "array",
+                                "maxItems": 2000,
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "startsAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "endsAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "venueName": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    },
+                                    "location": {
+                                      "type": "object",
+                                      "properties": {
+                                        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                                        "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                                      },
+                                      "required": ["lat", "lng"]
+                                    }
+                                  },
+                                  "required": ["startsAt"]
+                                }
                               }
                             }
                           },
@@ -7746,6 +8058,45 @@
                         },
                         "wc": {
                           "type": "boolean"
+                        },
+                        "occasionGroupId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "collapsed": {
+                          "type": "boolean"
+                        },
+                        "occasions": {
+                          "type": "array",
+                          "maxItems": 2000,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "startsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "endsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "venueName": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "location": {
+                                "type": "object",
+                                "properties": {
+                                  "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                                  "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                                },
+                                "required": ["lat", "lng"]
+                              }
+                            },
+                            "required": ["startsAt"]
+                          }
                         }
                       }
                     },
@@ -8054,6 +8405,45 @@
                         },
                         "wc": {
                           "type": "boolean"
+                        },
+                        "occasionGroupId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "collapsed": {
+                          "type": "boolean"
+                        },
+                        "occasions": {
+                          "type": "array",
+                          "maxItems": 2000,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "startsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "endsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "venueName": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "location": {
+                                "type": "object",
+                                "properties": {
+                                  "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                                  "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                                },
+                                "required": ["lat", "lng"]
+                              }
+                            },
+                            "required": ["startsAt"]
+                          }
                         }
                       }
                     },
@@ -8574,6 +8964,45 @@
                         },
                         "wc": {
                           "type": "boolean"
+                        },
+                        "occasionGroupId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "collapsed": {
+                          "type": "boolean"
+                        },
+                        "occasions": {
+                          "type": "array",
+                          "maxItems": 2000,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "startsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "endsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "venueName": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "location": {
+                                "type": "object",
+                                "properties": {
+                                  "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                                  "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                                },
+                                "required": ["lat", "lng"]
+                              }
+                            },
+                            "required": ["startsAt"]
+                          }
                         }
                       }
                     },
@@ -8943,6 +9372,45 @@
                         },
                         "wc": {
                           "type": "boolean"
+                        },
+                        "occasionGroupId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "collapsed": {
+                          "type": "boolean"
+                        },
+                        "occasions": {
+                          "type": "array",
+                          "maxItems": 2000,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "startsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "endsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "venueName": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "location": {
+                                "type": "object",
+                                "properties": {
+                                  "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                                  "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                                },
+                                "required": ["lat", "lng"]
+                              }
+                            },
+                            "required": ["startsAt"]
+                          }
                         }
                       }
                     },
@@ -9281,6 +9749,45 @@
                         },
                         "wc": {
                           "type": "boolean"
+                        },
+                        "occasionGroupId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "collapsed": {
+                          "type": "boolean"
+                        },
+                        "occasions": {
+                          "type": "array",
+                          "maxItems": 2000,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "startsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "endsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "venueName": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "location": {
+                                "type": "object",
+                                "properties": {
+                                  "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                                  "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                                },
+                                "required": ["lat", "lng"]
+                              }
+                            },
+                            "required": ["startsAt"]
+                          }
                         }
                       }
                     },

@@ -132,6 +132,11 @@ Product invariants (enforced in domain, tested)
   source goes to `in_review`.
 - An imported physical event with no venue name uses the city in its scraped address. When that
   address has no city, the nearest city within 25 km of its point is used. A named venue stays.
+- Visit Söderhamn, Glada Hudik, and Destination Hälsingland turn each occasion into its own event.
+  A dense run longer than `data_sources.config.occasionSpanDays` (default 21) that covers at least
+  `occasionCoverage` of those days (default 0.6) becomes one span (`externalId` `{productId}:span`,
+  `meta.collapsed` true, with every occasion on `meta.occasions`).
+  When two or more occasions stay separate, each event stores that product id on `meta.occasionGroupId`.
 - A lookalike within 500 m and 30 minutes is still inserted, then marked `in_review` by the scan
   job, with `meta.possibleDuplicate` pointing at the existing event. A link matches on host and path;
   protocol, query, and a trailing slash are ignored. A Citybreak product id matches with or

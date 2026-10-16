@@ -5,13 +5,23 @@ import {
   priceAmountFromText,
   sourceDateTime,
 } from '@local-events/domain';
-import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
+import {
+  defineAdapter,
+  occasionCollapseFromConfig,
+  shouldCollapseOccasions,
+  withCollapsedSpan,
+  withOccasionGroup,
+  type IncomingEvent,
+  type OccasionCollapseOptions,
+  type SourceRunContext,
+} from '@local-events/ingest';
 import { crawlLinkImages } from './page-images';
 
 /**
  * Visit Söderhamn via the Citybreak CBIS API.
  * Same selection as the previous lambda: products in category 30172 (Evenemang),
- * one incoming event per occasion. The API key is VISIT_SODERHAMN_API_KEY, never config.
+ * one incoming event per occasion, unless a dense run of opening hours collapses to one span.
+ * The API key is VISIT_SODERHAMN_API_KEY, never config.
  */
 
 const DEFAULT_BASE_URL = 'https://cbis-rest-api.citybreak.com/v1/api';
@@ -312,7 +322,9 @@ function priceOf(
   return { priceAmount, currency: currencyCode(product) };
 }
 
-type AmenityKey = Exclude<keyof EventMeta, 'ageLimit'>;
+type AmenityKey = {
+  [Key in keyof EventMeta]: EventMeta[Key] extends boolean | undefined ? Key : never;
+}[keyof EventMeta];
 
 function metaOf(product: VisitProduct): EventMeta | undefined {
   const meta: EventMeta = {};
@@ -452,15 +464,64 @@ function productLinks(product: VisitProduct): NonNullable<IncomingEvent['links']
   return links;
 }
 
+type VisitOccasion = {
+  startRaw: string;
+  endRaw?: string;
+  startsAt: string;
+  endsAt?: string;
+  day: string;
+  venue?: string;
+  location?: { lat: number; lng: number };
+};
+
+function resolveVisitOccasions(product: VisitProduct): VisitOccasion[] {
+  const occasions: VisitOccasion[] = [];
+  for (const occasion of product.Occasions ?? []) {
+    if (!occasion.Start) continue;
+    const venue = occasion.Arena?.Name?.trim();
+    const location = pointOf(occasion.Arena?.Position) ?? pointOf(product.Position);
+    const endsAt = occasion.End ? sourceDateTime(occasion.End) : undefined;
+    occasions.push({
+      startRaw: occasion.Start,
+      ...(occasion.End ? { endRaw: occasion.End } : {}),
+      startsAt: sourceDateTime(occasion.Start),
+      ...(endsAt ? { endsAt } : {}),
+      day: occasion.Start.slice(0, 10),
+      ...(venue ? { venue } : {}),
+      ...(location ? { location } : {}),
+    });
+  }
+  occasions.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  return occasions;
+}
+
+function sharedName(names: (string | undefined)[]): string | undefined {
+  const unique = [...new Set(names.filter((name): name is string => Boolean(name)))];
+  return unique.length === 1 ? unique[0] : undefined;
+}
+
+function sharedLocation(
+  points: ({ lat: number; lng: number } | undefined)[],
+): { lat: number; lng: number } | undefined {
+  const present = points.filter((point): point is { lat: number; lng: number } => point != null);
+  const first = present[0];
+  if (!first) return undefined;
+  if (present.every((point) => point.lat === first.lat && point.lng === first.lng)) return first;
+  return undefined;
+}
+
 function mapProduct(
   product: VisitProduct,
   eventCategoryId: number,
   crawled: string[] | null | undefined,
+  collapse: OccasionCollapseOptions,
 ): IncomingEvent[] {
   const title = textField(product, NAME) ?? product.Name?.trim();
   const sourceUrl = asUrl(textField(product, EVENT_LINK)) ?? asUrl(textField(product, WEBSITE));
   const links = productLinks(product);
   if (!title || !sourceUrl) return [];
+  const occasions = resolveVisitOccasions(product);
+  if (occasions.length === 0) return [];
   const email = textField(product, EMAIL);
   const contact = textField(product, CONTACT);
   const description = textField(product, DESCRIPTION) ?? textField(product, INGRESS);
@@ -469,42 +530,65 @@ function mapProduct(
   const address = addressOf(product);
   const pictures = picturesFor(imageUrl(product), crawled);
   const categoryNames = productTags(product, eventCategoryId).map((tag) => tag.name);
-  const events: IncomingEvent[] = [];
-  for (const occasion of product.Occasions ?? []) {
-    if (!occasion.Start) continue;
-    const venue = occasion.Arena?.Name?.trim();
-    const location = pointOf(occasion.Arena?.Position) ?? pointOf(product.Position);
-    events.push({
-      externalId: `${product.Id}:${occasion.Start}:${occasion.End ?? ''}`,
-      title,
-      ...(description ? { description } : {}),
-      ...(priced.priceAmount !== undefined
-        ? { priceAmount: priced.priceAmount, currency: priced.currency ?? 'SEK' }
-        : {}),
-      ...(meta ? { meta } : {}),
-      mode: 'physical',
-      startsAt: sourceDateTime(occasion.Start),
-      ...(occasion.End ? { endsAt: sourceDateTime(occasion.End) } : {}),
-      timezone: 'Europe/Stockholm',
-      ...(venue ? { venueName: venue } : {}),
-      ...(address ? { address } : {}),
-      ...(location ? { location } : {}),
-      sourceUrl,
-      ...(links.length > 0 ? { links } : {}),
-      organizerKeys: organizerKeys({
-        emails: [email],
-        infoUrls: links.filter((link) => link.type === 'info').map((link) => link.url),
-        names: [contact],
-        fallback: 'visit-soderhamn',
-        skipHosts: ['visitsoderhamn.se'],
-      }),
-      ...(contact || email ? { organizerName: contact ?? email } : {}),
-      categoryHints: categoryNames,
-      tags: [],
-      ...pictures,
-    });
+  const base = {
+    title,
+    ...(description ? { description } : {}),
+    ...(priced.priceAmount !== undefined
+      ? { priceAmount: priced.priceAmount, currency: priced.currency ?? 'SEK' }
+      : {}),
+    mode: 'physical' as const,
+    timezone: 'Europe/Stockholm' as const,
+    ...(address ? { address } : {}),
+    sourceUrl,
+    ...(links.length > 0 ? { links } : {}),
+    organizerKeys: organizerKeys({
+      emails: [email],
+      infoUrls: links.filter((link) => link.type === 'info').map((link) => link.url),
+      names: [contact],
+      fallback: 'visit-soderhamn',
+      skipHosts: ['visitsoderhamn.se'],
+    }),
+    ...(contact || email ? { organizerName: contact ?? email } : {}),
+    categoryHints: categoryNames,
+    tags: [] as IncomingEvent['tags'],
+    ...pictures,
+  };
+  if (shouldCollapseOccasions(occasions, collapse)) {
+    const first = occasions[0]!;
+    const last = occasions.at(-1)!;
+    const venue = sharedName(occasions.map((occasion) => occasion.venue));
+    const location =
+      sharedLocation(occasions.map((occasion) => occasion.location)) ?? pointOf(product.Position);
+    return [
+      {
+        ...base,
+        externalId: `${product.Id}:span`,
+        startsAt: first.startsAt,
+        ...(last.endsAt ? { endsAt: last.endsAt } : {}),
+        ...(venue ? { venueName: venue } : {}),
+        ...(location ? { location } : {}),
+        meta: withCollapsedSpan(
+          meta,
+          occasions.map((occasion) => ({
+            startsAt: occasion.startsAt,
+            ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
+            ...(occasion.venue ? { venueName: occasion.venue } : {}),
+            ...(occasion.location ? { location: occasion.location } : {}),
+          })),
+        ),
+      },
+    ];
   }
-  return events;
+  const grouped = withOccasionGroup(meta, product.Id, occasions.length);
+  return occasions.map((occasion) => ({
+    ...base,
+    externalId: `${product.Id}:${occasion.startRaw}:${occasion.endRaw ?? ''}`,
+    startsAt: occasion.startsAt,
+    ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
+    ...(occasion.venue ? { venueName: occasion.venue } : {}),
+    ...(occasion.location ? { location: occasion.location } : {}),
+    ...(grouped ? { meta: grouped } : {}),
+  }));
 }
 
 export const visitSoderhamn = defineAdapter<VisitRaw>({
@@ -528,8 +612,9 @@ export const visitSoderhamn = defineAdapter<VisitRaw>({
   },
   map(raw, ctx) {
     const { eventCategoryId } = visitConfig(ctx.config);
+    const collapse = occasionCollapseFromConfig(ctx.config);
     return raw.products.flatMap((product) =>
-      mapProduct(product, eventCategoryId, raw.crawledImages?.[product.Id]),
+      mapProduct(product, eventCategoryId, raw.crawledImages?.[product.Id], collapse),
     );
   },
   tags(raw, ctx) {

@@ -4,7 +4,16 @@ import {
   organizerKeys,
   stockholmWallTime,
 } from '@local-events/domain';
-import { defineAdapter, type IncomingEvent } from '@local-events/ingest';
+import {
+  defineAdapter,
+  occasionCollapseFromConfig,
+  shouldCollapseOccasions,
+  withCollapsedSpan,
+  withOccasionGroup,
+  type IncomingEvent,
+  type OccasionCollapseOptions,
+  type SourceRunContext,
+} from '@local-events/ingest';
 import { load } from 'cheerio';
 import { createLocationLookupState, geocodeDelayMs, resolveGladaLocation } from './location';
 
@@ -12,7 +21,7 @@ import { createLocationLookupState, geocodeDelayMs, resolveGladaLocation } from 
  * Glada Hudik (Hudiksvall) via the public Citybreak calendar.
  * No API key. The list is GET /sv/api/cbis-product-list?nodeId=&page= only.
  * robots.txt disallows filtered queries (order, occasion, filter, search, categories, geo, arena).
- * A dense run of daily opening hours longer than 21 days becomes one event.
+ * A dense run of daily opening hours becomes one event. Span and coverage come from source config.
  * A page without map coordinates is geocoded from the location pin, then the
  * contact address, then Hudiksvall centre.
  */
@@ -21,8 +30,6 @@ const DEFAULT_ORIGIN = 'https://www.gladahudik.se';
 const DEFAULT_NODE_ID = 841;
 const DEFAULT_LANGUAGE = 'sv';
 const MAX_LIST_PAGES = 20;
-const LONG_SPAN_DAYS = 21;
-const DENSE_SHARE = 0.6;
 /** A series whose last day is only a couple of days ago stays in this year. */
 const PAST_GRACE_DAYS = 2;
 
@@ -388,20 +395,6 @@ function resolveOccasions(product: GladaProduct, now: Date): ResolvedOccasion[] 
   });
 }
 
-function shouldCollapse(occasions: ResolvedOccasion[]): boolean {
-  const first = occasions[0];
-  const last = occasions.at(-1);
-  if (!first || !last || occasions.length < 2) return false;
-  const span = dayNumber(...ymd(last.day)) - dayNumber(...ymd(first.day));
-  if (span <= LONG_SPAN_DAYS) return false;
-  return occasions.length / (span + 1) >= DENSE_SHARE;
-}
-
-function ymd(day: string): [number, number, number] {
-  const [year, month, date] = day.split('-').map(Number);
-  return [year!, month!, date!];
-}
-
 function descriptionOf(product: GladaProduct): string | undefined {
   const body = product.description?.trim();
   const intro = product.intro?.trim();
@@ -415,7 +408,12 @@ function sharedVenue(occasions: ResolvedOccasion[]): string | undefined {
   return names.length === 1 ? names[0] : undefined;
 }
 
-function mapProduct(product: GladaProduct, origin: string, now: Date): IncomingEvent[] {
+function mapProduct(
+  product: GladaProduct,
+  origin: string,
+  now: Date,
+  collapse: OccasionCollapseOptions,
+): IncomingEvent[] {
   const sourceUrl = new URL(product.path, origin).href;
   const occasions = resolveOccasions(product, now).sort((a, b) =>
     a.startsAt.localeCompare(b.startsAt),
@@ -451,7 +449,7 @@ function mapProduct(product: GladaProduct, origin: string, now: Date): IncomingE
     categoryHints: [],
     tags: [],
   };
-  if (shouldCollapse(occasions)) {
+  if (shouldCollapseOccasions(occasions, collapse)) {
     const first = occasions[0]!;
     const last = occasions.at(-1)!;
     const externalId = `${product.id}:span`;
@@ -461,9 +459,18 @@ function mapProduct(product: GladaProduct, origin: string, now: Date): IncomingE
         externalId,
         startsAt: first.startsAt,
         ...(last.endsAt ? { endsAt: last.endsAt } : {}),
+        meta: withCollapsedSpan(
+          undefined,
+          occasions.map((occasion) => ({
+            startsAt: occasion.startsAt,
+            ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
+            ...(occasion.venue ? { venueName: occasion.venue } : {}),
+          })),
+        ),
       },
     ];
   }
+  const grouped = withOccasionGroup(undefined, product.id, occasions.length);
   return occasions.map((occasion) => {
     const externalId = `${product.id}:${occasion.startsAt.slice(0, 19)}:${occasion.endsAt?.slice(0, 19) ?? ''}`;
     return {
@@ -472,6 +479,7 @@ function mapProduct(product: GladaProduct, origin: string, now: Date): IncomingE
       startsAt: occasion.startsAt,
       ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
       ...(occasion.venue && !digital ? { venueName: occasion.venue } : {}),
+      ...(grouped ? { meta: grouped } : {}),
     };
   });
 }
@@ -574,10 +582,11 @@ export const gladaHudik = defineAdapter<GladaRaw>({
     }
     return { now, origin, products };
   },
-  map(raw) {
+  map(raw, ctx: SourceRunContext) {
     const now = new Date(raw.now);
     const clock = Number.isNaN(now.getTime()) ? new Date() : now;
     const origin = raw.origin || DEFAULT_ORIGIN;
-    return raw.products.flatMap((product) => mapProduct(product, origin, clock));
+    const collapse = occasionCollapseFromConfig(ctx?.config);
+    return raw.products.flatMap((product) => mapProduct(product, origin, clock, collapse));
   },
 });

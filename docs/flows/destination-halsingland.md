@@ -18,8 +18,10 @@ fetched.
 
 List coordinates are `[longitude, latitude]`. A missing coordinate stays missing: the event can
 still be opened by id, and it is left off the public map. A dense run of daily opening hours
-longer than 21 days becomes one event (`externalId` `{id}:span`). A concert stays one event per
-occasion. Times use the Europe/Stockholm offset.
+longer than `occasionSpanDays` (default 21) that covers at least `occasionCoverage` of those days
+(default 0.6) becomes one event (`externalId` `{id}:span`, `meta.collapsed`, every occasion on `meta.occasions`). A concert stays one event per
+occasion, and each of those events stores the product id on `meta.occasionGroupId`. Both knobs
+live on `data_sources.config`. Times use the Europe/Stockholm offset.
 
 `priceAndCurrency` such as `200 SEK` is stored in öre. “Fritt inträde” sets the price to 0 and
 `meta.freeEntry`. “Åldersgräns N” sets `meta.ageLimit`. Ticket and info links come from the
@@ -45,7 +47,7 @@ sequenceDiagram
   loop each product, save before the next
     Runner->>Site: GET /sv/product/productcontent
     Runner->>Site: GET /sv/se-gora/todobookingcontrolcontext
-    Note over Runner: one event per occasion<br/>daily opening hours over 21 days become one span<br/>coordinates are longitude, latitude<br/>no coordinate stays without a point<br/>Europe/Stockholm offset
+    Note over Runner: one event per occasion<br/>daily opening hours over occasionSpanDays (default 21) at occasionCoverage (default 0.6) become one span<br/>separate occasions share meta.occasionGroupId<br/>coordinates are longitude, latitude<br/>no coordinate stays without a point<br/>Europe/Stockholm offset
     Runner->>DB: insert this event (status pending_scan, origin imported)<br/>ref_id, worker_id, external_refs, meta.import
   end
   Runner->>DB: finish ingestion_runs

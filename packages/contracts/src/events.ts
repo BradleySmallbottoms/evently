@@ -96,6 +96,25 @@ export const EventMeta = z.object({
   allergyAdapted: z.boolean().optional(),
   smokeFree: z.boolean().optional(),
   wc: z.boolean().optional(),
+  /**
+   * Source product id shared by every event created from that product's separate occasions.
+   * Absent when the product is one occasion or one collapsed span.
+   */
+  occasionGroupId: z.string().trim().min(1).max(200).optional(),
+  /** True when several occasions were saved as this one span. */
+  collapsed: z.boolean().optional(),
+  /** Each occasion folded into a collapsed span, in start order. */
+  occasions: z
+    .array(
+      z.object({
+        startsAt: z.iso.datetime({ offset: true }),
+        endsAt: z.iso.datetime({ offset: true }).optional(),
+        venueName: z.string().trim().min(1).max(500).optional(),
+        location: GeoPointSchema.optional(),
+      }),
+    )
+    .max(2000)
+    .optional(),
   /** Set when an import looks like another event. The new row stays in review. */
   possibleDuplicate: z
     .object({

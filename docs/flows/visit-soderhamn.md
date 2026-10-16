@@ -33,7 +33,7 @@ sequenceDiagram
   loop POST /v1/api/product page until TotalResults
     Runner->>CBIS: Categories [30172], Page, PageSize 20
   end
-  Note over Runner: one IncomingEvent per occasion<br/>Z or an offset is that instant<br/>a time with no zone is Europe/Stockholm<br/>arena position, else product position<br/>organizer keys = email, website, name<br/>every Bokningslänk → tickets<br/>every event link and website → info<br/>description URLs → event links<br/>Price From, then Prisinformation, then “N kr” or gratis<br/>age limit and true accessibility flags → events.meta
+  Note over Runner: one IncomingEvent per occasion<br/>daily opening hours over occasionSpanDays (default 21) at occasionCoverage (default 0.6) become one span<br/>a span keeps every occasion on meta.occasions<br/>separate occasions share meta.occasionGroupId<br/>Z or an offset is that instant<br/>a time with no zone is Europe/Stockholm<br/>arena position, else product position<br/>organizer keys = email, website, name<br/>every Bokningslänk → tickets<br/>every event link and website → info<br/>description URLs → event links<br/>Price From, then Prisinformation, then “N kr” or gratis<br/>age limit and true accessibility flags → events.meta
   loop each event link, https only
     Runner->>Runner: GET the page<br/>og:image, then img
   end

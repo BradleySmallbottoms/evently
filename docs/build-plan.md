@@ -133,7 +133,7 @@ Closed beta around week 15, store launch around week 19.
       schedule every 5 minutes (`JOB=event-scan`).
 - [x] Raw ingestion payloads to S3 (`raw/<slug>/<runId>`; no-op when `RAW_INGESTION_BUCKET` unset)
 - [x] Fargate task definition + EventBridge Scheduler schedules in CDK
-- [x] First real source: Visit Söderhamn adapter (Citybreak, Evenemang only, one event per occasion)
+- [x] First real source: Visit Söderhamn adapter (Citybreak, Evenemang only). Occasions follow the shared collapse rule with Glada Hudik and Destination Hälsingland.
 - [x] Event images: copy into public assets (Garage locally, S3 + CloudFront in AWS) and link via
       `event_images`. Visit Söderhamn fills a missing hero from a linked page (`og:image`, then
       `<img>`) and stores the other crawled images as gallery roles

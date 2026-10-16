@@ -131,6 +131,11 @@ describe('glada-hudik map', () => {
       '2026-11-17T18:00:00+01:00',
       '2026-12-15T18:00:00+01:00',
     ]);
+    expect(circle.map((event) => event.meta?.occasionGroupId)).toEqual([
+      'cbis:2806136',
+      'cbis:2806136',
+      'cbis:2806136',
+    ]);
   });
 
   it('collapses a long daily exhibition into one span', () => {
@@ -159,6 +164,25 @@ describe('glada-hudik map', () => {
     expect(event?.startsAt).toBe('2026-10-12T10:00:00+02:00');
     expect(event?.endsAt).toBe('2026-11-20T16:00:00+01:00');
     expect(event?.venueName).toBe('Hälsingland Museum');
+    expect(event?.meta?.collapsed).toBe(true);
+    expect(event?.meta?.occasions).toHaveLength(40);
+    expect(event?.meta?.occasions?.[0]).toEqual({
+      startsAt: '2026-10-12T10:00:00+02:00',
+      endsAt: '2026-10-12T16:00:00+02:00',
+      venueName: 'Hälsingland Museum',
+    });
+    expect(event?.meta?.occasions?.at(-1)?.endsAt).toBe('2026-11-20T16:00:00+01:00');
+    const kept = gladaHudik.map(
+      { ...raw, products: [product] },
+      ctx(
+        async () => {
+          throw new Error('unexpected fetch');
+        },
+        { occasionSpanDays: 100 },
+      ),
+    );
+    expect(kept).toHaveLength(40);
+    expect(kept.every((item) => item.meta?.occasionGroupId === 'cbis:2866558')).toBe(true);
   });
 
   it('rolls a past one-off into the next year and wraps Oct to May', () => {

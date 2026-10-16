@@ -51,6 +51,9 @@ describe('visit-soderhamn map', () => {
       'cbis:2682743:2024-12-14T12:00:00:2024-12-14T15:00:00',
       'cbis:2682743:2024-12-15T12:00:00:2024-12-15T15:00:00',
     ]);
+    expect(events[0]?.meta?.occasionGroupId).toBeUndefined();
+    expect(events[1]?.meta?.occasionGroupId).toBe('cbis:2682743');
+    expect(events[2]?.meta?.occasionGroupId).toBe('cbis:2682743');
     expect(events[1]?.links).toEqual([
       {
         type: 'info',
@@ -155,6 +158,53 @@ describe('visit-soderhamn map', () => {
     ]);
   });
 
+  it('collapses a long daily exhibition into one span', () => {
+    const product: VisitProduct = {
+      ...raw.products[0]!,
+      Occasions: Array.from({ length: 40 }, (_, index) => {
+        const date = new Date(Date.UTC(2026, 10, 13 + index));
+        const day = date.toISOString().slice(0, 10);
+        return {
+          Start: `${day}T10:00:00`,
+          End: `${day}T18:00:00`,
+          Arena: { Name: 'Helsingehus Arena, Hällåsen' },
+        };
+      }),
+    };
+    const [span] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
+    expect(span?.externalId).toBe(`${product.Id}:span`);
+    expect(span?.startsAt).toBe('2026-11-13T10:00:00+01:00');
+    expect(span?.endsAt).toBe('2026-12-22T18:00:00+01:00');
+    expect(span?.venueName).toBe('Helsingehus Arena, Hällåsen');
+    expect(span?.meta?.collapsed).toBe(true);
+    expect(span?.meta?.occasionGroupId).toBeUndefined();
+    expect(span?.meta?.occasions).toHaveLength(40);
+    expect(span?.meta?.occasions?.[0]).toMatchObject({
+      startsAt: '2026-11-13T10:00:00+01:00',
+      endsAt: '2026-11-13T18:00:00+01:00',
+      venueName: 'Helsingehus Arena, Hällåsen',
+    });
+    expect(span?.meta?.occasions?.at(-1)).toMatchObject({
+      startsAt: '2026-12-22T10:00:00+01:00',
+      endsAt: '2026-12-22T18:00:00+01:00',
+    });
+  });
+
+  it('keeps a long run split when the configured span is longer, and stamps the product id', () => {
+    const product: VisitProduct = {
+      ...raw.products[0]!,
+      Occasions: Array.from({ length: 40 }, (_, index) => {
+        const date = new Date(Date.UTC(2026, 10, 13 + index));
+        const day = date.toISOString().slice(0, 10);
+        return { Start: `${day}T10:00:00`, End: `${day}T18:00:00` };
+      }),
+    };
+    const { ctx: wide } = ctx({ occasionSpanDays: 100 });
+    const events = visitSoderhamn.map({ categories: [], products: [product] }, wide);
+    expect(events).toHaveLength(40);
+    expect(events.every((event) => event.meta?.occasionGroupId === product.Id)).toBe(true);
+  });
+
   it('uses a summer offset', () => {
     const product: VisitProduct = {
       ...raw.products[0]!,
@@ -252,6 +302,7 @@ describe('visit-soderhamn map', () => {
       ageLimit: 13,
       accessibleParking: true,
       visuallyImpairedAccess: true,
+      occasionGroupId: 'cbis:2682743',
     });
   });
 
@@ -287,7 +338,7 @@ describe('visit-soderhamn map', () => {
     };
     const [event] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
     expect(event?.priceAmount).toBe(0);
-    expect(event?.meta).toEqual({ freeEntry: true });
+    expect(event?.meta).toEqual({ freeEntry: true, occasionGroupId: 'cbis:2682743' });
   });
 });
 

@@ -67,7 +67,11 @@ calls) in the same change as every new major feature.**
 ### Visit Söderhamn import
 
 - First external source is the Citybreak API used by Visit Söderhamn. The worker loads the category
-  tree, then products in **Evenemang** (category `30172`) only. Each occasion becomes its own event.
+  tree, then products in **Evenemang** (category `30172`) only. Each occasion becomes its own event,
+  unless the occasions are a dense run of opening hours longer than `occasionSpanDays` (default 21)
+  covering at least `occasionCoverage` of those days (default 0.6). Both live on `data_sources.config`.
+  A collapsed run is one event with `meta.collapsed` true and every occasion on `meta.occasions`. When two or more occasions stay separate, each event stores the
+  product id on `meta.occasionGroupId`.
   A Citybreak time ending in `Z`, or with a numeric offset, is stored as that instant. A time with no zone is Europe/Stockholm. Hälsingland and Hudiksvall date-and-period values are Stockholm wall time too.
   Categories under Evenemang are stored as the tag catalog (`external_id` `visit-soderhamn:{id}`).
   The import does not put those tags on the event. The scan job does. `GET /v1/tags` is that list. The mobile home and search call it with
@@ -117,7 +121,9 @@ calls) in the same change as every new major feature.**
   uses Hudiksvall centre so the event still has a point. A digital showing stays without one.
   Links in the description, information, and contact (including Facebook) are stored. The site
   footer is not. A long daily exhibition becomes one event; a concert or a monthly circle stays
-  one event per occasion. The hero image is the page `og:image`.
+  one event per occasion and stores the product id on `meta.occasionGroupId`. A collapsed span sets `meta.collapsed` and keeps every occasion on `meta.occasions`. Span length and
+  coverage are `occasionSpanDays` and `occasionCoverage` on `data_sources.config` (defaults 21 and 0.6).
+  The hero image is the page `og:image`.
   The worker reads the list, then saves each event after its page is ready, before fetching the
   next page. New imports are `pending_scan`. Tag matching, the publisher, and the duplicate check
   run later in the scan job.
@@ -145,7 +151,9 @@ calls) in the same change as every new major feature.**
   page already loads: the event list (`filter=c=4559`, Evenemang i hela Hälsingland), then each
   product’s text and occasions. It does not read HTML. List coordinates are longitude then
   latitude. A product with no coordinate is still saved, without a map point. A long daily
-  exhibition becomes one event; a concert stays one event per occasion. A lookalike within 200 m
+  exhibition becomes one event; a concert stays one event per occasion and stores the product id
+  on `meta.occasionGroupId`. A collapsed span sets `meta.collapsed` and keeps every occasion on `meta.occasions`. Span length and coverage are `occasionSpanDays` and `occasionCoverage`
+  on `data_sources.config` (defaults 21 and 0.6). A lookalike within 200 m
   and 30 minutes is saved as its own review event and flagged in `meta`. That product
   is saved
   before the next product is fetched. Those requests go through `curl` over HTTP/1.1 with

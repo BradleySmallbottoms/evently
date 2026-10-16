@@ -5,15 +5,24 @@ import {
   priceAmountFromText,
   stockholmWallTime,
 } from '@local-events/domain';
-import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
+import {
+  defineAdapter,
+  occasionCollapseFromConfig,
+  shouldCollapseOccasions,
+  withCollapsedSpan,
+  withOccasionGroup,
+  type IncomingEvent,
+  type OccasionCollapseOptions,
+  type SourceRunContext,
+} from '@local-events/ingest';
 import { HTTP1_HEADER } from '../../http1';
 
 /**
  * Destination Hälsingland via the public Citybreak JSON the calendar page already loads.
  * No API key. List: GET /sv/se-och-gora/products?filter=c=4559.
  * Each product then reads /sv/product/productcontent and
- * /sv/se-gora/todobookingcontrolcontext. A dense run of daily opening hours longer
- * than 21 days becomes one event.
+ * /sv/se-gora/todobookingcontrolcontext. A dense run of daily opening hours becomes
+ * one event. Span and coverage come from source config.
  * Raw samples of those three responses, for product 1960936, are products.json,
  * product-content.json and booking-context.json in this folder.
  */
@@ -26,8 +35,6 @@ const DEFAULT_PAGE_SIZE = 10;
 /** Node's TLS fingerprint is challenged. These calls go through curl over HTTP/1.1. */
 const CALENDAR_USER_AGENT = 'PostmanRuntime/2.11.0';
 const MAX_LIST_PAGES = 40;
-const LONG_SPAN_DAYS = 21;
-const DENSE_SHARE = 0.6;
 const SOURCE_SKIP_HOSTS = ['visit.destinationhalsingland.se', 'destinationhalsingland.se'];
 
 export interface HalsinglandOccasion {
@@ -501,20 +508,6 @@ function resolveOccasions(product: HalsinglandProduct): ResolvedOccasion[] {
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
-function dayNumber(day: string): number {
-  const [year, month, date] = day.split('-').map(Number);
-  return Math.round(Date.UTC(year!, month! - 1, date!) / 86_400_000);
-}
-
-function shouldCollapse(occasions: ResolvedOccasion[]): boolean {
-  const first = occasions[0];
-  const last = occasions.at(-1);
-  if (!first || !last || occasions.length < 2) return false;
-  const span = dayNumber(last.day) - dayNumber(first.day);
-  if (span <= LONG_SPAN_DAYS) return false;
-  return occasions.length / (span + 1) >= DENSE_SHARE;
-}
-
 function descriptionOf(product: HalsinglandProduct): string | undefined {
   const body = product.description?.trim();
   const intro = product.intro?.trim();
@@ -535,7 +528,10 @@ function metaOf(product: HalsinglandProduct): EventMeta | undefined {
   return Object.keys(meta).length > 0 ? meta : undefined;
 }
 
-function mapProduct(product: HalsinglandProduct): IncomingEvent[] {
+function mapProduct(
+  product: HalsinglandProduct,
+  collapse: OccasionCollapseOptions,
+): IncomingEvent[] {
   const occasions = resolveOccasions(product);
   if (occasions.length === 0) return [];
   const description = descriptionOf(product);
@@ -566,7 +562,7 @@ function mapProduct(product: HalsinglandProduct): IncomingEvent[] {
     categoryHints: [],
     tags: [],
   };
-  if (shouldCollapse(occasions)) {
+  if (shouldCollapseOccasions(occasions, collapse)) {
     const first = occasions[0]!;
     const last = occasions.at(-1)!;
     return [
@@ -575,15 +571,25 @@ function mapProduct(product: HalsinglandProduct): IncomingEvent[] {
         externalId: `${product.id}:span`,
         startsAt: first.startsAt,
         ...(last.endsAt ? { endsAt: last.endsAt } : {}),
+        meta: withCollapsedSpan(
+          meta,
+          occasions.map((occasion) => ({
+            startsAt: occasion.startsAt,
+            ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
+            ...(occasion.venue ? { venueName: occasion.venue } : {}),
+          })),
+        ),
       },
     ];
   }
+  const grouped = withOccasionGroup(meta, product.id, occasions.length);
   return occasions.map((occasion) => ({
     ...base,
     externalId: `${product.id}:${occasion.startsAt.slice(0, 19)}:${occasion.endsAt?.slice(0, 19) ?? ''}`,
     startsAt: occasion.startsAt,
     ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
     ...(occasion.venue && !digital ? { venueName: occasion.venue } : {}),
+    ...(grouped ? { meta: grouped } : {}),
   }));
 }
 
@@ -708,7 +714,8 @@ export const destinationHalsingland = defineAdapter<HalsinglandRaw>({
     }
     return { now, origin, products };
   },
-  map(raw) {
-    return raw.products.flatMap((product) => mapProduct(product));
+  map(raw, ctx: SourceRunContext) {
+    const collapse = occasionCollapseFromConfig(ctx?.config);
+    return raw.products.flatMap((product) => mapProduct(product, collapse));
   },
 });
