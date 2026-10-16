@@ -9,6 +9,7 @@ import { canViewEventContent } from '@local-events/domain';
 import { and, asc, eq } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
+import { requirePublisherId } from '../publisher-id';
 import { createMemoryContentUrlSigner } from './signer';
 import {
   EventContentError,
@@ -76,7 +77,7 @@ export function createDbEventContentServices(
   async function requirePublisher(eventId: string, token: string | undefined) {
     const event = await loadEvent(eventId);
     try {
-      await auth.requirePublisherMember(token, event.publisherId);
+      await auth.requirePublisherMember(token, requirePublisherId(event.publisherId));
     } catch (err) {
       if (err instanceof AuthError) {
         throw new EventContentError(err.code === 'forbidden' ? 'forbidden' : 'unauthorized');

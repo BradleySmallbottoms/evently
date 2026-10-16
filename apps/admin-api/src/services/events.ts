@@ -1,4 +1,9 @@
 import { randomUUID } from 'node:crypto';
+
+function publisherIdOf(id: string | null): string {
+  if (!id) throw new Error('event has no publisher');
+  return id;
+}
 import {
   type AdminEventDecisionResponse,
   type AdminEventDeleteResponse,
@@ -607,7 +612,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
     const lng = row.lng == null ? null : Number(row.lng);
     return {
       id: row.id,
-      publisherId: row.publisherId,
+      publisherId: publisherIdOf(row.publisherId),
       publisherName: row.publisherName,
       title: row.title,
       description: row.description,
@@ -703,7 +708,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .filter((r) => r.status === 'in_review')
         .map((r) => ({
           id: r.id,
-          publisherId: r.publisherId,
+          publisherId: publisherIdOf(r.publisherId),
           publisherName: r.publisherName,
           title: r.title,
           mode: r.mode,
@@ -768,7 +773,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       return {
         items: rows.map((r) => ({
           id: r.id,
-          publisherId: r.publisherId,
+          publisherId: publisherIdOf(r.publisherId),
           publisherName: r.publisherName,
           title: r.title,
           mode: r.mode,
@@ -811,7 +816,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .from(schema.events)
         .where(eq(schema.events.id, eventId))
         .limit(1);
-      if (!row || !canApproveImportedEvent(row.status)) return null;
+      if (!row || !canApproveImportedEvent(row.status) || !row.publisherId) return null;
       const at = now();
       const updated = await db
         .update(schema.events)

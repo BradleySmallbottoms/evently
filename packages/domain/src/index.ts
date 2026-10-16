@@ -4,6 +4,7 @@ export * from './check-in';
 export * from './ratings';
 export * from './reports';
 export * from './publishing';
+export * from './import-scan';
 export * from './entitlements';
 export * from './events';
 export * from './for-you';

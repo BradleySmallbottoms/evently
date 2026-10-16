@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { SEED_TAGS } from '@local-events/db';
-import type { EventMeta } from '@local-events/contracts';
+import { readEventMeta, type EventMeta } from '@local-events/contracts';
 import { distanceMeters } from '@local-events/geo';
 import {
   choosePublisher,
@@ -13,12 +13,13 @@ import {
   tagSlug,
   withinDuplicateWindow,
   type MarketingPushPlanId,
-  type PublisherCandidate,
 } from '@local-events/domain';
+import type { ScanPublisherCandidate } from '@local-events/ingest';
 import type {
   ExternalRefHit,
   ImportedEventWrite,
   IngestStore,
+  PendingScanRow,
   PublisherLink,
   SourceRecord,
 } from './store';
@@ -37,7 +38,9 @@ interface StoredPublisher {
 
 interface StoredEvent {
   id: string;
-  publisherId: string;
+  publisherId: string | null;
+  createdAt?: Date;
+  scanClaimedUntil?: Date | null;
   title: string;
   description: string | null;
   status: ExternalRefHit['status'];
@@ -113,6 +116,8 @@ function eventFromWrite(id: string, input: ImportedEventWrite): StoredEvent {
   return {
     id,
     publisherId: input.publisherId,
+    createdAt: new Date(),
+    scanClaimedUntil: null,
     title: input.event.title,
     description: input.event.description ?? null,
     status: input.status,
@@ -191,8 +196,9 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       if (!run) throw new Error(`Unknown ingestion run ${runId}`);
       Object.assign(run, result);
     },
-    async findPublisher(sourceId, organizerKeys, near) {
-      if (organizerKeys.length === 0) return null;
+    async listPublisherCandidates(sourceId, organizerKeys, near) {
+      void sourceId;
+      if (organizerKeys.length === 0) return [];
       const localSlugs = near?.localSlugs ?? [];
       const nameKeys = organizerKeys.filter(
         (key) => sharedOrganizerKeyKind(key, localSlugs) === 'name',
@@ -201,12 +207,13 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       if (near?.location) {
         for (const event of events) {
           if (event.status === 'cancelled' || event.status === 'ended' || !event.location) continue;
+          if (!event.publisherId) continue;
           if (distanceMeters(near.location, event.location) <= PUBLISHER_NAME_RADIUS_M) {
             nearIds.add(event.publisherId);
           }
         }
       }
-      const candidates: PublisherCandidate[] = [];
+      const candidates: ScanPublisherCandidate[] = [];
       for (const alias of aliases) {
         if (!organizerKeys.includes(alias.organizerKey)) continue;
         const publisher = publishers.find((item) => item.id === alias.publisherId);
@@ -218,6 +225,8 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           verified: publisher.verified,
           createdAt: publisher.createdAt,
           near: nearIds.has(publisher.id),
+          isTemporary: publisher.isTemporary,
+          importNotificationPlan: publisher.importNotificationPlan,
         });
       }
       for (const publisher of publishers) {
@@ -235,8 +244,15 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           verified: publisher.verified,
           createdAt: publisher.createdAt,
           near: nearIds.has(publisher.id),
+          isTemporary: publisher.isTemporary,
+          importNotificationPlan: publisher.importNotificationPlan,
         });
       }
+      return candidates;
+    },
+    async findPublisher(sourceId, organizerKeys, near) {
+      const localSlugs = near?.localSlugs ?? [];
+      const candidates = await store.listPublisherCandidates(sourceId, organizerKeys, near);
       const chosen = choosePublisher(sourceId, organizerKeys, localSlugs, candidates);
       const publisher = publishers.find((item) => item.id === chosen?.publisherId);
       if (!publisher) return null;
@@ -428,6 +444,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
     async updateImported(eventId, input) {
       const event = events.find((item) => item.id === eventId);
       if (!event) throw new Error(`Unknown event ${eventId}`);
+      if (input.status === 'pending_scan' && event.status !== 'pending_scan') return false;
       const next = eventFromWrite(eventId, input);
       next.status = event.status;
       if (input.event.onlineUrl === undefined) next.onlineUrl = event.onlineUrl;
@@ -437,13 +454,17 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       if (!next.meta.possibleDuplicate && event.meta.possibleDuplicate) {
         next.meta = { ...next.meta, possibleDuplicate: event.meta.possibleDuplicate };
       }
+      const createdAt = event.createdAt ?? new Date();
       Object.assign(event, next);
+      event.createdAt = createdAt;
+      event.scanClaimedUntil = null;
       const ref = refs.find(
         (item) => item.sourceId === input.sourceId && item.externalId === input.externalId,
       );
       if (!ref) throw new Error(`Unknown external ref ${input.externalId}`);
       ref.contentHash = input.contentHash;
       ref.lastSeenAt = new Date();
+      return true;
     },
     async touchRef(sourceId, externalId) {
       const ref = refs.find((item) => item.sourceId === sourceId && item.externalId === externalId);
@@ -481,6 +502,70 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         sourceUrl: input.sourceUrl,
         contentType: input.contentType,
       });
+    },
+    async claimPendingScans(limit, leaseMs) {
+      const now = Date.now();
+      const until = new Date(now + leaseMs);
+      const due = events
+        .filter(
+          (event) =>
+            event.status === 'pending_scan' &&
+            (event.scanClaimedUntil == null || event.scanClaimedUntil.getTime() < now),
+        )
+        .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0))
+        .slice(0, limit);
+      const rows: PendingScanRow[] = [];
+      for (const event of due) {
+        event.scanClaimedUntil = until;
+        const ref = refs.find((item) => item.eventId === event.id);
+        const source = ref ? sources.find((item) => item.id === ref.sourceId) : undefined;
+        if (!ref || !source) {
+          event.scanClaimedUntil = null;
+          continue;
+        }
+        const meta = readEventMeta(event.meta);
+        const tagById = new Map([...tags.values()].map((tag) => [tag.id, tag]));
+        rows.push({
+          eventId: event.id,
+          title: event.title,
+          description: event.description,
+          venueName: event.venueName,
+          startsAt: event.startsAt,
+          location: event.location ?? null,
+          sourceUrl: event.sourceUrl,
+          links: (event.links ?? []).map((link) => link.url),
+          externalId: ref.externalId,
+          workerId: event.workerId ?? source.slug,
+          tagIds: event.tagIds,
+          tags: event.tagIds.flatMap((tagId) => {
+            const tag = tagById.get(tagId);
+            return tag ? [{ externalId: tag.externalId, name: tag.name }] : [];
+          }),
+          meta,
+          sourceId: source.id,
+          sourceSlug: source.slug,
+          sourceTrust: source.trust,
+          claimedUntil: until,
+        });
+      }
+      return rows;
+    },
+    async releaseScanClaim(eventId, claimedUntil) {
+      const event = events.find((item) => item.id === eventId);
+      if (!event || event.status !== 'pending_scan') return;
+      if (event.scanClaimedUntil?.getTime() !== claimedUntil.getTime()) return;
+      event.scanClaimedUntil = null;
+    },
+    async finishImportedScan(input) {
+      const event = events.find((item) => item.id === input.eventId);
+      if (!event || event.status !== 'pending_scan') return false;
+      if (event.scanClaimedUntil?.getTime() !== input.claimedUntil.getTime()) return false;
+      event.publisherId = input.publisherId;
+      event.status = input.status;
+      event.meta = input.meta;
+      event.tagIds = input.tagIds;
+      event.scanClaimedUntil = null;
+      return true;
     },
     async deleteEventImages(eventId, roles) {
       const drop = new Set(roles.filter((role) => role.startsWith('gallery-')));

@@ -14,10 +14,11 @@ import { AuthError } from '../auth/types';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
 import { enqueueDomainEvent, type DomainEventPublisher } from '../domain-events/types';
 import { LibraryError, type LibraryServices } from './types';
+import { requirePublisherId } from '../publisher-id';
 
 type LocRow = {
   id: string;
-  publisherId: string;
+  publisherId: string | null;
   title: string;
   description: string | null;
   mode: Event['mode'];
@@ -52,7 +53,7 @@ function mapRow(
 ): Event {
   return {
     id: row.id,
-    publisherId: row.publisherId,
+    publisherId: requirePublisherId(row.publisherId),
     title: row.title,
     description: row.description,
     mode: row.mode,

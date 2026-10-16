@@ -1,34 +1,18 @@
 import {
-  anyLinksMatch,
-  duplicateIdsMatch,
-  duplicateLinksMatch,
   importPlanToSchedule,
   mergeImportedLinks,
-  preferDuplicate,
-  shouldEnqueueNotifications,
   statusOnPublish,
-  withinDuplicateWindow,
-  duplicateSignal,
-  type DuplicateSignal,
   type EventStatus,
   validateEventFields,
 } from '@local-events/domain';
-import {
-  contentHash,
-  existingEventTags,
-  matchEventTag,
-  tagCatalog,
-  titleSimilarity,
-  type IncomingEvent,
-  type TagChoice,
-} from '@local-events/ingest';
+import { contentHash, type IncomingEvent } from '@local-events/ingest';
 import { emitDomainEvent, noopDomainEvents, type DomainEventSink } from './domain-events';
 import { noopEventImageUploader, type EventImageUploader } from './event-images';
 import { noopRawPayloadSink, type RawPayloadSink } from './raw-payload';
 import { eachSourceRun, runSource, sourceSavesEachEvent } from './run';
 import { fillMissingVenueNames, geocodeDelayMs } from './venue-city';
 import { LOCAL_ORGANIZER_SLUGS } from './sources';
-import type { DuplicateCandidate, IngestStore, PublisherLink, SourceRecord } from './store';
+import type { IngestStore, PublisherLink, SourceRecord } from './store';
 
 export interface PersistSummary {
   source: string;
@@ -101,56 +85,6 @@ function namedEvents(events: IncomingEvent[], config: Record<string, unknown>) {
   });
 }
 
-async function attachMatchedTags(
-  events: IncomingEvent[],
-  config: Record<string, unknown>,
-): Promise<IncomingEvent[]> {
-  const catalog = tagCatalog(config);
-  if (catalog.length === 0) return events;
-  const stored = existingEventTags(config);
-  let unavailable = false;
-  const cache = new Map<string, TagChoice[]>();
-  const tagged: IncomingEvent[] = [];
-  for (const event of events) {
-    if (event.tags.length > 0) {
-      tagged.push(event);
-      continue;
-    }
-    const kept = stored.filter((row) => row.externalId === event.externalId).map((row) => row.tag);
-    if (kept.length > 0) {
-      tagged.push({ ...event, tags: kept });
-      continue;
-    }
-    if (unavailable) {
-      tagged.push(event);
-      continue;
-    }
-    const cached = cache.get(event.title);
-    if (cached) {
-      tagged.push({ ...event, tags: cached });
-      continue;
-    }
-    const result = await matchEventTag(
-      {
-        title: event.title,
-        ...(event.description ? { description: event.description } : {}),
-        ...(event.venueName ? { venue: event.venueName } : {}),
-      },
-      catalog,
-      config,
-      fetch,
-    );
-    if (!result.ok) {
-      unavailable = true;
-      tagged.push(event);
-      continue;
-    }
-    cache.set(event.title, result.tags);
-    tagged.push(result.tags.length > 0 ? { ...event, tags: result.tags } : event);
-  }
-  return tagged;
-}
-
 async function persistWholeRun(
   store: IngestStore,
   source: SourceRecord,
@@ -164,7 +98,7 @@ async function persistWholeRun(
   const saved = await saveIncomingEvents(
     store,
     source,
-    await attachMatchedTags(await namedEvents(run.events, config), config),
+      await namedEvents(run.events, config),
     enqueue,
     images,
   );
@@ -200,7 +134,7 @@ async function persistEachEvent(
     const saved = await saveIncomingEvents(
       store,
       source,
-      await attachMatchedTags(await namedEvents(batch.events, config), config),
+      await namedEvents(batch.events, config),
       enqueue,
       images,
     );
@@ -226,11 +160,10 @@ async function persistEachEvent(
 
 /**
  * Fetch one source and upsert its events.
- * Review-trust and temporary publishers stay `in_review` and are not announced.
- * A verified publisher with a plan still gets reminders: approved when the event
- * is published, pending while it is in review.
- * An unchanged content hash is skipped. A lookalike within 200 m and 30 minutes
- * is saved as its own in_review event and flagged in meta.
+ * A new import is saved as `pending_scan` with no publisher. The scan job resolves
+ * the publisher, duplicate check, and tags, then moves the row to `in_review` or
+ * `published`. An unchanged content hash is skipped. A row already in review or
+ * published is updated in place.
  */
 export async function persistSource(
   store: IngestStore,
@@ -243,11 +176,7 @@ export async function persistSource(
   if (!source) throw new Error(`No data_sources row for "${slug}"`);
   const runId = await store.startRun(source.id);
   try {
-    const config = {
-      ...source.config,
-      tagCatalog: await store.listTags(),
-      existingEventTags: await store.listEventTags(source.id),
-    };
+    const config = source.config;
     const collected = sourceSavesEachEvent(slug)
       ? await persistEachEvent(store, source, slug, config, enqueue, images)
       : await persistWholeRun(store, source, slug, config, enqueue, images);
@@ -396,51 +325,16 @@ async function scheduleImportedNotifications(
   });
 }
 
-async function possibleDuplicate(
-  store: IngestStore,
-  event: IncomingEvent,
-  startsAt: Date,
-  location: { lat: number; lng: number },
-  workerId: string,
-) {
-  const incomingIds = [event.externalId];
-  const incomingUrls = [event.sourceUrl, ...(event.links ?? []).map((link) => link.url)];
-  let best: { candidate: DuplicateCandidate; signal: DuplicateSignal } | null = null;
-  for (const candidate of await store.duplicateCandidates({ location, startsAt })) {
-    const sameRow =
-      candidate.workerId === workerId &&
-      (candidate.refId === event.externalId || candidate.externalIds.includes(event.externalId));
-    if (sameRow) continue;
-    const candidateUrls = [candidate.sourceUrl, ...candidate.links];
-    const signal = duplicateSignal({
-      distanceM: candidate.distanceM,
-      withinWindow: withinDuplicateWindow(startsAt, candidate.startsAt),
-      titleSimilarity: titleSimilarity(event.title, candidate.title),
-      sharedEventLink: duplicateLinksMatch(incomingUrls, candidateUrls),
-      sharedLink: anyLinksMatch(incomingUrls, candidateUrls),
-      sameId: duplicateIdsMatch(incomingIds, [candidate.refId, ...candidate.externalIds]),
-    });
-    console.log('possibleDuplicate: signal = ', signal);
-    if (!signal) continue;
-    if (
-      !best ||
-      preferDuplicate(
-        { signal: best.signal, distanceM: best.candidate.distanceM },
-        { signal, distanceM: candidate.distanceM },
-      )
-    ) {
-      best = { candidate, signal };
-    }
-  }
-  console.log('possibleDuplicate: best = ', best);
-  if (!best) return null;
+function withImportContext(event: IncomingEvent): IncomingEvent {
   return {
-    eventId: best.candidate.eventId,
-    title: best.candidate.title,
-    startsAt: best.candidate.startsAt.toISOString(),
-    refId: best.candidate.refId,
-    workerId: best.candidate.workerId,
-    matchedOn: best.signal,
+    ...event,
+    meta: {
+      ...event.meta,
+      import: {
+        organizerKeys: event.organizerKeys,
+        ...(event.organizerName ? { organizerName: event.organizerName } : {}),
+      },
+    },
   };
 }
 
@@ -459,10 +353,46 @@ async function saveOne(
   if (!fields.ok) return { externalId: event.externalId, reason: fields.reason };
   if (await store.isImportSuppressed(source.id, event.externalId)) return 'skipped';
 
-  const linked = {
+  const linked = withImportContext({
     ...event,
     links: mergeImportedLinks(event.links, event.description),
-  };
+  });
+  const hash = contentHash(linked);
+  const tagIds = await store.tagIdsForExternalIds(event.tags.map((tag) => tag.externalId));
+  const existing = await store.findExternalRef(source.id, event.externalId);
+  if (existing && existing.contentHash === hash) {
+    await store.touchRef(source.id, event.externalId);
+    await attachImages(store, existing.eventId, event, images);
+    return 'skipped';
+  }
+  if (existing && (existing.status === 'cancelled' || existing.status === 'ended')) {
+    await store.touchRef(source.id, event.externalId);
+    return 'skipped';
+  }
+
+  if (!existing || existing.status === 'pending_scan') {
+    const write = {
+      sourceId: source.id,
+      externalId: event.externalId,
+      contentHash: hash,
+      publisherId: null,
+      status: 'pending_scan' as const,
+      event: linked,
+      endsAt: event.endsAt ?? event.startsAt,
+      tagIds,
+      refId: event.externalId,
+      workerId: source.slug,
+    };
+    if (!existing) {
+      const eventId = await store.insertImported(write);
+      await attachImages(store, eventId, event, images);
+      return 'created';
+    }
+    const saved = await store.updateImported(existing.eventId, write);
+    if (!saved) return 'skipped';
+    await attachImages(store, existing.eventId, event, images);
+    return 'updated';
+  }
 
   let publisher = await store.findPublisher(source.id, event.organizerKeys, {
     ...(event.location ? { location: event.location } : {}),
@@ -480,77 +410,38 @@ async function saveOne(
   const write = {
     sourceId: source.id,
     externalId: event.externalId,
-    contentHash: contentHash(linked),
+    contentHash: hash,
     publisherId: publisher.publisherId,
     status: statusOnPublish({
-      origin: 'imported',
+      origin: 'imported' as const,
       sourceTrust: source.trust,
       publisherIsTemporary: publisher.isTemporary,
     }),
     event: linked,
     endsAt: event.endsAt ?? event.startsAt,
-    tagIds: await store.tagIdsForExternalIds(event.tags.map((tag) => tag.externalId)),
+    tagIds,
     refId: event.externalId,
     workerId: source.slug,
   };
-
-  const existing = await store.findExternalRef(source.id, event.externalId);
-  if (existing) {
-    if (existing.contentHash === write.contentHash) {
-      await store.touchRef(source.id, event.externalId);
-      await attachImages(store, existing.eventId, event, images);
-      return 'skipped';
-    }
-    if (existing.status === 'cancelled' || existing.status === 'ended') {
-      await store.touchRef(source.id, event.externalId);
-      return 'skipped';
-    }
-    if (!(await store.sourceOwnsEvent(source.id, existing.eventId))) {
-      await store.noteRef(source.id, event.externalId, write.contentHash);
-      return 'skipped';
-    }
-    await store.updateImported(existing.eventId, write);
-    await attachImages(store, existing.eventId, event, images);
-    await scheduleImportedNotifications(store, {
-      eventId: existing.eventId,
-      eventTitle: event.title,
-      startsAt: event.startsAt,
-      status: write.status,
-      publisher,
-    });
-    if (existing.status === 'published') {
-      await emitDomainEvent(enqueue, {
-        type: 'event.updated',
-        eventId: existing.eventId,
-        changedFields: UPDATED_FIELDS,
-      });
-    }
-    return 'updated';
+  if (!(await store.sourceOwnsEvent(source.id, existing.eventId))) {
+    await store.noteRef(source.id, event.externalId, hash);
+    return 'skipped';
   }
-
-  const startsAt = new Date(event.startsAt);
-  const duplicate = event.location
-    ? await possibleDuplicate(store, linked, startsAt, event.location, source.slug)
-    : null;
-  if (duplicate) {
-    write.status = 'in_review';
-    write.event = {
-      ...write.event,
-      meta: { ...write.event.meta, possibleDuplicate: duplicate },
-    };
-  }
-
-  const eventId = await store.insertImported(write);
-  await attachImages(store, eventId, event, images);
+  await store.updateImported(existing.eventId, write);
+  await attachImages(store, existing.eventId, event, images);
   await scheduleImportedNotifications(store, {
-    eventId,
+    eventId: existing.eventId,
     eventTitle: event.title,
     startsAt: event.startsAt,
-    status: write.status,
+    status: existing.status,
     publisher,
   });
-  if (shouldEnqueueNotifications(write.status)) {
-    await emitDomainEvent(enqueue, { type: 'event.published', eventId });
+  if (existing.status === 'published') {
+    await emitDomainEvent(enqueue, {
+      type: 'event.updated',
+      eventId: existing.eventId,
+      changedFields: UPDATED_FIELDS,
+    });
   }
-  return 'created';
+  return 'updated';
 }

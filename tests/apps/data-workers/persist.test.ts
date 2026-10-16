@@ -1,8 +1,12 @@
 import type { DomainEvent } from '../../../packages/contracts/src/domain-events';
 import { visitTagId } from '../../../packages/db/src/seed-tags';
-import type { IncomingEvent } from '../../../packages/ingest/src/index';
-import { createMemoryIngestStore } from '../../../apps/data-workers/src/memory-store';
+import { createRulesPromptRunner, type IncomingEvent } from '../../../packages/ingest/src/index';
+import {
+  createMemoryIngestStore,
+  type MemoryIngestStore,
+} from '../../../apps/data-workers/src/memory-store';
 import { persistSource, saveIncomingEvents } from '../../../apps/data-workers/src/persist';
+import { scanPendingEvents } from '../../../apps/data-workers/src/scan-pending';
 import type { SourceRecord } from '../../../apps/data-workers/src/store';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -38,8 +42,25 @@ const bandy: IncomingEvent = {
   meta: { ageLimit: 13 },
 };
 
+const quietModel = {
+  id: 'test',
+  async complete(): Promise<{ ok: true; content: string }> {
+    return { ok: true, content: '{"externalIds":[]}' };
+  },
+};
+
+/** Runs the scan job the import no longer does inline. */
+async function finishScan(
+  store: MemoryIngestStore,
+  record: SourceRecord = source,
+  enqueue?: { publish: (event: DomainEvent) => Promise<void> },
+) {
+  if (!store.sources.some((item) => item.id === record.id)) store.sources.push(record);
+  return scanPendingEvents(store, createRulesPromptRunner(quietModel), enqueue);
+}
+
 describe('saveIncomingEvents', () => {
-  it('creates an in-review event and a temporary publisher', async () => {
+  it('saves a new import as pending_scan without a publisher', async () => {
     const store = createMemoryIngestStore();
     const published: DomainEvent[] = [];
     const counts = await saveIncomingEvents(store, source, [bandy], {
@@ -52,18 +73,21 @@ describe('saveIncomingEvents', () => {
     expect(store.events).toHaveLength(1);
     expect(store.events[0]).toMatchObject({
       title: bandy.title,
-      status: 'in_review',
+      status: 'pending_scan',
+      publisherId: null,
       origin: 'imported',
       sourceUrl: bandy.sourceUrl,
       venueName: bandy.venueName,
       tagIds: BANDY_TAGS,
-      meta: { ageLimit: 13 },
+      meta: {
+        ageLimit: 13,
+        import: {
+          organizerKeys: bandy.organizerKeys,
+          organizerName: bandy.organizerName,
+        },
+      },
     });
-    expect(store.publishers).toHaveLength(1);
-    expect(store.publishers[0]).toMatchObject({
-      name: 'Kansliet, Broberg/Söderhamn Bandy',
-      isTemporary: true,
-    });
+    expect(store.publishers).toHaveLength(0);
     expect(store.refs).toHaveLength(1);
     expect(published).toEqual([]);
   });
@@ -111,7 +135,7 @@ describe('saveIncomingEvents', () => {
     expect(updated).toMatchObject({ created: 0, updated: 1, skipped: 0 });
     expect(store.events).toHaveLength(1);
     expect(store.events[0]?.title).toBe(renamed.title);
-    expect(store.events[0]?.status).toBe('in_review');
+    expect(store.events[0]?.status).toBe('pending_scan');
   });
 
   it('keeps price and links when a later import omits them', async () => {
@@ -177,6 +201,7 @@ describe('saveIncomingEvents', () => {
       workerId: 'glada-hudik',
     });
     const counts = await saveIncomingEvents(store, source, [bandy]);
+    await finishScan(store);
     expect(counts).toMatchObject({ created: 1, skipped: 0 });
     expect(store.events).toHaveLength(2);
     expect(store.events[0]?.title).toBe(bandy.title);
@@ -224,6 +249,7 @@ describe('saveIncomingEvents', () => {
     const counts = await saveIncomingEvents(store, source, [
       { ...bandy, title: 'Hälsingland title', links: [{ type: 'tickets', url: ticket }] },
     ]);
+    await finishScan(store);
     expect(counts.created).toBe(1);
     expect(store.events).toHaveLength(2);
     expect(store.events[1]?.meta).toMatchObject({
@@ -261,6 +287,7 @@ describe('saveIncomingEvents', () => {
         links: [],
       },
     ]);
+    await finishScan(store);
     expect(counts.created).toBe(1);
     expect(store.events[1]?.meta?.possibleDuplicate?.matchedOn).toBe('id');
   });
@@ -286,6 +313,7 @@ describe('saveIncomingEvents', () => {
     const counts = await saveIncomingEvents(store, source, [
       { ...bandy, title: 'Hälsingland title', links: [{ type: 'tickets', url: shop }] },
     ]);
+    await finishScan(store);
     expect(counts.created).toBe(1);
     expect(store.events[1]?.meta?.possibleDuplicate?.matchedOn).toBe('link');
   });
@@ -307,6 +335,7 @@ describe('saveIncomingEvents', () => {
       tagIds: [],
     });
     const counts = await saveIncomingEvents(store, source, [bandy]);
+    await finishScan(store);
     expect(counts.created).toBe(1);
     expect(store.events[1]?.meta?.possibleDuplicate).toBeUndefined();
   });
@@ -326,6 +355,7 @@ describe('saveIncomingEvents', () => {
       links: [{ type: 'tickets', url: ticket }],
     };
     const counts = await saveIncomingEvents(store, source, [later]);
+    await finishScan(store);
     expect(counts.created).toBe(1);
     expect(store.events).toHaveLength(2);
     expect(store.events[1]?.meta?.possibleDuplicate?.matchedOn).toBe('id');
@@ -348,6 +378,7 @@ describe('saveIncomingEvents', () => {
       tagIds: [],
     });
     const counts = await saveIncomingEvents(store, source, [bandy]);
+    await finishScan(store);
     expect(counts.created).toBe(1);
     expect(store.events[1]?.meta?.possibleDuplicate).toBeUndefined();
   });
@@ -369,6 +400,7 @@ describe('saveIncomingEvents', () => {
       tagIds: [],
     });
     const counts = await saveIncomingEvents(store, source, [bandy]);
+    await finishScan(store);
     expect(counts.created).toBe(1);
     expect(store.events[1]?.meta?.possibleDuplicate?.matchedOn).toBe('title');
   });
@@ -385,6 +417,7 @@ describe('saveIncomingEvents', () => {
       organizerKeys: ['kansli@brobergsoderhamn.se', 'brobergsoderhamn.se'],
     };
     await saveIncomingEvents(store, source, [later]);
+    await finishScan(store);
     expect(store.publishers).toHaveLength(1);
     expect(store.events[1]?.publisherId).toBe(store.events[0]?.publisherId);
 
@@ -395,6 +428,7 @@ describe('saveIncomingEvents', () => {
       organizerKeys: ['kansli@brobergsoderhamn.se'],
     };
     await saveIncomingEvents(store, source, [byEmail]);
+    await finishScan(store);
     expect(store.publishers).toHaveLength(1);
     expect(store.events[2]?.publisherId).toBe(store.events[0]?.publisherId);
   });
@@ -411,6 +445,7 @@ describe('saveIncomingEvents', () => {
         organizerName: 'Annan',
       },
     ]);
+    await finishScan(store);
     expect(store.publishers).toHaveLength(2);
     expect(store.events[1]?.publisherId).not.toBe(store.events[0]?.publisherId);
   });
@@ -425,6 +460,7 @@ describe('saveIncomingEvents', () => {
       isTemporary: true,
     });
     const counts = await saveIncomingEvents(store, source, [bandy]);
+    await finishScan(store);
     expect(counts.created).toBe(1);
     expect(store.publishers).toHaveLength(1);
     expect(store.events[0]?.publisherId).toBe(existing.publisherId);
@@ -462,6 +498,7 @@ describe('saveIncomingEvents', () => {
         organizerName: 'Kulturhuset',
       },
     ]);
+    await finishScan(store);
     expect(counts.created).toBe(1);
     expect(store.publishers).toHaveLength(1);
     expect(store.events[1]?.publisherId).toBe(existing.publisherId);
@@ -499,6 +536,7 @@ describe('saveIncomingEvents', () => {
         organizerName: 'Kulturhuset',
       },
     ]);
+    await finishScan(store);
     expect(counts.created).toBe(1);
     expect(store.publishers).toHaveLength(2);
     expect(store.events[1]?.publisherId).not.toBe(store.publishers[0]?.id);
@@ -515,6 +553,7 @@ describe('saveIncomingEvents', () => {
     const counts = await saveIncomingEvents(store, source, [
       { ...bandy, externalId: 'slug-only', organizerKeys: ['glada-hudik'] },
     ]);
+    await finishScan(store);
     expect(counts.created).toBe(1);
     expect(store.events[0]?.publisherId).not.toBe(existing.publisherId);
   });
@@ -526,13 +565,14 @@ describe('saveIncomingEvents', () => {
     expect(store.events[0]?.location).toBeUndefined();
   });
 
-  it('publishes and enqueues when the source is trusted and the publisher is mapped', async () => {
+  it('publishes and enqueues when the source is trusted and the publisher is verified', async () => {
     const store = createMemoryIngestStore();
     const link = store.linkPublisher({
       sourceId: source.id,
       organizerKey: bandy.organizerKeys[0]!,
       name: 'Broberg',
       isTemporary: false,
+      verified: true,
     });
     const published: DomainEvent[] = [];
     const sink = {
@@ -543,6 +583,9 @@ describe('saveIncomingEvents', () => {
     const trusted: SourceRecord = { ...source, trust: 'auto_publish' };
     const created = await saveIncomingEvents(store, trusted, [bandy], sink);
     expect(created.created).toBe(1);
+    expect(store.events[0]?.status).toBe('pending_scan');
+    expect(published).toEqual([]);
+    await finishScan(store, trusted, sink);
     expect(store.events[0]).toMatchObject({ status: 'published', publisherId: link.publisherId });
     expect(published).toEqual([{ type: 'event.published', eventId: store.events[0]!.id }]);
 
@@ -577,6 +620,7 @@ describe('saveIncomingEvents', () => {
       importNotificationPlan: 'standard',
     });
     await saveIncomingEvents(store, trusted, [future]);
+    await finishScan(store, trusted);
     expect(store.scheduledNotifications).toEqual([
       {
         eventId: store.events[0]!.id,
@@ -596,6 +640,7 @@ describe('saveIncomingEvents', () => {
       importNotificationPlan: null,
     });
     await saveIncomingEvents(quiet, trusted, [future]);
+    await finishScan(quiet, trusted);
     expect(quiet.scheduledNotifications).toEqual([]);
 
     const unverified = createMemoryIngestStore();
@@ -608,6 +653,7 @@ describe('saveIncomingEvents', () => {
       importNotificationPlan: 'full',
     });
     await saveIncomingEvents(unverified, trusted, [future]);
+    await finishScan(unverified, trusted);
     expect(unverified.scheduledNotifications).toEqual([]);
   });
 
@@ -633,6 +679,7 @@ describe('saveIncomingEvents', () => {
         published.push(event);
       },
     });
+    await finishScan(store);
     expect(store.events[0]?.status).toBe('in_review');
     expect(published).toEqual([]);
     expect(store.scheduledNotifications).toEqual([
@@ -795,7 +842,7 @@ describe('persistSource', () => {
       const first = await persistSource(store, 'example-fixture');
       expect(first).toMatchObject({ fetched: 2, created: 2, updated: 0, skipped: 0, rejected: [] });
       expect(store.runs[0]).toMatchObject({ status: 'ok', created: 2 });
-      expect(store.events.every((event) => event.status === 'in_review')).toBe(true);
+      expect(store.events.every((event) => event.status === 'pending_scan')).toBe(true);
 
       const second = await persistSource(store, 'example-fixture');
       expect(second).toMatchObject({ created: 0, skipped: 2 });

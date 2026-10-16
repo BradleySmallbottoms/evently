@@ -1,5 +1,6 @@
-import type { IncomingEvent } from '@local-events/ingest';
+import type { EventMeta } from '@local-events/contracts';
 import type { EventStatus, MarketingPushPlanId, SourceTrust } from '@local-events/domain';
+import type { IncomingEvent, ScanPublisherCandidate, TagChoice } from '@local-events/ingest';
 
 export interface SourceRecord {
   id: string;
@@ -39,7 +40,7 @@ export interface ImportedEventWrite {
   sourceId: string;
   externalId: string;
   contentHash: string;
-  publisherId: string;
+  publisherId: string | null;
   status: EventStatus;
   event: IncomingEvent;
   endsAt: string;
@@ -66,6 +67,15 @@ export interface IngestStore {
    * This source's alias wins. Otherwise an email or website from any source.
    * A name or slug matches only when that publisher has an event near `location`.
    */
+  /** Alias, name, and nearby rows the scan runner chooses from. */
+  listPublisherCandidates(
+    sourceId: string,
+    organizerKeys: string[],
+    near?: {
+      location?: { lat: number; lng: number };
+      localSlugs?: string[];
+    },
+  ): Promise<ScanPublisherCandidate[]>;
   findPublisher(
     sourceId: string,
     organizerKeys: string[],
@@ -100,7 +110,11 @@ export interface IngestStore {
   ): Promise<{ externalId: string; tag: { externalId: string; name: string } }[]>;
   tagIdsForExternalIds(externalIds: string[]): Promise<string[]>;
   insertImported(input: ImportedEventWrite): Promise<string>;
-  updateImported(eventId: string, input: ImportedEventWrite): Promise<void>;
+  /**
+   * Returns false when a `pending_scan` refresh loses to a scan that already
+   * finished the row. The event and its content hash stay as the scan left them.
+   */
+  updateImported(eventId: string, input: ImportedEventWrite): Promise<boolean>;
   /** Schedule the publisher's import notification plan for one imported event. */
   scheduleImportNotifications?(input: {
     eventId: string;
@@ -129,4 +143,44 @@ export interface IngestStore {
   }): Promise<void>;
   /** Removes gallery rows. Never removes the hero (`main`). */
   deleteEventImages(eventId: string, roles: string[]): Promise<void>;
+  /**
+   * Claims up to `limit` `pending_scan` rows whose lease is free.
+   * The rows stay `pending_scan` until {@link finishImportedScan}.
+   */
+  claimPendingScans(limit: number, leaseMs: number): Promise<PendingScanRow[]>;
+  /** Drops this claim so a later run can take the row again. */
+  releaseScanClaim(eventId: string, claimedUntil: Date): Promise<void>;
+  /**
+   * Writes the scan result while this claim still holds the row.
+   * Returns false when a newer import or a newer claim owns it.
+   */
+  finishImportedScan(input: {
+    eventId: string;
+    publisherId: string;
+    status: 'in_review' | 'published';
+    meta: EventMeta;
+    tagIds: string[];
+    claimedUntil: Date;
+  }): Promise<boolean>;
+}
+
+export interface PendingScanRow {
+  eventId: string;
+  title: string;
+  description: string | null;
+  venueName: string | null;
+  startsAt: Date;
+  location: { lat: number; lng: number } | null;
+  sourceUrl: string | null;
+  links: string[];
+  externalId: string;
+  workerId: string;
+  tagIds: string[];
+  tags: TagChoice[];
+  meta: EventMeta;
+  sourceId: string;
+  sourceSlug: string;
+  sourceTrust: SourceTrust;
+  /** Lease timestamp written by the claim. Finish and release match this value. */
+  claimedUntil: Date;
 }

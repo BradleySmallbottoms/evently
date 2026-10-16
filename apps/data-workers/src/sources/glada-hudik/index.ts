@@ -7,13 +7,6 @@ import {
 import { defineAdapter, type IncomingEvent } from '@local-events/ingest';
 import { load } from 'cheerio';
 import { createLocationLookupState, geocodeDelayMs, resolveGladaLocation } from './location';
-import {
-  existingEventTags,
-  keptTagsForProduct,
-  matchEventTag,
-  tagCatalog,
-  type TagChoice,
-} from './match-tag';
 
 /**
  * Glada Hudik (Hudiksvall) via the public Citybreak calendar.
@@ -94,10 +87,6 @@ export interface GladaProduct {
   links: GladaLink[];
   occasions: GladaOccasion[];
   location?: { lat: number; lng: number };
-  /** Tags chosen by the model for a product that had none stored yet. */
-  tags?: TagChoice[];
-  /** Tags already stored for this product's events. Set means the model is not asked again. */
-  keptTags?: { externalId: string; tags: TagChoice[] }[];
 }
 
 export interface GladaRaw {
@@ -459,13 +448,8 @@ function mapProduct(product: GladaProduct, origin: string, now: Date): IncomingE
     }),
     ...(product.organizerName ? { organizerName: product.organizerName } : {}),
     ...(product.imageUrl ? { imageUrl: product.imageUrl } : {}),
-  };
-  const tagged = (externalId: string) => {
-    const tags = tagsForMappedEvent(product, externalId);
-    return {
-      categoryHints: tags.map((tag) => tag.name),
-      tags,
-    };
+    categoryHints: [],
+    tags: [],
   };
   if (shouldCollapse(occasions)) {
     const first = occasions[0]!;
@@ -474,7 +458,6 @@ function mapProduct(product: GladaProduct, origin: string, now: Date): IncomingE
     return [
       {
         ...base,
-        ...tagged(externalId),
         externalId,
         startsAt: first.startsAt,
         ...(last.endsAt ? { endsAt: last.endsAt } : {}),
@@ -485,58 +468,12 @@ function mapProduct(product: GladaProduct, origin: string, now: Date): IncomingE
     const externalId = `${product.id}:${occasion.startsAt.slice(0, 19)}:${occasion.endsAt?.slice(0, 19) ?? ''}`;
     return {
       ...base,
-      ...tagged(externalId),
       externalId,
       startsAt: occasion.startsAt,
       ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
       ...(occasion.venue && !digital ? { venueName: occasion.venue } : {}),
     };
   });
-}
-
-function tagsForMappedEvent(product: GladaProduct, externalId: string): TagChoice[] {
-  const kept = product.keptTags?.find((row) => row.externalId === externalId)?.tags;
-  if (kept && kept.length > 0) return kept;
-  const inherited = product.keptTags?.find((row) => row.tags.length > 0)?.tags;
-  if (inherited) return inherited;
-  return product.tags ?? [];
-}
-
-async function assignTags(
-  ctx: {
-    config: Record<string, unknown>;
-    log: (message: string, data?: Record<string, unknown>) => void;
-  },
-  products: GladaProduct[],
-): Promise<void> {
-  const catalog = tagCatalog(ctx.config);
-  const stored = existingEventTags(ctx.config);
-  if (catalog.length === 0 && stored.length === 0) return;
-  for (const product of products) {
-    const kept = keptTagsForProduct(product.id, stored);
-    if (kept) {
-      product.keptTags = kept;
-      continue;
-    }
-    if (catalog.length === 0) continue;
-    const venue = product.occasions.find((occasion) => occasion.venue)?.venue;
-    const description = [product.intro, product.description].filter(Boolean).join('\n\n');
-    const result = await matchEventTag(
-      {
-        title: product.title,
-        ...(description ? { description } : {}),
-        ...(venue ? { venue } : {}),
-      },
-      catalog,
-      ctx.config,
-      fetch,
-    );
-    if (!result.ok) {
-      ctx.log('glada-hudik tag matcher unavailable');
-      return;
-    }
-    if (result.tags.length > 0) product.tags = result.tags;
-  }
 }
 
 async function readJson(response: Response): Promise<{ totalCount?: number; items?: unknown[] }> {
@@ -614,7 +551,6 @@ async function* eachProduct(ctx: {
         log: ctx.log,
       });
     }
-    await assignTags(ctx, [product]);
     yielded += 1;
     yield { now: new Date().toISOString(), origin: origin.origin, products: [product] };
   }
@@ -637,17 +573,6 @@ export const gladaHudik = defineAdapter<GladaRaw>({
       products.push(...raw.products);
     }
     return { now, origin, products };
-  },
-  tags(raw) {
-    const byId = new Map<string, string>();
-    for (const product of raw.products) {
-      const choices = [
-        ...(product.tags ?? []),
-        ...(product.keptTags?.flatMap((row) => row.tags) ?? []),
-      ];
-      for (const tag of choices) byId.set(tag.externalId, tag.name);
-    }
-    return [...byId.entries()].map(([externalId, name]) => ({ externalId, name }));
   },
   map(raw) {
     const now = new Date(raw.now);

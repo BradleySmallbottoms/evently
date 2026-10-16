@@ -117,7 +117,8 @@ Architecture
   `contracts`, `domain`, `geo` and generated API clients.
 - The admin frontend talks only to the admin API.
 - Data workers never write events directly in an adapter; adapters only fetch and map to
-  `IncomingEvent`. The ingest pipeline validates, resolves publishers, dedupes and upserts.
+  `IncomingEvent`. The ingest pipeline validates and upserts. A new import stays `pending_scan`
+  until the scan job resolves the publisher, duplicate check, and tags.
 
 Product invariants (enforced in domain, tested)
 
@@ -125,11 +126,14 @@ Product invariants (enforced in domain, tested)
 - Events from unverified publishers are `awaiting_verification`: not listed, searched or pushed.
 - An event without a point is omitted from the public event list. Tags do not replace a missing
   point. It has no map pin and does not match nearby push. Direct lookup by id still returns it.
-- Imported events from temporary publishers or review-trust sources go to `in_review`.
+- A new data-worker import is `pending_scan` until the scan job finishes. It becomes `published`
+  only when the scan approves it, the publisher is verified and not temporary, and the source
+  trust is `auto_publish`. A temporary publisher, an unverified publisher, or a review-trust
+  source goes to `in_review`.
 - An imported physical event with no venue name uses the city in its scraped address. When that
   address has no city, the nearest city within 25 km of its point is used. A named venue stays.
-- A lookalike within 200 m and 30 minutes is still inserted, as `in_review`, with
-  `meta.possibleDuplicate` pointing at the existing event. A link matches on host and path;
+- A lookalike within 500 m and 30 minutes is still inserted, then marked `in_review` by the scan
+  job, with `meta.possibleDuplicate` pointing at the existing event. A link matches on host and path;
   protocol, query, and a trailing slash are ignored. A Citybreak product id matches with or
   without the `cbis:` prefix. The same source id updates its own row.
 - Deleting an imported `in_review` event cancels it and leaves the row, so a later import

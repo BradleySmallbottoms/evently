@@ -2334,7 +2334,7 @@ export interface paths {
                                 /** @enum {string} */
                                 mode: "physical" | "digital";
                                 /** @enum {string} */
-                                status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
                                 /** @enum {string} */
                                 origin: "native" | "imported";
                                 /** Format: date-time */
@@ -2560,7 +2560,7 @@ export interface paths {
                                 /** @enum {string} */
                                 mode: "physical" | "digital";
                                 /** @enum {string} */
-                                status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
                                 /** @enum {string} */
                                 origin: "native" | "imported";
                                 /** Format: date-time */
@@ -2792,7 +2792,7 @@ export interface paths {
                                     /** @enum {string} */
                                     mode: "physical" | "digital";
                                     /** @enum {string} */
-                                    status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                    status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
                                     /** @enum {string} */
                                     origin: "native" | "imported";
                                     /** Format: date-time */
@@ -2906,7 +2906,7 @@ export interface paths {
                                 /** @enum {string} */
                                 mode: "physical" | "digital";
                                 /** @enum {string} */
-                                status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
                                 /** @enum {string} */
                                 origin: "native" | "imported";
                                 /** Format: date-time */
@@ -3100,7 +3100,7 @@ export interface paths {
                                 /** @enum {string} */
                                 mode: "physical" | "digital";
                                 /** @enum {string} */
-                                status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
                                 /** @enum {string} */
                                 origin: "native" | "imported";
                                 /** Format: date-time */
@@ -3443,7 +3443,7 @@ export interface paths {
                                 /** @enum {string} */
                                 mode: "physical" | "digital";
                                 /** @enum {string} */
-                                status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
                                 /** @enum {string} */
                                 origin: "native" | "imported";
                                 /** Format: date-time */
@@ -3582,7 +3582,7 @@ export interface paths {
                             /** @enum {string} */
                             mode: "physical" | "digital";
                             /** @enum {string} */
-                            status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                            status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
                             /** @enum {string} */
                             origin: "native" | "imported";
                             /** Format: date-time */
@@ -3722,7 +3722,7 @@ export interface paths {
                                 /** @enum {string} */
                                 mode: "physical" | "digital";
                                 /** @enum {string} */
-                                status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                                status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
                                 /** @enum {string} */
                                 origin: "native" | "imported";
                                 /** Format: date-time */
@@ -3826,7 +3826,7 @@ export interface paths {
                             /** @enum {string} */
                             mode: "physical" | "digital";
                             /** @enum {string} */
-                            status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                            status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
                             /** @enum {string} */
                             origin: "native" | "imported";
                             /** Format: date-time */
@@ -3942,7 +3942,7 @@ export interface paths {
                             /** @enum {string} */
                             mode: "physical" | "digital";
                             /** @enum {string} */
-                            status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                            status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
                             /** @enum {string} */
                             origin: "native" | "imported";
                             /** Format: date-time */
@@ -4108,7 +4108,7 @@ export interface paths {
                             /** @enum {string} */
                             mode: "physical" | "digital";
                             /** @enum {string} */
-                            status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                            status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
                             /** @enum {string} */
                             origin: "native" | "imported";
                             /** Format: date-time */
@@ -4242,7 +4242,7 @@ export interface paths {
                             /** @enum {string} */
                             mode: "physical" | "digital";
                             /** @enum {string} */
-                            status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                            status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
                             /** @enum {string} */
                             origin: "native" | "imported";
                             /** Format: date-time */
@@ -4372,7 +4372,7 @@ export interface paths {
                             /** @enum {string} */
                             mode: "physical" | "digital";
                             /** @enum {string} */
-                            status: "draft" | "awaiting_verification" | "in_review" | "published" | "cancelled" | "ended";
+                            status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
                             /** @enum {string} */
                             origin: "native" | "imported";
                             /** Format: date-time */

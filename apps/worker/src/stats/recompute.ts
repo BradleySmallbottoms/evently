@@ -112,14 +112,17 @@ export async function reconcileAllStats(
     .select({ id: schema.events.id, publisherId: schema.events.publisherId })
     .from(schema.events)
     .where(eq(schema.events.status, 'published'));
-  const publisherIds = new Set(publishedEvents.map((e) => e.publisherId));
+  const publisherIds = new Set<string>();
+  for (const event of publishedEvents) {
+    if (event.publisherId) publisherIds.add(event.publisherId);
+  }
   for (const eventId of eventIds) {
     const [ev] = await db
       .select({ publisherId: schema.events.publisherId })
       .from(schema.events)
       .where(eq(schema.events.id, eventId))
       .limit(1);
-    if (ev) publisherIds.add(ev.publisherId);
+    if (ev?.publisherId) publisherIds.add(ev.publisherId);
   }
 
   for (const publisherId of publisherIds) {

@@ -29,10 +29,11 @@ import { createMemoryDomainEventPublisher } from '../domain-events/memory';
 import { enqueueDomainEvent } from '../domain-events/types';
 import { upsertEventPushDraft } from '../push-messages/drafts';
 import { EventError, type EventEnv, type EventServices } from './types';
+import { requirePublisherId } from '../publisher-id';
 
 type LocRow = {
   id: string;
-  publisherId: string;
+  publisherId: string | null;
   title: string;
   description: string | null;
   mode: Event['mode'];
@@ -78,7 +79,7 @@ function mapEvent(
 ): Event {
   return {
     id: row.id,
-    publisherId: row.publisherId,
+    publisherId: requirePublisherId(row.publisherId),
     title: row.title,
     description: row.description,
     mode: row.mode,

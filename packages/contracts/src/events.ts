@@ -10,6 +10,7 @@ const EventMode = z.enum(['physical', 'digital']);
 const EventStatus = z.enum([
   'draft',
   'awaiting_verification',
+  'pending_scan',
   'in_review',
   'published',
   'cancelled',
@@ -106,11 +107,21 @@ export const EventMeta = z.object({
       matchedOn: z.enum(['title', 'event-link', 'link', 'id']),
     })
     .optional(),
+  /**
+   * Organizer identity saved with a data-worker import. The scan job reads it
+   * before a publisher is chosen. Public responses omit it.
+   */
+  import: z
+    .object({
+      organizerKeys: z.array(z.string().min(1).max(200)).min(1).max(8),
+      organizerName: z.string().optional(),
+    })
+    .optional(),
 });
 export type EventMeta = z.infer<typeof EventMeta>;
 
-/** Public events omit the import duplicate note. */
-export const PublicEventMeta = EventMeta.omit({ possibleDuplicate: true });
+/** Public events omit the import duplicate note and the scan organizer keys. */
+export const PublicEventMeta = EventMeta.omit({ possibleDuplicate: true, import: true });
 export type PublicEventMeta = z.infer<typeof PublicEventMeta>;
 
 /** Drops a stored object that does not match {@link EventMeta}. */
@@ -121,7 +132,7 @@ export function readEventMeta(value: unknown): EventMeta {
 
 /** Same as {@link readEventMeta}, without the import duplicate note. */
 export function publicEventMeta(value: unknown): PublicEventMeta {
-  const { possibleDuplicate: _flag, ...meta } = readEventMeta(value);
+  const { possibleDuplicate: _flag, import: _import, ...meta } = readEventMeta(value);
   return meta;
 }
 

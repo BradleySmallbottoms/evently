@@ -2,6 +2,7 @@
 export type EventStatus =
   | 'draft'
   | 'awaiting_verification'
+  | 'pending_scan'
   | 'in_review'
   | 'published'
   | 'cancelled'
