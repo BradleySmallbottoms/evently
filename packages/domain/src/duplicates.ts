@@ -2,7 +2,7 @@ import { eventUrlKey, isSpecificTicketUrl } from './event-links';
 import { stockholmOffsetMinutes } from './source-time';
 
 /** A lookalike has to be at least this close, and start within 30 minutes. */
-export const DUPLICATE_RADIUS_M = 200;
+export const DUPLICATE_RADIUS_M = 500;
 
 /** Starts further apart than this are not the same event. */
 export const DUPLICATE_WINDOW_MINUTES = 30;
@@ -89,12 +89,22 @@ export function duplicateIdsMatch(
   return duplicateIds(right).some((id) => keys.has(id));
 }
 
+/** Host and path of a specific event URL. Protocol, query, and a trailing slash are ignored. */
+function duplicateLinkKey(raw: string): string | null {
+  if (!isSpecificTicketUrl(raw)) return null;
+  const key = eventUrlKey(raw);
+  if (!key) return null;
+  const url = new URL(key);
+  const path = url.pathname.replace(/\/+$/, '') || '/';
+  return `${url.host}${path}`;
+}
+
 /** Specific event URLs. A shop homepage or a language-only path is left out. */
 export function duplicateLinkKeys(urls: (string | null | undefined)[]): string[] {
   const keys: string[] = [];
   for (const url of urls) {
-    if (!url || !isSpecificTicketUrl(url)) continue;
-    const key = eventUrlKey(url);
+    if (!url) continue;
+    const key = duplicateLinkKey(url);
     if (key && !keys.includes(key)) keys.push(key);
   }
   return keys;

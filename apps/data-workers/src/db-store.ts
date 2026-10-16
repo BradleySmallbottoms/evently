@@ -333,6 +333,7 @@ export function createDbIngestStore(db: Db): IngestStore {
       const from = new Date(input.startsAt.getTime() - windowMs);
       const to = new Date(input.startsAt.getTime() + windowMs);
       const point = pointEwkt(input.location);
+      // console.log('input', input);
       const rows = await db
         .select({
           eventId: events.id,
@@ -355,6 +356,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             notInArray(events.status, ['cancelled', 'ended']),
           ),
         );
+      // console.log('rows', rows);
       if (rows.length === 0) return [];
       const ids = rows.map((row) => row.eventId);
       const linkRows = await db

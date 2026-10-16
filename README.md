@@ -283,7 +283,9 @@ calls) in the same change as every new major feature.**
   `raw/<source>/<runId>` when `RAW_INGESTION_BUCKET` is set.
 - **Data workers:** `pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn`
   (needs `data_sources` row + `VISIT_SODERHAMN_API_KEY`). Generic ICS calendars use slug
-  `ics-feed` with `config.feedUrl` (https). Review-trust sources stay silent until an admin
+  `ics-feed` with `config.feedUrl` (https). A physical import with no venue name uses the city
+  in its scraped address. When that address has no city, the point is reverse-geocoded for the
+  nearest city within 25 km. Review-trust sources stay silent until an admin
   publishes from the review queue.
 
 ### Preferences (areas)

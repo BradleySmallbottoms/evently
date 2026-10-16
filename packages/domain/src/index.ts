@@ -14,6 +14,7 @@ export * from './notifications';
 export * from './push-messages';
 export * from './digital-codes';
 export * from './duplicates';
+export * from './venue-city';
 export * from './review-warnings';
 export * from './source-time';
 export * from './organizer-keys';

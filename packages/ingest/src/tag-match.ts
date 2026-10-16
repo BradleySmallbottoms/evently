@@ -260,6 +260,5 @@ export async function matchEventTag(
       ? payload.message.content
       : '';
   const tags = parseTagChoices(content, catalog);
-  console.log('Ollama response', content, 'matched tags', tags);
   return { ok: true, tags };
 }

@@ -25,6 +25,7 @@ import { emitDomainEvent, noopDomainEvents, type DomainEventSink } from './domai
 import { noopEventImageUploader, type EventImageUploader } from './event-images';
 import { noopRawPayloadSink, type RawPayloadSink } from './raw-payload';
 import { eachSourceRun, runSource, sourceSavesEachEvent } from './run';
+import { fillMissingVenueNames, geocodeDelayMs } from './venue-city';
 import { LOCAL_ORGANIZER_SLUGS } from './sources';
 import type { DuplicateCandidate, IngestStore, PublisherLink, SourceRecord } from './store';
 
@@ -92,6 +93,13 @@ function archiveRaw(parts: unknown[]): unknown {
   return { now, origin, products };
 }
 
+function namedEvents(events: IncomingEvent[], config: Record<string, unknown>) {
+  return fillMissingVenueNames(events, fetch, {
+    delayMs: geocodeDelayMs(config),
+    log: (message, data) => console.log(JSON.stringify({ message, ...data })),
+  });
+}
+
 async function attachMatchedTags(
   events: IncomingEvent[],
   config: Record<string, unknown>,
@@ -107,9 +115,7 @@ async function attachMatchedTags(
       tagged.push(event);
       continue;
     }
-    const kept = stored
-      .filter((row) => row.externalId === event.externalId)
-      .map((row) => row.tag);
+    const kept = stored.filter((row) => row.externalId === event.externalId).map((row) => row.tag);
     if (kept.length > 0) {
       tagged.push({ ...event, tags: kept });
       continue;
@@ -157,7 +163,7 @@ async function persistWholeRun(
   const saved = await saveIncomingEvents(
     store,
     source,
-    await attachMatchedTags(run.events, config),
+    await attachMatchedTags(await namedEvents(run.events, config), config),
     enqueue,
     images,
   );
@@ -193,7 +199,7 @@ async function persistEachEvent(
     const saved = await saveIncomingEvents(
       store,
       source,
-      await attachMatchedTags(batch.events, config),
+      await attachMatchedTags(await namedEvents(batch.events, config), config),
       enqueue,
       images,
     );
@@ -399,6 +405,7 @@ async function possibleDuplicate(
   const incomingIds = [event.externalId];
   const incomingUrls = [event.sourceUrl, ...(event.links ?? []).map((link) => link.url)];
   let best: { candidate: DuplicateCandidate; signal: DuplicateSignal } | null = null;
+  // console.log('duplicateCandidates', { location, startsAt }, await store.duplicateCandidates({ location, startsAt }));
   for (const candidate of await store.duplicateCandidates({ location, startsAt })) {
     const sameRow =
       candidate.workerId === workerId &&
@@ -422,6 +429,7 @@ async function possibleDuplicate(
       best = { candidate, signal };
     }
   }
+  console.log('best', best);
   if (!best) return null;
   return {
     eventId: best.candidate.eventId,

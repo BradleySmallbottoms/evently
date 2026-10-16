@@ -3,6 +3,7 @@ import {
   duplicateIds,
   duplicateIdsMatch,
   duplicateLinkKeys,
+  duplicateLinksMatch,
   DUPLICATE_RADIUS_M,
   duplicateSignal,
   stockholmCalendarDate,
@@ -78,9 +79,30 @@ describe('duplicate keys', () => {
 
   it('keeps a specific event url and drops a shop root', () => {
     expect(duplicateLinkKeys(['https://www.tickster.com/sv/event/example/'])).toEqual([
-      'https://www.tickster.com/sv/event/example',
+      'www.tickster.com/sv/event/example',
     ]);
     expect(duplicateLinkKeys(['https://brobergsoderhamn.ticketco.events/se/sv'])).toEqual([]);
+  });
+
+  it('matches the same host and path and ignores protocol, query, and a trailing slash', () => {
+    expect(
+      duplicateLinksMatch(
+        ['https://www.soderhamn.se/aquarena'],
+        ['https://www.soderhamn.se/aquarena/'],
+      ),
+    ).toBe(true);
+    expect(
+      duplicateLinksMatch(
+        ['https://www.soderhamn.se/aquarena?utm=newsletter'],
+        ['http://www.soderhamn.se/aquarena/'],
+      ),
+    ).toBe(true);
+    expect(
+      duplicateLinksMatch(
+        ['https://www.tickster.com/sv/event/example'],
+        ['https://www.tickster.com/sv/event/other?ref=1'],
+      ),
+    ).toBe(false);
   });
 });
 

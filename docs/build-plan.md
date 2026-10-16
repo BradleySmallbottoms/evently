@@ -127,7 +127,8 @@ Closed beta around week 15, store launch around week 19.
 - [x] Persist: publisher resolution via `publisher_aliases`, dedupe, upsert, `external_refs`,
       `ingestion_runs`. Published imports enqueue domain events; review imports stay `in_review`.
       A lookalike within 200 m and 30 minutes is a new `in_review` event flagged in
-      `meta.possibleDuplicate`. Every worker can tag with the local Ollama model.
+      `meta.possibleDuplicate`. A physical import with no venue name uses the city in its address,
+      then the nearest city within 25 km of its point. Every worker can tag with the local Ollama model.
 - [x] Raw ingestion payloads to S3 (`raw/<slug>/<runId>`; no-op when `RAW_INGESTION_BUCKET` unset)
 - [x] Fargate task definition + EventBridge Scheduler schedules in CDK
 - [x] First real source: Visit Söderhamn adapter (Citybreak, Evenemang only, one event per occasion)

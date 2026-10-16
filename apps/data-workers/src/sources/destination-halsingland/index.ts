@@ -642,6 +642,8 @@ async function fetchList(ctx: SourceRunContext, origin: URL): Promise<ListItem[]
     for (const item of items) {
       if (!item || typeof item !== 'object') continue;
       const row = item as ListItem;
+      if (row.id != 'todo-2900492') continue;
+      // console.log('row', row, page);
       const id = productIdOf(row.id);
       if (!id || hits.some((existing) => productIdOf(existing.id) === id)) continue;
       hits.push(row);

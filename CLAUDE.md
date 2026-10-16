@@ -126,8 +126,11 @@ Product invariants (enforced in domain, tested)
 - An event without a point is omitted from the public event list. Tags do not replace a missing
   point. It has no map pin and does not match nearby push. Direct lookup by id still returns it.
 - Imported events from temporary publishers or review-trust sources go to `in_review`.
+- An imported physical event with no venue name uses the city in its scraped address. When that
+  address has no city, the nearest city within 25 km of its point is used. A named venue stays.
 - A lookalike within 200 m and 30 minutes is still inserted, as `in_review`, with
-  `meta.possibleDuplicate` pointing at the existing event. A Citybreak product id matches with or
+  `meta.possibleDuplicate` pointing at the existing event. A link matches on host and path;
+  protocol, query, and a trailing slash are ignored. A Citybreak product id matches with or
   without the `cbis:` prefix. The same source id updates its own row.
 - Deleting an `in_review` import removes the event and skips that source id on later imports.
   Rejecting it cancels the event and leaves the row.

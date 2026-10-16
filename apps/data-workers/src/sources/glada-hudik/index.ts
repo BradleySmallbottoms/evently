@@ -445,7 +445,7 @@ function mapProduct(product: GladaProduct, origin: string, now: Date): IncomingE
     mode: digital ? ('digital' as const) : ('physical' as const),
     timezone: 'Europe/Stockholm' as const,
     ...(venue && !digital ? { venueName: venue } : {}),
-    ...(product.address && venue && !digital ? { address: product.address } : {}),
+    ...(product.address && !digital ? { address: product.address } : {}),
     ...(product.location && !digital ? { location: product.location } : {}),
     ...(onlineUrl ? { onlineUrl } : {}),
     sourceUrl,
