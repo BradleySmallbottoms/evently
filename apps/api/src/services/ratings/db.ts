@@ -9,6 +9,7 @@ import {
 import { and, avg, count, eq, isNull } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
+import { requirePublisherId } from '../publisher-id';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
 import { enqueueDomainEvent } from '../domain-events/types';
 import { RatingError, type RatingEnv, type RatingServices } from './types';
@@ -210,7 +211,10 @@ export function createDbRatingServices(
         .limit(1);
       if (!event) throw new RatingError('not_found');
       try {
-        await auth.requirePublisherMember(publisherSessionToken, event.publisherId);
+        await auth.requirePublisherMember(
+          publisherSessionToken,
+          requirePublisherId(event.publisherId),
+        );
       } catch (err) {
         if (err instanceof AuthError) {
           throw new RatingError(err.code === 'forbidden' ? 'forbidden' : 'unauthorized');

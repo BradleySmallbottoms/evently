@@ -177,7 +177,7 @@ export function parseTagChoices(body: string, catalog: TagChoice[]): TagChoice[]
   return chosen;
 }
 
-function promptFor(event: TagMatchInput, catalog: TagChoice[]): string {
+export function tagMatchPrompt(event: TagMatchInput, catalog: TagChoice[]): string {
   const lines = catalog.map((tag) => `${tag.externalId} | ${tag.name}`);
   const description = event.description?.replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_LIMIT);
   return [
@@ -224,7 +224,7 @@ export async function matchEventTag(
         stream: false,
         format: 'json',
         options: { temperature: 0 },
-        messages: [{ role: 'user', content: promptFor(event, catalog) }],
+        messages: [{ role: 'user', content: tagMatchPrompt(event, catalog) }],
       }),
       signal: AbortSignal.timeout(90_000),
     });

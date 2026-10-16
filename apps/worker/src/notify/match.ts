@@ -38,7 +38,7 @@ export async function loadPublishedEvent(
     .from(schema.events)
     .where(eq(schema.events.id, eventId))
     .limit(1);
-  if (!row) return null;
+  if (!row?.publisherId) return null;
   const cats = await db
     .select({ tagId: schema.eventTags.tagId })
     .from(schema.eventTags)

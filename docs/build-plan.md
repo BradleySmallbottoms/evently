@@ -124,11 +124,12 @@ Closed beta around week 15, store launch around week 19.
 
 - [x] `ingest` package: `IncomingEvent`, adapter interface, content hash, dedupe pre-check
 - [x] Runner with an example fixture adapter
-- [x] Persist: publisher resolution via `publisher_aliases`, dedupe, upsert, `external_refs`,
-      `ingestion_runs`. Published imports enqueue domain events; review imports stay `in_review`.
-      A lookalike within 200 m and 30 minutes is a new `in_review` event flagged in
-      `meta.possibleDuplicate`. A physical import with no venue name uses the city in its address,
-      then the nearest city within 25 km of its point. Every worker can tag with the local Ollama model.
+- [x] Persist: upsert, `external_refs`, `ingestion_runs`. A new import is `pending_scan` with no
+      publisher. The scan job resolves the publisher, duplicate check, and tags, then sets
+      `in_review` or `published`. A physical import with no venue name uses the city in its address,
+      then the nearest city within 25 km of its point.
+- [x] Import scan queue: `pending_scan` rows, batch prompt runner, Ollama model client, EventBridge
+      schedule every 5 minutes (`JOB=event-scan`).
 - [x] Raw ingestion payloads to S3 (`raw/<slug>/<runId>`; no-op when `RAW_INGESTION_BUCKET` unset)
 - [x] Fargate task definition + EventBridge Scheduler schedules in CDK
 - [x] First real source: Visit Söderhamn adapter (Citybreak, Evenemang only, one event per occasion)

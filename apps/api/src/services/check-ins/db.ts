@@ -18,6 +18,7 @@ import {
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
+import { requirePublisherId } from '../publisher-id';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
 import { enqueueDomainEvent } from '../domain-events/types';
 import { deriveDigitalCode, generateDigitalCodeSecret, validCodesForNow } from './codes';
@@ -175,12 +176,17 @@ export function createDbCheckInServices(
         tagsByEvent.set(tag.eventId, list);
       }
       return {
-        items: rows.map((row) => ({
-          eventId: row.eventId,
-          publisherId: row.publisherId,
-          tagIds: tagsByEvent.get(row.eventId) ?? [],
-          createdAt: row.createdAt.toISOString(),
-        })),
+        items: rows.flatMap((row) => {
+          if (!row.publisherId) return [];
+          return [
+            {
+              eventId: row.eventId,
+              publisherId: row.publisherId,
+              tagIds: tagsByEvent.get(row.eventId) ?? [],
+              createdAt: row.createdAt.toISOString(),
+            },
+          ];
+        }),
       };
     },
 
@@ -335,7 +341,10 @@ export function createDbCheckInServices(
     async startDigitalCode(publisherSessionToken, eventId) {
       const event = await loadPublished(eventId);
       try {
-        await auth.requirePublisherMember(publisherSessionToken, event.publisherId);
+        await auth.requirePublisherMember(
+          publisherSessionToken,
+          requirePublisherId(event.publisherId),
+        );
       } catch (err) {
         if (err instanceof AuthError) {
           throw new CheckInError(err.code === 'forbidden' ? 'forbidden' : 'unauthorized');
@@ -357,7 +366,10 @@ export function createDbCheckInServices(
     async getDigitalCodeSession(publisherSessionToken, eventId) {
       const event = await loadPublished(eventId);
       try {
-        await auth.requirePublisherMember(publisherSessionToken, event.publisherId);
+        await auth.requirePublisherMember(
+          publisherSessionToken,
+          requirePublisherId(event.publisherId),
+        );
       } catch (err) {
         if (err instanceof AuthError) {
           throw new CheckInError(err.code === 'forbidden' ? 'forbidden' : 'unauthorized');

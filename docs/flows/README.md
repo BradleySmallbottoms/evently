@@ -34,6 +34,7 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Ratings (“How was it?”)                                | [ratings.md](./ratings.md)                               |
 | Stats counters                                         | [stats.md](./stats.md)                                   |
 | Visit Söderhamn import                                 | [visit-soderhamn.md](./visit-soderhamn.md)               |
+| Import scan                                            | [event-scan.md](./event-scan.md)                         |
 | Glada Hudik import                                     | [glada-hudik.md](./glada-hudik.md)                       |
 | Destination Hälsingland import                         | [destination-halsingland.md](./destination-halsingland.md) |
 | Saved events and custom lists                          | [saved-events.md](./saved-events.md)                     |

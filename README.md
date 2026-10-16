@@ -78,8 +78,9 @@ calls) in the same change as every new major feature.**
   The seeded row stays **disabled**, so nothing runs it on a timer. A manual run still saves.
   Flow: [docs/flows/visit-soderhamn.md](docs/flows/visit-soderhamn.md).
 - `pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn` writes events as
-  `in_review` under a temporary publisher per contact email. They do not show up in the public
-  list until an admin publishes them. The same run again skips unchanged events.
+  `pending_scan`. The import scan then puts them `in_review` under a temporary publisher per
+  contact email. They do not show up in the public list until an admin publishes them. The same
+  run again skips unchanged events.
   Every source also stores http(s) links found in the description (tickets, registration, or info).
   A booking link (`Bokningslänk`) is a `tickets` link. Event links and websites are `info` links.
   Each can appear more than once; every distinct URL is stored. When an occasion's arena has a position, that point is the
@@ -117,13 +118,24 @@ calls) in the same change as every new major feature.**
   Links in the description, information, and contact (including Facebook) are stored. The site
   footer is not. A long daily exhibition becomes one event; a concert or a monthly circle stays
   one event per occasion. The hero image is the page `og:image`.
-  The worker reads the list, then saves each event after its page and tags are ready, before
-  fetching the next page. Tag matching uses a local [Ollama](https://ollama.com) model
-  (`ollama serve`, default `qwen3:32b`) and the same matcher runs for every data worker. It may pick up to five existing tags scored above 90 and cannot invent
-  one. An event that already has tags keeps them and is not sent to the model again. If Ollama
-  is not running, or `OLLAMA_DISABLED=1`, a new event is still saved, without a tag. `OLLAMA_BASE_URL` must be a loopback URL.
-  `pnpm --filter @local-events/data-workers dev -- --source glada-hudik` writes `in_review` events.
+  The worker reads the list, then saves each event after its page is ready, before fetching the
+  next page. New imports are `pending_scan`. Tag matching, the publisher, and the duplicate check
+  run later in the scan job.
+  `pnpm --filter @local-events/data-workers dev -- --source glada-hudik` writes `pending_scan` events.
   The seeded row stays disabled. Flow: [docs/flows/glada-hudik.md](docs/flows/glada-hudik.md).
+
+### Import scan
+
+- A scheduled data-worker job claims `pending_scan` events in a batch and hands that batch to the
+  prompt runner. The runner picks the publisher, looks for a duplicate, and asks a local
+  [Ollama](https://ollama.com) model (`ollama serve`, default `qwen3:8b`) for up to five existing
+  tags scored above 90. An event that already has tags skips the model. The worker publishes the
+  event only when the scan approves it, the publisher is verified, and the source trust is
+  `auto_publish`. Anything else that finishes goes to `in_review`. A model failure leaves the row
+  `pending_scan`. `OLLAMA_BASE_URL` must be a loopback URL. `OLLAMA_DISABLED=1` skips the model, so
+  an event that still needs tags stays `pending_scan`.
+  `pnpm --filter @local-events/data-workers dev -- --job event-scan`
+  Flow: [docs/flows/event-scan.md](docs/flows/event-scan.md).
 
 ### Destination Hälsingland import
 

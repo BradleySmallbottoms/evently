@@ -4,9 +4,10 @@ Citybreak CBIS is the first external source (`visit-soderhamn`). A manual run fe
 saves. The `data_sources` row is seeded disabled (no timer yet), trust `review`, schedule every
 6 hours. The API key is `VISIT_SODERHAMN_API_KEY`.
 
-Saved events are `in_review` with `origin = imported`. Each new contact email becomes a temporary
-publisher (`publisher_aliases`). Unchanged content hashes are skipped. A close match to an event
-already in the database links `external_refs` and does not overwrite that event. `in_review` rows
+Saved events are `pending_scan` with `origin = imported`. The scan job chooses the publisher,
+including a temporary one for a new contact email (`publisher_aliases`), then sets `in_review`
+or `published`. Unchanged content hashes are skipped. A lookalike is flagged by the scan
+job, which sets `meta.possibleDuplicate` and leaves the row `in_review`. `in_review` rows
 are not sent to the notification queue. When `RAW_INGESTION_BUCKET` is set, the raw fetch is
 stored at `raw/<slug>/<runId>`. A main image is copied into the public assets bucket
 (`events/<eventId>/main`) and linked in `event_images`. Further images from linked pages are stored
@@ -38,8 +39,7 @@ sequenceDiagram
   end
   Note over Runner: hero stays the Citybreak image<br/>if that image is missing, first og:image, then first img<br/>further crawled images are gallery-1, gallery-2, …
   Runner->>Store: PUT raw/visit-soderhamn/{runId}<br/>when RAW_INGESTION_BUCKET is set
-  Runner->>DB: insert temporary publisher + publisher_aliases<br/>when none of the organizer keys match
-  Runner->>DB: upsert tags from categories under Evenemang<br/>insert events (status in_review, origin imported)<br/>event_tags, external_refs
+  Runner->>DB: upsert tags from categories under Evenemang<br/>insert events (status pending_scan, origin imported)<br/>event_tags, external_refs, meta.import
   Runner->>CBIS: GET the product main image, or a crawled image when Citybreak has none
   Runner->>Store: PUT events/{eventId}/main and events/{eventId}/gallery-N
   Runner->>DB: upsert event_images (role main or gallery-N, source_url)

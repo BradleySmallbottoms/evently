@@ -10,6 +10,7 @@ import {
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { EventError } from '../events/types';
+import { requirePublisherId } from '../publisher-id';
 import { createEventPushDraft } from './drafts';
 import { schema } from '@local-events/db';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
@@ -48,7 +49,10 @@ export function createDbPublisherPushMessageServices(
       .limit(1);
     if (!event) throw new EventError('not_found');
     try {
-      const access = await auth.requirePublisherMember(sessionToken, event.publisherId);
+      const access = await auth.requirePublisherMember(
+        sessionToken,
+        requirePublisherId(event.publisherId),
+      );
       return { event, access };
     } catch (err) {
       if (err instanceof AuthError) throw new EventError('unauthorized');

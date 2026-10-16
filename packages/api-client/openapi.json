@@ -4000,6 +4000,7 @@
                             "enum": [
                               "draft",
                               "awaiting_verification",
+                              "pending_scan",
                               "in_review",
                               "published",
                               "cancelled",
@@ -4465,6 +4466,7 @@
                             "enum": [
                               "draft",
                               "awaiting_verification",
+                              "pending_scan",
                               "in_review",
                               "published",
                               "cancelled",
@@ -4946,6 +4948,7 @@
                                   "enum": [
                                     "draft",
                                     "awaiting_verification",
+                                    "pending_scan",
                                     "in_review",
                                     "published",
                                     "cancelled",
@@ -5291,6 +5294,7 @@
                             "enum": [
                               "draft",
                               "awaiting_verification",
+                              "pending_scan",
                               "in_review",
                               "published",
                               "cancelled",
@@ -5673,6 +5677,7 @@
                             "enum": [
                               "draft",
                               "awaiting_verification",
+                              "pending_scan",
                               "in_review",
                               "published",
                               "cancelled",
@@ -6440,6 +6445,7 @@
                             "enum": [
                               "draft",
                               "awaiting_verification",
+                              "pending_scan",
                               "in_review",
                               "published",
                               "cancelled",
@@ -6883,6 +6889,7 @@
                       "enum": [
                         "draft",
                         "awaiting_verification",
+                        "pending_scan",
                         "in_review",
                         "published",
                         "cancelled",
@@ -7343,6 +7350,7 @@
                             "enum": [
                               "draft",
                               "awaiting_verification",
+                              "pending_scan",
                               "in_review",
                               "published",
                               "cancelled",
@@ -7632,6 +7640,7 @@
                       "enum": [
                         "draft",
                         "awaiting_verification",
+                        "pending_scan",
                         "in_review",
                         "published",
                         "cancelled",
@@ -7939,6 +7948,7 @@
                       "enum": [
                         "draft",
                         "awaiting_verification",
+                        "pending_scan",
                         "in_review",
                         "published",
                         "cancelled",
@@ -8458,6 +8468,7 @@
                       "enum": [
                         "draft",
                         "awaiting_verification",
+                        "pending_scan",
                         "in_review",
                         "published",
                         "cancelled",
@@ -8826,6 +8837,7 @@
                       "enum": [
                         "draft",
                         "awaiting_verification",
+                        "pending_scan",
                         "in_review",
                         "published",
                         "cancelled",
@@ -9163,6 +9175,7 @@
                       "enum": [
                         "draft",
                         "awaiting_verification",
+                        "pending_scan",
                         "in_review",
                         "published",
                         "cancelled",

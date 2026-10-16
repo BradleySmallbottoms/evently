@@ -31,6 +31,7 @@ export const eventMode = pgEnum('event_mode', ['physical', 'digital']);
 export const eventStatus = pgEnum('event_status', [
   'draft',
   'awaiting_verification',
+  'pending_scan',
   'in_review',
   'published',
   'cancelled',
@@ -368,9 +369,10 @@ export const events = pgTable(
   'events',
   {
     id: id(),
-    publisherId: uuid('publisher_id')
-      .notNull()
-      .references(() => publishers.id),
+    /** Null only while `status` is `pending_scan`, before the scan job picks a publisher. */
+    publisherId: uuid('publisher_id').references(() => publishers.id),
+    /** Lease for the import scan job. Null when the row is not claimed. */
+    scanClaimedUntil: timestamp('scan_claimed_until', { withTimezone: true }),
     title: text('title').notNull(),
     description: text('description'),
     mode: eventMode('mode').notNull(),

@@ -5,7 +5,8 @@ There is no Citybreak API key. The worker calls the JSON the calendar page alrea
 not read HTML.
 
 The `data_sources` row is seeded disabled, trust `review`, schedule every 6 hours. A manual run
-still fetches and saves. Saved events are `in_review` with `origin = imported`.
+still fetches and saves. Saved events are `pending_scan` with `origin = imported`. The scan job
+moves them to `in_review` or `published`. Flow: [event-scan.md](./event-scan.md).
 
 The list is `GET /sv/se-och-gora/products` with `filter=c=4559` (Evenemang i hela Hälsingland),
 `sorting=st=a;so=a;split=hl`, and `pageSize=10`. Pages are 1-based and stop when the collected
@@ -22,11 +23,11 @@ occasion. Times use the Europe/Stockholm offset.
 
 `priceAndCurrency` such as `200 SEK` is stored in öre. “Fritt inträde” sets the price to 0 and
 `meta.freeEntry`. “Åldersgräns N” sets `meta.ageLimit`. Ticket and info links come from the
-product text and `externalBookingUrl`. A lookalike within 200 m and 30 minutes is
-saved as its own `in_review` event, and `meta.possibleDuplicate` points at the existing one.
+product text and `externalBookingUrl`. A lookalike is flagged by the scan job, which sets
+`meta.possibleDuplicate` and leaves the row `in_review`.
 The organizer keys are the same for every worker: email, then an info-link website, then the
-arena name. The source slug is used only when none of those exist. Lookup tries that list on
-this source and keeps the first publisher it finds.
+arena name. The source slug is used only when none of those exist. The scan job tries that list
+and keeps the first publisher it finds.
 
 Those requests go through `curl` over HTTP/1.1 with `PostmanRuntime/2.11.0`. Node's own HTTPS
 client is answered with a Cloudflare challenge. The seeded row stays disabled until a manual
@@ -44,9 +45,8 @@ sequenceDiagram
   loop each product, save before the next
     Runner->>Site: GET /sv/product/productcontent
     Runner->>Site: GET /sv/se-gora/todobookingcontrolcontext
-    Note over Runner: one event per occasion<br/>daily opening hours over 21 days become one span<br/>coordinates are longitude, latitude<br/>no coordinate stays without a point<br/>Europe/Stockholm offset<br/>a lookalike within 200 m and 30 minutes is flagged in meta
-    Runner->>DB: reuse the first matching organizer key, or insert a temporary publisher
-    Runner->>DB: insert this event (status in_review, origin imported)<br/>ref_id, worker_id, external_refs
+    Note over Runner: one event per occasion<br/>daily opening hours over 21 days become one span<br/>coordinates are longitude, latitude<br/>no coordinate stays without a point<br/>Europe/Stockholm offset
+    Runner->>DB: insert this event (status pending_scan, origin imported)<br/>ref_id, worker_id, external_refs, meta.import
   end
   Runner->>DB: finish ingestion_runs
 ```

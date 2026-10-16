@@ -12,10 +12,10 @@ import {
   sharedOrganizerKeyKind,
   slugifyPublisherName,
   tagSlug,
-  type PublisherCandidate,
 } from '@local-events/domain';
-import { and, eq, gte, inArray, isNotNull, lte, notInArray, or, sql } from 'drizzle-orm';
-import type { ImportedEventWrite, IngestStore } from './store';
+import type { ScanPublisherCandidate } from '@local-events/ingest';
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, notInArray, or, sql } from 'drizzle-orm';
+import type { ImportedEventWrite, IngestStore, PendingScanRow } from './store';
 
 function eventValues(input: ImportedEventWrite) {
   return {
@@ -98,7 +98,7 @@ export function createDbIngestStore(db: Db): IngestStore {
     await tx.insert(eventTags).values(tagIds.map((tagId) => ({ eventId, tagId })));
   }
 
-  return {
+  const store: IngestStore = {
     async getSource(slug) {
       const [row] = await db.select().from(dataSources).where(eq(dataSources.slug, slug)).limit(1);
       if (!row) return null;
@@ -132,8 +132,9 @@ export function createDbIngestStore(db: Db): IngestStore {
         })
         .where(eq(ingestionRuns.id, runId));
     },
-    async findPublisher(sourceId, organizerKeys, near) {
-      if (organizerKeys.length === 0) return null;
+    async listPublisherCandidates(sourceId, organizerKeys, near) {
+      void sourceId;
+      if (organizerKeys.length === 0) return [];
       const localSlugs = near?.localSlugs ?? [];
       const nameKeys = organizerKeys.filter(
         (key) => sharedOrganizerKeyKind(key, localSlugs) === 'name',
@@ -195,16 +196,20 @@ export function createDbIngestStore(db: Db): IngestStore {
                 sql`ST_DWithin(${events.location}, ST_GeogFromText(${point}), ${PUBLISHER_NAME_RADIUS_M})`,
               ),
             );
-          for (const row of nearby) nearIds.add(row.publisherId);
+          for (const row of nearby) {
+            if (row.publisherId) nearIds.add(row.publisherId);
+          }
         }
       }
-      const candidates: PublisherCandidate[] = aliasRows.map((row) => ({
+      const candidates: ScanPublisherCandidate[] = aliasRows.map((row) => ({
         publisherId: row.publisherId,
         sourceId: row.sourceId,
         key: row.organizerKey,
         verified: row.verified,
         createdAt: row.createdAt.getTime(),
         near: nearIds.has(row.publisherId),
+        isTemporary: row.isTemporary,
+        importNotificationPlan: row.importNotificationPlan,
       }));
       for (const publisher of namedRows) {
         const nameKey = nameKeys.find(
@@ -221,10 +226,17 @@ export function createDbIngestStore(db: Db): IngestStore {
           verified: publisher.verified,
           createdAt: publisher.createdAt.getTime(),
           near: nearIds.has(publisher.publisherId),
+          isTemporary: publisher.isTemporary,
+          importNotificationPlan: publisher.importNotificationPlan,
         });
       }
+      return candidates;
+    },
+    async findPublisher(sourceId, organizerKeys, near) {
+      const localSlugs = near?.localSlugs ?? [];
+      const candidates = await store.listPublisherCandidates(sourceId, organizerKeys, near);
       const chosen = choosePublisher(sourceId, organizerKeys, localSlugs, candidates);
-      const match = [...aliasRows, ...namedRows].find((row) => row.publisherId === chosen?.publisherId);
+      const match = candidates.find((row) => row.publisherId === chosen?.publisherId);
       if (!match) return null;
       return {
         publisherId: match.publisherId,
@@ -491,7 +503,7 @@ export function createDbIngestStore(db: Db): IngestStore {
     },
     async updateImported(eventId, input) {
       const values = eventValues(input);
-      await db.transaction(async (tx) => {
+      return db.transaction(async (tx) => {
         const [current] = await tx
           .select({ meta: events.meta })
           .from(events)
@@ -503,7 +515,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           : stored.possibleDuplicate
             ? { ...values.meta, possibleDuplicate: stored.possibleDuplicate }
             : values.meta;
-        await tx
+        const updated = await tx
           .update(events)
           .set({
             publisherId: values.publisherId,
@@ -522,9 +534,16 @@ export function createDbIngestStore(db: Db): IngestStore {
             meta,
             refId: values.refId,
             workerId: values.workerId,
+            scanClaimedUntil: null,
             updatedAt: new Date(),
           })
-          .where(eq(events.id, eventId));
+          .where(
+            input.status === 'pending_scan'
+              ? and(eq(events.id, eventId), eq(events.status, 'pending_scan'))
+              : eq(events.id, eventId),
+          )
+          .returning({ id: events.id });
+        if (updated.length === 0) return false;
         await writeTags(tx, eventId, input.tagIds);
         if (input.event.links !== undefined) await replaceLinks(tx, eventId, input.event.links);
         await tx
@@ -536,6 +555,7 @@ export function createDbIngestStore(db: Db): IngestStore {
               eq(externalRefs.externalId, input.externalId),
             ),
           );
+        return true;
       });
     },
     async touchRef(sourceId, externalId) {
@@ -615,5 +635,132 @@ export function createDbIngestStore(db: Db): IngestStore {
         })),
       });
     },
+    async claimPendingScans(limit, leaseMs) {
+      const now = new Date();
+      const until = new Date(now.getTime() + leaseMs);
+      return db.transaction(async (tx) => {
+        const ids = await tx
+          .select({ id: events.id })
+          .from(events)
+          .where(
+            and(
+              eq(events.status, 'pending_scan'),
+              or(isNull(events.scanClaimedUntil), lt(events.scanClaimedUntil, now)),
+            ),
+          )
+          .orderBy(asc(events.createdAt))
+          .limit(limit)
+          .for('update', { skipLocked: true });
+        if (ids.length === 0) return [];
+        const idList = ids.map((row) => row.id);
+        await tx.update(events).set({ scanClaimedUntil: until }).where(inArray(events.id, idList));
+        const rows = await tx
+          .select({
+            eventId: events.id,
+            title: events.title,
+            description: events.description,
+            venueName: events.venueName,
+            startsAt: events.startsAt,
+            sourceUrl: events.sourceUrl,
+            refId: events.refId,
+            workerId: events.workerId,
+            meta: events.meta,
+            lat: sql<number | null>`ST_Y(${events.location}::geometry)`,
+            lng: sql<number | null>`ST_X(${events.location}::geometry)`,
+            externalId: externalRefs.externalId,
+            sourceId: dataSources.id,
+            sourceSlug: dataSources.slug,
+            sourceTrust: dataSources.trust,
+          })
+          .from(events)
+          .innerJoin(externalRefs, eq(externalRefs.eventId, events.id))
+          .innerJoin(dataSources, eq(dataSources.id, externalRefs.sourceId))
+          .where(inArray(events.id, idList));
+        const linkRows = await tx
+          .select({ eventId: eventLinks.eventId, url: eventLinks.url })
+          .from(eventLinks)
+          .where(inArray(eventLinks.eventId, idList));
+        const tagRows = await tx
+          .select({
+            eventId: eventTags.eventId,
+            tagId: eventTags.tagId,
+            externalId: tags.externalId,
+            name: tags.name,
+          })
+          .from(eventTags)
+          .innerJoin(tags, eq(tags.id, eventTags.tagId))
+          .where(inArray(eventTags.eventId, idList));
+        const pending: PendingScanRow[] = [];
+        for (const id of idList) {
+          const row = rows.find((item) => item.eventId === id);
+          if (!row) continue;
+          const eventTagsForRow = tagRows.filter((tag) => tag.eventId === id);
+          pending.push({
+            eventId: row.eventId,
+            title: row.title,
+            description: row.description,
+            venueName: row.venueName,
+            startsAt: row.startsAt,
+            location: row.lat == null || row.lng == null ? null : { lat: row.lat, lng: row.lng },
+            sourceUrl: row.sourceUrl,
+            links: linkRows.filter((link) => link.eventId === id).map((link) => link.url),
+            externalId: row.externalId,
+            workerId: row.workerId ?? row.sourceSlug,
+            tagIds: eventTagsForRow.map((tag) => tag.tagId),
+            tags: eventTagsForRow.flatMap((tag) =>
+              tag.externalId ? [{ externalId: tag.externalId, name: tag.name }] : [],
+            ),
+            meta: readEventMeta(row.meta),
+            sourceId: row.sourceId,
+            sourceSlug: row.sourceSlug,
+            sourceTrust: row.sourceTrust,
+            claimedUntil: until,
+          });
+        }
+        const returned = new Set(pending.map((row) => row.eventId));
+        const missing = idList.filter((id) => !returned.has(id));
+        if (missing.length > 0) {
+          await tx.update(events).set({ scanClaimedUntil: null }).where(inArray(events.id, missing));
+        }
+        return pending;
+      });
+    },
+    async releaseScanClaim(eventId, claimedUntil) {
+      await db
+        .update(events)
+        .set({ scanClaimedUntil: null })
+        .where(
+          and(
+            eq(events.id, eventId),
+            eq(events.status, 'pending_scan'),
+            eq(events.scanClaimedUntil, claimedUntil),
+          ),
+        );
+    },
+    async finishImportedScan(input) {
+      return db.transaction(async (tx) => {
+        const updated = await tx
+          .update(events)
+          .set({
+            publisherId: input.publisherId,
+            status: input.status,
+            meta: input.meta,
+            scanClaimedUntil: null,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(events.id, input.eventId),
+              eq(events.status, 'pending_scan'),
+              eq(events.scanClaimedUntil, input.claimedUntil),
+            ),
+          )
+          .returning({ id: events.id });
+        if (updated.length === 0) return false;
+        await writeTags(tx, input.eventId, input.tagIds);
+        return true;
+      });
+    },
   };
+  return store;
 }

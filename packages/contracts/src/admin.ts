@@ -290,6 +290,7 @@ export const AdminEventListItem = z.object({
   status: z.enum([
     'draft',
     'awaiting_verification',
+    'pending_scan',
     'in_review',
     'published',
     'cancelled',

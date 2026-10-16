@@ -42,8 +42,9 @@ try {
   if (pending.length === 0) {
     console.log('no pending migrations');
   } else {
-    await sql.begin(async (tx) => {
-      for (const migration of pending) {
+    // One transaction per migration. Postgres cannot use an enum value added in the same transaction.
+    for (const migration of pending) {
+      await sql.begin(async (tx) => {
         for (const statement of migration.statements) {
           await tx.unsafe(statement);
         }
@@ -51,9 +52,9 @@ try {
           insert into drizzle.__drizzle_migrations (hash, created_at)
           values (${migration.hash}, ${migration.when})
         `;
-        console.log(`applied ${migration.tag}`);
-      }
-    });
+      });
+      console.log(`applied ${migration.tag}`);
+    }
   }
 } finally {
   await sql.end();

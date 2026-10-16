@@ -274,7 +274,7 @@ describe('glada-hudik fetch', () => {
     expect(event?.location).toBeUndefined();
   });
 
-  it('keeps a stored tag and does not ask Ollama', async () => {
+  it('does not ask Ollama while fetching', async () => {
     const ollamaCalls: string[] = [];
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
       ollamaCalls.push(String(input));
@@ -308,16 +308,8 @@ describe('glada-hudik fetch', () => {
         ),
       );
       expect(ollamaCalls).toEqual([]);
-      expect(fetched.products[0]?.keptTags).toEqual([
-        {
-          externalId: 'cbis:2823720:2026-10-15T19:00:00:2026-10-15T20:20:00',
-          tags: [{ externalId: 'visit-soderhamn:30192', name: 'Idrott & Tävlingar' }],
-        },
-      ]);
       const [event] = gladaHudik.map(fetched);
-      expect(event?.tags).toEqual([
-        { externalId: 'visit-soderhamn:30192', name: 'Idrott & Tävlingar' },
-      ]);
+      expect(event?.tags).toEqual([]);
     } finally {
       vi.unstubAllGlobals();
     }
@@ -359,7 +351,8 @@ describe('glada-hudik fetch', () => {
       expect(savedBeforeSecondPage).toBeGreaterThan(0);
       expect(summary.fetched).toBe(2);
       expect(summary.created + summary.skipped).toBe(2);
-      expect(store.events[0]?.tagIds).toHaveLength(1);
+      expect(store.events[0]?.status).toBe('pending_scan');
+      expect(store.events[0]?.tagIds).toEqual([]);
     } finally {
       vi.unstubAllGlobals();
     }
