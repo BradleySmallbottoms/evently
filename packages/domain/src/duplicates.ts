@@ -53,7 +53,6 @@ export function duplicateSignal(input: {
   sharedLink: boolean;
   sameId: boolean;
 }): DuplicateSignal | null {
-  console.log('DuplicateSignal input', input);
   if (input.distanceM == null || input.distanceM > DUPLICATE_RADIUS_M) return null;
   if (!input.withinWindow) return null;
   if (input.sameId) return 'id';

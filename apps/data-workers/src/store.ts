@@ -108,7 +108,7 @@ export interface IngestStore {
   /** True when this source's publisher alias owns the event, so a re-import may update it. */
   sourceOwnsEvent(sourceId: string, eventId: string): Promise<boolean>;
   /** Live events within 200 m whose start is within 30 minutes. */
-  duplicateCandidates(input: {
+  listDuplicateCandidates(input: {
     location: { lat: number; lng: number };
     startsAt: Date;
   }): Promise<DuplicateCandidate[]>;

@@ -339,12 +339,11 @@ export function createDbIngestStore(db: Db): IngestStore {
         .limit(1);
       return row ?? null;
     },
-    async duplicateCandidates(input) {
+    async listDuplicateCandidates(input) {
       const windowMs = DUPLICATE_WINDOW_MINUTES * 60_000;
       const from = new Date(input.startsAt.getTime() - windowMs);
       const to = new Date(input.startsAt.getTime() + windowMs);
       const point = pointEwkt(input.location);
-      console.log('duplicateCandidates: input = ', input);
       const rows = await db
         .select({
           eventId: events.id,
@@ -367,9 +366,9 @@ export function createDbIngestStore(db: Db): IngestStore {
             notInArray(events.status, ['cancelled', 'ended']),
           ),
         );
-      console.log('duplicateCandidates: rows = ', rows);
+      // console.log('duplicateCandidates: rows = ', rows);
       if (rows.length === 0) {
-        console.log('duplicateCandidates: no rows found');
+        // console.log('duplicateCandidates: no rows found');
         return [];
       }
       const ids = rows.map((row) => row.eventId);

@@ -43,12 +43,8 @@ const bandy: IncomingEvent = {
   meta: { ageLimit: 13 },
 };
 
-const quietModel = {
-  id: 'test',
-  async complete(): Promise<{ ok: true; content: string }> {
-    return { ok: true, content: '{"externalIds":[]}' };
-  },
-};
+const quietFetch: typeof fetch = async () =>
+  Response.json({ message: { content: '{"externalIds":[]}' } });
 
 /** Runs the scan job the import no longer does inline. */
 async function finishScan(
@@ -59,7 +55,7 @@ async function finishScan(
   if (!store.sources.some((item) => item.id === record.id)) store.sources.push(record);
   return scanPendingEvents(
     store,
-    createOllamaPromptRunner(store, { complete: quietModel.complete }),
+    createOllamaPromptRunner(store, { fetch: quietFetch }),
     enqueue,
   );
 }

@@ -348,7 +348,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       if (!event) return null;
       return { eventId: event.id, contentHash: ref.contentHash, status: event.status };
     },
-    async duplicateCandidates(input) {
+    async listDuplicateCandidates(input) {
       return events.flatMap((event) => {
         if (event.status === 'cancelled' || event.status === 'ended' || !event.location) return [];
         if (!withinDuplicateWindow(input.startsAt, event.startsAt)) return [];

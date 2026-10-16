@@ -13,37 +13,20 @@ import {
   ollamaDisabled,
   ollamaModel,
   parseTagChoices,
-  tagMatchPrompt,
   titleSimilarity,
   type TagChoice,
+  type TagMatchInput,
 } from '@local-events/ingest';
 import { LOCAL_ORGANIZER_SLUGS } from '../sources';
 import type { DuplicateCandidate, IngestStore } from '../store';
-import type {
-  ChosenPublisher,
-  PossibleDuplicateMatch,
-  PromptRunner,
-  ScanInput,
-  ScanOutcome,
-} from './types';
+import type { ChosenPublisher, PossibleDuplicateMatch, PromptRunner, ScanInput, ScanOutcome } from './types';
 
 const TAG_TIMEOUT_MS = 90_000;
 
-interface ModelRequest {
-  prompt: string;
-  format: 'json';
-  temperature: number;
-  timeoutMs: number;
-}
-
-type ModelResponse =
-  | { ok: true; content: string }
-  | { ok: false; reason: 'disabled' | 'unavailable' };
-
 export interface OllamaPromptRunnerOptions {
   config?: Record<string, unknown>;
-  /** Replaces the loopback chat call. Tests use this to skip a running model. */
-  complete?: (request: ModelRequest) => Promise<ModelResponse>;
+  /** Tests pass this so a scan does not call a running Ollama. */
+  fetch?: typeof fetch;
 }
 
 function messageContent(payload: unknown): string {
@@ -53,85 +36,57 @@ function messageContent(payload: unknown): string {
   return typeof message.content === 'string' ? message.content : '';
 }
 
-function ollamaComplete(
+async function askOllama(
+  prompt: string,
   config: Record<string, unknown>,
   fetchImpl: typeof fetch,
-): (request: ModelRequest) => Promise<ModelResponse> {
-  return async (request) => {
-    if (ollamaDisabled()) return { ok: false, reason: 'disabled' };
-    let base: URL;
-    let model: string;
-    try {
-      base = ollamaBaseUrl(config);
-      model = ollamaModel(config);
-    } catch {
-      return { ok: false, reason: 'unavailable' };
-    }
-    try {
-      const response = await fetchImpl(new URL('/api/chat', base), {
-        method: 'POST',
-        redirect: 'error',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          stream: false,
-          format: request.format,
-          options: { temperature: request.temperature },
-          messages: [{ role: 'user', content: request.prompt }],
-        }),
-        signal: AbortSignal.timeout(request.timeoutMs),
-      });
-      if (!response.ok) return { ok: false, reason: 'unavailable' };
-      return { ok: true, content: messageContent(await response.json()) };
-    } catch {
-      return { ok: false, reason: 'unavailable' };
-    }
-  };
+): Promise<string | null> {
+  console.log('askOllama', prompt);
+  if (ollamaDisabled()) return null;
+  let base: URL;
+  let model: string;
+  try {
+    base = ollamaBaseUrl(config);
+    model = ollamaModel(config);
+  } catch {
+    return null;
+  }
+  try {
+    const response = await fetchImpl(new URL('/api/chat', base), {
+      method: 'POST',
+      redirect: 'error',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        format: 'json',
+        options: { temperature: 0 },
+        messages: [{ role: 'user', content: prompt }],
+      }),
+      signal: AbortSignal.timeout(TAG_TIMEOUT_MS),
+    });
+    if (!response.ok) return null;
+    const ollameResponse = await response.json()
+    console.log('ollameResponse', ollameResponse);
+    return messageContent(ollameResponse);
+  } catch {
+    return null;
+  }
 }
 
-function temporaryPublisher(input: ScanInput): ChosenPublisher {
-  const name = input.organizer.name?.trim() || input.organizer.keys[0] || input.title;
-  return { kind: 'temporary', name, organizerKeys: input.organizer.keys };
-}
-
-async function chooseExistingPublisher(store: IngestStore, input: ScanInput): Promise<ChosenPublisher> {
-  const localSlugs = [...new Set([input.source.slug, ...LOCAL_ORGANIZER_SLUGS])];
-  const candidates = await store.listPublisherCandidates(input.source.id, input.organizer.keys, {
-    ...(input.location ? { location: input.location } : {}),
-    localSlugs,
-  });
-  const chosen = choosePublisher(input.source.id, input.organizer.keys, localSlugs, candidates);
-  const match = candidates.find((row) => row.publisherId === chosen?.publisherId);
-  if (!match) return temporaryPublisher(input);
-  return {
-    kind: 'existing',
-    publisherId: match.publisherId,
-    isTemporary: match.isTemporary,
-    verified: match.verified,
-    importNotificationPlan: match.importNotificationPlan,
-  };
-}
-
-function matchPossibleDuplicate(
-  input: ScanInput,
-  candidates: DuplicateCandidate[],
-): PossibleDuplicateMatch | null {
-  if (!input.location) return null;
-  const startsAt = new Date(input.startsAt);
-  const incomingIds = [input.externalId];
-  const incomingUrls = [input.sourceUrl, ...input.links];
+function bestDuplicate(event: ScanInput, candidates: DuplicateCandidate[]): PossibleDuplicateMatch | null {
+  const startsAt = new Date(event.startsAt);
+  const incomingIds = [event.externalId];
+  const incomingUrls = [event.sourceUrl, ...event.links];
   let best: { candidate: DuplicateCandidate; signal: DuplicateSignal } | null = null;
   for (const candidate of candidates) {
-    const sameRow =
-      candidate.eventId === input.eventId ||
-      (candidate.workerId === input.workerId &&
-        (candidate.refId === input.externalId || candidate.externalIds.includes(input.externalId)));
-    if (sameRow) continue;
+    const sameRowOrWorkerId = candidate.eventId === event.eventId || candidate.workerId === event.workerId;
+    if (sameRowOrWorkerId) continue;
     const candidateUrls = [candidate.sourceUrl, ...candidate.links];
     const signal = duplicateSignal({
       distanceM: candidate.distanceM,
       withinWindow: withinDuplicateWindow(startsAt, candidate.startsAt),
-      titleSimilarity: titleSimilarity(input.title, candidate.title),
+      titleSimilarity: titleSimilarity(event.title, candidate.title),
       sharedEventLink: duplicateLinksMatch(incomingUrls, candidateUrls),
       sharedLink: anyLinksMatch(incomingUrls, candidateUrls),
       sameId: duplicateIdsMatch(incomingIds, [candidate.refId, ...candidate.externalIds]),
@@ -147,6 +102,7 @@ function matchPossibleDuplicate(
       best = { candidate, signal };
     }
   }
+  console.log('Best duplicate', best);
   if (!best) return null;
   return {
     eventId: best.candidate.eventId,
@@ -158,61 +114,16 @@ function matchPossibleDuplicate(
   };
 }
 
-async function findDuplicate(store: IngestStore, input: ScanInput): Promise<PossibleDuplicateMatch | null> {
-  if (!input.location) return null;
-  const candidates = await store.duplicateCandidates({
-    location: input.location,
-    startsAt: new Date(input.startsAt),
-  });
-  return matchPossibleDuplicate(input, candidates);
-}
-
-function tagCacheKey(input: ScanInput): string {
-  return [input.title, input.description ?? '', input.venue ?? ''].join('\n');
-}
-
-async function tagsFor(
-  input: ScanInput,
-  catalog: TagChoice[],
-  complete: (request: ModelRequest) => Promise<ModelResponse>,
-  cache: Map<string, TagChoice[] | 'unavailable'>,
-): Promise<TagChoice[] | 'unavailable'> {
-  if (input.existingTags.length > 0) return input.existingTags;
-  if (catalog.length === 0) return [];
-  const key = tagCacheKey(input);
-  const cached = cache.get(key);
-  if (cached) return cached;
-  const response = await complete({
-    prompt: tagMatchPrompt(
-      {
-        title: input.title,
-        ...(input.description ? { description: input.description } : {}),
-        ...(input.venue ? { venue: input.venue } : {}),
-      },
-      catalog,
-    ),
-    format: 'json',
-    temperature: 0,
-    timeoutMs: TAG_TIMEOUT_MS,
-  });
-  if (!response.ok) {
-    cache.set(key, 'unavailable');
-    return 'unavailable';
-  }
-  const tags = parseTagChoices(response.content, catalog);
-  cache.set(key, tags);
-  return tags;
-}
-
 /**
- * Ollama walks the batch one event at a time. It loads publisher and duplicate
- * candidates itself, then asks the local model for tags when the event has none.
+ * Walks the batch one event at a time. Each event loads its publisher and
+ * duplicate candidates, then asks Ollama for tags when the event has none.
  */
 export function createOllamaPromptRunner(
   store: IngestStore,
   options: OllamaPromptRunnerOptions = {},
 ): PromptRunner {
-  const complete = options.complete ?? ollamaComplete(options.config ?? {}, fetch);
+  const config = options.config ?? {};
+  const fetchImpl = options.fetch ?? fetch;
   return {
     id: 'ollama',
     async scan(batch) {
@@ -220,28 +131,103 @@ export function createOllamaPromptRunner(
         externalId: tag.externalId,
         name: tag.name,
       }));
-      const tagsByKey = new Map<string, TagChoice[] | 'unavailable'>();
+      const tagsByText = new Map<string, TagChoice[] | 'unavailable'>();
       const outcomes: ScanOutcome[] = [];
-      for (const input of batch) {
-        if (input.organizer.keys.length === 0) {
-          outcomes.push({ ok: false, eventId: input.eventId, reason: 'unavailable' });
+
+      for (const event of batch) {
+        if (event.organizer.keys.length === 0) {
+          outcomes.push({ ok: false, eventId: event.eventId, reason: 'unavailable' });
           continue;
         }
-        const tags = await tagsFor(input, catalog, complete, tagsByKey);
-        if (tags === 'unavailable') {
-          outcomes.push({ ok: false, eventId: input.eventId, reason: 'unavailable' });
-          continue;
+
+        let tags: TagChoice[] | 'unavailable' = event.existingTags;
+        if (event.existingTags.length === 0 && catalog.length > 0) {
+          const textKey = [event.title, event.description ?? '', event.venue ?? ''].join('\n');
+          const cached = tagsByText.get(textKey);
+          if (cached) {
+            tags = cached;
+          } else {
+            const prompt = buildPrompt(
+              {
+                title: event.title,
+                ...(event.description ? { description: event.description } : {}),
+                ...(event.venue ? { venue: event.venue } : {}),
+              },
+              catalog,
+            );
+            const content = await askOllama(prompt, config, fetchImpl);
+            if (content == null) {
+              tagsByText.set(textKey, 'unavailable');
+              outcomes.push({ ok: false, eventId: event.eventId, reason: 'unavailable' });
+              continue;
+            }
+            tags = parseTagChoices(content, catalog);
+            tagsByText.set(textKey, tags);
+          }
+          if (tags === 'unavailable') {
+            outcomes.push({ ok: false, eventId: event.eventId, reason: 'unavailable' });
+            continue;
+          }
         }
-        outcomes.push({
-          ok: true,
-          eventId: input.eventId,
-          publisher: await chooseExistingPublisher(store, input),
-          duplicate: await findDuplicate(store, input),
-          approved: true,
-          tags,
+
+        const localSlugs = [...new Set([event.source.slug, ...LOCAL_ORGANIZER_SLUGS])];
+        const publishers = await store.listPublisherCandidates(event.source.id, event.organizer.keys, {
+          ...(event.location ? { location: event.location } : {}),
+          localSlugs,
         });
+        const chosen = choosePublisher(event.source.id, event.organizer.keys, localSlugs, publishers);
+        const match = publishers.find((row) => row.publisherId === chosen?.publisherId);
+        const publisher: ChosenPublisher = match
+          ? {
+              kind: 'existing',
+              publisherId: match.publisherId,
+              isTemporary: match.isTemporary,
+              verified: match.verified,
+              importNotificationPlan: match.importNotificationPlan,
+            }
+          : {
+              kind: 'temporary',
+              name: event.organizer.name?.trim() || event.organizer.keys[0] || event.title,
+              organizerKeys: event.organizer.keys,
+            };
+
+        const nearby = event.location
+          ? await store.listDuplicateCandidates({
+              location: event.location,
+              startsAt: new Date(event.startsAt),
+            })
+          : [];
+
+        outcomes.push({ ok: false, eventId: event.eventId, reason: 'unavailable' });
+
+        // outcomes.push({
+        //   ok: true,
+        //   eventId: event.eventId,
+        //   publisher,
+        //   duplicate: bestDuplicate(event, nearby),
+        //   approved: true,
+        //   tags,
+        // });
       }
+
       return outcomes;
     },
   };
+}
+
+const DESCRIPTION_LIMIT = 1_200;
+
+function buildPrompt(event: TagMatchInput, catalog: TagChoice[]): string {
+  const lines = catalog.map((tag) => `${tag.externalId} | ${tag.name}`);
+  const description = event.description?.replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_LIMIT);
+  return [
+    'För varje tagg, bedöm hur väl den passar evenemanget från 0 till 100 och skapa en lista med taggar som får en poäng över 90.',
+    'Svara bara med JSON: {"externalIds":[{"id":"<id>","score":<score>}]} eller {"externalIds":[]} om ingen tagg passar.',
+    'Taggar:',
+    ...lines,
+    'Evenemang:',
+    `Titel: ${event.title}`,
+    ...(event.venue ? [`Plats: ${event.venue}`] : []),
+    ...(description ? [`Beskrivning: ${description}`] : []),
+  ].join('\n');
 }

@@ -45,7 +45,7 @@ async function main(): Promise<number> {
     const store = createDbIngestStore(db);
     const queueUrl = process.env.DOMAIN_EVENTS_QUEUE_URL?.trim();
     const enqueue = queueUrl ? createSqsDomainEventPublisher({ queueUrl }) : noopDomainEvents;
-    const summary = await scanPendingEvents(store, promptRunnerFromEnv(store), enqueue);
+    const summary = await scanPendingEvents(store, promptRunnerFromEnv(store), enqueue, { limit: 1, leaseMs: 1000 });
     console.log(JSON.stringify(summary, null, 2));
     return 0;
   }

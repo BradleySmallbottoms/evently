@@ -135,9 +135,9 @@ describe('scanPendingEvents', () => {
     const summary = await scanPendingEvents(
       store,
       createOllamaPromptRunner(store, {
-        async complete() {
+        fetch: async () => {
           calls += 1;
-          return { ok: false, reason: 'unavailable' };
+          return new Response('down', { status: 503 });
         },
       }),
     );
@@ -155,9 +155,7 @@ describe('scanPendingEvents', () => {
     const summary = await scanPendingEvents(
       store,
       createOllamaPromptRunner(store, {
-        async complete() {
-          return { ok: false, reason: 'unavailable' };
-        },
+        fetch: async () => new Response('down', { status: 503 }),
       }),
     );
 
