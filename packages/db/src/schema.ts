@@ -37,6 +37,8 @@ export const eventStatus = pgEnum('event_status', [
   'cancelled',
   'ended',
 ]);
+/** Import-scan content decision. `unknown` until a scan writes a result. */
+export const contentVerdict = pgEnum('content_verdict', ['safe', 'harmful', 'spam', 'unknown']);
 export const origin = pgEnum('origin', ['native', 'imported']);
 export const publisherType = pgEnum('publisher_type', ['org', 'person']);
 /** Marketing plan used for script-imported events. Null means no notifications. */
@@ -377,6 +379,10 @@ export const events = pgTable(
     description: text('description'),
     mode: eventMode('mode').notNull(),
     status: eventStatus('status').notNull().default('draft'),
+    /** Scan result. Existing and native rows stay `unknown` until a scan writes one. */
+    contentVerdict: contentVerdict('content_verdict').notNull().default('unknown'),
+    /** Raw model JSON from the import scan. Null until a scan writes it. */
+    llmOutput: jsonb('llm_output'),
     origin: origin('origin').notNull().default('native'),
     sourceUrl: text('source_url'),
     /** Id of this event in the source. Null on a native event. */

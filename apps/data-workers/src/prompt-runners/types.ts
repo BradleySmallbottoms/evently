@@ -46,6 +46,8 @@ export type ScanOutcome =
       /** Content scan. This step always approves. A later prompt can return false. */
       approved: boolean;
       tags: TagChoice[];
+      contentVerdict: 'spam' | 'harmful' | 'safe' | 'unknown';
+      llmOutput: object | null;
     }
   | { ok: false; eventId: string; reason: 'unavailable' };
 

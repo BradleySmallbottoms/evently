@@ -14,6 +14,8 @@ import {
   ollamaModel,
   parseTagChoices,
   titleSimilarity,
+  type LLMOutput,
+  type LLMScanResult,
   type TagChoice,
   type TagMatchInput,
 } from '@local-events/ingest';
@@ -29,19 +31,32 @@ export interface OllamaPromptRunnerOptions {
   fetch?: typeof fetch;
 }
 
-function messageContent(payload: unknown): string {
-  if (!payload || typeof payload !== 'object' || !('message' in payload)) return '';
+function messageContent(payload: unknown): LLMOutput {
+  if (!payload || typeof payload !== 'object' || !('message' in payload)) return { contentVerdict: 'safe', possibleTags: [], output: {} };
   const message = payload.message;
-  if (!message || typeof message !== 'object' || !('content' in message)) return '';
-  return typeof message.content === 'string' ? message.content : '';
+  if (!message || typeof message !== 'object' || !('content' in message)) return { contentVerdict: 'safe', possibleTags: [], output: {} };
+  return typeof message.content === 'string' ? { ...parseResponse(message.content), output: payload as object } : { contentVerdict: 'safe', possibleTags: [], output: {} };
+}
+
+function parseResponse(content: string): LLMScanResult {
+  const start = content.indexOf('{');
+  const end = content.lastIndexOf('}');
+  if (start < 0 || end <= start) return { contentVerdict: 'safe', possibleTags: [] };
+  let parsed: LLMScanResult;
+  try {
+    parsed = JSON.parse(content.slice(start, end + 1)) as LLMScanResult;
+  } catch {
+    return { contentVerdict: 'safe', possibleTags: [] };
+  }
+  if (!parsed || typeof parsed !== 'object') return { contentVerdict: 'safe', possibleTags: [] };
+  return { ...parsed };
 }
 
 async function askOllama(
   prompt: string,
   config: Record<string, unknown>,
   fetchImpl: typeof fetch,
-): Promise<string | null> {
-  console.log('askOllama', prompt);
+): Promise<LLMOutput | null> {
   if (ollamaDisabled()) return null;
   let base: URL;
   let model: string;
@@ -67,7 +82,6 @@ async function askOllama(
     });
     if (!response.ok) return null;
     const ollameResponse = await response.json()
-    console.log('ollameResponse', ollameResponse);
     return messageContent(ollameResponse);
   } catch {
     return null;
@@ -135,6 +149,7 @@ export function createOllamaPromptRunner(
       const outcomes: ScanOutcome[] = [];
 
       for (const event of batch) {
+        let llmoutput: LLMOutput | null = null;
         if (event.organizer.keys.length === 0) {
           outcomes.push({ ok: false, eventId: event.eventId, reason: 'unavailable' });
           continue;
@@ -155,13 +170,13 @@ export function createOllamaPromptRunner(
               },
               catalog,
             );
-            const content = await askOllama(prompt, config, fetchImpl);
-            if (content == null) {
+            llmoutput = await askOllama(prompt, config, fetchImpl);
+            if (llmoutput == null) {
               tagsByText.set(textKey, 'unavailable');
               outcomes.push({ ok: false, eventId: event.eventId, reason: 'unavailable' });
               continue;
             }
-            tags = parseTagChoices(content, catalog);
+            tags = parseTagChoices(llmoutput as LLMScanResult, catalog);
             tagsByText.set(textKey, tags);
           }
           if (tags === 'unavailable') {
@@ -179,36 +194,38 @@ export function createOllamaPromptRunner(
         const match = publishers.find((row) => row.publisherId === chosen?.publisherId);
         const publisher: ChosenPublisher = match
           ? {
-              kind: 'existing',
-              publisherId: match.publisherId,
-              isTemporary: match.isTemporary,
-              verified: match.verified,
-              importNotificationPlan: match.importNotificationPlan,
-            }
+            kind: 'existing',
+            publisherId: match.publisherId,
+            isTemporary: match.isTemporary,
+            verified: match.verified,
+            importNotificationPlan: match.importNotificationPlan,
+          }
           : {
-              kind: 'temporary',
-              name: event.organizer.name?.trim() || event.organizer.keys[0] || event.title,
-              organizerKeys: event.organizer.keys,
-            };
+            kind: 'temporary',
+            name: event.organizer.name?.trim() || event.organizer.keys[0] || event.title,
+            organizerKeys: event.organizer.keys,
+          };
 
         const nearby = event.location
           ? await store.listDuplicateCandidates({
-              location: event.location,
-              startsAt: new Date(event.startsAt),
-            })
+            location: event.location,
+            startsAt: new Date(event.startsAt),
+          })
           : [];
 
-        outcomes.push({ ok: false, eventId: event.eventId, reason: 'unavailable' });
-
-        // outcomes.push({
-        //   ok: true,
-        //   eventId: event.eventId,
-        //   publisher,
-        //   duplicate: bestDuplicate(event, nearby),
-        //   approved: true,
-        //   tags,
-        // });
+        outcomes.push({
+          ok: true,
+          eventId: event.eventId,
+          publisher,
+          duplicate: bestDuplicate(event, nearby),
+          approved: true,
+          tags,
+          contentVerdict: llmoutput?.contentVerdict ?? 'unknown',
+          llmOutput: llmoutput?.output ?? {},
+        });
       }
+
+      console.log('outcomes', outcomes);
 
       return outcomes;
     },
@@ -221,13 +238,16 @@ function buildPrompt(event: TagMatchInput, catalog: TagChoice[]): string {
   const lines = catalog.map((tag) => `${tag.externalId} | ${tag.name}`);
   const description = event.description?.replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_LIMIT);
   return [
-    'För varje tagg, bedöm hur väl den passar evenemanget från 0 till 100 och skapa en lista med taggar som får en poäng över 90.',
-    'Svara bara med JSON: {"externalIds":[{"id":"<id>","score":<score>}]} eller {"externalIds":[]} om ingen tagg passar.',
-    'Taggar:',
+    'You are a helpful assistant that helps to tag and scan events from spam and harmful content using tags from a catalog.',
+    'For each tag, evaluate how well it fits the event from 0 to 100 and create a list of tags that score over 90.',
+    'Use the title, location, and description to determine the content verdict.',
+    'The content verdict can be "spam", "harmful", or "safe".',
+    'Only return JSON: {contentVerdict: "spam" | "harmful" | "safe", possibleTags: [{"id":"<id>","score":<score>}]} or {contentVerdict: "spam" | "harmful" | "safe", possibleTags: []} if no tag fits.',
+    'Available tags:',
     ...lines,
-    'Evenemang:',
-    `Titel: ${event.title}`,
-    ...(event.venue ? [`Plats: ${event.venue}`] : []),
-    ...(description ? [`Beskrivning: ${description}`] : []),
+    'Event Data:',
+    `Title: ${event.title}`,
+    ...(event.venue ? [`Location: ${event.venue}`] : []),
+    ...(description ? [`Description: ${description}`] : []),
   ].join('\n');
 }

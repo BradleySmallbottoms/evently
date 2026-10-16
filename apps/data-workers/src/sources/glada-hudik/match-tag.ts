@@ -1,7 +1,6 @@
 export {
   existingEventTags,
   keptTagsForProduct,
-  matchEventTag,
   ollamaBaseUrl,
   ollamaModel,
   parseTagChoices,

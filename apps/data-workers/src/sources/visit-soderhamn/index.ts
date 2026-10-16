@@ -468,7 +468,7 @@ function mapProduct(
   const meta = metaOf(product);
   const address = addressOf(product);
   const pictures = picturesFor(imageUrl(product), crawled);
-  const tags = productTags(product, eventCategoryId);
+  const categoryNames = productTags(product, eventCategoryId).map((tag) => tag.name);
   const events: IncomingEvent[] = [];
   for (const occasion of product.Occasions ?? []) {
     if (!occasion.Start) continue;
@@ -499,8 +499,8 @@ function mapProduct(
         skipHosts: ['visitsoderhamn.se'],
       }),
       ...(contact || email ? { organizerName: contact ?? email } : {}),
-      categoryHints: tags.map((tag) => tag.name),
-      tags,
+      categoryHints: categoryNames,
+      tags: [],
       ...pictures,
     });
   }

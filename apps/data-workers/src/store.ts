@@ -171,6 +171,8 @@ export interface IngestStore {
     status: 'in_review' | 'published';
     meta: EventMeta;
     tagIds: string[];
+    llmOutput: object;
+    contentVerdict: 'spam' | 'harmful' | 'safe' | 'unknown';
     claimedUntil: Date;
   }): Promise<boolean>;
 }

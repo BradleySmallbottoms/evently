@@ -82,11 +82,7 @@ describe('visit-soderhamn map', () => {
     ]);
     expect(bandy.organizerName).toBe('Kansliet, Broberg/Söderhamn Bandy');
     expect(bandy.categoryHints).toEqual(['Idrott & Tävlingar', 'Bandy & Innebandy', 'Tävlingar']);
-    expect(bandy.tags).toEqual([
-      { externalId: 'visit-soderhamn:30192', name: 'Idrott & Tävlingar' },
-      { externalId: 'visit-soderhamn:30194', name: 'Bandy & Innebandy' },
-      { externalId: 'visit-soderhamn:30203', name: 'Tävlingar' },
-    ]);
+    expect(bandy.tags).toEqual([]);
     expect(bandy.imageUrl).toBe('https://images.citybreakcdn.com/image.aspx?ImageId=10290222');
     expect(bandy.imageUrls).toBeUndefined();
     expect(bandy.description).toContain('inomhusarena för bandy');

@@ -112,6 +112,8 @@ async function applyOutcome(
     status,
     meta,
     tagIds,
+    llmOutput: outcome.llmOutput ?? {},
+    contentVerdict: outcome.contentVerdict,
     claimedUntil: row.claimedUntil,
   });
   if (!saved) return 'skipped';

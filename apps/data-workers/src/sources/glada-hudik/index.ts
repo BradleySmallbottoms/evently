@@ -518,7 +518,7 @@ async function fetchList(ctx: {
   return hits;
 }
 
-/** List every event, then yield one product after its page and tags are ready. */
+/** List every event, then yield one product after its page is ready. */
 async function* eachProduct(ctx: {
   config: Record<string, unknown>;
   fetch: typeof fetch;

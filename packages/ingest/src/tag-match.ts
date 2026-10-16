@@ -142,10 +142,10 @@ function scoreValue(value: unknown): number | null {
 }
 
 /** Catalog ids whose fit score is above {@link MIN_SCORE}. */
-function scoredIds(parsed: object): string[] {
-  if (!('externalIds' in parsed) || !Array.isArray(parsed.externalIds)) return [];
+function scoredIds(parsed: LLMScanResult): string[] {
+  if (!('possibleTags' in parsed) || !Array.isArray(parsed.possibleTags)) return [];
   const ids: string[] = [];
-  for (const item of parsed.externalIds) {
+  for (const item of parsed.possibleTags) {
     if (!item || typeof item !== 'object') continue;
     const id = 'id' in item ? idText(item.id) : '';
     const score = 'score' in item ? scoreValue(item.score) : null;
@@ -156,19 +156,9 @@ function scoredIds(parsed: object): string[] {
 }
 
 /** Up to five catalog tags with a score above 90. Unknown ids are dropped. A bare numeric id matches `prefix:id`. */
-export function parseTagChoices(body: string, catalog: TagChoice[]): TagChoice[] {
-  const start = body.indexOf('{');
-  const end = body.lastIndexOf('}');
-  if (start < 0 || end <= start) return [];
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(body.slice(start, end + 1));
-  } catch {
-    return [];
-  }
-  if (!parsed || typeof parsed !== 'object') return [];
+export function parseTagChoices(input: LLMScanResult, catalog: TagChoice[]): TagChoice[] {
   const chosen: TagChoice[] = [];
-  for (const id of scoredIds(parsed)) {
+  for (const id of scoredIds(input)) {
     if (chosen.length >= MAX_TAGS) break;
     const tag = resolveTagId(id, catalog);
     if (!tag || chosen.some((item) => item.externalId === tag.externalId)) continue;
@@ -177,88 +167,14 @@ export function parseTagChoices(body: string, catalog: TagChoice[]): TagChoice[]
   return chosen;
 }
 
-export function tagMatchPrompt(event: TagMatchInput, catalog: TagChoice[]): string {
-  const lines = catalog.map((tag) => `${tag.externalId} | ${tag.name}`);
-  const description = event.description?.replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_LIMIT);
-  return [
-    'För varje tagg, bedöm hur väl den passar evenemanget från 0 till 100 och skapa en lista med taggar som får en poäng över 90.',
-    'Svara bara med JSON: {"externalIds":[{"id":"<id>","score":<score>}]} eller {"externalIds":[]} om ingen tagg passar.',
-    'Taggar:',
-    ...lines,
-    'Evenemang:',
-    `Titel: ${event.title}`,
-    ...(event.venue ? [`Plats: ${event.venue}`] : []),
-    ...(description ? [`Beskrivning: ${description}`] : []),
-  ].join('\n');
-}
-
 export type TagMatchResult = { ok: true; tags: TagChoice[] } | { ok: false };
 
-/** Up to five catalog tags with a score above 90, none, or a failed local call. */
-export async function matchEventTag(
-  event: TagMatchInput,
-  catalog: TagChoice[],
-  config: Record<string, unknown>,
-  fetchImpl: typeof fetch,
-): Promise<TagMatchResult> {
-  if (catalog.length === 0) return { ok: true, tags: [] };
-  if (ollamaDisabled()) return { ok: true, tags: [] };
-  let base: URL;
-  let model: string;
-  try {
-    base = ollamaBaseUrl(config);
-    model = ollamaModel(config);
-  } catch {
-    console.log('Ollama base URL or model is not valid');
-    return { ok: false };
-  }
-  const url = new URL('/api/chat', base);
-  let response: Response;
-  try {
-    console.log('Running Ollama request with model ', model, 'on event with title ', event.title);
-    response = await fetchImpl(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        stream: false,
-        format: 'json',
-        options: { temperature: 0 },
-        messages: [{ role: 'user', content: tagMatchPrompt(event, catalog) }],
-      }),
-      signal: AbortSignal.timeout(90_000),
-    });
-  } catch (e) {
-    console.log('Error fetching Ollama response', e);
-    return { ok: false };
-  }
-  if (!response.ok) {
-    console.log(
-      'Ollama request failed with status',
-      response.status,
-      'and body',
-      await response.text(),
-    );
-    return { ok: false };
-  }
-  let payload: unknown;
-  try {
-    payload = await response.json();
-    console.log('Ollama response', payload);
-  } catch (e) {
-    console.log('Error parsing Ollama response', e);
-    return { ok: false };
-  }
-  const content =
-    payload &&
-    typeof payload === 'object' &&
-    'message' in payload &&
-    payload.message &&
-    typeof payload.message === 'object' &&
-    'content' in payload.message &&
-    typeof payload.message.content === 'string'
-      ? payload.message.content
-      : '';
-  const tags = parseTagChoices(content, catalog);
-  return { ok: true, tags };
+
+export type LLMScanResult = {
+  contentVerdict: 'spam' | 'harmful' | 'safe' | 'unknown';
+  possibleTags: { id: string; score: number }[];  
 }
+export type LLMOutput = LLMScanResult & {
+  output: object;
+}
+

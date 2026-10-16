@@ -69,8 +69,8 @@ calls) in the same change as every new major feature.**
 - First external source is the Citybreak API used by Visit Söderhamn. The worker loads the category
   tree, then products in **Evenemang** (category `30172`) only. Each occasion becomes its own event.
   A Citybreak time ending in `Z`, or with a numeric offset, is stored as that instant. A time with no zone is Europe/Stockholm. Hälsingland and Hudiksvall date-and-period values are Stockholm wall time too.
-  Categories under Evenemang are stored as tags (`external_id` `visit-soderhamn:{id}`) and attached
-  to the imported event. `GET /v1/tags` is that list. The mobile home and search call it with
+  Categories under Evenemang are stored as the tag catalog (`external_id` `visit-soderhamn:{id}`).
+  The import does not put those tags on the event. The scan job does. `GET /v1/tags` is that list. The mobile home and search call it with
   `?upcoming=true`, which keeps only tags on a published event that has not ended. Choosing
   preferred tags loads the full list. Publishers and admin do too.
   A fresh database is seeded with the seven tags from the local fixture; a live run adds the rest.
