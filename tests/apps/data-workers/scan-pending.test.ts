@@ -38,6 +38,8 @@ const event = {
 const scanned = {
   contentVerdict: 'safe' as const,
   llmOutput: null,
+  summary: 'Musik i Helsingehus',
+  language: 'sv',
 };
 
 describe('parseScanSelection', () => {
@@ -69,21 +71,19 @@ describe('scanPendingEvents', () => {
       id: 'batch',
       async scan(batch) {
         batches.push(batch);
-        return batch.map(
-          (item): ScanOutcome => ({
-            ok: true,
-            eventId: item.eventId,
-            publisher: {
-              kind: 'temporary',
-              name: item.organizer.name ?? 'Tillfällig',
-              organizerKeys: item.organizer.keys,
-            },
-            duplicate: null,
-            approved: true,
-            tags: [],
-            ...scanned,
-          }),
-        );
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: item.organizer.name ?? 'Tillfällig',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
       },
     };
 
@@ -93,6 +93,9 @@ describe('scanPendingEvents', () => {
     expect(batches[0]?.map((item) => item.title).sort()).toEqual(['Konsert', 'Marknad']);
     expect(summary).toMatchObject({ claimed: 2, review: 2, published: 0, unavailable: 0 });
     expect(store.events.every((row) => row.status === 'in_review')).toBe(true);
+    expect(
+      store.events.every((row) => row.summary === 'Musik i Helsingehus' && row.language === 'sv'),
+    ).toBe(true);
   });
 
   it('leaves a failed event pending and finishes the rest of the batch', async () => {
@@ -112,25 +115,24 @@ describe('scanPendingEvents', () => {
     const runner: PromptRunner = {
       id: 'partial',
       async scan(batch) {
-        return batch.map(
-          (item, index): ScanOutcome =>
-            index === 0
-              ? { ok: false, eventId: item.eventId, reason: 'unavailable' }
-              : {
-                  ok: true,
-                  eventId: item.eventId,
-                  publisher: {
-                    kind: 'existing',
-                    publisherId: store.publishers[0]!.id,
-                    isTemporary: false,
-                    verified: true,
-                    importNotificationPlan: null,
-                  },
-                  duplicate: null,
-                  approved: true,
-                  tags: [],
-                  ...scanned,
+        return batch.map((item, index): ScanOutcome =>
+          index === 0
+            ? { ok: false, eventId: item.eventId, reason: 'unavailable' }
+            : {
+                ok: true,
+                eventId: item.eventId,
+                publisher: {
+                  kind: 'existing',
+                  publisherId: store.publishers[0]!.id,
+                  isTemporary: false,
+                  verified: true,
+                  importNotificationPlan: null,
                 },
+                duplicate: null,
+                approved: true,
+                tags: [],
+                ...scanned,
+              },
         );
       },
     };
@@ -225,6 +227,8 @@ describe('scanPendingEvents', () => {
       tagIds: [],
       contentVerdict: 'unknown',
       llmOutput: {},
+      summary: null,
+      language: 'sv',
       claimedUntil: claimed!.claimedUntil,
     });
 
@@ -243,21 +247,19 @@ describe('scanPendingEvents', () => {
     const runner: PromptRunner = {
       id: 'one',
       async scan(batch) {
-        return batch.map(
-          (item): ScanOutcome => ({
-            ok: true,
-            eventId: item.eventId,
-            publisher: {
-              kind: 'temporary',
-              name: 'Tillfällig',
-              organizerKeys: item.organizer.keys,
-            },
-            duplicate: null,
-            approved: true,
-            tags: [],
-            ...scanned,
-          }),
-        );
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Tillfällig',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
       },
     };
 

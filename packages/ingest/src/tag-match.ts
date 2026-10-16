@@ -169,12 +169,12 @@ export function parseTagChoices(input: LLMScanResult, catalog: TagChoice[]): Tag
 
 export type TagMatchResult = { ok: true; tags: TagChoice[] } | { ok: false };
 
-
 export type LLMScanResult = {
   contentVerdict: 'spam' | 'harmful' | 'safe' | 'unknown';
   possibleTags: { id: string; score: number }[];  
+  summary: string;
+  language: string;
 }
 export type LLMOutput = LLMScanResult & {
   output: object;
 }
-

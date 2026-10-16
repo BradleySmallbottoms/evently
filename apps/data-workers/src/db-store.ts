@@ -748,6 +748,8 @@ export function createDbIngestStore(db: Db): IngestStore {
             updatedAt: new Date(),
             llmOutput: input.llmOutput,
             contentVerdict: input.contentVerdict,
+            summary: input.summary,
+            language: input.language,
           })
           .where(
             and(

@@ -122,6 +122,9 @@ Architecture
 
 Product invariants (enforced in domain, tested)
 
+- An event's `language` is `sv` or `en` (default `sv`) and is the language of its title, description,
+  and summary. Other languages are rows in `event_translations`: one row per event and language,
+  with the translated fields in `data` as a JSON object.
 - A user id never authenticates; the app holds a device credential in secure storage.
 - Events from unverified publishers are `awaiting_verification`: not listed, searched or pushed.
 - An event without a point is omitted from the public event list. Tags do not replace a missing

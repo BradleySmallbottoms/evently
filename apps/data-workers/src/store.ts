@@ -101,7 +101,11 @@ export interface IngestStore {
     name: string;
   }): Promise<PublisherLink>;
   /** Store keys from this event on the publisher when this source does not already use them. */
-  rememberOrganizerKeys(sourceId: string, publisherId: string, organizerKeys: string[]): Promise<void>;
+  rememberOrganizerKeys(
+    sourceId: string,
+    publisherId: string,
+    organizerKeys: string[],
+  ): Promise<void>;
   findExternalRef(sourceId: string, externalId: string): Promise<ExternalRefHit | null>;
   /** True when an admin deleted this source id from review, so a later import must skip it. */
   isImportSuppressed(sourceId: string, externalId: string): Promise<boolean>;
@@ -174,6 +178,10 @@ export interface IngestStore {
     tagIds: string[];
     llmOutput: object;
     contentVerdict: 'spam' | 'harmful' | 'safe' | 'unknown';
+    /** Null when the scan did not write one. */
+    summary: string | null;
+    /** `en` when the scan says English. Anything else is `sv`. */
+    language: 'sv' | 'en';
     claimedUntil: Date;
   }): Promise<boolean>;
 }

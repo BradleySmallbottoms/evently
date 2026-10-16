@@ -28,6 +28,8 @@ const id = () =>
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
 export const eventMode = pgEnum('event_mode', ['physical', 'digital']);
+/** Source language of an event, and the language of one `event_translations` row. */
+export const eventLanguage = pgEnum('event_language', ['sv', 'en']);
 export const eventStatus = pgEnum('event_status', [
   'draft',
   'awaiting_verification',
@@ -377,6 +379,10 @@ export const events = pgTable(
     scanClaimedUntil: timestamp('scan_claimed_until', { withTimezone: true }),
     title: text('title').notNull(),
     description: text('description'),
+    /** Language of `title`, `description`, and `summary`. */
+    language: eventLanguage('language').notNull().default('sv'),
+    /** Short text for lists. Null until one is written. */
+    summary: text('summary'),
     mode: eventMode('mode').notNull(),
     status: eventStatus('status').notNull().default('draft'),
     /** Scan result. Existing and native rows stay `unknown` until a scan writes one. */
@@ -415,6 +421,25 @@ export const events = pgTable(
     index('events_location_gist').using('gist', t.location),
     index('events_status_starts_idx').on(t.status, t.startsAt),
     index('events_worker_ref_idx').on(t.workerId, t.refId),
+  ],
+);
+
+/**
+ * One row per event and language. `data` is translated fields by name,
+ * for example `{ "title": "...", "summary": "..." }`.
+ */
+export const eventTranslations = pgTable(
+  'event_translations',
+  {
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    language: eventLanguage('language').notNull(),
+    data: jsonb('data').notNull().default({}),
+  },
+  (t) => [
+    primaryKey({ columns: [t.eventId, t.language] }),
+    index('event_translations_language_idx').on(t.language),
   ],
 );
 

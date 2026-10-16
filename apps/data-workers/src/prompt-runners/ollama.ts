@@ -41,15 +41,15 @@ function messageContent(payload: unknown): LLMOutput | null {
 function parseResponse(content: string): LLMScanResult {
   const start = content.indexOf('{');
   const end = content.lastIndexOf('}');
-  if (start < 0 || end <= start) return { contentVerdict: 'safe', possibleTags: [] };
+  if (start < 0 || end <= start) return { contentVerdict: 'safe', possibleTags: [], summary: '', language: '' };
   let parsed: LLMScanResult;
   try {
     parsed = JSON.parse(content.slice(start, end + 1)) as LLMScanResult;
   } catch {
-    return { contentVerdict: 'safe', possibleTags: [] };
+    return { contentVerdict: 'safe', possibleTags: [], summary: '', language: '' };
   }
-  if (!parsed || typeof parsed !== 'object') return { contentVerdict: 'safe', possibleTags: [] };
-  return { ...parsed };
+  if (!parsed || typeof parsed !== 'object') return { contentVerdict: 'safe', possibleTags: [], summary: '', language: '' };
+  return { ...parsed, summary: parsed.summary ?? '', language: parsed.language ?? '' };
 }
 
 async function askOllama(
@@ -221,9 +221,13 @@ export function createOllamaPromptRunner(
           approved: true,
           tags,
           contentVerdict: llmoutput?.contentVerdict ?? 'unknown',
+          summary: llmoutput?.summary ?? '',
+          language: llmoutput?.language ?? '',
           llmOutput: llmoutput?.output ?? {},
         });
       }
+
+      console.log('outcomes', outcomes);
 
       return outcomes;
     },
@@ -237,10 +241,12 @@ function buildPrompt(event: TagMatchInput, catalog: TagChoice[]): string {
   const description = event.description?.replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_LIMIT);
   return [
     'You are a helpful assistant that helps to tag and scan events from spam and harmful content using tags from a catalog.',
+    'You will also help to determine language used in descriptions and titles of events.',
+    'Foreach event I also want you to draft a short brief summary of the event in the language of the event, do not include name of the city but you can use location/venue if it is relevant.',
     'For each tag, evaluate how well it fits the event from 0 to 100 and create a list of tags that score over 90.',
     'Use the title, location, and description to determine the content verdict.',
     'The content verdict can be "spam", "harmful", or "safe".',
-    'Only return JSON: {contentVerdict: "spam" | "harmful" | "safe", possibleTags: [{"id":"<id>","score":<score>}]} or {contentVerdict: "spam" | "harmful" | "safe", possibleTags: []} if no tag fits.',
+    'Only return JSON: {contentVerdict: "spam" | "harmful" | "safe", summary: "<summary>", language: "sv|en|etc", possibleTags: [{"id":"<id>","score":<score>}]}',
     'Available tags:',
     ...lines,
     'Event Data:',

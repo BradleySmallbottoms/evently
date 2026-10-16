@@ -44,6 +44,7 @@ Closed beta around week 15, store launch around week 19.
 
 - [x] Publisher profiles; owner/editor members with email invites
 - [x] Event CRUD (physical + digital), tags from the Visit Söderhamn vocabulary; image upload to S3 deferred
+- [x] Event `language` (`sv` / `en`, default `sv`) and optional `summary`. `event_translations` holds other languages as JSON field maps (`event_id`, `language`, `data`)
 - [x] Unverified publishers: events stored as `awaiting_verification`, released on verification
 - [x] Public event pages on web; list and map views in the app
 - [x] Web sign-in by pairing code (app generates code → web exchanges for httpOnly cookie)

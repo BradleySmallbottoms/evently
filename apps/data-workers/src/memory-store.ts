@@ -57,6 +57,8 @@ interface StoredEvent {
   priceAmount?: number;
   currency?: string;
   meta: EventMeta;
+  summary?: string | null;
+  language?: 'sv' | 'en';
   links?: { type: 'tickets' | 'registration' | 'info'; url: string; label?: string }[];
 }
 
@@ -565,6 +567,8 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       event.status = input.status;
       event.meta = input.meta;
       event.tagIds = input.tagIds;
+      event.summary = input.summary;
+      event.language = input.language;
       event.scanClaimedUntil = null;
       return true;
     },

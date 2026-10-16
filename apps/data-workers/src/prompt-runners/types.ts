@@ -48,6 +48,8 @@ export type ScanOutcome =
       tags: TagChoice[];
       contentVerdict: 'spam' | 'harmful' | 'safe' | 'unknown';
       llmOutput: object | null;
+      summary: string;
+      language: string;
     }
   | { ok: false; eventId: string; reason: 'unavailable' };
 

@@ -19,8 +19,17 @@ export interface ScanSummary {
   skipped: number;
 }
 
-const EVENT_ID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const EVENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function eventSummary(value: string): string | null {
+  const summary = value.trim();
+  return summary.length > 0 ? summary : null;
+}
+
+/** The events table only stores `sv` and `en`. A blank or other code stays Swedish. */
+function eventLanguage(value: string): 'sv' | 'en' {
+  return value.trim().toLowerCase() === 'en' ? 'en' : 'sv';
+}
 
 /** Reads `--event` / `--limit` (or `EVENT_ID` / `SCAN_LIMIT`) for a manual scan run. */
 export function parseScanSelection(input: {
@@ -145,6 +154,8 @@ async function applyOutcome(
     tagIds,
     llmOutput: outcome.llmOutput ?? {},
     contentVerdict: outcome.contentVerdict,
+    summary: eventSummary(outcome.summary),
+    language: eventLanguage(outcome.language),
     claimedUntil: row.claimedUntil,
   });
   if (!saved) return 'skipped';
