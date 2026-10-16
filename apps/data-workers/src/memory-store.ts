@@ -503,17 +503,18 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         contentType: input.contentType,
       });
     },
-    async claimPendingScans(limit, leaseMs) {
+    async claimPendingScans(limit, leaseMs, eventId) {
       const now = Date.now();
       const until = new Date(now + leaseMs);
       const due = events
         .filter(
           (event) =>
             event.status === 'pending_scan' &&
-            (event.scanClaimedUntil == null || event.scanClaimedUntil.getTime() < now),
+            (event.scanClaimedUntil == null || event.scanClaimedUntil.getTime() < now) &&
+            (eventId == null || event.id === eventId),
         )
         .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0))
-        .slice(0, limit);
+        .slice(0, eventId ? 1 : limit);
       const rows: PendingScanRow[] = [];
       for (const event of due) {
         event.scanClaimedUntil = until;

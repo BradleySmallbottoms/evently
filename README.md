@@ -136,6 +136,7 @@ calls) in the same change as every new major feature.**
   `pending_scan`. `OLLAMA_BASE_URL` must be a loopback URL. `OLLAMA_DISABLED=1` skips the model, so
   an event that still needs tags stays `pending_scan`.
   `pnpm --filter @local-events/data-workers dev -- --job event-scan`
+  scans the next batch. Add `--event <event-id>` to scan one row, or `--limit 1` to cap the batch.
   Flow: [docs/flows/event-scan.md](docs/flows/event-scan.md).
 
 ### Destination Hälsingland import

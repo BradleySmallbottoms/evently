@@ -633,7 +633,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         })),
       });
     },
-    async claimPendingScans(limit, leaseMs) {
+    async claimPendingScans(limit, leaseMs, eventId) {
       const now = new Date();
       const until = new Date(now.getTime() + leaseMs);
       return db.transaction(async (tx) => {
@@ -644,10 +644,11 @@ export function createDbIngestStore(db: Db): IngestStore {
             and(
               eq(events.status, 'pending_scan'),
               or(isNull(events.scanClaimedUntil), lt(events.scanClaimedUntil, now)),
+              ...(eventId ? [eq(events.id, eventId)] : []),
             ),
           )
           .orderBy(asc(events.createdAt))
-          .limit(limit)
+          .limit(eventId ? 1 : limit)
           .for('update', { skipLocked: true });
         if (ids.length === 0) return [];
         const idList = ids.map((row) => row.id);

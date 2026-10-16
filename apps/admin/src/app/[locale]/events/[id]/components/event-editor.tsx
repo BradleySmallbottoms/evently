@@ -26,6 +26,7 @@ import { AdminApiError, adminFetch } from '@/lib/api';
 import { toDatetimeLocal, zonedLocalToIso } from '@/lib/zoned-datetime';
 import { EventImages } from './event-images';
 import { EventNotifications } from './event-notifications';
+import { EventScan } from './event-scan';
 import { EventTagsField } from './event-tags-field';
 
 type EventMode = 'physical' | 'digital';
@@ -70,6 +71,7 @@ type EventDetail = {
   imageUrl: string | null;
   imageUrls: string[];
   links: { type: LinkType; url: string; label: string | null }[];
+  llmOutput: unknown;
   createdAt: string;
   updatedAt: string;
 };
@@ -122,7 +124,7 @@ const styles: Record<string, SxProps<Theme>> = {
   },
 };
 
-type EditorTab = 'info' | 'location' | 'notifications';
+type EditorTab = 'info' | 'location' | 'notifications' | 'scan';
 
 function httpUrl(value: string | null): string | null {
   if (!value) return null;
@@ -380,6 +382,7 @@ export function EventEditor({ eventId }: { eventId: string }) {
         <Tab value="info" label={t('tabInfo')} />
         <Tab value="location" label={t('tabLocation')} />
         <Tab value="notifications" label={t('tabNotifications')} />
+        <Tab value="scan" label={t('tabScan')} />
       </Tabs>
       {tab === 'notifications' && event ? (
         <EventNotifications
@@ -389,6 +392,8 @@ export function EventEditor({ eventId }: { eventId: string }) {
           timezone={event.timezone}
           status={event.status}
         />
+      ) : tab === 'scan' ? (
+        <EventScan output={event?.llmOutput ?? null} />
       ) : (
         <Stack component="form" spacing={2} onSubmit={onSubmit}>
           {notice ? <Alert severity="success">{notice}</Alert> : null}

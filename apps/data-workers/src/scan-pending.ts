@@ -19,15 +19,46 @@ export interface ScanSummary {
   skipped: number;
 }
 
+const EVENT_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Reads `--event` / `--limit` (or `EVENT_ID` / `SCAN_LIMIT`) for a manual scan run. */
+export function parseScanSelection(input: {
+  eventId?: string;
+  limit?: string;
+}): { ok: true; eventId?: string; limit?: number } | { ok: false; message: string } {
+  if (input.eventId != null) {
+    const eventId = input.eventId.trim();
+    if (!EVENT_ID.test(eventId)) return { ok: false, message: '--event must be an event id' };
+    const limited = parseLimit(input.limit);
+    if (!limited.ok) return limited;
+    return { ok: true, eventId, ...(limited.limit != null ? { limit: limited.limit } : {}) };
+  }
+  const limited = parseLimit(input.limit);
+  if (!limited.ok) return limited;
+  return { ok: true, ...(limited.limit != null ? { limit: limited.limit } : {}) };
+}
+
+function parseLimit(
+  limit: string | undefined,
+): { ok: true; limit?: number } | { ok: false; message: string } {
+  const rawLimit = limit?.trim();
+  if (rawLimit == null || rawLimit === '') return { ok: true };
+  if (!/^[1-9]\d{0,2}$/.test(rawLimit)) {
+    return { ok: false, message: '--limit must be a whole number from 1 to 999' };
+  }
+  return { ok: true, limit: Number(rawLimit) };
+}
+
 export async function scanPendingEvents(
   store: IngestStore,
   runner: PromptRunner,
   enqueue: DomainEventSink = noopDomainEvents,
-  options: { limit?: number; leaseMs?: number } = {},
+  options: { limit?: number; leaseMs?: number; eventId?: string } = {},
 ): Promise<ScanSummary> {
   const limit = options.limit ?? SCAN_BATCH_LIMIT;
   const leaseMs = options.leaseMs ?? SCAN_LEASE_MS;
-  const claimed = await store.claimPendingScans(limit, leaseMs);
+  const claimed = await store.claimPendingScans(limit, leaseMs, options.eventId);
   const summary: ScanSummary = {
     claimed: claimed.length,
     published: 0,

@@ -21,6 +21,7 @@ import Typography from '@mui/material/Typography';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
+import { ContentVerdictChip, type ContentVerdict } from '@/components/content-verdict';
 import { EventWarningMark, type EventWarning } from '@/components/event-warning';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
@@ -37,6 +38,7 @@ type EventRow = {
   checkInEnabled: boolean;
   startsAt: string;
   venueName: string | null;
+  contentVerdict: ContentVerdict;
   warnings: EventWarning[];
 };
 
@@ -55,6 +57,7 @@ const PAGE_SIZE = 50;
 
 export function EventCatalog() {
   const t = useTranslations('EventCatalog');
+  const tVerdict = useTranslations('ContentVerdict');
   const tApp = useTranslations('App');
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
@@ -341,6 +344,7 @@ export function EventCatalog() {
               <TableCell>{t('titleCol')}</TableCell>
               <TableCell>{t('publisher')}</TableCell>
               <TableCell>{t('status')}</TableCell>
+              <TableCell>{tVerdict('label')}</TableCell>
               <TableCell>{t('featured')}</TableCell>
               <TableCell>{t('checkIn')}</TableCell>
               <TableCell>{t('starts')}</TableCell>
@@ -369,6 +373,9 @@ export function EventCatalog() {
                   <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>
                 </TableCell>
                 <TableCell>{item.status}</TableCell>
+                <TableCell>
+                  <ContentVerdictChip verdict={item.contentVerdict} />
+                </TableCell>
                 <TableCell>{item.featured ? t('featuredYes') : t('featuredNo')}</TableCell>
                 <TableCell>{item.checkInEnabled ? t('featuredYes') : t('featuredNo')}</TableCell>
                 <TableCell>{new Date(item.startsAt).toLocaleString()}</TableCell>

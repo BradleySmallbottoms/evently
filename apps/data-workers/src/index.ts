@@ -4,7 +4,7 @@ import { createSqsDomainEventPublisher, noopDomainEvents } from './domain-events
 import { eventImageUploaderFromEnv } from './event-images';
 import { persistSource } from './persist';
 import { promptRunnerFromEnv } from './prompt-runners';
-import { scanPendingEvents } from './scan-pending';
+import { parseScanSelection, scanPendingEvents } from './scan-pending';
 import { rawPayloadSinkFromEnv } from './raw-payload';
 import { runSource } from './run';
 import { initSentry, Sentry } from './sentry';
@@ -18,13 +18,17 @@ initSentry('data-workers');
  *
  * The import scan job claims `pending_scan` events and runs the prompt runner.
  *   pnpm --filter @local-events/data-workers dev -- --job event-scan
+ *   pnpm --filter @local-events/data-workers dev -- --job event-scan --event <event-id>
+ *   pnpm --filter @local-events/data-workers dev -- --job event-scan --limit 1
  *
  * A source with a data_sources row is fetched and saved. A slug with no row (the example
  * fixture) is validated only.
  */
 function argValue(flag: string, envName: string): string | undefined {
   const i = process.argv.indexOf(flag);
-  return i >= 0 ? process.argv[i + 1] : process.env[envName];
+  if (i < 0) return process.env[envName];
+  const value = process.argv[i + 1];
+  return value && !value.startsWith('--') ? value : '';
 }
 
 const job = argValue('--job', 'JOB');
@@ -44,8 +48,19 @@ async function main(): Promise<number> {
     const db = createDb(databaseUrl);
     const store = createDbIngestStore(db);
     const queueUrl = process.env.DOMAIN_EVENTS_QUEUE_URL?.trim();
+    const selection = parseScanSelection({
+      eventId: argValue('--event', 'EVENT_ID'),
+      limit: argValue('--limit', 'SCAN_LIMIT'),
+    });
+    if (!selection.ok) {
+      console.error(selection.message);
+      return 2;
+    }
     const enqueue = queueUrl ? createSqsDomainEventPublisher({ queueUrl }) : noopDomainEvents;
-    const summary = await scanPendingEvents(store, promptRunnerFromEnv(store), enqueue, { limit: 1, leaseMs: 1000 });
+    const summary = await scanPendingEvents(store, promptRunnerFromEnv(store), enqueue, {
+      ...(selection.eventId ? { eventId: selection.eventId } : {}),
+      ...(selection.limit != null ? { limit: selection.limit } : {}),
+    });
     console.log(JSON.stringify(summary, null, 2));
     return 0;
   }

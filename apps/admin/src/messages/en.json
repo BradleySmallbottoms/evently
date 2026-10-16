@@ -97,6 +97,13 @@
     "loadError": "Could not load events.",
     "needLogin": "Sign in to review imports."
   },
+  "ContentVerdict": {
+    "label": "Content verdict",
+    "safe": "Safe",
+    "harmful": "Harmful",
+    "spam": "Spam",
+    "unknown": "Unknown"
+  },
   "PublisherMapping": {
     "title": "Temporary publishers",
     "empty": "No temporary publishers.",
@@ -215,6 +222,8 @@
     "tabInfo": "Info",
     "tabLocation": "Location",
     "tabNotifications": "Notifications",
+    "tabScan": "Scan output",
+    "scanEmpty": "No scan output yet.",
     "back": "All events",
     "publisher": "Publisher",
     "origin": "Origin",

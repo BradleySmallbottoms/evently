@@ -97,6 +97,13 @@
     "loadError": "Kunde inte hämta evenemang.",
     "needLogin": "Logga in för att granska importer."
   },
+  "ContentVerdict": {
+    "label": "Innehållsbedömning",
+    "safe": "Säkert",
+    "harmful": "Skadligt",
+    "spam": "Skräppost",
+    "unknown": "Okänt"
+  },
   "PublisherMapping": {
     "title": "Tillfälliga arrangörer",
     "empty": "Inga tillfälliga arrangörer.",
@@ -215,6 +222,8 @@
     "tabInfo": "Info",
     "tabLocation": "Plats",
     "tabNotifications": "Notiser",
+    "tabScan": "Skanningsresultat",
+    "scanEmpty": "Ingen skanningsutdata ännu.",
     "back": "Alla evenemang",
     "publisher": "Arrangör",
     "origin": "Ursprung",

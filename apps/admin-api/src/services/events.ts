@@ -12,6 +12,7 @@ import {
   type AdminEventListResponse,
   type AdminEventPatchRequest,
   type AdminEventReviewListResponse,
+  type ContentVerdict,
   type Tag,
   type EventLink,
   readEventMeta,
@@ -105,6 +106,8 @@ type MemoryEvent = {
   currency?: string;
   meta?: AdminEventDetail['meta'];
   sourceUrl: string | null;
+  contentVerdict?: ContentVerdict;
+  llmOutput?: unknown;
   refId?: string | null;
   workerId?: string | null;
   tagIds?: string[];
@@ -268,6 +271,13 @@ function warningsFor(meta: unknown) {
   return reviewWarnings(readEventMeta(meta));
 }
 
+function contentVerdictOf(value: string | null | undefined): ContentVerdict {
+  if (value === 'safe' || value === 'harmful' || value === 'spam' || value === 'unknown') {
+    return value;
+  }
+  return 'unknown';
+}
+
 function asListItem(
   e: MemoryEvent,
   publisherName: string,
@@ -286,6 +296,7 @@ function asListItem(
     sourceUrl: e.sourceUrl,
     featured: e.featured ?? false,
     checkInEnabled: e.checkInEnabled ?? false,
+    contentVerdict: contentVerdictOf(e.contentVerdict),
     warnings: warningsFor(e.meta),
     createdAt: e.createdAt,
   };
@@ -330,6 +341,7 @@ function asDetail(
     tagIds: e.tagIds ?? [],
     links: e.links ?? [],
     ...imageFields(e.images ?? [], assetsPublicBaseUrl),
+    llmOutput: e.llmOutput ?? null,
     updatedAt: e.updatedAt,
   };
 }
@@ -386,6 +398,7 @@ export function createMemoryAdminEventServices(
           endsAt: e.endsAt,
           venueName: e.venueName,
           sourceUrl: e.sourceUrl,
+          contentVerdict: contentVerdictOf(e.contentVerdict),
           warnings: warningsFor(e.meta),
           createdAt: e.createdAt,
         }));
@@ -596,6 +609,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         currency: schema.events.currency,
         meta: schema.events.meta,
         sourceUrl: schema.events.sourceUrl,
+        contentVerdict: schema.events.contentVerdict,
+        llmOutput: schema.events.llmOutput,
         refId: schema.events.refId,
         workerId: schema.events.workerId,
         featured: schema.events.featured,
@@ -640,6 +655,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       ...(await imagesFor(eventId)),
       featured: row.featured,
       checkInEnabled: row.checkInEnabled,
+      contentVerdict: row.contentVerdict,
+      llmOutput: row.llmOutput ?? null,
       warnings: warningsFor(row.meta),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -696,6 +713,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           endsAt: schema.events.endsAt,
           venueName: schema.events.venueName,
           sourceUrl: schema.events.sourceUrl,
+          contentVerdict: schema.events.contentVerdict,
           meta: schema.events.meta,
           createdAt: schema.events.createdAt,
         })
@@ -718,6 +736,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           endsAt: r.endsAt.toISOString(),
           venueName: r.venueName,
           sourceUrl: r.sourceUrl,
+          contentVerdict: r.contentVerdict,
           warnings: warningsFor(r.meta),
           createdAt: r.createdAt.toISOString(),
         }));
@@ -750,6 +769,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           sourceUrl: schema.events.sourceUrl,
           featured: schema.events.featured,
           checkInEnabled: schema.events.checkInEnabled,
+          contentVerdict: schema.events.contentVerdict,
           meta: schema.events.meta,
           createdAt: schema.events.createdAt,
         })
@@ -785,6 +805,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           sourceUrl: r.sourceUrl,
           featured: r.featured,
           checkInEnabled: r.checkInEnabled,
+          contentVerdict: r.contentVerdict,
           warnings: warningsFor(r.meta),
           createdAt: r.createdAt.toISOString(),
         })),

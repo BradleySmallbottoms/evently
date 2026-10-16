@@ -7,9 +7,13 @@ EventBridge runs the data-workers task every 5 minutes with `JOB=event-scan`. Lo
 
 ```bash
 pnpm --filter @local-events/data-workers dev -- --job event-scan
+pnpm --filter @local-events/data-workers dev -- --job event-scan --event <event-id>
+pnpm --filter @local-events/data-workers dev -- --job event-scan --limit 1
 ```
 
-The job claims up to five rows whose lease is free and passes that batch to the prompt runner
+`--event` claims that one `pending_scan` row when its lease is free. `--limit` claims that many rows instead of the default five. The scheduled task sets neither, so it keeps the batch of five.
+
+The job claims rows whose lease is free and passes that batch to the prompt runner
 in one call. Each row carries the event text and the organizer keys. The runner loads publisher
 and duplicate candidates itself. The Ollama runner walks the batch one event at a time. A later
 runner can send the same batch to RunPod and look those candidates up in its own way.

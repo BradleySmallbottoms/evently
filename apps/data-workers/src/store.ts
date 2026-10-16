@@ -156,9 +156,10 @@ export interface IngestStore {
   deleteEventImages(eventId: string, roles: string[]): Promise<void>;
   /**
    * Claims up to `limit` `pending_scan` rows whose lease is free.
+   * `eventId` claims that one row when it is still `pending_scan` and the lease is free.
    * The rows stay `pending_scan` until {@link finishImportedScan}.
    */
-  claimPendingScans(limit: number, leaseMs: number): Promise<PendingScanRow[]>;
+  claimPendingScans(limit: number, leaseMs: number, eventId?: string): Promise<PendingScanRow[]>;
   /** Drops this claim so a later run can take the row again. */
   releaseScanClaim(eventId: string, claimedUntil: Date): Promise<void>;
   /**

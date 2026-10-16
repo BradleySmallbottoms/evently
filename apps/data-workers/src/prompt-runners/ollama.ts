@@ -31,11 +31,11 @@ export interface OllamaPromptRunnerOptions {
   fetch?: typeof fetch;
 }
 
-function messageContent(payload: unknown): LLMOutput {
-  if (!payload || typeof payload !== 'object' || !('message' in payload)) return { contentVerdict: 'safe', possibleTags: [], output: {} };
+function messageContent(payload: unknown): LLMOutput | null {
+  if (!payload || typeof payload !== 'object' || !('message' in payload)) return null;
   const message = payload.message;
-  if (!message || typeof message !== 'object' || !('content' in message)) return { contentVerdict: 'safe', possibleTags: [], output: {} };
-  return typeof message.content === 'string' ? { ...parseResponse(message.content), output: payload as object } : { contentVerdict: 'safe', possibleTags: [], output: {} };
+  if (!message || typeof message !== 'object' || !('content' in message)) return null;
+  return typeof message.content === 'string' ? { ...parseResponse(message.content), output: payload as object } : null;
 }
 
 function parseResponse(content: string): LLMScanResult {
@@ -116,7 +116,6 @@ function bestDuplicate(event: ScanInput, candidates: DuplicateCandidate[]): Poss
       best = { candidate, signal };
     }
   }
-  console.log('Best duplicate', best);
   if (!best) return null;
   return {
     eventId: best.candidate.eventId,
@@ -171,6 +170,7 @@ export function createOllamaPromptRunner(
               catalog,
             );
             llmoutput = await askOllama(prompt, config, fetchImpl);
+            console.log('llmoutput', llmoutput);
             if (llmoutput == null) {
               tagsByText.set(textKey, 'unavailable');
               outcomes.push({ ok: false, eventId: event.eventId, reason: 'unavailable' });
@@ -224,8 +224,6 @@ export function createOllamaPromptRunner(
           llmOutput: llmoutput?.output ?? {},
         });
       }
-
-      console.log('outcomes', outcomes);
 
       return outcomes;
     },

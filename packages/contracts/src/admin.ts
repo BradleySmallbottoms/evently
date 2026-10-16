@@ -52,6 +52,10 @@ export const AdminSessionResponse = z.object({
 });
 export type AdminSessionResponse = z.infer<typeof AdminSessionResponse>;
 
+/** Scan decision. Existing and native rows stay `unknown` until a scan writes one. */
+export const ContentVerdict = z.enum(['safe', 'harmful', 'spam', 'unknown']);
+export type ContentVerdict = z.infer<typeof ContentVerdict>;
+
 /** Why the review queue marks an event. Empty means nothing looks off. */
 export const AdminEventWarning = z.discriminatedUnion('code', [
   z.object({
@@ -75,6 +79,7 @@ export const AdminEventReviewItem = z.object({
   endsAt: z.iso.datetime(),
   venueName: z.string().nullable(),
   sourceUrl: z.string().nullable(),
+  contentVerdict: ContentVerdict,
   warnings: z.array(AdminEventWarning),
   createdAt: z.iso.datetime(),
 });
@@ -303,6 +308,7 @@ export const AdminEventListItem = z.object({
   sourceUrl: z.string().nullable(),
   featured: z.boolean(),
   checkInEnabled: z.boolean(),
+  contentVerdict: ContentVerdict,
   warnings: z.array(AdminEventWarning),
   createdAt: z.iso.datetime(),
 });
@@ -352,6 +358,8 @@ export const AdminEventDetail = AdminEventListItem.extend({
   imageUrl: z.url().nullable(),
   /** Photos after the hero, `gallery-1` then `gallery-2`, and so on. */
   imageUrls: z.array(z.url()),
+  /** Raw model JSON from the import scan. Null until a scan writes it. */
+  llmOutput: z.unknown().nullable(),
   updatedAt: z.iso.datetime(),
 });
 export type AdminEventDetail = z.infer<typeof AdminEventDetail>;

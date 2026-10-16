@@ -20,6 +20,7 @@ import Typography from '@mui/material/Typography';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
+import { ContentVerdictChip, type ContentVerdict } from '@/components/content-verdict';
 import { EventWarningMark, type EventWarning } from '@/components/event-warning';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
@@ -33,6 +34,7 @@ type ReviewItem = {
   venueName: string | null;
   sourceUrl: string | null;
   origin: 'native' | 'imported';
+  contentVerdict: ContentVerdict;
   warnings: EventWarning[];
 };
 
@@ -59,6 +61,7 @@ function httpUrl(value: string | null): string | null {
 
 export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   const t = useTranslations('Events');
+  const tVerdict = useTranslations('ContentVerdict');
   const tApp = useTranslations('App');
   const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState('');
@@ -268,6 +271,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
               <TableCell>{t('publisher')}</TableCell>
               <TableCell>{t('starts')}</TableCell>
               <TableCell>{t('venue')}</TableCell>
+              <TableCell>{tVerdict('label')}</TableCell>
               <TableCell align="right">{t('actions')}</TableCell>
             </TableRow>
           </TableHead>
@@ -295,6 +299,9 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
                   </TableCell>
                   <TableCell>{new Date(item.startsAt).toLocaleString()}</TableCell>
                   <TableCell>{item.venueName ?? '—'}</TableCell>
+                  <TableCell>
+                    <ContentVerdictChip verdict={item.contentVerdict} />
+                  </TableCell>
                   <TableCell align="right">
                     <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
                       {source ? (

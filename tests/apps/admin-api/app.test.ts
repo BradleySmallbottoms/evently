@@ -460,6 +460,8 @@ describe('admin api', () => {
             venueName: 'Arena',
             location: { lat: 61.3, lng: 17.05 },
             sourceUrl: null,
+            contentVerdict: 'spam',
+            llmOutput: { contentVerdict: 'spam', possibleTags: [] },
             images: [
               { role: 'main', s3Key: 'events/44444444-4444-4444-8444-444444444401/main' },
               { role: 'gallery-1', s3Key: 'events/44444444-4444-4444-8444-444444444401/gallery-1' },
@@ -514,6 +516,8 @@ describe('admin api', () => {
       title: 'Concert',
       description: 'Live',
       location: { lat: 61.3, lng: 17.05 },
+      contentVerdict: 'spam',
+      llmOutput: { contentVerdict: 'spam', possibleTags: [] },
       imageUrl: 'https://assets.example/events/44444444-4444-4444-8444-444444444401/main',
       imageUrls: ['https://assets.example/events/44444444-4444-4444-8444-444444444401/gallery-1'],
     });
@@ -1220,6 +1224,7 @@ describe('admin api', () => {
               endsAt: '2026-08-01T21:00:00.000Z',
               venueName,
               sourceUrl: 'https://example.com/show',
+              contentVerdict: 'harmful',
               createdAt,
               updatedAt: createdAt,
             },
@@ -1245,7 +1250,7 @@ describe('admin api', () => {
     });
     expect(page.status).toBe(200);
     const first = (await page.json()) as {
-      items: { title: string; sourceUrl: string | null }[];
+      items: { title: string; sourceUrl: string | null; contentVerdict: string }[];
       total: number;
       nextOffset: number | null;
     };
@@ -1253,6 +1258,7 @@ describe('admin api', () => {
     expect(first.nextOffset).toBe(2);
     expect(first.items.map((item) => item.title)).toEqual(['Oldest', 'Middle']);
     expect(first.items[0]?.sourceUrl).toBe('https://example.com/show');
+    expect(first.items[0]?.contentVerdict).toBe('harmful');
 
     const last = await app.request('/v1/events?status=in_review&sort=created&limit=2&offset=2', {
       headers: { cookie },

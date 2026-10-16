@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createMemoryIngestStore } from '../../../apps/data-workers/src/memory-store';
 import { saveIncomingEvents } from '../../../apps/data-workers/src/persist';
-import { scanPendingEvents } from '../../../apps/data-workers/src/scan-pending';
+import { parseScanSelection, scanPendingEvents } from '../../../apps/data-workers/src/scan-pending';
 import type { SourceRecord } from '../../../apps/data-workers/src/store';
 import {
   createOllamaPromptRunner,
@@ -35,6 +35,27 @@ const event = {
   tags: [] as { externalId: string; name: string }[],
 };
 
+const scanned = {
+  contentVerdict: 'safe' as const,
+  llmOutput: null,
+};
+
+describe('parseScanSelection', () => {
+  it('accepts one event id or a limit', () => {
+    expect(parseScanSelection({ eventId: '33333333-3333-4333-8333-333333333301' })).toEqual({
+      ok: true,
+      eventId: '33333333-3333-4333-8333-333333333301',
+    });
+    expect(parseScanSelection({ limit: '1' })).toEqual({ ok: true, limit: 1 });
+  });
+
+  it('rejects a missing id and a limit of zero', () => {
+    expect(parseScanSelection({ eventId: '' }).ok).toBe(false);
+    expect(parseScanSelection({ eventId: 'not-an-id' }).ok).toBe(false);
+    expect(parseScanSelection({ limit: '0' }).ok).toBe(false);
+  });
+});
+
 describe('scanPendingEvents', () => {
   it('passes the claimed batch to the runner in one call', async () => {
     const store = createMemoryIngestStore();
@@ -60,6 +81,7 @@ describe('scanPendingEvents', () => {
             duplicate: null,
             approved: true,
             tags: [],
+            ...scanned,
           }),
         );
       },
@@ -107,6 +129,7 @@ describe('scanPendingEvents', () => {
                   duplicate: null,
                   approved: true,
                   tags: [],
+                  ...scanned,
                 },
         );
       },
@@ -200,10 +223,48 @@ describe('scanPendingEvents', () => {
       status: 'in_review',
       meta: claimed!.meta,
       tagIds: [],
+      contentVerdict: 'unknown',
+      llmOutput: {},
       claimedUntil: claimed!.claimedUntil,
     });
 
     expect(saved).toBe(false);
     expect(store.events[0]).toMatchObject({ status: 'pending_scan', publisherId: null });
+  });
+
+  it('scans only the event id that was asked for', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [
+      event,
+      { ...event, externalId: 'cbis:2', title: 'Marknad' },
+    ]);
+    const target = store.events.find((row) => row.title === 'Marknad')!;
+    const runner: PromptRunner = {
+      id: 'one',
+      async scan(batch) {
+        return batch.map(
+          (item): ScanOutcome => ({
+            ok: true,
+            eventId: item.eventId,
+            publisher: {
+              kind: 'temporary',
+              name: 'Tillfällig',
+              organizerKeys: item.organizer.keys,
+            },
+            duplicate: null,
+            approved: true,
+            tags: [],
+            ...scanned,
+          }),
+        );
+      },
+    };
+
+    const summary = await scanPendingEvents(store, runner, undefined, { eventId: target.id });
+
+    expect(summary).toMatchObject({ claimed: 1, review: 1 });
+    expect(store.events.find((row) => row.title === 'Marknad')?.status).toBe('in_review');
+    expect(store.events.find((row) => row.title === 'Konsert')?.status).toBe('pending_scan');
   });
 });
