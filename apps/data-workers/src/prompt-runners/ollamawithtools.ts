@@ -1,5 +1,3 @@
-import type { Db } from '@local-events/db';
-import { pointEwkt, schema } from '@local-events/db';
 import {
   anyLinksMatch,
   choosePublisher,
@@ -10,7 +8,7 @@ import {
   withinDuplicateWindow,
   type DuplicateSignal,
 } from '@local-events/domain';
-import { distanceMeters, type GeoPoint } from '@local-events/geo';
+import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
 import {
   ollamaBaseUrl,
   ollamaDisabled,
@@ -22,9 +20,8 @@ import {
   type TagChoice,
   type TagMatchInput,
 } from '@local-events/ingest';
-import { and, eq, gte, isNotNull, lte, ne, notInArray, sql } from 'drizzle-orm';
 import { LOCAL_ORGANIZER_SLUGS } from '../sources';
-import type { DuplicateCandidate, IngestStore } from '../store';
+import { NEARBY_DAYS_AFTER, NEARBY_DAYS_BEFORE, type DuplicateCandidate, type IngestStore, type NearbyEventHit, type NearbyPublisherHit, type PublisherCandidate, type PublisherRecord } from '../store';
 import type { ChosenPublisher, PossibleDuplicateMatch, PromptRunner, ScanInput, ScanOutcome } from './types';
 
 /** How long one Ollama request may run before the scan gives up on it. */
@@ -32,11 +29,6 @@ const CHAT_TIMEOUT_MS = 90_000;
 /** Tool rounds for one event. The last round still has to be a text answer, or the scan is unavailable. */
 const MAX_TOOL_ROUNDS = 4;
 const DESCRIPTION_LIMIT = 1_200;
-/** Fixed search radius. The model cannot widen it. */
-const NEARBY_RADIUS_M = 5_000;
-const NEARBY_DAYS_BEFORE = 1;
-const NEARBY_DAYS_AFTER = 1;
-const NEARBY_RESULT_LIMIT = 20;
 /** How many tool calls from one model reply are run. Extra calls are ignored. */
 const MAX_TOOL_CALLS_PER_ROUND = 4;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -45,56 +37,6 @@ export interface OllamaWithToolsRunnerOptions {
   config?: Record<string, unknown>;
   /** Tests pass this so a scan does not call a running Ollama. */
   fetch?: typeof fetch;
-  /**
-   * Postgres connection for nearby lookups. A memory store is read from its
-   * own rows and does not need this.
-   */
-  db?: Db;
-}
-
-interface NearbyEventHit {
-  id: string;
-  title: string;
-  startsAt: string;
-  venue: string | null;
-  distanceM: number;
-}
-
-interface NearbyPublisherHit {
-  id: string;
-  name: string;
-  verified: boolean;
-  temporary: boolean;
-  nearestEventTitle: string;
-  distanceM: number;
-}
-
-interface NearbyWindow {
-  from: Date;
-  to: Date;
-}
-
-/** Rows a memory store already keeps in process. The database store has neither array. */
-interface MemoryEventRow {
-  id: string;
-  publisherId: string | null;
-  title: string;
-  status: string;
-  startsAt: Date;
-  venueName: string | null;
-  location?: GeoPoint;
-}
-
-interface MemoryPublisherRow {
-  id: string;
-  name: string;
-  verified: boolean;
-  isTemporary: boolean;
-}
-
-interface MemoryLookupStore {
-  events: MemoryEventRow[];
-  publishers: MemoryPublisherRow[];
 }
 
 interface ParsedToolCall {
@@ -105,7 +47,6 @@ interface ParsedToolCall {
 /** Everything a tool needs besides the arguments the model sent. */
 interface LookupContext {
   store: IngestStore;
-  db?: Db;
   event: ScanInput;
   catalog: TagChoice[];
 }
@@ -114,6 +55,7 @@ type ToolResult =
   | { error: string }
   | { events: NearbyEventHit[] }
   | { publishers: NearbyPublisherHit[] }
+  | { possiblePublishers: PublisherCandidate[] }
   | { tags: { id: string; name: string }[] };
 
 /**
@@ -131,7 +73,7 @@ function ollamaToolDefinitions(): object[] {
       function: {
         name: 'getNearbyEvents',
         description:
-          'Events within 500 km of a point. Their start is from 1 day before the event being scanned through 1 days after. Cancelled and ended events are left out. Use this to see what is already listed nearby.',
+          'Events within 500 m of a point. Their start is from 1 day before the event being scanned through 1 days after. Cancelled and ended events are left out. Use this to see what is already listed nearby.',
         parameters: {
           type: 'object',
           properties: point,
@@ -144,12 +86,20 @@ function ollamaToolDefinitions(): object[] {
       function: {
         name: 'getNearbyPublishers',
         description:
-          'Publishers that have an event within 500 km in that same time window. A publisher has no point of its own; near means one of its events is near.',
+          'Publishers that have an event within 500 m in that same time window. A publisher has no point of its own; near means one of its events is near.',
         parameters: {
           type: 'object',
           properties: point,
           required: ['lat', 'lng'],
         },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'getPossiblePublishers',
+        description: 'Publishers that matches on organizer keys like name, links, etc.',
+        parameters: { type: 'object', properties: {} },
       },
     },
     {
@@ -174,7 +124,6 @@ export function createOllamaWithToolsPromptRunner(
 ): PromptRunner {
   const config = options.config ?? {};
   const fetchImpl = options.fetch ?? fetch;
-  const db = options.db;
   return {
     id: 'ollama-with-tools',
     /**
@@ -186,10 +135,9 @@ export function createOllamaWithToolsPromptRunner(
         externalId: tag.externalId,
         name: tag.name,
       }));
-      const answers = new Map<string, LLMOutput | 'unavailable'>();
       const outcomes: ScanOutcome[] = [];
       for (const event of batch) {
-        outcomes.push(await scanOneEvent(event, { store, db, event, catalog }, config, fetchImpl, answers));
+        outcomes.push(await scanOneEvent(event, { store, event, catalog }, config, fetchImpl));
       }
       return outcomes;
     },
@@ -206,44 +154,72 @@ async function scanOneEvent(
   context: LookupContext,
   config: Record<string, unknown>,
   fetchImpl: typeof fetch,
-  answers: Map<string, LLMOutput | 'unavailable'>,
 ): Promise<ScanOutcome> {
   if (event.organizer.keys.length === 0) {
     return { ok: false, eventId: event.eventId, reason: 'unavailable' };
   }
 
-  const cacheKey = scanCacheKey(event);
-  let llmoutput = answers.get(cacheKey);
-  if (!llmoutput) {
-    llmoutput = (await askModelWithLookups(buildScanPrompt(event), context, config, fetchImpl)) ?? 'unavailable';
-    answers.set(cacheKey, llmoutput);
-  }
-  console.log('llmoutput', llmoutput);
-  if (llmoutput === 'unavailable') {
+  const content = (await askModelWithLookups(buildScanPrompt(event), context, config, fetchImpl)) ?? 'unavailable';
+  console.log('content', content);
+  // throw new Error('test');
+
+  if (content === 'unavailable') {
     return { ok: false, eventId: event.eventId, reason: 'unavailable' };
   }
 
   const tags =
-    event.existingTags.length > 0 ? event.existingTags : parseTagChoices(llmoutput, context.catalog);
-  const publisher = await chooseExistingPublisher(event, context.store);
-  const nearby = event.location
-    ? await context.store.listDuplicateCandidates({
-        location: event.location,
-        startsAt: new Date(event.startsAt),
-      })
-    : [];
-
+    event.existingTags.length > 0 ? event.existingTags : parseTagChoices(content, context.catalog);
+  const publisher = await bestPublisher(content, context);
+  const duplicate = await bestDuplicate(content, context);
+  
   return {
     ok: true,
     eventId: event.eventId,
-    publisher,
-    duplicate: strongestDuplicate(event, nearby),
+    publisher: publisher ?? {
+      kind: 'temporary',
+      name: event.organizer.name?.trim() || event.organizer.keys[0] || event.title,
+      organizerKeys: event.organizer.keys,
+    },
+    duplicate,
     approved: true,
     tags,
-    contentVerdict: llmoutput.contentVerdict,
-    summary: llmoutput.summary,
-    language: llmoutput.language,
-    llmOutput: llmoutput.output,
+    contentVerdict: content.contentVerdict,
+    summary: content.summary,
+    language: content.language,
+    llmOutput: content.output,
+  };
+}
+
+async function bestPublisher(content: LLMScanResult & LLMOutput, context: LookupContext): Promise<ChosenPublisher | null> {
+  if (content.possiblePublishers.length === 0) return null;
+  // by rank
+  const bestMatch = content.possiblePublishers.sort((a, b) => a.rank - b.rank)[0];
+  if (!bestMatch) return null
+  const publisher = await context.store.getPublisher(bestMatch.publisherId);
+  if (!publisher) return null;
+  return {
+    kind: 'existing',
+    publisherId: publisher.id,
+    isTemporary: publisher.isTemporary,
+    verified: publisher.verified,
+    importNotificationPlan: publisher.importNotificationPlan,
+  }
+}
+
+async function bestDuplicate(content: LLMScanResult & LLMOutput, context: LookupContext): Promise<PossibleDuplicateMatch | null> {
+  if (content.possibleDuplicates.length === 0) return null;
+  // by rank
+  const bestMatch = content.possibleDuplicates.sort((a, b) => a.rank - b.rank)[0];
+  if (!bestMatch) return null;
+  const event = await context.store.getEvent(bestMatch.eventId);
+  if (!event) return null;
+  return {
+    eventId: event.eventId,
+    title: event.title,
+    startsAt: event.startsAt,
+    refId: event.refId,
+    workerId: event.workerId,
+    matchedOn: 'llm',
   };
 }
 
@@ -328,26 +304,31 @@ function buildScanPrompt(event: ScanInput): string {
   const description = event.description?.replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_LIMIT);
   const place = event.location ? `lat ${event.location.lat}, lng ${event.location.lng}` : 'none';
   return [
-    'You scan one imported event for spam, language, a short summary, and tags.',
-    'Match the tags to the event as best as you can. Score the tags from 0 to 100 and include only scores over 90.',
-    'Pick at most 5 tags.',
-    'Dates and times in title and description are Stockholm local time, start and end times are in UTC.',
-    'Try to find a duplicate event using the tools before you answer.',
-    'You can look up existing data with tools before you answer:',
-    'Try to find a existing publisher that matches the event organizer keys.',
-    '- getNearbyEvents(lat, lng): events within 5 km, from 1 day before this event through 60 days after.',
-    '- getNearbyPublishers(lat, lng): publishers that have published an event within 5 km of this event.',
+    'You scan one imported event for spam, language, tags, wrote a short summary, find publisher and duplicate event.',
+    '- getNearbyEvents(lat, lng): events within 5 km, from 1 day before this event through 1 days after.',
+    '- getNearbyPublishers(lat, lng): publishers that have published an event within 500m of this event.',
+    '- getPossiblePublishers(): publishers that matches on organizer keys like name, links, etc.',
     '- getAvailableTags(): the only tags you may use.',
-    'Call a tool when you need that data. Do not invent event, publisher, or tag ids.',
-    'When you are finished, return only JSON:',
-    '{possiblePublisher: {publisherId: "<publisherId>"}, possibleDuplicates: {eventId: "<eventId>"}[], contentVerdict: "spam" | "harmful" | "safe", summary: "<summary>", language: "sv|en|etc", possibleTags: [{"id":"<id>","score":<score>}]}',
-    'Score each tag from 0 to 100 and include only scores over 90.',
-    'Write a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.',
+    'You must call a tool when you need data. Do not invent event, publisher, or tag ids.',
+    'You must call getAvailableTags, getPossiblePublishers and getNearbyEvents before it can choose tags, a publisher, or a duplicate.',
+    'Start with language and content verdict, then tags, then publisher, then duplicate',
     'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe".',
+    'Match the tags to the event as best as you can. Score the tags from 0 to 100 and include only scores over 90. Pick at most 5 tags.',
+    'Try matching this organizer using the getPossiblePublishers',
+    'When nof possible publisher matches, call the tool getNearbyPublishers (do not use nearbyEvents) to find publishers that have published an event within 500 m of this event.',
+    'Rank the found publishers by how well they match the organizer keys, if a publisher is a positive match, return it in possiblePublishers.',
+    'Try to find a duplicate event using getNearbyEvents()',
+    'Compare the title, location, and description, description similarity is most important, of the found event with the event being scanned to find a duplicate. Rank the match from 0 to 100.',
+    'Rank the posibility of the duplicate event beeing just another occasion of the same event, rank from 0 to 100.',
+    'Write a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.',
+    'When you are finished, return only JSON:',
+    '{possiblePublishers: [{publisherId: "<publisherId>", rank: <rank>}], possibleDuplicates: {eventId: "<eventId>", rank: <rank>, occasionRank: <occasionRank>}[], contentVerdict: "spam" | "harmful" | "safe", summary: "<summary>", language: "sv|en|etc", possibleTags: [{"id":"<id>","score":<score>}]}',
     'Event:',
     `Title: ${event.title}`,
     `Starts: ${event.startsAt}`,
     `Ends: ${event.endsAt}`,
+    'Organizer keys:',
+    ...event.organizer.keys.map((key) => `- ${key}`),
     `Point: ${place}`,
     ...(event.venue ? [`Location: ${event.venue}`] : []),
     ...(description ? [`Description: ${description}`] : []),
@@ -364,15 +345,14 @@ async function askModelWithLookups(
   context: LookupContext,
   config: Record<string, unknown>,
   fetchImpl: typeof fetch,
-): Promise<LLMOutput | null> {
+): Promise<LLMScanResult & LLMOutput | null> {
   if (ollamaDisabled()) return null;
   const messages: Record<string, unknown>[] = [{ role: 'user', content: prompt }];
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const payload = await postOllamaChat(messages, config, fetchImpl);
+    const payload = await postOllamaChat(messages, round, config, fetchImpl);
     if (!payload) return null;
     const message = assistantMessage(payload);
     const calls = readToolCalls(message).slice(0, MAX_TOOL_CALLS_PER_ROUND);
-    console.log('calls', calls);
     console.log('message', message);
     if (calls.length === 0) {
       if (!message || typeof message.content !== 'string') return null;
@@ -394,6 +374,7 @@ async function askModelWithLookups(
  */
 async function postOllamaChat(
   messages: Record<string, unknown>[],
+  round: number,
   config: Record<string, unknown>,
   fetchImpl: typeof fetch,
 ): Promise<object | null> {
@@ -406,12 +387,14 @@ async function postOllamaChat(
     return null;
   }
   try {
+    console.log('postOllamaChat', JSON.stringify(messages, null, 2));
     const response = await fetchImpl(new URL('/api/chat', base), {
       method: 'POST',
       redirect: 'error',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         model,
+        thinks: round > 0,
         stream: false,
         options: { temperature: 0 },
         tools: ollamaToolDefinitions(),
@@ -476,13 +459,23 @@ function readToolArguments(raw: unknown): Record<string, unknown> {
  */
 async function executeToolCall(call: ParsedToolCall, context: LookupContext): Promise<ToolResult> {
   try {
+    console.log('Running call', call.name);
     if (call.name === 'getAvailableTags') return lookupAvailableTags(context.catalog);
     if (call.name === 'getNearbyEvents') return lookupNearbyEvents(call.arguments, context);
     if (call.name === 'getNearbyPublishers') return lookupNearbyPublishers(call.arguments, context);
+    if (call.name === 'getPossiblePublishers') return lookupPossiblePublishers(context);
     return { error: `Unknown tool ${call.name}.` };
   } catch {
     return { error: 'Lookup failed.' };
   }
+}
+
+/**
+ * Tags loaded for this batch. The id field matches the `possibleTags` JSON the
+ * model must return, so it can copy an id from this list.
+ */
+function lookupAvailableTags(catalog: TagChoice[]): ToolResult {
+  return { tags: catalog.map((tag) => ({ id: tag.externalId, name: tag.name })) };
 }
 
 /**
@@ -523,7 +516,6 @@ function nearbyWindow(startsAt: string): NearbyWindow {
 
 /**
  * Nearby events for the point the model sent. The scanned event is left out.
- * Memory stores are filtered in process. A database store uses `context.db`.
  */
 async function lookupNearbyEvents(
   args: Record<string, unknown>,
@@ -532,10 +524,31 @@ async function lookupNearbyEvents(
   const point = readLookupPoint(args);
   if ('error' in point) return point;
   const window = nearbyWindow(context.event.startsAt);
-  const memory = memoryLookupStore(context.store);
-  if (memory) return { events: nearbyEventsFromMemory(memory, point, window, context.event.eventId) };
-  if (context.db) return { events: await nearbyEventsFromDatabase(context.db, point, window, context.event.eventId) };
-  return { error: 'Nearby lookup is unavailable.' };
+  const events = await context.store.nearbyEvents(point, window, context.event.eventId)
+  return { events };
+}
+
+/** Possible publisher candidates based on the event organizer keys and the event location. */
+async function lookupPossiblePublishers(
+  context: LookupContext,
+): Promise<ToolResult> {
+  const event = context.event;
+  const localSlugs = [...new Set([event.source.slug, ...LOCAL_ORGANIZER_SLUGS])];
+  const publishers = await context.store.listPublisherCandidates(event.source.id, event.organizer.keys, {
+    ...(event.location ? { location: event.location } : {}),
+    localSlugs,
+  });
+  const possiblePublishers = publishers.map((publisher) => ({
+    publisherId: publisher.publisherId,
+    sourceId: publisher.sourceId,
+    key: publisher.key,
+    verified: publisher.verified,
+    createdAt: publisher.createdAt,
+    near: publisher.near,
+    isTemporary: publisher.isTemporary,
+    organizerKeys: publisher.organizerKeys,
+  }));
+  return { possiblePublishers };
 }
 
 /**
@@ -549,196 +562,8 @@ async function lookupNearbyPublishers(
   const point = readLookupPoint(args);
   if ('error' in point) return point;
   const window = nearbyWindow(context.event.startsAt);
-  const memory = memoryLookupStore(context.store);
-  if (memory) return { publishers: nearbyPublishersFromMemory(memory, point, window, context.event.eventId) };
-  if (context.db) {
-    return { publishers: await nearbyPublishersFromDatabase(context.db, point, window, context.event.eventId) };
-  }
-  return { error: 'Nearby lookup is unavailable.' };
-}
-
-/**
- * Tags loaded for this batch. The id field matches the `possibleTags` JSON the
- * model must return, so it can copy an id from this list.
- */
-function lookupAvailableTags(catalog: TagChoice[]): ToolResult {
-  return { tags: catalog.map((tag) => ({ id: tag.externalId, name: tag.name })) };
-}
-
-/**
- * Memory ingest stores keep `events` and `publishers` on the object.
- * The database store does not, so this returns null and the caller uses SQL.
- */
-function memoryLookupStore(store: IngestStore): MemoryLookupStore | null {
-  if (!('events' in store) || !('publishers' in store)) return null;
-  const rows = store as IngestStore & { events: unknown; publishers: unknown };
-  if (!Array.isArray(rows.events) || !Array.isArray(rows.publishers)) return null;
-  return { events: rows.events as MemoryEventRow[], publishers: rows.publishers as MemoryPublisherRow[] };
-}
-
-/**
- * Distance in meters when the row is a live event inside the radius and window,
- * and it is not the event being scanned. Otherwise null.
- */
-function nearbyDistance(
-  event: MemoryEventRow,
-  point: GeoPoint,
-  window: NearbyWindow,
-  excludeEventId: string,
-): number | null {
-  if (event.id === excludeEventId || !event.location) return null;
-  if (event.status === 'cancelled' || event.status === 'ended') return null;
-  const starts = event.startsAt.getTime();
-  if (starts < window.from.getTime() || starts > window.to.getTime()) return null;
-  const distanceM = distanceMeters(point, event.location);
-  if (distanceM > NEARBY_RADIUS_M) return null;
-  return Math.round(distanceM);
-}
-
-/** Up to 20 memory events, nearest first. */
-function nearbyEventsFromMemory(
-  store: MemoryLookupStore,
-  point: GeoPoint,
-  window: NearbyWindow,
-  excludeEventId: string,
-): NearbyEventHit[] {
-  const hits: NearbyEventHit[] = [];
-  for (const event of store.events) {
-    const distanceM = nearbyDistance(event, point, window, excludeEventId);
-    if (distanceM == null) continue;
-    hits.push({
-      id: event.id,
-      title: event.title,
-      startsAt: event.startsAt.toISOString(),
-      venue: event.venueName,
-      distanceM,
-    });
-  }
-  return hits.sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
-}
-
-/** Up to 20 memory publishers, using each publisher's closest qualifying event. */
-function nearbyPublishersFromMemory(
-  store: MemoryLookupStore,
-  point: GeoPoint,
-  window: NearbyWindow,
-  excludeEventId: string,
-): NearbyPublisherHit[] {
-  const publishers = new Map(store.publishers.map((publisher) => [publisher.id, publisher]));
-  const closest = new Map<string, NearbyPublisherHit>();
-  for (const event of store.events) {
-    if (!event.publisherId) continue;
-    const publisher = publishers.get(event.publisherId);
-    const distanceM = nearbyDistance(event, point, window, excludeEventId);
-    if (!publisher || distanceM == null) continue;
-    const hit: NearbyPublisherHit = {
-      id: publisher.id,
-      name: publisher.name,
-      verified: publisher.verified,
-      temporary: publisher.isTemporary,
-      nearestEventTitle: event.title,
-      distanceM,
-    };
-    const current = closest.get(publisher.id);
-    if (!current || hit.distanceM < current.distanceM) closest.set(publisher.id, hit);
-  }
-  return [...closest.values()].sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
-}
-
-/**
- * Same filters as the memory lookup, in Postgres. `ST_DWithin` uses meters on geography.
- * The scanned event id is excluded. Results are nearest first, capped at 20.
- */
-async function nearbyEventsFromDatabase(
-  db: Db,
-  point: GeoPoint,
-  window: NearbyWindow,
-  excludeEventId: string,
-): Promise<NearbyEventHit[]> {
-  const { events } = schema;
-  const ewkt = pointEwkt(point);
-  const rows = await db
-    .select({
-      id: events.id,
-      title: events.title,
-      startsAt: events.startsAt,
-      venue: events.venueName,
-      distanceM: sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${ewkt}))`,
-    })
-    .from(events)
-    .where(
-      and(
-        isNotNull(events.location),
-        sql`ST_DWithin(${events.location}, ST_GeogFromText(${ewkt}), ${NEARBY_RADIUS_M})`,
-        gte(events.startsAt, window.from),
-        lte(events.startsAt, window.to),
-        notInArray(events.status, ['cancelled', 'ended']),
-        ne(events.id, excludeEventId),
-      ),
-    )
-    .orderBy(sql`ST_Distance(${events.location}, ST_GeogFromText(${ewkt}))`)
-    .limit(NEARBY_RESULT_LIMIT);
-  return rows.map((row) => ({
-    id: row.id,
-    title: row.title,
-    startsAt: row.startsAt.toISOString(),
-    venue: row.venue,
-    distanceM: Math.round(Number(row.distanceM)),
-  }));
-}
-
-/**
- * One row per publisher: the closest qualifying event. Postgres `DISTINCT ON`
- * keeps that row because the distance sort follows the publisher id.
- * The 20 nearest publishers are chosen after that, so a busy point cannot
- * hide a publisher behind other events.
- */
-async function nearbyPublishersFromDatabase(
-  db: Db,
-  point: GeoPoint,
-  window: NearbyWindow,
-  excludeEventId: string,
-): Promise<NearbyPublisherHit[]> {
-  const { events, publishers } = schema;
-  const ewkt = pointEwkt(point);
-  const distance = sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${ewkt}))`;
-  const rows = await db
-    .selectDistinctOn([publishers.id], {
-      id: publishers.id,
-      name: publishers.name,
-      verified: publishers.verified,
-      temporary: publishers.isTemporary,
-      nearestEventTitle: events.title,
-      distanceM: distance,
-    })
-    .from(events)
-    .innerJoin(publishers, eq(publishers.id, events.publisherId))
-    .where(
-      and(
-        isNotNull(events.location),
-        isNotNull(events.publisherId),
-        sql`ST_DWithin(${events.location}, ST_GeogFromText(${ewkt}), ${NEARBY_RADIUS_M})`,
-        gte(events.startsAt, window.from),
-        lte(events.startsAt, window.to),
-        notInArray(events.status, ['cancelled', 'ended']),
-        ne(events.id, excludeEventId),
-      ),
-    )
-    .orderBy(publishers.id, distance);
-  const closest = new Map<string, NearbyPublisherHit>();
-  for (const row of rows) {
-    const hit: NearbyPublisherHit = {
-      id: row.id,
-      name: row.name,
-      verified: row.verified,
-      temporary: row.temporary,
-      nearestEventTitle: row.nearestEventTitle,
-      distanceM: Math.round(Number(row.distanceM)),
-    };
-    const current = closest.get(hit.id);
-    if (!current || hit.distanceM < current.distanceM) closest.set(hit.id, hit);
-  }
-  return [...closest.values()].sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
+  const publishers = await context.store.nearbyPublishers(point, window, context.event.eventId)
+  return { publishers };
 }
 
 /**
@@ -757,6 +582,8 @@ function parseScanJson(content: string): LLMScanResult {
     return {
       contentVerdict: readContentVerdict(record.contentVerdict, 'unknown'),
       possibleTags: tagScores(record.possibleTags),
+      possiblePublishers: possiblePublishers(record.possiblePublishers),
+      possibleDuplicates: possibleDuplicates(record.possibleDuplicates),
       summary: typeof record.summary === 'string' ? record.summary : '',
       language: typeof record.language === 'string' ? record.language : '',
     };
@@ -767,7 +594,7 @@ function parseScanJson(content: string): LLMScanResult {
 
 /** Empty scan used when the model text has no JSON object. */
 function emptyScan(contentVerdict: LLMScanResult['contentVerdict']): LLMScanResult {
-  return { contentVerdict, possibleTags: [], summary: '', language: '' };
+  return { contentVerdict, possibleTags: [], possiblePublishers: [], possibleDuplicates: [], summary: '', language: '' };
 }
 
 /** Keeps only the three verdicts the scan stores. Anything else uses `fallback`. */
@@ -791,6 +618,33 @@ function tagScores(value: unknown): LLMScanResult['possibleTags'] {
     scores.push({ id: String(id), score });
   }
   return scores;
+}
+
+function possiblePublishers(value: unknown): LLMScanResult['possiblePublishers'] {
+  if (!Array.isArray(value)) return [];
+  const publishers: LLMScanResult['possiblePublishers'] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const publisherId = 'publisherId' in item ? item.publisherId : undefined;
+    const rank = 'rank' in item ? item.rank : undefined;
+    if ((typeof publisherId !== 'string' && typeof publisherId !== 'number') || typeof rank !== 'number') continue;
+    publishers.push({ publisherId: String(publisherId), rank });
+  }
+  return publishers;
+}
+
+function possibleDuplicates(value: unknown): LLMScanResult['possibleDuplicates'] {
+  if (!Array.isArray(value)) return [];
+  const duplicates: LLMScanResult['possibleDuplicates'] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const eventId = 'eventId' in item ? item.eventId : undefined;
+    const rank = 'rank' in item ? item.rank : undefined;
+    const occasionRank = 'occasionRank' in item ? item.occasionRank : undefined;
+    if ((typeof eventId !== 'string' && typeof eventId !== 'number') || typeof rank !== 'number') continue;
+    duplicates.push({ eventId: String(eventId), rank, occasionRank });
+  }
+  return duplicates;
 }
 
 /**

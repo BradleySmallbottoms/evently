@@ -1,6 +1,42 @@
 import type { EventMeta } from '@local-events/contracts';
-import type { EventStatus, MarketingPushPlanId, SourceTrust } from '@local-events/domain';
+import type { DuplicateSignal, EventStatus, MarketingPushPlanId, SourceTrust } from '@local-events/domain';
 import type { IncomingEvent, TagChoice } from '@local-events/ingest';
+import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
+
+/** Fixed search radius. The model cannot widen it. */
+export const NEARBY_RADIUS_M = 5_000;
+export const NEARBY_DAYS_BEFORE = 1;
+export const NEARBY_DAYS_AFTER = 1;
+export const NEARBY_RESULT_LIMIT = 20;
+
+export interface NearbyEventHit {
+  id: string;
+  title: string;
+  startsAt: string;
+  venue: string | null;
+  distanceM: number;
+}
+
+export interface NearbyPublisherHit {
+  id: string;
+  name: string;
+  verified: boolean;
+  temporary: boolean;
+  nearestEventTitle: string;
+  distanceM: number;
+  organizerKeys: string[];
+}
+
+export interface PublisherCandidate {
+  publisherId: string;
+  sourceId: string | null;
+  key: string;
+  verified: boolean;
+  createdAt: number;
+  near: boolean;
+  isTemporary: boolean;
+  organizerKeys: string[];
+}
 
 export interface SourceRecord {
   id: string;
@@ -8,6 +44,23 @@ export interface SourceRecord {
   trust: SourceTrust;
   config: Record<string, unknown>;
   enabled: boolean;
+}
+
+export interface PublisherRecord {
+  id: string;
+  verified: boolean;
+  createdAt: number;
+  isTemporary: boolean;
+  importNotificationPlan: MarketingPushPlanId | null;
+  organizerKeys: string[];
+}
+
+export interface EventRecord {
+  eventId: string;
+  title: string;
+  startsAt: string;
+  refId: string | null;
+  workerId: string | null;
 }
 
 export interface ScanPublisherCandidate {
@@ -19,6 +72,7 @@ export interface ScanPublisherCandidate {
   near: boolean;
   isTemporary: boolean;
   importNotificationPlan: MarketingPushPlanId | null;
+  organizerKeys: string[];
 }
 
 export interface PublisherLink {
@@ -74,6 +128,8 @@ export interface IngestStore {
       error: string | null;
     },
   ): Promise<void>;
+  nearbyEvents(point: GeoPoint, window: NearbyWindow, excludeEventId: string): Promise<NearbyEventHit[]>
+  nearbyPublishers(point: GeoPoint, window: NearbyWindow, excludeEventId: string): Promise<NearbyPublisherHit[]>;
   /**
    * This source's alias wins. Otherwise an email or website from any source.
    * A name or slug matches only when that publisher has an event near `location`.
@@ -106,6 +162,8 @@ export interface IngestStore {
     publisherId: string,
     organizerKeys: string[],
   ): Promise<void>;
+  getPublisher(publisherId: string): Promise<PublisherRecord | null>;
+  getEvent(eventId: string): Promise<EventRecord | null>;
   findExternalRef(sourceId: string, externalId: string): Promise<ExternalRefHit | null>;
   /** True when an admin deleted this source id from review, so a later import must skip it. */
   isImportSuppressed(sourceId: string, externalId: string): Promise<boolean>;

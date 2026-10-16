@@ -13,8 +13,9 @@ import {
   slugifyPublisherName,
   tagSlug,
 } from '@local-events/domain';
-import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, notInArray, or, sql } from 'drizzle-orm';
-import type { ImportedEventWrite, IngestStore, PendingScanRow, ScanPublisherCandidate } from './store';
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, sql } from 'drizzle-orm';
+import { type EventRecord, type PublisherRecord, NEARBY_RADIUS_M, type ImportedEventWrite, type IngestStore, type PendingScanRow, type ScanPublisherCandidate, type NearbyPublisherHit, type NearbyEventHit, NEARBY_RESULT_LIMIT, type PublisherLink } from './store';
+import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
 
 function eventValues(input: ImportedEventWrite) {
   return {
@@ -158,22 +159,22 @@ export function createDbIngestStore(db: Db): IngestStore {
         nameKeys.length === 0
           ? []
           : await db
-              .select({
-                publisherId: publishers.id,
-                name: publishers.name,
-                slug: publishers.slug,
-                isTemporary: publishers.isTemporary,
-                verified: publishers.verified,
-                importNotificationPlan: publishers.importNotificationPlan,
-                createdAt: publishers.createdAt,
-              })
-              .from(publishers)
-              .where(
-                or(
-                  inArray(sql`lower(${publishers.name})`, nameKeys),
-                  inArray(publishers.slug, slugKeys),
-                ),
-              );
+            .select({
+              publisherId: publishers.id,
+              name: publishers.name,
+              slug: publishers.slug,
+              isTemporary: publishers.isTemporary,
+              verified: publishers.verified,
+              importNotificationPlan: publishers.importNotificationPlan,
+              createdAt: publishers.createdAt,
+            })
+            .from(publishers)
+            .where(
+              or(
+                inArray(sql`lower(${publishers.name})`, nameKeys),
+                inArray(publishers.slug, slugKeys),
+              ),
+            );
       const nearIds = new Set<string>();
       if (near?.location) {
         const ids = [
@@ -209,6 +210,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         near: nearIds.has(row.publisherId),
         isTemporary: row.isTemporary,
         importNotificationPlan: row.importNotificationPlan,
+        organizerKeys: [],
       }));
       for (const publisher of namedRows) {
         const nameKey = nameKeys.find(
@@ -227,9 +229,19 @@ export function createDbIngestStore(db: Db): IngestStore {
           near: nearIds.has(publisher.publisherId),
           isTemporary: publisher.isTemporary,
           importNotificationPlan: publisher.importNotificationPlan,
+          organizerKeys: [],
         });
       }
-      return candidates;
+      const uniquePublishers = new Set(candidates.map((candidate) => candidate.publisherId));
+      const result: ScanPublisherCandidate[] = [];
+      for (const candidateId of uniquePublishers) {
+        const candidate = candidates.find((candidate) => candidate.publisherId === candidateId);
+        if (!candidate) continue;
+        const aliases = await db.select({ key: publisherAliases.externalOrganizerKey }).from(publisherAliases).where(eq(publisherAliases.publisherId, candidate.publisherId));
+        result.push({ ...candidate, organizerKeys: aliases.map((alias) => alias.key) });
+      }
+      console.log('candidates', result);
+      return result;
     },
     async findPublisher(sourceId, organizerKeys, near) {
       const localSlugs = near?.localSlugs ?? [];
@@ -725,6 +737,124 @@ export function createDbIngestStore(db: Db): IngestStore {
         }
         return pending;
       });
+    },
+    async nearbyEvents(
+      point: GeoPoint,
+      window: NearbyWindow,
+      excludeEventId: string,
+    ): Promise<NearbyEventHit[]> {
+      const { events } = schema;
+      const ewkt = pointEwkt(point);
+      const rows = await db
+        .select({
+          id: events.id,
+          title: events.title,
+          startsAt: events.startsAt,
+          venue: events.venueName,
+          distanceM: sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${ewkt}))`,
+        })
+        .from(events)
+        .where(
+          and(
+            isNotNull(events.location),
+            sql`ST_DWithin(${events.location}, ST_GeogFromText(${ewkt}), ${NEARBY_RADIUS_M})`,
+            gte(events.startsAt, window.from),
+            lte(events.startsAt, window.to),
+            notInArray(events.status, ['cancelled', 'ended']),
+            ne(events.id, excludeEventId),
+          ),
+        )
+        .orderBy(sql`ST_Distance(${events.location}, ST_GeogFromText(${ewkt}))`)
+        .limit(NEARBY_RESULT_LIMIT);
+      return rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        startsAt: row.startsAt.toISOString(),
+        venue: row.venue,
+        distanceM: Math.round(Number(row.distanceM)),
+      }));
+    },
+    async getEvent(eventId: string): Promise<EventRecord | null> {
+      const { events } = schema;
+      const rows = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
+      if (rows.length === 0) return null;
+      const row = rows[0];
+      if (!row) return null;
+      return {
+        eventId: row.id,
+        title: row.title,
+        startsAt: row.startsAt.toISOString(),
+        refId: row.refId,
+        workerId: row.workerId,
+      };
+    },
+    async getPublisher(publisherId: string): Promise<PublisherRecord | null> {
+      const { publishers, publisherAliases } = schema;
+      const rows = await db.select().from(publishers).where(eq(publishers.id, publisherId)).limit(1);
+      if (rows.length === 0) return null;
+      const row = rows[0];
+      if (!row) return null;
+      const aliases = await db.select({
+        key: publisherAliases.externalOrganizerKey,
+      }).from(publisherAliases).where(eq(publisherAliases.publisherId, publisherId));
+      return {
+        id: row.id,
+        verified: row.verified,
+        createdAt: row.createdAt.getTime(),
+        isTemporary: row.isTemporary,
+        importNotificationPlan: row.importNotificationPlan,
+        organizerKeys: aliases.map((alias) => alias.key),
+      };
+    },
+    async nearbyPublishers(
+      point: GeoPoint,
+      window: NearbyWindow,
+      excludeEventId: string,
+    ): Promise<NearbyPublisherHit[]> {
+      const { events, publishers } = schema;
+      const ewkt = pointEwkt(point);
+      const distance = sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${ewkt}))`;
+      const rows = await db
+        .selectDistinctOn([publishers.id], {
+          id: publishers.id,
+          name: publishers.name,
+          verified: publishers.verified,
+          temporary: publishers.isTemporary,
+          nearestEventTitle: events.title,
+          distanceM: distance,
+        })
+        .from(events)
+        .innerJoin(publishers, eq(publishers.id, events.publisherId))
+        .where(
+          and(
+            isNotNull(events.location),
+            isNotNull(events.publisherId),
+            sql`ST_DWithin(${events.location}, ST_GeogFromText(${ewkt}), ${NEARBY_RADIUS_M})`,
+            gte(events.startsAt, window.from),
+            lte(events.startsAt, window.to),
+            notInArray(events.status, ['cancelled', 'ended']),
+            ne(events.id, excludeEventId),
+          ),
+        )
+        .orderBy(publishers.id, distance);
+      const closest = new Map<string, NearbyPublisherHit>();
+      for (const row of rows) {
+        const aliases = await db.select({
+          key: publisherAliases.externalOrganizerKey,
+        }).from(publisherAliases).where(eq(publisherAliases.publisherId, row.id));
+        const hit: NearbyPublisherHit = {
+          id: row.id,
+          name: row.name,
+          verified: row.verified,
+          temporary: row.temporary,
+          nearestEventTitle: row.nearestEventTitle,
+          distanceM: Math.round(Number(row.distanceM)),
+          organizerKeys: aliases.map((alias) => alias.key),
+        };
+        const current = closest.get(hit.id);
+        if (!current || hit.distanceM < current.distanceM) closest.set(hit.id, hit);
+      }
+      return [...closest.values()].sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
     },
     async releaseScanClaim(eventId, claimedUntil) {
       await db

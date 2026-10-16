@@ -28,3 +28,8 @@ export function isWithinRadius(
 ): boolean {
   return distanceMeters(point, center) <= radiusM + accuracyAllowanceM;
 }
+
+export interface NearbyWindow {
+  from: Date;
+  to: Date;
+}

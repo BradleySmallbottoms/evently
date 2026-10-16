@@ -31,7 +31,7 @@ export interface OllamaPromptRunnerOptions {
   fetch?: typeof fetch;
 }
 
-function messageContent(payload: unknown): LLMOutput | null {
+function messageContent(payload: unknown): LLMScanResult & LLMOutput | null {
   if (!payload || typeof payload !== 'object' || !('message' in payload)) return null;
   const message = payload.message;
   if (!message || typeof message !== 'object' || !('content' in message)) return null;
@@ -41,14 +41,14 @@ function messageContent(payload: unknown): LLMOutput | null {
 function parseResponse(content: string): LLMScanResult {
   const start = content.indexOf('{');
   const end = content.lastIndexOf('}');
-  if (start < 0 || end <= start) return { contentVerdict: 'safe', possibleTags: [], summary: '', language: '' };
+  if (start < 0 || end <= start) return { contentVerdict: 'safe', possibleTags: [], possiblePublishers: [], possibleDuplicates: [], summary: '', language: '' };
   let parsed: LLMScanResult;
   try {
     parsed = JSON.parse(content.slice(start, end + 1)) as LLMScanResult;
   } catch {
-    return { contentVerdict: 'safe', possibleTags: [], summary: '', language: '' };
+    return { contentVerdict: 'safe', possibleTags: [], possiblePublishers: [], possibleDuplicates: [], summary: '', language: '' };
   }
-  if (!parsed || typeof parsed !== 'object') return { contentVerdict: 'safe', possibleTags: [], summary: '', language: '' };
+  if (!parsed || typeof parsed !== 'object') return { contentVerdict: 'safe', possibleTags: [], possiblePublishers: [], possibleDuplicates: [], summary: '', language: '' };
   return { ...parsed, summary: parsed.summary ?? '', language: parsed.language ?? '' };
 }
 

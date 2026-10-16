@@ -10,7 +10,7 @@ export const DUPLICATE_WINDOW_MINUTES = 30;
 /** Trigram similarity at or above this counts as a matching title. */
 export const DUPLICATE_MIN_TITLE_SIMILARITY = 0.5;
 
-export type DuplicateSignal = 'title' | 'event-link' | 'link' | 'id';
+export type DuplicateSignal = 'title' | 'event-link' | 'link' | 'id' | 'llm';
 
 /** `YYYY-MM-DD` in Europe/Stockholm. */
 export function stockholmCalendarDate(instant: Date): string {
