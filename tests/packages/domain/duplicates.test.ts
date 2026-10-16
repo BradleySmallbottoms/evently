@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  anyLinksMatch,
   duplicateIds,
   duplicateIdsMatch,
   duplicateLinkKeys,
@@ -16,6 +17,7 @@ describe('duplicateSignal', () => {
         distanceM: DUPLICATE_RADIUS_M,
         withinWindow: true,
         titleSimilarity: 1,
+        sharedEventLink: false,
         sharedLink: false,
         sameId: false,
       }),
@@ -25,6 +27,7 @@ describe('duplicateSignal', () => {
         distanceM: DUPLICATE_RADIUS_M + 1,
         withinWindow: true,
         titleSimilarity: 1,
+        sharedEventLink: true,
         sharedLink: true,
         sameId: true,
       }),
@@ -34,6 +37,7 @@ describe('duplicateSignal', () => {
         distanceM: 10,
         withinWindow: false,
         titleSimilarity: 1,
+        sharedEventLink: true,
         sharedLink: true,
         sameId: true,
       }),
@@ -46,7 +50,8 @@ describe('duplicateSignal', () => {
         distanceM: 20,
         withinWindow: true,
         titleSimilarity: 0.2,
-        sharedLink: false,
+        sharedEventLink: false,
+        sharedLink: true,
         sameId: true,
       }),
     ).toBe('id');
@@ -55,10 +60,11 @@ describe('duplicateSignal', () => {
         distanceM: 20,
         withinWindow: true,
         titleSimilarity: 0.9,
+        sharedEventLink: true,
         sharedLink: true,
         sameId: false,
       }),
-    ).toBe('link');
+    ).toBe('event-link');
   });
 });
 
@@ -101,6 +107,18 @@ describe('duplicate keys', () => {
       duplicateLinksMatch(
         ['https://www.tickster.com/sv/event/example'],
         ['https://www.tickster.com/sv/event/other?ref=1'],
+      ),
+    ).toBe(false);
+  });
+
+  it('counts a shop homepage as a shared link and leaves it out of the event link', () => {
+    const shop = ['https://brobergsoderhamn.ticketco.events/se/sv'];
+    expect(anyLinksMatch(shop, ['http://brobergsoderhamn.ticketco.events/se/sv/'])).toBe(true);
+    expect(duplicateLinksMatch(shop, shop)).toBe(false);
+    expect(
+      anyLinksMatch(
+        ['https://www.soderhamn.se/aquarena'],
+        ['https://www.soderhamn.se/badhuset'],
       ),
     ).toBe(false);
   });

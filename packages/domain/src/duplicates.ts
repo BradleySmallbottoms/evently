@@ -1,4 +1,4 @@
-import { eventUrlKey, isSpecificTicketUrl } from './event-links';
+import { eventUrlKey, isSpecificEventUrl } from './event-links';
 import { stockholmOffsetMinutes } from './source-time';
 
 /** A lookalike has to be at least this close, and start within 30 minutes. */
@@ -10,7 +10,7 @@ export const DUPLICATE_WINDOW_MINUTES = 30;
 /** Trigram similarity at or above this counts as a matching title. */
 export const DUPLICATE_MIN_TITLE_SIMILARITY = 0.5;
 
-export type DuplicateSignal = 'title' | 'link' | 'id';
+export type DuplicateSignal = 'title' | 'event-link' | 'link' | 'id';
 
 /** `YYYY-MM-DD` in Europe/Stockholm. */
 export function stockholmCalendarDate(instant: Date): string {
@@ -41,19 +41,23 @@ export function withinDuplicateWindow(a: Date, b: Date): boolean {
 
 /**
  * Location and a start within 30 minutes are required. Among events that pass
- * both, an id, a shared link, or a similar title is enough. Id wins over a
- * link, and a link over a title.
+ * both, an id, a shared event link, or a similar title is enough. Id wins over
+ * an event link, and an event link over a title. `sharedLink` is any matching
+ * host and path, including a shop homepage.
  */
 export function duplicateSignal(input: {
   distanceM: number | null;
   withinWindow: boolean;
   titleSimilarity: number;
+  sharedEventLink: boolean;
   sharedLink: boolean;
   sameId: boolean;
 }): DuplicateSignal | null {
+  console.log('DuplicateSignal input', input);
   if (input.distanceM == null || input.distanceM > DUPLICATE_RADIUS_M) return null;
   if (!input.withinWindow) return null;
   if (input.sameId) return 'id';
+  if (input.sharedEventLink) return 'event-link';
   if (input.sharedLink) return 'link';
   if (input.titleSimilarity >= DUPLICATE_MIN_TITLE_SIMILARITY) return 'title';
   return null;
@@ -89,14 +93,19 @@ export function duplicateIdsMatch(
   return duplicateIds(right).some((id) => keys.has(id));
 }
 
-/** Host and path of a specific event URL. Protocol, query, and a trailing slash are ignored. */
-function duplicateLinkKey(raw: string): string | null {
-  if (!isSpecificTicketUrl(raw)) return null;
+/** Host and path. Protocol, query, and a trailing slash are ignored. */
+function linkKey(raw: string): string | null {
   const key = eventUrlKey(raw);
   if (!key) return null;
   const url = new URL(key);
   const path = url.pathname.replace(/\/+$/, '') || '/';
   return `${url.host}${path}`;
+}
+
+/** Host and path of a specific event URL. A shop homepage or a language-only path is left out. */
+function duplicateLinkKey(raw: string): string | null {
+  if (!isSpecificEventUrl(raw)) return null;
+  return linkKey(raw);
 }
 
 /** Specific event URLs. A shop homepage or a language-only path is left out. */
@@ -107,6 +116,7 @@ export function duplicateLinkKeys(urls: (string | null | undefined)[]): string[]
     const key = duplicateLinkKey(url);
     if (key && !keys.includes(key)) keys.push(key);
   }
+  console.log('keys', keys);
   return keys;
 }
 
@@ -118,13 +128,31 @@ export function duplicateLinksMatch(
   return duplicateLinkKeys(right).some((key) => keys.has(key));
 }
 
+/** Any shared host and path, including a shop homepage or a language-only path. */
+export function anyLinksMatch(
+  left: (string | null | undefined)[],
+  right: (string | null | undefined)[],
+): boolean {
+  const keys = new Set<string>();
+  for (const url of left) {
+    if (!url) continue;
+    const key = linkKey(url);
+    if (key) keys.add(key);
+  }
+  return right.some((url) => {
+    if (!url) return false;
+    const key = linkKey(url);
+    return key != null && keys.has(key);
+  });
+}
+
 /** Id beats a link, and a link beats a title. A tie keeps the nearer event. */
 export function preferDuplicate(
   current: { signal: DuplicateSignal; distanceM: number } | null,
   next: { signal: DuplicateSignal; distanceM: number },
 ): boolean {
   if (!current) return true;
-  const rank = (signal: DuplicateSignal) => (signal === 'id' ? 0 : signal === 'link' ? 1 : 2);
+  const rank = (signal: DuplicateSignal) => (signal === 'id' ? 0 : signal === 'event-link' ? 1 : signal === 'link' ? 2 : 3);
   const nextRank = rank(next.signal);
   const currentRank = rank(current.signal);
   return nextRank < currentRank || (nextRank === currentRank && next.distanceM < current.distanceM);

@@ -51,7 +51,7 @@ const GENERIC_TICKET_SEGMENT = new Set([
 ]);
 
 /** A ticket page for one event. A host, a language prefix, or a shop root does not count. */
-export function isSpecificTicketUrl(raw: string): boolean {
+export function isSpecificEventUrl(raw: string): boolean {
   const key = eventUrlKey(raw);
   if (!key) return false;
   const parts = new URL(key).pathname.split('/').filter(Boolean);

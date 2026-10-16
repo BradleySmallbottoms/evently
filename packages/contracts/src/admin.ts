@@ -58,7 +58,7 @@ export const AdminEventWarning = z.discriminatedUnion('code', [
     code: z.literal('possible_duplicate'),
     eventId: Id,
     title: z.string(),
-    matchedOn: z.enum(['title', 'link', 'id']),
+    matchedOn: z.enum(['title', 'event-link', 'link', 'id']),
   }),
 ]);
 export type AdminEventWarning = z.infer<typeof AdminEventWarning>;

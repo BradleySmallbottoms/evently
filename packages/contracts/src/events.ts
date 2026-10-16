@@ -103,7 +103,7 @@ export const EventMeta = z.object({
       startsAt: z.iso.datetime(),
       refId: z.string().nullable(),
       workerId: z.string().nullable(),
-      matchedOn: z.enum(['title', 'link', 'id']),
+      matchedOn: z.enum(['title', 'event-link', 'link', 'id']),
     })
     .optional(),
 });

@@ -1,4 +1,5 @@
 import {
+  anyLinksMatch,
   duplicateIdsMatch,
   duplicateLinksMatch,
   importPlanToSchedule,
@@ -405,19 +406,21 @@ async function possibleDuplicate(
   const incomingIds = [event.externalId];
   const incomingUrls = [event.sourceUrl, ...(event.links ?? []).map((link) => link.url)];
   let best: { candidate: DuplicateCandidate; signal: DuplicateSignal } | null = null;
-  // console.log('duplicateCandidates', { location, startsAt }, await store.duplicateCandidates({ location, startsAt }));
   for (const candidate of await store.duplicateCandidates({ location, startsAt })) {
     const sameRow =
       candidate.workerId === workerId &&
       (candidate.refId === event.externalId || candidate.externalIds.includes(event.externalId));
     if (sameRow) continue;
+    const candidateUrls = [candidate.sourceUrl, ...candidate.links];
     const signal = duplicateSignal({
       distanceM: candidate.distanceM,
       withinWindow: withinDuplicateWindow(startsAt, candidate.startsAt),
       titleSimilarity: titleSimilarity(event.title, candidate.title),
-      sharedLink: duplicateLinksMatch(incomingUrls, [candidate.sourceUrl, ...candidate.links]),
+      sharedEventLink: duplicateLinksMatch(incomingUrls, candidateUrls),
+      sharedLink: anyLinksMatch(incomingUrls, candidateUrls),
       sameId: duplicateIdsMatch(incomingIds, [candidate.refId, ...candidate.externalIds]),
     });
+    console.log('possibleDuplicate: signal = ', signal);
     if (!signal) continue;
     if (
       !best ||
@@ -429,7 +432,7 @@ async function possibleDuplicate(
       best = { candidate, signal };
     }
   }
-  console.log('best', best);
+  console.log('possibleDuplicate: best = ', best);
   if (!best) return null;
   return {
     eventId: best.candidate.eventId,

@@ -229,7 +229,7 @@ describe('saveIncomingEvents', () => {
     expect(store.events[1]?.meta).toMatchObject({
       possibleDuplicate: {
         eventId: '22222222-2222-4222-8222-222222222222',
-        matchedOn: 'link',
+        matchedOn: 'event-link',
       },
     });
     expect(store.events[0]?.title).toBe('A different title from another source');
@@ -265,7 +265,7 @@ describe('saveIncomingEvents', () => {
     expect(store.events[1]?.meta?.possibleDuplicate?.matchedOn).toBe('id');
   });
 
-  it('does not treat a ticket shop root as the same event', async () => {
+  it('flags a shared ticket shop root as a link', async () => {
     const store = createMemoryIngestStore();
     const shop = 'https://brobergsoderhamn.ticketco.events/se/sv';
     store.events.push({
@@ -287,7 +287,7 @@ describe('saveIncomingEvents', () => {
       { ...bandy, title: 'Hälsingland title', links: [{ type: 'tickets', url: shop }] },
     ]);
     expect(counts.created).toBe(1);
-    expect(store.events[1]?.meta?.possibleDuplicate).toBeUndefined();
+    expect(store.events[1]?.meta?.possibleDuplicate?.matchedOn).toBe('link');
   });
 
   it('does not flag a cancelled event', async () => {

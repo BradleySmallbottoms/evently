@@ -21,6 +21,7 @@ import Typography from '@mui/material/Typography';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
+import { EventWarningMark, type EventWarning } from '@/components/event-warning';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -36,6 +37,7 @@ type EventRow = {
   checkInEnabled: boolean;
   startsAt: string;
   venueName: string | null;
+  warnings: EventWarning[];
 };
 
 const STATUSES = [
@@ -305,7 +307,10 @@ export function EventCatalog() {
                   />
                 </TableCell>
                 <TableCell>
-                  <Link href={`/events/${item.id}`}>{item.title}</Link>
+                  <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                    <EventWarningMark warnings={item.warnings} />
+                    <Link href={`/events/${item.id}`}>{item.title}</Link>
+                  </Stack>
                 </TableCell>
                 <TableCell>
                   <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>

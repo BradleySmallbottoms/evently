@@ -61,7 +61,7 @@ type EventDetail = {
       startsAt: string;
       refId: string | null;
       workerId: string | null;
-      matchedOn: 'title' | 'link' | 'id';
+      matchedOn: 'title' | 'event-link' | 'link' | 'id';
     };
   };
   tagIds: string[];
