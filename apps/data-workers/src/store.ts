@@ -1,6 +1,6 @@
 import type { EventMeta } from '@local-events/contracts';
 import type { EventStatus, MarketingPushPlanId, SourceTrust } from '@local-events/domain';
-import type { IncomingEvent, ScanPublisherCandidate, TagChoice } from '@local-events/ingest';
+import type { IncomingEvent, TagChoice } from '@local-events/ingest';
 
 export interface SourceRecord {
   id: string;
@@ -8,6 +8,17 @@ export interface SourceRecord {
   trust: SourceTrust;
   config: Record<string, unknown>;
   enabled: boolean;
+}
+
+export interface ScanPublisherCandidate {
+  publisherId: string;
+  sourceId: string | null;
+  key: string;
+  verified: boolean;
+  createdAt: number;
+  near: boolean;
+  isTemporary: boolean;
+  importNotificationPlan: MarketingPushPlanId | null;
 }
 
 export interface PublisherLink {

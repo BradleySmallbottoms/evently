@@ -3,16 +3,8 @@ import {
   shouldEnqueueNotifications,
   statusAfterImportScan,
 } from '@local-events/domain';
-import {
-  createOllamaModelClient,
-  createRulesPromptRunner,
-  type PromptRunner,
-  type ScanInput,
-  type ScanOutcome,
-  type TagChoice,
-} from '@local-events/ingest';
 import { emitDomainEvent, noopDomainEvents, type DomainEventSink } from './domain-events';
-import { LOCAL_ORGANIZER_SLUGS } from './sources';
+import type { PromptRunner, ScanInput, ScanOutcome } from './prompt-runners';
 import type { IngestStore, PendingScanRow, PublisherLink } from './store';
 
 export const SCAN_BATCH_LIMIT = 5;
@@ -25,10 +17,6 @@ export interface ScanSummary {
   review: number;
   unavailable: number;
   skipped: number;
-}
-
-export function promptRunnerFromEnv(config: Record<string, unknown> = {}): PromptRunner {
-  return createRulesPromptRunner(createOllamaModelClient(config));
 }
 
 export async function scanPendingEvents(
@@ -48,20 +36,10 @@ export async function scanPendingEvents(
     skipped: 0,
   };
   if (claimed.length === 0) return summary;
-
-  const catalog = (await store.listTags()).map((tag) => ({
-    externalId: tag.externalId,
-    name: tag.name,
-  }));
   const batch: ScanInput[] = [];
   const rows = new Map<string, PendingScanRow>();
   for (const row of claimed) {
-    const input = await scanInputFor(store, row, catalog);
-    if (!input) {
-      await store.releaseScanClaim(row.eventId, row.claimedUntil);
-      summary.unavailable += 1;
-      continue;
-    }
+    const input = scanInputFor(row);
     rows.set(row.eventId, row);
     batch.push(input);
   }
@@ -83,21 +61,8 @@ export async function scanPendingEvents(
   return summary;
 }
 
-async function scanInputFor(
-  store: IngestStore,
-  row: PendingScanRow,
-  catalog: TagChoice[],
-): Promise<ScanInput | null> {
+function scanInputFor(row: PendingScanRow): ScanInput {
   const organizerKeys = row.meta.import?.organizerKeys ?? [];
-  if (organizerKeys.length === 0) return null;
-  const localSlugs = [...new Set([row.sourceSlug, ...LOCAL_ORGANIZER_SLUGS])];
-  const publisherCandidates = await store.listPublisherCandidates(row.sourceId, organizerKeys, {
-    ...(row.location ? { location: row.location } : {}),
-    localSlugs,
-  });
-  const duplicateCandidates = row.location
-    ? await store.duplicateCandidates({ location: row.location, startsAt: row.startsAt })
-    : [];
   return {
     eventId: row.eventId,
     title: row.title,
@@ -110,15 +75,11 @@ async function scanInputFor(
     externalId: row.externalId,
     workerId: row.workerId,
     existingTags: row.tags,
-    source: { id: row.sourceId, trust: row.sourceTrust },
+    source: { id: row.sourceId, slug: row.sourceSlug, trust: row.sourceTrust },
     organizer: {
       keys: organizerKeys,
       ...(row.meta.import?.organizerName ? { name: row.meta.import.organizerName } : {}),
     },
-    localSlugs,
-    publisherCandidates,
-    duplicateCandidates,
-    tagCatalog: catalog,
   };
 }
 

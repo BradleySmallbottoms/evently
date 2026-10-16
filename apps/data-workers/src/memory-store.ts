@@ -14,13 +14,13 @@ import {
   withinDuplicateWindow,
   type MarketingPushPlanId,
 } from '@local-events/domain';
-import type { ScanPublisherCandidate } from '@local-events/ingest';
 import type {
   ExternalRefHit,
   ImportedEventWrite,
   IngestStore,
   PendingScanRow,
   PublisherLink,
+  ScanPublisherCandidate,
   SourceRecord,
 } from './store';
 

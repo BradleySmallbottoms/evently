@@ -13,9 +13,8 @@ import {
   slugifyPublisherName,
   tagSlug,
 } from '@local-events/domain';
-import type { ScanPublisherCandidate } from '@local-events/ingest';
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, notInArray, or, sql } from 'drizzle-orm';
-import type { ImportedEventWrite, IngestStore, PendingScanRow } from './store';
+import type { ImportedEventWrite, IngestStore, PendingScanRow, ScanPublisherCandidate } from './store';
 
 function eventValues(input: ImportedEventWrite) {
   return {

@@ -3,7 +3,8 @@ import { createDbIngestStore } from './db-store';
 import { createSqsDomainEventPublisher, noopDomainEvents } from './domain-events';
 import { eventImageUploaderFromEnv } from './event-images';
 import { persistSource } from './persist';
-import { promptRunnerFromEnv, scanPendingEvents } from './scan-pending';
+import { promptRunnerFromEnv } from './prompt-runners';
+import { scanPendingEvents } from './scan-pending';
 import { rawPayloadSinkFromEnv } from './raw-payload';
 import { runSource } from './run';
 import { initSentry, Sentry } from './sentry';
@@ -44,7 +45,7 @@ async function main(): Promise<number> {
     const store = createDbIngestStore(db);
     const queueUrl = process.env.DOMAIN_EVENTS_QUEUE_URL?.trim();
     const enqueue = queueUrl ? createSqsDomainEventPublisher({ queueUrl }) : noopDomainEvents;
-    const summary = await scanPendingEvents(store, promptRunnerFromEnv(), enqueue);
+    const summary = await scanPendingEvents(store, promptRunnerFromEnv(store), enqueue);
     console.log(JSON.stringify(summary, null, 2));
     return 0;
   }

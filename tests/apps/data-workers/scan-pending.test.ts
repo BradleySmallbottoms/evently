@@ -4,11 +4,11 @@ import { saveIncomingEvents } from '../../../apps/data-workers/src/persist';
 import { scanPendingEvents } from '../../../apps/data-workers/src/scan-pending';
 import type { SourceRecord } from '../../../apps/data-workers/src/store';
 import {
-  createRulesPromptRunner,
+  createOllamaPromptRunner,
   type PromptRunner,
   type ScanInput,
   type ScanOutcome,
-} from '../../../packages/ingest/src/index';
+} from '../../../apps/data-workers/src/prompt-runners';
 
 const source: SourceRecord = {
   id: '33333333-3333-4333-8333-333333333301',
@@ -134,8 +134,7 @@ describe('scanPendingEvents', () => {
     let calls = 0;
     const summary = await scanPendingEvents(
       store,
-      createRulesPromptRunner({
-        id: 'ollama',
+      createOllamaPromptRunner(store, {
         async complete() {
           calls += 1;
           return { ok: false, reason: 'unavailable' };
@@ -155,8 +154,7 @@ describe('scanPendingEvents', () => {
     await saveIncomingEvents(store, source, [event]);
     const summary = await scanPendingEvents(
       store,
-      createRulesPromptRunner({
-        id: 'ollama',
+      createOllamaPromptRunner(store, {
         async complete() {
           return { ok: false, reason: 'unavailable' };
         },

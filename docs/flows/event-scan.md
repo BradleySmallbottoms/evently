@@ -10,15 +10,16 @@ pnpm --filter @local-events/data-workers dev -- --job event-scan
 ```
 
 The job claims up to five rows whose lease is free and passes that batch to the prompt runner
-in one call. The Ollama runner walks the batch one event at a time. A later runner can send the
-same batch to RunPod.
+in one call. Each row carries the event text and the organizer keys. The runner loads publisher
+and duplicate candidates itself. The Ollama runner walks the batch one event at a time. A later
+runner can send the same batch to RunPod and look those candidates up in its own way.
 
-For each event the runner:
+For each event the Ollama runner:
 
-1. Chooses a publisher from alias, email, website, and nearby-name candidates, or asks the worker
-   to create a temporary publisher.
-2. Looks for a duplicate among nearby events (distance, 30 minutes, then id, event link, any link,
-   or title).
+1. Loads publisher candidates and chooses one from alias, email, website, and nearby name, or
+   asks the worker to create a temporary publisher.
+2. Loads nearby events and looks for a duplicate (distance, 30 minutes, then id, event link, any
+   link, or title).
 3. Approves the content. This step always approves until a later prompt can reject harmful, spam,
    or adult content.
 4. Asks Ollama for up to five catalog tags scored above 90 when the event has no tags yet.
@@ -46,7 +47,8 @@ sequenceDiagram
 
   Scheduler->>Job: JOB=event-scan
   Job->>DB: claim pending_scan rows
-  Job->>Runner: scan(batch)
+  Job->>Runner: scan(batch of event data and organizer keys)
+  Runner->>DB: load publisher and duplicate candidates
   Runner-->>Job: publisher, duplicate, approval, tags
   Job->>DB: set publisher, tags, in_review or published
   Job->>DB: enqueue event.published when published

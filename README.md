@@ -126,8 +126,9 @@ calls) in the same change as every new major feature.**
 
 ### Import scan
 
-- A scheduled data-worker job claims `pending_scan` events in a batch and hands that batch to the
-  prompt runner. The runner picks the publisher, looks for a duplicate, and asks a local
+- A scheduled data-worker job claims `pending_scan` events in a batch and hands the event text
+  and organizer keys to the prompt runner. The runner loads publisher and duplicate candidates,
+  picks the publisher, looks for a duplicate, and asks a local
   [Ollama](https://ollama.com) model (`ollama serve`, default `qwen3:8b`) for up to five existing
   tags scored above 90. An event that already has tags skips the model. The worker publishes the
   event only when the scan approves it, the publisher is verified, and the source trust is

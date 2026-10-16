@@ -1,6 +1,7 @@
 import type { DomainEvent } from '../../../packages/contracts/src/domain-events';
 import { visitTagId } from '../../../packages/db/src/seed-tags';
-import { createRulesPromptRunner, type IncomingEvent } from '../../../packages/ingest/src/index';
+import type { IncomingEvent } from '../../../packages/ingest/src/index';
+import { createOllamaPromptRunner } from '../../../apps/data-workers/src/prompt-runners';
 import {
   createMemoryIngestStore,
   type MemoryIngestStore,
@@ -56,7 +57,11 @@ async function finishScan(
   enqueue?: { publish: (event: DomainEvent) => Promise<void> },
 ) {
   if (!store.sources.some((item) => item.id === record.id)) store.sources.push(record);
-  return scanPendingEvents(store, createRulesPromptRunner(quietModel), enqueue);
+  return scanPendingEvents(
+    store,
+    createOllamaPromptRunner(store, { complete: quietModel.complete }),
+    enqueue,
+  );
 }
 
 describe('saveIncomingEvents', () => {
