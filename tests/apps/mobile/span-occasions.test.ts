@@ -1,8 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
+import { shownClock } from '../../../apps/mobile/src/lib/event-format';
 import { shownWhen, upcomingSpanOccasions } from '../../../apps/mobile/src/lib/span-occasions';
 
 const now = new Date('2026-07-02T12:00:00.000Z');
+
+describe('shownClock', () => {
+  it('uses the whole-day label when the start and end are the same instant', () => {
+    expect(
+      shownClock('2026-10-18T00:00:00+02:00', '2026-10-18T00:00:00+02:00', 'sv', 'Heldag'),
+    ).toBe('Heldag');
+  });
+
+  it('uses the start time when the event has a range', () => {
+    const label = shownClock(
+      '2026-10-18T08:00:00+02:00',
+      '2026-10-18T16:00:00+02:00',
+      'sv',
+      'Heldag',
+    );
+    expect(label).not.toBe('Heldag');
+    expect(label).toMatch(/10:00|08:00/);
+  });
+});
 
 describe('upcomingSpanOccasions', () => {
   it('keeps occasions that have not ended, in stored order', () => {

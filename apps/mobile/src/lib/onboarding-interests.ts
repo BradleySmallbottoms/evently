@@ -19,7 +19,7 @@ export const ONBOARDING_INTERESTS = [
     ],
   },
   { id: 'theatre', slugs: ['film-teater', 'dans', 'show', 'uppvisning'] },
-  { id: 'training', slugs: ['tennis', 'golf', 'bowling', 'skateboard', 'alpint-langdskidor'] },
+  { id: 'training', slugs: ['tennis', 'golf', 'bowling', 'skateboard', 'alpint-langdskidor', 'yoga'] },
   { id: 'museum', slugs: ['utstallning', 'massor-utstallningar', 'visitcenter', 'halsingegard'] },
   { id: 'outdoor', slugs: ['vandringar', 'guidning'] },
   { id: 'food', slugs: ['mat-dryck', 'julbord'] },
@@ -60,6 +60,7 @@ export const ONBOARDING_INTERESTS = [
       'pask',
       'valborg',
       'internationella-hogtider',
+      'halsa'
     ],
   },
   { id: 'other', slugs: [] },

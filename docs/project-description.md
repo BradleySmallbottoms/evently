@@ -16,8 +16,9 @@ Core concepts:
   events are created automatically and can be claimed later by the real organizer.
 - **Event** — physical (venue, optional point and geofence) or digital (online, with a live
   check-in code). The public app lists an event only when it has a point inside the search
-  radius. Tags and an online URL do not replace a missing point. Direct lookup by id still
-  returns it. It has no map pin and does not match nearby push. The detail page lists other times
+  radius and has not ended. A whole day, the same start and end, stays through that calendar day.
+  Tags and an online URL do not replace a missing point. Direct lookup by id still
+  returns it, including after it has ended. It has no map pin and does not match nearby push. The detail page lists other times
   that have not ended: separate occasions that share `meta.occasionGroupId`, and each row on
   `meta.occasions` for a collapsed span. A collapsed event shows the next of those rows, not the span start. The same start and end is a whole day: the time reads “Whole Day”, and that day stays current until it is over. Has tags, a schedule, and optional attendee-only content (maps,
   schedules, info). Users can subscribe to an event and are notified when it changes.

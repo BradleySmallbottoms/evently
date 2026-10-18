@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,9 +8,10 @@ import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { EventListItem } from '@/components/ui/event-list-item';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
-import { dateBadge } from '@/lib/event-format';
+import { dateBadge, shownClock } from '@/lib/event-format';
 import { shownWhen } from '@/lib/span-occasions';
 import { listTags, namesForTagIds } from '@/lib/events';
+import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
 import { colors } from '@/theme/colors';
@@ -18,9 +19,23 @@ import { space } from '@/theme/tokens';
 
 export default function EventsScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
-  const { point } = useDiscoveryPoint();
+  const { point, identity } = useDiscoveryPoint();
+  const saved = useQuery({
+    queryKey: ['saved-events', identity.data?.userId],
+    enabled: identity.isSuccess,
+    queryFn: () => listSavedEvents(identity.data!),
+  });
+  const savedIds = new Set((saved.data?.items ?? []).map((item) => item.id));
+  function toggleSave(eventId: string) {
+    if (!identity.data) return;
+    const next = savedIds.has(eventId)
+      ? unsaveEvent(identity.data, eventId)
+      : saveEvent(identity.data, eventId);
+    void next.then(() => queryClient.invalidateQueries({ queryKey: ['saved-events'] }));
+  }
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
     queryFn: () => listTags(),
@@ -86,8 +101,15 @@ export default function EventsScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
+              time={shownClock(
+                shownWhen(item, new Date()).startsAt,
+                shownWhen(item, new Date()).endsAt,
+                locale,
+                t('events.wholeDay'),
+              )}
               dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
-              eventId={item.id}
+              saved={savedIds.has(item.id)}
+              onSavePress={() => toggleSave(item.id)}
               onPress={() => router.push(`/events/${item.id}`)}
             />
           </View>

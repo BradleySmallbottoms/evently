@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, View } from 'react-native';
@@ -9,7 +9,8 @@ import { BackPill } from '@/components/ui/back-pill';
 import { EmptyState } from '@/components/ui/empty-state';
 import { EventListItem } from '@/components/ui/event-list-item';
 import { MaxContentWidth } from '@/constants/theme';
-import { dateBadge } from '@/lib/event-format';
+import { dateBadge, shownClock } from '@/lib/event-format';
+import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { shownWhen } from '@/lib/span-occasions';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { loadHomeTagIds } from '@/lib/home-tag-selection';
@@ -20,6 +21,7 @@ import { space } from '@/theme/tokens';
 
 export default function ForYouScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
@@ -33,6 +35,19 @@ export default function ForYouScreen() {
     queryKey: ['tags', 'upcoming'],
     queryFn: () => listTags(),
   });
+  const saved = useQuery({
+    queryKey: ['saved-events', identity.data?.userId],
+    enabled: identity.isSuccess,
+    queryFn: () => listSavedEvents(identity.data!),
+  });
+  const savedIds = new Set((saved.data?.items ?? []).map((item) => item.id));
+  function toggleSave(eventId: string) {
+    if (!identity.data) return;
+    const next = savedIds.has(eventId)
+      ? unsaveEvent(identity.data, eventId)
+      : saveEvent(identity.data, eventId);
+    void next.then(() => queryClient.invalidateQueries({ queryKey: ['saved-events'] }));
+  }
   const forYou = useForYouEvents({
     point: point.data,
     identity: identity.isSuccess ? identity.data : undefined,
@@ -81,8 +96,15 @@ export default function ForYouScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
+              time={shownClock(
+                shownWhen(item, new Date()).startsAt,
+                shownWhen(item, new Date()).endsAt,
+                locale,
+                t('events.wholeDay'),
+              )}
               dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
-              eventId={item.id}
+              saved={savedIds.has(item.id)}
+              onSavePress={() => toggleSave(item.id)}
               onPress={() => router.push(`/events/${item.id}`)}
             />
           </View>

@@ -384,6 +384,77 @@ describe('events', () => {
     expect(onlyOtherBody.items.map((item) => item.id)).toEqual([soonerId]);
   });
 
+  it('leaves ended events out of the public list and keeps a whole day', async () => {
+    const store = createMemoryStore();
+    const now = new Date('2026-10-18T21:00:00.000Z');
+    const auth = createMemoryAuthServices(store);
+    const app = createApp({
+      auth,
+      events: createMemoryEventServices(auth, { now: () => now }, store),
+    });
+    const base = {
+      publisherId: '11111111-1111-4111-8111-111111111403',
+      description: null,
+      mode: 'physical' as const,
+      status: 'published' as const,
+      origin: 'native' as const,
+      timezone: 'Europe/Stockholm',
+      venueName: 'Hall',
+      location: { lat: 61.3037, lng: 17.0592 },
+      geofenceRadiusM: 100,
+      onlineUrl: null,
+      priceAmount: null,
+      currency: 'SEK',
+      publisherName: 'Hall',
+      links: [],
+      imageUrl: null,
+      imageUrls: [],
+      tagIds: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      featured: false,
+      checkInEnabled: false,
+      meta: {},
+      numSaved: 0,
+      numComing: 0,
+    };
+    function row(id: string, title: string, startsAt: string, endsAt: string): MemoryEventRow {
+      return {
+        ...base,
+        id,
+        title,
+        startsAt,
+        endsAt,
+        startsAtDate: new Date(startsAt),
+        endsAtDate: new Date(endsAt),
+      };
+    }
+    const pastId = '11111111-1111-4111-8111-111111111501';
+    const laterId = '11111111-1111-4111-8111-111111111502';
+    const todayId = '11111111-1111-4111-8111-111111111503';
+    const yesterdayId = '11111111-1111-4111-8111-111111111504';
+    store.events.set(
+      pastId,
+      row(pastId, 'Already over', '2026-10-15T17:00:00.000Z', '2026-10-15T19:00:00.000Z'),
+    );
+    store.events.set(
+      laterId,
+      row(laterId, 'Still ahead', '2026-12-01T18:00:00.000Z', '2026-12-01T21:00:00.000Z'),
+    );
+    store.events.set(
+      todayId,
+      row(todayId, 'Whole day today', '2026-10-18T07:00:00.000Z', '2026-10-18T07:00:00.000Z'),
+    );
+    store.events.set(
+      yesterdayId,
+      row(yesterdayId, 'Whole day yesterday', '2026-10-17T07:00:00.000Z', '2026-10-17T07:00:00.000Z'),
+    );
+
+    const listed = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000');
+    const items = (await listed.json()) as { items: { id: string }[] };
+    expect(items.items.map((item) => item.id).sort()).toEqual([laterId, todayId].sort());
+  });
+
   it('omits a published event that has no point', async () => {
     const store = createMemoryStore();
     const auth = createMemoryAuthServices(store);

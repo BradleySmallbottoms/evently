@@ -15,6 +15,7 @@ import {
   canPublishAnother,
   canPublishEvent,
   entitlementsFor,
+  eventIsCurrent,
   eventEngagement,
   isPopularEvent,
   isPubliclyListedEvent,
@@ -110,7 +111,17 @@ export function createMemoryEventServices(
       const now = env.now();
       const active = new Set<string>();
       for (const event of events.values()) {
-        if (event.status !== 'published' || event.endsAtDate < now) continue;
+        if (
+          event.status !== 'published' ||
+          !eventIsCurrent({
+            startsAt: event.startsAtDate,
+            endsAt: event.endsAtDate,
+            timeZone: event.timezone,
+            now,
+          })
+        ) {
+          continue;
+        }
         for (const tagId of event.tagIds) active.add(tagId);
       }
       return items.filter((tag) => active.has(tag.id));
@@ -286,7 +297,15 @@ export function createMemoryEventServices(
           isPubliclyListedEvent({ hasLocation: e.location != null }),
         )
         .filter((e) => e.location != null && haversineM(center, e.location) <= query.radiusM)
-        .filter((e) => !from || e.endsAtDate >= from)
+        .filter((e) =>
+          eventIsCurrent({
+            startsAt: e.startsAtDate,
+            endsAt: e.endsAtDate,
+            timeZone: e.timezone,
+            now: env.now(),
+            from,
+          }),
+        )
         .filter((e) => !to || e.startsAtDate <= to)
         .filter((e) => {
           const tagIds = publicEventTagIds(query);
@@ -351,7 +370,14 @@ export function createMemoryEventServices(
       const now = env.now();
       return [...events.values()]
         .filter((event) => event.status === 'published')
-        .filter((event) => event.endsAtDate >= now)
+        .filter((event) =>
+          eventIsCurrent({
+            startsAt: event.startsAtDate,
+            endsAt: event.endsAtDate,
+            timeZone: event.timezone,
+            now,
+          }),
+        )
         .filter((event) => event.meta.occasionGroupId === query.occasionGroupId)
         .sort((a, b) => {
           const byDate = a.startsAt.localeCompare(b.startsAt);

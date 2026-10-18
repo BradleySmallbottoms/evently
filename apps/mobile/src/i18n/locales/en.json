@@ -102,6 +102,8 @@
     "categoryAll": "All",
     "categoryPhysical": "In person",
     "categoryDigital": "Online",
+    "categoriesMore": "More",
+    "categoriesFewer": "Fewer",
     "tagGroupsShowAll": "Show all categories",
     "tagGroupsHide": "Hide categories",
     "tagGroupsTitle": "Categories",

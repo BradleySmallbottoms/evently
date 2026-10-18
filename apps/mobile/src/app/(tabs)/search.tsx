@@ -13,7 +13,7 @@ import { EventListItem } from '@/components/ui/event-list-item';
 import { FilterDropdown } from '@/components/ui/filter-dropdown';
 import { SearchBar } from '@/components/ui/search-bar';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
-import { dateBadge } from '@/lib/event-format';
+import { dateBadge, shownClock } from '@/lib/event-format';
 import { shownWhen } from '@/lib/span-occasions';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
@@ -164,6 +164,14 @@ export default function SearchScreen() {
     { id: 'paid', label: t('events.pricePaid') },
   ];
 
+  function toggleSave(eventId: string) {
+    if (!identity.data) return;
+    const next = savedIds.has(eventId)
+      ? unsaveEvent(identity.data, eventId)
+      : saveEvent(identity.data, eventId);
+    void next.then(() => queryClient.invalidateQueries({ queryKey: ['saved-events'] }));
+  }
+
   function resetFilters() {
     setQ('');
     setTagId('all');
@@ -280,8 +288,15 @@ export default function SearchScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
+              time={shownClock(
+                shownWhen(item, new Date()).startsAt,
+                shownWhen(item, new Date()).endsAt,
+                locale,
+                t('events.wholeDay'),
+              )}
               dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
-              eventId={item.id}
+              saved={savedIds.has(item.id)}
+              onSavePress={() => toggleSave(item.id)}
               onPress={() => router.push(`/events/${item.id}`)}
             />
           </View>

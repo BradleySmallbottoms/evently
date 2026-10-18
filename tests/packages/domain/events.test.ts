@@ -4,6 +4,7 @@ import {
   canDeleteImportedEvent,
   canEditEvent,
   canPublishEvent,
+  eventIsCurrent,
   isPubliclyListedEvent,
   validateEventFields,
 } from '../../../packages/domain/src/events';
@@ -41,6 +42,51 @@ describe('isPubliclyListedEvent', () => {
   it('requires a point', () => {
     expect(isPubliclyListedEvent({ hasLocation: false })).toBe(false);
     expect(isPubliclyListedEvent({ hasLocation: true })).toBe(true);
+  });
+});
+
+describe('eventIsCurrent', () => {
+  const now = new Date('2026-10-18T21:00:00.000Z');
+
+  it('drops a timed event after it ends', () => {
+    expect(
+      eventIsCurrent({
+        startsAt: new Date('2026-10-18T15:00:00.000Z'),
+        endsAt: new Date('2026-10-18T17:00:00.000Z'),
+        timeZone: 'Europe/Stockholm',
+        now,
+      }),
+    ).toBe(false);
+  });
+
+  it('keeps a timed event that is still on', () => {
+    expect(
+      eventIsCurrent({
+        startsAt: new Date('2026-10-18T20:00:00.000Z'),
+        endsAt: new Date('2026-10-18T22:00:00.000Z'),
+        timeZone: 'Europe/Stockholm',
+        now,
+      }),
+    ).toBe(true);
+  });
+
+  it('keeps a whole day through that calendar day', () => {
+    expect(
+      eventIsCurrent({
+        startsAt: new Date('2026-10-18T07:00:00.000Z'),
+        endsAt: new Date('2026-10-18T07:00:00.000Z'),
+        timeZone: 'Europe/Stockholm',
+        now,
+      }),
+    ).toBe(true);
+    expect(
+      eventIsCurrent({
+        startsAt: new Date('2026-10-17T07:00:00.000Z'),
+        endsAt: new Date('2026-10-17T07:00:00.000Z'),
+        timeZone: 'Europe/Stockholm',
+        now,
+      }),
+    ).toBe(false);
   });
 });
 

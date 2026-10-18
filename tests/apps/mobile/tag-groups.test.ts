@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   groupHomeTags,
+  homeGroupForTags,
   HOME_TAG_GROUPS,
   parseHomeTagIds,
   retainedTagIds,
@@ -37,6 +38,14 @@ describe('groupHomeTags', () => {
     expect(byId.get('sport')).toEqual(['fotboll']);
     expect(byId.get('other')).toEqual(['mat-dryck', 'nagon-ny-tagg']);
     expect(byId.has('family')).toBe(false);
+  });
+});
+
+describe('homeGroupForTags', () => {
+  it('uses the first group that contains one of the event tags', () => {
+    const tags = [tag('konsert', 'music-1'), tag('fotboll', 'sport-1')];
+    expect(homeGroupForTags(tags, ['sport-1', 'music-1'])).toBe('music');
+    expect(homeGroupForTags(tags, ['missing'])).toBeUndefined();
   });
 });
 

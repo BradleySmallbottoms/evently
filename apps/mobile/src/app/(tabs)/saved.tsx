@@ -9,7 +9,7 @@ import { CategoryChips } from '@/components/ui/category-chips';
 import { EmptyState } from '@/components/ui/empty-state';
 import { EventListItem } from '@/components/ui/event-list-item';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
-import { dateBadge } from '@/lib/event-format';
+import { dateBadge, shownClock } from '@/lib/event-format';
 import { shownWhen } from '@/lib/span-occasions';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { ensureIdentity } from '@/lib/identity';
@@ -96,8 +96,13 @@ export default function SavedScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
+              time={shownClock(
+                shownWhen(item, new Date()).startsAt,
+                shownWhen(item, new Date()).endsAt,
+                locale,
+                t('events.wholeDay'),
+              )}
               dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
-              eventId={item.id}
               saved={segment === 'events'}
               onPress={() => router.push(`/events/${item.id}`)}
               onSavePress={

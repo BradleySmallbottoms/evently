@@ -1,5 +1,7 @@
 import { selectPrimaryLink, type PrimaryEventAction } from '@local-events/domain';
 
+import { isWholeDay } from './span-occasions';
+
 export type EventLink = {
   type: 'tickets' | 'registration' | 'info';
   url: string;
@@ -15,6 +17,17 @@ export function dateBadge(iso: string, locale: string, timeZone?: string) {
     day: new Intl.DateTimeFormat('en-US', { day: 'numeric', ...zone }).format(date),
     month: withoutPeriod(date.toLocaleDateString(locale, { month: 'short', ...zone })),
   };
+}
+
+/** Start time next to a venue. A whole day uses the translated label. */
+export function shownClock(
+  startsAt: string,
+  endsAt: string,
+  locale: string,
+  wholeDayLabel: string,
+): string {
+  if (isWholeDay(startsAt, endsAt)) return wholeDayLabel;
+  return new Date(startsAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 /** Same rule as the web event page: only http(s) is safe to open. */

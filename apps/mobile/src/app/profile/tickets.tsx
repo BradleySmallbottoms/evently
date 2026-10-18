@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
@@ -8,7 +8,8 @@ import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
 import { EmptyState } from '@/components/ui/empty-state';
 import { EventListItem } from '@/components/ui/event-list-item';
-import { dateBadge } from '@/lib/event-format';
+import { dateBadge, shownClock } from '@/lib/event-format';
+import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { shownWhen } from '@/lib/span-occasions';
 import { listPublicEvents, listTags, namesForTagIds } from '@/lib/events';
 import { eventListFreshness } from '@/lib/query-client';
@@ -20,8 +21,9 @@ export default function TicketsScreen() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const router = useRouter();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
-  const { point } = useDiscoveryPoint();
+  const { point, identity } = useDiscoveryPoint();
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
     queryFn: () => listTags(),
@@ -32,6 +34,19 @@ export default function TicketsScreen() {
     enabled: point.isSuccess,
     queryFn: () => listPublicEvents(point.data!),
   });
+  const saved = useQuery({
+    queryKey: ['saved-events', identity.data?.userId],
+    enabled: identity.isSuccess,
+    queryFn: () => listSavedEvents(identity.data!),
+  });
+  const savedIds = new Set((saved.data?.items ?? []).map((item) => item.id));
+  function toggleSave(eventId: string) {
+    if (!identity.data) return;
+    const next = savedIds.has(eventId)
+      ? unsaveEvent(identity.data, eventId)
+      : saveEvent(identity.data, eventId);
+    void next.then(() => queryClient.invalidateQueries({ queryKey: ['saved-events'] }));
+  }
   const tickets = (nearby.data?.items ?? []).filter((event) =>
     event.links.some((link) => link.type === 'tickets' || link.type === 'registration'),
   );
@@ -61,8 +76,15 @@ export default function TicketsScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
+              time={shownClock(
+                shownWhen(item, new Date()).startsAt,
+                shownWhen(item, new Date()).endsAt,
+                locale,
+                t('events.wholeDay'),
+              )}
               dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
-              eventId={item.id}
+              saved={savedIds.has(item.id)}
+              onSavePress={() => toggleSave(item.id)}
               onPress={() => router.push(`/events/${item.id}`)}
             />
           ))

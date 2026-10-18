@@ -18,6 +18,7 @@ import { NotificationsSheet } from '@/components/native/notifications-sheet';
 import { PairingSheet, type PairingSheetTab } from '@/components/native/pairing-sheet';
 import { RegionSuggestionSheet } from '@/components/native/region-suggestion-sheet';
 import { AppText } from '@/components/ui/app-text';
+import { FeaturedEventCard } from './_components/featured-event-card';
 import { EventCard } from '@/components/ui/event-card';
 import { EventListItem } from '@/components/ui/event-list-item';
 import { TagFilters } from '@/components/ui/tag-filters';
@@ -29,7 +30,7 @@ import { useForYouEvents } from '@/lib/use-for-you';
 import { eventListFreshness } from '@/lib/query-client';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { loadHomeTagIds, saveHomeTagIds } from '@/lib/home-tag-selection';
-import { retainedTagIds } from '@/lib/tag-groups';
+import { homeGroupForTags, retainedTagIds } from '@/lib/tag-groups';
 import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
 import { queryPointForArea } from '@/lib/area-point';
@@ -48,7 +49,8 @@ import {
   type RegionSuggestion,
 } from '@/lib/region-suggestion';
 import { shouldReevaluateRegionSuggestion } from '@/lib/foreground-location';
-import { dateBadge } from '@/lib/event-format';
+import { dateBadge, shownClock } from '@/lib/event-format';
+import { formatPeriod } from '@/lib/event-detail-format';
 import { isWholeDay, shownWhen } from '@/lib/span-occasions';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { updateAreaTags } from '@/lib/preferences';
@@ -519,33 +521,34 @@ export default function HomeScreen() {
                     </AppText>
                   </Pressable>
                 </View>
-                {featured.map((item) => (
-                  <View key={item.id} style={{ paddingHorizontal: space.xl }}>
-                    <EventCard
-                      title={item.title}
-                      when={
-                          isWholeDay(
-                            shownWhen(item, new Date()).startsAt,
-                            shownWhen(item, new Date()).endsAt,
-                          )
-                            ? t('events.wholeDay')
-                            : new Date(shownWhen(item, new Date()).startsAt).toLocaleString(locale)
+                {featured.map((item) => {
+                  const shown = shownWhen(item, new Date());
+                  const categoryId = homeGroupForTags(tags.data?.items ?? [], item.tagIds);
+                  return (
+                    <View key={item.id} style={{ paddingHorizontal: space.xl }}>
+                      <FeaturedEventCard
+                        title={item.title}
+                        description={item.description}
+                        period={formatPeriod(item.startsAt, item.endsAt, locale, item.timezone)}
+                        where={
+                          item.mode === 'physical'
+                            ? (item.venueName ?? t('events.missingVenue'))
+                            : (item.onlineUrl ?? t('events.missingUrl'))
                         }
-                      where={
-                        item.mode === 'physical'
-                          ? (item.venueName ?? t('events.missingVenue'))
-                          : (item.onlineUrl ?? t('events.missingUrl'))
-                      }
-                      tags={namesForTagIds(item.tagIds, tags.data?.items)}
-                      imageUrl={item.imageUrl}
-                      priceAmount={item.priceAmount}
-                      dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
-                      saved={savedIds.has(item.id)}
-                      onSavePress={() => toggleSave(item.id)}
-                      onPress={() => router.push(`/events/${item.id}`)}
-                    />
-                  </View>
-                ))}
+                        categoryId={categoryId}
+                        categoryLabel={
+                          categoryId ? t(`events.tagGroup.${categoryId}`) : undefined
+                        }
+                        tags={namesForTagIds(item.tagIds, tags.data?.items)}
+                        imageUrl={item.imageUrl}
+                        dateBadge={dateBadge(shown.startsAt, locale, item.timezone)}
+                        saved={savedIds.has(item.id)}
+                        onSavePress={() => toggleSave(item.id)}
+                        onPress={() => router.push(`/events/${item.id}`)}
+                      />
+                    </View>
+                  );
+                })}
               </View>
             ) : null}
 
@@ -616,8 +619,15 @@ export default function HomeScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
+              time={shownClock(
+                shownWhen(item, new Date()).startsAt,
+                shownWhen(item, new Date()).endsAt,
+                locale,
+                t('events.wholeDay'),
+              )}
               dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
-              eventId={item.id}
+              saved={savedIds.has(item.id)}
+              onSavePress={() => toggleSave(item.id)}
               onPress={() => router.push(`/events/${item.id}`)}
             />
           </View>

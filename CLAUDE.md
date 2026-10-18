@@ -130,6 +130,8 @@ Product invariants (enforced in domain, tested)
 - Events from unverified publishers are `awaiting_verification`: not listed, searched or pushed.
 - An event without a point is omitted from the public event list. Tags do not replace a missing
   point. It has no map pin and does not match nearby push. Direct lookup by id still returns it.
+  The list also leaves out an event that has ended. A whole day, the same start and end, stays
+  through that calendar day.
 - A new data-worker import is `pending_scan` until the scan job finishes. It becomes `published`
   only when the scan approves it, the publisher is verified and not temporary, and the source
   trust is `auto_publish`. A temporary publisher, an unverified publisher, or a review-trust

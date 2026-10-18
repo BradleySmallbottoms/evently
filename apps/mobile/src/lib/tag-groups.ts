@@ -30,6 +30,7 @@ export const HOME_TAG_GROUPS = [
       'skateboard',
       'motor',
       'cruising',
+      'yoga',
     ],
   },
   {
@@ -73,7 +74,7 @@ export const HOME_TAG_GROUPS = [
   },
   {
     id: 'other',
-    slugs: ['mat-dryck', 'julbord', 'forsaljning', 'forsaljning-amn30220', 'auktion-marknad'],
+    slugs: ['halsa', 'mat-dryck', 'julbord', 'forsaljning', 'forsaljning-amn30220', 'auktion-marknad'],
   },
 ] as const;
 
@@ -98,6 +99,16 @@ export function groupHomeTags(tags: readonly HomeTag[]): HomeTagGroup[] {
     const items = buckets.get(group.id) ?? [];
     return items.length > 0 ? [{ id: group.id, tags: items }] : [];
   });
+}
+
+/** First home group that contains one of the event's tags. */
+export function homeGroupForTags(
+  tags: readonly HomeTag[],
+  tagIds: readonly string[],
+): HomeTagGroupId | undefined {
+  if (tagIds.length === 0) return undefined;
+  const wanted = new Set(tagIds);
+  return groupHomeTags(tags).find((group) => group.tags.some((tag) => wanted.has(tag.id)))?.id;
 }
 
 /** Select every tag in the group, or clear the group when all of them are already selected. */

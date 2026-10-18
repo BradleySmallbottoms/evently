@@ -1,21 +1,13 @@
 import { krPriceLabel } from '@local-events/domain';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import * as Clipboard from 'expo-clipboard';
-import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { ConfirmAction } from '@/components/native/confirm-action';
-import { EventActionsMenu } from '@/components/native/event-actions-menu';
 import { AppText } from '@/components/ui/app-text';
 import { DateBox } from '@/components/ui/date-box';
 import { EventImage } from '@/components/ui/event-image';
 import { PricePill, TagPills } from '@/components/ui/tag-pills';
-import { buildEventWebUrl, shareEventLink } from '@/lib/event-share';
-import { ensureIdentity } from '@/lib/identity';
-import { reportEvent } from '@/lib/reports';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
 
@@ -24,12 +16,12 @@ const THUMB = 92;
 type Props = {
   title: string;
   where: string;
+  /** Start time, or the whole-day label. Shown before the venue. */
+  time?: string;
   tags?: string[];
   imageUrl?: string | null;
   priceAmount?: number | null;
   dateBadge?: { weekday: string; day: string; month: string } | null;
-  /** When set, the card shows the overflow menu (share, copy link, report). */
-  eventId?: string;
   saved?: boolean;
   onPress: () => void;
   onSavePress?: () => void;
@@ -38,17 +30,18 @@ type Props = {
 export function EventListItem({
   title,
   where,
+  time,
   tags = [],
   imageUrl,
   priceAmount,
   dateBadge,
-  eventId,
   saved,
   onPress,
   onSavePress,
 }: Props) {
   const { t } = useTranslation();
   const priceLabel = krPriceLabel(priceAmount);
+  const place = [time, where].filter((part) => part && part.length > 0).join(' · ');
   return (
     <View
       style={{
@@ -79,7 +72,15 @@ export function EventListItem({
               <EventImage imageUrl={imageUrl} tags={tags} />
             </View>
             {dateBadge ? (
-              <View style={{ position: 'absolute', left: 6, bottom: -6, boxShadow: shadow.hard, borderRadius: radius.sm }}>
+              <View
+                style={{
+                  position: 'absolute',
+                  left: 6,
+                  bottom: -6,
+                  boxShadow: shadow.hard,
+                  borderRadius: radius.sm,
+                }}
+              >
                 <DateBox badge={dateBadge} compact />
               </View>
             ) : null}
@@ -90,106 +91,37 @@ export function EventListItem({
             </AppText>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <AppText variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>
-                {where}
+                {place}
               </AppText>
               {priceLabel ? <PricePill label={priceLabel} /> : null}
             </View>
             <TagPills tags={tags} limit={2} size="sm" />
           </View>
         </Pressable>
-        {onSavePress || eventId ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {onSavePress ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={saved ? t('events.unfavorite') : t('events.favorite')}
-                onPress={onSavePress}
-                hitSlop={8}
-                style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
-              >
-                {process.env.EXPO_OS === 'ios' ? (
-                  <SymbolView
-                    name={(saved ? 'heart.fill' : 'heart') as never}
-                    size={18}
-                    tintColor={saved ? colors.accent : colors.inkMuted}
-                  />
-                ) : (
-                  <MaterialIcons
-                    name={saved ? 'favorite' : 'favorite-border'}
-                    size={20}
-                    color={saved ? colors.accent : colors.inkMuted}
-                  />
-                )}
-              </Pressable>
-            ) : null}
-            {eventId ? <ListOverflow eventId={eventId} title={title} /> : null}
-          </View>
+        {onSavePress ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={saved ? t('events.unfavorite') : t('events.favorite')}
+            onPress={onSavePress}
+            hitSlop={8}
+            style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+          >
+            {process.env.EXPO_OS === 'ios' ? (
+              <SymbolView
+                name={(saved ? 'heart.fill' : 'heart') as never}
+                size={18}
+                tintColor={saved ? colors.accent : colors.inkMuted}
+              />
+            ) : (
+              <MaterialIcons
+                name={saved ? 'favorite' : 'favorite-border'}
+                size={20}
+                color={saved ? colors.accent : colors.inkMuted}
+              />
+            )}
+          </Pressable>
         ) : null}
       </View>
     </View>
-  );
-}
-
-function ListOverflow({ eventId, title }: { eventId: string; title: string }) {
-  const { t, i18n } = useTranslation();
-  const [reportOpen, setReportOpen] = useState(false);
-  const locale = i18n.language === 'en' ? 'en' : 'sv';
-
-  async function onReport() {
-    try {
-      const identity = await ensureIdentity(locale);
-      await reportEvent(identity, eventId);
-      Alert.alert(t('events.reportTitle'), t('events.reportSent'));
-    } catch {
-      Alert.alert(t('events.reportTitle'), t('events.reportError'));
-    }
-  }
-
-  async function onShare() {
-    try {
-      const result = await shareEventLink({ title, eventId });
-      if (result === 'copied') {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert(t('events.share'), t('events.linkCopied'));
-      }
-    } catch {
-      Alert.alert(t('events.share'), t('events.shareLinkError'));
-    }
-  }
-
-  async function onCopyLink() {
-    try {
-      await Clipboard.setStringAsync(buildEventWebUrl(eventId));
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      Alert.alert(t('events.copyLink'), t('events.shareLinkError'));
-    }
-  }
-
-  return (
-    <>
-      <EventActionsMenu
-        accessibilityLabel={t('events.moreActions')}
-        shareLabel={t('events.share')}
-        copyLinkLabel={t('events.copyLink')}
-        reportLabel={t('events.report')}
-        onShare={() => void onShare()}
-        onCopyLink={() => void onCopyLink()}
-        onReport={() => setReportOpen(true)}
-        buttonStyle={{ width: 32, height: 32 }}
-      />
-      <ConfirmAction
-        title={t('events.reportTitle')}
-        message={t('events.reportMessage')}
-        confirmLabel={t('events.reportConfirm')}
-        cancelLabel={t('events.cancel')}
-        isPresented={reportOpen}
-        onIsPresentedChange={setReportOpen}
-        onConfirm={() => {
-          setReportOpen(false);
-          void onReport();
-        }}
-      />
-    </>
   );
 }

@@ -29,6 +29,56 @@ export function isPubliclyListedEvent(input: { hasLocation: boolean }): boolean 
   return input.hasLocation;
 }
 
+const DEFAULT_TIME_ZONE = 'Europe/Stockholm';
+
+function zoneName(timeZone: string | null | undefined): string {
+  const trimmed = timeZone?.trim();
+  return trimmed || DEFAULT_TIME_ZONE;
+}
+
+function calendarDay(instant: Date, timeZone: string): string {
+  const zone = zoneName(timeZone);
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: zone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(instant);
+  } catch {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: DEFAULT_TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(instant);
+  }
+}
+
+/**
+ * Whether a public list should still show this event.
+ * A timed event stays until its end. A whole day, the same start and end,
+ * stays through that calendar day. `from` raises the lower bound.
+ */
+export function eventIsCurrent(input: {
+  startsAt: Date;
+  endsAt: Date;
+  timeZone?: string | null;
+  now: Date;
+  from?: Date;
+}): boolean {
+  const tz = zoneName(input.timeZone);
+  if (input.startsAt.getTime() === input.endsAt.getTime()) {
+    const day = calendarDay(input.startsAt, tz);
+    if (day < calendarDay(input.now, tz)) return false;
+    if (input.from && day < calendarDay(input.from, tz)) return false;
+    return Number.isFinite(input.startsAt.getTime());
+  }
+  const lower =
+    input.from && input.from.getTime() > input.now.getTime() ? input.from : input.now;
+  return input.endsAt.getTime() >= lower.getTime();
+}
+
 export function canEditEvent(status: string): boolean {
   return status === 'draft' || status === 'awaiting_verification' || status === 'published';
 }

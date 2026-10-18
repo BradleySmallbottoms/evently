@@ -32,6 +32,24 @@ import { upsertEventPushDraft } from '../push-messages/drafts';
 import { EventError, type EventEnv, type EventServices } from './types';
 import { requirePublisherId } from '../publisher-id';
 
+/** Same rule as domain `eventIsCurrent`, for the public list queries. */
+function currentEventSql(now: Date, from?: Date) {
+  const { events } = schema;
+  const zone = sql`COALESCE(NULLIF(btrim(${events.timezone}), ''), 'Europe/Stockholm')`;
+  const lower = from && from.getTime() > now.getTime() ? from : now;
+  // ISO text, not a Date. postgres.js encodes a Date as text when it sits beside
+  // AT TIME ZONE, and that throws before the query runs.
+  const bound = lower.toISOString();
+  const localMidnight = sql`(date_trunc('day', ${bound}::timestamptz AT TIME ZONE ${zone}) AT TIME ZONE ${zone})`;
+  return sql`(
+    ${events.endsAt} >= ${bound}::timestamptz
+    OR (
+      ${events.startsAt} = ${events.endsAt}
+      AND ${events.startsAt} >= ${localMidnight}
+    )
+  )`;
+}
+
 type LocRow = {
   id: string;
   publisherId: string | null;
@@ -332,7 +350,7 @@ export function createDbEventServices(
             .from(tags)
             .innerJoin(eventTags, eq(eventTags.tagId, tags.id))
             .innerJoin(events, eq(events.id, eventTags.eventId))
-            .where(and(eq(events.status, 'published'), gte(events.endsAt, env.now())))
+            .where(and(eq(events.status, 'published'), currentEventSql(env.now())))
             .orderBy(asc(tags.slug))
         : await db.select().from(tags).orderBy(asc(tags.slug));
       return rows.map((r) => ({
@@ -553,8 +571,7 @@ export function createDbEventServices(
       const to = query.to ? new Date(query.to) : undefined;
       const point = pointEwkt({ lat: query.lat, lng: query.lng });
 
-      const filters = [eq(events.status, 'published')];
-      if (from) filters.push(gte(events.endsAt, from));
+      const filters = [eq(events.status, 'published'), currentEventSql(env.now(), from)];
       if (to) filters.push(lte(events.startsAt, to));
       if (query.q) {
         const pattern = likePattern(query.q);
@@ -638,7 +655,7 @@ export function createDbEventServices(
         .where(
           and(
             eq(events.status, 'published'),
-            gte(events.endsAt, env.now()),
+            currentEventSql(env.now()),
             sql`${events.meta}->>'occasionGroupId' = ${query.occasionGroupId}`,
           ),
         )

@@ -263,10 +263,15 @@ the notification prompt.
 Purpose: make it easy to find something appealing with minimal effort.
 
 Recommended order: 1. Greeting or concise screen title. 2. Current
-location selector. 3. Search field. 4. Horizontal category shortcuts: Music, Sports, Culture, Family,
-Holidays, and Other. A control under the shortcuts opens those groups,
-and each group expands to its tags. The chosen tags stay on the device. 5. Featured
-event card. 6. "Popular right now": a grid of three rows and two or
+location selector. 3. Search field. 4. Category circles: Music, Sports, Culture, Family,
+Holidays, and Other, in one row. More stays pinned on the right. More wraps
+every circle into a grid, and the last cell is Fewer. A circle selects or
+clears that whole group. Under the grid, each group opens so individual tags
+can be chosen. The chosen tags stay on the device. 5. Featured
+event cards. The photo keeps the date badge and the save control. A light
+panel overlaps the bottom of the photo and shows the category, the title,
+a two-line description, the date span, and the place. The badge is the next
+occasion. The span line is the event's full range. 6. "Popular right now": a grid of three rows and two or
 three columns, filled from nearby events people have saved or marked
 coming (`sort=popular`, up to nine). Each tile is only a photo and
 a date, and opens that event. The section stays hidden when none
@@ -355,8 +360,7 @@ details. Keep saved state synchronized across screens.
 
 Include: - Profile summary, if the user has signed in. - Rows for
 favorite categories and notifications. Each row shows a count badge and
-opens its own screen. Favorite categories uses the same grouped list as
-Home after “Show all categories”: one card per group, and each card
+opens its own screen. Favorite categories uses one card per group, and each card
 expands to its tags. Tickets and registration stay out of the list for
 now. Saved events and lists stay on the Saved tab. Quiet hours are on
 the notifications screen. Location stays on the preferences screen

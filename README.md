@@ -224,7 +224,8 @@ calls) in the same change as every new major feature.**
 ### Public events & publishers
 
 - Public `GET /v1/events` only returns **`status = published`** events that have a point inside
-  the search radius. An event without a point is left out of the app list and the map. Direct
+  the search radius and have not ended. A whole day, the same start and end, stays through that
+  calendar day. An event without a point is left out of the app list and the map. Direct
   lookup by id still returns it. Unverified
   publishers’ events stay `awaiting_verification` until an admin verifies the publisher (which
   releases upcoming events).

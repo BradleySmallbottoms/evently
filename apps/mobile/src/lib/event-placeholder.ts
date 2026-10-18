@@ -28,6 +28,7 @@ const WORKOUT = new Set([
   'tavlingar',
   'tennis',
   'vandringar',
+  'yoga',
 ]);
 
 const LECTURE = new Set(['forelasningar-seminarier', 'naringsliv']);
