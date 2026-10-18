@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { statusAfterImportScan } from '../../../packages/domain/src/import-scan';
+import { choosePossibleOccasionGroupId, statusAfterImportScan } from '../../../packages/domain/src/import-scan';
 
 describe('statusAfterImportScan', () => {
   const ready = {
@@ -32,5 +32,59 @@ describe('statusAfterImportScan', () => {
 
   it('keeps an unapproved event in review', () => {
     expect(statusAfterImportScan({ ...ready, approved: false })).toBe('in_review');
+  });
+});
+
+describe('choosePossibleOccasionGroupId', () => {
+  const fresh = '44444444-4444-4444-8444-444444444444';
+
+  it('creates an id when neither side has one', () => {
+    expect(
+      choosePossibleOccasionGroupId({
+        event: {},
+        duplicates: [{ occasionRank: 91 }],
+        newId: fresh,
+      }),
+    ).toBe(fresh);
+  });
+
+  it('reuses the scanned event product id', () => {
+    expect(
+      choosePossibleOccasionGroupId({
+        event: { occasionGroupId: 'cbis:1' },
+        duplicates: [{ occasionRank: 95, occasionGroupId: 'cbis:2', possibleOccasionGroupId: fresh }],
+        newId: '55555555-5555-4555-8555-555555555555',
+      }),
+    ).toBe('cbis:1');
+  });
+
+  it('reuses a duplicate product id, then an existing scan group', () => {
+    expect(
+      choosePossibleOccasionGroupId({
+        event: {},
+        duplicates: [
+          { occasionRank: 91, occasionGroupId: 'cbis:low' },
+          { occasionRank: 99, occasionGroupId: 'cbis:high' },
+        ],
+        newId: fresh,
+      }),
+    ).toBe('cbis:high');
+    expect(
+      choosePossibleOccasionGroupId({
+        event: { possibleOccasionGroupId: fresh },
+        duplicates: [{ occasionRank: 95 }],
+        newId: '55555555-5555-4555-8555-555555555555',
+      }),
+    ).toBe(fresh);
+  });
+
+  it('leaves the group alone when no duplicate ranks over 90', () => {
+    expect(
+      choosePossibleOccasionGroupId({
+        event: { occasionGroupId: 'cbis:1' },
+        duplicates: [{ occasionRank: 90, occasionGroupId: 'cbis:2' }],
+        newId: fresh,
+      }),
+    ).toBeNull();
   });
 });

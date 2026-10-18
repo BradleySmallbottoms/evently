@@ -131,7 +131,8 @@ Closed beta around week 15, store launch around week 19.
       `in_review` or `published`. A physical import with no venue name uses the city in its address,
       then the nearest city within 25 km of its point.
 - [x] Import scan queue: `pending_scan` rows, batch prompt runner, Ollama model client, EventBridge
-      schedule every 5 minutes (`JOB=event-scan`).
+      schedule every 5 minutes (`JOB=event-scan`). A duplicate ranked over 90 as another showing
+      stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates.
 - [x] Raw ingestion payloads to S3 (`raw/<slug>/<runId>`; no-op when `RAW_INGESTION_BUCKET` unset)
 - [x] Fargate task definition + EventBridge Scheduler schedules in CDK
 - [x] First real source: Visit Söderhamn adapter (Citybreak, Evenemang only). Occasions follow the shared collapse rule with Glada Hudik and Destination Hälsingland.

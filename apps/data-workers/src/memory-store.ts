@@ -667,6 +667,30 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           .map((alias) => alias.organizerKey),
       };
     },
+    /** Occasion ids already stored on these events. Missing ids are left out. */
+    async listOccasionGroups(eventIds) {
+      const wanted = new Set(eventIds);
+      return events.flatMap((event) => {
+        if (!wanted.has(event.id)) return [];
+        return [
+          {
+            eventId: event.id,
+            ...(event.meta.occasionGroupId ? { occasionGroupId: event.meta.occasionGroupId } : {}),
+            ...(event.meta.possibleOccasionGroupId
+              ? { possibleOccasionGroupId: event.meta.possibleOccasionGroupId }
+              : {}),
+          },
+        ];
+      });
+    },
+    /** Sets the scan occasion group and leaves every other meta key as it is. */
+    async setPossibleOccasionGroup(eventIds, groupId) {
+      const wanted = new Set(eventIds);
+      for (const event of events) {
+        if (!wanted.has(event.id)) continue;
+        event.meta = { ...event.meta, possibleOccasionGroupId: groupId };
+      }
+    },
     /** The stored event fields the scan compares when the model names a duplicate. */
     async getEvent(eventId): Promise<EventRecord | null> {
       const event = events.find((item) => item.id === eventId);

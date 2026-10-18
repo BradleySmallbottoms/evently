@@ -141,7 +141,9 @@ calls) in the same change as every new major feature.**
   (default `claude-sonnet-5-5`). `http` is only allowed on loopback. An event that already has tags skips the
   model. The worker publishes the event only when the scan approves it, the publisher is verified,
   and the source trust is `auto_publish`. Anything else that finishes goes to `in_review`. A model
-  failure leaves the row `pending_scan`. `OLLAMA_BASE_URL` must be a loopback URL.
+  failure leaves the row `pending_scan`. A duplicate ranked over 90 as another showing stores
+  `meta.possibleOccasionGroupId` on that event and the matches. An existing `occasionGroupId` is
+  reused; otherwise a new id is created. Public responses omit it. `OLLAMA_BASE_URL` must be a loopback URL.
   `OLLAMA_DISABLED=1` skips local Ollama, so an event that still needs tags stays `pending_scan`.
   `pnpm --filter @local-events/data-workers dev -- --job event-scan`
   scans the next batch. Add `--event <event-id>` to scan one row, or `--limit 1` to cap the batch.

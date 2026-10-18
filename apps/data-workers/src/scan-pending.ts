@@ -1,5 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import {
+  choosePossibleOccasionGroupId,
   importPlanToSchedule,
+  OCCASION_GROUP_MIN_RANK,
   shouldEnqueueNotifications,
   statusAfterImportScan,
 } from '@local-events/domain';
@@ -147,6 +150,15 @@ async function applyOutcome(
     ...row.meta,
     ...(outcome.duplicate ? { possibleDuplicate: outcome.duplicate } : {}),
   };
+  const group = await occasionGroupFor(store, row, outcome.occasionMatches ?? []);
+  if (group) {
+    meta.possibleOccasionGroupId = group.groupId;
+    await store.setPossibleOccasionGroup(group.memberIds, group.groupId);
+  } else {
+    const stored = await store.listOccasionGroups([row.eventId]);
+    const kept = stored[0]?.possibleOccasionGroupId;
+    if (kept) meta.possibleOccasionGroupId = kept;
+  }
   const saved = await store.finishImportedScan({
     eventId: row.eventId,
     publisherId: publisher.publisherId,
@@ -179,6 +191,51 @@ async function applyOutcome(
     await emitDomainEvent(enqueue, { type: 'event.published', eventId: row.eventId });
   }
   return status === 'published' ? 'published' : 'review';
+}
+
+/**
+ * Reuses an occasion id already stored on this event or a high-ranked duplicate.
+ * A new id is written onto each of those duplicates. This event receives it
+ * through the scan meta, because finishing the scan replaces that object.
+ */
+async function occasionGroupFor(
+  store: IngestStore,
+  row: PendingScanRow,
+  matches: { eventId: string; occasionRank: number }[],
+): Promise<{ groupId: string; memberIds: string[] } | null> {
+  const known = matches.filter((match) => EVENT_ID.test(match.eventId) && match.eventId !== row.eventId);
+  if (known.length === 0) return null;
+  const stored = await store.listOccasionGroups([row.eventId, ...known.map((match) => match.eventId)]);
+  const byId = new Map(stored.map((item) => [item.eventId, item]));
+  const self = byId.get(row.eventId);
+  const occasionGroupId = self?.occasionGroupId ?? row.meta.occasionGroupId;
+  const possibleOccasionGroupId = self?.possibleOccasionGroupId ?? row.meta.possibleOccasionGroupId;
+  const duplicates = known.flatMap((match) => {
+    const existing = byId.get(match.eventId);
+    if (!existing) return [];
+    return [
+      {
+        occasionRank: match.occasionRank,
+        ...(existing.occasionGroupId ? { occasionGroupId: existing.occasionGroupId } : {}),
+        ...(existing.possibleOccasionGroupId
+          ? { possibleOccasionGroupId: existing.possibleOccasionGroupId }
+          : {}),
+      },
+    ];
+  });
+  const groupId = choosePossibleOccasionGroupId({
+    event: {
+      ...(occasionGroupId ? { occasionGroupId } : {}),
+      ...(possibleOccasionGroupId ? { possibleOccasionGroupId } : {}),
+    },
+    duplicates,
+    newId: randomUUID(),
+  });
+  if (!groupId) return null;
+  const memberIds = known
+    .filter((match) => match.occasionRank > OCCASION_GROUP_MIN_RANK && byId.has(match.eventId))
+    .map((match) => match.eventId);
+  return { groupId, memberIds };
 }
 
 async function publisherFor(

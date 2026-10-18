@@ -269,4 +269,182 @@ describe('scanPendingEvents', () => {
     expect(store.events.find((row) => row.title === 'Marknad')?.status).toBe('in_review');
     expect(store.events.find((row) => row.title === 'Konsert')?.status).toBe('pending_scan');
   });
+
+  it('stores one occasion group on the scanned event and the matching duplicate', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    const siblingId = '33333333-3333-4333-8333-333333333399';
+    store.events.push({
+      id: siblingId,
+      publisherId: null,
+      title: 'Konsert nästa dag',
+      description: null,
+      status: 'published',
+      origin: 'imported',
+      sourceUrl: 'https://example.com/nasta',
+      startsAt: new Date('2027-06-02T18:00:00.000Z'),
+      endsAt: new Date('2027-06-02T21:00:00.000Z'),
+      venueName: null,
+      tagIds: [],
+      meta: { occasionGroupId: 'cbis:concert', freeEntry: true },
+    });
+    const runner: PromptRunner = {
+      id: 'occasion',
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Tillfällig',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          occasionMatches: [{ eventId: siblingId, occasionRank: 95 }],
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner);
+
+    const scannedEvent = store.events.find((row) => row.title === 'Konsert');
+    const sibling = store.events.find((row) => row.id === siblingId);
+    expect(scannedEvent?.meta.possibleOccasionGroupId).toBe('cbis:concert');
+    expect(sibling?.meta.possibleOccasionGroupId).toBe('cbis:concert');
+    expect(sibling?.meta.occasionGroupId).toBe('cbis:concert');
+    expect(sibling?.meta.freeEntry).toBe(true);
+  });
+
+  it('creates an occasion group id when none is stored yet', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    const siblingId = '33333333-3333-4333-8333-333333333398';
+    store.events.push({
+      id: siblingId,
+      publisherId: null,
+      title: 'Konsert nästa dag',
+      description: null,
+      status: 'published',
+      origin: 'imported',
+      sourceUrl: 'https://example.com/nasta',
+      startsAt: new Date('2027-06-02T18:00:00.000Z'),
+      endsAt: new Date('2027-06-02T21:00:00.000Z'),
+      venueName: null,
+      tagIds: [],
+      meta: {},
+    });
+    const runner: PromptRunner = {
+      id: 'occasion-new',
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Tillfällig',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          occasionMatches: [
+            { eventId: siblingId, occasionRank: 95 },
+            { eventId: 'not-an-id', occasionRank: 99 },
+          ],
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner);
+
+    const groupId = store.events.find((row) => row.title === 'Konsert')?.meta.possibleOccasionGroupId;
+    expect(groupId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(store.events.find((row) => row.id === siblingId)?.meta.possibleOccasionGroupId).toBe(groupId);
+  });
+
+  it('keeps the occasion group when the matched event is scanned later in the batch', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [
+      event,
+      { ...event, externalId: 'cbis:2', title: 'Marknad' },
+    ]);
+    const runner: PromptRunner = {
+      id: 'pair',
+      async scan(batch) {
+        const first = batch.find((item) => item.title === 'Konsert')!;
+        const second = batch.find((item) => item.title === 'Marknad')!;
+        const outcome = (item: ScanInput, matchId: string | null): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Tillfällig',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          ...(matchId ? { occasionMatches: [{ eventId: matchId, occasionRank: 95 }] } : {}),
+          approved: true,
+          tags: [],
+          ...scanned,
+        });
+        return [outcome(first, second.eventId), outcome(second, null)];
+      },
+    };
+
+    await scanPendingEvents(store, runner);
+
+    const konsert = store.events.find((row) => row.title === 'Konsert');
+    const marknad = store.events.find((row) => row.title === 'Marknad');
+    expect(konsert?.meta.possibleOccasionGroupId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(marknad?.meta.possibleOccasionGroupId).toBe(konsert?.meta.possibleOccasionGroupId);
+  });
+
+  it('reuses the first occasion group when both events name each other', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [
+      event,
+      { ...event, externalId: 'cbis:2', title: 'Marknad' },
+    ]);
+    const runner: PromptRunner = {
+      id: 'mutual',
+      async scan(batch) {
+        const first = batch.find((item) => item.title === 'Konsert')!;
+        const second = batch.find((item) => item.title === 'Marknad')!;
+        const outcome = (item: ScanInput, matchId: string): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Tillfällig',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          occasionMatches: [{ eventId: matchId, occasionRank: 95 }],
+          approved: true,
+          tags: [],
+          ...scanned,
+        });
+        return [outcome(first, second.eventId), outcome(second, first.eventId)];
+      },
+    };
+
+    await scanPendingEvents(store, runner);
+
+    const konsert = store.events.find((row) => row.title === 'Konsert');
+    const marknad = store.events.find((row) => row.title === 'Marknad');
+    expect(konsert?.meta.possibleOccasionGroupId).toBeTruthy();
+    expect(marknad?.meta.possibleOccasionGroupId).toBe(konsert?.meta.possibleOccasionGroupId);
+  });
 });

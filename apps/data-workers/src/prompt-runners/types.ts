@@ -44,6 +44,11 @@ export type ScanOutcome =
       eventId: string;
       publisher: ChosenPublisher;
       duplicate: PossibleDuplicateMatch | null;
+      /**
+       * Duplicates the model ranked as another showing. The scan stores one
+       * `meta.possibleOccasionGroupId` on this event and on each of these rows.
+       */
+      occasionMatches?: { eventId: string; occasionRank: number }[];
       /** Content scan. This step always approves. A later prompt can return false. */
       approved: boolean;
       tags: TagChoice[];

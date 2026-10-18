@@ -141,7 +141,10 @@ Product invariants (enforced in domain, tested)
   `meta.collapsed` true, with every occasion on `meta.occasions`).
   When two or more occasions stay separate, each event stores that product id on `meta.occasionGroupId`.
 - A lookalike within 500 m and 30 minutes is still inserted, then marked `in_review` by the scan
-  job, with `meta.possibleDuplicate` pointing at the existing event. A link matches on host and path;
+  job, with `meta.possibleDuplicate` pointing at the existing event. A duplicate ranked over 90 as
+  another showing stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates.
+  An existing `occasionGroupId` is reused; otherwise a new id is created. Public responses omit it.
+  A link matches on host and path;
   protocol, query, and a trailing slash are ignored. A Citybreak product id matches with or
   without the `cbis:` prefix. The same source id updates its own row.
 - Deleting an imported `in_review` event cancels it and leaves the row, so a later import

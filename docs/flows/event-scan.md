@@ -30,6 +30,10 @@ For each event the Ollama runner:
 4. Asks the configured chat model for up to five catalog tags scored above 90 when the event has no tags yet.
 
 The worker writes the publisher, tags, and `meta.possibleDuplicate`, then sets the status.
+A duplicate ranked over 90 as another showing also stores `meta.possibleOccasionGroupId` on the
+scanned event and on each of those duplicates. An `occasionGroupId` already on one of them is
+reused. Otherwise an existing `possibleOccasionGroupId` is reused, and a new id is created only
+when none is set. Public responses omit the field.
 
 | Result | Status |
 | --- | --- |

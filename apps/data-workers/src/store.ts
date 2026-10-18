@@ -78,7 +78,7 @@ export interface PublisherCandidate {
   key: string;
   verified: boolean;
   createdAt: number;
-  near: boolean;
+  distanceMeters: boolean;
   isTemporary: boolean;
   organizerKeys: string[];
   publisherName: string;
@@ -101,6 +101,12 @@ export interface PublisherRecord {
   organizerKeys: string[];
 }
 
+export interface OccasionGroupRow {
+  eventId: string;
+  occasionGroupId?: string;
+  possibleOccasionGroupId?: string;
+}
+
 export interface EventRecord {
   eventId: string;
   title: string;
@@ -115,7 +121,7 @@ export interface ScanPublisherCandidate {
   key: string;
   verified: boolean;
   createdAt: number;
-  near: boolean;
+  distanceMeters: boolean;
   isTemporary: boolean;
   importNotificationPlan: MarketingPushPlanId | null;
   organizerKeys: string[];
@@ -216,6 +222,10 @@ export interface IngestStore {
   ): Promise<void>;
   getPublisher(publisherId: string): Promise<PublisherRecord | null>;
   getEvent(eventId: string): Promise<EventRecord | null>;
+  /** Occasion ids already stored on these events. Missing ids are left out. */
+  listOccasionGroups(eventIds: string[]): Promise<OccasionGroupRow[]>;
+  /** Sets `meta.possibleOccasionGroupId` and leaves every other meta key as it is. */
+  setPossibleOccasionGroup(eventIds: string[], groupId: string): Promise<void>;
   findExternalRef(sourceId: string, externalId: string): Promise<ExternalRefHit | null>;
   /** True when an admin deleted this source id from review, so a later import must skip it. */
   isImportSuppressed(sourceId: string, externalId: string): Promise<boolean>;

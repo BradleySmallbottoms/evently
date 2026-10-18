@@ -101,6 +101,11 @@ export const EventMeta = z.object({
    * Absent when the product is one occasion or one collapsed span.
    */
   occasionGroupId: z.string().trim().min(1).max(200).optional(),
+  /**
+   * Scan grouping for other showings of the same event. A product id already stored on
+   * `occasionGroupId` is reused; otherwise this is a new id. Public responses omit it.
+   */
+  possibleOccasionGroupId: z.string().trim().min(1).max(200).optional(),
   /** True when several occasions were saved as this one span. */
   collapsed: z.boolean().optional(),
   /** Each occasion folded into a collapsed span, in start order. */
@@ -139,8 +144,12 @@ export const EventMeta = z.object({
 });
 export type EventMeta = z.infer<typeof EventMeta>;
 
-/** Public events omit the import duplicate note and the scan organizer keys. */
-export const PublicEventMeta = EventMeta.omit({ possibleDuplicate: true, import: true });
+/** Public events omit the import duplicate note, the occasion group, and the scan organizer keys. */
+export const PublicEventMeta = EventMeta.omit({
+  possibleDuplicate: true,
+  possibleOccasionGroupId: true,
+  import: true,
+});
 export type PublicEventMeta = z.infer<typeof PublicEventMeta>;
 
 /** Drops a stored object that does not match {@link EventMeta}. */
@@ -149,9 +158,14 @@ export function readEventMeta(value: unknown): EventMeta {
   return parsed.success ? parsed.data : {};
 }
 
-/** Same as {@link readEventMeta}, without the import duplicate note. */
+/** Same as {@link readEventMeta}, without the import duplicate note or the occasion group. */
 export function publicEventMeta(value: unknown): PublicEventMeta {
-  const { possibleDuplicate: _flag, import: _import, ...meta } = readEventMeta(value);
+  const {
+    possibleDuplicate: _flag,
+    possibleOccasionGroupId: _group,
+    import: _import,
+    ...meta
+  } = readEventMeta(value);
   return meta;
 }
 

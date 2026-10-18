@@ -775,6 +775,37 @@ export function createDbIngestStore(db: Db): IngestStore {
         distanceM: Math.round(Number(row.distanceM)),
       }));
     },
+    /** Occasion ids already stored on these events. Missing ids are left out. */
+    async listOccasionGroups(eventIds) {
+      if (eventIds.length === 0) return [];
+      const { events } = schema;
+      const rows = await db
+        .select({ id: events.id, meta: events.meta })
+        .from(events)
+        .where(inArray(events.id, eventIds));
+      return rows.map((row) => {
+        const meta = readEventMeta(row.meta);
+        return {
+          eventId: row.id,
+          ...(meta.occasionGroupId ? { occasionGroupId: meta.occasionGroupId } : {}),
+          ...(meta.possibleOccasionGroupId
+            ? { possibleOccasionGroupId: meta.possibleOccasionGroupId }
+            : {}),
+        };
+      });
+    },
+    /** Sets the scan occasion group and leaves every other meta key as it is. */
+    async setPossibleOccasionGroup(eventIds, groupId) {
+      if (eventIds.length === 0) return;
+      const { events } = schema;
+      await db
+        .update(events)
+        .set({
+          meta: sql`jsonb_set(COALESCE(${events.meta}, '{}'::jsonb), '{possibleOccasionGroupId}', to_jsonb(${groupId}::text), true)`,
+          updatedAt: new Date(),
+        })
+        .where(inArray(events.id, eventIds));
+    },
     async getEvent(eventId: string): Promise<EventRecord | null> {
       const { events } = schema;
       const rows = await db.select().from(events).where(eq(events.id, eventId)).limit(1);

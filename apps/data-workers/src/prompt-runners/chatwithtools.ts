@@ -201,7 +201,10 @@ async function scanOneEvent(
     event.existingTags.length > 0 ? event.existingTags : parseTagChoices(content, context.catalog);
   const publisher = await bestPublisher(content, context);
   const duplicate = await bestDuplicate(content, context);
-  
+  const occasionMatches = content.possibleDuplicates.flatMap((item) =>
+    typeof item.occasionRank === 'number' ? [{ eventId: item.eventId, occasionRank: item.occasionRank }] : [],
+  );
+
   return {
     ok: true,
     eventId: event.eventId,
@@ -211,6 +214,7 @@ async function scanOneEvent(
       organizerKeys: event.organizer.keys,
     },
     duplicate,
+    occasionMatches,
     approved: true,
     tags,
     contentVerdict: content.contentVerdict,
@@ -504,6 +508,7 @@ async function postChat(
       signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
     });
     const payload: unknown = await response.json();
+    console.log('response', response.status, payload, response.headers);
     if (!response.ok) return null;
     return payload && typeof payload === 'object' ? payload : null;
   } catch {
@@ -754,7 +759,7 @@ async function lookupPossiblePublishers(
     key: publisher.key,
     verified: publisher.verified,
     createdAt: publisher.createdAt,
-    near: publisher.near,
+    distanceMeters: publisher.distanceMeters,
     isTemporary: publisher.isTemporary,
     organizerKeys: publisher.organizerKeys,
     publisherName: publisher.publisherName,
