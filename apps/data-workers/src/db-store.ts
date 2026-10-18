@@ -151,6 +151,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           verified: publishers.verified,
           importNotificationPlan: publishers.importNotificationPlan,
           createdAt: publishers.createdAt,
+          publisherName: publishers.name,
         })
         .from(publisherAliases)
         .innerJoin(publishers, eq(publishers.id, publisherAliases.publisherId))
@@ -167,6 +168,7 @@ export function createDbIngestStore(db: Db): IngestStore {
               verified: publishers.verified,
               importNotificationPlan: publishers.importNotificationPlan,
               createdAt: publishers.createdAt,
+              publisherName: publishers.name,
             })
             .from(publishers)
             .where(
@@ -211,6 +213,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         isTemporary: row.isTemporary,
         importNotificationPlan: row.importNotificationPlan,
         organizerKeys: [],
+        publisherName: row.publisherName,
       }));
       for (const publisher of namedRows) {
         const nameKey = nameKeys.find(
@@ -230,6 +233,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           isTemporary: publisher.isTemporary,
           importNotificationPlan: publisher.importNotificationPlan,
           organizerKeys: [],
+          publisherName: publisher.publisherName,
         });
       }
       const uniquePublishers = new Set(candidates.map((candidate) => candidate.publisherId));

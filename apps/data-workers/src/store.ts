@@ -36,6 +36,7 @@ export interface PublisherCandidate {
   near: boolean;
   isTemporary: boolean;
   organizerKeys: string[];
+  publisherName: string;
 }
 
 export interface SourceRecord {
@@ -73,6 +74,7 @@ export interface ScanPublisherCandidate {
   isTemporary: boolean;
   importNotificationPlan: MarketingPushPlanId | null;
   organizerKeys: string[];
+  publisherName: string;
 }
 
 export interface PublisherLink {

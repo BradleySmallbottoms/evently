@@ -139,6 +139,8 @@ export function createOllamaWithToolsPromptRunner(
       for (const event of batch) {
         outcomes.push(await scanOneEvent(event, { store, event, catalog }, config, fetchImpl));
       }
+      console.log('outcomes', outcomes);
+      throw new Error('test');
       return outcomes;
     },
   };
@@ -224,77 +226,6 @@ async function bestDuplicate(content: LLMScanResult & LLMOutput, context: Lookup
 }
 
 /**
- * Picks a publisher the same way as the plain runner. An alias or a nearby name
- * match wins; otherwise the scan will create a temporary publisher later.
- */
-async function chooseExistingPublisher(event: ScanInput, store: IngestStore): Promise<ChosenPublisher> {
-  const localSlugs = [...new Set([event.source.slug, ...LOCAL_ORGANIZER_SLUGS])];
-  const publishers = await store.listPublisherCandidates(event.source.id, event.organizer.keys, {
-    ...(event.location ? { location: event.location } : {}),
-    localSlugs,
-  });
-  const chosen = choosePublisher(event.source.id, event.organizer.keys, localSlugs, publishers);
-  const match = publishers.find((row) => row.publisherId === chosen?.publisherId);
-  if (match) {
-    return {
-      kind: 'existing',
-      publisherId: match.publisherId,
-      isTemporary: match.isTemporary,
-      verified: match.verified,
-      importNotificationPlan: match.importNotificationPlan,
-    };
-  }
-  return {
-    kind: 'temporary',
-    name: event.organizer.name?.trim() || event.organizer.keys[0] || event.title,
-    organizerKeys: event.organizer.keys,
-  };
-}
-
-/**
- * Strongest lookalike among the store's 500 m / 30 minute candidates.
- * The same row and the same source worker are skipped. Ranking uses the domain
- * duplicate rules: shared id, then shared link, then a similar title.
- */
-function strongestDuplicate(event: ScanInput, candidates: DuplicateCandidate[]): PossibleDuplicateMatch | null {
-  const startsAt = new Date(event.startsAt);
-  const incomingIds = [event.externalId];
-  const incomingUrls = [event.sourceUrl, ...event.links];
-  let best: { candidate: DuplicateCandidate; signal: DuplicateSignal } | null = null;
-  for (const candidate of candidates) {
-    const sameRowOrWorker = candidate.eventId === event.eventId || candidate.workerId === event.workerId;
-    if (sameRowOrWorker) continue;
-    const candidateUrls = [candidate.sourceUrl, ...candidate.links];
-    const signal = duplicateSignal({
-      distanceM: candidate.distanceM,
-      withinWindow: withinDuplicateWindow(startsAt, candidate.startsAt),
-      titleSimilarity: titleSimilarity(event.title, candidate.title),
-      sharedEventLink: duplicateLinksMatch(incomingUrls, candidateUrls),
-      sharedLink: anyLinksMatch(incomingUrls, candidateUrls),
-      sameId: duplicateIdsMatch(incomingIds, [candidate.refId, ...candidate.externalIds]),
-    });
-    if (!signal) continue;
-    if (
-      !best ||
-      preferDuplicate(
-        { signal: best.signal, distanceM: best.candidate.distanceM },
-        { signal, distanceM: candidate.distanceM },
-      )
-    ) {
-      best = { candidate, signal };
-    }
-  }
-  if (!best) return null;
-  return {
-    eventId: best.candidate.eventId,
-    title: best.candidate.title,
-    startsAt: best.candidate.startsAt.toISOString(),
-    refId: best.candidate.refId,
-    workerId: best.candidate.workerId,
-    matchedOn: best.signal,
-  };
-}
-
 /**
  * Tells the model which tools exist and which JSON object to return when it is done.
  * The event's own coordinates are included so it can pass them to the nearby tools.
@@ -314,9 +245,9 @@ function buildScanPrompt(event: ScanInput): string {
     'Start with language and content verdict, then tags, then publisher, then duplicate',
     'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe".',
     'Match the tags to the event as best as you can. Score the tags from 0 to 100 and include only scores over 90. Pick at most 5 tags.',
-    'Try matching this organizer using the getPossiblePublishers',
-    'When nof possible publisher matches, call the tool getNearbyPublishers (do not use nearbyEvents) to find publishers that have published an event within 500 m of this event.',
-    'Rank the found publishers by how well they match the organizer keys, if a publisher is a positive match, return it in possiblePublishers.',
+    'Try matching this publisher against existing publishers using the getPossiblePublishers. A match is when the publisher name similarity is high, a matching publisher key strengthens the match.',
+    'When no possible publisher matches, call the tool getNearbyPublishers (do not use nearbyEvents) to find publishers that have published an event within 500 m of this event.',
+    'Rank the found publishers by how well they match the publisher name and keys, if a publisher is a positive match, return it in possiblePublishers.',
     'Try to find a duplicate event using getNearbyEvents()',
     'Compare the title, location, and description, description similarity is most important, of the found event with the event being scanned to find a duplicate. Rank the match from 0 to 100.',
     'Rank the posibility of the duplicate event beeing just another occasion of the same event, rank from 0 to 100.',
@@ -327,7 +258,8 @@ function buildScanPrompt(event: ScanInput): string {
     `Title: ${event.title}`,
     `Starts: ${event.startsAt}`,
     `Ends: ${event.endsAt}`,
-    'Organizer keys:',
+    `Publisher name: ${event.organizer.name}`,
+    'Publisher keys:',
     ...event.organizer.keys.map((key) => `- ${key}`),
     `Point: ${place}`,
     ...(event.venue ? [`Location: ${event.venue}`] : []),
@@ -547,6 +479,7 @@ async function lookupPossiblePublishers(
     near: publisher.near,
     isTemporary: publisher.isTemporary,
     organizerKeys: publisher.organizerKeys,
+    publisherName: publisher.publisherName,
   }));
   return { possiblePublishers };
 }
