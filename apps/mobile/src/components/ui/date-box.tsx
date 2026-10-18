@@ -7,11 +7,21 @@ import { radius, shadow as shadowTokens, space } from '@/theme/tokens';
 type Badge = { weekday: string; day: string; month: string };
 
 /** Two rows: weekday, then day and month. Shared by event cards, lists, and the details page. */
-export function DateBox({ badge, compact = false, shadow = false }: { badge: Badge; compact?: boolean; shadow?: boolean }) {
+export function DateBox({
+  badge,
+  compact = false,
+  shadow = false,
+  surface = colors.card,
+}: {
+  badge: Badge;
+  compact?: boolean;
+  shadow?: boolean;
+  surface?: string;
+}) {
   return (
     <View
       style={{
-        backgroundColor: colors.card as string,
+        backgroundColor: surface,
         borderRadius: compact ? radius.sm : radius.md,
         borderCurve: 'continuous',
         paddingHorizontal: compact ? 6 : space.md,

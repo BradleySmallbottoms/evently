@@ -14,6 +14,7 @@ import { FilterDropdown } from '@/components/ui/filter-dropdown';
 import { SearchBar } from '@/components/ui/search-bar';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { dateBadge } from '@/lib/event-format';
+import { shownWhen } from '@/lib/span-occasions';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
@@ -267,7 +268,7 @@ export default function SearchScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
-              dateBadge={dateBadge(item.startsAt, locale)}
+              dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
               eventId={item.id}
               onPress={() => router.push(`/events/${item.id}`)}
             />

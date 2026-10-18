@@ -71,7 +71,9 @@ calls) in the same change as every new major feature.**
   unless the occasions are a dense run of opening hours longer than `occasionSpanDays` (default 21)
   covering at least `occasionCoverage` of those days (default 0.6). Both live on `data_sources.config`.
   A collapsed run is one event with `meta.collapsed` true and every occasion on `meta.occasions`. When two or more occasions stay separate, each event stores the
-  product id on `meta.occasionGroupId`.
+  product id on `meta.occasionGroupId`. The mobile event page loads the other published occasions
+  in that group from `GET /v1/events/occasions?occasionGroupId=` and lists the ones that have not ended.
+  A collapsed span lists each `meta.occasions` row that has not ended on that same page, and the date shown is the next of those rows.
   A Citybreak time ending in `Z`, or with a numeric offset, is stored as that instant. A time with no zone is Europe/Stockholm. Hälsingland and Hudiksvall date-and-period values are Stockholm wall time too.
   Categories under Evenemang are stored as the tag catalog (`external_id` `visit-soderhamn:{id}`).
   The import does not put those tags on the event. The scan job does. `GET /v1/tags` is that list. The mobile home and search call it with
@@ -138,7 +140,12 @@ calls) in the same change as every new major feature.**
   existing tags scored above 90. With no `CHAT_PROVIDER`, that is a local
   [Ollama](https://ollama.com) model (`ollama serve`, default `qwen3:8b`). `CHAT_PROVIDER=chatgpt`
   uses `OPENAI_API_KEY` (default `gpt-4.1-mini`). `CHAT_PROVIDER=claude` uses `ANTHROPIC_API_KEY`
-  (default `claude-sonnet-5-5`). `http` is only allowed on loopback. An event that already has tags skips the
+  (default `claude-sonnet-5-5`). `CHAT_PROVIDER=runpod` starts one GPU pod
+  (`RUNPOD_API_KEY`, `RUNPOD_CHAT_KEY`), scans three events at a time, drains the queue,
+  and stops the pod. The GPU bills only while that pod is running. The model weights stay on a
+  network volume named `evnt-scan-models` in `CA-MTL-1`, and that volume keeps billing until it is deleted.
+  `EU-SE-1` has no network volumes, so a volume cannot be created there.
+  `http` is only allowed on loopback. An event that already has tags skips the
   model. The worker publishes the event only when the scan approves it, the publisher is verified,
   and the source trust is `auto_publish`. Anything else that finishes goes to `in_review`. A model
   failure leaves the row `pending_scan`. A duplicate ranked over 90 as another showing stores

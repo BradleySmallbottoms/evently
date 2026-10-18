@@ -3,10 +3,11 @@ import type {
   EventLink,
   EventLinkInput,
   ManagedEvent,
+  OccasionListQuery,
   PublicEventListQuery,
   UpdateEventRequest,
 } from '@local-events/contracts';
-import { publicEventMeta, publicEventTagIds } from '@local-events/contracts';
+import { OCCASION_LIST_LIMIT, publicEventMeta, publicEventTagIds } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { cancelOpenPushMessages, pointEwkt, schema } from '@local-events/db';
 import {
@@ -630,6 +631,33 @@ export function createDbEventServices(
         );
       }
       return { items, nextOffset: hasMore ? query.offset + query.limit : null };
+    },
+
+    async listOccasions(query: OccasionListQuery) {
+      const rows = await selectEvents()
+        .where(
+          and(
+            eq(events.status, 'published'),
+            gte(events.endsAt, env.now()),
+            sql`${events.meta}->>'occasionGroupId' = ${query.occasionGroupId}`,
+          ),
+        )
+        .orderBy(asc(events.startsAt), asc(events.id))
+        .limit(OCCASION_LIST_LIMIT);
+      const ids = rows.map((row) => row.id);
+      const [links, images] = await Promise.all([linksFor(ids), imagesFor(ids)]);
+      const items: Event[] = [];
+      for (const row of rows) {
+        items.push(
+          toEvent(
+            row,
+            await tagIdsFor(row.id),
+            images.get(row.id) ?? { main: null, gallery: [] },
+            publicLinks(links.get(row.id) ?? []),
+          ),
+        );
+      }
+      return items;
     },
   };
 }

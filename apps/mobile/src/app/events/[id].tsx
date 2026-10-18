@@ -32,7 +32,7 @@ import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TagPills, PricePill } from '@/components/ui/tag-pills';
 import { MaxContentWidth } from '@/constants/theme';
-import { getPublicEvent, listTags, namesForTagIds } from '@/lib/events';
+import { getPublicEvent, listOccasionEvents, listTags, namesForTagIds } from '@/lib/events';
 import { eventListFreshness } from '@/lib/query-client';
 import { fetchCheckInStatus, performCodeCheckIn, performGeoCheckIn } from '@/lib/check-in';
 import { fetchEventContent, readCachedEventContent } from '@/lib/event-content';
@@ -55,11 +55,13 @@ import {
   type ReminderSlot,
 } from '@/lib/reminder-times';
 import { directionsUrl } from '@/lib/directions';
+import { shownWhen, upcomingSpanOccasions } from '@/lib/span-occasions';
 import { shareEventLink } from '@/lib/event-share';
 import { buildEventWebUrl } from '@/lib/event-share-url';
 import { reportEvent } from '@/lib/reports';
 import { followTarget, listSubscriptions, unfollowTarget } from '@/lib/subscriptions';
 import { fetchEventStats } from '@/lib/stats';
+import { OccasionList } from './_components/occasion-list';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
 
@@ -94,6 +96,35 @@ export default function EventDetailScreen() {
     queryFn: () => getPublicEvent(id),
     enabled: typeof id === 'string' && id.length > 0,
   });
+  const occasionGroupId = event.data?.meta.occasionGroupId;
+  const occasions = useQuery({
+    queryKey: ['event-occasions', occasionGroupId],
+    ...eventListFreshness,
+    queryFn: () => listOccasionEvents(occasionGroupId!),
+    enabled: typeof occasionGroupId === 'string' && occasionGroupId.length > 0,
+  });
+  const otherOccasions = useMemo(() => {
+    const folded = upcomingSpanOccasions(event.data?.meta.occasions, new Date()).map(
+      (occasion, index) => ({
+        key: `${occasion.startsAt}-${index}`,
+        startsAt: occasion.startsAt,
+        endsAt: occasion.endsAt ?? null,
+        venueName: occasion.venueName ?? event.data?.venueName ?? null,
+        publisherName: event.data?.publisherName ?? '',
+      }),
+    );
+    const siblings = (occasions.data?.items ?? [])
+      .filter((item) => item.id !== id)
+      .map((item) => ({
+        key: item.id,
+        eventId: item.id,
+        startsAt: item.startsAt,
+        endsAt: item.endsAt,
+        venueName: item.venueName,
+        publisherName: item.publisherName,
+      }));
+    return [...folded, ...siblings];
+  }, [event.data, occasions.data?.items, id]);
   const reminder = useQuery({
     queryKey: ['event-reminder', id],
     queryFn: () => eventReminderSlots(id!),
@@ -336,6 +367,7 @@ export default function EventDetailScreen() {
         ratingStatus.refetch(),
         reminder.refetch(),
         tags.refetch(),
+        ...(occasionGroupId ? [occasions.refetch()] : []),
       ];
       if (identity.isSuccess) {
         jobs.push(
@@ -414,6 +446,7 @@ export default function EventDetailScreen() {
   }
 
   const priceLabel = krPriceLabel(event.data?.priceAmount);
+  const shown = event.data ? shownWhen(event.data, new Date()) : null;
   const offerReminder = event.data
     ? canOfferEventReminder(new Date(event.data.startsAt), new Date())
     : false;
@@ -511,7 +544,7 @@ export default function EventDetailScreen() {
               alignSelf: 'flex-start',
             }}
           >
-            <DateBox shadow={true} badge={dateBadge(event.data.startsAt, locale)} />
+            <DateBox shadow={true} badge={dateBadge(shown!.startsAt, locale)} />
           </View>
         ) : null}
 
@@ -649,7 +682,7 @@ export default function EventDetailScreen() {
                     >
                       <DetailIcon sf="calendar" md="event" />
                       <AppText variant="caption" style={{ color: colors.ink, flexShrink: 1 }}>
-                        {new Date(event.data.startsAt).toLocaleDateString(locale, {
+                        {new Date(shown!.startsAt).toLocaleDateString(locale, {
                           weekday: 'short',
                           day: 'numeric',
                           month: 'short',
@@ -660,10 +693,10 @@ export default function EventDetailScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                       <DetailIcon sf="clock" md="schedule" />
                       <AppText variant="caption" style={{ color: colors.ink }}>
-                        {`${new Date(event.data.startsAt).toLocaleTimeString(locale, {
+                        {`${new Date(shown!.startsAt).toLocaleTimeString(locale, {
                           hour: '2-digit',
                           minute: '2-digit',
-                        })} – ${new Date(event.data.endsAt).toLocaleTimeString(locale, {
+                        })} – ${new Date(shown!.endsAt).toLocaleTimeString(locale, {
                           hour: '2-digit',
                           minute: '2-digit',
                         })}`}
@@ -707,7 +740,7 @@ export default function EventDetailScreen() {
                 </View>
 
                 <View style={{
-                  paddingHorizontal: space.lg, gap: space.lg,
+                  paddingHorizontal: space.lg, gap: space.lg, marginTop: space.lg,
                 }}>
 
                   {(() => {
@@ -844,6 +877,13 @@ export default function EventDetailScreen() {
                     />
                   ) : null}
                   {reminderNotice ? <AppText variant="caption">{reminderNotice}</AppText> : null}
+
+                  <OccasionList
+                    title={t('events.otherOccasions')}
+                    items={otherOccasions}
+                    locale={locale}
+                    missingVenue={t('events.missingVenue')}
+                  />
                 </View>
 
 

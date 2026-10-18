@@ -41,6 +41,11 @@ export interface OllamaWithToolsRunnerOptions {
   config?: Record<string, unknown>;
   /** Tests pass this so a scan does not call a running chat API. */
   fetch?: typeof fetch;
+  /**
+   * How many events in one batch may call the model at once. Writes still happen
+   * after the batch, in order. `1` keeps the calls sequential.
+   */
+  concurrency?: number;
 }
 
 type ChatProtocol = 'ollama' | 'openai' | 'anthropic';
@@ -157,21 +162,42 @@ export function createOllamaWithToolsPromptRunner(
   return {
     id: 'ollama-with-tools',
     /**
-     * One event at a time. The tag catalog is loaded once. A repeated title,
-     * place, and start reuses the first model answer instead of calling again.
+     * The tag catalog is loaded once. Events run `concurrency` at a time. Each
+     * event still walks its own tool rounds one after another. The result order
+     * matches the batch.
      */
     async scan(batch) {
       const catalog = (await store.listTags()).map((tag) => ({
         externalId: tag.externalId,
         name: tag.name,
       }));
-      const outcomes: ScanOutcome[] = [];
-      for (const event of batch) {
-        outcomes.push(await scanOneEvent(event, { store, event, catalog }, config, fetchImpl));
-      }
-      return outcomes;
+      const concurrency = Math.min(8, Math.max(1, options.concurrency ?? 1));
+      return mapPool(batch, concurrency, (event) =>
+        scanOneEvent(event, { store, event, catalog }, config, fetchImpl),
+      );
     },
   };
+}
+
+/**
+ * Runs `fn` on up to `limit` items at once. The index increment happens before the
+ * first await, so two workers cannot take the same item. Results keep input order.
+ */
+async function mapPool<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    for (;;) {
+      const index = next;
+      next += 1;
+      if (index >= items.length) return;
+      const item = items[index];
+      if (item === undefined) return;
+      results[index] = await fn(item);
+    }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
 /**

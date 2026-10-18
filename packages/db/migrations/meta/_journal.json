@@ -330,6 +330,20 @@
       "when": 1794400000005,
       "tag": "0046_nosy_squadron_supreme",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1794400000006,
+      "tag": "0047_magical_lady_bullseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1794400000007,
+      "tag": "0048_misty_mysterio",
+      "breakpoints": true
     }
   ]
 }

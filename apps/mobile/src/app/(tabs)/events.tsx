@@ -9,6 +9,7 @@ import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { EventListItem } from '@/components/ui/event-list-item';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { dateBadge } from '@/lib/event-format';
+import { shownWhen } from '@/lib/span-occasions';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
@@ -85,7 +86,7 @@ export default function EventsScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
-              dateBadge={dateBadge(item.startsAt, locale)}
+              dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
               eventId={item.id}
               onPress={() => router.push(`/events/${item.id}`)}
             />

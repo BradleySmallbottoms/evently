@@ -13,6 +13,7 @@ import {
 import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
 import { listPublicEvents } from '@/lib/events';
+import { shownWhen } from '@/lib/span-occasions';
 import { eventListFreshness } from '@/lib/query-client';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
 import { colors } from '@/theme/colors';
@@ -63,7 +64,7 @@ export default function MapScreen() {
                 setSelected({
                   id: event.id,
                   title: event.title,
-                  when: new Date(event.startsAt).toLocaleString(locale),
+                  when: new Date(shownWhen(event, new Date()).startsAt).toLocaleString(locale),
                 })
               }
             />

@@ -421,6 +421,7 @@ export const events = pgTable(
     index('events_location_gist').using('gist', t.location),
     index('events_status_starts_idx').on(t.status, t.startsAt),
     index('events_worker_ref_idx').on(t.workerId, t.refId),
+    index('events_occasion_group_idx').on(sql`(${t.meta}->>'occasionGroupId')`),
   ],
 );
 
@@ -889,7 +890,13 @@ export const publisherAliases = pgTable(
     mappedBy: uuid('mapped_by'),
     mappedAt: timestamp('mapped_at', { withTimezone: true }),
   },
-  (t) => [primaryKey({ columns: [t.sourceId, t.externalOrganizerKey] })],
+  (t) => [
+    primaryKey({
+      name: 'publisher_aliases_source_key_publisher_pk',
+      columns: [t.sourceId, t.externalOrganizerKey, t.publisherId],
+    }),
+    index('publisher_aliases_publisher_id_idx').on(t.publisherId),
+  ],
 );
 
 /**

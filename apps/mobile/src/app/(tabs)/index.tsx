@@ -49,6 +49,7 @@ import {
 } from '@/lib/region-suggestion';
 import { shouldReevaluateRegionSuggestion } from '@/lib/foreground-location';
 import { dateBadge } from '@/lib/event-format';
+import { shownWhen } from '@/lib/span-occasions';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { updateAreaTags } from '@/lib/preferences';
 import { useSaveDiscoveryRadius } from '@/lib/save-discovery-radius';
@@ -117,7 +118,7 @@ export default function HomeScreen() {
   const popularItems = (popular.data?.items ?? []).map((item) => ({
     id: item.id,
     title: item.title,
-    startsAt: item.startsAt,
+    startsAt: shownWhen(item, new Date()).startsAt,
     imageUrl: item.imageUrl,
     tags: namesForTagIds(item.tagIds, tags.data?.items),
   }));
@@ -471,7 +472,7 @@ export default function HomeScreen() {
                     <View key={item.id} style={{ width: 280 }}>
                       <EventCard
                         title={item.title}
-                        when={new Date(item.startsAt).toLocaleString(locale)}
+                        when={new Date(shownWhen(item, new Date()).startsAt).toLocaleString(locale)}
                         where={
                           item.mode === 'physical'
                             ? (item.venueName ?? t('events.missingVenue'))
@@ -480,7 +481,7 @@ export default function HomeScreen() {
                         tags={namesForTagIds(item.tagIds, tags.data?.items)}
                         imageUrl={item.imageUrl}
                         priceAmount={item.priceAmount}
-                        dateBadge={dateBadge(item.startsAt, locale)}
+                        dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
                         saved={savedIds.has(item.id)}
                         onSavePress={() => toggleSave(item.id)}
                         onPress={() => router.push(`/events/${item.id}`)}
@@ -515,7 +516,7 @@ export default function HomeScreen() {
                   <View key={item.id} style={{ paddingHorizontal: space.xl }}>
                     <EventCard
                       title={item.title}
-                      when={new Date(item.startsAt).toLocaleString(locale)}
+                      when={new Date(shownWhen(item, new Date()).startsAt).toLocaleString(locale)}
                       where={
                         item.mode === 'physical'
                           ? (item.venueName ?? t('events.missingVenue'))
@@ -524,7 +525,7 @@ export default function HomeScreen() {
                       tags={namesForTagIds(item.tagIds, tags.data?.items)}
                       imageUrl={item.imageUrl}
                       priceAmount={item.priceAmount}
-                      dateBadge={dateBadge(item.startsAt, locale)}
+                      dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
                       saved={savedIds.has(item.id)}
                       onSavePress={() => toggleSave(item.id)}
                       onPress={() => router.push(`/events/${item.id}`)}
@@ -601,7 +602,7 @@ export default function HomeScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
-              dateBadge={dateBadge(item.startsAt, locale)}
+              dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
               eventId={item.id}
               onPress={() => router.push(`/events/${item.id}`)}
             />

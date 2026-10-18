@@ -1,0 +1,1 @@
+CREATE INDEX "events_occasion_group_idx" ON "events" USING btree (("meta"->>'occasionGroupId'));

@@ -447,4 +447,77 @@ describe('scanPendingEvents', () => {
     expect(konsert?.meta.possibleOccasionGroupId).toBeTruthy();
     expect(marknad?.meta.possibleOccasionGroupId).toBe(konsert?.meta.possibleOccasionGroupId);
   });
+
+  it('creates a temporary publisher that shares an organizer key already stored for this source', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const existing = store.linkPublisher({
+      sourceId: source.id,
+      organizerKey: 'soderhamn.se',
+      name: 'First',
+      isTemporary: true,
+    });
+    await saveIncomingEvents(store, source, [
+      {
+        ...event,
+        organizerKeys: ['other@example.com', 'soderhamn.se'],
+        organizerName: 'Second',
+      },
+    ]);
+
+    const summary = await scanPendingEvents(store, {
+      id: 'shared-key',
+      async scan(batch) {
+        return batch.map(
+          (item): ScanOutcome => ({
+            ok: true,
+            eventId: item.eventId,
+            publisher: {
+              kind: 'temporary',
+              name: 'Second',
+              organizerKeys: item.organizer.keys,
+            },
+            duplicate: null,
+            approved: true,
+            tags: [],
+            ...scanned,
+          }),
+        );
+      },
+    });
+
+    expect(summary.review).toBe(1);
+    expect(store.publishers).toHaveLength(2);
+    expect(store.events[0]?.publisherId).not.toBe(existing.publisherId);
+    const candidates = await store.listPublisherCandidates(source.id, ['soderhamn.se']);
+    expect(new Set(candidates.map((row) => row.publisherId))).toEqual(
+      new Set(store.publishers.map((publisher) => publisher.id)),
+    );
+  });
+
+  it('remembers a shared organizer key on each publisher without duplicating it', async () => {
+    const store = createMemoryIngestStore();
+    const first = await store.createTemporaryPublisher({
+      sourceId: source.id,
+      organizerKeys: ['soderhamn.se', 'soderhamn.se'],
+      name: 'First',
+    });
+    const second = await store.createTemporaryPublisher({
+      sourceId: source.id,
+      organizerKeys: ['other@example.com'],
+      name: 'Second',
+    });
+    await store.rememberOrganizerKeys(source.id, second.publisherId, ['soderhamn.se']);
+    await store.rememberOrganizerKeys(source.id, second.publisherId, ['soderhamn.se']);
+
+    const candidates = await store.listPublisherCandidates(source.id, ['soderhamn.se']);
+    expect(new Set(candidates.map((row) => row.publisherId))).toEqual(
+      new Set([first.publisherId, second.publisherId]),
+    );
+    const secondKeys = candidates
+      .filter((row) => row.publisherId === second.publisherId)
+      .flatMap((row) => row.organizerKeys)
+      .filter((key) => key === 'soderhamn.se');
+    expect(secondKeys).toEqual(['soderhamn.se']);
+  });
 });

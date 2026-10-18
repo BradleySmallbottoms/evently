@@ -364,12 +364,9 @@ describe('createOllamaWithToolsPromptRunner', () => {
 
   it('leaves the scan unavailable when every round is another tool call', async () => {
     const store = createMemoryIngestStore();
-    const { fetchImpl } = scriptedFetch([
-      toolCall('getAvailableTags', {}),
-      toolCall('getAvailableTags', {}),
-      toolCall('getAvailableTags', {}),
-      toolCall('getAvailableTags', {}),
-    ]);
+    const { fetchImpl } = scriptedFetch(
+      Array.from({ length: 8 }, () => toolCall('getAvailableTags', {})),
+    );
     const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
 
     const [outcome] = await runner.scan([scanInput]);
@@ -684,6 +681,56 @@ describe('createOllamaWithToolsPromptRunner', () => {
       restoreEnv('CHAT_AUTH', previous.auth);
       restoreEnv('CHAT_URL', previous.url);
     }
+  });
+
+  it('runs two scans at once when concurrency allows it', async () => {
+    const store = createMemoryIngestStore();
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const fetchImpl: typeof fetch = async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      inFlight -= 1;
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  contentVerdict: 'safe',
+                  summary: 'Musik',
+                  language: 'sv',
+                  possibleTags: [],
+                  possiblePublishers: [],
+                  possibleDuplicates: [],
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    };
+    const runner = createOllamaWithToolsPromptRunner(store, {
+      concurrency: 2,
+      fetch: fetchImpl,
+      config: {
+        chatProvider: 'openai',
+        chatUrl: 'https://example.com/v1/chat/completions',
+        chatModel: 'test',
+        chatAuth: 'test-key',
+      },
+    });
+
+    const outcomes = await runner.scan([
+      scanInput,
+      { ...scanInput, eventId: nearbyEventId, title: 'Marknad', externalId: 'cbis:2' },
+    ]);
+
+    expect(maxInFlight).toBe(2);
+    expect(outcomes.map((outcome) => outcome.eventId)).toEqual([eventId, nearbyEventId]);
+    expect(outcomes.every((outcome) => outcome.ok)).toBe(true);
   });
 });
 

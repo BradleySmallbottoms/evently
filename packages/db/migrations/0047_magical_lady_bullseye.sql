@@ -1,0 +1,3 @@
+ALTER TABLE "publisher_aliases" DROP CONSTRAINT "publisher_aliases_source_id_external_organizer_key_pk";--> statement-breakpoint
+ALTER TABLE "publisher_aliases" ADD CONSTRAINT "publisher_aliases_source_key_publisher_pk" PRIMARY KEY("source_id","external_organizer_key","publisher_id");--> statement-breakpoint
+CREATE INDEX "publisher_aliases_publisher_id_idx" ON "publisher_aliases" USING btree ("publisher_id");

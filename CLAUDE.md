@@ -132,7 +132,7 @@ Product invariants (enforced in domain, tested)
 - A new data-worker import is `pending_scan` until the scan job finishes. It becomes `published`
   only when the scan approves it, the publisher is verified and not temporary, and the source
   trust is `auto_publish`. A temporary publisher, an unverified publisher, or a review-trust
-  source goes to `in_review`.
+  source goes to `in_review`. Several publishers from one source can share an organizer key.
 - An imported physical event with no venue name uses the city in its scraped address. When that
   address has no city, the nearest city within 25 km of its point is used. A named venue stays.
 - Visit Söderhamn, Glada Hudik, and Destination Hälsingland turn each occasion into its own event.
@@ -140,6 +140,9 @@ Product invariants (enforced in domain, tested)
   `occasionCoverage` of those days (default 0.6) becomes one span (`externalId` `{productId}:span`,
   `meta.collapsed` true, with every occasion on `meta.occasions`).
   When two or more occasions stay separate, each event stores that product id on `meta.occasionGroupId`.
+  The mobile event page lists the other published occasions in that group that have not ended
+  (`GET /events/occasions`). An event with no point is included. A collapsed span lists each
+  `meta.occasions` row that has not ended on that same page. The date shown for that event is the next of those rows.
 - A lookalike within 500 m and 30 minutes is still inserted, then marked `in_review` by the scan
   job, with `meta.possibleDuplicate` pointing at the existing event. A duplicate ranked over 90 as
   another showing stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates.

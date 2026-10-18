@@ -38,7 +38,7 @@ export const IncomingEvent = z.object({
   sourceUrl: z.url(),
   /**
    * Organizer keys for this source, strongest first.
-   * Lookup tries each one against publisher_aliases and keeps the first hit.
+   * Lookup tries each one against publisher_aliases. Several publishers can share a key.
    */
   organizerKeys: z.array(z.string().trim().min(1).max(200)).min(1).max(8),
   organizerName: z.string().optional(),

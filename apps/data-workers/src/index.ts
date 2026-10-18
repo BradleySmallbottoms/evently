@@ -4,6 +4,7 @@ import { createSqsDomainEventPublisher, noopDomainEvents } from './domain-events
 import { eventImageUploaderFromEnv } from './event-images';
 import { persistSource } from './persist';
 import { promptRunnerFromEnv } from './prompt-runners';
+import { scanWithChatPod } from './scan-with-pod';
 import { parseScanSelection, scanPendingEvents } from './scan-pending';
 import { rawPayloadSinkFromEnv } from './raw-payload';
 import { runSource } from './run';
@@ -20,6 +21,9 @@ initSentry('data-workers');
  *   pnpm --filter @local-events/data-workers dev -- --job event-scan
  *   pnpm --filter @local-events/data-workers dev -- --job event-scan --event <event-id>
  *   pnpm --filter @local-events/data-workers dev -- --job event-scan --limit 1
+ *
+ * `CHAT_PROVIDER=runpod` starts the named GPU pod, drains pending rows in batches,
+ * and stops the pod when the run ends.
  *
  * A source with a data_sources row is fetched and saved. A slug with no row (the example
  * fixture) is validated only.
@@ -57,10 +61,14 @@ async function main(): Promise<number> {
       return 2;
     }
     const enqueue = queueUrl ? createSqsDomainEventPublisher({ queueUrl }) : noopDomainEvents;
-    const summary = await scanPendingEvents(store, promptRunnerFromEnv(store), enqueue, {
+    const scanOptions = {
       ...(selection.eventId ? { eventId: selection.eventId } : {}),
       ...(selection.limit != null ? { limit: selection.limit } : {}),
-    });
+    };
+    const summary =
+      process.env.CHAT_PROVIDER?.trim().toLowerCase() === 'runpod'
+        ? await scanWithChatPod({ store, databaseUrl, enqueue, selection: scanOptions })
+        : await scanPendingEvents(store, promptRunnerFromEnv(store), enqueue, scanOptions);
     console.log(JSON.stringify(summary, null, 2));
     return 0;
   }

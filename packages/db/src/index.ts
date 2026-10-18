@@ -47,4 +47,30 @@ export function createDb(url = resolveDatabaseUrl()) {
   return drizzle(client, { schema });
 }
 
+/**
+ * Session advisory lock on its own connection. A pooled connection would drop the
+ * lock as soon as the query returned. `release` unlocks and closes that connection.
+ * A lock already held by another session returns null.
+ */
+export async function tryHoldAdvisoryLock(
+  databaseUrl: string,
+  key1 = 7482,
+  key2 = 91033,
+): Promise<{ release(): Promise<void> } | null> {
+  const sql = postgres(databaseUrl, { max: 1 });
+  const rows = await sql<{ locked: boolean }[]>`
+    select pg_try_advisory_lock(${key1}, ${key2}) as locked
+  `;
+  if (!rows[0]?.locked) {
+    await sql.end({ timeout: 5 });
+    return null;
+  }
+  return {
+    async release() {
+      await sql`select pg_advisory_unlock(${key1}, ${key2})`;
+      await sql.end({ timeout: 5 });
+    },
+  };
+}
+
 export type Db = ReturnType<typeof createDb>;

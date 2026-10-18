@@ -278,12 +278,20 @@ export interface IngestStore {
   }): Promise<void>;
   /** Removes gallery rows. Never removes the hero (`main`). */
   deleteEventImages(eventId: string, roles: string[]): Promise<void>;
+  /** `pending_scan` rows whose lease is free. `eventId` counts that one row. */
+  countPendingScans(eventId?: string): Promise<number>;
   /**
    * Claims up to `limit` `pending_scan` rows whose lease is free.
    * `eventId` claims that one row when it is still `pending_scan` and the lease is free.
+   * `skipEventIds` leaves those rows for a later run.
    * The rows stay `pending_scan` until {@link finishImportedScan}.
    */
-  claimPendingScans(limit: number, leaseMs: number, eventId?: string): Promise<PendingScanRow[]>;
+  claimPendingScans(
+    limit: number,
+    leaseMs: number,
+    eventId?: string,
+    skipEventIds?: readonly string[],
+  ): Promise<PendingScanRow[]>;
   /** Drops this claim so a later run can take the row again. */
   releaseScanClaim(eventId: string, claimedUntil: Date): Promise<void>;
   /**

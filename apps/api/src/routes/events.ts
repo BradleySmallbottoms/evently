@@ -5,6 +5,7 @@ import {
   EventListResponse,
   EventResponse,
   ManagedEvent,
+  OccasionListQuery,
   PublicEventListQuery,
   PublicEventListResponse,
   UpdateEventRequest,
@@ -99,6 +100,24 @@ export function registerEventRoutes(app: OpenAPIHono, events: EventServices): vo
     const query = c.req.valid('query');
     const page = await events.listPublicEvents(query);
     return c.json(page, 200);
+  });
+
+  const listOccasions = createRoute({
+    method: 'get',
+    path: '/events/occasions',
+    request: { query: OccasionListQuery },
+    responses: {
+      200: {
+        description:
+          'Published events that share occasionGroupId and have not ended, soonest first. At most 100. An event without a point is included.',
+        content: { 'application/json': { schema: EventListResponse } },
+      },
+    },
+  });
+  app.openapi(listOccasions, async (c) => {
+    const query = c.req.valid('query');
+    const items = await events.listOccasions(query);
+    return c.json({ items }, 200);
   });
 
   const getPublicEvent = createRoute({

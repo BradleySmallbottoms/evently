@@ -9,6 +9,7 @@ import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { listPublicEvents } from '@/lib/events';
+import { shownWhen } from '@/lib/span-occasions';
 import { eventListFreshness } from '@/lib/query-client';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
 import { colors } from '@/theme/colors';
@@ -61,7 +62,7 @@ export default function MapWebScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
               <SymbolView name={'calendar' as never} size={14} tintColor={colors.inkFaint} />
               <AppText variant="caption">
-                {new Date(item.startsAt).toLocaleString(locale)}
+                {new Date(shownWhen(item, new Date()).startsAt).toLocaleString(locale)}
               </AppText>
             </View>
           </Pressable>

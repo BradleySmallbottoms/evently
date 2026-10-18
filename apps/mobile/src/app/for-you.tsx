@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { EventListItem } from '@/components/ui/event-list-item';
 import { MaxContentWidth } from '@/constants/theme';
 import { dateBadge } from '@/lib/event-format';
+import { shownWhen } from '@/lib/span-occasions';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { loadHomeTagIds } from '@/lib/home-tag-selection';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
@@ -80,7 +81,7 @@ export default function ForYouScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               priceAmount={item.priceAmount}
-              dateBadge={dateBadge(item.startsAt, locale)}
+              dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
               eventId={item.id}
               onPress={() => router.push(`/events/${item.id}`)}
             />

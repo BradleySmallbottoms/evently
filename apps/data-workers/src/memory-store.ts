@@ -231,7 +231,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           key: alias.organizerKey,
           verified: publisher.verified,
           createdAt: publisher.createdAt,
-          near: nearIds.has(publisher.id),
+          distanceMeters: nearIds.has(publisher.id) ? 0 : -1,
           isTemporary: publisher.isTemporary,
           importNotificationPlan: publisher.importNotificationPlan,
           organizerKeys: aliases
@@ -254,7 +254,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           key: nameKey,
           verified: publisher.verified,
           createdAt: publisher.createdAt,
-          near: nearIds.has(publisher.id),
+          distanceMeters: nearIds.has(publisher.id) ? 0 : -1,
           isTemporary: publisher.isTemporary,
           importNotificationPlan: publisher.importNotificationPlan,
           organizerKeys: aliases
@@ -289,7 +289,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         importNotificationPlan: null,
         createdAt: stamp(),
       });
-      for (const organizerKey of input.organizerKeys) {
+      for (const organizerKey of [...new Set(input.organizerKeys)]) {
         aliases.push({ sourceId: input.sourceId, organizerKey, publisherId: id });
       }
       return {
@@ -302,7 +302,10 @@ export function createMemoryIngestStore(): MemoryIngestStore {
     async rememberOrganizerKeys(sourceId, publisherId, organizerKeys) {
       for (const organizerKey of organizerKeys) {
         const taken = aliases.some(
-          (item) => item.sourceId === sourceId && item.organizerKey === organizerKey,
+          (item) =>
+            item.sourceId === sourceId &&
+            item.organizerKey === organizerKey &&
+            item.publisherId === publisherId,
         );
         if (taken) continue;
         aliases.push({ sourceId, organizerKey, publisherId });
@@ -518,15 +521,26 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         contentType: input.contentType,
       });
     },
-    async claimPendingScans(limit, leaseMs, eventId) {
+    async countPendingScans(eventId) {
+      const now = Date.now();
+      return events.filter(
+        (event) =>
+          event.status === 'pending_scan' &&
+          (event.scanClaimedUntil == null || event.scanClaimedUntil.getTime() < now) &&
+          (eventId == null || event.id === eventId),
+      ).length;
+    },
+    async claimPendingScans(limit, leaseMs, eventId, skipEventIds) {
       const now = Date.now();
       const until = new Date(now + leaseMs);
+      const skip = new Set(skipEventIds ?? []);
       const due = events
         .filter(
           (event) =>
             event.status === 'pending_scan' &&
             (event.scanClaimedUntil == null || event.scanClaimedUntil.getTime() < now) &&
-            (eventId == null || event.id === eventId),
+            (eventId == null || event.id === eventId) &&
+            !skip.has(event.id),
         )
         .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0))
         .slice(0, eventId ? 1 : limit);

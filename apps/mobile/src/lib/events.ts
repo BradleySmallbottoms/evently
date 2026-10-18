@@ -122,6 +122,14 @@ export async function listPublicEvents(
   );
 }
 
+export async function listOccasionEvents(occasionGroupId: string) {
+  return throwIfError(
+    await api.GET('/events/occasions', {
+      params: { query: { occasionGroupId } },
+    }),
+  );
+}
+
 export async function getPublicEvent(id: string) {
   return throwIfError(
     await api.GET('/events/{id}', {

@@ -217,8 +217,18 @@ export function createMemoryAdminPublisherServices(
         movedEventCount += 1;
       }
       if (store.aliases) {
-        for (const alias of store.aliases.values()) {
-          if (alias.publisherId === sourcePublisherId) alias.publisherId = targetPublisherId;
+        const held = new Set(
+          [...store.aliases.values()]
+            .filter((alias) => alias.publisherId === targetPublisherId)
+            .map((alias) => `${alias.sourceId}:${alias.externalOrganizerKey}`),
+        );
+        for (const [id, alias] of store.aliases) {
+          if (alias.publisherId !== sourcePublisherId) continue;
+          if (held.has(`${alias.sourceId}:${alias.externalOrganizerKey}`)) {
+            store.aliases.delete(id);
+            continue;
+          }
+          alias.publisherId = targetPublisherId;
         }
       }
       store.publishers.delete(sourcePublisherId);
@@ -434,6 +444,38 @@ export function createDbAdminPublisherServices(
         .set({ publisherId: targetPublisherId, updatedAt: at })
         .where(eq(schema.events.publisherId, sourcePublisherId))
         .returning({ id: schema.events.id });
+
+      const [sourceAliases, targetAliases] = await Promise.all([
+        db
+          .select({
+            sourceId: schema.publisherAliases.sourceId,
+            externalOrganizerKey: schema.publisherAliases.externalOrganizerKey,
+          })
+          .from(schema.publisherAliases)
+          .where(eq(schema.publisherAliases.publisherId, sourcePublisherId)),
+        db
+          .select({
+            sourceId: schema.publisherAliases.sourceId,
+            externalOrganizerKey: schema.publisherAliases.externalOrganizerKey,
+          })
+          .from(schema.publisherAliases)
+          .where(eq(schema.publisherAliases.publisherId, targetPublisherId)),
+      ]);
+      const held = new Set(
+        targetAliases.map((alias) => `${alias.sourceId}:${alias.externalOrganizerKey}`),
+      );
+      for (const alias of sourceAliases) {
+        if (!held.has(`${alias.sourceId}:${alias.externalOrganizerKey}`)) continue;
+        await db
+          .delete(schema.publisherAliases)
+          .where(
+            and(
+              eq(schema.publisherAliases.publisherId, sourcePublisherId),
+              eq(schema.publisherAliases.sourceId, alias.sourceId),
+              eq(schema.publisherAliases.externalOrganizerKey, alias.externalOrganizerKey),
+            ),
+          );
+      }
 
       await db
         .update(schema.publisherAliases)

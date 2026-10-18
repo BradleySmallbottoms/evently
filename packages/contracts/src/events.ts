@@ -283,6 +283,15 @@ export const EventListResponse = z.object({
 });
 export type EventListResponse = z.infer<typeof EventListResponse>;
 
+/** Soonest published occasions returned for one `occasionGroupId`. */
+export const OCCASION_LIST_LIMIT = 100;
+
+export const OccasionListQuery = z.object({
+  /** Source product id stored on `meta.occasionGroupId`. */
+  occasionGroupId: z.string().trim().min(1).max(200),
+});
+export type OccasionListQuery = z.infer<typeof OccasionListQuery>;
+
 export const PublicEventListResponse = z.object({
   items: z.array(Event),
   /** Pass as `offset` to load the next page. Null on the last page. */

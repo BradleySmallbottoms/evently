@@ -3896,6 +3896,123 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/occasions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    occasionGroupId: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Published events that share occasionGroupId and have not ended, soonest first. At most 100. An event without a point is included. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                publisherId: string;
+                                title: string;
+                                description: string | null;
+                                /** @enum {string} */
+                                mode: "physical" | "digital";
+                                /** @enum {string} */
+                                status: "draft" | "awaiting_verification" | "pending_scan" | "in_review" | "published" | "cancelled" | "ended";
+                                /** @enum {string} */
+                                origin: "native" | "imported";
+                                /** Format: date-time */
+                                startsAt: string;
+                                /** Format: date-time */
+                                endsAt: string;
+                                timezone: string;
+                                venueName: string | null;
+                                location: {
+                                    lat: number;
+                                    lng: number;
+                                } | null;
+                                geofenceRadiusM: number | null;
+                                /** Format: uri */
+                                onlineUrl: string | null;
+                                priceAmount: number | null;
+                                currency: string;
+                                meta: {
+                                    ageLimit?: number;
+                                    freeEntry?: boolean;
+                                    accessibleParking?: boolean;
+                                    accessibleToilet?: boolean;
+                                    hearingLoop?: boolean;
+                                    visuallyImpairedAccess?: boolean;
+                                    wheelchairAccessible?: boolean;
+                                    petsAllowed?: boolean;
+                                    childFriendly?: boolean;
+                                    allergyAdapted?: boolean;
+                                    smokeFree?: boolean;
+                                    wc?: boolean;
+                                    occasionGroupId?: string;
+                                    collapsed?: boolean;
+                                    occasions?: {
+                                        /** Format: date-time */
+                                        startsAt: string;
+                                        /** Format: date-time */
+                                        endsAt?: string;
+                                        venueName?: string;
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    }[];
+                                };
+                                publisherName: string;
+                                links: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** @enum {string} */
+                                    type: "tickets" | "registration" | "info";
+                                    /** Format: uri */
+                                    url: string;
+                                    label: string | null;
+                                    position: number;
+                                }[];
+                                /** Format: uri */
+                                imageUrl: string | null;
+                                imageUrls: string[];
+                                tagIds: string[];
+                                featured: boolean;
+                                checkInEnabled: boolean;
+                                numSaved: number;
+                                numComing: number;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{id}": {
         parameters: {
             query?: never;

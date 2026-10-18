@@ -15,9 +15,13 @@ pnpm --filter @local-events/data-workers dev -- --job event-scan --limit 1
 
 The job claims rows whose lease is free and passes that batch to the prompt runner
 in one call. Each row carries the event text and the organizer keys. The runner loads publisher
-and duplicate candidates itself. The chat runner walks the batch one event at a time. With no
-`CHAT_PROVIDER` it calls local Ollama. `CHAT_PROVIDER=chatgpt` uses `OPENAI_API_KEY`.
-`CHAT_PROVIDER=claude` uses `ANTHROPIC_API_KEY`.
+and duplicate candidates itself. With no `CHAT_PROVIDER` it calls local Ollama, one event at a
+time. `CHAT_PROVIDER=chatgpt` uses `OPENAI_API_KEY`. `CHAT_PROVIDER=claude` uses
+`ANTHROPIC_API_KEY`. `CHAT_PROVIDER=runpod` starts the pod `evnt-scan` in `CA-MTL-1`, waits until
+vLLM answers, then drains the queue in batches of five with three scans at a time. Publisher
+writes still happen after each batch, in claim order. The pod stops when the queue is empty.
+`RUNPOD_API_KEY` and `RUNPOD_CHAT_KEY` are required. A second task exits while the first holds
+the scan lock. `--event` and `--limit` still scan one batch.
 
 For each event the Ollama runner:
 
@@ -55,10 +59,16 @@ sequenceDiagram
   participant DB as Postgres
 
   Scheduler->>Job: JOB=event-scan
+  alt CHAT_PROVIDER=runpod
+    Job->>Job: start pod, wait until vLLM answers
+  end
   Job->>DB: claim pending_scan rows
-  Job->>Runner: scan(batch of event data and organizer keys)
+  Job->>Runner: scan(batch, three at a time on the pod)
   Runner->>DB: load publisher and duplicate candidates
   Runner-->>Job: publisher, duplicate, approval, tags
   Job->>DB: set publisher, tags, in_review or published
   Job->>DB: enqueue event.published when published
+  alt CHAT_PROVIDER=runpod
+    Job->>Job: stop the pod
+  end
 ```

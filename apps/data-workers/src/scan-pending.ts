@@ -20,6 +20,8 @@ export interface ScanSummary {
   review: number;
   unavailable: number;
   skipped: number;
+  /** Rows this call claimed, including ones the model could not finish. */
+  eventIds: string[];
 }
 
 const EVENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -66,17 +68,18 @@ export async function scanPendingEvents(
   store: IngestStore,
   runner: PromptRunner,
   enqueue: DomainEventSink = noopDomainEvents,
-  options: { limit?: number; leaseMs?: number; eventId?: string } = {},
+  options: { limit?: number; leaseMs?: number; eventId?: string; skipEventIds?: readonly string[] } = {},
 ): Promise<ScanSummary> {
   const limit = options.limit ?? SCAN_BATCH_LIMIT;
   const leaseMs = options.leaseMs ?? SCAN_LEASE_MS;
-  const claimed = await store.claimPendingScans(limit, leaseMs, options.eventId);
+  const claimed = await store.claimPendingScans(limit, leaseMs, options.eventId, options.skipEventIds);
   const summary: ScanSummary = {
     claimed: claimed.length,
     published: 0,
     review: 0,
     unavailable: 0,
     skipped: 0,
+    eventIds: claimed.map((row) => row.eventId),
   };
   if (claimed.length === 0) return summary;
   const batch: ScanInput[] = [];

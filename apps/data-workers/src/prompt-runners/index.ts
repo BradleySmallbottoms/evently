@@ -10,6 +10,7 @@ export type { OllamaWithToolsRunnerOptions } from './chatwithtools';
 /**
  * The scan job's chat runner. `CHAT_PROVIDER=chatgpt` uses `OPENAI_API_KEY`.
  * `CHAT_PROVIDER=claude` uses `ANTHROPIC_API_KEY`. Unset stays on local Ollama.
+ * `CHAT_PROVIDER=runpod` is handled by the scan job, which points this runner at the pod.
  */
 export function promptRunnerFromEnv(
   store: IngestStore,

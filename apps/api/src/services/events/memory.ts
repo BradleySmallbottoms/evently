@@ -1,9 +1,11 @@
 import {
+  OCCASION_LIST_LIMIT,
   publicEventTagIds,
   type CreateEventRequest,
   type Event,
   type EventLink,
   type ManagedEvent,
+  type OccasionListQuery,
   type PublicEventListQuery,
   type UpdateEventRequest,
 } from '@local-events/contracts';
@@ -343,6 +345,20 @@ export function createMemoryEventServices(
         toPublic(row, store),
       );
       return { items, nextOffset: hasMore ? query.offset + query.limit : null };
+    },
+
+    async listOccasions(query: OccasionListQuery) {
+      const now = env.now();
+      return [...events.values()]
+        .filter((event) => event.status === 'published')
+        .filter((event) => event.endsAtDate >= now)
+        .filter((event) => event.meta.occasionGroupId === query.occasionGroupId)
+        .sort((a, b) => {
+          const byDate = a.startsAt.localeCompare(b.startsAt);
+          return byDate !== 0 ? byDate : a.id.localeCompare(b.id);
+        })
+        .slice(0, OCCASION_LIST_LIMIT)
+        .map((row) => toPublic(row, store));
     },
   };
 }
