@@ -49,7 +49,7 @@ import {
 } from '@/lib/region-suggestion';
 import { shouldReevaluateRegionSuggestion } from '@/lib/foreground-location';
 import { dateBadge } from '@/lib/event-format';
-import { shownWhen } from '@/lib/span-occasions';
+import { isWholeDay, shownWhen } from '@/lib/span-occasions';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { updateAreaTags } from '@/lib/preferences';
 import { useSaveDiscoveryRadius } from '@/lib/save-discovery-radius';
@@ -472,7 +472,14 @@ export default function HomeScreen() {
                     <View key={item.id} style={{ width: 280 }}>
                       <EventCard
                         title={item.title}
-                        when={new Date(shownWhen(item, new Date()).startsAt).toLocaleString(locale)}
+                        when={
+                          isWholeDay(
+                            shownWhen(item, new Date()).startsAt,
+                            shownWhen(item, new Date()).endsAt,
+                          )
+                            ? t('events.wholeDay')
+                            : new Date(shownWhen(item, new Date()).startsAt).toLocaleString(locale)
+                        }
                         where={
                           item.mode === 'physical'
                             ? (item.venueName ?? t('events.missingVenue'))
@@ -516,7 +523,14 @@ export default function HomeScreen() {
                   <View key={item.id} style={{ paddingHorizontal: space.xl }}>
                     <EventCard
                       title={item.title}
-                      when={new Date(shownWhen(item, new Date()).startsAt).toLocaleString(locale)}
+                      when={
+                          isWholeDay(
+                            shownWhen(item, new Date()).startsAt,
+                            shownWhen(item, new Date()).endsAt,
+                          )
+                            ? t('events.wholeDay')
+                            : new Date(shownWhen(item, new Date()).startsAt).toLocaleString(locale)
+                        }
                       where={
                         item.mode === 'physical'
                           ? (item.venueName ?? t('events.missingVenue'))

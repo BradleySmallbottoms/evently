@@ -73,7 +73,7 @@ calls) in the same change as every new major feature.**
   A collapsed run is one event with `meta.collapsed` true and every occasion on `meta.occasions`. When two or more occasions stay separate, each event stores the
   product id on `meta.occasionGroupId`. The mobile event page loads the other published occasions
   in that group from `GET /v1/events/occasions?occasionGroupId=` and lists the ones that have not ended.
-  A collapsed span lists each `meta.occasions` row that has not ended on that same page, and the date shown is the next of those rows.
+  A collapsed span lists each `meta.occasions` row that has not ended on that same page, and the date shown is the next of those rows. The same start and end is a whole day, shown as “Whole Day” through the end of that calendar day.
   A Citybreak time ending in `Z`, or with a numeric offset, is stored as that instant. A time with no zone is Europe/Stockholm. Hälsingland and Hudiksvall date-and-period values are Stockholm wall time too.
   Categories under Evenemang are stored as the tag catalog (`external_id` `visit-soderhamn:{id}`).
   The import does not put those tags on the event. The scan job does. `GET /v1/tags` is that list. The mobile home and search call it with

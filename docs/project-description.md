@@ -19,7 +19,7 @@ Core concepts:
   radius. Tags and an online URL do not replace a missing point. Direct lookup by id still
   returns it. It has no map pin and does not match nearby push. The detail page lists other times
   that have not ended: separate occasions that share `meta.occasionGroupId`, and each row on
-  `meta.occasions` for a collapsed span. A collapsed event shows the next of those rows, not the span start. Has tags, a schedule, and optional attendee-only content (maps,
+  `meta.occasions` for a collapsed span. A collapsed event shows the next of those rows, not the span start. The same start and end is a whole day: the time reads “Whole Day”, and that day stays current until it is over. Has tags, a schedule, and optional attendee-only content (maps,
   schedules, info). Users can subscribe to an event and are notified when it changes.
 - **User** — anonymous by default: the app creates an identity on first launch, no registration.
   Sets notification areas (radius around a point, a drawn area, or a region

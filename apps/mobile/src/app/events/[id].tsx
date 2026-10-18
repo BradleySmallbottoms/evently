@@ -55,7 +55,7 @@ import {
   type ReminderSlot,
 } from '@/lib/reminder-times';
 import { directionsUrl } from '@/lib/directions';
-import { shownWhen, upcomingSpanOccasions } from '@/lib/span-occasions';
+import { isWholeDay, shownWhen, upcomingSpanOccasions } from '@/lib/span-occasions';
 import { shareEventLink } from '@/lib/event-share';
 import { buildEventWebUrl } from '@/lib/event-share-url';
 import { reportEvent } from '@/lib/reports';
@@ -104,7 +104,11 @@ export default function EventDetailScreen() {
     enabled: typeof occasionGroupId === 'string' && occasionGroupId.length > 0,
   });
   const otherOccasions = useMemo(() => {
-    const folded = upcomingSpanOccasions(event.data?.meta.occasions, new Date()).map(
+    const folded = upcomingSpanOccasions(
+      event.data?.meta.occasions,
+      new Date(),
+      event.data?.timezone,
+    ).map(
       (occasion, index) => ({
         key: `${occasion.startsAt}-${index}`,
         startsAt: occasion.startsAt,
@@ -693,13 +697,15 @@ export default function EventDetailScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                       <DetailIcon sf="clock" md="schedule" />
                       <AppText variant="caption" style={{ color: colors.ink }}>
-                        {`${new Date(shown!.startsAt).toLocaleTimeString(locale, {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })} – ${new Date(shown!.endsAt).toLocaleTimeString(locale, {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}`}
+                        {isWholeDay(shown!.startsAt, shown!.endsAt)
+                          ? t('events.wholeDay')
+                          : `${new Date(shown!.startsAt).toLocaleTimeString(locale, {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })} – ${new Date(shown!.endsAt).toLocaleTimeString(locale, {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}`}
                       </AppText>
                     </View>
                   </View>

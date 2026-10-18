@@ -1,11 +1,13 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { useTranslation } from 'react-i18next';
 import { Pressable, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { DateBox } from '@/components/ui/date-box';
 import { dateBadge } from '@/lib/event-format';
+import { isWholeDay } from '@/lib/span-occasions';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
@@ -30,6 +32,7 @@ export function OccasionList({
   locale: string;
   missingVenue: string;
 }) {
+  const { t } = useTranslation();
   if (items.length === 0) return null;
   return (
     <View style={{ gap: space.sm }}>
@@ -47,7 +50,11 @@ export function OccasionList({
                 minute: '2-digit',
               })
             : null;
-          const when = end ? `${start} – ${end}` : start;
+          const when = isWholeDay(item.startsAt, item.endsAt)
+            ? t('events.wholeDay')
+            : end
+              ? `${start} – ${end}`
+              : start;
           const row = (
             <>
               <DateBox badge={dateBadge(item.startsAt, locale)} surface={colors.accentSoft} />

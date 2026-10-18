@@ -46,4 +46,27 @@ describe('shownWhen', () => {
       endsAt: event.endsAt,
     });
   });
+
+  it('keeps a whole-day occasion through the end of its calendar day', () => {
+    const afternoon = new Date('2026-10-18T17:34:00.000Z');
+    const today = '2026-10-18T00:00:00+02:00';
+    const tomorrowStart = '2026-10-19T09:00:00+02:00';
+    const span = {
+      startsAt: '2026-10-01T00:00:00+02:00',
+      endsAt: '2026-10-31T00:00:00+02:00',
+      timezone: 'Europe/Stockholm',
+      meta: {
+        occasions: [
+          { startsAt: '2026-10-17T00:00:00+02:00', endsAt: '2026-10-17T00:00:00+02:00' },
+          { startsAt: today, endsAt: today },
+          { startsAt: tomorrowStart, endsAt: '2026-10-19T15:00:00+02:00' },
+        ],
+      },
+    };
+    expect(shownWhen(span, afternoon)).toEqual({ startsAt: today, endsAt: today });
+    expect(upcomingSpanOccasions(span.meta.occasions, afternoon, span.timezone)).toEqual([
+      span.meta.occasions[1],
+      span.meta.occasions[2],
+    ]);
+  });
 });
