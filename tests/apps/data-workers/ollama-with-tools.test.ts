@@ -175,7 +175,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
   it('sends tool definitions and returns nearby events the model asked for', async () => {
     const store = storeWithNearbyRows();
     const { fetchImpl, bodies } = scriptedFetch([
-      toolCall('getNearbyEvents', { lat: 61.3, lng: 17.07 }),
+      toolCall('getNearbyEvents', {}),
       finalAnswer,
     ]);
     const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
@@ -186,9 +186,13 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(bodies[0]?.tools?.map((tool) => tool.function.name)).toEqual([
       'getNearbyEvents',
       'getNearbyPublishers',
+      'getPublishersByName',
       'getPossiblePublishers',
       'getAvailableTags',
     ]);
+    expect(bodies[0]?.tools?.find((tool) => tool.function.name === 'getNearbyEvents')?.function).not.toHaveProperty(
+      'parameters.required',
+    );
     expect(bodies[0]?.messages[0]?.content).toContain('getNearbyEvents');
     const toolMessage = bodies[1]?.messages.find((message) => message.role === 'tool');
     expect(toolMessage?.content).toContain('Marknad på torget');
@@ -210,7 +214,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
   it('returns publishers that have an event near the point', async () => {
     const store = storeWithNearbyRows();
     const { fetchImpl, bodies } = scriptedFetch([
-      toolCall('getNearbyPublishers', { lat: 61.3, lng: 17.07 }),
+      toolCall('getNearbyPublishers', {}),
       finalAnswer,
     ]);
     const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
@@ -222,11 +226,37 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(toolMessage?.content).not.toContain('Långt bort');
   });
 
-  it('returns the tag catalog and rejects a coordinate outside the valid range', async () => {
+  it('returns the tag catalog and publishers whose name matches within 50 km', async () => {
     const store = storeWithNearbyRows();
+    const farNameId = '33333333-3333-4333-8333-333333333403';
+    store.publishers.push({
+      id: farNameId,
+      name: 'Hälsinglands teater',
+      slug: 'halsinglands-teater',
+      isTemporary: false,
+      verified: true,
+      importNotificationPlan: null,
+      createdAt: 3,
+    });
+    store.events.push({
+      id: '33333333-3333-4333-8333-333333333306',
+      publisherId: farNameId,
+      title: 'Teater långt bort',
+      description: null,
+      status: 'published',
+      origin: 'imported',
+      sourceUrl: 'https://example.com/teater',
+      startsAt: new Date('2027-06-01T20:00:00.000Z'),
+      endsAt: new Date('2027-06-01T22:00:00.000Z'),
+      venueName: 'Teatern',
+      location: { lat: 62.5, lng: 17.07 },
+      tagIds: [],
+      meta: {},
+    });
     const { fetchImpl, bodies } = scriptedFetch([
       toolCall('getAvailableTags', {}),
-      toolCall('getNearbyEvents', { lat: 200, lng: 17.07 }),
+      toolCall('getPublishersByName', { name: 'Hälsing*' }),
+      toolCall('getPublishersByName', { name: '*' }),
       finalAnswer,
     ]);
     const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
@@ -234,26 +264,13 @@ describe('createOllamaWithToolsPromptRunner', () => {
     await runner.scan([scanInput]);
 
     const tags = bodies[1]?.messages.find((message) => message.role === 'tool');
-    const rejected = bodies[2]?.messages.filter((message) => message.role === 'tool').at(-1);
+    const matched = bodies[2]?.messages.filter((message) => message.role === 'tool').at(-1);
+    const rejected = bodies[3]?.messages.filter((message) => message.role === 'tool').at(-1);
     expect(tags?.content).toContain('"id":"visit-soderhamn:30194"');
-    expect(tags?.content).toContain('Bandy & Innebandy');
-    expect(rejected?.content).toContain('lat must be a number');
-    expect(rejected?.content).not.toContain('Marknad på torget');
-  });
-
-  it('rejects a blank coordinate instead of searching at latitude zero', async () => {
-    const store = storeWithNearbyRows();
-    const { fetchImpl, bodies } = scriptedFetch([
-      toolCall('getNearbyEvents', { lat: '', lng: 17.07 }),
-      finalAnswer,
-    ]);
-    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
-
-    await runner.scan([scanInput]);
-
-    const toolMessage = bodies[1]?.messages.find((message) => message.role === 'tool');
-    expect(toolMessage?.content).toContain('lat must be a number');
-    expect(toolMessage?.content).not.toContain('Marknad på torget');
+    expect(matched?.content).toContain('Hälsinglands museum');
+    expect(matched?.content).not.toContain('Hälsinglands teater');
+    expect(rejected?.content).toContain('at least one letter or number');
+    expect(rejected?.content).not.toContain('Hälsinglands museum');
   });
 
   it('leaves the scan unavailable when the model reply has no text', async () => {
@@ -499,7 +516,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
       const [outcome] = await runner.scan([scanInput]);
       expect(seen?.url).toBe('https://api.anthropic.com/v1/messages');
       expect(seen?.apiKey).toBe('anthropic-test-key');
-      expect(seen?.model).toBe('claude-sonnet-4-5');
+      expect(seen?.model).toBe('claude-sonnet-5-5');
       expect(outcome).toMatchObject({ ok: true, language: 'en' });
     } finally {
       restoreEnv('CHAT_PROVIDER', previous.provider);

@@ -1,5 +1,5 @@
 
-import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
+import { type NearbyWindow } from '@local-events/geo';
 import {
   ollamaBaseUrl,
   ollamaDisabled,
@@ -11,7 +11,7 @@ import {
   type TagMatchInput,
 } from '@local-events/ingest';
 import { LOCAL_ORGANIZER_SLUGS } from '../sources';
-import { NEARBY_DAYS_AFTER, NEARBY_DAYS_BEFORE, type IngestStore, type NearbyEventHit, type NearbyPublisherHit, type PublisherCandidate, type PublisherRecord } from '../store';
+import { NEARBY_DAYS_AFTER, NEARBY_DAYS_BEFORE, publisherNameMatcher, type IngestStore, type NearbyEventHit, type NearbyPublisherHit, type PublisherCandidate, type PublisherRecord } from '../store';
 import type { ChosenPublisher, PossibleDuplicateMatch, PromptRunner, ScanInput, ScanOutcome } from './types';
 
 /** How long one Ollama request may run before the scan gives up on it. */
@@ -81,22 +81,15 @@ type ToolResult =
  * Radius, time window, and row cap are described here and enforced in the lookups.
  */
 function chatToolDefinitions(): object[] {
-  const point = {
-    lat: { type: 'number', description: 'Latitude in decimal degrees.' },
-    lng: { type: 'number', description: 'Longitude in decimal degrees.' },
-  };
+  const noArguments = { type: 'object', properties: {} };
   return [
     {
       type: 'function',
       function: {
         name: 'getNearbyEvents',
         description:
-          'Events within 500 m of a point. Their start is from 1 day before the event being scanned through 1 days after. Cancelled and ended events are left out. Use this to see what is already listed nearby.',
-        parameters: {
-          type: 'object',
-          properties: point,
-          required: ['lat', 'lng'],
-        },
+          'Events within 5 km of the event being scanned. Their start is from 1 day before that event through 1 day after. Cancelled and ended events are left out. Takes no arguments; the event point is used.',
+        parameters: noArguments,
       },
     },
     {
@@ -104,11 +97,25 @@ function chatToolDefinitions(): object[] {
       function: {
         name: 'getNearbyPublishers',
         description:
-          'Publishers that have an event within 500 m in that same time window. A publisher has no point of its own; near means one of its events is near.',
+          'Publishers that have an event within 5 km of the event being scanned, in that same time window. Takes no arguments; the event point is used.',
+        parameters: noArguments,
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'getPublishersByName',
+        description:
+          'Publishers whose name matches. * matches any text and ? matches one character. Only publishers with an event within 50 km of the event being scanned are returned.',
         parameters: {
           type: 'object',
-          properties: point,
-          required: ['lat', 'lng'],
+          properties: {
+            name: {
+              type: 'string',
+              description: 'Publisher name. Use * for any text and ? for one character, for example Hälsing*.',
+            },
+          },
+          required: ['name'],
         },
       },
     },
@@ -116,16 +123,16 @@ function chatToolDefinitions(): object[] {
       type: 'function',
       function: {
         name: 'getPossiblePublishers',
-        description: 'Publishers that matches on organizer keys like name, links, etc.',
-        parameters: { type: 'object', properties: {} },
+        description: 'Publishers that match the organizer keys of the event being scanned. Takes no arguments.',
+        parameters: noArguments,
       },
     },
     {
       type: 'function',
       function: {
         name: 'getAvailableTags',
-        description: 'The tag catalog. Call this before choosing tags. Only ids from this list may be used.',
-        parameters: { type: 'object', properties: {} },
+        description: 'The tag catalog. Call this before choosing tags. Only ids from this list may be used. Takes no arguments.',
+        parameters: noArguments,
       },
     },
   ];
@@ -242,27 +249,27 @@ async function bestDuplicate(content: LLMScanResult & LLMOutput, context: Lookup
 }
 
 /**
-/**
  * Tells the model which tools exist and which JSON object to return when it is done.
- * The event's own coordinates are included so it can pass them to the nearby tools.
- * The tag catalog is not inlined; the model calls getAvailableTags for that.
+ * Nearby tools take no coordinates; they use this event's point. The tag catalog is
+ * not inlined; the model calls getAvailableTags for that.
  */
 function buildScanPrompt(event: ScanInput): string {
   const description = event.description?.replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_LIMIT);
   const place = event.location ? `lat ${event.location.lat}, lng ${event.location.lng}` : 'none';
   return [
     'You scan one imported event for spam, language, tags, wrote a short summary, find publisher and duplicate event.',
-    '- getNearbyEvents(lat, lng): events within 5 km, from 1 day before this event through 1 days after.',
-    '- getNearbyPublishers(lat, lng): publishers that have published an event within 500m of this event.',
-    '- getPossiblePublishers(): publishers that matches on organizer keys like name, links, etc.',
-    '- getAvailableTags(): the only tags you may use.',
+    '- getNearbyEvents(): events within 5 km of this event, from 1 day before it through 1 day after. No arguments.',
+    '- getNearbyPublishers(): publishers that have published an event within 5 km of this event. No arguments.',
+    '- getPublishersByName(name): publishers whose name matches. * is any text, ? is one character. Only publishers within 50 km of this event are returned.',
+    '- getPossiblePublishers(): publishers that match the organizer keys. No arguments.',
+    '- getAvailableTags(): the only tags you may use. No arguments.',
     'You must call a tool when you need data. Do not invent event, publisher, or tag ids.',
     'You must call getAvailableTags, getPossiblePublishers and getNearbyEvents before it can choose tags, a publisher, or a duplicate.',
     'Start with language and content verdict, then tags, then publisher, then duplicate',
     'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe".',
     'Match the tags to the event as best as you can. Score the tags from 0 to 100 and include only scores over 90. Pick at most 5 tags.',
     'Try matching this publisher against existing publishers using the getPossiblePublishers. A match is when the publisher name similarity is high, a matching publisher key strengthens the match.',
-    'When no possible publisher matches, call the tool getNearbyPublishers (do not use nearbyEvents) to find publishers that have published an event within 500 m of this event.',
+    'When no possible publisher matches, call getNearbyPublishers. To search by name, call getPublishersByName. Do not pass coordinates to any tool.',
     'Rank the found publishers by how well they match the publisher name and keys, if a publisher is a positive match, return it in possiblePublishers.',
     'Try to find a duplicate event using getNearbyEvents()',
     'Compare the title, location, and description, description similarity is most important, of the found event with the event being scanned to find a duplicate. Rank the match from 0 to 100.',
@@ -327,7 +334,7 @@ const CHAT_PROVIDERS = {
   },
   anthropic: {
     url: 'https://api.anthropic.com/v1/messages',
-    defaultModel: 'claude-sonnet-4-5',
+    defaultModel: 'claude-sonnet-5-5',
     authConfig: 'anthropicApiKey',
     authEnv: 'ANTHROPIC_API_KEY',
     modelConfig: 'anthropicModel',
@@ -647,8 +654,9 @@ async function executeToolCall(call: ParsedToolCall, context: LookupContext): Pr
   try {
     console.log('Running call', call.name);
     if (call.name === 'getAvailableTags') return lookupAvailableTags(context.catalog);
-    if (call.name === 'getNearbyEvents') return lookupNearbyEvents(call.arguments, context);
-    if (call.name === 'getNearbyPublishers') return lookupNearbyPublishers(call.arguments, context);
+    if (call.name === 'getNearbyEvents') return lookupNearbyEvents(context);
+    if (call.name === 'getNearbyPublishers') return lookupNearbyPublishers(context);
+    if (call.name === 'getPublishersByName') return lookupPublishersByName(call.arguments, context);
     if (call.name === 'getPossiblePublishers') return lookupPossiblePublishers(context);
     return { error: `Unknown tool ${call.name}.` };
   } catch {
@@ -664,27 +672,10 @@ function lookupAvailableTags(catalog: TagChoice[]): ToolResult {
   return { tags: catalog.map((tag) => ({ id: tag.externalId, name: tag.name })) };
 }
 
-/**
- * Accepts lat and lng. `long` is accepted when `lng` is missing.
- * Out-of-range values are an error and do not query anything.
- */
-function readLookupPoint(args: Record<string, unknown>): GeoPoint | { error: string } {
-  const lat = finiteNumber(args.lat);
-  const lng = finiteNumber(args.lng ?? args.long);
-  if (lat == null || lat < -90 || lat > 90) return { error: 'lat must be a number from -90 to 90.' };
-  if (lng == null || lng < -180 || lng > 180) return { error: 'lng must be a number from -180 to 180.' };
-  return { lat, lng };
-}
-
-/**
- * A finite number, or null. Numeric strings are accepted because some models quote them.
- * A blank string is rejected so it is not read as zero.
- */
-function finiteNumber(value: unknown): number | null {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value !== 'string' || value.trim() === '') return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
+/** The event's own point. Nearby tools never take coordinates from the model. */
+function eventPoint(context: LookupContext): { lat: number; lng: number } | { error: string } {
+  if (!context.event.location) return { error: 'This event has no point.' };
+  return context.event.location;
 }
 
 /**
@@ -701,16 +692,14 @@ function nearbyWindow(startsAt: string): NearbyWindow {
 }
 
 /**
- * Nearby events for the point the model sent. The scanned event is left out.
+ * Nearby events around the event being scanned. The scanned event is left out.
+ * The model does not pass a point.
  */
-async function lookupNearbyEvents(
-  args: Record<string, unknown>,
-  context: LookupContext,
-): Promise<ToolResult> {
-  const point = readLookupPoint(args);
+async function lookupNearbyEvents(context: LookupContext): Promise<ToolResult> {
+  const point = eventPoint(context);
   if ('error' in point) return point;
   const window = nearbyWindow(context.event.startsAt);
-  const events = await context.store.nearbyEvents(point, window, context.event.eventId)
+  const events = await context.store.nearbyEvents(point, window, context.event.eventId);
   return { events };
 }
 
@@ -742,14 +731,28 @@ async function lookupPossiblePublishers(
  * Publishers with an event near the point, in the same window as nearby events.
  * Each publisher is returned once, from its closest event, capped at 20.
  */
-async function lookupNearbyPublishers(
+async function lookupNearbyPublishers(context: LookupContext): Promise<ToolResult> {
+  const point = eventPoint(context);
+  if ('error' in point) return point;
+  const window = nearbyWindow(context.event.startsAt);
+  const publishers = await context.store.nearbyPublishers(point, window, context.event.eventId);
+  return { publishers };
+}
+
+/**
+ * Publishers whose name matches `*` and `?`, and that have an event within 50 km
+ * of the event being scanned. A pattern with no letter or number is an error.
+ */
+async function lookupPublishersByName(
   args: Record<string, unknown>,
   context: LookupContext,
 ): Promise<ToolResult> {
-  const point = readLookupPoint(args);
+  const point = eventPoint(context);
   if ('error' in point) return point;
-  const window = nearbyWindow(context.event.startsAt);
-  const publishers = await context.store.nearbyPublishers(point, window, context.event.eventId)
+  const name = typeof args.name === 'string' ? args.name : '';
+  const matcher = publisherNameMatcher(name);
+  if ('error' in matcher) return matcher;
+  const publishers = await context.store.publishersByName(point, name, context.event.eventId);
   return { publishers };
 }
 

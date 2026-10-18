@@ -14,7 +14,7 @@ import {
   tagSlug,
 } from '@local-events/domain';
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, sql } from 'drizzle-orm';
-import { type EventRecord, type PublisherRecord, NEARBY_RADIUS_M, type ImportedEventWrite, type IngestStore, type PendingScanRow, type ScanPublisherCandidate, type NearbyPublisherHit, type NearbyEventHit, NEARBY_RESULT_LIMIT, type PublisherLink } from './store';
+import { type EventRecord, type PublisherRecord, NEARBY_RADIUS_M, PUBLISHER_NAME_SEARCH_RADIUS_M, publisherNameMatcher, type ImportedEventWrite, type IngestStore, type PendingScanRow, type ScanPublisherCandidate, type NearbyPublisherHit, type NearbyEventHit, NEARBY_RESULT_LIMIT, type PublisherLink } from './store';
 import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
 
 function eventValues(input: ImportedEventWrite) {
@@ -846,6 +846,58 @@ export function createDbIngestStore(db: Db): IngestStore {
         const aliases = await db.select({
           key: publisherAliases.externalOrganizerKey,
         }).from(publisherAliases).where(eq(publisherAliases.publisherId, row.id));
+        const hit: NearbyPublisherHit = {
+          id: row.id,
+          name: row.name,
+          verified: row.verified,
+          temporary: row.temporary,
+          nearestEventTitle: row.nearestEventTitle,
+          distanceM: Math.round(Number(row.distanceM)),
+          organizerKeys: aliases.map((alias) => alias.key),
+        };
+        const current = closest.get(hit.id);
+        if (!current || hit.distanceM < current.distanceM) closest.set(hit.id, hit);
+      }
+      return [...closest.values()].sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
+    },
+    /**
+     * Publishers whose name matches the wildcard and that have a non-cancelled event
+     * within 50 km. Each publisher is returned once, from its closest such event.
+     */
+    async publishersByName(point, name, excludeEventId) {
+      const matcher = publisherNameMatcher(name);
+      if ('error' in matcher) return [];
+      const { events, publishers } = schema;
+      const ewkt = pointEwkt(point);
+      const distance = sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${ewkt}))`;
+      const rows = await db
+        .selectDistinctOn([publishers.id], {
+          id: publishers.id,
+          name: publishers.name,
+          verified: publishers.verified,
+          temporary: publishers.isTemporary,
+          nearestEventTitle: events.title,
+          distanceM: distance,
+        })
+        .from(events)
+        .innerJoin(publishers, eq(publishers.id, events.publisherId))
+        .where(
+          and(
+            isNotNull(events.location),
+            isNotNull(events.publisherId),
+            sql`ST_DWithin(${events.location}, ST_GeogFromText(${ewkt}), ${PUBLISHER_NAME_SEARCH_RADIUS_M})`,
+            sql`${publishers.name} ILIKE ${matcher.like} ESCAPE '!'`,
+            ne(events.status, 'cancelled'),
+            ne(events.id, excludeEventId),
+          ),
+        )
+        .orderBy(publishers.id, distance);
+      const closest = new Map<string, NearbyPublisherHit>();
+      for (const row of rows) {
+        const aliases = await db
+          .select({ key: publisherAliases.externalOrganizerKey })
+          .from(publisherAliases)
+          .where(eq(publisherAliases.publisherId, row.id));
         const hit: NearbyPublisherHit = {
           id: row.id,
           name: row.name,

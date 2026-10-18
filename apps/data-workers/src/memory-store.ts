@@ -27,7 +27,7 @@ import type {
   ScanPublisherCandidate,
   SourceRecord,
 } from './store';
-import { NEARBY_RADIUS_M, NEARBY_RESULT_LIMIT } from './store';
+import { NEARBY_RADIUS_M, NEARBY_RESULT_LIMIT, PUBLISHER_NAME_SEARCH_RADIUS_M, publisherNameMatcher } from './store';
 
 type StoredTag = { id: string; slug: string; name: string; externalId: string };
 
@@ -605,6 +605,37 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         if (!publisher) continue;
         const distanceM = Math.round(distanceMeters(point, event.location));
         if (distanceM > NEARBY_RADIUS_M) continue;
+        const hit: NearbyPublisherHit = {
+          id: publisher.id,
+          name: publisher.name,
+          verified: publisher.verified,
+          temporary: publisher.isTemporary,
+          nearestEventTitle: event.title,
+          distanceM,
+          organizerKeys: aliases
+            .filter((alias) => alias.publisherId === publisher.id)
+            .map((alias) => alias.organizerKey),
+        };
+        const current = closest.get(publisher.id);
+        if (!current || hit.distanceM < current.distanceM) closest.set(publisher.id, hit);
+      }
+      return [...closest.values()].sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
+    },
+    /**
+     * Publishers whose name matches `*` and `?` and that have a non-cancelled event
+     * within 50 km. Each publisher is kept from its closest such event.
+     */
+    async publishersByName(point, name, excludeEventId) {
+      const matcher = publisherNameMatcher(name);
+      if ('error' in matcher) return [];
+      const closest = new Map<string, NearbyPublisherHit>();
+      for (const event of events) {
+        if (!event.publisherId || event.id === excludeEventId || !event.location) continue;
+        if (event.status === 'cancelled') continue;
+        const publisher = publishers.find((item) => item.id === event.publisherId);
+        if (!publisher || !matcher.matches(publisher.name)) continue;
+        const distanceM = Math.round(distanceMeters(point, event.location));
+        if (distanceM > PUBLISHER_NAME_SEARCH_RADIUS_M) continue;
         const hit: NearbyPublisherHit = {
           id: publisher.id,
           name: publisher.name,

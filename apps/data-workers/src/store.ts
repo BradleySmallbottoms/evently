@@ -1,13 +1,58 @@
 import type { EventMeta } from '@local-events/contracts';
-import type { DuplicateSignal, EventStatus, MarketingPushPlanId, SourceTrust } from '@local-events/domain';
+import type { EventStatus, MarketingPushPlanId, SourceTrust } from '@local-events/domain';
 import type { IncomingEvent, TagChoice } from '@local-events/ingest';
 import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
 
 /** Fixed search radius. The model cannot widen it. */
 export const NEARBY_RADIUS_M = 5_000;
+/** Name search only returns publishers that have an event inside this radius. */
+export const PUBLISHER_NAME_SEARCH_RADIUS_M = 50_000;
 export const NEARBY_DAYS_BEFORE = 1;
 export const NEARBY_DAYS_AFTER = 1;
 export const NEARBY_RESULT_LIMIT = 20;
+
+/**
+ * `*` matches any text and `?` matches one character. `%` and `_` in the name are literal.
+ * A blank pattern, or one with no letter or number, is an error so `*` cannot list everyone.
+ */
+export function publisherNameMatcher(
+  raw: string,
+): { like: string; matches: (name: string) => boolean } | { error: string } {
+  const pattern = raw.trim();
+  if (!pattern) return { error: 'name is required.' };
+  const literal = pattern.replace(/[*?]/g, '');
+  if (!/[0-9A-Za-z\u00C0-\u024F]/.test(literal)) {
+    return { error: 'name needs at least one letter or number.' };
+  }
+  let like = '';
+  let regex = '^';
+  for (const char of pattern) {
+    if (char === '*') {
+      like += '%';
+      regex += '.*';
+      continue;
+    }
+    if (char === '?') {
+      like += '_';
+      regex += '.';
+      continue;
+    }
+    like += escapeLike(char);
+    regex += escapeRegex(char);
+  }
+  const expression = new RegExp(`${regex}$`, 'iu');
+  return { like, matches: (name) => expression.test(name) };
+}
+
+/** LIKE metacharacters are literal. `!` is the escape character used in the query. */
+function escapeLike(char: string): string {
+  if (char === '!' || char === '%' || char === '_') return `!${char}`;
+  return char;
+}
+
+function escapeRegex(char: string): string {
+  return /[.*+?^${}()|[\]\\]/.test(char) ? `\\${char}` : char;
+}
 
 export interface NearbyEventHit {
   id: string;
@@ -132,6 +177,11 @@ export interface IngestStore {
   ): Promise<void>;
   nearbyEvents(point: GeoPoint, window: NearbyWindow, excludeEventId: string): Promise<NearbyEventHit[]>
   nearbyPublishers(point: GeoPoint, window: NearbyWindow, excludeEventId: string): Promise<NearbyPublisherHit[]>;
+  /**
+   * Publishers whose name matches `name` (`*` any text, `?` one character) and that
+   * have an event within {@link PUBLISHER_NAME_SEARCH_RADIUS_M} of `point`.
+   */
+  publishersByName(point: GeoPoint, name: string, excludeEventId: string): Promise<NearbyPublisherHit[]>;
   /**
    * This source's alias wins. Otherwise an email or website from any source.
    * A name or slug matches only when that publisher has an event near `location`.
