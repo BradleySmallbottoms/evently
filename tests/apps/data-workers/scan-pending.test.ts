@@ -182,29 +182,46 @@ describe('scanPendingEvents', () => {
     expect(pending[0]?.publisherId ?? null).toBeNull();
   });
 
-  it('does not call the model when the event already has tags', async () => {
+  it('replaces tags the event already has', async () => {
     const store = createMemoryIngestStore();
     store.sources.push({ ...source, trust: 'review' });
+    await store.upsertTags([
+      { externalId: 'visit-soderhamn:1', name: 'Musik' },
+      { externalId: 'visit-soderhamn:2', name: 'Teater' },
+    ]);
     await saveIncomingEvents(store, { ...source, trust: 'review' }, [
       {
         ...event,
         tags: [{ externalId: 'visit-soderhamn:1', name: 'Musik' }],
       },
     ]);
-    let calls = 0;
-    const summary = await scanPendingEvents(
-      store,
-      createOllamaPromptRunner(store, {
-        fetch: async () => {
-          calls += 1;
-          return new Response('down', { status: 503 });
-        },
-      }),
-    );
+    const previous = store.events[0]?.tagIds[0];
+    const runner: PromptRunner = {
+      id: 'retag',
+      lookupPublisher: async () => null,
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [{ externalId: 'visit-soderhamn:2', name: 'Teater' }],
+          ...scanned,
+        }));
+      },
+    };
 
-    expect(calls).toBe(0);
+    const summary = await scanPendingEvents(store, runner);
+
     expect(summary.review).toBe(1);
-    expect(store.events[0]?.status).toBe('in_review');
+    expect(store.events[0]?.tagIds).not.toContain(previous);
+    const replacement = await store.tagIdsForExternalIds(['visit-soderhamn:2']);
+    expect(store.events[0]?.tagIds).toEqual(replacement);
   });
 
   it('keeps an untagged event pending when the model is unavailable', async () => {

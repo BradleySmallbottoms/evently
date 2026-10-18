@@ -271,7 +271,7 @@ async function scanOneEvent(
   }
 
   const tags =
-    event.existingTags.length > 0 ? event.existingTags : parseTagChoices(content, context.catalog);
+    context.catalog.length > 0 ? parseTagChoices(content, context.catalog) : event.existingTags;
   const publisher = await bestPublisher(content, context);
   const duplicate = await bestDuplicate(content, context);
   const occasionMatches = content.possibleDuplicates.flatMap((item) =>

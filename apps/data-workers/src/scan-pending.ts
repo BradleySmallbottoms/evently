@@ -148,10 +148,7 @@ async function applyOutcome(
     sourceTrust: row.sourceTrust,
     possibleDuplicate: outcome.duplicate !== null,
   });
-  const tagIds =
-    row.tagIds.length > 0
-      ? row.tagIds
-      : await store.tagIdsForExternalIds(outcome.tags.map((tag) => tag.externalId));
+  const tagIds = await store.tagIdsForExternalIds(outcome.tags.map((tag) => tag.externalId));
   const meta = {
     ...row.meta,
     ...(outcome.duplicate ? { possibleDuplicate: outcome.duplicate } : {}),

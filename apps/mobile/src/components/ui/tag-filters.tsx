@@ -171,7 +171,7 @@ export function TagFilters({ tags, selectedIds, onChange }: Props) {
   if (open) {
     return (
       <View style={{ gap: space.md }}>
-        <View
+        {/* <View
           style={{
             flexDirection: 'row',
             flexWrap: 'wrap',
@@ -193,15 +193,21 @@ export function TagFilters({ tags, selectedIds, onChange }: Props) {
             onPress={toggleOpen}
             flexCell
           />
-        </View>
+        </View> */}
         <View style={{ paddingHorizontal: space.xl }}>
           <TagGroupList tags={tags} selectedIds={selectedIds} onChange={onChange} />
+        </View>
+        <View style={{ paddingHorizontal: space.xl, flex: 1, alignItems: 'center', }}>
+          <Pressable onPress={toggleOpen}
+            style={{ backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accent, padding: space.sm, borderRadius: space.md }}>
+            <AppText variant='caption' style={{ color: colors.accentDeep }}>Visa färre kategorier</AppText>
+          </Pressable>
         </View>
       </View>
     );
   }
 
-  return (
+  return (<>
     <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
       <ScrollView
         horizontal
@@ -222,5 +228,6 @@ export function TagFilters({ tags, selectedIds, onChange }: Props) {
         <ToggleCircle label={t('events.categoriesMore')} expanded={false} onPress={toggleOpen} />
       </View>
     </View>
+  </>
   );
 }

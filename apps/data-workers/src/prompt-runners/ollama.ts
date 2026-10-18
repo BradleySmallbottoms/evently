@@ -173,7 +173,7 @@ export function createOllamaPromptRunner(
         }
 
         let tags: TagChoice[] | 'unavailable' = event.existingTags;
-        if (event.existingTags.length === 0 && catalog.length > 0) {
+        if (catalog.length > 0) {
           const textKey = [event.title, event.description ?? '', event.venue ?? ''].join('\n');
           const cached = tagsByText.get(textKey);
           if (cached) {

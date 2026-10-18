@@ -145,8 +145,8 @@ calls) in the same change as every new major feature.**
   and stops the pod. The GPU bills only while that pod is running. The model weights stay on a
   network volume named `evnt-scan-models` in `CA-MTL-1`, and that volume keeps billing until it is deleted.
   `EU-SE-1` has no network volumes, so a volume cannot be created there.
-  `http` is only allowed on loopback. An event that already has tags skips the
-  model. The worker publishes the event only when the scan approves it, the publisher is verified,
+  `http` is only allowed on loopback. A scan replaces tags the event already has.
+  The worker publishes the event only when the scan approves it, the publisher is verified,
   and the source trust is `auto_publish`. Anything else that finishes goes to `in_review`. A model
   failure leaves the row `pending_scan`. When the scan creates a temporary publisher, a second
   prompt can search the web (`BRAVE_API_KEY`), store the profile on `publishers.meta.lookup`, and store a fetched website as an organizer key.
