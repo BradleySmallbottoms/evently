@@ -236,6 +236,59 @@ describe('createOllamaWithToolsPromptRunner', () => {
     });
   });
 
+  it('skips a publisher id that is not a uuid', async () => {
+    const store = storeWithNearbyRows();
+    const lookedUp: string[] = [];
+    const guarded = {
+      ...store,
+      getPublisher: async (publisherId: string) => {
+        lookedUp.push(publisherId);
+        return store.getPublisher(publisherId);
+      },
+    };
+    const { fetchImpl } = scriptedFetch([
+      answer(
+        JSON.stringify({
+          contentVerdict: 'safe',
+          summary: 'Musik i Helsingehus',
+          language: 'sv',
+          possiblePublishers: [{ publisherId: 'Hälsinglands museum', rank: 1 }],
+        }),
+      ),
+    ]);
+    const runner = createOllamaWithToolsPromptRunner(guarded, { fetch: fetchImpl });
+
+    const [outcome] = await runner.scan([scanInput]);
+
+    expect(lookedUp).toEqual([]);
+    expect(outcome).toMatchObject({
+      ok: true,
+      publisher: { kind: 'temporary', name: 'Föreningen' },
+    });
+  });
+
+  it('uses an existing publisher when the model returns its id', async () => {
+    const store = storeWithNearbyRows();
+    const { fetchImpl } = scriptedFetch([
+      answer(
+        JSON.stringify({
+          contentVerdict: 'safe',
+          summary: 'Musik i Helsingehus',
+          language: 'sv',
+          possiblePublishers: [{ publisherId: nearPublisherId, rank: 1 }],
+        }),
+      ),
+    ]);
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+
+    const [outcome] = await runner.scan([scanInput]);
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      publisher: { kind: 'existing', publisherId: nearPublisherId, verified: true },
+    });
+  });
+
   it('returns publishers that have an event near the point', async () => {
     const store = storeWithNearbyRows();
     const { fetchImpl, bodies } = scriptedFetch([
@@ -436,9 +489,59 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(seen[0]?.apiKey).toBe('test-key');
     expect(seen[0]?.version).toBe('2023-06-01');
     expect(seen[0]?.body.tools?.some((tool) => tool.name === 'getAvailableTags' && tool.input_schema)).toBe(true);
+    expect(seen[0]?.body).not.toHaveProperty('temperature');
     const results = seen[1]?.body.messages.find((message) => message.role === 'user' && Array.isArray(message.content));
     expect(JSON.stringify(results?.content)).toContain('toolu_tags');
     expect(outcome).toMatchObject({ ok: true, language: 'en', summary: 'Musik i Helsingehus' });
+  });
+
+  it('sends a Claude tool_result for every tool_use in that turn', async () => {
+    const store = createMemoryIngestStore();
+    const names = [
+      'getAvailableTags',
+      'getPossiblePublishers',
+      'getNearbyPublishers',
+      'getPublishersByName',
+      'getNearbyEvents',
+    ];
+    const replies = [
+      {
+        content: names.map((name, index) => ({
+          type: 'tool_use',
+          id: `toolu_${index}`,
+          name,
+          input: name === 'getPublishersByName' ? { name: 'Föreningen*' } : {},
+        })),
+      },
+      {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ contentVerdict: 'safe', summary: 'Musik', language: 'sv', possibleTags: [] }),
+          },
+        ],
+      },
+    ];
+    let followUp = '';
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      const body = JSON.parse(String(init?.body)) as { messages: { role: string; content?: unknown }[] };
+      const results = body.messages.find((message) => message.role === 'user' && Array.isArray(message.content));
+      if (results) followUp = JSON.stringify(results.content);
+      const next = replies.shift();
+      return new Response(JSON.stringify(next), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+    const runner = createOllamaWithToolsPromptRunner(store, {
+      fetch: fetchImpl,
+      config: {
+        chatUrl: 'https://api.anthropic.com/v1/messages',
+        chatModel: 'claude-sonnet-5-5',
+        chatAuth: 'test-key',
+      },
+    });
+
+    await runner.scan([scanInput]);
+
+    for (let index = 0; index < names.length; index++) expect(followUp).toContain(`toolu_${index}`);
   });
 
   it('does not call a chat URL that is not https or loopback', async () => {

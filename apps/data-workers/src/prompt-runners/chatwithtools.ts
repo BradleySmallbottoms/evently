@@ -1,4 +1,5 @@
 
+import { Id } from '@local-events/contracts';
 import { type NearbyWindow } from '@local-events/geo';
 import {
   ollamaBaseUrl,
@@ -19,8 +20,12 @@ const CHAT_TIMEOUT_MS = 90_000;
 /** Tool rounds for one event. The last round still has to be a text answer, or the scan is unavailable. */
 const MAX_TOOL_ROUNDS = 4;
 const DESCRIPTION_LIMIT = 1_200;
-/** How many tool calls from one model reply are run. Extra calls are ignored. */
-const MAX_TOOL_CALLS_PER_ROUND = 4;
+/**
+ * How many tool calls from one model reply are run. The scan prompt asks for all
+ * five tools in one turn. Claude rejects the next request when a `tool_use` has
+ * no `tool_result`, so a call past this cap still gets an error result.
+ */
+const MAX_TOOL_CALLS_PER_ROUND = 8;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface OllamaWithToolsRunnerOptions {
@@ -185,7 +190,7 @@ async function scanOneEvent(
   }
 
   const content = (await askModelWithLookups(buildScanPrompt(event), context, config, fetchImpl)) ?? 'unavailable';
-  console.log('content', content);
+  console.log('content', JSON.stringify(content, null, 2));
   // throw new Error('test');
 
   if (content === 'unavailable') {
@@ -219,7 +224,8 @@ async function bestPublisher(content: LLMScanResult & LLMOutput, context: Lookup
   if (content.possiblePublishers.length === 0) return null;
   // by rank
   const bestMatch = content.possiblePublishers.sort((a, b) => a.rank - b.rank)[0];
-  if (!bestMatch) return null
+  if (!bestMatch) return null;
+  if (!Id.safeParse(bestMatch.publisherId).success) return null;
   const publisher = await context.store.getPublisher(bestMatch.publisherId);
   if (!publisher) return null;
   return {
@@ -268,9 +274,20 @@ function buildScanPrompt(event: ScanInput): string {
     'Start with language and content verdict, then tags, then publisher, then duplicate',
     'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe".',
     'Match the tags to the event as best as you can. Score the tags from 0 to 100 and include only scores over 90. Pick at most 5 tags.',
-    'Try matching this publisher against existing publishers using the getPossiblePublishers. A match is when the publisher name similarity is high, a matching publisher key strengthens the match.',
-    'When no possible publisher matches, call getNearbyPublishers. To search by name, call getPublishersByName. Do not pass coordinates to any tool.',
-    'Rank the found publishers by how well they match the publisher name and keys, if a publisher is a positive match, return it in possiblePublishers.',
+    'Call these tools, in this order, before you return JSON. Do not return JSON in the same turn as a tool call.',
+    '1. getAvailableTags()',
+    '2. getPossiblePublishers()',
+    '3. getNearbyPublishers()',
+    '4. getPublishersByName(name: "Föreningen*")',
+    '5. getNearbyEvents()',
+    'Step 4 uses the publisher name below, with * after a distinctive word. Call it even when step 2 or 3 already returned publishers.',
+    'After every tool result is back, rank the publishers. An exact name or key match ranks highest. A nearby publisher with a matching key ranks next. Include a publisher in possiblePublishers only when its rank is over 90.',
+    'Then compare getNearbyEvents results for a duplicate. Description similarity matters most. Rank the match from 0 to 100, and rank how likely it is another occasion of the same event from 0 to 100.',
+    // 'To get possible publishers, call getPossiblePublishers. If that list is empty or weak, call the other two before you answer.',
+    // 'To search by proximity, call getNearbyPublishers.',
+    // 'To search by name, call getPublishersByName.',
+    // 'Try matching this publisher against existing publishers. Exact name and key matches are the best matches, nearby matches with matching keys are good matches.',
+    // 'Rank the found publishers by how well they match, if a publisher gets a score above 90, return it in possiblePublishers.',
     'Try to find a duplicate event using getNearbyEvents()',
     'Compare the title, location, and description, description similarity is most important, of the found event with the event being scanned to find a duplicate. Rank the match from 0 to 100.',
     'Rank the posibility of the duplicate event beeing just another occasion of the same event, rank from 0 to 100.',
@@ -454,8 +471,9 @@ function anthropicToolDefinitions(): object[] {
 
 /**
  * One non-streaming chat request. Ollama keeps its `/api/chat` body. OpenAI and ChatGPT
- * use chat completions. Claude uses the Messages API. A non-OK response or a timeout
- * returns null. The auth header is not written to the log.
+ * use chat completions. Claude uses the Messages API. Current Claude models reject
+ * `temperature`, so that field is left off. A non-OK response or a timeout returns null.
+ * The auth header is not written to the log.
  */
 async function postChat(
   endpoint: ChatEndpoint,
@@ -477,7 +495,6 @@ async function postChat(
         ? {
             model: endpoint.model,
             max_tokens: 4096,
-            temperature: 0,
             tools: anthropicToolDefinitions(),
             messages,
           }
@@ -497,8 +514,8 @@ async function postChat(
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
     });
-    if (!response.ok) return null;
     const payload: unknown = await response.json();
+    if (!response.ok) return null;
     return payload && typeof payload === 'object' ? payload : null;
   } catch {
     return null;
@@ -588,14 +605,7 @@ function appendToolResults(
 ): void {
   messages.push(wire);
   if (protocol === 'anthropic') {
-    messages.push({
-      role: 'user',
-      content: calls.map((call, index) => ({
-        type: 'tool_result',
-        tool_use_id: call.id,
-        content: JSON.stringify(results[index] ?? { error: 'Lookup failed.' }),
-      })),
-    });
+    messages.push({ role: 'user', content: anthropicToolResults(wire, calls, results) });
     return;
   }
   for (let index = 0; index < calls.length; index++) {
@@ -607,6 +617,42 @@ function appendToolResults(
         : { role: 'tool', tool_name: call.name, content },
     );
   }
+}
+
+/**
+ * One `tool_result` per `tool_use` in the assistant turn, in that same order.
+ * A call the runner did not execute still gets an error result. Claude returns
+ * 400 when any id is missing.
+ */
+function anthropicToolResults(
+  wire: Record<string, unknown>,
+  calls: ParsedToolCall[],
+  results: ToolResult[],
+): object[] {
+  const byId = new Map<string, ToolResult>();
+  calls.forEach((call, index) => {
+    byId.set(call.id, results[index] ?? { error: 'Lookup failed.' });
+  });
+  const content = Array.isArray(wire.content) ? wire.content : [];
+  const blocks: object[] = [];
+  for (const block of content) {
+    if (!block || typeof block !== 'object' || !('type' in block) || block.type !== 'tool_use') continue;
+    const id = 'id' in block && typeof block.id === 'string' ? block.id : '';
+    if (!id) continue;
+    const ran = byId.has(id);
+    blocks.push({
+      type: 'tool_result',
+      tool_use_id: id,
+      content: JSON.stringify(ran ? byId.get(id) : { error: 'Tool call was not run.' }),
+      ...(ran ? {} : { is_error: true }),
+    });
+  }
+  if (blocks.length > 0) return blocks;
+  return calls.map((call, index) => ({
+    type: 'tool_result',
+    tool_use_id: call.id,
+    content: JSON.stringify(results[index] ?? { error: 'Lookup failed.' }),
+  }));
 }
 
 /**

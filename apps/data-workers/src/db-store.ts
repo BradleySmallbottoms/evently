@@ -244,7 +244,6 @@ export function createDbIngestStore(db: Db): IngestStore {
         const aliases = await db.select({ key: publisherAliases.externalOrganizerKey }).from(publisherAliases).where(eq(publisherAliases.publisherId, candidate.publisherId));
         result.push({ ...candidate, organizerKeys: aliases.map((alias) => alias.key) });
       }
-      console.log('candidates', result);
       return result;
     },
     async findPublisher(sourceId, organizerKeys, near) {
@@ -382,9 +381,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             notInArray(events.status, ['cancelled', 'ended']),
           ),
         );
-      // console.log('duplicateCandidates: rows = ', rows);
       if (rows.length === 0) {
-        // console.log('duplicateCandidates: no rows found');
         return [];
       }
       const ids = rows.map((row) => row.eventId);
