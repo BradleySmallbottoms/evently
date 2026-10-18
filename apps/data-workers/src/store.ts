@@ -3,8 +3,8 @@ import type { EventStatus, MarketingPushPlanId, SourceTrust } from '@local-event
 import type { IncomingEvent, TagChoice } from '@local-events/ingest';
 import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
 
-/** Fixed search radius. The model cannot widen it. */
-export const NEARBY_RADIUS_M = 5_000;
+/** Nearby event and publisher tools. The model cannot widen it. */
+export const NEARBY_RADIUS_M = 500;
 /** Name search only returns publishers that have an event inside this radius. */
 export const PUBLISHER_NAME_SEARCH_RADIUS_M = 50_000;
 export const NEARBY_DAYS_BEFORE = 1;

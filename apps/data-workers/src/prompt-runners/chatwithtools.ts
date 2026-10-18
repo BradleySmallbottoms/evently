@@ -88,7 +88,7 @@ function chatToolDefinitions(): object[] {
       function: {
         name: 'getNearbyEvents',
         description:
-          'Events within 5 km of the event being scanned. Their start is from 1 day before that event through 1 day after. Cancelled and ended events are left out. Takes no arguments; the event point is used.',
+          'Events within 500 m of the event being scanned. Their start is from 1 day before that event through 1 day after. Cancelled and ended events are left out. Takes no arguments; the event point is used.',
         parameters: noArguments,
       },
     },
@@ -97,7 +97,7 @@ function chatToolDefinitions(): object[] {
       function: {
         name: 'getNearbyPublishers',
         description:
-          'Publishers that have an event within 5 km of the event being scanned, in that same time window. Takes no arguments; the event point is used.',
+          'Publishers that have an event within 500 m of the event being scanned, in that same time window. Takes no arguments; the event point is used.',
         parameters: noArguments,
       },
     },
@@ -258,8 +258,8 @@ function buildScanPrompt(event: ScanInput): string {
   const place = event.location ? `lat ${event.location.lat}, lng ${event.location.lng}` : 'none';
   return [
     'You scan one imported event for spam, language, tags, wrote a short summary, find publisher and duplicate event.',
-    '- getNearbyEvents(): events within 5 km of this event, from 1 day before it through 1 day after. No arguments.',
-    '- getNearbyPublishers(): publishers that have published an event within 5 km of this event. No arguments.',
+    '- getNearbyEvents(): events within 500 m of this event, from 1 day before it through 1 day after. No arguments.',
+    '- getNearbyPublishers(): publishers that have published an event within 500 m of this event. No arguments.',
     '- getPublishersByName(name): publishers whose name matches. * is any text, ? is one character. Only publishers within 50 km of this event are returned.',
     '- getPossiblePublishers(): publishers that match the organizer keys. No arguments.',
     '- getAvailableTags(): the only tags you may use. No arguments.',

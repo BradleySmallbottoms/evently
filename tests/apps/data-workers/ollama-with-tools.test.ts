@@ -58,7 +58,16 @@ function scriptedFetch(replies: object[]) {
 
 function storeWithNearbyRows() {
   const store = createMemoryIngestStore();
-  store.publishers.push(
+    store.publishers.push(
+    {
+      id: '33333333-3333-4333-8333-333333333404',
+      name: 'Kilometerns förening',
+      slug: 'kilometerns-forening',
+      isTemporary: false,
+      verified: true,
+      importNotificationPlan: null,
+      createdAt: 3,
+    },
     {
       id: nearPublisherId,
       name: 'Hälsinglands museum',
@@ -107,6 +116,21 @@ function storeWithNearbyRows() {
       endsAt: nearbyStart,
       venueName: 'Stortorget',
       location: { lat: 61.301, lng: 17.07 },
+      tagIds: [],
+      meta: {},
+    },
+    {
+      id: '33333333-3333-4333-8333-333333333307',
+      publisherId: '33333333-3333-4333-8333-333333333404',
+      title: 'En kilometer bort',
+      description: null,
+      status: 'published',
+      origin: 'imported',
+      sourceUrl: 'https://example.com/kilometer',
+      startsAt: nearbyStart,
+      endsAt: nearbyStart,
+      venueName: 'Skolan',
+      location: { lat: 61.31, lng: 17.07 },
       tagIds: [],
       meta: {},
     },
@@ -196,6 +220,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(bodies[0]?.messages[0]?.content).toContain('getNearbyEvents');
     const toolMessage = bodies[1]?.messages.find((message) => message.role === 'tool');
     expect(toolMessage?.content).toContain('Marknad på torget');
+    expect(toolMessage?.content).not.toContain('En kilometer bort');
     expect(toolMessage?.content).not.toContain('Konsert i Hudiksvall');
     expect(toolMessage?.content).not.toContain('Gammal marknad');
     expect(toolMessage?.content).not.toContain('Inställd marknad');
@@ -223,6 +248,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
 
     const toolMessage = bodies[1]?.messages.find((message) => message.role === 'tool');
     expect(toolMessage?.content).toContain('Hälsinglands museum');
+    expect(toolMessage?.content).not.toContain('Kilometerns förening');
     expect(toolMessage?.content).not.toContain('Långt bort');
   });
 
