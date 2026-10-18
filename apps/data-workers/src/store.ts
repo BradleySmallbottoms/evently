@@ -7,8 +7,8 @@ import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
 export const NEARBY_RADIUS_M = 500;
 /** Name search only returns publishers that have an event inside this radius. */
 export const PUBLISHER_NAME_SEARCH_RADIUS_M = 50_000;
-export const NEARBY_DAYS_BEFORE = 1;
-export const NEARBY_DAYS_AFTER = 1;
+export const NEARBY_DAYS_BEFORE = 3;
+export const NEARBY_DAYS_AFTER = 3;
 export const NEARBY_RESULT_LIMIT = 20;
 
 /**

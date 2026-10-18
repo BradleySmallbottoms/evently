@@ -18,7 +18,7 @@ import type { ChosenPublisher, PossibleDuplicateMatch, PromptRunner, ScanInput, 
 /** How long one Ollama request may run before the scan gives up on it. */
 const CHAT_TIMEOUT_MS = 90_000;
 /** Tool rounds for one event. The last round still has to be a text answer, or the scan is unavailable. */
-const MAX_TOOL_ROUNDS = 4;
+const MAX_TOOL_ROUNDS = 8;
 const DESCRIPTION_LIMIT = 1_200;
 /**
  * How many tool calls from one model reply are run. The scan prompt asks for all
@@ -262,35 +262,24 @@ async function bestDuplicate(content: LLMScanResult & LLMOutput, context: Lookup
 function buildScanPrompt(event: ScanInput): string {
   const description = event.description?.replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_LIMIT);
   const place = event.location ? `lat ${event.location.lat}, lng ${event.location.lng}` : 'none';
+  const publisherName = event.organizer.name?.trim() || '';
+  const namePattern = publisherName ? `${publisherName.split(/\s+/)[0]}*` : '';
   return [
-    'You scan one imported event for spam, language, tags, wrote a short summary, find publisher and duplicate event.',
-    '- getNearbyEvents(): events within 500 m of this event, from 1 day before it through 1 day after. No arguments.',
-    '- getNearbyPublishers(): publishers that have published an event within 500 m of this event. No arguments.',
-    '- getPublishersByName(name): publishers whose name matches. * is any text, ? is one character. Only publishers within 50 km of this event are returned.',
-    '- getPossiblePublishers(): publishers that match the organizer keys. No arguments.',
-    '- getAvailableTags(): the only tags you may use. No arguments.',
-    'You must call a tool when you need data. Do not invent event, publisher, or tag ids.',
-    'You must call getAvailableTags, getPossiblePublishers and getNearbyEvents before it can choose tags, a publisher, or a duplicate.',
-    'Start with language and content verdict, then tags, then publisher, then duplicate',
+    'You scan one imported event for spam, language, tags, a short summary, the publisher, and a duplicate.',
+    'Call one tool, wait for its result, then decide the next step. Do not return JSON in the same turn as a tool call.',
+    'Never invent a publisher id, an event id, or a tag id. Every id in the JSON must come from a tool result.',
+    '1. Call getAvailableTags(). This call is required and can never be skipped. Tags may only use ids from that list. Score each tag from 0 to 100 and include only scores over 90. Pick at most 5.',
+    '2. Call getPossiblePublishers() before you match a publisher. A reasonable match is a returned publisher whose name or organizer key fits this event.',
+    namePattern
+      ? `3. If that list has no reasonable match, call getPublishersByName with name "${namePattern}". * matches any text and ? matches one character.`
+      : '3. If that list has no reasonable match, call getPublishersByName with the publisher name below and * after its first word.',
+    '4. If the name list also has no reasonable match, call getNearbyPublishers().',
+    '5. If the nearby list also has no reasonable match, possiblePublishers is []. That is allowed. A made-up publisher is not.',
+    'Stop the publisher search at the first list that has a reasonable match. Include a publisher only when its rank is over 90. An exact name or key match ranks highest.',
+    '6. Call getNearbyEvents() before you decide a duplicate. This call is required. Compare the scanned event with each event in the result.',
+    'Rank the match from 0 to 100 and return only a duplicate if the rank is over 90.',
+    'For every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.',
     'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe".',
-    'Match the tags to the event as best as you can. Score the tags from 0 to 100 and include only scores over 90. Pick at most 5 tags.',
-    'Call these tools, in this order, before you return JSON. Do not return JSON in the same turn as a tool call.',
-    '1. getAvailableTags()',
-    '2. getPossiblePublishers()',
-    '3. getNearbyPublishers()',
-    '4. getPublishersByName(name: "Föreningen*")',
-    '5. getNearbyEvents()',
-    'Step 4 uses the publisher name below, with * after a distinctive word. Call it even when step 2 or 3 already returned publishers.',
-    'After every tool result is back, rank the publishers. An exact name or key match ranks highest. A nearby publisher with a matching key ranks next. Include a publisher in possiblePublishers only when its rank is over 90.',
-    'Then compare getNearbyEvents results for a duplicate. Description similarity matters most. Rank the match from 0 to 100, and rank how likely it is another occasion of the same event from 0 to 100.',
-    // 'To get possible publishers, call getPossiblePublishers. If that list is empty or weak, call the other two before you answer.',
-    // 'To search by proximity, call getNearbyPublishers.',
-    // 'To search by name, call getPublishersByName.',
-    // 'Try matching this publisher against existing publishers. Exact name and key matches are the best matches, nearby matches with matching keys are good matches.',
-    // 'Rank the found publishers by how well they match, if a publisher gets a score above 90, return it in possiblePublishers.',
-    'Try to find a duplicate event using getNearbyEvents()',
-    'Compare the title, location, and description, description similarity is most important, of the found event with the event being scanned to find a duplicate. Rank the match from 0 to 100.',
-    'Rank the posibility of the duplicate event beeing just another occasion of the same event, rank from 0 to 100.',
     'Write a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.',
     'When you are finished, return only JSON:',
     '{possiblePublishers: [{publisherId: "<publisherId>", rank: <rank>}], possibleDuplicates: {eventId: "<eventId>", rank: <rank>, occasionRank: <occasionRank>}[], contentVerdict: "spam" | "harmful" | "safe", summary: "<summary>", language: "sv|en|etc", possibleTags: [{"id":"<id>","score":<score>}]}',
