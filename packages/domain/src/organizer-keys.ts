@@ -1,6 +1,6 @@
 /**
  * Ordered organizer keys shared by every data worker.
- * Email, then an info-link website, then the organizer name.
+ * Email, then an info-link host plus its path, then that host, then the organizer name.
  * The source slug is used only when nothing else identifies the organizer.
  */
 
@@ -69,14 +69,27 @@ function emailKey(value: string | null | undefined): string | undefined {
   return text;
 }
 
-function hostKey(value: string | null | undefined, extra: Set<string>): string | undefined {
-  if (!value?.trim()) return undefined;
+/** Host, and `host/path` when the URL has a path. `www`, a trailing slash, and the query are dropped. */
+function websiteKeys(value: string | null | undefined, extra: Set<string>): string[] {
+  if (!value?.trim()) return [];
   try {
-    const host = bareHost(new URL(value).hostname);
-    if (!host || skippedHost(host, extra)) return undefined;
-    return host;
+    const url = new URL(value);
+    const host = bareHost(url.hostname);
+    if (!host || skippedHost(host, extra)) return [];
+    const path = websitePath(url.pathname);
+    return path ? [`${host}${path}`, host] : [host];
   } catch {
-    return undefined;
+    return [];
+  }
+}
+
+function websitePath(pathname: string): string {
+  const trimmed = pathname.replace(/\/+$/, '');
+  if (!trimmed || trimmed === '/') return '';
+  try {
+    return decodeURIComponent(trimmed).toLowerCase();
+  } catch {
+    return trimmed.toLowerCase();
   }
 }
 
@@ -101,7 +114,15 @@ export function organizerKeys(input: OrganizerKeyInput): string[] {
   const keys: string[] = [];
   for (const id of input.ids ?? []) pushUnique(keys, id?.trim());
   for (const email of input.emails ?? []) pushUnique(keys, emailKey(email));
-  for (const url of input.infoUrls ?? []) pushUnique(keys, hostKey(url, extra));
+  const paths: string[] = [];
+  const hosts: string[] = [];
+  for (const url of input.infoUrls ?? []) {
+    for (const key of websiteKeys(url, extra)) {
+      pushUnique(key.includes('/') ? paths : hosts, key);
+    }
+  }
+  for (const key of paths) pushUnique(keys, key);
+  for (const key of hosts) pushUnique(keys, key);
   for (const name of input.names ?? []) pushUnique(keys, nameKey(name, town));
   if (keys.length === 0) pushUnique(keys, input.fallback.trim());
   return keys.slice(0, MAX_ORGANIZER_KEYS);

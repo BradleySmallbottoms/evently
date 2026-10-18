@@ -11,7 +11,7 @@ describe('organizerKeys', () => {
         names: ['Example AB'],
         fallback: 'visit-soderhamn',
       }),
-    ).toEqual(['org-1', 'info@example.com', 'example.com', 'example ab']);
+    ).toEqual(['org-1', 'info@example.com', 'example.com/about', 'example.com', 'example ab']);
   });
 
   it('skips ticket shops, the source site, and a repeated host', () => {
@@ -27,7 +27,7 @@ describe('organizerKeys', () => {
         skipHosts: ['visit.destinationhalsingland.se'],
         fallback: 'destination-halsingland',
       }),
-    ).toEqual(['brobergsoderhamn.se']);
+    ).toEqual(['brobergsoderhamn.se/lag', 'brobergsoderhamn.se']);
   });
 
   it('strips a trailing town and ignores a name that is an email', () => {

@@ -199,7 +199,7 @@ export function createDbIngestStore(db: Db): IngestStore {
               ),
             );
           for (const row of nearby) {
-            if (row.publisherId) nearIds.set(row.publisherId, row.distance);
+            if (row.publisherId) nearIds.set(row.publisherId, Math.min(row.distance, nearIds.get(row.publisherId) ?? Infinity));
           }
         }
       }

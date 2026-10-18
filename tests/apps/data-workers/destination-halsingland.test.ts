@@ -205,7 +205,11 @@ describe('destination-halsingland fetch', () => {
     const [event] = destinationHalsingland.map(fetched);
     expect(event?.priceAmount).toBe(20_000);
     expect(event?.meta).toEqual({ ageLimit: 18 });
-    expect(event?.organizerKeys).toEqual(['kulturhuset.example', 'kulturhuset bollnäs']);
+    expect(event?.organizerKeys).toEqual([
+      'kulturhuset.example/billy',
+      'kulturhuset.example',
+      'kulturhuset bollnäs',
+    ]);
     expect(event?.links).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

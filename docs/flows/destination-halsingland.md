@@ -27,7 +27,7 @@ live on `data_sources.config`. Times use the Europe/Stockholm offset.
 `meta.freeEntry`. “Åldersgräns N” sets `meta.ageLimit`. Ticket and info links come from the
 product text and `externalBookingUrl`. A lookalike is flagged by the scan job, which sets
 `meta.possibleDuplicate` and leaves the row `in_review`.
-The organizer keys are the same for every worker: email, then an info-link website, then the
+The organizer keys are the same for every worker: email, then an info-link host plus its path, then that host, then the
 arena name. The source slug is used only when none of those exist. The scan job tries that list
 and keeps the first publisher it finds.
 

@@ -1,7 +1,7 @@
 import { slugifyPublisherName } from './auth';
 
 /** Same display name or slug matches only when the publisher already has an event this close. */
-export const PUBLISHER_NAME_RADIUS_M = 25_000;
+export const PUBLISHER_NAME_RADIUS_M = 10_000;
 
 const HOST_KEY = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
@@ -14,8 +14,15 @@ export function sharedOrganizerKeyKind(
 ): SharedOrganizerKeyKind {
   if (localSlugs.includes(key)) return 'local';
   if (key.includes('@')) return 'email';
-  if (HOST_KEY.test(key)) return 'host';
+  if (websiteKey(key)) return 'host';
   return 'name';
+}
+
+/** A bare host, or that host plus a path. */
+function websiteKey(key: string): boolean {
+  const slash = key.indexOf('/');
+  const host = slash === -1 ? key : key.slice(0, slash);
+  return HOST_KEY.test(host);
 }
 
 export interface PublisherCandidate {

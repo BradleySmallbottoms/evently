@@ -128,7 +128,7 @@ function chatToolDefinitions(): object[] {
       type: 'function',
       function: {
         name: 'getPossiblePublishers',
-        description: 'Publishers that match the organizer keys of the event being scanned. Takes no arguments.',
+        description: 'Publishers that match the organizer keys of the event being scanned. Distance in meters to the closest event from the scanned event is included. Takes no arguments.',
         parameters: noArguments,
       },
     },
@@ -272,14 +272,19 @@ function buildScanPrompt(event: ScanInput): string {
     'You scan one imported event for spam, language, tags, a short summary, the publisher, and a duplicate.',
     'Call one tool, wait for its result, then decide the next step. Do not return JSON in the same turn as a tool call.',
     'Never invent a publisher id, an event id, or a tag id. Every id in the JSON must come from a tool result.',
-    '1. Call getAvailableTags(). This call is required and can never be skipped. Tags may only use ids from that list. Score each tag from 0 to 100 and include only scores over 90. Pick at most 5.',
-    '2. Call getPossiblePublishers() before you match a publisher. A reasonable match is a returned publisher whose name or organizer key fits this event.',
+    '1. Call getAvailableTags(). This call is required and can never be skipped. Tags may only use ids from that list. Score each tag from 0 to 100 and include only scores over 90. Pick at most 2.',
+    '2. Call getPossiblePublishers() before you match a publisher. Each returned publisher has a name and one or more organizer keys and dinstance in meter to the closest event from this event.',
+    'Use the possible publishers name to rate how plausible it that this publisher has events like this event.',
+    'Consider distanceMeters when deciding if a publisher is a reasonable match, events from the same publisher should be close to each other, less than 250 meters is a good match.',
+    'If unsure try matching at least one organizer key to the scanned event',
+    'Do not include keys like "domain.com" in the publisher match, only include keys like full website urls, names and addresses."',
     namePattern
       ? `3. If that list has no reasonable match, call getPublishersByName with name "${namePattern}". * matches any text and ? matches one character.`
-      : '3. If that list has no reasonable match, call getPublishersByName with the publisher name below and * after its first word.',
+      : '',
+      //'3. If that list has no reasonable match, call getPublishersByName with the publisher name below and * after its first word.',
     '4. If the name list also has no reasonable match, call getNearbyPublishers().',
     '5. If the nearby list also has no reasonable match, possiblePublishers is []. That is allowed. A made-up publisher is not.',
-    'Stop the publisher search at the first list that has a reasonable match. Include a publisher only when its rank is over 90. An exact name or key match ranks highest.',
+    'Stop the publisher search at the first list that has a reasonable match. Include a publisher only when its rank is over 90. A empty list is allowed.',
     '6. Call getNearbyEvents() before you decide a duplicate. This call is required. Compare the scanned event with each event in the result.',
     'Rank the match from 0 to 100 and return only a duplicate if the rank is over 90.',
     'For every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.',
@@ -319,7 +324,6 @@ async function askModelWithLookups(
     const payload = await postChat(endpoint, messages, round, fetchImpl);
     if (!payload) return null;
     const turn = readAssistantTurn(endpoint.protocol, payload);
-    console.log('message', turn?.wire);
     const calls = turn?.calls.slice(0, MAX_TOOL_CALLS_PER_ROUND) ?? [];
     if (!turn || calls.length === 0) {
       if (!turn || turn.text.length === 0) return null;
@@ -752,7 +756,8 @@ async function lookupPossiblePublishers(
   const publishers = await context.store.listPublisherCandidates(event.source.id, event.organizer.keys, {
     ...(event.location ? { location: event.location } : {}),
     localSlugs,
-  });
+  })
+//).filter((publisher) => publisher.distanceMeters <= 500);
   const possiblePublishers = publishers.map((publisher) => ({
     publisherId: publisher.publisherId,
     sourceId: publisher.sourceId,

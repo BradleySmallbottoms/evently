@@ -439,7 +439,7 @@ Flow: [docs/flows/event-coming.md](docs/flows/event-coming.md).
 3. `ingest` validates, geocodes, upserts source tags, and copies http(s) links from the description onto the event.
    A physical import with no venue name takes the city from its scraped address. When that address has no city, a reverse lookup of the point supplies the nearest city within 25 km.
    A new import is stored as `pending_scan` with no publisher. Organizer keys and name are kept on `meta.import`.
-   Each adapter returns the same ordered organizer keys: a source id, then email, then an info-link website, then the organizer name. The source slug is used only when nothing else is known.
+   Each adapter returns the same ordered organizer keys: a source id, then email, then an info-link host plus its path, then that host, then the organizer name. The path drops `www`, a trailing slash, and the query. The source slug is used only when nothing else is known.
 4. The same source and source id update the existing row via `external_refs`. An unchanged hash is skipped.
    A later run does not change `cancelled` or `ended`. A row already `in_review` or `published` is updated in place.
    A `pending_scan` row stays `pending_scan` until the scan job finishes.

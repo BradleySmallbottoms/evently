@@ -1,4 +1,8 @@
-import { choosePublisher, type PublisherCandidate } from '../../../packages/domain/src/publisher-match';
+import {
+  choosePublisher,
+  sharedOrganizerKeyKind,
+  type PublisherCandidate,
+} from '../../../packages/domain/src/publisher-match';
 import { describe, expect, it } from 'vitest';
 
 const slugs = ['glada-hudik', 'visit-soderhamn'];
@@ -12,6 +16,14 @@ function row(overrides: Partial<PublisherCandidate> & Pick<PublisherCandidate, '
     ...overrides,
   };
 }
+
+describe('sharedOrganizerKeyKind', () => {
+  it('treats a host and a host plus path as a website', () => {
+    expect(sharedOrganizerKeyKind('soderhamn.se', slugs)).toBe('host');
+    expect(sharedOrganizerKeyKind('soderhamn.se/aquarena', slugs)).toBe('host');
+    expect(sharedOrganizerKeyKind('kulturhuset', slugs)).toBe('name');
+  });
+});
 
 describe('choosePublisher', () => {
   it('keeps this source mapping ahead of another source', () => {
