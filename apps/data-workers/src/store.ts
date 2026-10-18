@@ -78,7 +78,7 @@ export interface PublisherCandidate {
   key: string;
   verified: boolean;
   createdAt: number;
-  distanceMeters: boolean;
+  distanceMeters: number;
   isTemporary: boolean;
   organizerKeys: string[];
   publisherName: string;
@@ -121,7 +121,7 @@ export interface ScanPublisherCandidate {
   key: string;
   verified: boolean;
   createdAt: number;
-  distanceMeters: boolean;
+  distanceMeters: number;
   isTemporary: boolean;
   importNotificationPlan: MarketingPushPlanId | null;
   organizerKeys: string[];

@@ -25,7 +25,7 @@ export interface PublisherCandidate {
   key: string;
   verified: boolean;
   createdAt: number;
-  near: boolean;
+  distanceMeters: number;
 }
 
 function prefer(rows: PublisherCandidate[]): PublisherCandidate | null {
@@ -62,7 +62,7 @@ export function choosePublisher(
     if (sharedOrganizerKeyKind(key, localSlugs) !== 'name') continue;
     const slug = slugifyPublisherName(key);
     const found = prefer(
-      candidates.filter((row) => row.near && (row.key === key || row.key === slug)),
+      candidates.filter((row) => row.distanceMeters > -1 && (row.key === key || row.key === slug)),
     );
     if (found) return found;
   }

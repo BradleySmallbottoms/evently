@@ -177,7 +177,7 @@ export function createDbIngestStore(db: Db): IngestStore {
                 inArray(publishers.slug, slugKeys),
               ),
             );
-      const nearIds = new Set<string>();
+      const nearIds = new Map<string, number>();
       if (near?.location) {
         const ids = [
           ...new Set([
@@ -188,7 +188,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         if (ids.length > 0) {
           const point = pointEwkt(near.location);
           const nearby = await db
-            .select({ publisherId: events.publisherId })
+            .select({ publisherId: events.publisherId, distance: sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${point}))` })
             .from(events)
             .where(
               and(
@@ -199,7 +199,7 @@ export function createDbIngestStore(db: Db): IngestStore {
               ),
             );
           for (const row of nearby) {
-            if (row.publisherId) nearIds.add(row.publisherId);
+            if (row.publisherId) nearIds.set(row.publisherId, row.distance);
           }
         }
       }
@@ -209,7 +209,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         key: row.organizerKey,
         verified: row.verified,
         createdAt: row.createdAt.getTime(),
-        near: nearIds.has(row.publisherId),
+        distanceMeters: nearIds.has(row.publisherId) ? nearIds.get(row.publisherId) ?? -1 : -1,
         isTemporary: row.isTemporary,
         importNotificationPlan: row.importNotificationPlan,
         organizerKeys: [],
@@ -229,7 +229,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           key: nameKey,
           verified: publisher.verified,
           createdAt: publisher.createdAt.getTime(),
-          near: nearIds.has(publisher.publisherId),
+          distanceMeters: nearIds.has(publisher.publisherId) ? nearIds.get(publisher.publisherId) ?? -1 : -1,
           isTemporary: publisher.isTemporary,
           importNotificationPlan: publisher.importNotificationPlan,
           organizerKeys: [],

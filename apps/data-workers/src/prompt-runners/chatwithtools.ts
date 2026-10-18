@@ -191,7 +191,7 @@ async function scanOneEvent(
 
   const content = (await askModelWithLookups(buildScanPrompt(event), context, config, fetchImpl)) ?? 'unavailable';
   console.log('content', JSON.stringify(content, null, 2));
-  // throw new Error('test');
+  throw new Error('test');
 
   if (content === 'unavailable') {
     return { ok: false, eventId: event.eventId, reason: 'unavailable' };
