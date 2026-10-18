@@ -447,7 +447,7 @@ Flow: [docs/flows/event-coming.md](docs/flows/event-coming.md).
    A cancelled row is also left alone, so a soft-deleted import stays cancelled.
 5. A scheduled scan claims `pending_scan` rows in a batch and passes the event text and organizer keys to the prompt runner. The runner
    loads publisher candidates and resolves one: this source's own alias wins, otherwise an email or website from any worker matches, and a name or slug matches when that publisher already has an event within 25 km. A miss creates one temporary publisher and stores every key as an alias. The runner also loads nearby events and checks for a lookalike.
-   It approves the content, and asks the local Ollama model for up to five existing tags scored above 90 when the
+   It approves the content, and asks the configured chat model for up to five existing tags scored above 90 when the
    event has none. The worker then sets `in_review`, or `published` when the scan approves the event, the
    publisher is verified and not temporary, and the source trust is `auto_publish`. A lookalike within the
    duplicate radius and 30 minutes stays `in_review` with `meta.possibleDuplicate`. A link matches on host and path; protocol, query, and a trailing slash are ignored. A Citybreak id matches with or without the `cbis:` prefix. An event with no point is not compared. A model failure leaves

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createMemoryIngestStore } from '../../../apps/data-workers/src/memory-store';
-import { createOllamaWithToolsPromptRunner } from '../../../apps/data-workers/src/prompt-runners/ollamawithtools';
+import { createOllamaWithToolsPromptRunner } from '../../../apps/data-workers/src/prompt-runners/chatwithtools';
 import type { ScanInput } from '../../../apps/data-workers/src/prompt-runners/types';
 
 const eventId = '33333333-3333-4333-8333-333333333301';
@@ -186,6 +186,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(bodies[0]?.tools?.map((tool) => tool.function.name)).toEqual([
       'getNearbyEvents',
       'getNearbyPublishers',
+      'getPossiblePublishers',
       'getAvailableTags',
     ]);
     expect(bodies[0]?.messages[0]?.content).toContain('getNearbyEvents');
@@ -279,4 +280,268 @@ describe('createOllamaWithToolsPromptRunner', () => {
 
     expect(outcome).toEqual({ ok: false, eventId, reason: 'unavailable' });
   });
+
+  it('calls ChatGPT with a bearer token and sends the tool result back by id', async () => {
+    const store = createMemoryIngestStore();
+    const seen: { url: string; authorization?: string; body: { model?: string; messages: { role: string; tool_call_id?: string }[] } }[] = [];
+    const replies = [
+      {
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: null,
+              tool_calls: [
+                { id: 'call_tags', type: 'function', function: { name: 'getAvailableTags', arguments: '{}' } },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: JSON.stringify({
+                contentVerdict: 'safe',
+                summary: 'Musik i Helsingehus',
+                language: 'sv',
+                possibleTags: [{ id: 'visit-soderhamn:30194', score: 95 }],
+              }),
+            },
+          },
+        ],
+      },
+    ];
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const headers = new Headers(init?.headers);
+      seen.push({
+        url: String(url),
+        authorization: headers.get('authorization') ?? undefined,
+        body: JSON.parse(String(init?.body)),
+      });
+      const next = replies.shift();
+      return new Response(JSON.stringify(next), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+    const runner = createOllamaWithToolsPromptRunner(store, {
+      fetch: fetchImpl,
+      config: {
+        chatUrl: 'https://api.openai.com/v1/chat/completions',
+        chatModel: 'gpt-4.1-mini',
+        chatAuth: 'test-key',
+      },
+    });
+
+    const [outcome] = await runner.scan([scanInput]);
+
+    expect(seen[0]?.url).toBe('https://api.openai.com/v1/chat/completions');
+    expect(seen[0]?.authorization).toBe('Bearer test-key');
+    expect(seen[0]?.body.model).toBe('gpt-4.1-mini');
+    expect(seen[1]?.body.messages.some((message) => message.role === 'tool' && message.tool_call_id === 'call_tags')).toBe(true);
+    expect(outcome).toMatchObject({
+      ok: true,
+      summary: 'Musik i Helsingehus',
+      tags: [{ externalId: 'visit-soderhamn:30194', name: 'Bandy & Innebandy' }],
+    });
+  });
+
+  it('calls Claude with an API key and sends tool results as tool_result blocks', async () => {
+    const store = createMemoryIngestStore();
+    const seen: { url: string; apiKey?: string; version?: string; body: { tools?: { name: string; input_schema?: object }[]; messages: { role: string; content?: unknown }[] } }[] = [];
+    const replies = [
+      {
+        content: [{ type: 'tool_use', id: 'toolu_tags', name: 'getAvailableTags', input: {} }],
+      },
+      {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              contentVerdict: 'safe',
+              summary: 'Musik i Helsingehus',
+              language: 'en',
+              possibleTags: [],
+            }),
+          },
+        ],
+      },
+    ];
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const headers = new Headers(init?.headers);
+      seen.push({
+        url: String(url),
+        apiKey: headers.get('x-api-key') ?? undefined,
+        version: headers.get('anthropic-version') ?? undefined,
+        body: JSON.parse(String(init?.body)),
+      });
+      const next = replies.shift();
+      return new Response(JSON.stringify(next), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+    const runner = createOllamaWithToolsPromptRunner(store, {
+      fetch: fetchImpl,
+      config: {
+        chatUrl: 'https://api.anthropic.com/v1/messages',
+        chatModel: 'claude-sonnet-4-5',
+        chatAuth: 'test-key',
+      },
+    });
+
+    const [outcome] = await runner.scan([scanInput]);
+
+    expect(seen[0]?.url).toBe('https://api.anthropic.com/v1/messages');
+    expect(seen[0]?.apiKey).toBe('test-key');
+    expect(seen[0]?.version).toBe('2023-06-01');
+    expect(seen[0]?.body.tools?.some((tool) => tool.name === 'getAvailableTags' && tool.input_schema)).toBe(true);
+    const results = seen[1]?.body.messages.find((message) => message.role === 'user' && Array.isArray(message.content));
+    expect(JSON.stringify(results?.content)).toContain('toolu_tags');
+    expect(outcome).toMatchObject({ ok: true, language: 'en', summary: 'Musik i Helsingehus' });
+  });
+
+  it('does not call a chat URL that is not https or loopback', async () => {
+    const store = createMemoryIngestStore();
+    let called = false;
+    const fetchImpl: typeof fetch = async () => {
+      called = true;
+      return new Response('{}', { status: 200 });
+    };
+    const runner = createOllamaWithToolsPromptRunner(store, {
+      fetch: fetchImpl,
+      config: { chatUrl: 'http://10.0.0.8/v1/chat/completions', chatAuth: 'test-key' },
+    });
+
+    const [outcome] = await runner.scan([scanInput]);
+
+    expect(called).toBe(false);
+    expect(outcome).toEqual({ ok: false, eventId, reason: 'unavailable' });
+  });
+
+  it('calls ChatGPT from CHAT_PROVIDER and OPENAI_API_KEY', async () => {
+    const store = createMemoryIngestStore();
+    const previous = {
+      provider: process.env.CHAT_PROVIDER,
+      key: process.env.OPENAI_API_KEY,
+      url: process.env.CHAT_URL,
+      auth: process.env.CHAT_AUTH,
+      model: process.env.OPENAI_MODEL,
+    };
+    process.env.CHAT_PROVIDER = 'chatgpt';
+    process.env.OPENAI_API_KEY = 'openai-test-key';
+    delete process.env.CHAT_URL;
+    delete process.env.CHAT_AUTH;
+    delete process.env.OPENAI_MODEL;
+    let seen: { url: string; authorization: string | null; model: string } | null = null;
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const body = JSON.parse(String(init?.body)) as { model: string };
+      seen = { url: String(url), authorization: new Headers(init?.headers).get('authorization'), model: body.model };
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                role: 'assistant',
+                content: JSON.stringify({ contentVerdict: 'safe', summary: 'Musik', language: 'sv', possibleTags: [] }),
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    };
+    try {
+      const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+      const [outcome] = await runner.scan([scanInput]);
+      expect(seen?.url).toBe('https://api.openai.com/v1/chat/completions');
+      expect(seen?.authorization).toBe('Bearer openai-test-key');
+      expect(seen?.model).toBe('gpt-4.1-mini');
+      expect(outcome).toMatchObject({ ok: true, summary: 'Musik' });
+    } finally {
+      restoreEnv('CHAT_PROVIDER', previous.provider);
+      restoreEnv('OPENAI_API_KEY', previous.key);
+      restoreEnv('CHAT_URL', previous.url);
+      restoreEnv('CHAT_AUTH', previous.auth);
+      restoreEnv('OPENAI_MODEL', previous.model);
+    }
+  });
+
+  it('calls Claude from CHAT_PROVIDER and ANTHROPIC_API_KEY', async () => {
+    const store = createMemoryIngestStore();
+    const previous = {
+      provider: process.env.CHAT_PROVIDER,
+      key: process.env.ANTHROPIC_API_KEY,
+      url: process.env.CHAT_URL,
+      auth: process.env.CHAT_AUTH,
+      model: process.env.ANTHROPIC_MODEL,
+    };
+    process.env.CHAT_PROVIDER = 'claude';
+    process.env.ANTHROPIC_API_KEY = 'anthropic-test-key';
+    delete process.env.CHAT_URL;
+    delete process.env.CHAT_AUTH;
+    delete process.env.ANTHROPIC_MODEL;
+    let seen: { url: string; apiKey: string | null; model: string } | null = null;
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const body = JSON.parse(String(init?.body)) as { model: string };
+      seen = { url: String(url), apiKey: new Headers(init?.headers).get('x-api-key'), model: body.model };
+      return new Response(
+        JSON.stringify({
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ contentVerdict: 'safe', summary: 'Musik', language: 'en', possibleTags: [] }),
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    };
+    try {
+      const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+      const [outcome] = await runner.scan([scanInput]);
+      expect(seen?.url).toBe('https://api.anthropic.com/v1/messages');
+      expect(seen?.apiKey).toBe('anthropic-test-key');
+      expect(seen?.model).toBe('claude-sonnet-4-5');
+      expect(outcome).toMatchObject({ ok: true, language: 'en' });
+    } finally {
+      restoreEnv('CHAT_PROVIDER', previous.provider);
+      restoreEnv('ANTHROPIC_API_KEY', previous.key);
+      restoreEnv('CHAT_URL', previous.url);
+      restoreEnv('CHAT_AUTH', previous.auth);
+      restoreEnv('ANTHROPIC_MODEL', previous.model);
+    }
+  });
+
+  it('does not call Ollama when chatgpt is selected and the OpenAI key is missing', async () => {
+    const store = createMemoryIngestStore();
+    const previous = {
+      key: process.env.OPENAI_API_KEY,
+      auth: process.env.CHAT_AUTH,
+      url: process.env.CHAT_URL,
+    };
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.CHAT_AUTH;
+    delete process.env.CHAT_URL;
+    let called = false;
+    const fetchImpl: typeof fetch = async () => {
+      called = true;
+      return new Response('{}', { status: 200 });
+    };
+    try {
+      const runner = createOllamaWithToolsPromptRunner(store, {
+        fetch: fetchImpl,
+        config: { chatProvider: 'chatgpt' },
+      });
+      const [outcome] = await runner.scan([scanInput]);
+      expect(called).toBe(false);
+      expect(outcome).toEqual({ ok: false, eventId, reason: 'unavailable' });
+    } finally {
+      restoreEnv('OPENAI_API_KEY', previous.key);
+      restoreEnv('CHAT_AUTH', previous.auth);
+      restoreEnv('CHAT_URL', previous.url);
+    }
+  });
 });
+
+function restoreEnv(name: string, value: string | undefined) {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}

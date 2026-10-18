@@ -134,13 +134,15 @@ calls) in the same change as every new major feature.**
 
 - A scheduled data-worker job claims `pending_scan` events in a batch and hands the event text
   and organizer keys to the prompt runner. The runner loads publisher and duplicate candidates,
-  picks the publisher, looks for a duplicate, and asks a local
-  [Ollama](https://ollama.com) model (`ollama serve`, default `qwen3:8b`) for up to five existing
-  tags scored above 90. An event that already has tags skips the model. The worker publishes the
-  event only when the scan approves it, the publisher is verified, and the source trust is
-  `auto_publish`. Anything else that finishes goes to `in_review`. A model failure leaves the row
-  `pending_scan`. `OLLAMA_BASE_URL` must be a loopback URL. `OLLAMA_DISABLED=1` skips the model, so
-  an event that still needs tags stays `pending_scan`.
+  picks the publisher, looks for a duplicate, and asks the configured chat model for up to five
+  existing tags scored above 90. With no `CHAT_PROVIDER`, that is a local
+  [Ollama](https://ollama.com) model (`ollama serve`, default `qwen3:8b`). `CHAT_PROVIDER=chatgpt`
+  uses `OPENAI_API_KEY` (default `gpt-4.1-mini`). `CHAT_PROVIDER=claude` uses `ANTHROPIC_API_KEY`
+  (default `claude-sonnet-4-5`). `http` is only allowed on loopback. An event that already has tags skips the
+  model. The worker publishes the event only when the scan approves it, the publisher is verified,
+  and the source trust is `auto_publish`. Anything else that finishes goes to `in_review`. A model
+  failure leaves the row `pending_scan`. `OLLAMA_BASE_URL` must be a loopback URL.
+  `OLLAMA_DISABLED=1` skips local Ollama, so an event that still needs tags stays `pending_scan`.
   `pnpm --filter @local-events/data-workers dev -- --job event-scan`
   scans the next batch. Add `--event <event-id>` to scan one row, or `--limit 1` to cap the batch.
   Flow: [docs/flows/event-scan.md](docs/flows/event-scan.md).

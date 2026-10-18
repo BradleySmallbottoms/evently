@@ -227,8 +227,6 @@ export function createOllamaPromptRunner(
         });
       }
 
-      console.log('outcomes', outcomes);
-
       return outcomes;
     },
   };

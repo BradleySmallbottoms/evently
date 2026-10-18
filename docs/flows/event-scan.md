@@ -15,8 +15,9 @@ pnpm --filter @local-events/data-workers dev -- --job event-scan --limit 1
 
 The job claims rows whose lease is free and passes that batch to the prompt runner
 in one call. Each row carries the event text and the organizer keys. The runner loads publisher
-and duplicate candidates itself. The Ollama runner walks the batch one event at a time. A later
-runner can send the same batch to RunPod and look those candidates up in its own way.
+and duplicate candidates itself. The chat runner walks the batch one event at a time. With no
+`CHAT_PROVIDER` it calls local Ollama. `CHAT_PROVIDER=chatgpt` uses `OPENAI_API_KEY`.
+`CHAT_PROVIDER=claude` uses `ANTHROPIC_API_KEY`.
 
 For each event the Ollama runner:
 
@@ -26,7 +27,7 @@ For each event the Ollama runner:
    link, or title).
 3. Approves the content. This step always approves until a later prompt can reject harmful, spam,
    or adult content.
-4. Asks Ollama for up to five catalog tags scored above 90 when the event has no tags yet.
+4. Asks the configured chat model for up to five catalog tags scored above 90 when the event has no tags yet.
 
 The worker writes the publisher, tags, and `meta.possibleDuplicate`, then sets the status.
 

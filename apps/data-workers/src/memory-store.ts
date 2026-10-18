@@ -15,14 +15,19 @@ import {
   type MarketingPushPlanId,
 } from '@local-events/domain';
 import type {
+  EventRecord,
   ExternalRefHit,
   ImportedEventWrite,
   IngestStore,
+  NearbyEventHit,
+  NearbyPublisherHit,
   PendingScanRow,
   PublisherLink,
+  PublisherRecord,
   ScanPublisherCandidate,
   SourceRecord,
 } from './store';
+import { NEARBY_RADIUS_M, NEARBY_RESULT_LIMIT } from './store';
 
 type StoredTag = { id: string; slug: string; name: string; externalId: string };
 
@@ -229,6 +234,10 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           near: nearIds.has(publisher.id),
           isTemporary: publisher.isTemporary,
           importNotificationPlan: publisher.importNotificationPlan,
+          organizerKeys: aliases
+            .filter((item) => item.publisherId === publisher.id)
+            .map((item) => item.organizerKey),
+          publisherName: publisher.name,
         });
       }
       for (const publisher of publishers) {
@@ -248,6 +257,10 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           near: nearIds.has(publisher.id),
           isTemporary: publisher.isTemporary,
           importNotificationPlan: publisher.importNotificationPlan,
+          organizerKeys: aliases
+            .filter((item) => item.publisherId === publisher.id)
+            .map((item) => item.organizerKey),
+          publisherName: publisher.name,
         });
       }
       return candidates;
@@ -534,6 +547,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           description: event.description,
           venueName: event.venueName,
           startsAt: event.startsAt,
+          endsAt: event.endsAt,
           location: event.location ?? null,
           sourceUrl: event.sourceUrl,
           links: (event.links ?? []).map((link) => link.url),
@@ -552,6 +566,87 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         });
       }
       return rows;
+    },
+    /**
+     * Live events inside the scan radius and time window, nearest first.
+     * The event being scanned is left out. Cancelled and ended rows are left out.
+     */
+    async nearbyEvents(point, window, excludeEventId) {
+      const hits: NearbyEventHit[] = [];
+      for (const event of events) {
+        if (event.id === excludeEventId || !event.location) continue;
+        if (event.status === 'cancelled' || event.status === 'ended') continue;
+        const starts = event.startsAt.getTime();
+        if (starts < window.from.getTime() || starts > window.to.getTime()) continue;
+        const distanceM = Math.round(distanceMeters(point, event.location));
+        if (distanceM > NEARBY_RADIUS_M) continue;
+        hits.push({
+          id: event.id,
+          title: event.title,
+          startsAt: event.startsAt.toISOString(),
+          venue: event.venueName,
+          distanceM,
+        });
+      }
+      return hits.sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
+    },
+    /**
+     * One row per publisher that has a live event in the same radius and window,
+     * using that publisher's closest event.
+     */
+    async nearbyPublishers(point, window, excludeEventId) {
+      const closest = new Map<string, NearbyPublisherHit>();
+      for (const event of events) {
+        if (!event.publisherId || event.id === excludeEventId || !event.location) continue;
+        if (event.status === 'cancelled' || event.status === 'ended') continue;
+        const starts = event.startsAt.getTime();
+        if (starts < window.from.getTime() || starts > window.to.getTime()) continue;
+        const publisher = publishers.find((item) => item.id === event.publisherId);
+        if (!publisher) continue;
+        const distanceM = Math.round(distanceMeters(point, event.location));
+        if (distanceM > NEARBY_RADIUS_M) continue;
+        const hit: NearbyPublisherHit = {
+          id: publisher.id,
+          name: publisher.name,
+          verified: publisher.verified,
+          temporary: publisher.isTemporary,
+          nearestEventTitle: event.title,
+          distanceM,
+          organizerKeys: aliases
+            .filter((alias) => alias.publisherId === publisher.id)
+            .map((alias) => alias.organizerKey),
+        };
+        const current = closest.get(publisher.id);
+        if (!current || hit.distanceM < current.distanceM) closest.set(publisher.id, hit);
+      }
+      return [...closest.values()].sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
+    },
+    /** Publisher row plus the organizer keys stored as aliases. */
+    async getPublisher(publisherId): Promise<PublisherRecord | null> {
+      const publisher = publishers.find((item) => item.id === publisherId);
+      if (!publisher) return null;
+      return {
+        id: publisher.id,
+        verified: publisher.verified,
+        createdAt: publisher.createdAt,
+        isTemporary: publisher.isTemporary,
+        importNotificationPlan: publisher.importNotificationPlan,
+        organizerKeys: aliases
+          .filter((alias) => alias.publisherId === publisher.id)
+          .map((alias) => alias.organizerKey),
+      };
+    },
+    /** The stored event fields the scan compares when the model names a duplicate. */
+    async getEvent(eventId): Promise<EventRecord | null> {
+      const event = events.find((item) => item.id === eventId);
+      if (!event) return null;
+      return {
+        eventId: event.id,
+        title: event.title,
+        startsAt: event.startsAt.toISOString(),
+        refId: event.refId ?? null,
+        workerId: event.workerId ?? null,
+      };
     },
     async releaseScanClaim(eventId, claimedUntil) {
       const event = events.find((item) => item.id === eventId);

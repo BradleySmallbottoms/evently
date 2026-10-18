@@ -1,13 +1,16 @@
-import { createOllamaPromptRunner } from './ollama';
 import type { IngestStore } from '../store';
 import type { PromptRunner } from './types';
-import { createOllamaWithToolsPromptRunner } from './ollamawithtools';
+import { createOllamaWithToolsPromptRunner } from './chatwithtools';
 
 export type { ChosenPublisher, PossibleDuplicateMatch, PromptRunner, ScanInput, ScanOutcome } from './types';
 export { createOllamaPromptRunner } from './ollama';
-export { createOllamaWithToolsPromptRunner } from './ollamawithtools';
-export type { OllamaWithToolsRunnerOptions } from './ollamawithtools';
+export { createOllamaWithToolsPromptRunner } from './chatwithtools';
+export type { OllamaWithToolsRunnerOptions } from './chatwithtools';
 
+/**
+ * The scan job's chat runner. `CHAT_PROVIDER=chatgpt` uses `OPENAI_API_KEY`.
+ * `CHAT_PROVIDER=claude` uses `ANTHROPIC_API_KEY`. Unset stays on local Ollama.
+ */
 export function promptRunnerFromEnv(
   store: IngestStore,
   config: Record<string, unknown> = {},
