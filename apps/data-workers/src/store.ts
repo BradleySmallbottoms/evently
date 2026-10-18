@@ -1,4 +1,5 @@
 import type { EventMeta } from '@local-events/contracts';
+import type { PublisherLookup } from './prompt-runners/types';
 import type { EventStatus, MarketingPushPlanId, SourceTrust } from '@local-events/domain';
 import type { IncomingEvent, TagChoice } from '@local-events/ingest';
 import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
@@ -99,6 +100,8 @@ export interface PublisherRecord {
   isTemporary: boolean;
   importNotificationPlan: MarketingPushPlanId | null;
   organizerKeys: string[];
+  /** Web lookup for a temporary publisher. Null until that prompt returns. */
+  lookup: PublisherLookup | null;
 }
 
 export interface OccasionGroupRow {
@@ -214,6 +217,8 @@ export interface IngestStore {
     organizerKeys: string[];
     name: string;
   }): Promise<PublisherLink>;
+  /** Writes `meta.lookup` and leaves every other meta key as it is. */
+  rememberPublisherLookup(publisherId: string, lookup: PublisherLookup): Promise<void>;
   /** Store keys from this event on the publisher when this source does not already use them. */
   rememberOrganizerKeys(
     sourceId: string,

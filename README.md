@@ -148,7 +148,9 @@ calls) in the same change as every new major feature.**
   `http` is only allowed on loopback. An event that already has tags skips the
   model. The worker publishes the event only when the scan approves it, the publisher is verified,
   and the source trust is `auto_publish`. Anything else that finishes goes to `in_review`. A model
-  failure leaves the row `pending_scan`. A duplicate ranked over 90 as another showing stores
+  failure leaves the row `pending_scan`. When the scan creates a temporary publisher, a second
+  prompt can search the web (`BRAVE_API_KEY`), store the profile on `publishers.meta.lookup`, and store a fetched website as an organizer key.
+  A missing key or a failed lookup leaves that publisher unchanged. A duplicate ranked over 90 as another showing stores
   `meta.possibleOccasionGroupId` on that event and the matches. An existing `occasionGroupId` is
   reused; otherwise a new id is created. Public responses omit it. `OLLAMA_BASE_URL` must be a loopback URL.
   `OLLAMA_DISABLED=1` skips local Ollama, so an event that still needs tags stays `pending_scan`.

@@ -854,7 +854,17 @@ export function createDbIngestStore(db: Db): IngestStore {
         isTemporary: row.isTemporary,
         importNotificationPlan: row.importNotificationPlan,
         organizerKeys: aliases.map((alias) => alias.key),
+        lookup: row.meta.lookup ?? null,
       };
+    },
+    async rememberPublisherLookup(publisherId, lookup) {
+      const { publishers } = schema;
+      await db
+        .update(publishers)
+        .set({
+          meta: sql`jsonb_set(COALESCE(${publishers.meta}, '{}'::jsonb), '{lookup}', ${JSON.stringify(lookup)}::jsonb, true)`,
+        })
+        .where(eq(publishers.id, publisherId));
     },
     async nearbyPublishers(
       point: GeoPoint,

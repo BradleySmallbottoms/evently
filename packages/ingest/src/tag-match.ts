@@ -173,9 +173,28 @@ export type LLMScanResult = {
   possiblePublishers: { publisherId: string; rank: number }[];
   possibleDuplicates: { eventId: string; rank: number; occasionRank: number }[];
   contentVerdict: 'spam' | 'harmful' | 'safe' | 'unknown';
-  possibleTags: { id: string; score: number }[];  
+  possibleTags: { id: string; score: number }[];
   summary: string;
   language: string;
+  /** Steps from the description. Empty when the model listed none. */
+  instructions: string[];
+}
+
+const INSTRUCTION_LIMIT = 20;
+const INSTRUCTION_LENGTH = 500;
+
+/** Keeps non-empty steps from the scan JSON. At most 20, each at most 500 characters. */
+export function readScanInstructions(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const steps: string[] = [];
+  for (const item of value) {
+    if (typeof item !== 'string') continue;
+    const step = item.trim();
+    if (!step) continue;
+    steps.push(step.slice(0, INSTRUCTION_LENGTH));
+    if (steps.length >= INSTRUCTION_LIMIT) break;
+  }
+  return steps;
 }
 
 export type LLMOutput = LLMScanResult & {

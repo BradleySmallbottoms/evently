@@ -2,7 +2,15 @@ import type { IngestStore } from '../store';
 import type { PromptRunner } from './types';
 import { createOllamaWithToolsPromptRunner } from './chatwithtools';
 
-export type { ChosenPublisher, PossibleDuplicateMatch, PromptRunner, ScanInput, ScanOutcome } from './types';
+export type {
+  ChosenPublisher,
+  PossibleDuplicateMatch,
+  PromptRunner,
+  PublisherLookup,
+  PublisherLookupInput,
+  ScanInput,
+  ScanOutcome,
+} from './types';
 export { createOllamaPromptRunner } from './ollama';
 export { createOllamaWithToolsPromptRunner } from './chatwithtools';
 export type { OllamaWithToolsRunnerOptions } from './chatwithtools';

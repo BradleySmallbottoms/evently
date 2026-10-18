@@ -13,6 +13,7 @@ import {
   ollamaDisabled,
   ollamaModel,
   parseTagChoices,
+  readScanInstructions,
   titleSimilarity,
   type LLMOutput,
   type LLMScanResult,
@@ -41,15 +42,32 @@ function messageContent(payload: unknown): LLMScanResult & LLMOutput | null {
 function parseResponse(content: string): LLMScanResult {
   const start = content.indexOf('{');
   const end = content.lastIndexOf('}');
-  if (start < 0 || end <= start) return { contentVerdict: 'safe', possibleTags: [], possiblePublishers: [], possibleDuplicates: [], summary: '', language: '' };
+  if (start < 0 || end <= start) return emptyScan();
   let parsed: LLMScanResult;
   try {
     parsed = JSON.parse(content.slice(start, end + 1)) as LLMScanResult;
   } catch {
-    return { contentVerdict: 'safe', possibleTags: [], possiblePublishers: [], possibleDuplicates: [], summary: '', language: '' };
+    return emptyScan();
   }
-  if (!parsed || typeof parsed !== 'object') return { contentVerdict: 'safe', possibleTags: [], possiblePublishers: [], possibleDuplicates: [], summary: '', language: '' };
-  return { ...parsed, summary: parsed.summary ?? '', language: parsed.language ?? '' };
+  if (!parsed || typeof parsed !== 'object') return emptyScan();
+  return {
+    ...parsed,
+    summary: parsed.summary ?? '',
+    language: parsed.language ?? '',
+    instructions: readScanInstructions(parsed.instructions),
+  };
+}
+
+function emptyScan(): LLMScanResult {
+  return {
+    contentVerdict: 'safe',
+    possibleTags: [],
+    possiblePublishers: [],
+    possibleDuplicates: [],
+    summary: '',
+    language: '',
+    instructions: [],
+  };
 }
 
 async function askOllama(
@@ -223,11 +241,15 @@ export function createOllamaPromptRunner(
           contentVerdict: llmoutput?.contentVerdict ?? 'unknown',
           summary: llmoutput?.summary ?? '',
           language: llmoutput?.language ?? '',
+          instructions: llmoutput?.instructions ?? [],
           llmOutput: llmoutput?.output ?? {},
         });
       }
 
       return outcomes;
+    },
+    async lookupPublisher() {
+      return null;
     },
   };
 }

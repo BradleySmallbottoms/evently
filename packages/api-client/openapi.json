@@ -4158,6 +4158,15 @@
                                   ]
                                 },
                                 "maxItems": 2000
+                              },
+                              "instructions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 500
+                                },
+                                "maxItems": 20
                               }
                             }
                           },
@@ -4676,6 +4685,15 @@
                                   ]
                                 },
                                 "maxItems": 2000
+                              },
+                              "instructions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 500
+                                },
+                                "maxItems": 20
                               }
                             }
                           },
@@ -5210,6 +5228,15 @@
                                         ]
                                       },
                                       "maxItems": 2000
+                                    },
+                                    "instructions": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 500
+                                      },
+                                      "maxItems": 20
                                     }
                                   }
                                 },
@@ -5608,6 +5635,15 @@
                                   ]
                                 },
                                 "maxItems": 2000
+                              },
+                              "instructions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 500
+                                },
+                                "maxItems": 20
                               }
                             }
                           },
@@ -6043,6 +6079,15 @@
                                   ]
                                 },
                                 "maxItems": 2000
+                              },
+                              "instructions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 500
+                                },
+                                "maxItems": 20
                               }
                             }
                           },
@@ -6863,6 +6908,15 @@
                                   ]
                                 },
                                 "maxItems": 2000
+                              },
+                              "instructions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 500
+                                },
+                                "maxItems": 20
                               }
                             }
                           },
@@ -7359,6 +7413,15 @@
                             ]
                           },
                           "maxItems": 2000
+                        },
+                        "instructions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "maxItems": 20
                         }
                       }
                     },
@@ -7872,6 +7935,15 @@
                                   ]
                                 },
                                 "maxItems": 2000
+                              },
+                              "instructions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 500
+                                },
+                                "maxItems": 20
                               }
                             }
                           },
@@ -8220,6 +8292,15 @@
                                   ]
                                 },
                                 "maxItems": 2000
+                              },
+                              "instructions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 500
+                                },
+                                "maxItems": 20
                               }
                             }
                           },
@@ -8556,6 +8637,15 @@
                             ]
                           },
                           "maxItems": 2000
+                        },
+                        "instructions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "maxItems": 20
                         }
                       }
                     },
@@ -8916,6 +9006,15 @@
                             ]
                           },
                           "maxItems": 2000
+                        },
+                        "instructions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "maxItems": 20
                         }
                       }
                     },
@@ -9488,6 +9587,15 @@
                             ]
                           },
                           "maxItems": 2000
+                        },
+                        "instructions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "maxItems": 20
                         }
                       }
                     },
@@ -9909,6 +10017,15 @@
                             ]
                           },
                           "maxItems": 2000
+                        },
+                        "instructions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "maxItems": 20
                         }
                       }
                     },
@@ -10299,6 +10416,15 @@
                             ]
                           },
                           "maxItems": 2000
+                        },
+                        "instructions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "maxItems": 20
                         }
                       }
                     },

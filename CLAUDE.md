@@ -118,7 +118,8 @@ Architecture
 - The admin frontend talks only to the admin API.
 - Data workers never write events directly in an adapter; adapters only fetch and map to
   `IncomingEvent`. The ingest pipeline validates and upserts. A new import stays `pending_scan`
-  until the scan job resolves the publisher, duplicate check, and tags.
+  until the scan job resolves the publisher, duplicate check, and tags. Steps the scan lists
+  from the description are stored on `meta.instructions`.
 
 Product invariants (enforced in domain, tested)
 
@@ -133,6 +134,9 @@ Product invariants (enforced in domain, tested)
   only when the scan approves it, the publisher is verified and not temporary, and the source
   trust is `auto_publish`. A temporary publisher, an unverified publisher, or a review-trust
   source goes to `in_review`. Several publishers from one source can share an organizer key.
+  When the scan creates a temporary publisher, a second prompt may look that organizer up on the
+  web. The profile is stored on `publishers.meta.lookup`. A website from a fetched page is also stored as an organizer key. A failed lookup leaves the
+  temporary publisher unchanged.
 - An imported physical event with no venue name uses the city in its scraped address. When that
   address has no city, the nearest city within 25 km of its point is used. A named venue stays.
 - Visit Söderhamn, Glada Hudik, and Destination Hälsingland turn each occasion into its own event.

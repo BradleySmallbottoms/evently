@@ -1,16 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { krPriceLabel } from '@local-events/domain';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Linking,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   TextInput,
@@ -19,24 +19,35 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ConfirmAction } from '@/components/native/confirm-action';
-import { EventActionsMenu } from '@/components/native/event-actions-menu';
 import { ProfilePromptSheet } from '@/components/native/profile-prompt-sheet';
 import { RatingSheet } from '@/components/native/rating-sheet';
 import { ReminderPicker } from '@/components/native/reminder-picker';
 import { AppText } from '@/components/ui/app-text';
-import { BackPill } from '@/components/ui/back-pill';
-import { DateBox } from '@/components/ui/date-box';
 import { EventHeroGallery } from '@/components/ui/event-hero-gallery';
-import { EventPlan } from '@/components/ui/event-plan';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { PrimaryButton } from '@/components/ui/primary-button';
-import { TagPills, PricePill } from '@/components/ui/tag-pills';
 import { MaxContentWidth } from '@/constants/theme';
-import { getPublicEvent, listOccasionEvents, listTags, namesForTagIds } from '@/lib/events';
+import {
+  FALLBACK_CENTER,
+  getPublicEvent,
+  listOccasionEvents,
+  listPublicEvents,
+  listTags,
+  namesForTagIds,
+} from '@/lib/events';
 import { eventListFreshness } from '@/lib/query-client';
 import { fetchCheckInStatus, performCodeCheckIn, performGeoCheckIn } from '@/lib/check-in';
 import { fetchEventContent, readCachedEventContent } from '@/lib/event-content';
-import { dateBadge, primaryAction, safeHttpUrl } from '@/lib/event-format';
+import {
+  descriptionParts,
+  formatDayHeading,
+  formatPeriod,
+  formatTimeRange,
+  isOpenPeriod,
+  linkHost,
+  periodStatus,
+} from '@/lib/event-detail-format';
+import { primaryAction, safeHttpUrl } from '@/lib/event-format';
 import { ensureIdentity } from '@/lib/identity';
 import {
   clearComing,
@@ -55,13 +66,21 @@ import {
   type ReminderSlot,
 } from '@/lib/reminder-times';
 import { directionsUrl } from '@/lib/directions';
-import { isWholeDay, shownWhen, upcomingSpanOccasions } from '@/lib/span-occasions';
+import { isWholeDay, upcomingSpanOccasions } from '@/lib/span-occasions';
 import { shareEventLink } from '@/lib/event-share';
 import { buildEventWebUrl } from '@/lib/event-share-url';
 import { reportEvent } from '@/lib/reports';
 import { followTarget, listSubscriptions, unfollowTarget } from '@/lib/subscriptions';
 import { fetchEventStats } from '@/lib/stats';
-import { OccasionList } from './_components/occasion-list';
+import { DetailCard } from './_components/detail-card';
+import { DetailGlyph, IconTile } from './_components/detail-glyph';
+import { DetailMap } from './_components/detail-map';
+import { GoodToKnow, type FactRow } from './_components/good-to-know';
+import { HowItWorks } from './_components/how-it-works';
+import { OccasionPeriod } from './_components/occasion-period';
+import { ParticipateBar } from './_components/participate-bar';
+import { RelatedEvents } from './_components/related-events';
+import { ShareRow } from './_components/share-row';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
 
@@ -69,9 +88,11 @@ export default function EventDetailScreen() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [reportOpen, setReportOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [ratingOpen, setRatingOpen] = useState(false);
   const [code, setCode] = useState('');
@@ -81,9 +102,11 @@ export default function EventDetailScreen() {
   /** Local on/off until the saved and coming lists catch up. */
   const [savedOverride, setSavedOverride] = useState<boolean | null>(null);
   const [comingOverride, setComingOverride] = useState<boolean | null>(null);
-  /** Added to the server totals until a pull replaces them. */
+  /** Added to the server totals until that query returns a new count. */
   const [savedDelta, setSavedDelta] = useState(0);
   const [comingDelta, setComingDelta] = useState(0);
+  /** Save state for similar events until the saved list catches up. */
+  const [relatedSaved, setRelatedSaved] = useState<Record<string, boolean>>({});
 
   const identity = useQuery({
     queryKey: ['identity', locale],
@@ -96,6 +119,18 @@ export default function EventDetailScreen() {
     queryFn: () => getPublicEvent(id),
     enabled: typeof id === 'string' && id.length > 0,
   });
+  const serverSaved = event.data?.numSaved;
+  const serverComing = event.data?.numComing;
+  const [countedSaved, setCountedSaved] = useState(serverSaved);
+  const [countedComing, setCountedComing] = useState(serverComing);
+  if (serverSaved !== countedSaved) {
+    setCountedSaved(serverSaved);
+    setSavedDelta(0);
+  }
+  if (serverComing !== countedComing) {
+    setCountedComing(serverComing);
+    setComingDelta(0);
+  }
   const occasionGroupId = event.data?.meta.occasionGroupId;
   const occasions = useQuery({
     queryKey: ['event-occasions', occasionGroupId],
@@ -201,6 +236,17 @@ export default function EventDetailScreen() {
   const tags = useQuery({
     queryKey: ['tags', 'upcoming'],
     queryFn: () => listTags(),
+  });
+  const primaryTagId = event.data?.tagIds[0];
+  const relatedPoint = event.data?.location
+    ? { lat: event.data.location.lat, lng: event.data.location.lng, radiusM: 50_000 }
+    : FALLBACK_CENTER;
+  const related = useQuery({
+    queryKey: ['related-events', id, primaryTagId, relatedPoint.lat, relatedPoint.lng],
+    ...eventListFreshness,
+    queryFn: () =>
+      listPublicEvents(relatedPoint, { tagId: primaryTagId, limit: 8, sort: 'soonest' }),
+    enabled: Boolean(event.data && primaryTagId),
   });
   const rate = useMutation({
     mutationFn: (input: { score: number; comment?: string | null }) =>
@@ -372,6 +418,7 @@ export default function EventDetailScreen() {
         reminder.refetch(),
         tags.refetch(),
         ...(occasionGroupId ? [occasions.refetch()] : []),
+        ...(event.data?.tagIds[0] ? [related.refetch()] : []),
       ];
       if (identity.isSuccess) {
         jobs.push(
@@ -389,6 +436,7 @@ export default function EventDetailScreen() {
       setComingOverride(null);
       setSavedDelta(0);
       setComingDelta(0);
+      setRelatedSaved({});
     } finally {
       setRefreshing(false);
     }
@@ -416,8 +464,7 @@ export default function EventDetailScreen() {
     }
   }
 
-  async function openDirections() {
-    const location = event.data?.location;
+  async function openDirections(location?: { lat: number; lng: number } | null) {
     if (!location) return;
     try {
       await Linking.openURL(directionsUrl(location.lat, location.lng, Platform.OS));
@@ -449,332 +496,498 @@ export default function EventDetailScreen() {
     }
   }
 
-  const priceLabel = krPriceLabel(event.data?.priceAmount);
-  const shown = event.data ? shownWhen(event.data, new Date()) : null;
+  async function shareFacebook() {
+    if (typeof id !== 'string') return;
+    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(buildEventWebUrl(id))}`;
+    try {
+      await WebBrowser.openBrowserAsync(shareUrl);
+    } catch {
+      Alert.alert(t('events.share'), t('events.shareLinkError'));
+    }
+  }
+
+  function toggleRelatedSaved(eventId: string, on: boolean) {
+    if (!identity.data) return;
+    const next = !on;
+    setRelatedSaved((current) => ({ ...current, [eventId]: next }));
+    void (on ? unsaveEvent(identity.data, eventId) : saveEvent(identity.data, eventId))
+      .then(() => queryClient.invalidateQueries({ queryKey: ['saved-events'] }))
+      .catch(() => {
+        setRelatedSaved((current) => ({ ...current, [eventId]: on }));
+        Alert.alert(t('events.planTitle'), t('events.planError'));
+      });
+  }
+
   const offerReminder = event.data
     ? canOfferEventReminder(new Date(event.data.startsAt), new Date())
     : false;
+  const timeZone = event.data?.timezone;
+  const multiDay = event.data
+    ? isOpenPeriod(event.data.startsAt, event.data.endsAt, timeZone)
+    : false;
+  const copy = descriptionParts(event.data?.description);
+  const tagNames = namesForTagIds(event.data?.tagIds ?? [], tags.data?.items);
+  const interestCount = Math.max(0, (event.data?.numSaved ?? 0) + savedDelta);
+  const comingCount = Math.max(0, (event.data?.numComing ?? 0) + comingDelta);
+  const mapPoints = useMemo(() => {
+    if (!event.data) return [];
+    const points: { lat: number; lng: number }[] = [];
+    const seen = new Set<string>();
+    const add = (location?: { lat: number; lng: number } | null) => {
+      if (!location) return;
+      const key = `${location.lat.toFixed(5)},${location.lng.toFixed(5)}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      points.push({ lat: location.lat, lng: location.lng });
+    };
+    add(event.data.location);
+    for (const occasion of event.data.meta.occasions ?? []) add(occasion.location);
+    for (const item of occasions.data?.items ?? []) {
+      if (item.id !== id) add(item.location);
+    }
+    return points;
+  }, [event.data, occasions.data?.items, id]);
+  const relatedItems = useMemo(() => {
+    return (related.data?.items ?? [])
+      .filter((item) => item.id !== id)
+      .slice(0, 3)
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        when: formatPeriod(item.startsAt, item.endsAt, locale, item.timezone),
+        where: item.venueName || item.publisherName,
+        imageUrl: item.imageUrl,
+        tags: namesForTagIds(item.tagIds, tags.data?.items),
+        saved: relatedSaved[item.id] ?? saved.data?.items.some((savedItem) => savedItem.id === item.id) ?? false,
+      }));
+  }, [related.data?.items, id, locale, tags.data?.items, relatedSaved, saved.data?.items]);
+
+  const whenTitle = event.data
+    ? multiDay
+      ? formatPeriod(event.data.startsAt, event.data.endsAt, locale, timeZone)
+      : formatDayHeading(event.data.startsAt, locale, timeZone)
+    : '';
+  const whenSubtitle = event.data
+    ? multiDay
+      ? t('events.detail.joinWhenYouWant')
+      : isWholeDay(event.data.startsAt, event.data.endsAt)
+        ? t('events.wholeDay')
+        : formatTimeRange(event.data.startsAt, event.data.endsAt, locale, timeZone)
+    : '';
+  const socialLabel =
+    interestCount > 0
+      ? t('events.detail.interestCount', { count: interestCount })
+      : comingCount > 0
+        ? t('events.detail.comingCount', { count: comingCount })
+        : null;
+  const facts: FactRow[] = [];
+  if (event.data) {
+    const link = primaryAction(event.data.links, event.data.onlineUrl);
+    const linkUrl = link ? safeHttpUrl(link.url) : null;
+    facts.push({
+      key: 'type',
+      sf: event.data.mode === 'physical' ? 'mappin.and.ellipse' : 'link',
+      md: event.data.mode === 'physical' ? 'place' : 'link',
+      label: t('events.detail.knowType'),
+      value:
+        event.data.mode === 'physical'
+          ? t(multiDay ? 'events.detail.typeInPersonPeriod' : 'events.detail.typeInPerson')
+          : t(multiDay ? 'events.detail.typeOnlinePeriod' : 'events.detail.typeOnline'),
+    });
+    facts.push({
+      key: 'place',
+      sf: 'mappin',
+      md: 'place',
+      label: t('events.detail.knowPlace'),
+      value:
+        event.data.mode === 'physical'
+          ? event.data.venueName || t('events.missingVenue')
+          : t('events.online'),
+    });
+    if (event.data.priceAmount === 0) {
+      facts.push({
+        key: 'cost',
+        sf: 'creditcard',
+        md: 'payments',
+        label: t('events.detail.knowCost'),
+        value: t('events.detail.costFree'),
+      });
+    } else if ((event.data.priceAmount ?? 0) > 0) {
+      const price = krPriceLabel(event.data.priceAmount);
+      if (price) {
+        facts.push({
+          key: 'cost',
+          sf: 'creditcard',
+          md: 'payments',
+          label: t('events.detail.knowCost'),
+          value: price,
+        });
+      }
+    }
+    if (link && linkUrl) {
+      facts.push({
+        key: 'more',
+        sf: 'info.circle',
+        md: 'info-outline',
+        label: t('events.detail.knowMore'),
+        value: link.label || linkHost(linkUrl) || t('events.linkInfo'),
+        accent: true,
+        onPress: () => {
+          void Linking.openURL(linkUrl);
+        },
+      });
+    }
+    if (offerReminder) {
+      facts.push({
+        key: 'remind',
+        sf: 'bell',
+        md: 'notifications-none',
+        label: t('events.detail.knowRemind'),
+        value: reminderOn ? t('events.remindMeOn') : t('events.remindMe'),
+        onPress: openReminderPicker,
+      });
+    }
+  }
+  const showOccasions = Boolean(event.data) && (multiDay || otherOccasions.length > 0);
+  const status = event.data
+    ? periodStatus(event.data.startsAt, event.data.endsAt, new Date(), timeZone)
+    : 'soon';
+  const aboutLong = copy.about.length > 280;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
-      <ScrollView
-        style={{
-          flex: 1,
-          width: '100%',
-          maxWidth: MaxContentWidth,
-          backgroundColor: colors.canvas,
-        }}
-        directionalLockEnabled
-        contentInsetAdjustmentBehavior="never"
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              void refreshDetail();
-            }}
-            tintColor={colors.accent}
-            progressViewOffset={insets.top}
-          />
-        }
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingBottom: Math.max(insets.bottom, space.xl),
-        }}
-      >
-        <View style={{ height: 400, backgroundColor: colors.accentSoft }}>
-          {event.data ? (
-            <EventHeroGallery
-              imageUrl={event.data.imageUrl}
-              imageUrls={event.data.imageUrls}
-              tags={namesForTagIds(event.data.tagIds, tags.data?.items)}
-            />
-          ) : null}
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              top: 0,
-              height: 120,
-              experimental_backgroundImage:
-                'linear-gradient(to bottom, rgba(20,20,20,0.38) 0%, rgba(20,20,20,0) 100%)',
-            }}
-          />
-          <View
-            style={{
-              position: 'absolute',
-              top: insets.top + space.sm,
-              left: space.lg,
-            }}
-          >
-            <BackPill />
-          </View>
-          {event.data ? (
-            <View
-              style={{
-                position: 'absolute',
-                top: insets.top + space.sm,
-                right: space.lg,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: space.sm,
+    <View style={{ flex: 1, alignItems: 'center' }}>
+      <View style={{ flex: 1, width: '100%', maxWidth: MaxContentWidth }}>
+        <ScrollView
+          style={{ flex: 1, backgroundColor: colors.canvas }}
+          directionalLockEnabled
+          contentInsetAdjustmentBehavior="never"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                void refreshDetail();
               }}
-            >
-              <CircleIconButton
-                tintColor={interestedOn ? (colors.accent as string) : undefined}
-                sf={interestedOn ? 'heart.fill' : 'heart'}
-                md={interestedOn ? 'favorite' : 'favorite-border'}
-                accessibilityLabel={interestedOn ? t('events.unfavorite') : t('events.favorite')}
-                onPress={toggleSaved}
-              />
-              <CircleIconButton
-                sf="arrowshape.turn.up.right"
-                md="shortcut"
-                iconSize={22}
-                accessibilityLabel={t('events.share')}
-                onPress={() => void shareEvent()}
-              />
-            </View>
-          ) : null}
-        </View>
-
-        {event.data ? (
-          <View
-            style={{
-              marginTop: -100,
-              paddingHorizontal: space.xl,
-              zIndex: 2,
-              alignSelf: 'flex-start',
-            }}
-          >
-            <DateBox shadow={true} badge={dateBadge(shown!.startsAt, locale)} />
-          </View>
-        ) : null}
-
-        <View
-          style={{
+              tintColor={colors.accent}
+              progressViewOffset={insets.top}
+            />
+          }
+          contentContainerStyle={{
             flexGrow: 1,
-            backgroundColor: colors.canvas,
-            marginTop: event.data ? -space.xxl : 0,
-            zIndex: 1,
-            borderTopLeftRadius: radius.lg,
-            borderTopRightRadius: radius.lg,
-            borderCurve: 'continuous',
-            overflow: 'hidden',
+            paddingBottom: 128 + insets.bottom,
           }}
         >
-          {event.isPending && <AppText variant="caption">{t('events.loading')}</AppText>}
-          {event.isError && (
-            <AppText variant="caption" style={{ color: colors.danger }}>
-              {t('events.loadError')}
-            </AppText>
-          )}
-          {event.data && (
-            <>
+          <View style={{ height: 300, backgroundColor: colors.accentSoft }}>
+            {event.data ? (
+              <EventHeroGallery
+                imageUrl={event.data.imageUrl}
+                imageUrls={event.data.imageUrls}
+                tags={tagNames}
+              />
+            ) : null}
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 120,
+                experimental_backgroundImage:
+                  'linear-gradient(to bottom, rgba(20,20,20,0.38) 0%, rgba(20,20,20,0) 100%)',
+              }}
+            />
+            <View style={{ position: 'absolute', top: insets.top + space.sm, left: space.lg, zIndex: 2 }}>
+              <CircleIconButton
+                sf="chevron.left"
+                md="arrow-back"
+                accessibilityLabel={t('events.back')}
+                onPress={() => router.back()}
+              />
+            </View>
+            {event.data ? (
               <View
                 style={{
-                  flexGrow: 1,
-                  backgroundColor: colors.canvas,
-                  borderTopLeftRadius: radius.lg,
-                  borderTopRightRadius: radius.lg,
-                  borderCurve: 'continuous',
-                  paddingTop: 36,
-                  paddingBottom: space.xxl,
+                  position: 'absolute',
+                  top: insets.top + space.sm,
+                  right: space.lg,
+                  zIndex: 2,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: space.sm,
                 }}
               >
-                <View style={{
-                  paddingHorizontal: space.lg,
-                  borderBottomColor: colors.separator,
-                  borderBottomWidth: 1,
-                  paddingBottom: space.lg,
-                  gap: space.sm,
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
-                    <View style={{ flex: 1 }}>
+                <CircleIconButton
+                  tintColor={interestedOn ? (colors.accent as string) : undefined}
+                  sf={interestedOn ? 'heart.fill' : 'heart'}
+                  md={interestedOn ? 'favorite' : 'favorite-border'}
+                  accessibilityLabel={interestedOn ? t('events.unfavorite') : t('events.favorite')}
+                  onPress={toggleSaved}
+                />
+                <CircleIconButton
+                  sf="square.and.arrow.up"
+                  md="share"
+                  accessibilityLabel={t('events.share')}
+                  onPress={() => void shareEvent()}
+                />
+              </View>
+            ) : null}
+
+          </View>
+
+          <View style={{ marginTop: -space.lg, backgroundColor: colors.canvas, paddingTop: space.lg, gap: space.lg, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}>
+            {event.isPending ? <AppText variant="caption">{t('events.loading')}</AppText> : null}
+            {event.isError ? (
+              <AppText variant="caption" style={{ color: colors.danger }}>
+                {t('events.loadError')}
+              </AppText>
+            ) : null}
+
+            {event.data ? (
+              <View style={{ paddingHorizontal: space.lg, gap: space.lg }}>
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    gap: space.sm,
+                  }}
+                >
+                  {tagNames.map((tag) => (
+                    <View key={tag} style={{
+                      backgroundColor: colors.secondarySoft,
+                      borderRadius: radius.pill,
+                      boxShadow: shadow.soft,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: space.xs,
+                      paddingHorizontal: space.xs,
+                      paddingVertical: space.xs,
+                    }}>
+                      <DetailGlyph sf="leaf" md="eco" size={14} color={colors.success as string} />
                       <AppText
+                        numberOfLines={1}
                         style={{
-                          fontSize: 22,
-                          lineHeight: 28,
+                          color: colors.success,
+                          fontSize: 12,
+                          lineHeight: 16,
                           fontWeight: '700',
-                          color: colors.ink,
-                          paddingRight: priceLabel ? 64 : 0,
+                          letterSpacing: 0.6,
+                          textTransform: 'uppercase',
                         }}
                       >
-                        {event.data.title}
-                      </AppText>
-                      {priceLabel ? (
-                        <View pointerEvents="none" style={{ position: 'absolute', top: 4, right: 0 }}>
-                          <PricePill label={priceLabel} />
-                        </View>
-                      ) : null}
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <EventActionsMenu
-                        accessibilityLabel={t('events.moreActions')}
-                        interestedLabel={
-                          interestedOn ? t('events.removeInterest') : t('events.saveInterested')
-                        }
-                        interestedOn={interestedOn}
-                        onInterested={toggleSaved}
-                        comingLabel={comingOn ? t('events.removeComing') : t('events.planComing')}
-                        comingOn={comingOn}
-                        onComing={toggleComing}
-                        shareLabel={t('events.share')}
-                        copyLinkLabel={t('events.copyLink')}
-                        reportLabel={t('events.report')}
-                        onShare={() => void shareEvent()}
-                        onCopyLink={() => void copyLink()}
-                        onReport={() => setReportOpen(true)}
-                        directionsLabel={
-                          event.data.mode === 'physical' && event.data.location
-                            ? t('events.directions')
-                            : undefined
-                        }
-                        onDirections={
-                          event.data.mode === 'physical' && event.data.location
-                            ? () => void openDirections()
-                            : undefined
-                        }
-                        followLabel={
-                          event.data.publisherName
-                            ? t(
-                                followingPublisher
-                                  ? 'events.unfollowPublisher'
-                                  : 'events.followPublisher',
-                                { name: event.data.publisherName },
-                              )
-                            : undefined
-                        }
-                        following={followingPublisher}
-                        onFollow={event.data.publisherName ? toggleFollow : undefined}
-                        remindLabel={
-                          offerReminder
-                            ? reminderOn
-                              ? t('events.remindMeOn')
-                              : t('events.remindMe')
-                            : undefined
-                        }
-                        onRemind={offerReminder ? openReminderPicker : undefined}
-                        buttonStyle={{ 
-                          width: 42, 
-                          height: 42, 
-                          backgroundColor: colors.card,
-                          borderRadius: radius.pill,
-                        }}
-                      />
-                    </View>
-                  </View>
-
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                    <DetailIcon
-                      sf={event.data.mode === 'physical' ? 'mappin' : 'link'}
-                      md={event.data.mode === 'physical' ? 'location-on' : 'link'}
-                    />
-                    <AppText variant="body" style={{ flex: 1, color: colors.ink }}>
-                      {event.data.mode === 'physical'
-                        ? [event.data.venueName, event.data.publisherName]
-                          .filter(Boolean)
-                          .join(' · ') || t('events.missingVenue')
-                        : (event.data.onlineUrl ?? event.data.publisherName)}
-                    </AppText>
-                  </View>
-
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
-                    <View
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, flex: 1 }}
-                    >
-                      <DetailIcon sf="calendar" md="event" />
-                      <AppText variant="caption" style={{ color: colors.ink, flexShrink: 1 }}>
-                        {new Date(shown!.startsAt).toLocaleDateString(locale, {
-                          weekday: 'short',
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
+                        {tag}
                       </AppText>
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                      <DetailIcon sf="clock" md="schedule" />
-                      <AppText variant="caption" style={{ color: colors.ink }}>
-                        {isWholeDay(shown!.startsAt, shown!.endsAt)
-                          ? t('events.wholeDay')
-                          : `${new Date(shown!.startsAt).toLocaleTimeString(locale, {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })} – ${new Date(shown!.endsAt).toLocaleTimeString(locale, {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}`}
-                      </AppText>
-                    </View>
-                  </View>
-
+                  ))}
                 </View>
 
-                <EventPlan
-                  interestedLabel={t('events.planInterested')}
-                  comingLabel={t('events.planComing')}
-                  hint={t('events.planHint')}
-                  interested={interestedOn}
-                  coming={comingOn}
-                  interestedCount={Math.max(0, event.data.numSaved + savedDelta)}
-                  comingCount={Math.max(0, event.data.numComing + comingDelta)}
-                  interestedCountLabel={t('events.planInterestedCount', {
-                    count: Math.max(0, event.data.numSaved + savedDelta),
-                  })}
-                  comingCountLabel={t('events.planComingCount', {
-                    count: Math.max(0, event.data.numComing + comingDelta),
-                  })}
-                  onInterestedPress={toggleSaved}
-                  onComingPress={toggleComing}
+                <View style={{ gap: space.sm }}>
+                  <AppText style={{ fontSize: 28, lineHeight: 34, fontWeight: '700', color: colors.ink }}>
+                    {event.data.title}
+                  </AppText>
+                  {copy.lead ? (
+                    <AppText style={{ fontSize: 16, lineHeight: 23, color: colors.inkMuted }}>{copy.lead}</AppText>
+                  ) : null}
+                </View>
+
+                <DetailCard>
+                  <View style={{ gap: space.lg }}>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 44 }}>
+                      <DetailGlyph sf="calendar" md="event" size={32} color={colors.accent as string} />
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <AppText style={{ fontSize: 16, lineHeight: 22, fontWeight: '700' }}>{whenTitle}</AppText>
+                        <AppText variant="caption">{whenSubtitle}</AppText>
+                      </View>
+                    </View>
+
+                    <Pressable
+                      accessibilityRole={mapPoints.length > 0 ? 'button' : undefined}
+                      disabled={mapPoints.length === 0}
+                      onPress={() => void openDirections(mapPoints[0])}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 44 }}
+                    >
+                      <DetailGlyph
+                        sf={event.data.mode === 'physical' ? 'location.fill' : 'link'}
+                        md={event.data.mode === 'physical' ? 'location-on' : 'link'}
+                        size={32}
+                        color={colors.accent as string}
+                      />
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <AppText style={{ fontSize: 16, lineHeight: 22, fontWeight: '700' }}>
+                          {event.data.mode === 'physical'
+                            ? event.data.venueName || t('events.missingVenue')
+                            : t('events.online')}
+                        </AppText>
+                        <AppText variant="caption">
+                          {[
+                            event.data.publisherName,
+                            mapPoints.length > 0 ? t('events.detail.showMap') : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </AppText>
+                      </View>
+                      {mapPoints.length > 0 ? (
+                        <DetailGlyph sf="chevron.right" md="chevron-right" size={18} color={colors.inkMuted as string} />
+                      ) : null}
+                    </Pressable>
+
+                  </View>
+                </DetailCard>
+
+                {socialLabel ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                    <DetailGlyph sf="person.2" md="people" size={18} color={colors.inkMuted as string} />
+                    <AppText style={{ fontSize: 14, lineHeight: 20, color: colors.ink }}>{socialLabel}</AppText>
+                  </View>
+                ) : null}
+
+              </View>
+            ) : null}
+
+            {/* <View style={{ gap: space.lg, paddingHorizontal: space.lg }}>
+              <PrimaryButton
+                label={comingOn ? t('events.detail.joined') : t('events.detail.join')}
+                onPress={toggleComing}
+                color={comingOn ? (colors.primary as string) : undefined}
+                labelColor={comingOn ? '#FFFFFF' : undefined}
+                icon={{
+                  sf: comingOn ? 'checkmark.circle.fill' : 'checkmark.circle',
+                  md: comingOn ? 'check-circle' : 'check-circle-outline',
+                }}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: interestedOn }}
+                onPress={toggleSaved}
+                style={{
+                  minHeight: 44,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: space.sm,
+                  borderWidth: 1,
+                  borderColor: interestedOn ? colors.accent : colors.ink,
+                  borderRadius: radius.md,
+                  paddingHorizontal: space.md,
+                  paddingVertical: space.sm,
+                }}
+              >
+                <DetailGlyph
+                  sf={interestedOn ? 'heart.fill' : 'heart'}
+                  md={interestedOn ? 'favorite' : 'favorite-border'}
+                  color={interestedOn ? (colors.accent as string) : (colors.ink as string)}
+                />
+                <AppText
+                  style={{
+                    fontSize: 16,
+                    lineHeight: 22,
+                    fontWeight: '700',
+                    color: interestedOn ? colors.accent : colors.ink,
+                  }}
+                >
+                  {t('events.planInterested')}
+                </AppText>
+              </Pressable>
+            </View> */}
+
+            {event.data ? (
+              <View style={{ paddingHorizontal: space.lg, gap: space.lg, backgroundColor: colors.cardDarkest, paddingTop: space.lg }}>
+
+                {copy.about ? (
+                  <View style={{ gap: space.sm }}>
+                    <AppText style={{ fontSize: 20, lineHeight: 26, fontWeight: '700' }}>
+                      {t('events.detail.about')}
+                    </AppText>
+                    <AppText variant="body" numberOfLines={aboutOpen || !aboutLong ? undefined : 4}>
+                      {copy.about}
+                    </AppText>
+                    {aboutLong ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => setAboutOpen((open) => !open)}
+                        style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}
+                      >
+                        <AppText style={{ color: colors.info, fontSize: 15, lineHeight: 20, fontWeight: '700' }}>
+                          {aboutOpen ? t('events.detail.readLess') : `${t('events.detail.readMore')} ↓`}
+                        </AppText>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {(event.data.meta.instructions ?? []).length > 0 ? (
+                  <DetailCard>
+                    <HowItWorks steps={event.data.meta.instructions ?? []} />
+                  </DetailCard>
+                ) : null}
+
+                <DetailMap
+                  points={mapPoints}
+                  openLabel={t('events.detail.showMap')}
+                  onOpen={() => void openDirections(mapPoints[0])}
                 />
 
-                <View style={{
-                  paddingHorizontal: space.lg, gap: space.lg,
-                  marginTop: space.lg,
-                }}>
+                {event.data.publisherName ? (
+                  <DetailCard>
+                    <View style={{ gap: space.md }}>
+                      <AppText style={{ fontSize: 20, lineHeight: 26, fontWeight: '700' }}>
+                        {t('events.organizer')}
+                      </AppText>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+                        <View
+                          style={{
+                            width: 52,
+                            height: 52,
+                            borderRadius: radius.md,
+                            borderCurve: 'continuous',
+                            backgroundColor: colors.secondarySoft,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <AppText style={{ fontSize: 20, lineHeight: 24, fontWeight: '700', color: colors.secondary }}>
+                            {event.data.publisherName.trim().charAt(0).toUpperCase()}
+                          </AppText>
+                        </View>
+                        <AppText style={{ flex: 1, fontSize: 16, lineHeight: 22, fontWeight: '700' }}>
+                          {event.data.publisherName}
+                        </AppText>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: followingPublisher }}
+                          onPress={toggleFollow}
+                          style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: space.sm }}
+                        >
+                          <AppText style={{ color: colors.info, fontSize: 15, lineHeight: 20, fontWeight: '700' }}>
+                            {followingPublisher ? t('events.detail.following') : t('events.detail.follow')}
+                          </AppText>
+                        </Pressable>
+                      </View>
+                    </View>
+                  </DetailCard>
+                ) : null}
 
-                  <TagPills tags={namesForTagIds(event.data.tagIds, tags.data?.items)} />
+                {facts.length > 0 || reminderNotice ? (
+                  <DetailCard>
+                    <View style={{ gap: space.md }}>
+                      <GoodToKnow title={t('events.detail.knowTitle')} rows={facts} />
+                      {reminderNotice ? <AppText variant="caption">{reminderNotice}</AppText> : null}
+                    </View>
+                  </DetailCard>
+                ) : null}
 
-                  {event.data.description ? (
-                    <AppText variant="body" style={{ color: colors.ink }}>
-                      {event.data.description}
-                    </AppText>
-                  ) : null}
-
-                </View>
-
-                <View style={{
-                  paddingHorizontal: space.lg, gap: space.lg, marginTop: space.lg,
-                }}>
-
-                  {(() => {
-                    const action = primaryAction(event.data.links, event.data.onlineUrl);
-                    const url = action ? safeHttpUrl(action.url) : null;
-                    if (!action || !url) return null;
-                    const label =
-                      action.label ??
-                      (action.kind === 'tickets'
-                        ? t('events.linkTickets')
-                        : action.kind === 'registration'
-                          ? t('events.linkRegistration')
-                          : action.kind === 'online'
-                            ? t('events.linkOnline')
-                            : t('events.linkInfo'));
-                    return <PrimaryButton label={label} onPress={() => void Linking.openURL(url)} />;
-                  })()}
-
-                  {event.data.checkInEnabled ? (
+                {event.data.checkInEnabled ? (
+                  <DetailCard>
                     <View style={{ gap: space.sm }}>
-                      <AppText variant="subtitle">{t('events.contentTitle')}</AppText>
+                      <AppText style={{ fontSize: 20, lineHeight: 26, fontWeight: '700' }}>
+                        {t('events.contentTitle')}
+                      </AppText>
                       {'fromCache' in (content.data ?? {}) &&
                         (content.data as { fromCache?: boolean }).fromCache ? (
                         <AppText variant="caption">{t('events.contentCached')}</AppText>
                       ) : null}
-                      {content.isPending && (
-                        <AppText variant="caption">{t('events.loading')}</AppText>
-                      )}
+                      {content.isPending ? <AppText variant="caption">{t('events.loading')}</AppText> : null}
                       {content.data && !content.data.checkedIn ? (
                         <AppText variant="caption">{t('events.contentLocked')}</AppText>
                       ) : null}
@@ -782,13 +995,17 @@ export default function EventDetailScreen() {
                         <AppText variant="body">{content.data.attendeeText}</AppText>
                       ) : null}
                       {content.data?.checkedIn
-                        ? content.data.attendeeLinks.map((link) => (
-                          <PrimaryButton
-                            key={link.id}
-                            label={link.label || t('events.linkInfo')}
-                            onPress={() => void Linking.openURL(link.url)}
-                          />
-                        ))
+                        ? content.data.attendeeLinks.map((link) => {
+                          const url = safeHttpUrl(link.url);
+                          if (!url) return null;
+                          return (
+                            <PrimaryButton
+                              key={link.id}
+                              label={link.label || t('events.linkInfo')}
+                              onPress={() => void Linking.openURL(url)}
+                            />
+                          );
+                        })
                         : null}
                       {content.data?.items.map((item) => (
                         <View key={item.id} style={{ gap: 4 }}>
@@ -802,10 +1019,12 @@ export default function EventDetailScreen() {
                         </View>
                       ))}
                     </View>
-                  ) : null}
+                  </DetailCard>
+                ) : null}
 
-                  {eventStats.data &&
-                    (eventStats.data.numCheckins > 0 || eventStats.data.numRatings > 0) ? (
+                {eventStats.data &&
+                  (eventStats.data.numCheckins > 0 || eventStats.data.numRatings > 0) ? (
+                  <DetailCard>
                     <View style={{ gap: space.xs }}>
                       {eventStats.data.numCheckins > 0 ? (
                         <AppText variant="caption">
@@ -821,84 +1040,171 @@ export default function EventDetailScreen() {
                         </AppText>
                       ) : null}
                     </View>
-                  ) : ratingStatus.data?.aggregate.count ? (
+                  </DetailCard>
+                ) : ratingStatus.data?.aggregate.count ? (
+                  <DetailCard>
                     <AppText variant="caption">
                       {t('events.rateAggregate', {
                         average: ratingStatus.data.aggregate.average ?? '–',
                         count: ratingStatus.data.aggregate.count,
                       })}
                     </AppText>
-                  ) : null}
+                  </DetailCard>
+                ) : null}
 
-                  {ratingStatus.data?.canRate ? (
-                    <PrimaryButton
-                      label={t('events.rateHowWasIt')}
-                      onPress={() => setRatingOpen(true)}
-                    />
-                  ) : ratingStatus.data?.hasRated ? (
-                    <PrimaryButton label={t('events.rateDone')} disabled />
-                  ) : !event.data.checkInEnabled ? null : checkInStatus.data?.checkedIn ? (
-                    <PrimaryButton label={t('events.checkInDone')} disabled />
-                  ) : event.data.mode === 'physical' ? (
-                    <View style={{ gap: space.md }}>
-                      <PrimaryButton
-                        label={
-                          checkInStatus.isError
-                            ? t('events.checkInError')
-                            : checkInStatus.isLoading
-                              ? t('events.loading')
-                              : checkInStatus.data?.open
-                                ? t('events.checkIn')
-                                : t('events.checkInClosed')
-                        }
-                        loading={checkIn.isPending || checkInStatus.isLoading}
-                        disabled={
-                          checkInStatus.isError || !checkInStatus.data?.open || !identity.data
-                        }
-                        onPress={() => checkIn.mutate()}
-                      />
-                      {checkInStatus.data?.codeActive && checkInStatus.data.open ? (
-                        <CodeCheckInFields
-                          code={code}
-                          onChangeCode={setCode}
-                          loading={codeCheckIn.isPending}
-                          disabled={!identity.data}
-                          onSubmit={() => codeCheckIn.mutate()}
-                          hint={t('events.checkInCodeHint')}
-                          placeholder={t('events.checkInCodePlaceholder')}
-                          submitLabel={t('events.checkInWithCode')}
+                {ratingStatus.data?.canRate ||
+                  ratingStatus.data?.hasRated ||
+                  event.data.checkInEnabled ? (
+                  <DetailCard>
+                    {ratingStatus.data?.canRate ? (
+                      <PrimaryButton label={t('events.rateHowWasIt')} onPress={() => setRatingOpen(true)} />
+                    ) : ratingStatus.data?.hasRated ? (
+                      <PrimaryButton label={t('events.rateDone')} disabled />
+                    ) : !event.data.checkInEnabled ? null : checkInStatus.data?.checkedIn ? (
+                      <PrimaryButton label={t('events.checkInDone')} disabled />
+                    ) : event.data.mode === 'physical' ? (
+                      <View style={{ gap: space.md }}>
+                        <PrimaryButton
+                          label={
+                            checkInStatus.isError
+                              ? t('events.checkInError')
+                              : checkInStatus.isLoading
+                                ? t('events.loading')
+                                : checkInStatus.data?.open
+                                  ? t('events.checkIn')
+                                  : t('events.checkInClosed')
+                          }
+                          loading={checkIn.isPending || checkInStatus.isLoading}
+                          disabled={checkInStatus.isError || !checkInStatus.data?.open || !identity.data}
+                          onPress={() => checkIn.mutate()}
                         />
-                      ) : null}
-                    </View>
-                  ) : checkInStatus.data?.codeActive && checkInStatus.data.open ? (
-                    <CodeCheckInFields
-                      code={code}
-                      onChangeCode={setCode}
-                      loading={codeCheckIn.isPending}
-                      disabled={!identity.data}
-                      onSubmit={() => codeCheckIn.mutate()}
-                      hint={t('events.checkInCodeHint')}
-                      placeholder={t('events.checkInCodePlaceholder')}
-                      submitLabel={t('events.checkInWithCode')}
+                        {checkInStatus.data?.codeActive && checkInStatus.data.open ? (
+                          <CodeCheckInFields
+                            code={code}
+                            onChangeCode={setCode}
+                            loading={codeCheckIn.isPending}
+                            disabled={!identity.data}
+                            onSubmit={() => codeCheckIn.mutate()}
+                            hint={t('events.checkInCodeHint')}
+                            placeholder={t('events.checkInCodePlaceholder')}
+                            submitLabel={t('events.checkInWithCode')}
+                          />
+                        ) : null}
+                      </View>
+                    ) : checkInStatus.data?.codeActive && checkInStatus.data.open ? (
+                      <CodeCheckInFields
+                        code={code}
+                        onChangeCode={setCode}
+                        loading={codeCheckIn.isPending}
+                        disabled={!identity.data}
+                        onSubmit={() => codeCheckIn.mutate()}
+                        hint={t('events.checkInCodeHint')}
+                        placeholder={t('events.checkInCodePlaceholder')}
+                        submitLabel={t('events.checkInWithCode')}
+                      />
+                    ) : null}
+                  </DetailCard>
+                ) : null}
+
+                {showOccasions ? (
+                  <DetailCard>
+                    <OccasionPeriod
+                      title={t('events.detail.allOccasions')}
+                      infoLabel={t('events.detail.whenCanIJoin')}
+                      rangeLabel={t('events.detail.ongoingRange', { range: whenTitle })}
+                      badgeLabel={
+                        status === 'now'
+                          ? t('events.detail.happeningNow')
+                          : status === 'soon'
+                            ? t('events.detail.upcoming')
+                            : t('events.detail.ended')
+                      }
+                      badgeTone={status}
+                      hint={t('events.detail.pickYourDay')}
+                      showDatesLabel={t('events.detail.showDates')}
+                      hideDatesLabel={t('events.detail.hideDates')}
+                      items={otherOccasions}
+                      locale={locale}
+                      timeZone={timeZone ?? undefined}
+                      missingVenue={t('events.missingVenue')}
                     />
-                  ) : null}
-                  {reminderNotice ? <AppText variant="caption">{reminderNotice}</AppText> : null}
+                  </DetailCard>
+                ) : null}
 
-                  <OccasionList
-                    title={t('events.otherOccasions')}
-                    items={otherOccasions}
-                    locale={locale}
-                    missingVenue={t('events.missingVenue')}
+                <RelatedEvents
+                  title={t('events.detail.similar')}
+                  seeAllLabel={t('events.seeAll')}
+                  onSeeAll={
+                    primaryTagId
+                      ? () =>
+                        router.push({
+                          pathname: '/(tabs)/search',
+                          params: { tagId: primaryTagId, tagAt: String(Date.now()) },
+                        })
+                      : undefined
+                  }
+                  items={relatedItems}
+                  savedLabel={t('events.unfavorite')}
+                  unsavedLabel={t('events.favorite')}
+                  onPress={(eventId) => router.push(`/events/${eventId}`)}
+                  onSave={toggleRelatedSaved}
+                />
+
+                <DetailCard>
+                  <ShareRow
+                    title={t('events.detail.shareSection')}
+                    actions={[
+                      { key: 'copy', label: t('events.copyLink'), sf: 'link', md: 'link', onPress: () => void copyLink() },
+                      {
+                        key: 'facebook',
+                        label: t('events.detail.shareFacebook'),
+                        letter: 'f',
+                        onPress: () => void shareFacebook(),
+                      },
+                      {
+                        key: 'instagram',
+                        label: t('events.detail.shareInstagram'),
+                        sf: 'camera',
+                        md: 'photo-camera',
+                        onPress: () => void shareEvent(),
+                      },
+                      {
+                        key: 'more',
+                        label: t('events.detail.shareMore'),
+                        sf: 'square.and.arrow.up',
+                        md: 'share',
+                        onPress: () => void shareEvent(),
+                      },
+                    ]}
                   />
-                </View>
+                </DetailCard>
 
-
-
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setReportOpen(true)}
+                  style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <AppText variant="caption">{t('events.report')}</AppText>
+                </Pressable>
               </View>
-            </>
-          )}
-        </View>
-      </ScrollView>
+            ) : null}
+          </View>
+        </ScrollView>
+
+        {
+          event.data ? (
+            <ParticipateBar
+              title={event.data.title}
+              when={whenTitle}
+              imageUrl={event.data.imageUrl}
+              tags={tagNames}
+              joinLabel={comingOn ? t('events.detail.joined') : t('events.detail.join')}
+              joined={comingOn}
+              onJoin={toggleComing}
+            />
+          ) : null
+        }
+      </View >
 
       <ConfirmAction
         title={t('events.reportTitle')}
@@ -965,7 +1271,7 @@ export default function EventDetailScreen() {
         saving={rate.isPending}
         onSubmit={(score, comment) => rate.mutate({ score, comment: comment || null })}
       />
-    </View>
+    </View >
   );
 }
 
@@ -1024,13 +1330,5 @@ function CodeCheckInFields({
         onPress={onSubmit}
       />
     </View>
-  );
-}
-
-function DetailIcon({ sf, md }: { sf: string; md: keyof typeof MaterialIcons.glyphMap }) {
-  return process.env.EXPO_OS === 'ios' ? (
-    <SymbolView name={sf as never} size={16} tintColor={colors.inkMuted} />
-  ) : (
-    <MaterialIcons name={md} size={16} color={colors.inkMuted} />
   );
 }

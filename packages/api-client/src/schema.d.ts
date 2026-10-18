@@ -2378,6 +2378,7 @@ export interface paths {
                                             lng: number;
                                         };
                                     }[];
+                                    instructions?: string[];
                                 };
                                 publisherName: string;
                                 links: {
@@ -2617,6 +2618,7 @@ export interface paths {
                                             lng: number;
                                         };
                                     }[];
+                                    instructions?: string[];
                                 };
                                 publisherName: string;
                                 links: {
@@ -2862,6 +2864,7 @@ export interface paths {
                                                 lng: number;
                                             };
                                         }[];
+                                        instructions?: string[];
                                     };
                                     publisherName: string;
                                     links: {
@@ -2989,6 +2992,7 @@ export interface paths {
                                             lng: number;
                                         };
                                     }[];
+                                    instructions?: string[];
                                 };
                                 publisherName: string;
                                 links: {
@@ -3196,6 +3200,7 @@ export interface paths {
                                             lng: number;
                                         };
                                     }[];
+                                    instructions?: string[];
                                 };
                                 publisherName: string;
                                 links: {
@@ -3552,6 +3557,7 @@ export interface paths {
                                             lng: number;
                                         };
                                     }[];
+                                    instructions?: string[];
                                 };
                                 publisherName: string;
                                 links: {
@@ -3704,6 +3710,7 @@ export interface paths {
                                         lng: number;
                                     };
                                 }[];
+                                instructions?: string[];
                             };
                             publisherName: string;
                             links: {
@@ -3857,6 +3864,7 @@ export interface paths {
                                             lng: number;
                                         };
                                     }[];
+                                    instructions?: string[];
                                 };
                                 publisherName: string;
                                 links: {
@@ -3975,6 +3983,7 @@ export interface paths {
                                             lng: number;
                                         };
                                     }[];
+                                    instructions?: string[];
                                 };
                                 publisherName: string;
                                 links: {
@@ -4091,6 +4100,7 @@ export interface paths {
                                         lng: number;
                                     };
                                 }[];
+                                instructions?: string[];
                             };
                             publisherName: string;
                             links: {
@@ -4220,6 +4230,7 @@ export interface paths {
                                         lng: number;
                                     };
                                 }[];
+                                instructions?: string[];
                             };
                             publisherName: string;
                             links: {
@@ -4399,6 +4410,7 @@ export interface paths {
                                         lng: number;
                                     };
                                 }[];
+                                instructions?: string[];
                             };
                             publisherName: string;
                             links: {
@@ -4546,6 +4558,7 @@ export interface paths {
                                         lng: number;
                                     };
                                 }[];
+                                instructions?: string[];
                             };
                             publisherName: string;
                             links: {
@@ -4689,6 +4702,7 @@ export interface paths {
                                         lng: number;
                                     };
                                 }[];
+                                instructions?: string[];
                             };
                             publisherName: string;
                             links: {

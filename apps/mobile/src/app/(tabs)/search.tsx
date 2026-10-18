@@ -69,14 +69,26 @@ function dateBounds(id: DateFilterId): { from?: string; to?: string } {
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { focus } = useLocalSearchParams<{ focus?: string }>();
+  const { focus, tagId: tagIdParam, tagAt } = useLocalSearchParams<{
+    focus?: string;
+    tagId?: string;
+    tagAt?: string;
+  }>();
   const inputRef = useRef<TextInput>(null);
   const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const [locationOpen, setLocationOpen] = useState(false);
   const [q, setQ] = useState('');
-  const [tagId, setTagId] = useState('all');
+  const [tagId, setTagId] = useState(
+    typeof tagIdParam === 'string' && tagIdParam.length > 0 ? tagIdParam : 'all',
+  );
+  const tagStamp = `${typeof tagIdParam === 'string' ? tagIdParam : ''}|${typeof tagAt === 'string' ? tagAt : ''}`;
+  const [appliedTagStamp, setAppliedTagStamp] = useState(tagStamp);
+  if (tagStamp !== appliedTagStamp) {
+    setAppliedTagStamp(tagStamp);
+    if (typeof tagIdParam === 'string' && tagIdParam.length > 0) setTagId(tagIdParam);
+  }
   const [price, setPrice] = useState<'any' | 'free' | 'paid'>('any');
   const [dateId, setDateId] = useState<DateFilterId>('any');
 

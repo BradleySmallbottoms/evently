@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import { readScanInstructions } from '@local-events/ingest';
 import {
   choosePossibleOccasionGroupId,
   importPlanToSchedule,
   OCCASION_GROUP_MIN_RANK,
+  organizerKeys,
   shouldEnqueueNotifications,
   statusAfterImportScan,
 } from '@local-events/domain';
@@ -99,7 +101,7 @@ export async function scanPendingEvents(
       summary.unavailable += 1;
       continue;
     }
-    const applied = await applyOutcome(store, row, outcome, enqueue, temporaries);
+    const applied = await applyOutcome(store, row, outcome, enqueue, temporaries, runner);
     if (applied === 'published') summary.published += 1;
     else if (applied === 'review') summary.review += 1;
     else summary.skipped += 1;
@@ -136,8 +138,9 @@ async function applyOutcome(
   outcome: Extract<ScanOutcome, { ok: true }>,
   enqueue: DomainEventSink,
   temporaries: Map<string, PublisherLink>,
+  runner: PromptRunner,
 ): Promise<'published' | 'review' | 'skipped'> {
-  const publisher = await publisherFor(store, row, outcome, temporaries);
+  const publisher = await publisherFor(store, row, outcome, temporaries, runner);
   const status = statusAfterImportScan({
     approved: outcome.approved,
     publisherVerified: publisher.verified,
@@ -153,6 +156,9 @@ async function applyOutcome(
     ...row.meta,
     ...(outcome.duplicate ? { possibleDuplicate: outcome.duplicate } : {}),
   };
+  const instructions = readScanInstructions(outcome.instructions);
+  if (instructions.length > 0) meta.instructions = instructions;
+  else delete meta.instructions;
   const group = await occasionGroupFor(store, row, outcome.occasionMatches ?? []);
   if (group) {
     meta.possibleOccasionGroupId = group.groupId;
@@ -246,6 +252,7 @@ async function publisherFor(
   row: PendingScanRow,
   outcome: Extract<ScanOutcome, { ok: true }>,
   temporaries: Map<string, PublisherLink>,
+  runner: PromptRunner,
 ): Promise<PublisherLink> {
   if (outcome.publisher.kind === 'temporary') {
     const keys = outcome.publisher.organizerKeys;
@@ -263,6 +270,7 @@ async function publisherFor(
       name: outcome.publisher.name,
     });
     temporaries.set(keys.join('\n'), created);
+    await rememberLookedUpWebsite(store, row, created.publisherId, outcome.publisher, runner);
     return created;
   }
   await store.rememberOrganizerKeys(
@@ -276,4 +284,41 @@ async function publisherFor(
     verified: outcome.publisher.verified,
     importNotificationPlan: outcome.publisher.importNotificationPlan,
   };
+}
+
+/**
+ * Looks the new temporary publisher up on the web. The returned profile is stored
+ * on `meta.lookup`. A website from a fetched page is also stored as an organizer key.
+ * A miss or a thrown lookup leaves the publisher as it is.
+ */
+async function rememberLookedUpWebsite(
+  store: IngestStore,
+  row: PendingScanRow,
+  publisherId: string,
+  publisher: { name: string; organizerKeys: string[] },
+  runner: PromptRunner,
+): Promise<void> {
+  let profile: Awaited<ReturnType<PromptRunner['lookupPublisher']>> = null;
+  try {
+    profile = await runner.lookupPublisher({
+      publisherId,
+      name: publisher.name,
+      publisherUrl: row.sourceUrl ?? undefined,
+      organizerKeys: publisher.organizerKeys,
+      title: row.title,
+      ...(row.description ? { description: row.description } : {}),
+      ...(row.venueName ? { venue: row.venueName } : {}),
+      ...(row.location ? { location: row.location } : {}),
+    });
+  } catch {
+    return;
+  }
+  if (!profile) return;
+  await store.rememberPublisherLookup(publisherId, profile);
+  if (!profile.website) return;
+  const keys = organizerKeys({ infoUrls: [profile.website], fallback: row.sourceSlug }).filter(
+    (key) => key !== row.sourceSlug,
+  );
+  if (keys.length === 0) return;
+  await store.rememberOrganizerKeys(row.sourceId, publisherId, keys);
 }

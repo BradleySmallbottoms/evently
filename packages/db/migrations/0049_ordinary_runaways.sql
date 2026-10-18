@@ -1,0 +1,1 @@
+ALTER TABLE "publishers" ADD COLUMN "meta" jsonb DEFAULT '{}'::jsonb NOT NULL;

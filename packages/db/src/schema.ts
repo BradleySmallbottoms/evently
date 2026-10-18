@@ -21,6 +21,18 @@ import {
 } from 'drizzle-orm/pg-core';
 import { geographyMultiPolygon, geographyPoint, geographyPolygon } from './postgis';
 
+/** Web lookup stored on a temporary publisher. Public responses omit `publishers.meta`. */
+export interface PublisherMeta {
+  lookup?: {
+    name: string | null;
+    website: string | null;
+    address: string | null;
+    city: string | null;
+    description: string | null;
+    sources: { url: string }[];
+  };
+}
+
 const id = () =>
   uuid('id')
     .primaryKey()
@@ -239,6 +251,11 @@ export const publishers = pgTable(
     /** Null: do not notify about script-imported events. Otherwise a marketing plan id. */
     importNotificationPlan: importNotificationPlan('import_notification_plan'),
     claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    /**
+     * Import-scan notes. `lookup` is the web lookup for a temporary publisher.
+     * Public responses omit this column.
+     */
+    meta: jsonb('meta').$type<PublisherMeta>().notNull().default({}),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('publishers_slug_idx').on(t.slug)],

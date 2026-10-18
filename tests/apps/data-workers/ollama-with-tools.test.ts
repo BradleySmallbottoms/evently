@@ -192,6 +192,7 @@ const finalAnswer = answer(
       { id: 'visit-soderhamn:30194', score: 95 },
       { id: 'missing-tag', score: 99 },
     ],
+    instructions: [' Ta med matsäck ', ''],
   }),
 );
 
@@ -233,6 +234,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
       tags: [{ externalId: 'visit-soderhamn:30194', name: 'Bandy & Innebandy' }],
       publisher: { kind: 'temporary', name: 'Föreningen' },
       duplicate: null,
+      instructions: ['Ta med matsäck'],
     });
   });
 
@@ -731,6 +733,88 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(maxInFlight).toBe(2);
     expect(outcomes.map((outcome) => outcome.eventId)).toEqual([eventId, nearbyEventId]);
     expect(outcomes.every((outcome) => outcome.ok)).toBe(true);
+  });
+
+  it('looks up a publisher with the web tools and keeps a website from a fetched page', async () => {
+    const store = createMemoryIngestStore();
+    const chats: { tools?: { function: { name: string } }[]; messages: { role: string; content: string }[] }[] = [];
+    let chat = 0;
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const href = String(url);
+      if (href.includes('api.search.brave.com')) {
+        return Response.json({
+          web: { results: [{ title: 'Föreningen', url: 'https://foreningen.se/om', description: 'Officiell sida' }] },
+        });
+      }
+      if (href.startsWith('https://foreningen.se')) {
+        return new Response('<html><head><title>Föreningen</title></head><body><p>Storgatan 1</p></body></html>', {
+          status: 200,
+          headers: { 'content-type': 'text/html' },
+        });
+      }
+      chats.push(JSON.parse(String(init?.body)));
+      chat += 1;
+      const message =
+        chat === 1
+          ? toolCall('searchWeb', { query: 'Föreningen Söderhamn' })
+          : chat === 2
+            ? toolCall('fetchPage', { url: 'https://foreningen.se/om' })
+            : answer(
+                JSON.stringify({
+                  name: 'Föreningen',
+                  website: 'https://www.foreningen.se/om',
+                  address: 'Storgatan 1',
+                  city: 'Söderhamn',
+                  description: null,
+                  sources: [{ url: 'https://foreningen.se/om' }],
+                }),
+              );
+      return Response.json({ message });
+    };
+    const runner = createOllamaWithToolsPromptRunner(store, {
+      fetch: fetchImpl,
+      resolveHost: async () => ['93.184.216.34'],
+      braveApiKey: 'test-key',
+    });
+
+    const profile = await runner.lookupPublisher({
+      publisherId: nearPublisherId,
+      name: 'Föreningen',
+      organizerKeys: ['kansli@example.com'],
+      title: 'Konsert',
+      venue: 'Helsingehus',
+      location: { lat: 61.3, lng: 17.07 },
+    });
+
+    expect(chats[0]?.tools?.map((tool) => tool.function.name)).toEqual(['searchWeb', 'fetchPage']);
+    expect(chats[1]?.messages.some((message) => message.content.includes('Officiell sida'))).toBe(true);
+    expect(chats[2]?.messages.some((message) => message.content.includes('Storgatan 1'))).toBe(true);
+    expect(profile).toMatchObject({
+      website: 'https://www.foreningen.se/om',
+      address: 'Storgatan 1',
+      city: 'Söderhamn',
+      sources: [{ url: 'https://foreningen.se/om' }],
+    });
+  });
+
+  it('does not call the model for a publisher lookup when web search is not configured', async () => {
+    const store = createMemoryIngestStore();
+    let called = false;
+    const fetchImpl: typeof fetch = async () => {
+      called = true;
+      return new Response('no');
+    };
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl, braveApiKey: '' });
+
+    const profile = await runner.lookupPublisher({
+      publisherId: nearPublisherId,
+      name: 'Föreningen',
+      organizerKeys: ['kansli@example.com'],
+      title: 'Konsert',
+    });
+
+    expect(profile).toBeNull();
+    expect(called).toBe(false);
   });
 });
 

@@ -6,13 +6,14 @@ export type EventLink = {
   label?: string | null;
 };
 
-export function dateBadge(iso: string, locale: string) {
+export function dateBadge(iso: string, locale: string, timeZone?: string) {
   const date = new Date(iso);
   const withoutPeriod = (value: string) => value.replace(/\./g, '').trim();
+  const zone = timeZone ? { timeZone } : {};
   return {
-    weekday: withoutPeriod(date.toLocaleDateString(locale, { weekday: 'short' })),
-    day: String(date.getDate()),
-    month: withoutPeriod(date.toLocaleDateString(locale, { month: 'short' })),
+    weekday: withoutPeriod(date.toLocaleDateString(locale, { weekday: 'short', ...zone })),
+    day: new Intl.DateTimeFormat('en-US', { day: 'numeric', ...zone }).format(date),
+    month: withoutPeriod(date.toLocaleDateString(locale, { month: 'short', ...zone })),
   };
 }
 

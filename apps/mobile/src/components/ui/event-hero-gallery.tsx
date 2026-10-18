@@ -3,9 +3,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, ScrollView, View } from 'react-native';
 
+import { AppText } from '@/components/ui/app-text';
 import { EventImage } from '@/components/ui/event-image';
 import { heroImageUrls } from '@/lib/hero-images';
-import { radius } from '@/theme/tokens';
+import { radius, space } from '@/theme/tokens';
 
 type Props = {
   imageUrl?: string | null;
@@ -74,36 +75,19 @@ export function EventHeroGallery({ imageUrl, imageUrls, tags }: Props) {
         pointerEvents="none"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 96,
-          alignItems: 'center',
-        }}
+        style={{ position: 'absolute', left: space.lg, bottom: 64 }}
       >
         <View
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 5,
-            paddingHorizontal: 8,
-            paddingVertical: 6,
             borderRadius: radius.pill,
-            backgroundColor: 'rgba(20,20,20,0.35)',
+            backgroundColor: 'rgba(17,24,32,0.55)',
+            paddingHorizontal: space.sm,
+            paddingVertical: 4,
           }}
         >
-          {urls.map((url, dot) => (
-            <View
-              key={url}
-              style={{
-                width: dot === page ? 16 : 6,
-                height: 6,
-                borderRadius: radius.pill,
-                backgroundColor: dot === page ? '#FFFFFF' : 'rgba(255,255,255,0.45)',
-              }}
-            />
-          ))}
+          <AppText style={{ color: '#FFFFFF', fontSize: 12, lineHeight: 16, fontWeight: '700' }}>
+            {page + 1}/{urls.length}
+          </AppText>
         </View>
       </View>
     </View>

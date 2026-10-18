@@ -40,6 +40,7 @@ const scanned = {
   llmOutput: null,
   summary: 'Musik i Helsingehus',
   language: 'sv',
+  instructions: [] as string[],
 };
 
 describe('parseScanSelection', () => {
@@ -69,6 +70,7 @@ describe('scanPendingEvents', () => {
     const batches: ScanInput[][] = [];
     const runner: PromptRunner = {
       id: 'batch',
+      lookupPublisher: async () => null,
       async scan(batch) {
         batches.push(batch);
         return batch.map((item): ScanOutcome => ({
@@ -93,9 +95,41 @@ describe('scanPendingEvents', () => {
     expect(batches[0]?.map((item) => item.title).sort()).toEqual(['Konsert', 'Marknad']);
     expect(summary).toMatchObject({ claimed: 2, review: 2, published: 0, unavailable: 0 });
     expect(store.events.every((row) => row.status === 'in_review')).toBe(true);
+    expect(store.events.every((row) => row.meta.instructions === undefined)).toBe(true);
     expect(
       store.events.every((row) => row.summary === 'Musik i Helsingehus' && row.language === 'sv'),
     ).toBe(true);
+  });
+
+  it('stores scan instructions on the event meta', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    const runner: PromptRunner = {
+      id: 'instructions',
+      lookupPublisher: async () => null,
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          instructions: [' Ta med matsäck ', ''],
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner);
+
+    expect(store.events[0]?.meta.instructions).toEqual(['Ta med matsäck']);
+    expect(store.events[0]?.meta.import?.organizerKeys).toEqual(['kansli@example.com']);
   });
 
   it('leaves a failed event pending and finishes the rest of the batch', async () => {
@@ -114,6 +148,7 @@ describe('scanPendingEvents', () => {
     ]);
     const runner: PromptRunner = {
       id: 'partial',
+      lookupPublisher: async () => null,
       async scan(batch) {
         return batch.map((item, index): ScanOutcome =>
           index === 0
@@ -246,6 +281,7 @@ describe('scanPendingEvents', () => {
     const target = store.events.find((row) => row.title === 'Marknad')!;
     const runner: PromptRunner = {
       id: 'one',
+      lookupPublisher: async () => null,
       async scan(batch) {
         return batch.map((item): ScanOutcome => ({
           ok: true,
@@ -291,6 +327,7 @@ describe('scanPendingEvents', () => {
     });
     const runner: PromptRunner = {
       id: 'occasion',
+      lookupPublisher: async () => null,
       async scan(batch) {
         return batch.map((item): ScanOutcome => ({
           ok: true,
@@ -340,6 +377,7 @@ describe('scanPendingEvents', () => {
     });
     const runner: PromptRunner = {
       id: 'occasion-new',
+      lookupPublisher: async () => null,
       async scan(batch) {
         return batch.map((item): ScanOutcome => ({
           ok: true,
@@ -379,6 +417,7 @@ describe('scanPendingEvents', () => {
     ]);
     const runner: PromptRunner = {
       id: 'pair',
+      lookupPublisher: async () => null,
       async scan(batch) {
         const first = batch.find((item) => item.title === 'Konsert')!;
         const second = batch.find((item) => item.title === 'Marknad')!;
@@ -419,6 +458,7 @@ describe('scanPendingEvents', () => {
     ]);
     const runner: PromptRunner = {
       id: 'mutual',
+      lookupPublisher: async () => null,
       async scan(batch) {
         const first = batch.find((item) => item.title === 'Konsert')!;
         const second = batch.find((item) => item.title === 'Marknad')!;
@@ -467,6 +507,7 @@ describe('scanPendingEvents', () => {
 
     const summary = await scanPendingEvents(store, {
       id: 'shared-key',
+      lookupPublisher: async () => null,
       async scan(batch) {
         return batch.map(
           (item): ScanOutcome => ({
@@ -519,5 +560,177 @@ describe('scanPendingEvents', () => {
       .flatMap((row) => row.organizerKeys)
       .filter((key) => key === 'soderhamn.se');
     expect(secondKeys).toEqual(['soderhamn.se']);
+  });
+
+  it('stores a looked-up website once when a temporary publisher is created', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [
+      event,
+      { ...event, externalId: 'cbis:2', title: 'Marknad' },
+    ]);
+    const lookedUp: string[] = [];
+    const runner: PromptRunner = {
+      id: 'lookup',
+      lookupPublisher: async (input) => {
+        lookedUp.push(input.publisherId);
+        return {
+          name: 'Föreningen',
+          website: 'https://www.foreningen.se/om/',
+          address: 'Storgatan 1',
+          city: 'Söderhamn',
+          description: 'En lokal förening',
+          sources: [{ url: 'https://foreningen.se/om' }],
+        };
+      },
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: item.organizer.name ?? 'Tillfällig',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
+      },
+    };
+
+    const summary = await scanPendingEvents(store, runner);
+
+    expect(summary).toMatchObject({ claimed: 2, review: 2 });
+    expect(lookedUp).toHaveLength(1);
+    const publisher = await store.getPublisher(lookedUp[0]!);
+    expect(publisher?.organizerKeys).toEqual(
+      expect.arrayContaining(['kansli@example.com', 'foreningen.se/om', 'foreningen.se']),
+    );
+    expect(publisher?.lookup).toEqual({
+      name: 'Föreningen',
+      website: 'https://www.foreningen.se/om/',
+      address: 'Storgatan 1',
+      city: 'Söderhamn',
+      description: 'En lokal förening',
+      sources: [{ url: 'https://foreningen.se/om' }],
+    });
+    expect(store.events.every((row) => row.publisherId === lookedUp[0])).toBe(true);
+  });
+
+  it('does not look up a publisher that already exists', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const linked = store.linkPublisher({
+      sourceId: source.id,
+      organizerKey: event.organizerKeys[0]!,
+      name: 'Föreningen',
+      isTemporary: false,
+      verified: true,
+    });
+    await saveIncomingEvents(store, source, [event]);
+    let lookups = 0;
+    const runner: PromptRunner = {
+      id: 'existing',
+      lookupPublisher: async () => {
+        lookups += 1;
+        return null;
+      },
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'existing',
+            publisherId: linked.publisherId,
+            isTemporary: false,
+            verified: true,
+            importNotificationPlan: null,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
+      },
+    };
+
+    const summary = await scanPendingEvents(store, runner);
+
+    expect(summary.published).toBe(1);
+    expect(lookups).toBe(0);
+  });
+
+  it('finishes the scan when the publisher lookup throws', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    const runner: PromptRunner = {
+      id: 'lookup-fails',
+      lookupPublisher: async () => {
+        throw new Error('search down');
+      },
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
+      },
+    };
+
+    const summary = await scanPendingEvents(store, runner);
+
+    expect(summary).toMatchObject({ review: 1, unavailable: 0 });
+    const publisher = await store.getPublisher(store.events[0]!.publisherId!);
+    expect(publisher?.organizerKeys).toEqual(['kansli@example.com']);
+    expect(publisher?.lookup).toBeNull();
+  });
+
+  it('does not store a social website from the publisher lookup', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    const runner: PromptRunner = {
+      id: 'social',
+      lookupPublisher: async () => ({
+        name: null,
+        website: 'https://facebook.com/foreningen',
+        address: null,
+        city: null,
+        description: null,
+        sources: [],
+      }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner);
+
+    const publisher = await store.getPublisher(store.events[0]!.publisherId!);
+    expect(publisher?.organizerKeys).toEqual(['kansli@example.com']);
+    expect(publisher?.lookup?.website).toBe('https://facebook.com/foreningen');
   });
 });

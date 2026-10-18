@@ -28,6 +28,7 @@ import type {
   SourceRecord,
 } from './store';
 import { NEARBY_RADIUS_M, NEARBY_RESULT_LIMIT, PUBLISHER_NAME_SEARCH_RADIUS_M, publisherNameMatcher } from './store';
+import type { PublisherLookup } from './prompt-runners/types';
 
 type StoredTag = { id: string; slug: string; name: string; externalId: string };
 
@@ -39,6 +40,7 @@ interface StoredPublisher {
   verified: boolean;
   importNotificationPlan: MarketingPushPlanId | null;
   createdAt: number;
+  meta?: { lookup?: PublisherLookup };
 }
 
 interface StoredEvent {
@@ -298,6 +300,11 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         verified: false,
         importNotificationPlan: null,
       };
+    },
+    async rememberPublisherLookup(publisherId, lookup) {
+      const publisher = publishers.find((item) => item.id === publisherId);
+      if (!publisher) return;
+      publisher.meta = { ...publisher.meta, lookup };
     },
     async rememberOrganizerKeys(sourceId, publisherId, organizerKeys) {
       for (const organizerKey of organizerKeys) {
@@ -679,6 +686,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         organizerKeys: aliases
           .filter((alias) => alias.publisherId === publisher.id)
           .map((alias) => alias.organizerKey),
+        lookup: publisher.meta?.lookup ?? null,
       };
     },
     /** Occasion ids already stored on these events. Missing ids are left out. */

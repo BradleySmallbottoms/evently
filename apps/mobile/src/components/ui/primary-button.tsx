@@ -47,6 +47,8 @@ type Props = {
   disabled?: boolean;
   /** Override the default brand accent (e.g. per-step onboarding colors). */
   color?: string;
+  /** Label and icon color. Defaults to the dark primary, which sits on the accent. */
+  labelColor?: string;
   /** Icon on the left of the label. */
   icon?: ButtonIcon;
   /** Trailing arrow, used by the onboarding interest step. */
@@ -70,6 +72,7 @@ export function PrimaryButton({
   loading,
   disabled,
   color,
+  labelColor,
   icon,
   arrow,
   checkmark,
@@ -79,7 +82,7 @@ export function PrimaryButton({
   style,
 }: Props) {
   const backgroundColor = color ?? colors.accent;
-  const labelColor = colors.primary;
+  const textColor = labelColor ?? colors.primary;
   const reduced = useReducedMotion();
   const [pressed, setPressed] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
@@ -163,19 +166,19 @@ export function PrimaryButton({
             ]}
           />
           <View style={styles.content}>
-            {icon ? <ButtonGlyph icon={icon} color={labelColor} /> : null}
+            {icon ? <ButtonGlyph icon={icon} color={textColor} /> : null}
             {pending ? (
-              <ActivityIndicator color={labelColor} />
+              <ActivityIndicator color={textColor} />
             ) : (!confirmed && !rejected ? (
-              <AppText variant="subtitle" style={{ color: labelColor, fontWeight: '700' }}>
+              <AppText variant="subtitle" style={{ color: textColor, fontWeight: '700' }}>
                 {label}
               </AppText>
             ) : null)}
             {arrow && !pending ? (
               process.env.EXPO_OS === 'ios' ? (
-                <SymbolView name="arrow.right" size={18} tintColor={labelColor} weight="semibold" />
+                <SymbolView name="arrow.right" size={18} tintColor={textColor} weight="semibold" />
               ) : (
-                <MaterialIcons name="arrow-forward" size={18} color={labelColor} />
+                <MaterialIcons name="arrow-forward" size={18} color={textColor} />
               )
             ) : null}
             {showCross && !pending ? (
@@ -185,7 +188,7 @@ export function PrimaryButton({
               <StatusMark
                 sf="checkmark"
                 md="check"
-                color={confirmed ? '#FFFFFF' : labelColor}
+                color={confirmed ? '#FFFFFF' : textColor}
                 reduced={reduced}
                 enter={confirmed}
                 glow={confirmed}

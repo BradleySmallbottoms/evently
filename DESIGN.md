@@ -302,29 +302,43 @@ is available unless the app has permission and data to calculate it.
 The event detail screen should answer: what is it, when is it, where is
 it, what does it cost, and how do I attend?
 
-Recommended structure: 1. Large hero image with back, save, and share
-controls, and a date box on the photo just above the detail card. When
-the event has more than one photo, the hero is a horizontal gallery:
-swipe between photos, with page dots on the image above the detail card.
-2. Event title with the overflow menu beside it, then category chips.
-3. Date and time. Then "Your plan": the number of people interested
-(`numSaved`) and the number coming (`numComing`), then Interested (the
-save) and I'm coming as two pills. A selected pill is filled dark. Tapping
-a pill adds or removes one from that count immediately. Pull down to
-reload the event, including those counts. The line under the pills says
-the answer can be changed anytime. 4. Venue
-and location, with a map preview or directions action where supported.
-5. Price or admission details. 6. Description and accessibility
-information, if available. 7. Organizer information. 8. Primary action:
-"Get tickets", "Register", "Book", or "More information", depending on
-the event.
+Structure: 1. Large hero image with a circular back control, save (heart),
+and share. When the event has more than one photo, swipe between them and
+show a "1/5" counter on the image. The first tag sits as a small pill on
+the lower edge of the photo. 2. Title, then a short lead taken from the
+description. 3. Date row. A single day shows that day and its time, or
+"Whole Day". A span shows the period ("19 sep – 15 nov 2026") and
+"Join whenever it suits you". 4. Place row. A physical event shows the
+venue, then the organizer and "Show map" when a point exists. The row
+and the map preview open directions. 5. Interest count (`numSaved`), only
+when it is above zero. "I want to join" toggles coming. "Interested"
+toggles the save. The heart in the header is the same save. Both can be
+on at once, and each tap updates the count immediately. Pull down to
+reload. 6. "About" with the rest of the description and "Read more" when
+it is long. 7. "How it works" lists `meta.instructions` when the scan stored
+steps. The section is omitted when that list is empty. 8. Map preview when the event has a point.
+9. Organizer name, with follow. 10. "Good to know": type, place, cost
+when the price is known, more-information link, and a reminder when one
+can still be set. Omit a row when the data is missing. 11. "All dates"
+when the event spans days or has other occasions. The period card can
+expand to the individual dates. 12. Similar events that share a tag.
+13. Share: copy link, Facebook, Instagram, and the system share sheet.
+A sticky bar repeats the title, the period, and "I want to join".
 
-Rules: - Use a persistent bottom CTA when the main action should remain
-accessible. - Clearly distinguish external ticket links from in-app
-actions. - Do not fabricate availability, prices, venue details, or
-event data. - Show the event's local date and time clearly. - Make
-saving and unsaving an event immediate and reversible. Interested is
-that save. I'm coming is separate, and both can be on at once.
+The page background is the canvas. The title block (through About), How it
+works when steps exist, the organizer, Good to know, All dates, and Share
+each sit in a white card. The map and each similar event are cards of their own. The
+join bar is a card fixed over the bottom of the page.
+
+Check-in, attendee content, and rating stay on the page when that event
+supports them. Report stays as a quiet action at the bottom.
+
+Rules: - The sticky join action stays reachable while scrolling. -
+Ticket, registration, and info links stay in "More information", separate
+from "I want to join". - Do not fabricate availability, prices, venue
+details, audience, organizer blurbs, or participant photos. - Show the
+event's local date and time clearly. - Saving and marking coming are
+immediate and reversible.
 
 ### 8.5 Saved Events
 

@@ -6,14 +6,30 @@ import {
   ollamaDisabled,
   ollamaModel,
   parseTagChoices,
+  readScanInstructions,
   type LLMOutput,
   type LLMScanResult,
   type TagChoice,
   type TagMatchInput,
 } from '@local-events/ingest';
+import {
+  createPublisherToolSession,
+  executePublisherTool,
+  PUBLISHER_LOOKUP_ROUNDS,
+  publisherLookupPrompt,
+  publisherProfileFromModel,
+  publisherToolDefinitions,
+  type PublisherToolResult,
+} from '../publisher-tools';
 import { LOCAL_ORGANIZER_SLUGS } from '../sources';
 import { NEARBY_DAYS_AFTER, NEARBY_DAYS_BEFORE, publisherNameMatcher, type IngestStore, type NearbyEventHit, type NearbyPublisherHit, type PublisherCandidate, type PublisherRecord } from '../store';
-import type { ChosenPublisher, PossibleDuplicateMatch, PromptRunner, ScanInput, ScanOutcome } from './types';
+import type {
+  ChosenPublisher,
+  PossibleDuplicateMatch,
+  PromptRunner,
+  ScanInput,
+  ScanOutcome,
+} from './types';
 
 /** How long one Ollama request may run before the scan gives up on it. */
 const CHAT_TIMEOUT_MS = 90_000;
@@ -41,6 +57,10 @@ export interface OllamaWithToolsRunnerOptions {
   config?: Record<string, unknown>;
   /** Tests pass this so a scan does not call a running chat API. */
   fetch?: typeof fetch;
+  /** Tests pass this so a publisher page fetch does not resolve DNS. */
+  resolveHost?: (hostname: string) => Promise<string[]>;
+  /** Tests pass this. Unset reads `BRAVE_API_KEY`. */
+  braveApiKey?: string;
   /**
    * How many events in one batch may call the model at once. Writes still happen
    * after the batch, in order. `1` keeps the calls sequential.
@@ -83,7 +103,8 @@ type ToolResult =
   | { events: NearbyEventHit[] }
   | { publishers: NearbyPublisherHit[] }
   | { possiblePublishers: PublisherCandidate[] }
-  | { tags: { id: string; name: string }[] };
+  | { tags: { id: string; name: string }[] }
+  | PublisherToolResult;
 
 /**
  * Tools offered on every chat call. The provider does not run them; the runner does.
@@ -176,6 +197,32 @@ export function createOllamaWithToolsPromptRunner(
         scanOneEvent(event, { store, event, catalog }, config, fetchImpl),
       );
     },
+    /**
+     * A second chat, after a temporary publisher exists. Only the web tools are
+     * offered. A missing endpoint or a failed call returns null.
+     */
+    async lookupPublisher(input) {
+      const braveApiKey = options.braveApiKey !== undefined ? options.braveApiKey.trim() : (process.env.BRAVE_API_KEY?.trim() ?? '');
+      if (!braveApiKey) return null;
+      const session = createPublisherToolSession();
+      const finished = await runToolChat(
+        publisherLookupPrompt(input),
+        publisherToolDefinitions(),
+        async (call) => {
+          console.log('Running call', call.name);
+          return executePublisherTool(call.name, call.arguments, session, {
+            fetch: fetchImpl,
+            ...(options.resolveHost ? { resolveHost: options.resolveHost } : {}),
+            braveApiKey,
+          });
+        },
+        config,
+        fetchImpl,
+        PUBLISHER_LOOKUP_ROUNDS,
+      );
+      if (!finished) return null;
+      return publisherProfileFromModel(finished.text, session.fetchedUrls);
+    },
   };
 }
 
@@ -246,6 +293,7 @@ async function scanOneEvent(
     contentVerdict: content.contentVerdict,
     summary: content.summary,
     language: content.language,
+    instructions: content.instructions,
     llmOutput: content.output,
   };
 }
@@ -316,8 +364,9 @@ function buildScanPrompt(event: ScanInput): string {
     'For every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.',
     'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe".',
     'Write a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.',
+    'If the description contains instructions for the user to follow. Summarize the steps in a list and include it in the summary.',
     'When you are finished, return only JSON:',
-    '{possiblePublishers: [{publisherId: "<publisherId>", rank: <rank>}], possibleDuplicates: {eventId: "<eventId>", rank: <rank>, occasionRank: <occasionRank>}[], contentVerdict: "spam" | "harmful" | "safe", summary: "<summary>", language: "sv|en|etc", possibleTags: [{"id":"<id>","score":<score>}]}',
+    '{"instructions": ["<instruction1>", "<instruction2>"], possiblePublishers: [{publisherId: "<publisherId>", rank: <rank>}], possibleDuplicates: {eventId: "<eventId>", rank: <rank>, occasionRank: <occasionRank>}[], contentVerdict: "spam" | "harmful" | "safe", summary: "<summary>", language: "sv|en|etc", possibleTags: [{"id":"<id>","score":<score>}]}',
     'Event:',
     `Title: ${event.title}`,
     `Starts: ${event.startsAt}`,
@@ -342,21 +391,45 @@ async function askModelWithLookups(
   config: Record<string, unknown>,
   fetchImpl: typeof fetch,
 ): Promise<LLMScanResult & LLMOutput | null> {
+  const finished = await runToolChat(
+    prompt,
+    chatToolDefinitions(),
+    (call) => executeToolCall(call, context),
+    config,
+    fetchImpl,
+    MAX_TOOL_ROUNDS,
+  );
+  if (!finished) return null;
+  return { ...parseScanJson(finished.text), output: finished.output };
+}
+
+/**
+ * Posts the prompt, runs any tool calls, and posts again until the model returns
+ * text or the round cap is hit. `tools` is what that chat may call.
+ */
+async function runToolChat(
+  prompt: string,
+  tools: object[],
+  execute: (call: ParsedToolCall) => Promise<ToolResult>,
+  config: Record<string, unknown>,
+  fetchImpl: typeof fetch,
+  maxRounds: number,
+): Promise<{ text: string; output: object } | null> {
   const endpoint = resolveChatEndpoint(config);
   if (!endpoint) return null;
   if (endpoint.protocol === 'ollama' && ollamaDisabled()) return null;
   const messages: Record<string, unknown>[] = [{ role: 'user', content: prompt }];
-  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const payload = await postChat(endpoint, messages, round, fetchImpl);
+  for (let round = 0; round < maxRounds; round++) {
+    const payload = await postChat(endpoint, messages, round, fetchImpl, tools);
     if (!payload) return null;
     const turn = readAssistantTurn(endpoint.protocol, payload);
     const calls = turn?.calls.slice(0, MAX_TOOL_CALLS_PER_ROUND) ?? [];
     if (!turn || calls.length === 0) {
       if (!turn || turn.text.length === 0) return null;
-      return { ...parseScanJson(turn.text), output: payload };
+      return { text: turn.text, output: payload };
     }
     const results: ToolResult[] = [];
-    for (const call of calls) results.push(await executeToolCall(call, context));
+    for (const call of calls) results.push(await execute(call));
     appendToolResults(endpoint.protocol, messages, turn.wire, calls, results);
   }
   return null;
@@ -477,9 +550,9 @@ function authorizationValue(headerName: string, auth: string): string {
 }
 
 /** Anthropic tools use `input_schema` instead of the OpenAI `function.parameters` wrapper. */
-function anthropicToolDefinitions(): object[] {
-  const tools: object[] = [];
-  for (const tool of chatToolDefinitions()) {
+function anthropicToolDefinitions(tools: object[]): object[] {
+  const defined: object[] = [];
+  for (const tool of tools) {
     if (!tool || typeof tool !== 'object' || !('function' in tool)) continue;
     const fn = tool.function;
     if (!fn || typeof fn !== 'object') continue;
@@ -487,9 +560,9 @@ function anthropicToolDefinitions(): object[] {
     const description = 'description' in fn && typeof fn.description === 'string' ? fn.description : '';
     const parameters = 'parameters' in fn ? fn.parameters : { type: 'object', properties: {} };
     if (!name) continue;
-    tools.push({ name, description, input_schema: parameters });
+    defined.push({ name, description, input_schema: parameters });
   }
-  return tools;
+  return defined;
 }
 
 /**
@@ -503,6 +576,7 @@ async function postChat(
   messages: Record<string, unknown>[],
   round: number,
   fetchImpl: typeof fetch,
+  tools: object[],
 ): Promise<object | null> {
   const body =
     endpoint.protocol === 'ollama'
@@ -511,21 +585,21 @@ async function postChat(
           thinks: round > 0,
           stream: false,
           options: { temperature: 0 },
-          tools: chatToolDefinitions(),
+          tools,
           messages,
         }
       : endpoint.protocol === 'anthropic'
         ? {
             model: endpoint.model,
             max_tokens: 4096,
-            tools: anthropicToolDefinitions(),
+            tools: anthropicToolDefinitions(tools),
             messages,
           }
         : {
             model: endpoint.model,
             temperature: 0,
             stream: false,
-            tools: chatToolDefinitions(),
+            tools,
             messages,
           };
   try {
@@ -847,6 +921,7 @@ function parseScanJson(content: string): LLMScanResult {
       possibleDuplicates: possibleDuplicates(record.possibleDuplicates),
       summary: typeof record.summary === 'string' ? record.summary : '',
       language: typeof record.language === 'string' ? record.language : '',
+      instructions: readScanInstructions(record.instructions),
     };
   } catch {
     return emptyScan('safe');
@@ -855,7 +930,15 @@ function parseScanJson(content: string): LLMScanResult {
 
 /** Empty scan used when the model text has no JSON object. */
 function emptyScan(contentVerdict: LLMScanResult['contentVerdict']): LLMScanResult {
-  return { contentVerdict, possibleTags: [], possiblePublishers: [], possibleDuplicates: [], summary: '', language: '' };
+  return {
+    contentVerdict,
+    possibleTags: [],
+    possiblePublishers: [],
+    possibleDuplicates: [],
+    summary: '',
+    language: '',
+    instructions: [],
+  };
 }
 
 /** Keeps only the three verdicts the scan stores. Anything else uses `fallback`. */

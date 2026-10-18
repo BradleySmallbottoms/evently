@@ -132,6 +132,11 @@ export const EventMeta = z.object({
     })
     .optional(),
   /**
+   * Steps the import scan pulled from the description for the reader to follow.
+   * Absent when the description has none.
+   */
+  instructions: z.array(z.string().trim().min(1).max(500)).max(20).optional(),
+  /**
    * Organizer identity saved with a data-worker import. The scan job reads it
    * before a publisher is chosen. Public responses omit it.
    */

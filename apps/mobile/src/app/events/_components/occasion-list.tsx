@@ -25,31 +25,31 @@ export function OccasionList({
   title,
   items,
   locale,
+  timeZone,
   missingVenue,
 }: {
-  title: string;
+  title?: string;
   items: Occasion[];
   locale: string;
+  timeZone?: string;
   missingVenue: string;
 }) {
   const { t } = useTranslation();
   if (items.length === 0) return null;
   return (
     <View style={{ gap: space.sm }}>
-      <AppText variant="subtitle">{title}</AppText>
+      {title ? <AppText variant="subtitle">{title}</AppText> : null}
       <View style={{ gap: space.sm }}>
         {items.map((item) => {
           const where = item.venueName || item.publisherName || missingVenue;
-          const start = new Date(item.startsAt).toLocaleTimeString(locale, {
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-          const end = item.endsAt
-            ? new Date(item.endsAt).toLocaleTimeString(locale, {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : null;
+          const clock = (iso: string) =>
+            new Date(iso).toLocaleTimeString(locale, {
+              hour: '2-digit',
+              minute: '2-digit',
+              ...(timeZone ? { timeZone } : {}),
+            });
+          const start = clock(item.startsAt);
+          const end = item.endsAt ? clock(item.endsAt) : null;
           const when = isWholeDay(item.startsAt, item.endsAt)
             ? t('events.wholeDay')
             : end
@@ -57,7 +57,7 @@ export function OccasionList({
               : start;
           const row = (
             <>
-              <DateBox badge={dateBadge(item.startsAt, locale)} surface={colors.accentSoft} />
+              <DateBox badge={dateBadge(item.startsAt, locale, timeZone)} surface={colors.accentSoft} />
               <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
                 <AppText variant="subtitle" style={{ fontSize: 16, lineHeight: 21 }}>
                   {when}

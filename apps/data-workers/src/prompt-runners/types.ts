@@ -56,14 +56,43 @@ export type ScanOutcome =
       llmOutput: object | null;
       summary: string;
       language: string;
+      /** Steps from the description. Empty when the model listed none. */
+      instructions: string[];
     }
   | { ok: false; eventId: string; reason: 'unavailable' };
+
+/** The temporary publisher and the event text the web lookup may use. */
+export interface PublisherLookupInput {
+  publisherId: string;
+  name: string;
+  publisherUrl?: string;
+  organizerKeys: string[];
+  title: string;
+  description?: string;
+  venue?: string;
+  location?: { lat: number; lng: number };
+}
+
+/**
+ * Facts from the publisher lookup. `website` is set only when a page on that
+ * host was fetched. The scan stores this object on `publishers.meta.lookup`.
+ */
+export interface PublisherLookup {
+  name: string | null;
+  website: string | null;
+  address: string | null;
+  city: string | null;
+  description: string | null;
+  sources: { url: string }[];
+}
 
 /**
  * Scans a batch. Each client decides how to look up publishers and duplicates,
  * and whether to walk the batch or send it as one job.
+ * `lookupPublisher` runs after a temporary publisher is created. A miss returns null.
  */
 export interface PromptRunner {
   readonly id: string;
   scan(batch: ScanInput[]): Promise<ScanOutcome[]>;
+  lookupPublisher(input: PublisherLookupInput): Promise<PublisherLookup | null>;
 }
