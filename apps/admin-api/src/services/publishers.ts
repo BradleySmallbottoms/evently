@@ -324,8 +324,8 @@ export function createMemoryAdminPublisherServices(
           id: event.id,
           title: event.title ?? '',
           status: event.status as AdminPublisherEventListResponse['items'][number]['status'],
-          startsAt: (event.startsAtDate ?? event.endsAtDate).toISOString(),
-          endsAt: event.endsAtDate.toISOString(),
+          startsAt: event.startsAtDate?.toISOString() ?? null,
+          endsAt: event.endsAtDate?.toISOString() ?? null,
           venueName: event.venueName ?? null,
         })),
       };
@@ -458,6 +458,7 @@ export function createDbAdminPublisherServices(
 
       let releasedEventCount = 0;
       for (const row of awaiting) {
+        if (!row.endsAt) continue;
         const next = releaseOnVerification({ status: row.status, endsAt: row.endsAt }, at);
         if (next !== row.status) {
           await db
@@ -718,8 +719,8 @@ export function createDbAdminPublisherServices(
           id: row.id,
           title: row.title,
           status: row.status,
-          startsAt: row.startsAt.toISOString(),
-          endsAt: row.endsAt.toISOString(),
+          startsAt: row.startsAt?.toISOString() ?? null,
+          endsAt: row.endsAt?.toISOString() ?? null,
           venueName: row.venueName,
         })),
       };

@@ -164,8 +164,8 @@ function touchesContent(body: AdminEventPatchRequest): boolean {
 function assertEditable(
   existing: {
     status: string;
-    startsAt: string;
-    endsAt: string;
+    startsAt: string | null;
+    endsAt: string | null;
     mode: 'physical' | 'digital';
     location?: { lat: number; lng: number } | null;
     onlineUrl?: string | null;
@@ -177,7 +177,9 @@ function assertEditable(
   if (!touchesContent(body) && !publishing) return;
   const startsAt = body.startsAt ?? existing.startsAt;
   const endsAt = body.endsAt ?? existing.endsAt;
-  if (new Date(endsAt) <= new Date(startsAt)) throw new AdminEventError('invalid_event');
+  if (!startsAt || !endsAt || new Date(endsAt) <= new Date(startsAt)) {
+    throw new AdminEventError('invalid_event');
+  }
   const check = validateEventFields({
     mode: body.mode ?? existing.mode,
     location: body.location !== undefined ? body.location : (existing.location ?? null),
@@ -191,8 +193,8 @@ function contentChanges(
     title: string;
     description?: string | null;
     mode: string;
-    startsAt: string;
-    endsAt: string;
+    startsAt: string | null;
+    endsAt: string | null;
     timezone?: string;
     venueName: string | null;
     location?: { lat: number; lng: number } | null;
@@ -297,6 +299,10 @@ function tagCountColumn() {
     from ${schema.eventTags}
     where ${schema.eventTags.eventId} = ${schema.events.id}
   )`;
+}
+
+function isoDate(value: Date | null): string | null {
+  return value ? value.toISOString() : null;
 }
 
 function metaWithoutGroup(meta: EventMeta): EventMeta {
@@ -803,8 +809,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       mode: row.mode,
       status: row.status,
       origin: row.origin,
-      startsAt: row.startsAt.toISOString(),
-      endsAt: row.endsAt.toISOString(),
+      startsAt: isoDate(row.startsAt),
+      endsAt: isoDate(row.endsAt),
       timezone: row.timezone,
       venueName: row.venueName,
       location:
@@ -903,8 +909,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           mode: r.mode,
           status: 'in_review' as const,
           origin: r.origin,
-          startsAt: r.startsAt.toISOString(),
-          endsAt: r.endsAt.toISOString(),
+          startsAt: isoDate(r.startsAt),
+          endsAt: isoDate(r.endsAt),
           venueName: r.venueName,
           sourceUrl: r.sourceUrl,
           contentVerdict: r.contentVerdict,
@@ -972,8 +978,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           mode: r.mode,
           status: r.status,
           origin: r.origin,
-          startsAt: r.startsAt.toISOString(),
-          endsAt: r.endsAt.toISOString(),
+          startsAt: isoDate(r.startsAt),
+          endsAt: isoDate(r.endsAt),
           venueName: r.venueName,
           sourceUrl: r.sourceUrl,
           featured: r.featured,
@@ -1034,7 +1040,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           })
         : null;
       await approvePendingPushMessagesForEvent(db, eventId, at);
-      if (approvedPlan) {
+      if (approvedPlan && row.startsAt) {
         await scheduleImportPlanForEvent(db, {
           eventId,
           eventTitle: row.title,
@@ -1245,8 +1251,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         id: row.id,
         title: row.title,
         status: row.status,
-        startsAt: row.startsAt.toISOString(),
-        endsAt: row.endsAt.toISOString(),
+        startsAt: isoDate(row.startsAt),
+        endsAt: isoDate(row.endsAt),
         venueName: row.venueName,
       }));
     },
@@ -1282,6 +1288,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         }
         const lat = row.lat == null ? null : Number(row.lat);
         const lng = row.lng == null ? null : Number(row.lng);
+        if (!row.startsAt || !row.endsAt) throw new AdminEventError('invalid_event');
         return collapseMember({
           startsAt: row.startsAt.toISOString(),
           endsAt: row.endsAt.toISOString(),
@@ -1293,6 +1300,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           meta,
         });
       });
+      if (!host.startsAt || !host.endsAt) throw new AdminEventError('invalid_event');
       const span = collapseOccasionSpan(
         collapseMember({
           startsAt: host.startsAt,
@@ -1377,8 +1385,9 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           description: body.description !== undefined ? body.description : existing.description,
           mode,
           status: nextStatus,
-          startsAt: new Date(startsAt),
-          endsAt: new Date(endsAt),
+          ...(startsAt && endsAt
+            ? { startsAt: new Date(startsAt), endsAt: new Date(endsAt) }
+            : {}),
           timezone: body.timezone ?? existing.timezone,
           venueName: body.venueName !== undefined ? body.venueName : existing.venueName,
           location: location ? pointEwkt(location) : null,
@@ -1421,11 +1430,11 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         if (nextStatus === 'published' && existing.status !== 'published') {
           await approvePendingPushMessagesForEvent(db, eventId, at);
         }
-        if (editedPlan) {
+        if (editedPlan && startsAt) {
           await scheduleImportPlanForEvent(db, {
             eventId,
             eventTitle: body.title ?? existing.title,
-            startsAt: new Date(body.startsAt ?? existing.startsAt),
+            startsAt: new Date(startsAt),
             eventStatus: 'published',
             planId: editedPlan,
             now: at,

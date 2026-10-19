@@ -162,8 +162,8 @@ function organizerIdentity(
 function mapEvent(event: VEvent, feedUrl: string): IncomingEvent | null {
   const uid = event.UID?.trim();
   const summary = event.SUMMARY ? unescapeIcs(event.SUMMARY).trim() : '';
+  if (!uid || !summary) return null;
   const dtStart = event.DTSTART ? icsDateToIso(event.DTSTART, event.DTSTART_PARAMS) : null;
-  if (!uid || !summary || !dtStart) return null;
   const dtEnd = event.DTEND ? icsDateToIso(event.DTEND, event.DTEND_PARAMS) : undefined;
   const urlRaw = event.URL?.trim();
   let sourceUrl = feedUrl;
@@ -183,8 +183,8 @@ function mapEvent(event: VEvent, feedUrl: string): IncomingEvent | null {
     title: summary.slice(0, 300),
     description: description || undefined,
     mode: 'physical',
-    startsAt: dtStart,
-    endsAt: dtEnd ?? undefined,
+    ...(dtStart ? { startsAt: dtStart } : {}),
+    ...(dtStart && dtEnd ? { endsAt: dtEnd } : {}),
     timezone: 'Europe/Stockholm',
     venueName: venueName || undefined,
     sourceUrl,

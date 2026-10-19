@@ -14,6 +14,7 @@ import {
   ollamaModel,
   parseTagChoices,
   readScanInstructions,
+  readScanRange,
   titleSimilarity,
   type LLMOutput,
   type LLMScanResult,
@@ -55,6 +56,7 @@ function parseResponse(content: string): LLMScanResult {
     summary: parsed.summary ?? '',
     language: parsed.language ?? '',
     instructions: readScanInstructions(parsed.instructions),
+    ...(readScanRange(parsed) ?? { startsAt: null, endsAt: null }),
   };
 }
 
@@ -67,6 +69,8 @@ function emptyScan(): LLMScanResult {
     summary: '',
     language: '',
     instructions: [],
+    startsAt: null,
+    endsAt: null,
   };
 }
 
@@ -224,12 +228,14 @@ export function createOllamaPromptRunner(
             organizerKeys: event.organizer.keys,
           };
 
-        const nearby = event.location
-          ? await store.listDuplicateCandidates({
-            location: event.location,
-            startsAt: new Date(event.startsAt),
-          })
-          : [];
+        const startsAt = new Date(event.startsAt);
+        const nearby =
+          event.location && !Number.isNaN(startsAt.getTime())
+            ? await store.listDuplicateCandidates({
+                location: event.location,
+                startsAt,
+              })
+            : [];
 
         outcomes.push({
           ok: true,
@@ -242,6 +248,8 @@ export function createOllamaPromptRunner(
           summary: llmoutput?.summary ?? '',
           language: llmoutput?.language ?? '',
           instructions: llmoutput?.instructions ?? [],
+          startsAt: llmoutput?.startsAt ?? null,
+          endsAt: llmoutput?.endsAt ?? null,
           llmOutput: llmoutput?.output ?? {},
         });
       }

@@ -310,6 +310,11 @@ async function attachImages(
   if (stale.length > 0) await store.deleteEventImages(eventId, stale);
 }
 
+function importedEndsAt(event: IncomingEvent): string | null {
+  if (!event.startsAt) return null;
+  return event.endsAt ?? event.startsAt;
+}
+
 async function scheduleImportedNotifications(
   store: IngestStore,
   input: {
@@ -388,7 +393,7 @@ async function saveOne(
       publisherId: null,
       status: 'pending_scan' as const,
       event: linked,
-      endsAt: event.endsAt ?? event.startsAt,
+      endsAt: importedEndsAt(event),
       tagIds,
       refId: event.externalId,
       workerId: source.slug,
@@ -428,7 +433,7 @@ async function saveOne(
       publisherIsTemporary: publisher.isTemporary,
     }),
     event: linked,
-    endsAt: event.endsAt ?? event.startsAt,
+    endsAt: importedEndsAt(event),
     tagIds,
     refId: event.externalId,
     workerId: source.slug,
@@ -439,13 +444,15 @@ async function saveOne(
   }
   await store.updateImported(existing.eventId, write);
   await attachImages(store, existing.eventId, event, images);
-  await scheduleImportedNotifications(store, {
-    eventId: existing.eventId,
-    eventTitle: event.title,
-    startsAt: event.startsAt,
-    status: existing.status,
-    publisher,
-  });
+  if (event.startsAt) {
+    await scheduleImportedNotifications(store, {
+      eventId: existing.eventId,
+      eventTitle: event.title,
+      startsAt: event.startsAt,
+      status: existing.status,
+      publisher,
+    });
+  }
   if (existing.status === 'published') {
     await emitDomainEvent(enqueue, {
       type: 'event.updated',

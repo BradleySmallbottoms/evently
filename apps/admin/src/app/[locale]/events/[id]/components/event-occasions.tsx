@@ -27,8 +27,8 @@ type Occasion = {
 type GroupItem = {
   id: string;
   title: string;
-  startsAt: string;
-  endsAt: string;
+  startsAt: string | null;
+  endsAt: string | null;
   venueName: string | null;
 };
 
@@ -205,8 +205,8 @@ export function EventOccasions({
                       <TableCell>
                         {current ? item.title : <Link href={`/events/${item.id}`}>{item.title}</Link>}
                       </TableCell>
-                      <TableCell>{new Date(item.startsAt).toLocaleString()}</TableCell>
-                      <TableCell>{new Date(item.endsAt).toLocaleString()}</TableCell>
+                      <TableCell>{item.startsAt ? new Date(item.startsAt).toLocaleString() : '—'}</TableCell>
+                      <TableCell>{item.endsAt ? new Date(item.endsAt).toLocaleString() : '—'}</TableCell>
                       <TableCell>{item.venueName ?? '—'}</TableCell>
                     </TableRow>
                   );

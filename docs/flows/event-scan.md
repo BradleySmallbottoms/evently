@@ -35,6 +35,8 @@ For each event the Ollama runner:
 4. Asks the configured chat model for up to five catalog tags.
    Those tags replace any the event already has.
    Steps the model lists from the description are stored on `meta.instructions`.
+   When the event has no start and no end, the model also returns both instants. Those
+   replace the empty dates. A range that is missing one side is ignored.
 
 The worker writes the publisher, tags, and `meta.possibleDuplicate`, then sets the status.
 A duplicate ranked over 90 as another showing also stores `meta.possibleOccasionGroupId` on the

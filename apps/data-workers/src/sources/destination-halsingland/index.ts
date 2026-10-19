@@ -1,5 +1,6 @@
 import type { EventMeta } from '@local-events/contracts';
 import {
+  eventUrlKey,
   organizerKeys,
   parseLinksFromText,
   priceAmountFromText,
@@ -243,9 +244,8 @@ function sourceUrlOf(value: unknown, origin: URL): string | undefined {
   const href = httpsUrl(value, origin);
   if (!href) return undefined;
   const url = new URL(href);
-  if (url.hostname.toLowerCase() !== origin.hostname.toLowerCase()) return undefined;
-  url.search = '';
   url.hash = '';
+  if (sameHost(origin, url)) url.search = '';
   return url.href;
 }
 
@@ -339,17 +339,59 @@ function contentHtml(content: ContentBody | undefined): string {
   return parts.join('\n');
 }
 
-function linksOf(content: ContentBody | undefined, bookingUrl: unknown): HalsinglandLink[] {
-  const links = parseLinksFromText(contentHtml(content)).map((link) => ({
-    type: link.type,
-    url: link.url,
-    ...(link.label ? { label: link.label } : {}),
-  }));
-  const booking = httpsUrl(bookingUrl);
-  if (booking?.startsWith('https:') && !links.some((link) => link.url === booking)) {
-    links.unshift({ type: 'tickets', url: booking });
+const CONTENT_LINK_LABELS: Record<string, string> = {
+  webbsida: 'Webbsida',
+  evenemangslänk: 'Evenemangslänk',
+  'externa länkar': 'Externa länkar',
+};
+
+function addLink(links: HalsinglandLink[], link: HalsinglandLink): void {
+  const key = eventUrlKey(link.url);
+  if (!key) return;
+  const existing = links.find((item) => eventUrlKey(item.url) === key);
+  if (existing) {
+    if (!existing.label && link.label) existing.label = link.label;
+    return;
   }
-  return links.slice(0, 10);
+  if (links.length >= 10) return;
+  links.push({
+    type: link.type,
+    url: key,
+    ...(link.label ? { label: link.label } : {}),
+  });
+}
+
+/** Webbsida, Evenemangslänk, and Externa länkar from the product content groups. */
+function namedContentLinks(content: ContentBody | undefined): HalsinglandLink[] {
+  if (!Array.isArray(content?.goodToKnow)) return [];
+  const links: HalsinglandLink[] = [];
+  for (const group of content.goodToKnow) {
+    if (!group || typeof group !== 'object' || !('name' in group)) continue;
+    const label = CONTENT_LINK_LABELS[textOf(group.name).toLocaleLowerCase('sv')];
+    if (!label || !('attributes' in group) || !Array.isArray(group.attributes)) continue;
+    for (const attribute of group.attributes) {
+      if (!attribute || typeof attribute !== 'object' || !('name' in attribute)) continue;
+      for (const link of parseLinksFromText(textOf(attribute.name))) {
+        links.push({ type: link.type, url: link.url, label });
+      }
+    }
+  }
+  return links;
+}
+
+function linksOf(content: ContentBody | undefined, bookingUrl: unknown): HalsinglandLink[] {
+  const links: HalsinglandLink[] = [];
+  const booking = httpsUrl(bookingUrl);
+  if (booking?.startsWith('https:')) addLink(links, { type: 'tickets', url: booking });
+  for (const link of parseLinksFromText(contentHtml(content))) {
+    addLink(links, {
+      type: link.type,
+      url: link.url,
+      ...(link.label ? { label: link.label } : {}),
+    });
+  }
+  for (const link of namedContentLinks(content)) addLink(links, link);
+  return links;
 }
 
 function emailOf(content: ContentBody | undefined): string | undefined {
@@ -433,7 +475,7 @@ function normalizeProduct(
   const title = plainText(content?.title) || textOf(item.name);
   const sourceUrl = sourceUrlOf(item.url, origin);
   const occasions = occasionsOf(booking);
-  if (!id || !title || !sourceUrl || occasions.length === 0) return undefined;
+  if (!id || !title || !sourceUrl) return undefined;
   const town = textOf(content?.location) || textOf(item.location) || undefined;
   const location = pointFromCoordinates(item.coordinates);
   const pictures = imagesOf(content?.images ?? item.images);
@@ -533,7 +575,6 @@ function mapProduct(
   collapse: OccasionCollapseOptions,
 ): IncomingEvent[] {
   const occasions = resolveOccasions(product);
-  if (occasions.length === 0) return [];
   const description = descriptionOf(product);
   const priceAmount =
     priceAmountFromText(product.priceText?.replace(/\bSEK\b/gi, 'kr')) ??
@@ -562,6 +603,9 @@ function mapProduct(
     categoryHints: [],
     tags: [],
   };
+  if (occasions.length === 0) {
+    return [{ ...base, externalId: product.id }];
+  }
   if (shouldCollapseOccasions(occasions, collapse)) {
     const first = occasions[0]!;
     const last = occasions.at(-1)!;
@@ -694,14 +738,14 @@ async function* eachProduct(ctx: SourceRunContext): AsyncGenerator<HalsinglandRa
       origin,
     );
     if (!product) {
-      ctx.log('destination-halsingland skipped event with no occasions', { id });
+      ctx.log('destination-halsingland skipped event with no title or page', { id });
       continue;
     }
     yielded += 1;
     yield { now: new Date().toISOString(), origin: origin.origin, products: [product] };
   }
   if (hits.length > 0 && yielded === 0) {
-    throw new Error('destination-halsingland event pages had no occasions');
+    throw new Error('destination-halsingland event pages had no usable events');
   }
 }
 

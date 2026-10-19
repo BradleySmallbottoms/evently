@@ -74,7 +74,7 @@ calls) in the same change as every new major feature.**
   unless the occasions are a dense run of opening hours longer than `occasionSpanDays` (default 21)
   covering at least `occasionCoverage` of those days (default 0.6). Both live on `data_sources.config`.
   A collapsed run is one event with `meta.collapsed` true and every occasion on `meta.occasions`. When two or more occasions stay separate, each event stores the
-  product id on `meta.occasionGroupId`. The mobile event page loads the other published occasions
+  product id on `meta.occasionGroupId`. A product with no occasion is still saved, with empty start and end. The mobile event page loads the other published occasions
   in that group from `GET /v1/events/occasions?occasionGroupId=` and lists the ones that have not ended.
   A collapsed span lists each `meta.occasions` row that has not ended on that same page, and the date shown is the next of those rows. The same start and end is a whole day, shown as “Whole Day” through the end of that calendar day.
   A Citybreak time ending in `Z`, or with a numeric offset, is stored as that instant. A time with no zone is Europe/Stockholm. Hälsingland and Hudiksvall date-and-period values are Stockholm wall time too.
@@ -126,7 +126,7 @@ calls) in the same change as every new major feature.**
   uses Hudiksvall centre so the event still has a point. A digital showing stays without one.
   Links in the description, information, and contact (including Facebook) are stored. The site
   footer is not. A long daily exhibition becomes one event; a concert or a monthly circle stays
-  one event per occasion and stores the product id on `meta.occasionGroupId`. A collapsed span sets `meta.collapsed` and keeps every occasion on `meta.occasions`. Span length and
+  one event per occasion and stores the product id on `meta.occasionGroupId`. A page with no occasion is still saved, with empty start and end. A collapsed span sets `meta.collapsed` and keeps every occasion on `meta.occasions`. Span length and
   coverage are `occasionSpanDays` and `occasionCoverage` on `data_sources.config` (defaults 21 and 0.6).
   The hero image is the page `og:image`.
   The worker reads the list, then saves each event after its page is ready, before fetching the
@@ -168,7 +168,11 @@ calls) in the same change as every new major feature.**
 - Hälsingland’s public calendar, with no Citybreak API key. The worker calls the JSON the calendar
   page already loads: the event list (`filter=c=4559`, Evenemang i hela Hälsingland), then each
   product’s text and occasions. It does not read HTML. List coordinates are longitude then
-  latitude. A product with no coordinate is still saved, without a map point. A long daily
+  latitude. A product with no coordinate is still saved, without a map point. The list URL is kept
+  when it points at another site. Webbsida, Evenemangslänk, and Externa länkar are added when that
+  page is not already a link. A product
+  with no occasion is still saved, with empty start and end. The event scan fills both
+  when it can read them from the text. An event with no start stays off the public list. A long daily
   exhibition becomes one event; a concert stays one event per occasion and stores the product id
   on `meta.occasionGroupId`. A collapsed span sets `meta.collapsed` and keeps every occasion on `meta.occasions`. Span length and coverage are `occasionSpanDays` and `occasionCoverage`
   on `data_sources.config` (defaults 21 and 0.6). A lookalike within 200 m
@@ -180,6 +184,19 @@ calls) in the same change as every new major feature.**
   `in_review` events. The seeded row stays disabled. Flow:
   [docs/flows/destination-halsingland.md](docs/flows/destination-halsingland.md).
   Later sources and the build order: [docs/event-sources.md](docs/event-sources.md).
+
+### Söderhamns stadsbibliotek import
+
+- The library calendar on soderhamn.se, with no API key. The worker reads the Sitevision list, then
+  each event page, and saves that event before the next page is fetched. `robots.txt` disallows
+  `jsessionid` URLs, so later pages use `skip` on the clean list URL. Date, time, place, and price
+  come from the page. The Sitevision page id is the external id, so two showings of the same title
+  stay separate. A date that cannot be read is still saved, with empty start and end. The library
+  desk email is the organizer key. A library place is geocoded, and a miss uses the library map
+  point. Times use the Europe/Stockholm offset.
+  `pnpm --filter @local-events/data-workers dev -- --source soderhamn-biblioteket` writes
+  `pending_scan` events. The seeded row stays disabled. Flow:
+  [docs/flows/soderhamn-biblioteket.md](docs/flows/soderhamn-biblioteket.md).
 
 ### Event share links
 
@@ -333,7 +350,7 @@ calls) in the same change as every new major feature.**
 - **Data workers:** `pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn`
   (needs `data_sources` row + `VISIT_SODERHAMN_API_KEY`). Add `--limit 5` to stop after that many
   events. The same flag works for every source. Generic ICS calendars use slug
-  `ics-feed` with `config.feedUrl` (https). A physical import with no venue name uses the city
+  `ics-feed` with `config.feedUrl` (https). An import with no occasion or no date is still saved, with empty start and end. The event scan fills both when it can read them from the text. An event with no start stays off the public list. A physical import with no venue name uses the city
   in its scraped address. When that address has no city, the point is reverse-geocoded for the
   nearest city within 25 km. Review-trust sources stay silent until an admin
   publishes from the review queue.

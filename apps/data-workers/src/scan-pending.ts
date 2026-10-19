@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { readScanInstructions } from '@local-events/ingest';
+import { readScanInstructions, readScanRange } from '@local-events/ingest';
 import {
   choosePossibleOccasionGroupId,
   importPlanToSchedule,
@@ -127,8 +127,8 @@ function scanInputFor(row: PendingScanRow): ScanInput {
     title: row.title,
     ...(row.description ? { description: row.description } : {}),
     ...(row.venueName ? { venue: row.venueName } : {}),
-    startsAt: row.startsAt.toISOString(),
-    endsAt: row.endsAt.toISOString(),
+    startsAt: row.startsAt?.toISOString() ?? '',
+    endsAt: row.endsAt?.toISOString() ?? '',
     ...(row.location ? { location: row.location } : {}),
     ...(row.sourceUrl ? { sourceUrl: row.sourceUrl } : {}),
     links: row.links,
@@ -175,6 +175,7 @@ async function applyOutcome(
     const kept = stored[0]?.possibleOccasionGroupId;
     if (kept) meta.possibleOccasionGroupId = kept;
   }
+  const dates = datesFromScan(row, outcome);
   const saved = await store.finishImportedScan({
     eventId: row.eventId,
     publisherId: publisher.publisherId,
@@ -186,9 +187,11 @@ async function applyOutcome(
     summary: eventSummary(outcome.summary),
     language: eventLanguage(outcome.language),
     claimedUntil: row.claimedUntil,
+    ...(dates ?? {}),
   });
   if (!saved) return 'skipped';
-  if (store.scheduleImportNotifications) {
+  const startsAt = dates?.startsAt ?? row.startsAt;
+  if (store.scheduleImportNotifications && startsAt) {
     const planId = importPlanToSchedule({
       publisherStatus: publisher.status,
       planId: publisher.importNotificationPlan,
@@ -197,7 +200,7 @@ async function applyOutcome(
       await store.scheduleImportNotifications({
         eventId: row.eventId,
         eventTitle: row.title,
-        startsAt: row.startsAt,
+        startsAt,
         planId,
         status,
       });
@@ -207,6 +210,20 @@ async function applyOutcome(
     await emitDomainEvent(enqueue, { type: 'event.published', eventId: row.eventId });
   }
   return status === 'published' ? 'published' : 'review';
+}
+
+/**
+ * Dates from the scan, used only when the stored event has neither start nor end
+ * and the model returned both.
+ */
+function datesFromScan(
+  row: PendingScanRow,
+  outcome: Extract<ScanOutcome, { ok: true }>,
+): { startsAt: Date; endsAt: Date } | undefined {
+  if (row.startsAt || row.endsAt) return undefined;
+  const range = readScanRange({ startsAt: outcome.startsAt, endsAt: outcome.endsAt });
+  if (!range) return undefined;
+  return { startsAt: new Date(range.startsAt), endsAt: new Date(range.endsAt) };
 }
 
 /**

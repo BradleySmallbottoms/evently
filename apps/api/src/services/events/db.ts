@@ -42,11 +42,14 @@ function currentEventSql(now: Date, from?: Date) {
   const bound = lower.toISOString();
   const localMidnight = sql`(date_trunc('day', ${bound}::timestamptz AT TIME ZONE ${zone}) AT TIME ZONE ${zone})`;
   return sql`(
+    ${events.startsAt} is not null
+    AND (
     ${events.endsAt} >= ${bound}::timestamptz
     OR (
       ${events.startsAt} = ${events.endsAt}
       AND ${events.startsAt} >= ${localMidnight}
     )
+  )
   )`;
 }
 
@@ -58,8 +61,8 @@ type LocRow = {
   mode: Event['mode'];
   status: Event['status'];
   origin: Event['origin'];
-  startsAt: Date;
-  endsAt: Date;
+  startsAt: Date | null;
+  endsAt: Date | null;
   timezone: string;
   venueName: string | null;
   lat: number | null;
@@ -88,8 +91,15 @@ function assertFields(
   if (!check.ok) throw new EventError(check.reason);
 }
 
+function withDates<T extends { startsAt: Date | null; endsAt: Date | null }>(
+  row: T,
+): (T & { startsAt: Date; endsAt: Date }) | null {
+  if (!row.startsAt || !row.endsAt) return null;
+  return { ...row, startsAt: row.startsAt, endsAt: row.endsAt };
+}
+
 function mapEvent(
-  row: LocRow,
+  row: LocRow & { startsAt: Date; endsAt: Date },
   tagIds: string[],
   imageKey: string | null,
   gallery: readonly { role: string; s3Key: string }[],
@@ -243,7 +253,7 @@ export function createDbEventServices(
   }
 
   function toEvent(
-    row: LocRow,
+    row: LocRow & { startsAt: Date; endsAt: Date },
     tagIds: string[],
     images: { main: string | null; gallery: { role: string; s3Key: string }[] },
     links: EventLink[],
@@ -321,12 +331,13 @@ export function createDbEventServices(
 
   async function loadEvent(eventId: string): Promise<ManagedEvent | null> {
     const [row] = await selectEvents().where(eq(events.id, eventId)).limit(1);
-    if (!row) return null;
+    const dated = row ? withDates(row) : null;
+    if (!dated) return null;
     const stored = (await linksFor([eventId])).get(eventId) ?? [];
     const images = (await imagesFor([eventId])).get(eventId) ?? { main: null, gallery: [] };
     return {
-      ...toEvent(row, await tagIdsFor(eventId), images, publicLinks(stored)),
-      attendeeText: row.attendeeText,
+      ...toEvent(dated, await tagIdsFor(eventId), images, publicLinks(stored)),
+      attendeeText: dated.attendeeText,
       attendeeLinks: attendeeLinksOf(stored),
     };
   }
@@ -369,9 +380,11 @@ export function createDbEventServices(
       const [links, images] = await Promise.all([linksFor(ids), imagesFor(ids)]);
       const result: Event[] = [];
       for (const row of rows) {
+        const dated = withDates(row);
+        if (!dated) continue;
         result.push(
           toEvent(
-            row,
+            dated,
             await tagIdsFor(row.id),
             images.get(row.id) ?? { main: null, gallery: [] },
             publicLinks(links.get(row.id) ?? []),
@@ -638,9 +651,11 @@ export function createDbEventServices(
       const [links, images] = await Promise.all([linksFor(ids), imagesFor(ids)]);
       const items: Event[] = [];
       for (const row of pageRows) {
+        const dated = withDates(row);
+        if (!dated) continue;
         items.push(
           toEvent(
-            row,
+            dated,
             await tagIdsFor(row.id),
             images.get(row.id) ?? { main: null, gallery: [] },
             publicLinks(links.get(row.id) ?? []),
@@ -665,9 +680,11 @@ export function createDbEventServices(
       const [links, images] = await Promise.all([linksFor(ids), imagesFor(ids)]);
       const items: Event[] = [];
       for (const row of rows) {
+        const dated = withDates(row);
+        if (!dated) continue;
         items.push(
           toEvent(
-            row,
+            dated,
             await tagIdsFor(row.id),
             images.get(row.id) ?? { main: null, gallery: [] },
             publicLinks(links.get(row.id) ?? []),
@@ -712,6 +729,7 @@ export async function verifyPublisherInDb(
 
   let releasedEventCount = 0;
   for (const row of awaiting) {
+    if (!row.endsAt) continue;
     const next = releaseOnVerification({ status: row.status, endsAt: row.endsAt }, now);
     if (next !== row.status) {
       await db

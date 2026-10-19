@@ -164,7 +164,7 @@ export interface ImportedEventWrite {
   publisherId: string | null;
   status: EventStatus;
   event: IncomingEvent;
-  endsAt: string;
+  endsAt: string | null;
   tagIds: string[];
   refId: string;
   workerId: string;
@@ -339,6 +339,9 @@ export interface IngestStore {
     /** `en` when the scan says English. Anything else is `sv`. */
     language: 'sv' | 'en';
     claimedUntil: Date;
+    /** Set only when the scan found both and the row had neither. */
+    startsAt?: Date;
+    endsAt?: Date;
   }): Promise<boolean>;
 }
 
@@ -347,8 +350,8 @@ export interface PendingScanRow {
   title: string;
   description: string | null;
   venueName: string | null;
-  startsAt: Date;
-  endsAt: Date;
+  startsAt: Date | null;
+  endsAt: Date | null;
   location: { lat: number; lng: number } | null;
   sourceUrl: string | null;
   links: string[];

@@ -432,9 +432,7 @@ function linksForProduct(product: VisitProduct): string[] {
 function canMapProduct(product: VisitProduct): boolean {
   const title = textField(product, NAME) ?? product.Name?.trim();
   const sourceUrl = asUrl(textField(product, EVENT_LINK)) ?? asUrl(textField(product, WEBSITE));
-  return Boolean(
-    title && sourceUrl && (product.Occasions ?? []).some((occasion) => occasion.Start),
-  );
+  return Boolean(title && sourceUrl);
 }
 
 /**
@@ -526,7 +524,6 @@ function mapProduct(
   const links = productLinks(product);
   if (!title || !sourceUrl) return [];
   const occasions = resolveVisitOccasions(product);
-  if (occasions.length === 0) return [];
   const email = textField(product, EMAIL);
   const contact = textField(product, CONTACT);
   const description = textField(product, DESCRIPTION) ?? textField(product, INGRESS);
@@ -558,6 +555,17 @@ function mapProduct(
     tags: [] as IncomingEvent['tags'],
     ...pictures,
   };
+  if (occasions.length === 0) {
+    const location = pointOf(product.Position);
+    return [
+      {
+        ...base,
+        externalId: String(product.Id),
+        ...(location ? { location } : {}),
+        ...(meta ? { meta } : {}),
+      },
+    ];
+  }
   if (shouldCollapseOccasions(occasions, collapse)) {
     const first = occasions[0]!;
     const last = occasions.at(-1)!;

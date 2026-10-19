@@ -116,7 +116,7 @@ export function EventNotifications({
 }: {
   eventId: string;
   title: string;
-  startsAt: string;
+  startsAt: string | null;
   timezone: string;
   status: string;
 }) {
@@ -134,7 +134,7 @@ export function EventNotifications({
 
   const canNotify = canAdminNotifyEvent(status);
   const scheduleKey = `${eventId}|${startsAt}|${timezone}`;
-  if (canNotify && !customized && (builtScheduleKey !== scheduleKey || builtPlan !== planId)) {
+  if (canNotify && startsAt && !customized && (builtScheduleKey !== scheduleKey || builtPlan !== planId)) {
     setBuiltScheduleKey(scheduleKey);
     setBuiltPlan(planId);
     setDrafts(draftsForPlan(planId, title, startsAt, timezone));
@@ -211,10 +211,12 @@ export function EventNotifications({
         return {
           ...draft,
           offset,
-          sendAtLocal: toDatetimeLocal(
-            offsetBeforeEventStart(new Date(startsAt), offset).toISOString(),
-            timezone,
-          ),
+          sendAtLocal: startsAt
+            ? toDatetimeLocal(
+                offsetBeforeEventStart(new Date(startsAt), offset).toISOString(),
+                timezone,
+              )
+            : draft.sendAtLocal,
           ...(untouched ? nextCopy : {}),
         };
       }),
@@ -260,7 +262,9 @@ export function EventNotifications({
     approve.mutate(notifications);
   }
 
-  const startsLabel = new Date(startsAt).toLocaleString(locale, { timeZone: timezone });
+  const startsLabel = startsAt
+    ? new Date(startsAt).toLocaleString(locale, { timeZone: timezone })
+    : '—';
   const scheduleStale = customized && builtScheduleKey !== null && builtScheduleKey !== scheduleKey;
 
   return (
@@ -404,6 +408,7 @@ export function EventNotifications({
             <Button
               variant="outlined"
               onClick={() => {
+                if (!startsAt) return;
                 setCustomized(true);
                 setDrafts((current) => [
                   ...current,

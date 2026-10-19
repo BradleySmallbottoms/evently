@@ -225,6 +225,71 @@ describe('destination-halsingland fetch', () => {
     expect(event?.location).toEqual({ lat: 61.3505711, lng: 16.3952167 });
   });
 
+  it('keeps an off-host page and adds the named product links once', async () => {
+    const page = 'https://event.paloma.se/Event/foretagarfrukost/';
+    const fetched = await destinationHalsingland.fetchRaw(
+      ctx(async (input) => {
+        const url = String(input);
+        if (url.includes('/se-och-gora/products')) {
+          const pageNumber = new URL(url).searchParams.get('page');
+          if (pageNumber === '1') {
+            return json({ totalResults: 1, items: [{ ...listItem, url: page }] });
+          }
+          return json({ totalResults: 1, items: [] });
+        }
+        if (url.includes('/product/productcontent')) {
+          return json({
+            ...content,
+            description: `Anmälan: ${page}`,
+            goodToKnow: [
+              {
+                name: 'Webbsida',
+                attributes: [
+                  { name: '<a href="http://www.gladahudik.se">http://www.gladahudik.se</a>' },
+                ],
+              },
+              {
+                name: 'Evenemangslänk',
+                attributes: [{ name: `<a href="${page}">${page}</a>` }],
+              },
+              {
+                name: 'Externa länkar',
+                attributes: [
+                  {
+                    name: '<a href="https://www.gladahudik.se/sv/foretagarveckan">https://www.gladahudik.se/sv/foretagarveckan</a>',
+                  },
+                ],
+              },
+            ],
+          });
+        }
+        return json(booking);
+      }),
+    );
+    const [event] = destinationHalsingland.map(fetched);
+    expect(event?.sourceUrl).toBe(page);
+    const eventPages = event?.links?.filter(
+      (link) => link.url === 'https://event.paloma.se/Event/foretagarfrukost',
+    );
+    expect(eventPages).toEqual([
+      {
+        type: 'info',
+        url: 'https://event.paloma.se/Event/foretagarfrukost',
+        label: 'Evenemangslänk',
+      },
+    ]);
+    expect(event?.links).toEqual(
+      expect.arrayContaining([
+        { type: 'info', url: 'http://www.gladahudik.se/', label: 'Webbsida' },
+        {
+          type: 'info',
+          url: 'https://www.gladahudik.se/sv/foretagarveckan',
+          label: 'Externa länkar',
+        },
+      ]),
+    );
+  });
+
   it('treats a free-admission label as free and leaves parking text alone', async () => {
     async function load(attribute: string) {
       return destinationHalsingland.fetchRaw(
@@ -281,6 +346,34 @@ describe('destination-halsingland fetch', () => {
     expect(event?.location).toBeUndefined();
     expect(event?.startsAt).toBe('2026-10-31T15:00:00+01:00');
     expect(event?.venueName).toBe('Mellanfjärdens Deli');
+  });
+
+  it('keeps a product that has no occasions and leaves the dates empty', async () => {
+    const fetched = await destinationHalsingland.fetchRaw(
+      ctx(async (input) => {
+        const url = String(input);
+        if (url.includes('/se-och-gora/products')) {
+          const page = new URL(url).searchParams.get('page');
+          if (page === '1') {
+            return json({
+              totalResults: 1,
+              items: [{ ...listItem, id: 'todo-2900492', name: 'Utställning' }],
+            });
+          }
+          return json({ totalResults: 1, items: [] });
+        }
+        if (url.includes('/product/productcontent')) {
+          return json({ ...content, title: 'Utställning utan tider', goodToKnow: [] });
+        }
+        return json({ occasions: [] });
+      }),
+    );
+    const [mapped] = destinationHalsingland.map(fetched);
+    expect(mapped?.externalId).toBe('2900492');
+    expect(mapped?.title).toBe('Utställning utan tider');
+    expect(mapped?.startsAt).toBeUndefined();
+    expect(mapped?.endsAt).toBeUndefined();
+    expect(IncomingEvent.safeParse(mapped).success).toBe(true);
   });
 
   it('saves each event before fetching the next product', async () => {

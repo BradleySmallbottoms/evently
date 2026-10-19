@@ -46,6 +46,32 @@ describe('ics-feed adapter', () => {
     expect(mapped[1]?.venueName).toBe('Torget, Söderhamn');
   });
 
+  it('keeps an event with no start and leaves the dates empty', async () => {
+    const body = [
+      'BEGIN:VCALENDAR',
+      'BEGIN:VEVENT',
+      'UID:undated@example.com',
+      'SUMMARY:Konsert utan tid',
+      'DESCRIPTION:Lördag 14 november kl 19',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+    const [event] = await icsFeed.map(
+      { body, feedUrl: 'https://example.com/calendar.ics' },
+      {
+        sourceSlug: 'ics-feed',
+        config: { feedUrl: 'https://example.com/calendar.ics' },
+        fetch: globalThis.fetch,
+        log: () => undefined,
+      },
+    );
+    expect(event?.externalId).toBe('undated@example.com');
+    expect(event?.title).toBe('Konsert utan tid');
+    expect(event?.startsAt).toBeUndefined();
+    expect(event?.endsAt).toBeUndefined();
+    expect(() => IncomingEvent.parse(event)).not.toThrow();
+  });
+
   it('converts UTC and floating ICS datetimes', () => {
     expect(icsDateToIso('20260701T180000Z')).toBe('2026-07-01T18:00:00.000Z');
     const local = icsDateToIso('20260701T180000');

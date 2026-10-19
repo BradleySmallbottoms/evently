@@ -8,7 +8,8 @@ export const IncomingEvent = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
   mode: EventMode.default('physical'),
-  startsAt: z.iso.datetime({ offset: true }),
+  /** Omitted when the source has no occasion. The scan may fill both later. */
+  startsAt: z.iso.datetime({ offset: true }).optional(),
   endsAt: z.iso.datetime({ offset: true }).optional(),
   timezone: z.string().default('Europe/Stockholm'),
   venueName: z.string().optional(),

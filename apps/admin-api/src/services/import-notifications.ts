@@ -67,6 +67,7 @@ export async function scheduleImportPlanForPublisher(
     );
   let count = 0;
   for (const row of rows) {
+    if (!row.startsAt) continue;
     count += await scheduleImportPlanForEvent(db, {
       eventId: row.id,
       eventTitle: row.title,

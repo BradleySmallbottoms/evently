@@ -13,7 +13,8 @@ The list is `GET /sv/se-och-gora/products` with `filter=c=4559` (Evenemang i hel
 count reaches `totalResults`. Each product then loads
 `GET /sv/product/productcontent?cbisProductId=` and
 `GET /sv/se-gora/todobookingcontrolcontext?cbisProductId=`. The booking response is every occasion
-at once. A product with no occasions is skipped. That product is saved before the next product is
+at once. A product with no occasions is still saved, with empty start and end. The event scan
+fills both when it can read them from the text. That product is saved before the next product is
 fetched.
 
 List coordinates are `[longitude, latitude]`. A missing coordinate stays missing: the event can
@@ -24,8 +25,10 @@ occasion, and each of those events stores the product id on `meta.occasionGroupI
 live on `data_sources.config`. Times use the Europe/Stockholm offset.
 
 `priceAndCurrency` such as `200 SEK` is stored in öre. “Fritt inträde” sets the price to 0 and
-`meta.freeEntry`. “Åldersgräns N” sets `meta.ageLimit`. Ticket and info links come from the
-product text and `externalBookingUrl`. A lookalike is flagged by the scan job, which sets
+`meta.freeEntry`. “Åldersgräns N” sets `meta.ageLimit`. The list `url` is the event page, including
+when it is on another site. Ticket and info links come from the product text and
+`externalBookingUrl`. Webbsida, Evenemangslänk, and Externa länkar in the product content are added
+when that page is not already a link. A lookalike is flagged by the scan job, which sets
 `meta.possibleDuplicate` and leaves the row `in_review`.
 The organizer keys are the same for every worker: email, then an info-link host plus its path, then that host, then the
 arena name. The source slug is used only when none of those exist. The scan job tries that list

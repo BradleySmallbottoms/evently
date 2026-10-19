@@ -418,7 +418,6 @@ function mapProduct(
   const occasions = resolveOccasions(product, now).sort((a, b) =>
     a.startsAt.localeCompare(b.startsAt),
   );
-  if (occasions.length === 0) return [];
   const description = descriptionOf(product);
   const priceAmount = priceAmountFromText(product.priceText?.replace(/\bSEK\b/gi, 'kr'));
   const venue = sharedVenue(occasions);
@@ -449,6 +448,9 @@ function mapProduct(
     categoryHints: [],
     tags: [],
   };
+  if (occasions.length === 0) {
+    return [{ ...base, externalId: product.id }];
+  }
   if (shouldCollapseOccasions(occasions, collapse)) {
     const first = occasions[0]!;
     const last = occasions.at(-1)!;
@@ -556,8 +558,8 @@ async function* eachProduct(ctx: {
       continue;
     }
     const product = parseEventPage(await response.text(), hit.id, pageUrl.pathname);
-    if (!product || product.occasions.length === 0) {
-      ctx.log('glada-hudik skipped event with no occasions', { id: hit.id });
+    if (!product) {
+      ctx.log('glada-hudik skipped event with no title', { id: hit.id });
       continue;
     }
     if (!product.location && !isDigitalProduct(product)) {
@@ -571,7 +573,7 @@ async function* eachProduct(ctx: {
     yield { now: new Date().toISOString(), origin: origin.origin, products: [product] };
   }
   if (hits.length > 0 && yielded === 0) {
-    throw new Error('glada-hudik event pages had no occasions');
+    throw new Error('glada-hudik event pages had no usable events');
   }
 }
 

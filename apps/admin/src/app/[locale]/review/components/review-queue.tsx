@@ -30,7 +30,7 @@ type ReviewItem = {
   publisherId: string;
   publisherName: string;
   title: string;
-  startsAt: string;
+  startsAt: string | null;
   venueName: string | null;
   sourceUrl: string | null;
   origin: 'native' | 'imported';
@@ -315,7 +315,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
                   <TableCell>
                     <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>
                   </TableCell>
-                  <TableCell>{new Date(item.startsAt).toLocaleString()}</TableCell>
+                  <TableCell>{item.startsAt ? new Date(item.startsAt).toLocaleString() : '—'}</TableCell>
                   <TableCell>{item.venueName ?? '—'}</TableCell>
                   <TableCell>
                     <ContentVerdictChip verdict={item.contentVerdict} />

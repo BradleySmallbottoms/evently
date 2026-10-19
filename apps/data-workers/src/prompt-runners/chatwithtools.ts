@@ -7,6 +7,7 @@ import {
   ollamaModel,
   parseTagChoices,
   readScanInstructions,
+  readScanRange,
   type LLMOutput,
   type LLMScanResult,
   type TagChoice,
@@ -298,6 +299,8 @@ async function scanOneEvent(
     summary: content.summary,
     language: content.language,
     instructions: content.instructions,
+    startsAt: content.startsAt,
+    endsAt: content.endsAt,
     llmOutput: content.output,
   };
 }
@@ -369,14 +372,18 @@ function buildScanPrompt(event: ScanInput): string {
     'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe".',
     'Write a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.',
     'If the description contains instructions for the user to follow. Summarize the steps in a list and include it in the summary.',
+    'When Starts or Ends is missing, read the title and description and extract the event start and end.',
+    'Return both as ISO-8601 datetimes with a numeric offset. When the text names no time zone, use Europe/Stockholm.',
+    'A date with no clock is that whole day: start at 00:00:00 and end at 23:59:59.',
+    'Set startsAt and endsAt to null when you cannot find both. When Starts and Ends are already set, copy those instants.',
     'contentVerdict is "spam", "harmful", or "safe". language is the event language, such as "sv" or "en". rank and score are numbers from 0 to 100.',
     'Include your full reasoning (why tags where chosed and why the publisher and duplicate were chosen etc.) in the JSON object.',
     'When you are finished, return only the JSON object. Do not explain it and do not wrap it in markdown:',
-    '{"reasoning_content": "<reasoning_content>", "instructions":["<instruction1>","<instruction2>"],"possiblePublishers":[{"publisherId":"<publisherId>","rank":95}],"possibleDuplicates":[{"eventId":"<eventId>","rank":95,"occasionRank":10}],"contentVerdict":"safe","summary":"<summary>","language":"sv","possibleTags":[{"id":"<id>","score":95}]}',
+    '{"reasoning_content": "<reasoning_content>", "instructions":["<instruction1>","<instruction2>"],"possiblePublishers":[{"publisherId":"<publisherId>","rank":95}],"possibleDuplicates":[{"eventId":"<eventId>","rank":95,"occasionRank":10}],"contentVerdict":"safe","summary":"<summary>","language":"sv","possibleTags":[{"id":"<id>","score":95}],"startsAt":null,"endsAt":null}',
     'Event:',
     `Title: ${event.title}`,
-    `Starts: ${event.startsAt}`,
-    `Ends: ${event.endsAt}`,
+    `Starts: ${event.startsAt || '(missing)'}`,
+    `Ends: ${event.endsAt || '(missing)'}`,
     `Publisher name: ${event.organizer.name}`,
     'Publisher keys:',
     ...event.organizer.keys.map((key) => `- ${key}`),
@@ -929,6 +936,11 @@ async function lookupPublishersByName(
  * reply are ignored. Prose or a broken object is a failed scan. A parsed object
  * with no verdict stays `unknown`.
  */
+function scanRangeOf(record: Record<string, unknown>): { startsAt: string | null; endsAt: string | null } {
+  const range = readScanRange(record);
+  return range ?? { startsAt: null, endsAt: null };
+}
+
 function parseScanJson(content: string): LLMScanResult | null {
   const record = extractScanRecord(content);
   if (!record) return null;
@@ -940,6 +952,7 @@ function parseScanJson(content: string): LLMScanResult | null {
     summary: typeof record.summary === 'string' ? record.summary : '',
     language: typeof record.language === 'string' ? record.language : '',
     instructions: readScanInstructions(record.instructions),
+    ...scanRangeOf(record),
   };
 }
 

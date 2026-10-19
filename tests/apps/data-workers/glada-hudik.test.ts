@@ -185,6 +185,22 @@ describe('glada-hudik map', () => {
     expect(kept.every((item) => item.meta?.occasionGroupId === 'cbis:2866558')).toBe(true);
   });
 
+  it('keeps a product that has no occasions and leaves the dates empty', () => {
+    const product: GladaProduct = {
+      id: 'cbis:2866558',
+      title: 'Blomstrande väggar',
+      path: '/sv/blomstrande-vaggar',
+      organizerName: 'Hälsingland Museum',
+      links: [],
+      occasions: [],
+    };
+    const [event] = gladaHudik.map({ ...raw, products: [product] });
+    expect(event?.externalId).toBe('cbis:2866558');
+    expect(event?.title).toBe('Blomstrande väggar');
+    expect(event?.startsAt).toBeUndefined();
+    expect(event?.endsAt).toBeUndefined();
+  });
+
   it('rolls a past one-off into the next year and wraps Oct to May', () => {
     const now = new Date('2026-10-14T08:00:00.000Z');
     expect(assignOccasionYears([{ day: 15, month: 5, start: '19:00', venue: 'A' }], now)).toEqual([

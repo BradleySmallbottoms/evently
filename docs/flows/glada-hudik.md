@@ -11,7 +11,7 @@ The list request sends only `nodeId` and `page`. `robots.txt` disallows filtered
 A dense run of daily opening hours longer than `occasionSpanDays` (default 21) that covers at
 least `occasionCoverage` of those days (default 0.6) becomes one event (`externalId`
 `cbis:{id}:span`), sets `meta.collapsed`, and stores every occasion on `meta.occasions`. A concert, a film week, or a monthly circle stays one event per occasion, and
-each of those events stores the product id on `meta.occasionGroupId`. Both knobs live on
+each of those events stores the product id on `meta.occasionGroupId`. A page with no occasion is still saved, with empty start and end. The scan fills both when it can read them from the text. Both knobs live on
 `data_sources.config`.
 The hero is the event page `og:image`. `data-lat` and `data-lng` on the page map become the
 event point. A page without that map is geocoded from the location pin under the price, then

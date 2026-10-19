@@ -61,9 +61,11 @@ export function createDbCheckInServices(
       .from(schema.events)
       .where(eq(schema.events.id, eventId))
       .limit(1);
-    if (!row || row.status !== 'published') throw new CheckInError('not_found');
+    if (!row || row.status !== 'published' || !row.startsAt || !row.endsAt) {
+      throw new CheckInError('not_found');
+    }
     if (!row.checkInEnabled) throw new CheckInError('check_in_disabled');
-    return row;
+    return { ...row, startsAt: row.startsAt, endsAt: row.endsAt };
   }
 
   async function ensureCodeRow(eventId: string) {

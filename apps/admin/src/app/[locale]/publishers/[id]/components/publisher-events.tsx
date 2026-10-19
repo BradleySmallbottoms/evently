@@ -17,7 +17,7 @@ type PublisherEvent = {
   id: string;
   title: string;
   status: string;
-  startsAt: string;
+  startsAt: string | null;
   venueName: string | null;
 };
 
@@ -63,7 +63,7 @@ export function PublisherEvents({ publisherId }: { publisherId: string }) {
                   <Link href={`/events/${item.id}`}>{item.title}</Link>
                 </TableCell>
                 <TableCell>{item.status}</TableCell>
-                <TableCell>{new Date(item.startsAt).toLocaleString()}</TableCell>
+                <TableCell>{item.startsAt ? new Date(item.startsAt).toLocaleString() : '—'}</TableCell>
                 <TableCell>{item.venueName}</TableCell>
               </TableRow>
             ))}

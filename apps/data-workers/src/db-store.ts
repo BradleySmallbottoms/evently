@@ -26,8 +26,8 @@ function eventValues(input: ImportedEventWrite) {
     status: input.status,
     origin: 'imported' as const,
     sourceUrl: input.event.sourceUrl,
-    startsAt: new Date(input.event.startsAt),
-    endsAt: new Date(input.endsAt),
+    startsAt: input.event.startsAt ? new Date(input.event.startsAt) : null,
+    endsAt: input.endsAt ? new Date(input.endsAt) : null,
     timezone: input.event.timezone,
     venueName: input.event.venueName ?? null,
     location: input.event.location ? pointEwkt(input.event.location) : null,
@@ -408,7 +408,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         idsByEvent.set(ref.eventId, list);
       }
       return rows.flatMap((row) => {
-        if (row.lat == null || row.lng == null) return [];
+        if (row.lat == null || row.lng == null || !row.startsAt) return [];
         return [
           {
             eventId: row.eventId,
@@ -536,8 +536,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             description: values.description,
             mode: values.mode,
             sourceUrl: values.sourceUrl,
-            startsAt: values.startsAt,
-            endsAt: values.endsAt,
+            ...(input.event.startsAt ? { startsAt: values.startsAt, endsAt: values.endsAt } : {}),
             timezone: values.timezone,
             venueName: values.venueName,
             location: values.location,
@@ -785,13 +784,18 @@ export function createDbIngestStore(db: Db): IngestStore {
         )
         .orderBy(sql`ST_Distance(${events.location}, ST_GeogFromText(${ewkt}))`)
         .limit(NEARBY_RESULT_LIMIT);
-      return rows.map((row) => ({
-        id: row.id,
-        title: row.title,
-        startsAt: row.startsAt.toISOString(),
-        venue: row.venue,
-        distanceM: Math.round(Number(row.distanceM)),
-      }));
+      return rows.flatMap((row) => {
+        if (!row.startsAt) return [];
+        return [
+          {
+            id: row.id,
+            title: row.title,
+            startsAt: row.startsAt.toISOString(),
+            venue: row.venue,
+            distanceM: Math.round(Number(row.distanceM)),
+          },
+        ];
+      });
     },
     /** Occasion ids already stored on these events. Missing ids are left out. */
     async listOccasionGroups(eventIds) {
@@ -833,7 +837,7 @@ export function createDbIngestStore(db: Db): IngestStore {
       return {
         eventId: row.id,
         title: row.title,
-        startsAt: row.startsAt.toISOString(),
+        startsAt: row.startsAt?.toISOString() ?? '',
         refId: row.refId,
         workerId: row.workerId,
       };
@@ -994,6 +998,9 @@ export function createDbIngestStore(db: Db): IngestStore {
             contentVerdict: input.contentVerdict,
             summary: input.summary,
             language: input.language,
+            ...(input.startsAt && input.endsAt
+              ? { startsAt: input.startsAt, endsAt: input.endsAt }
+              : {}),
           })
           .where(
             and(

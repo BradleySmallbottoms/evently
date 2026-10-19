@@ -39,6 +39,7 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Publisher lookup                                       | [publisher-scan.md](./publisher-scan.md)                 |
 | Glada Hudik import                                     | [glada-hudik.md](./glada-hudik.md)                       |
 | Destination Hälsingland import                         | [destination-halsingland.md](./destination-halsingland.md) |
+| Söderhamns stadsbibliotek import                       | [soderhamn-biblioteket.md](./soderhamn-biblioteket.md) |
 | Saved events and custom lists                          | [saved-events.md](./saved-events.md)                     |
 | I'm coming and popular events                          | [event-coming.md](./event-coming.md)                     |
 | Admin view and edit an event                           | [admin-event-edit.md](./admin-event-edit.md)             |

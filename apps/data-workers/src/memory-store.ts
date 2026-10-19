@@ -58,8 +58,8 @@ interface StoredEvent {
   sourceUrl: string;
   refId?: string | null;
   workerId?: string | null;
-  startsAt: Date;
-  endsAt: Date;
+  startsAt: Date | null;
+  endsAt: Date | null;
   venueName: string | null;
   location?: { lat: number; lng: number };
   tagIds: string[];
@@ -137,8 +137,8 @@ function eventFromWrite(id: string, input: ImportedEventWrite): StoredEvent {
     sourceUrl: input.event.sourceUrl,
     refId: input.refId,
     workerId: input.workerId,
-    startsAt: new Date(input.event.startsAt),
-    endsAt: new Date(input.endsAt),
+    startsAt: input.event.startsAt ? new Date(input.event.startsAt) : null,
+    endsAt: input.endsAt ? new Date(input.endsAt) : null,
     venueName: input.event.venueName ?? null,
     location: input.event.location,
     tagIds: [...input.tagIds],
@@ -378,7 +378,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
     },
     async listDuplicateCandidates(input) {
       return events.flatMap((event) => {
-        if (event.status === 'cancelled' || event.status === 'ended' || !event.location) return [];
+        if (event.status === 'cancelled' || event.status === 'ended' || !event.location || !event.startsAt) return [];
         if (!withinDuplicateWindow(input.startsAt, event.startsAt)) return [];
         const distanceM = distanceMeters(input.location, event.location);
         if (distanceM > DUPLICATE_RADIUS_M) return [];
@@ -481,6 +481,10 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       if (input.event.links === undefined) next.links = event.links;
       if (!next.meta.possibleDuplicate && event.meta.possibleDuplicate) {
         next.meta = { ...next.meta, possibleDuplicate: event.meta.possibleDuplicate };
+      }
+      if (!input.event.startsAt) {
+        next.startsAt = event.startsAt;
+        next.endsAt = event.endsAt;
       }
       const createdAt = event.createdAt ?? new Date();
       Object.assign(event, next);
@@ -598,7 +602,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
     async nearbyEvents(point, window, excludeEventId) {
       const hits: NearbyEventHit[] = [];
       for (const event of events) {
-        if (event.id === excludeEventId || !event.location) continue;
+        if (event.id === excludeEventId || !event.location || !event.startsAt) continue;
         if (event.status === 'cancelled' || event.status === 'ended') continue;
         const starts = event.startsAt.getTime();
         if (starts < window.from.getTime() || starts > window.to.getTime()) continue;
@@ -621,7 +625,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
     async nearbyPublishers(point, window, excludeEventId) {
       const closest = new Map<string, NearbyPublisherHit>();
       for (const event of events) {
-        if (!event.publisherId || event.id === excludeEventId || !event.location) continue;
+        if (!event.publisherId || event.id === excludeEventId || !event.location || !event.startsAt) continue;
         if (event.status === 'cancelled' || event.status === 'ended') continue;
         const starts = event.startsAt.getTime();
         if (starts < window.from.getTime() || starts > window.to.getTime()) continue;
@@ -723,7 +727,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       return {
         eventId: event.id,
         title: event.title,
-        startsAt: event.startsAt.toISOString(),
+        startsAt: event.startsAt?.toISOString() ?? '',
         refId: event.refId ?? null,
         workerId: event.workerId ?? null,
       };
@@ -744,6 +748,10 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       event.tagIds = input.tagIds;
       event.summary = input.summary;
       event.language = input.language;
+      if (input.startsAt && input.endsAt) {
+        event.startsAt = input.startsAt;
+        event.endsAt = input.endsAt;
+      }
       event.scanClaimedUntil = null;
       return true;
     },

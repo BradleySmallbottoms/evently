@@ -384,8 +384,8 @@ export const AdminPublisherEventItem = z.object({
   id: Id,
   title: z.string(),
   status: EventStatus,
-  startsAt: z.iso.datetime(),
-  endsAt: z.iso.datetime(),
+  startsAt: z.iso.datetime().nullable(),
+  endsAt: z.iso.datetime().nullable(),
   venueName: z.string().nullable(),
 });
 export type AdminPublisherEventItem = z.infer<typeof AdminPublisherEventItem>;

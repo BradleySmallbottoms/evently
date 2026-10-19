@@ -39,7 +39,7 @@ type EventOption = {
   id: string;
   title: string;
   publisherName: string;
-  startsAt: string;
+  startsAt: string | null;
   status: string;
 };
 
@@ -81,7 +81,7 @@ export function EventPushComposer({ initialEventId }: { initialEventId?: string 
     setBodySv(copy.bodySv);
     setTitleEn(copy.titleEn);
     setBodyEn(copy.bodyEn);
-    if (offset !== 'custom') {
+    if (offset !== 'custom' && selected.startsAt) {
       const at = offsetBeforeEventStart(new Date(selected.startsAt), offset);
       const pad = (value: number) => String(value).padStart(2, '0');
       setSendAt(
@@ -93,7 +93,7 @@ export function EventPushComposer({ initialEventId }: { initialEventId?: string 
 
   function applyOffset(next: ScheduleOffsetChoice, event = selected) {
     setOffset(next);
-    if (next === 'custom' || !event) return;
+    if (next === 'custom' || !event?.startsAt) return;
     const at = offsetBeforeEventStart(new Date(event.startsAt), next);
     const pad = (value: number) => String(value).padStart(2, '0');
     setSendAt(
@@ -180,7 +180,7 @@ export function EventPushComposer({ initialEventId }: { initialEventId?: string 
                   <Typography variant="caption" color="text.secondary">
                     {option.publisherName}
                     {' · '}
-                    {new Date(option.startsAt).toLocaleString()}
+                    {option.startsAt ? new Date(option.startsAt).toLocaleString() : '—'}
                     {option.status === 'published' ? '' : ` · ${t('heldUntilPublished')}`}
                   </Typography>
                 </Box>

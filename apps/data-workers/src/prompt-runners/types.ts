@@ -58,6 +58,9 @@ export type ScanOutcome =
       language: string;
       /** Steps from the description. Empty when the model listed none. */
       instructions: string[];
+      /** Both set when the model found a range for an undated event. */
+      startsAt?: string | null;
+      endsAt?: string | null;
     }
   | { ok: false; eventId: string; reason: 'unavailable' };
 

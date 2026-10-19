@@ -24,8 +24,8 @@ type LocRow = {
   mode: Event['mode'];
   status: Event['status'];
   origin: Event['origin'];
-  startsAt: Date;
-  endsAt: Date;
+  startsAt: Date | null;
+  endsAt: Date | null;
   timezone: string;
   venueName: string | null;
   lat: number | null;
@@ -51,6 +51,7 @@ function mapRow(
   imageUrls: string[],
   links: EventLink[],
 ): Event {
+  if (!row.startsAt || !row.endsAt) throw new LibraryError('not_found');
   return {
     id: row.id,
     publisherId: requirePublisherId(row.publisherId),
@@ -186,9 +187,10 @@ export function createDbLibraryServices(
         .where(inArray(eventLinks.eventId, ids))
         .orderBy(asc(eventLinks.position)),
     ]);
-    return rows.map((row) => {
+    return rows.flatMap((row) => {
+      if (!row.startsAt || !row.endsAt) return [];
       const pictures = images.filter((item) => item.eventId === row.id);
-      return mapRow(
+      return [mapRow(
         row,
         categories.filter((item) => item.eventId === row.id).map((item) => item.tagId),
         publicAssetUrl(
@@ -205,7 +207,7 @@ export function createDbLibraryServices(
             label: item.label,
             position: item.position,
           })),
-      );
+      )];
     });
   }
 

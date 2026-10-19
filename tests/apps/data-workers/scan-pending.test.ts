@@ -705,4 +705,107 @@ describe('scanPendingEvents', () => {
     expect(lookups).toBe(0);
   });
 
+  it('writes the scan dates when the event has none', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const { startsAt: _startsAt, endsAt: _endsAt, ...undated } = event;
+    await saveIncomingEvents(store, source, [undated]);
+    expect(store.events[0]?.startsAt).toBeNull();
+    expect(store.events[0]?.endsAt).toBeNull();
+    const runner: PromptRunner = {
+      id: 'dates',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        expect(batch[0]?.startsAt).toBe('');
+        expect(batch[0]?.endsAt).toBe('');
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          startsAt: '2026-11-14T19:00:00+01:00',
+          endsAt: '2026-11-14T21:00:00+01:00',
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner);
+
+    expect(store.events[0]?.startsAt?.toISOString()).toBe('2026-11-14T18:00:00.000Z');
+    expect(store.events[0]?.endsAt?.toISOString()).toBe('2026-11-14T20:00:00.000Z');
+  });
+
+  it('leaves stored dates when the event already has them', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    const runner: PromptRunner = {
+      id: 'keep-dates',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          startsAt: '2026-11-14T19:00:00+01:00',
+          endsAt: '2026-11-14T21:00:00+01:00',
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner);
+
+    expect(store.events[0]?.startsAt?.toISOString()).toBe('2027-06-01T18:00:00.000Z');
+    expect(store.events[0]?.endsAt?.toISOString()).toBe('2027-06-01T21:00:00.000Z');
+  });
+
+  it('leaves the dates empty when the scan finds only one', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const { startsAt: _startsAt, endsAt: _endsAt, ...undated } = event;
+    await saveIncomingEvents(store, source, [undated]);
+    const runner: PromptRunner = {
+      id: 'one-date',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          startsAt: '2026-11-14T19:00:00+01:00',
+          endsAt: null,
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner);
+
+    expect(store.events[0]?.startsAt).toBeNull();
+    expect(store.events[0]?.endsAt).toBeNull();
+    expect(store.events[0]?.status).toBe('in_review');
+  });
+
 });

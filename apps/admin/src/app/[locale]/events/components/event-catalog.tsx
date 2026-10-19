@@ -36,7 +36,7 @@ type EventRow = {
   origin: string;
   featured: boolean;
   checkInEnabled: boolean;
-  startsAt: string;
+  startsAt: string | null;
   venueName: string | null;
   contentVerdict: ContentVerdict;
   tagCount: number;
@@ -388,7 +388,7 @@ export function EventCatalog() {
                 </TableCell>
                 <TableCell>{item.featured ? t('featuredYes') : t('featuredNo')}</TableCell>
                 <TableCell>{item.checkInEnabled ? t('featuredYes') : t('featuredNo')}</TableCell>
-                <TableCell>{new Date(item.startsAt).toLocaleString()}</TableCell>
+                <TableCell>{item.startsAt ? new Date(item.startsAt).toLocaleString() : '—'}</TableCell>
                 <TableCell>{item.venueName}</TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>

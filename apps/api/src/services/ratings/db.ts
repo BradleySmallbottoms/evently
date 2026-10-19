@@ -33,8 +33,8 @@ export function createDbRatingServices(
       .from(schema.events)
       .where(eq(schema.events.id, eventId))
       .limit(1);
-    if (!row || row.status !== 'published') throw new RatingError('not_found');
-    return row;
+    if (!row || row.status !== 'published' || !row.endsAt) throw new RatingError('not_found');
+    return { ...row, endsAt: row.endsAt };
   }
 
   async function loadAggregate(eventId: string) {

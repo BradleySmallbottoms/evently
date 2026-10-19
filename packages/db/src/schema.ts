@@ -427,8 +427,9 @@ export const events = pgTable(
     refId: text('ref_id'),
     /** Data-worker slug that imported the event. Null on a native event. */
     workerId: text('worker_id'),
-    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
-    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    /** Null when an import has no occasion. The scan may fill both. */
+    startsAt: timestamp('starts_at', { withTimezone: true }),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
     timezone: text('timezone').notNull().default('Europe/Stockholm'),
     venueName: text('venue_name'),
     location: geographyPoint('location'),

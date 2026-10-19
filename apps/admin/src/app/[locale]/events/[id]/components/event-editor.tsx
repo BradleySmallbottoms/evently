@@ -44,8 +44,8 @@ type EventDetail = {
   mode: EventMode;
   status: EventStatus;
   origin: 'native' | 'imported';
-  startsAt: string;
-  endsAt: string;
+  startsAt: string | null;
+  endsAt: string | null;
   timezone: string;
   venueName: string | null;
   location: { lat: number; lng: number } | null;
@@ -146,8 +146,8 @@ function toDraft(event: EventDetail): Draft {
     description: event.description ?? '',
     mode: event.mode,
     status: event.status,
-    startsAt: toDatetimeLocal(event.startsAt, event.timezone),
-    endsAt: toDatetimeLocal(event.endsAt, event.timezone),
+    startsAt: event.startsAt ? toDatetimeLocal(event.startsAt, event.timezone) : '',
+    endsAt: event.endsAt ? toDatetimeLocal(event.endsAt, event.timezone) : '',
     timezone: event.timezone,
     venueName: event.venueName ?? '',
     lat: event.location ? String(event.location.lat) : '',

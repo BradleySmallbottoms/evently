@@ -4,6 +4,8 @@
  * A missing server leaves the event untagged.
  */
 
+import { sourceDateTime, stockholmWallTime } from '@local-events/domain';
+
 export interface TagChoice {
   externalId: string;
   name: string;
@@ -176,6 +178,9 @@ export type LLMScanResult = {
   language: string;
   /** Steps from the description. Empty when the model listed none. */
   instructions: string[];
+  /** Both set when the model found a range. Null when it did not. */
+  startsAt: string | null;
+  endsAt: string | null;
 }
 
 const INSTRUCTION_LIMIT = 20;
@@ -193,6 +198,45 @@ export function readScanInstructions(value: unknown): string[] {
     if (steps.length >= INSTRUCTION_LIMIT) break;
   }
   return steps;
+}
+
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** One clock from the scan JSON. A bare date is the start or end of that Stockholm day. */
+function scanInstant(value: unknown, end: boolean): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const date = DATE_ONLY.exec(trimmed);
+  if (date) {
+    return stockholmWallTime({
+      year: Number(date[1]),
+      month: Number(date[2]),
+      day: Number(date[3]),
+      hour: end ? 23 : 0,
+      minute: end ? 59 : 0,
+      second: end ? 59 : 0,
+    });
+  }
+  try {
+    return sourceDateTime(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Start and end from the scan JSON. Both are required, and the end is not before
+ * the start. A missing or one-sided range is null.
+ */
+export function readScanRange(value: unknown): { startsAt: string; endsAt: string } | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as { startsAt?: unknown; endsAt?: unknown };
+  const startsAt = scanInstant(record.startsAt, false);
+  const endsAt = scanInstant(record.endsAt, true);
+  if (!startsAt || !endsAt) return null;
+  if (new Date(endsAt).getTime() < new Date(startsAt).getTime()) return null;
+  return { startsAt, endsAt };
 }
 
 export type LLMOutput = LLMScanResult & {

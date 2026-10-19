@@ -226,7 +226,7 @@ describe('visit-soderhamn map', () => {
     expect(event?.externalId).toBe(`${product.Id}:2026-10-28T15:00:00Z:2026-10-28T16:00:00Z`);
   });
 
-  it('drops products with no occasion or no source url', () => {
+  it('drops a product with no source url and keeps one with no occasion', () => {
     const withoutUrl: VisitProduct = {
       ...raw.products[0]!,
       Information: raw.products[0]!.Information?.filter(
@@ -238,7 +238,10 @@ describe('visit-soderhamn map', () => {
       { categories: [], products: [withoutUrl, withoutOccasions] },
       mapCtx,
     );
-    expect(mapped).toEqual([]);
+    expect(mapped).toHaveLength(1);
+    expect(mapped[0]?.externalId).toBe(String(withoutOccasions.Id));
+    expect(mapped[0]?.startsAt).toBeUndefined();
+    expect(mapped[0]?.endsAt).toBeUndefined();
   });
 
   it('uses the website when the product has no contact, and the source name when that is missing too', () => {
