@@ -23,6 +23,7 @@ type PublisherRow = {
   slug: string;
   type: string;
   origin: string;
+  eventCount: number;
   createdAt: string;
 };
 
@@ -187,6 +188,8 @@ export function VerificationQueue({ embedded = false }: { embedded?: boolean }) 
                   />
                 </TableCell>
                 <TableCell>{t('name')}</TableCell>
+                <TableCell>{t('id')}</TableCell>
+                <TableCell>{t('events')}</TableCell>
                 <TableCell>{t('slug')}</TableCell>
                 <TableCell>{t('type')}</TableCell>
                 <TableCell>{t('origin')}</TableCell>
@@ -208,6 +211,8 @@ export function VerificationQueue({ embedded = false }: { embedded?: boolean }) 
                   <TableCell>
                     <Link href={`/publishers/${row.id}`}>{row.name}</Link>
                   </TableCell>
+                  <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{row.id}</TableCell>
+                  <TableCell>{row.eventCount}</TableCell>
                   <TableCell>{row.slug}</TableCell>
                   <TableCell>{row.type}</TableCell>
                   <TableCell>{row.origin}</TableCell>

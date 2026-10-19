@@ -131,7 +131,9 @@ describe('admin api', () => {
       headers: { cookie },
     });
     expect(list.status).toBe(200);
-    expect(((await list.json()) as { items: unknown[] }).items).toHaveLength(1);
+    expect(await list.json()).toMatchObject({
+      items: [{ id: '22222222-2222-4222-8222-222222222201', eventCount: 1 }],
+    });
 
     const verify = await app.request('/v1/publishers/22222222-2222-4222-8222-222222222201/verify', {
       method: 'POST',

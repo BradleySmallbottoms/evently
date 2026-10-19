@@ -324,7 +324,7 @@ calls) in the same change as every new major feature.**
   ([docs/flows/import-review-delete.md](docs/flows/import-review-delete.md)). `/events` redirects there. `/events/manage`
   pages the catalog 50 at a time and searches title, venue, and publisher, then patches status. `/publishers` publishes a publisher, remaps or completes temporary publishers, and shows status.
   A publisher page lists that publisher's events, with ids. Delete is available when the publisher has none.
-  The temporary publisher list shows each id and can delete a row that has no events. The all-publishers list shows each id
+  The temporary publisher list shows each id, can delete a row that has no events, and can save or verify the checked rows. The verification list and the all-publishers list verify the checked rows. The all-publishers list shows each id
   ([docs/flows/publisher-delete.md](docs/flows/publisher-delete.md)).
   `/moderation` hides ratings and bans users (banned users cannot create sessions or
   use existing ones). `/audit-log` lists admin actions. Ingest raw payloads go to S3 as

@@ -181,7 +181,10 @@ export function createMemoryAdminPublisherServices(
       return [...store.publishers.values()]
         .filter((p) => p.status === 'in_review')
         .sort((a, b) => a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }))
-        .map(asPublisherSummary);
+        .map((p) => ({
+          ...asPublisherSummary(p),
+          eventCount: [...store.events.values()].filter((e) => e.publisherId === p.id).length,
+        }));
     },
     async listTemporary() {
       return [...store.publishers.values()]
@@ -361,9 +364,21 @@ export function createDbAdminPublisherServices(
           origin: schema.publishers.origin,
           importNotificationPlan: schema.publishers.importNotificationPlan,
           createdAt: schema.publishers.createdAt,
+          eventCount: count(schema.events.id),
         })
         .from(schema.publishers)
+        .leftJoin(schema.events, eq(schema.events.publisherId, schema.publishers.id))
         .where(eq(schema.publishers.status, 'in_review'))
+        .groupBy(
+          schema.publishers.id,
+          schema.publishers.name,
+          schema.publishers.slug,
+          schema.publishers.type,
+          schema.publishers.status,
+          schema.publishers.origin,
+          schema.publishers.importNotificationPlan,
+          schema.publishers.createdAt,
+        )
         .orderBy(asc(schema.publishers.name));
       return rows.map((r) => ({
         id: r.id,
@@ -373,6 +388,7 @@ export function createDbAdminPublisherServices(
         status: r.status,
         origin: r.origin,
         importNotificationPlan: r.importNotificationPlan,
+        eventCount: Number(r.eventCount),
         createdAt: r.createdAt.toISOString(),
       }));
     },

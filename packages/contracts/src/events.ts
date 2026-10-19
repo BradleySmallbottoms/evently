@@ -362,6 +362,8 @@ export const PublisherSummaryAdmin = z.object({
   status: PublisherStatus,
   origin: EventOrigin,
   importNotificationPlan: ImportNotificationPlan.nullable(),
+  /** Set on the in-review list. */
+  eventCount: z.number().int().nonnegative().optional(),
   createdAt: z.iso.datetime(),
 });
 export type PublisherSummaryAdmin = z.infer<typeof PublisherSummaryAdmin>;
