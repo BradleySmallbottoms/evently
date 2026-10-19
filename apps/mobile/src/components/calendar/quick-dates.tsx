@@ -34,7 +34,7 @@ export function QuickDates({ chips, selected, onSelect }: Props) {
   const calendarActive = selected === 'custom';
   return (
     <View style={{ flexDirection: 'row', gap: space.xs, alignItems: 'center', justifyContent: 'space-between' }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
         {chips.map((chip) => {
           const active = chip.id === selected;
           return (
