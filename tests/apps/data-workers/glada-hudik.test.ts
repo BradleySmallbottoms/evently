@@ -604,7 +604,7 @@ describe('glada-hudik tag match', () => {
     expect(result).toEqual({ ok: false });
   });
 
-  it('stores every tag the local model returns', async () => {
+  it('stores tags the local model scores above 90', async () => {
     const result = await matchEventTag({ title: 'Julmarknad' }, catalog, {}, async () =>
       json({
         message: {
@@ -615,7 +615,7 @@ describe('glada-hudik tag match', () => {
     );
     expect(result).toEqual({
       ok: true,
-      tags: [catalog[0], catalog[1], catalog[2], catalog[3]],
+      tags: [catalog[0], catalog[2]],
     });
   });
 });
