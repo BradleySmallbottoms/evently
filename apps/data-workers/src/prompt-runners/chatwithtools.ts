@@ -350,7 +350,7 @@ function buildScanPrompt(event: ScanInput): string {
     'You scan one imported event for spam, language, tags, a short summary, the publisher, and a duplicate.',
     'Call one tool, wait for its result, then decide the next step. Do not return JSON in the same turn as a tool call.',
     'Never invent a publisher id, an event id, or a tag id. Every id in the JSON must come from a tool result.',
-    '1. Call getAvailableTags(). This call is required and can never be skipped. Tags may only use ids from that list. Score each tag from 0 to 100 and include only scores over 90. Pick at most 2.',
+    '1. Call getAvailableTags(). This call is required and can never be skipped. Tags may only use ids from that list. Score each tag from 0 to 100. Pick at most 3.',
     '2. Call getPossiblePublishers() before you match a publisher. Each returned publisher has a name and one or more organizer keys and dinstance in meter to the closest event from this event.',
     'Use the possible publishers name to rate how plausible it that this publisher has events like this event.',
     'Consider distanceMeters when deciding if a publisher is a reasonable match, events from the same publisher should be close to each other, less than 250 meters is a good match.',

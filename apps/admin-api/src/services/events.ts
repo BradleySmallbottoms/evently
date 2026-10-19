@@ -786,9 +786,9 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         createdAt: schema.events.createdAt,
         updatedAt: schema.events.updatedAt,
       })
-      .from(schema.events)
-      .innerJoin(schema.publishers, eq(schema.events.publisherId, schema.publishers.id))
-      .where(eq(schema.events.id, eventId))
+        .from(schema.events)
+        .leftJoin(schema.publishers, eq(schema.events.publisherId, schema.publishers.id))
+        .where(eq(schema.events.id, eventId))
       .limit(1);
     if (!row) return null;
     const lat = row.lat == null ? null : Number(row.lat);
@@ -796,8 +796,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
     const tagIds = await tagIdsFor(eventId);
     return {
       id: row.id,
-      publisherId: publisherIdOf(row.publisherId),
-      publisherName: row.publisherName,
+      publisherId: row.publisherId,
+      publisherName: row.publisherName ?? '',
       title: row.title,
       description: row.description,
       mode: row.mode,
@@ -947,11 +947,11 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           createdAt: schema.events.createdAt,
         })
         .from(schema.events)
-        .innerJoin(schema.publishers, eq(schema.events.publisherId, schema.publishers.id));
+        .leftJoin(schema.publishers, eq(schema.events.publisherId, schema.publishers.id));
       const counted = db
         .select({ n: count() })
         .from(schema.events)
-        .innerJoin(schema.publishers, eq(schema.events.publisherId, schema.publishers.id));
+        .leftJoin(schema.publishers, eq(schema.events.publisherId, schema.publishers.id));
       const filtered = where ? listed.where(where) : listed;
       const ordered =
         query.sort === 'created'
@@ -966,8 +966,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       return {
         items: rows.map((r) => ({
           id: r.id,
-          publisherId: publisherIdOf(r.publisherId),
-          publisherName: r.publisherName,
+          publisherId: r.publisherId,
+          publisherName: r.publisherName ?? '',
           title: r.title,
           mode: r.mode,
           status: r.status,
@@ -1401,14 +1401,16 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         nextStatus === 'awaiting_verification' ||
         nextStatus === 'in_review'
       ) {
-        const [publisher] = await db
-          .select({
-            status: schema.publishers.status,
-            importNotificationPlan: schema.publishers.importNotificationPlan,
-          })
-          .from(schema.publishers)
-          .where(eq(schema.publishers.id, existing.publisherId))
-          .limit(1);
+        const [publisher] = existing.publisherId
+          ? await db
+              .select({
+                status: schema.publishers.status,
+                importNotificationPlan: schema.publishers.importNotificationPlan,
+              })
+              .from(schema.publishers)
+              .where(eq(schema.publishers.id, existing.publisherId))
+              .limit(1)
+          : [];
         const editedPlan =
           existing.origin === 'imported' && nextStatus === 'published' && publisher
             ? importPlanToSchedule({

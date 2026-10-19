@@ -290,7 +290,7 @@ export type AdminEventReportListResponse = z.infer<typeof AdminEventReportListRe
 
 export const AdminEventListItem = z.object({
   id: Id,
-  publisherId: Id,
+  publisherId: Id.nullable(),
   publisherName: z.string(),
   title: z.string(),
   mode: z.enum(['physical', 'digital']),

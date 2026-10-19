@@ -28,7 +28,7 @@ import { AdminApiError, adminFetch } from '@/lib/api';
 
 type EventRow = {
   id: string;
-  publisherId: string;
+  publisherId: string | null;
   publisherName: string;
   title: string;
   mode: string;
@@ -46,6 +46,7 @@ type EventRow = {
 const STATUSES = [
   'draft',
   'awaiting_verification',
+  'pending_scan',
   'in_review',
   'published',
   'cancelled',
@@ -375,7 +376,11 @@ export function EventCatalog() {
                   <EventTagCount count={item.tagCount} />
                 </TableCell>
                 <TableCell>
-                  <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>
+                  {item.publisherId ? (
+                    <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>
+                  ) : (
+                    item.publisherName
+                  )}
                 </TableCell>
                 <TableCell>{item.status}</TableCell>
                 <TableCell>

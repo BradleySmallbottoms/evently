@@ -37,7 +37,7 @@ type LinkType = 'tickets' | 'registration' | 'info';
 
 type EventDetail = {
   id: string;
-  publisherId: string;
+  publisherId: string | null;
   publisherName: string;
   title: string;
   description: string | null;
@@ -351,7 +351,11 @@ export function EventEditor({ eventId }: { eventId: string }) {
       {event ? (
         <Typography variant="body2" color="text.secondary">
           {t('publisher')}:{' '}
-          <AppLink href={`/publishers/${event.publisherId}`}>{event.publisherName}</AppLink>
+          {event.publisherId ? (
+            <AppLink href={`/publishers/${event.publisherId}`}>{event.publisherName}</AppLink>
+          ) : (
+            event.publisherName || '—'
+          )}
           {' · '}
           {t('origin')}: {event.origin}
           {source ? (

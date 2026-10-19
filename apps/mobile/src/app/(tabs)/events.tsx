@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, SectionList, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, SectionList, View } from 'react-native';
 
 import { AreaTagGroupsSheet } from '@/components/native/area-tag-groups-sheet';
 import { LocationMenu } from '@/components/native/location-menu';
@@ -65,6 +65,7 @@ export default function EventsScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const { identity, preferences, point, placeId, radiusM, radiusMap } = useDiscoveryPoint();
   const saveDiscoveryRadius = useSaveDiscoveryRadius(identity.data);
@@ -186,6 +187,19 @@ export default function EventsScreen() {
     void next.then(() => queryClient.invalidateQueries({ queryKey: ['saved-events'] }));
   }
 
+  async function refreshCalendar() {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        events.refetch(),
+        tags.refetch(),
+        ...(identity.isSuccess ? [saved.refetch()] : []),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   function chooseQuick(id: QuickDateId) {
     if (id === 'custom') {
       setDateOpen(true);
@@ -206,6 +220,15 @@ export default function EventsScreen() {
           if (events.hasNextPage && !events.isFetchingNextPage) void events.fetchNextPage();
         }}
         onEndReachedThreshold={0.4}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              void refreshCalendar();
+            }}
+            tintColor={colors.accent}
+          />
+        }
         contentContainerStyle={{ paddingBottom: BottomTabInset + space.xxxl }}
         ListHeaderComponent={
           <View style={{ gap: space.lg, paddingTop: space.sm, paddingBottom: space.md }}>
