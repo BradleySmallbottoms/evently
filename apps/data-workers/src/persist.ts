@@ -92,8 +92,9 @@ async function persistWholeRun(
   config: Record<string, unknown>,
   enqueue: DomainEventSink,
   images: EventImageUploader,
+  limit?: number,
 ): Promise<CollectedRun> {
-  const run = await runSource(slug, config);
+  const run = await runSource(slug, config, limit);
   await store.upsertTags([...run.tags, ...run.events.flatMap((event) => event.tags)]);
   const saved = await saveIncomingEvents(
     store,
@@ -121,6 +122,7 @@ async function persistEachEvent(
   config: Record<string, unknown>,
   enqueue: DomainEventSink,
   images: EventImageUploader,
+  limit?: number,
 ): Promise<CollectedRun> {
   const invalid: PersistSummary['invalid'] = [];
   const rejected: PersistSummary['rejected'] = [];
@@ -129,22 +131,29 @@ async function persistEachEvent(
   let created = 0;
   let updated = 0;
   let skipped = 0;
-  for await (const batch of eachSourceRun(slug, config)) {
-    await store.upsertTags([...batch.tags, ...batch.events.flatMap((event) => event.tags)]);
+  let remaining = limit;
+  for await (const batch of eachSourceRun(slug, config, limit)) {
+    const events = remaining == null ? batch.events : batch.events.slice(0, remaining);
+    if (events.length === 0) break;
+    await store.upsertTags([...batch.tags, ...events.flatMap((event) => event.tags)]);
     const saved = await saveIncomingEvents(
       store,
       source,
-      await namedEvents(batch.events, config),
+      await namedEvents(events, config),
       enqueue,
       images,
     );
-    fetched += batch.valid;
+    fetched += events.length;
     created += saved.created;
     updated += saved.updated;
     skipped += saved.skipped;
     invalid.push(...batch.invalid);
     rejected.push(...saved.rejected);
     raws.push(batch.raw);
+    if (remaining != null) {
+      remaining -= events.length;
+      if (remaining <= 0) break;
+    }
   }
   return {
     fetched,
@@ -171,6 +180,7 @@ export async function persistSource(
   enqueue: DomainEventSink = noopDomainEvents,
   rawSink: RawPayloadSink = noopRawPayloadSink,
   images: EventImageUploader = noopEventImageUploader,
+  limit?: number,
 ): Promise<PersistSummary> {
   const source = await store.getSource(slug);
   if (!source) throw new Error(`No data_sources row for "${slug}"`);
@@ -178,8 +188,8 @@ export async function persistSource(
   try {
     const config = source.config;
     const collected = sourceSavesEachEvent(slug)
-      ? await persistEachEvent(store, source, slug, config, enqueue, images)
-      : await persistWholeRun(store, source, slug, config, enqueue, images);
+      ? await persistEachEvent(store, source, slug, config, enqueue, images, limit)
+      : await persistWholeRun(store, source, slug, config, enqueue, images, limit);
     try {
       await rawSink.save({ sourceSlug: slug, runId, raw: collected.raw });
     } catch (err) {

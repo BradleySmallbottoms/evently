@@ -45,6 +45,7 @@ pnpm --filter @local-events/admin-api dev
 pnpm --filter @local-events/web dev
 pnpm --filter @local-events/mobile dev
 pnpm --filter @local-events/data-workers dev -- --source example-fixture
+pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn --limit 5
 pnpm --filter @local-events/data-workers dev -- --job event-scan
 pnpm --filter @local-events/data-workers dev -- --job publisher-scan
 pnpm api-client:generate   # after public API OpenAPI changes
@@ -330,7 +331,8 @@ calls) in the same change as every new major feature.**
   use existing ones). `/audit-log` lists admin actions. Ingest raw payloads go to S3 as
   `raw/<source>/<runId>` when `RAW_INGESTION_BUCKET` is set.
 - **Data workers:** `pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn`
-  (needs `data_sources` row + `VISIT_SODERHAMN_API_KEY`). Generic ICS calendars use slug
+  (needs `data_sources` row + `VISIT_SODERHAMN_API_KEY`). Add `--limit 5` to stop after that many
+  events. The same flag works for every source. Generic ICS calendars use slug
   `ics-feed` with `config.feedUrl` (https). A physical import with no venue name uses the city
   in its scraped address. When that address has no city, the point is reverse-geocoded for the
   nearest city within 25 km. Review-trust sources stay silent until an admin

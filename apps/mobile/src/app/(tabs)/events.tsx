@@ -324,7 +324,7 @@ export default function EventsScreen() {
                     : (item.publisherName ?? t('events.missingUrl'))
                 }
                 startLabel={whole ? t('events.wholeDay') : clock(when.startsAt, locale)}
-                endLabel={whole ? undefined : `-${clock(when.endsAt, locale)}`}
+                endLabel={whole ? undefined : `${clock(when.endsAt, locale)}`}
                 tags={namesForTagIds(item.tagIds, tags.data?.items)}
                 priceLabel={priceLabel}
                 imageUrl={item.imageUrl}

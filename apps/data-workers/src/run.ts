@@ -19,10 +19,15 @@ export function sourceSavesEachEvent(slug: string): boolean {
   return typeof sources[slug]?.each === 'function';
 }
 
-function sourceContext(slug: string, config: Record<string, unknown>): SourceRunContext {
+function sourceContext(
+  slug: string,
+  config: Record<string, unknown>,
+  limit?: number,
+): SourceRunContext {
   return {
     sourceSlug: slug,
     config,
+    ...(limit != null ? { limit } : {}),
     fetch: (input, init) => {
       const headers = new Headers(init?.headers);
       const useHttp1 = headers.get(HTTP1_HEADER) === '1';
@@ -42,6 +47,7 @@ async function summarize(
   adapter: (typeof sources)[string],
   raw: unknown,
   ctx: SourceRunContext,
+  limit?: number,
 ): Promise<RunSummary> {
   const mapped = await adapter.map(raw, ctx);
   const summary: RunSummary = {
@@ -55,6 +61,7 @@ async function summarize(
     raw,
   };
   for (const item of mapped) {
+    if (limit != null && summary.valid >= limit) break;
     const parsed = IncomingEvent.safeParse(item);
     if (parsed.success) {
       summary.valid++;
@@ -64,6 +71,7 @@ async function summarize(
       summary.invalid.push({ externalId: item.externalId, issues: parsed.error.message });
     }
   }
+  if (limit != null) summary.fetched = summary.valid + summary.invalid.length;
   return summary;
 }
 
@@ -71,23 +79,25 @@ async function summarize(
 export async function runSource(
   slug: string,
   config: Record<string, unknown> = {},
+  limit?: number,
 ): Promise<RunSummary> {
   const adapter = sources[slug];
   if (!adapter)
     throw new Error(`Unknown source "${slug}". Known: ${Object.keys(sources).join(', ')}`);
 
-  const ctx = sourceContext(slug, config);
-  return summarize(slug, adapter, await adapter.fetchRaw(ctx), ctx);
+  const ctx = sourceContext(slug, config, limit);
+  return summarize(slug, adapter, await adapter.fetchRaw(ctx), ctx, limit);
 }
 
 /** One validated batch per event, for sources that save before fetching the next. */
 export async function* eachSourceRun(
   slug: string,
   config: Record<string, unknown> = {},
+  limit?: number,
 ): AsyncGenerator<RunSummary> {
   const adapter = sources[slug];
   if (!adapter?.each) throw new Error(`Source "${slug}" does not save one event at a time`);
-  const ctx = sourceContext(slug, config);
+  const ctx = sourceContext(slug, config, limit);
   for await (const raw of adapter.each(ctx)) {
     yield summarize(slug, adapter, raw, ctx);
   }

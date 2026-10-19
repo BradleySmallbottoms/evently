@@ -653,6 +653,11 @@ async function fetchList(ctx: SourceRunContext, origin: URL): Promise<ListItem[]
       const id = productIdOf(row.id);
       if (!id || hits.some((existing) => productIdOf(existing.id) === id)) continue;
       hits.push(row);
+      if (ctx.limit != null && hits.length >= ctx.limit) break;
+    }
+    if (ctx.limit != null && hits.length >= ctx.limit) {
+      hits.length = ctx.limit;
+      break;
     }
     if (items.length < pageSize) break;
     if (page < MAX_LIST_PAGES && hits.length < total) await sleep(delayMs);
@@ -670,6 +675,7 @@ async function* eachProduct(ctx: SourceRunContext): AsyncGenerator<HalsinglandRa
   const hits = await fetchList(ctx, origin);
   let yielded = 0;
   for (const hit of hits) {
+    if (ctx.limit != null && yielded >= ctx.limit) break;
     const id = productIdOf(hit.id);
     if (!id) continue;
     await sleep(delayMs);

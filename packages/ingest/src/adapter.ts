@@ -6,6 +6,8 @@ export interface SourceRunContext {
   sourceSlug: string;
   /** Per-source config from the data_sources row (URLs, ids). Secrets come from AWS, not here. */
   config: Record<string, unknown>;
+  /** Stop after this many events. Unset means the whole source. */
+  limit?: number;
   /** Fetch with the crawler's User-Agent, rate limits and timeouts applied. */
   fetch: typeof fetch;
   log: (message: string, data?: Record<string, unknown>) => void;

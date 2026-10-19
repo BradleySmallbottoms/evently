@@ -18,6 +18,7 @@ initSentry('data-workers');
  * Container entrypoint. EventBridge Scheduler starts one Fargate task per source with
  * SOURCE_SLUG set (or pass --source <slug> locally).
  *   pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn
+ *   pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn --limit 5
  *
  * The import scan job claims `pending_scan` events and runs the prompt runner.
  *   pnpm --filter @local-events/data-workers dev -- --job event-scan
@@ -44,6 +45,21 @@ function argValue(flag: string, envName: string): string | undefined {
 
 const job = argValue('--job', 'JOB');
 const slug = argValue('--source', 'SOURCE_SLUG');
+
+/** `--limit` for a source import. Scan jobs parse their own limit. */
+function importLimit(): number | undefined {
+  if (job === 'event-scan' || job === 'publisher-scan') return undefined;
+  const i = process.argv.indexOf('--limit');
+  if (i < 0) return undefined;
+  const raw = process.argv[i + 1];
+  if (!raw || raw.startsWith('--') || !/^[1-9]\d{0,2}$/.test(raw)) {
+    console.error('--limit must be a whole number from 1 to 999');
+    process.exit(2);
+  }
+  return Number(raw);
+}
+
+const sourceLimit = importLimit();
 if (job !== 'event-scan' && job !== 'publisher-scan' && !slug) {
   console.error('Missing source: pass --source <slug> or set SOURCE_SLUG');
   process.exit(2);
@@ -109,7 +125,7 @@ async function main(): Promise<number> {
 
   const databaseUrl = resolveDatabaseUrl();
   if (!databaseUrl) {
-    const summary = await runSource(slug!);
+    const summary = await runSource(slug!, {}, sourceLimit);
     console.log(JSON.stringify(summary, null, 2));
     return summary.invalid.length > 0 ? 1 : 0;
   }
@@ -118,7 +134,7 @@ async function main(): Promise<number> {
   const store = createDbIngestStore(db);
   const source = await store.getSource(slug!);
   if (!source) {
-    const summary = await runSource(slug!);
+    const summary = await runSource(slug!, {}, sourceLimit);
     console.log(JSON.stringify({ ...summary, saved: false }, null, 2));
     return summary.invalid.length > 0 ? 1 : 0;
   }
@@ -134,7 +150,14 @@ async function main(): Promise<number> {
       }),
     );
   }
-  const summary = await persistSource(store, slug!, enqueue, rawSink, eventImageUploaderFromEnv());
+  const summary = await persistSource(
+    store,
+    slug!,
+    enqueue,
+    rawSink,
+    eventImageUploaderFromEnv(),
+    sourceLimit,
+  );
   console.log(JSON.stringify(summary, null, 2));
   return summary.invalid.length > 0 || summary.rejected.length > 0 ? 1 : 0;
 }

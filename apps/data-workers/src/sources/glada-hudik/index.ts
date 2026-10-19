@@ -493,6 +493,7 @@ async function readJson(response: Response): Promise<{ totalCount?: number; item
 async function fetchList(ctx: {
   config: Record<string, unknown>;
   fetch: typeof fetch;
+  limit?: number;
 }): Promise<ListHit[]> {
   const origin = originFromConfig(ctx.config);
   const nodeId = nodeIdFromConfig(ctx.config);
@@ -517,6 +518,11 @@ async function fetchList(ctx: {
       if (typeof item !== 'string') continue;
       const hit = parseListItem(item);
       if (hit && !hits.some((existing) => existing.id === hit.id)) hits.push(hit);
+      if (ctx.limit != null && hits.length >= ctx.limit) break;
+    }
+    if (ctx.limit != null && hits.length >= ctx.limit) {
+      hits.length = ctx.limit;
+      break;
     }
     if (page + 1 < MAX_LIST_PAGES && hits.length < total) await sleep(delayMs);
   }
@@ -530,6 +536,7 @@ async function fetchList(ctx: {
 async function* eachProduct(ctx: {
   config: Record<string, unknown>;
   fetch: typeof fetch;
+  limit?: number;
   log: (message: string, data?: Record<string, unknown>) => void;
 }): AsyncGenerator<GladaRaw> {
   const origin = originFromConfig(ctx.config);
@@ -539,6 +546,7 @@ async function* eachProduct(ctx: {
   const delayMsForGeocode = geocodeDelayMs(ctx.config);
   let yielded = 0;
   for (const hit of hits) {
+    if (ctx.limit != null && yielded >= ctx.limit) break;
     const pageUrl = new URL(hit.path, origin);
     if (!sameHost(origin, pageUrl)) continue;
     await sleep(delayMs);

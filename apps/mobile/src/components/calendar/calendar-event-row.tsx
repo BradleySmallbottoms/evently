@@ -56,16 +56,6 @@ export function CalendarEventRow({
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
-        <View style={{ width: 52, paddingTop: 4 }}>
-          <AppText variant="label" style={{ color: colors.ink, fontSize: 13 }}>
-            {startLabel}
-          </AppText>
-          {endLabel ? (
-            <AppText variant="caption" style={{ color: colors.inkMuted }}>
-              {endLabel}
-            </AppText>
-          ) : null}
-        </View>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={title}
@@ -87,39 +77,58 @@ export function CalendarEventRow({
             <AppText variant="subtitle" numberOfLines={2} style={{ fontSize: 16, lineHeight: 21 }}>
               {title}
             </AppText>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Pin />
-              <AppText variant="caption" numberOfLines={1} style={{ flex: 1 }}>
-                {where}
-              </AppText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                <AppText variant="label" style={{ color: colors.ink, fontSize: 13 }}>
+                  {startLabel}
+                </AppText>
+                {endLabel ? (
+                  <>
+                    <AppText variant="caption" style={{ color: colors.inkMuted }}>
+                      -
+                    </AppText>
+                    <AppText variant="caption" style={{ color: colors.inkMuted }}>
+                      {endLabel}
+                    </AppText>
+                  </>
+                ) : null}
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                <Pin />
+                <AppText variant="caption" numberOfLines={1} style={{ flex: 1 }}>
+                  {where}
+                </AppText>
+              </View>
             </View>
             <TagPills tags={chips} size="sm" />
           </View>
         </Pressable>
-        {onSavePress ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={saveLabel}
-            onPress={onSavePress}
-            hitSlop={8}
-            style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
-          >
-            {process.env.EXPO_OS === 'ios' ? (
-              <SymbolView
-                name={(saved ? 'heart.fill' : 'heart') as never}
-                size={18}
-                tintColor={saved ? colors.accent : colors.inkMuted}
-              />
-            ) : (
-              <MaterialIcons
-                name={saved ? 'favorite' : 'favorite-border'}
-                size={20}
-                color={saved ? colors.accent : colors.inkMuted}
-              />
-            )}
-          </Pressable>
-        ) : null}
-      </View>
-    </View>
+        {
+          onSavePress ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={saveLabel}
+              onPress={onSavePress}
+              hitSlop={8}
+              style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+            >
+              {process.env.EXPO_OS === 'ios' ? (
+                <SymbolView
+                  name={(saved ? 'heart.fill' : 'heart') as never}
+                  size={18}
+                  tintColor={saved ? colors.accent : colors.inkMuted}
+                />
+              ) : (
+                <MaterialIcons
+                  name={saved ? 'favorite' : 'favorite-border'}
+                  size={20}
+                  color={saved ? colors.accent : colors.inkMuted}
+                />
+              )}
+            </Pressable>
+          ) : null
+        }
+      </View >
+    </View >
   );
 }

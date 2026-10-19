@@ -246,9 +246,14 @@ async function fetchProducts(
     if (typeof body.TotalResults === 'number') total = body.TotalResults;
     if (batch.length === 0) break;
     products.push(...batch);
+    if (ctx.limit != null && products.length >= ctx.limit) {
+      products.length = ctx.limit;
+      break;
+    }
     if (typeof body.TotalResults !== 'number') break;
   }
-  if (Number.isFinite(total) && products.length < total) {
+  const stoppedEarly = ctx.limit != null && products.length >= ctx.limit;
+  if (!stoppedEarly && Number.isFinite(total) && products.length < total) {
     throw new Error(`Visit products incomplete (${products.length} of ${total})`);
   }
   ctx.log('products fetched', { count: products.length, categoryId: cfg.eventCategoryId });
