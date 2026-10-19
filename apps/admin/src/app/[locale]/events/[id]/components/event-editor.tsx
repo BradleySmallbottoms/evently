@@ -358,6 +358,12 @@ export function EventEditor({ eventId }: { eventId: string }) {
           )}
           {' · '}
           {t('origin')}: {event.origin}
+          {event.refId ? (
+            <>
+              {' · '}
+              {t('refId')}: {event.refId}
+            </>
+          ) : null}
           {source ? (
             <>
               {' · '}

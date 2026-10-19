@@ -264,6 +264,7 @@
     "back": "Alla evenemang",
     "publisher": "Arrangör",
     "origin": "Ursprung",
+    "refId": "Käll-id",
     "source": "Källa",
     "possibleDuplicate": "Möjlig dubblett, matchade på {matchedOn}. Worker {worker}, käll-id {ref}.",
     "possibleDuplicateSame": "Möjlig dubblett, matchade på {matchedOn}.",

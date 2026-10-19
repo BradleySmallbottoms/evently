@@ -264,6 +264,7 @@
     "back": "All events",
     "publisher": "Publisher",
     "origin": "Origin",
+    "refId": "Source id",
     "source": "Source",
     "possibleDuplicate": "Possible duplicate, matched on {matchedOn}. Worker {worker}, source id {ref}.",
     "possibleDuplicateSame": "Possible duplicate, matched on {matchedOn}.",
