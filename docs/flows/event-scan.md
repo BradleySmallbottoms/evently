@@ -32,7 +32,7 @@ For each event the Ollama runner:
    link, or title).
 3. Approves the content. This step always approves until a later prompt can reject harmful, spam,
    or adult content.
-4. Asks the configured chat model for up to five catalog tags scored above 90.
+4. Asks the configured chat model for up to five catalog tags.
    Those tags replace any the event already has.
    Steps the model lists from the description are stored on `meta.instructions`.
 

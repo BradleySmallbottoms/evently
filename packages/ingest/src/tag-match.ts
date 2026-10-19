@@ -1,7 +1,7 @@
 /**
  * Ask a local Ollama model to pick existing tags for an event.
  * The model may only return ids from the catalog, each with a fit score.
- * Scores of 90 or below are dropped. A missing server leaves the event untagged.
+ * A missing server leaves the event untagged.
  */
 
 export interface TagChoice {
@@ -21,8 +21,6 @@ const DEFAULT_BASE = 'http://127.0.0.1:11434';
 const DEFAULT_MODEL = useQwen3 ? 'qwen3:8b' : 'qwen2.5:3b';
 const DESCRIPTION_LIMIT = 1_200;
 const MAX_TAGS = 5;
-/** Tags at this score or below are not a good enough match. */
-const MIN_SCORE = 90;
 /** Festival-specific tags the model must not attach to ordinary events. */
 const EXCLUDED_TAG_SLUGS = new Set(['soderhamns-kulturfestival']);
 
@@ -141,7 +139,7 @@ function scoreValue(value: unknown): number | null {
   return value;
 }
 
-/** Catalog ids whose fit score is above {@link MIN_SCORE}. */
+/** Catalog ids the model listed, in that order. A missing score is not a tag. */
 function scoredIds(parsed: LLMScanResult): string[] {
   if (!('possibleTags' in parsed) || !Array.isArray(parsed.possibleTags)) return [];
   const ids: string[] = [];
@@ -149,13 +147,13 @@ function scoredIds(parsed: LLMScanResult): string[] {
     if (!item || typeof item !== 'object') continue;
     const id = 'id' in item ? idText(item.id) : '';
     const score = 'score' in item ? scoreValue(item.score) : null;
-    if (!id || score === null || score <= MIN_SCORE) continue;
+    if (!id || score === null) continue;
     ids.push(id);
   }
   return ids;
 }
 
-/** Up to five catalog tags with a score above 90. Unknown ids are dropped. A bare numeric id matches `prefix:id`. */
+/** Up to five catalog tags. Unknown ids are dropped. A bare numeric id matches `prefix:id`. */
 export function parseTagChoices(input: LLMScanResult, catalog: TagChoice[]): TagChoice[] {
   const chosen: TagChoice[] = [];
   for (const id of scoredIds(input)) {

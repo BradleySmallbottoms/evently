@@ -263,7 +263,7 @@ function buildPrompt(event: TagMatchInput, catalog: TagChoice[]): string {
     'You are a helpful assistant that helps to tag and scan events from spam and harmful content using tags from a catalog.',
     'You will also help to determine language used in descriptions and titles of events.',
     'Foreach event I also want you to draft a short brief summary of the event in the language of the event, do not include name of the city but you can use location/venue if it is relevant.',
-    'For each tag, evaluate how well it fits the event from 0 to 100 and create a list of tags that score over 90.',
+    'For each tag, evaluate how well it fits the event from 0 to 100 and include every tag you choose.',
     'Use the title, location, and description to determine the content verdict.',
     'The content verdict can be "spam", "harmful", or "safe".',
     'Only return JSON: {contentVerdict: "spam" | "harmful" | "safe", summary: "<summary>", language: "sv|en|etc", possibleTags: [{"id":"<id>","score":<score>}]}',
