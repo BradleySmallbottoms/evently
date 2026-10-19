@@ -55,7 +55,8 @@ when none is set. Public responses omit the field.
 `published` enqueues `event.published` and schedules the publisher's import reminders as approved.
 `in_review` schedules those reminders as pending when the publisher is verified and a plan is set.
 A model failure releases the lease and leaves that row `pending_scan`. The other rows in the batch
-still finish.
+still finish. An admin can send an imported `in_review` event back with `POST /v1/events/{id}/rescan`.
+That sets `pending_scan`, clears the scan lease, and cancels open reminders so the next run can claim it.
 
 ```mermaid
 sequenceDiagram

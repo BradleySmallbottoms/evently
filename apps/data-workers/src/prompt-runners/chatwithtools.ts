@@ -194,7 +194,10 @@ export function createOllamaWithToolsPromptRunner(
       }));
       const concurrency = Math.min(8, Math.max(1, options.concurrency ?? 1));
       return mapPool(batch, concurrency, (event) =>
-        scanOneEvent(event, { store, event, catalog }, config, fetchImpl),
+        scanOneEvent(event, { store, event, catalog }, config, fetchImpl).catch((error: unknown) => {
+          console.error('scan failed', event.eventId, error instanceof Error ? error.message : error);
+          return { ok: false as const, eventId: event.eventId, reason: 'unavailable' as const };
+        }),
       );
     },
     /**
@@ -319,7 +322,7 @@ async function bestDuplicate(content: LLMScanResult & LLMOutput, context: Lookup
   if (content.possibleDuplicates.length === 0) return null;
   // by rank
   const bestMatch = content.possibleDuplicates.sort((a, b) => a.rank - b.rank)[0];
-  if (!bestMatch) return null;
+  if (!bestMatch || !Id.safeParse(bestMatch.eventId).success) return null;
   const event = await context.store.getEvent(bestMatch.eventId);
   if (!event) return null;
   return {

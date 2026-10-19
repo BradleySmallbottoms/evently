@@ -18,6 +18,7 @@ import { NotificationsSheet } from '@/components/native/notifications-sheet';
 import { PairingSheet, type PairingSheetTab } from '@/components/native/pairing-sheet';
 import { RegionSuggestionSheet } from '@/components/native/region-suggestion-sheet';
 import { AppText } from '@/components/ui/app-text';
+import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { FeaturedEventCard } from './_components/featured-event-card';
 import { EventCard } from '@/components/ui/event-card';
 import { EventListItem } from '@/components/ui/event-list-item';
@@ -273,15 +274,15 @@ export default function HomeScreen() {
       const body =
         pairingTab === 'link'
           ? throwIfError(
-              await api.POST('/pairing/device-link/code', {
-                body: { deviceCredential: stored.deviceCredential },
-              }),
-            )
+            await api.POST('/pairing/device-link/code', {
+              body: { deviceCredential: stored.deviceCredential },
+            }),
+          )
           : throwIfError(
-              await api.POST('/pairing/code', {
-                body: { deviceCredential: stored.deviceCredential },
-              }),
-            );
+            await api.POST('/pairing/code', {
+              body: { deviceCredential: stored.deviceCredential },
+            }),
+          );
       setPairingCode(body.code);
     } catch (err) {
       setPairingError(err instanceof Error ? err.message : t('events.pairingGenerateError'));
@@ -413,15 +414,13 @@ export default function HomeScreen() {
                 paddingHorizontal: space.xl,
                 flexDirection: 'row',
                 alignItems: 'center',
+                justifyContent: 'space-between',
                 gap: space.md,
               }}
             >
-              <AppText variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>
-                {t('home.title')}
-              </AppText>
-              <View style={{ flexShrink: 1, minWidth: 0, marginLeft: 'auto', maxWidth: '58%' }}>
+              <View style={{ maxWidth: '70%' }}>
                 <LocationMenu
-                  // eyebrow={t('events.currentLocation')}
+                  eyebrow={t('home.title')}
                   locationLabel={locationLabel}
                   title={t('events.locationPickerTitle')}
                   message={t('events.locationPickerMessage')}
@@ -439,6 +438,17 @@ export default function HomeScreen() {
                   }}
                 />
               </View>
+              <CircleIconButton
+                plain
+                sf="scope"
+                md="gps-fixed"
+                accessibilityLabel={t('events.currentLocation')}
+                tintColor={colors.ink}
+                onPress={() => {
+                  void setDiscoveryPlaceId(NEARBY_PLACE_ID);
+                  void refreshDeviceLocation();
+                }}
+              />
             </View>
 
             <TagFilters

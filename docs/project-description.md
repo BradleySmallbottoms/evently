@@ -455,7 +455,7 @@ Flow: [docs/flows/event-coming.md](docs/flows/event-coming.md).
    Those tags replace any the event already has. The worker then sets `in_review`, or `published` when the scan approves the event, the
    publisher is verified and not temporary, and the source trust is `auto_publish`. A lookalike within the
    duplicate radius and 30 minutes stays `in_review` with `meta.possibleDuplicate`. A duplicate the model ranks over 90 as another showing stores `meta.possibleOccasionGroupId` on the scanned event and on each of those duplicates. An existing `occasionGroupId` is reused; otherwise a new id is created. Public responses omit that field. A link matches on host and path; protocol, query, and a trailing slash are ignored. A Citybreak id matches with or without the `cbis:` prefix. An event with no point is not compared. A model failure leaves
-   that row `pending_scan`. Flow: [docs/flows/event-scan.md](docs/flows/event-scan.md).
+   that row `pending_scan`. An admin can send an imported `in_review` event back with `POST /events/{id}/rescan`, which sets `pending_scan`, clears the scan lease, and cancels open reminders. Flow: [docs/flows/event-scan.md](docs/flows/event-scan.md).
 6. The scan job enqueues `event.published` when it sets `published`. A later import of a published
    row enqueues `event.updated`. `event.published` / `event.updated` go to SQS only for `published`.
    The run is logged in `ingestion_runs`. Raw payloads to S3 are not written yet.

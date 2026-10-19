@@ -97,6 +97,11 @@ export function canRejectImportedEvent(status: string): boolean {
   return status === 'in_review';
 }
 
+/** An imported review event can go back to the import scan. */
+export function canRescanImportedEvent(input: { status: string; origin: string }): boolean {
+  return input.status === 'in_review' && input.origin === 'imported';
+}
+
 /**
  * An imported event still in review can be soft-deleted or wiped.
  * Soft delete cancels it and leaves the row. Wipe removes the row.

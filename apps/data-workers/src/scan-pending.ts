@@ -101,7 +101,19 @@ export async function scanPendingEvents(
       summary.unavailable += 1;
       continue;
     }
-    const applied = await applyOutcome(store, row, outcome, enqueue, temporaries, runner);
+    let applied: 'published' | 'review' | 'skipped';
+    try {
+      applied = await applyOutcome(store, row, outcome, enqueue, temporaries, runner);
+    } catch (error) {
+      console.error(
+        'scan apply failed',
+        row.eventId,
+        error instanceof Error ? error.message : error,
+      );
+      await store.releaseScanClaim(row.eventId, row.claimedUntil);
+      summary.unavailable += 1;
+      continue;
+    }
     if (applied === 'published') summary.published += 1;
     else if (applied === 'review') summary.review += 1;
     else summary.skipped += 1;

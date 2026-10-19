@@ -224,6 +224,49 @@ describe('scanPendingEvents', () => {
     expect(store.events[0]?.tagIds).toEqual(replacement);
   });
 
+  it('keeps scanning the batch when applying one outcome throws', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [
+      event,
+      { ...event, externalId: 'cbis:2', title: 'Marknad' },
+    ]);
+    const failingId = store.events.find((row) => row.title === 'Konsert')!.id;
+    const finish = store.finishImportedScan.bind(store);
+    store.finishImportedScan = async (input) => {
+      if (input.eventId === failingId) throw new Error('invalid input syntax for type uuid');
+      return finish(input);
+    };
+    const runner: PromptRunner = {
+      id: 'throws',
+      lookupPublisher: async () => null,
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
+      },
+    };
+
+    const summary = await scanPendingEvents(store, runner);
+
+    expect(summary).toMatchObject({ claimed: 2, review: 1, unavailable: 1 });
+    expect(store.events.find((row) => row.id === failingId)).toMatchObject({
+      status: 'pending_scan',
+      scanClaimedUntil: null,
+    });
+    expect(store.events.find((row) => row.title === 'Marknad')?.status).toBe('in_review');
+  });
+
   it('keeps an untagged event pending when the model is unavailable', async () => {
     const store = createMemoryIngestStore();
     store.sources.push(source);

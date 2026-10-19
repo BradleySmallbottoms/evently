@@ -161,6 +161,8 @@ Product invariants (enforced in domain, tested)
   stays cancelled. Wiping it removes the row and skips that source id on later imports.
   Wipe refuses when someone has checked in, saved, rated, or been notified.
   Rejecting it cancels the event and leaves the row.
+  Scan again (`POST /events/{id}/rescan`) sets an imported `in_review` event back to
+  `pending_scan`, clears the scan lease, and cancels open reminders so the scan job claims it.
 - Script-imported events are notified only when the publisher is verified and its import
   notification plan is set. Future reminders are approved when the event is published, and
   stored as pending while the event is still in review. Publishing the event approves them.

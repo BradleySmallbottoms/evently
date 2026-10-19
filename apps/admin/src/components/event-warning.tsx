@@ -1,6 +1,7 @@
 'use client';
 
 import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
 import SvgIcon from '@mui/material/SvgIcon';
 import Tooltip from '@mui/material/Tooltip';
 import { useTranslations } from 'next-intl';
@@ -9,7 +10,7 @@ export type EventWarning = {
   code: 'possible_duplicate';
   eventId: string;
   title: string;
-  matchedOn: 'title' | 'event-link' | 'link' | 'id';
+  matchedOn: 'title' | 'event-link' | 'link' | 'id' | 'llm';
 };
 
 function warningLabel(warnings: EventWarning[], labelFor: (title: string) => string): string {
@@ -23,11 +24,7 @@ function warningLabel(warnings: EventWarning[], labelFor: (title: string) => str
     .join(' ');
 }
 
-/** Same mark as the review queue: a warning icon whose tooltip names the other event. */
-export function EventWarningMark({ warnings }: { warnings: EventWarning[] | undefined }) {
-  const t = useTranslations('Events');
-  const label = warningLabel(warnings ?? [], (title) => t('warningPossibleDuplicate', { title }));
-  if (!label) return null;
+function WarningGlyph({ label }: { label: string }) {
   return (
     <Tooltip title={label}>
       <Box
@@ -41,5 +38,27 @@ export function EventWarningMark({ warnings }: { warnings: EventWarning[] | unde
         </SvgIcon>
       </Box>
     </Tooltip>
+  );
+}
+
+/** Same mark as the review queue: a warning icon whose tooltip names the other event. */
+export function EventWarningMark({ warnings }: { warnings: EventWarning[] | undefined }) {
+  const t = useTranslations('Events');
+  const label = warningLabel(warnings ?? [], (title) => t('warningPossibleDuplicate', { title }));
+  if (!label) return null;
+  return <WarningGlyph label={label} />;
+}
+
+/** Tag total for a list row. Zero tags keeps the warning icon beside the count. */
+export function EventTagCount({ count }: { count: number }) {
+  const t = useTranslations('Events');
+  const none = count === 0;
+  return (
+    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+      {none ? <WarningGlyph label={t('warningNoTags')} /> : null}
+      <Box component="span" sx={{ color: none ? 'warning.main' : 'text.primary' }}>
+        {count}
+      </Box>
+    </Stack>
   );
 }

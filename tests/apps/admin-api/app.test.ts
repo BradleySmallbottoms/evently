@@ -73,6 +73,7 @@ describe('admin api', () => {
     expect(doc.paths['/events/{id}/sent-notifications']).toBeDefined();
     expect(doc.paths['/events/{id}/approve']).toBeDefined();
     expect(doc.paths['/events/{id}/reject']).toBeDefined();
+    expect(doc.paths['/events/{id}/rescan']).toBeDefined();
     expect((doc.paths['/events/{id}'] as { delete?: unknown }).delete).toBeDefined();
     expect(doc.paths['/data-sources']).toBeDefined();
     expect(doc.paths['/data-sources/{id}/runs']).toBeDefined();
@@ -280,6 +281,111 @@ describe('admin api', () => {
     expect(domainEvents.events).toEqual([
       { type: 'event.published', eventId: '44444444-4444-4444-8444-444444444401' },
     ]);
+  });
+
+  it('sends an imported review event back to the scan and refuses other rows', async () => {
+    const { auth } = await seededAuth();
+    const importedId = '44444444-4444-4444-8444-444444444401';
+    const publishedId = '44444444-4444-4444-8444-444444444402';
+    const nativeId = '44444444-4444-4444-8444-444444444403';
+    const eventStore = {
+      publishers: new Map([
+        [
+          '22222222-2222-4222-8222-222222222201',
+          { id: '22222222-2222-4222-8222-222222222201', name: 'Imported Band' },
+        ],
+      ]),
+      events: new Map([
+        [
+          importedId,
+          {
+            id: importedId,
+            publisherId: '22222222-2222-4222-8222-222222222201',
+            title: 'Concert',
+            mode: 'physical' as const,
+            status: 'in_review',
+            origin: 'imported' as const,
+            startsAt: '2026-07-01T18:00:00.000Z',
+            endsAt: '2026-07-01T21:00:00.000Z',
+            venueName: 'Arena',
+            sourceUrl: 'https://example.com',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+        [
+          publishedId,
+          {
+            id: publishedId,
+            publisherId: '22222222-2222-4222-8222-222222222201',
+            title: 'Already out',
+            mode: 'physical' as const,
+            status: 'published',
+            origin: 'imported' as const,
+            startsAt: '2026-07-02T18:00:00.000Z',
+            endsAt: '2026-07-02T21:00:00.000Z',
+            venueName: 'Arena',
+            sourceUrl: null,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+        [
+          nativeId,
+          {
+            id: nativeId,
+            publisherId: '22222222-2222-4222-8222-222222222201',
+            title: 'Local night',
+            mode: 'physical' as const,
+            status: 'in_review',
+            origin: 'native' as const,
+            startsAt: '2026-07-03T18:00:00.000Z',
+            endsAt: '2026-07-03T21:00:00.000Z',
+            venueName: 'Arena',
+            sourceUrl: null,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+      ]),
+    };
+    const { createMemoryAdminEventServices } =
+      await import('../../../apps/admin-api/src/services/events');
+    const app = createApp({
+      auth,
+      events: createMemoryAdminEventServices(eventStore),
+    });
+    const cookie = await loginSession(app);
+
+    const denied = await app.request(`/v1/events/${importedId}/rescan`, { method: 'POST' });
+    expect(denied.status).toBe(401);
+
+    const published = await app.request(`/v1/events/${publishedId}/rescan`, {
+      method: 'POST',
+      headers: { cookie },
+    });
+    expect(published.status).toBe(404);
+
+    const native = await app.request(`/v1/events/${nativeId}/rescan`, {
+      method: 'POST',
+      headers: { cookie },
+    });
+    expect(native.status).toBe(404);
+    expect(eventStore.events.get(nativeId)?.status).toBe('in_review');
+
+    const queued = await app.request(`/v1/events/${importedId}/rescan`, {
+      method: 'POST',
+      headers: { cookie },
+    });
+    expect(queued.status).toBe(200);
+    expect(await queued.json()).toMatchObject({ id: importedId, status: 'pending_scan' });
+    expect(eventStore.events.get(importedId)?.status).toBe('pending_scan');
+
+    const again = await app.request(`/v1/events/${importedId}/rescan`, {
+      method: 'POST',
+      headers: { cookie },
+    });
+    expect(again.status).toBe(404);
   });
 
   it('deletes an imported event in review and refuses other statuses', async () => {
@@ -518,6 +624,7 @@ describe('admin api', () => {
       location: { lat: 61.3, lng: 17.05 },
       contentVerdict: 'spam',
       llmOutput: { contentVerdict: 'spam', possibleTags: [] },
+      tagCount: 0,
       imageUrl: 'https://assets.example/events/44444444-4444-4444-8444-444444444401/main',
       imageUrls: ['https://assets.example/events/44444444-4444-4444-8444-444444444401/gallery-1'],
     });
@@ -541,6 +648,7 @@ describe('admin api', () => {
       title: 'Concert (updated)',
       venueName: 'New hall',
       tagIds: [tagId],
+      tagCount: 1,
       links: [{ type: 'tickets', url: 'https://tickets.example/c', label: 'Tickets' }],
     });
     expect(domainEvents.events).toEqual([
@@ -1145,6 +1253,13 @@ describe('admin api', () => {
               endsAt: '2026-08-04T21:00:00.000Z',
               venueName,
               sourceUrl: null,
+              tagIds:
+                title === 'Jazz Night'
+                  ? [
+                      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+                      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+                    ]
+                  : [],
               createdAt: '2026-01-01T00:00:00.000Z',
               updatedAt: '2026-01-01T00:00:00.000Z',
             },
@@ -1166,13 +1281,14 @@ describe('admin api', () => {
     const page = await app.request('/v1/events?limit=2&offset=0', { headers: { cookie } });
     expect(page.status).toBe(200);
     const first = (await page.json()) as {
-      items: { title: string }[];
+      items: { title: string; tagCount: number }[];
       total: number;
       nextOffset: number | null;
     };
     expect(first.total).toBe(4);
     expect(first.nextOffset).toBe(2);
     expect(first.items.map((item) => item.title)).toEqual(['100% fun', 'Jazz Night']);
+    expect(first.items.map((item) => item.tagCount)).toEqual([0, 2]);
 
     const last = await app.request('/v1/events?limit=2&offset=2', { headers: { cookie } });
     const second = (await last.json()) as { items: { title: string }[]; nextOffset: number | null };
@@ -1225,6 +1341,7 @@ describe('admin api', () => {
               venueName,
               sourceUrl: 'https://example.com/show',
               contentVerdict: 'harmful',
+              tagIds: title === 'Oldest' ? ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'] : [],
               createdAt,
               updatedAt: createdAt,
             },
@@ -1250,13 +1367,14 @@ describe('admin api', () => {
     });
     expect(page.status).toBe(200);
     const first = (await page.json()) as {
-      items: { title: string; sourceUrl: string | null; contentVerdict: string }[];
+      items: { title: string; sourceUrl: string | null; contentVerdict: string; tagCount: number }[];
       total: number;
       nextOffset: number | null;
     };
     expect(first.total).toBe(3);
     expect(first.nextOffset).toBe(2);
     expect(first.items.map((item) => item.title)).toEqual(['Oldest', 'Middle']);
+    expect(first.items.map((item) => item.tagCount)).toEqual([1, 0]);
     expect(first.items[0]?.sourceUrl).toBe('https://example.com/show');
     expect(first.items[0]?.contentVerdict).toBe('harmful');
 

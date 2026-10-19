@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canCancelEvent,
   canDeleteImportedEvent,
+  canRescanImportedEvent,
   canEditEvent,
   canPublishEvent,
   eventIsCurrent,
@@ -101,5 +102,8 @@ describe('event status gates', () => {
     expect(canDeleteImportedEvent({ status: 'in_review', origin: 'imported' })).toBe(true);
     expect(canDeleteImportedEvent({ status: 'published', origin: 'imported' })).toBe(false);
     expect(canDeleteImportedEvent({ status: 'in_review', origin: 'native' })).toBe(false);
+    expect(canRescanImportedEvent({ status: 'in_review', origin: 'imported' })).toBe(true);
+    expect(canRescanImportedEvent({ status: 'published', origin: 'imported' })).toBe(false);
+    expect(canRescanImportedEvent({ status: 'in_review', origin: 'native' })).toBe(false);
   });
 });

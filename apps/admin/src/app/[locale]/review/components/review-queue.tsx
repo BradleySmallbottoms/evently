@@ -21,7 +21,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { ContentVerdictChip, type ContentVerdict } from '@/components/content-verdict';
-import { EventWarningMark, type EventWarning } from '@/components/event-warning';
+import { EventTagCount, EventWarningMark, type EventWarning } from '@/components/event-warning';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -35,6 +35,7 @@ type ReviewItem = {
   sourceUrl: string | null;
   origin: 'native' | 'imported';
   contentVerdict: ContentVerdict;
+  tagCount: number;
   warnings: EventWarning[];
 };
 
@@ -44,7 +45,7 @@ type ReviewPage = {
   nextOffset: number | null;
 };
 
-type BulkAction = 'approve' | 'reject' | 'delete' | 'wipe';
+type BulkAction = 'approve' | 'reject' | 'rescan' | 'delete' | 'wipe';
 
 const PAGE_SIZE = 100;
 
@@ -108,10 +109,11 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   }, [list.data, page]);
 
   const decide = useMutation({
-    mutationFn: async (input: { id: string; action: 'approve' | 'reject' }) =>
+    mutationFn: async (input: { id: string; action: 'approve' | 'reject' | 'rescan' }) =>
       adminFetch(`/events/${input.id}/${input.action}`, { method: 'POST' }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin-events-in-review'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-events-catalog'] });
     },
   });
 
@@ -125,6 +127,9 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
           if (input.action === 'wipe') {
             return adminFetch(`/events/${id}/wipe`, { method: 'POST' });
           }
+          if (input.action === 'rescan') {
+            return adminFetch(`/events/${id}/rescan`, { method: 'POST' });
+          }
           return adminFetch(`/events/${id}/${input.action}`, { method: 'POST' });
         }),
       );
@@ -137,6 +142,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
       setSelected(new Set(failedIds));
       setBulkError(failedIds.length > 0);
       await queryClient.invalidateQueries({ queryKey: ['admin-events-in-review'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-events-catalog'] });
     },
   });
 
@@ -183,7 +189,8 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   );
 
   function runBulk(action: BulkAction) {
-    const ids = action === 'wipe' || action === 'delete' ? importedIds : selectedIds;
+    const ids =
+      action === 'wipe' || action === 'delete' || action === 'rescan' ? importedIds : selectedIds;
     if (ids.length === 0) return;
     setBulkError(false);
     bulk.mutate({ action, ids });
@@ -223,6 +230,13 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
               onClick={() => setConfirmWipe(true)}
             >
               {t('wipe')}
+            </Button>
+            <Button
+              size="small"
+              disabled={importedIds.length === 0 || busy}
+              onClick={() => runBulk('rescan')}
+            >
+              {t('rescan')}
             </Button>
             <Button
               size="small"
@@ -268,6 +282,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
                 />
               </TableCell>
               <TableCell>{t('title')}</TableCell>
+              <TableCell>{t('tags')}</TableCell>
               <TableCell>{t('publisher')}</TableCell>
               <TableCell>{t('starts')}</TableCell>
               <TableCell>{t('venue')}</TableCell>
@@ -293,6 +308,9 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
                       <EventWarningMark warnings={item.warnings} />
                       <Link href={`/events/${item.id}`}>{item.title}</Link>
                     </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <EventTagCount count={item.tagCount} />
                   </TableCell>
                   <TableCell>
                     <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>
@@ -323,6 +341,15 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
                       >
                         {t('approve')}
                       </Button>
+                      {item.origin === 'imported' ? (
+                        <Button
+                          size="small"
+                          disabled={busy}
+                          onClick={() => decide.mutate({ id: item.id, action: 'rescan' })}
+                        >
+                          {t('rescan')}
+                        </Button>
+                      ) : null}
                       <Button
                         size="small"
                         color="inherit"

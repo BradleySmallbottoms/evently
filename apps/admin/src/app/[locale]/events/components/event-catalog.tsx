@@ -22,7 +22,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { ContentVerdictChip, type ContentVerdict } from '@/components/content-verdict';
-import { EventWarningMark, type EventWarning } from '@/components/event-warning';
+import { EventTagCount, EventWarningMark, type EventWarning } from '@/components/event-warning';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -39,6 +39,7 @@ type EventRow = {
   startsAt: string;
   venueName: string | null;
   contentVerdict: ContentVerdict;
+  tagCount: number;
   warnings: EventWarning[];
 };
 
@@ -342,6 +343,7 @@ export function EventCatalog() {
                 />
               </TableCell>
               <TableCell>{t('titleCol')}</TableCell>
+              <TableCell>{t('tags')}</TableCell>
               <TableCell>{t('publisher')}</TableCell>
               <TableCell>{t('status')}</TableCell>
               <TableCell>{tVerdict('label')}</TableCell>
@@ -368,6 +370,9 @@ export function EventCatalog() {
                     <EventWarningMark warnings={item.warnings} />
                     <Link href={`/events/${item.id}`}>{item.title}</Link>
                   </Stack>
+                </TableCell>
+                <TableCell>
+                  <EventTagCount count={item.tagCount} />
                 </TableCell>
                 <TableCell>
                   <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>

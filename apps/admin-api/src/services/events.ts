@@ -28,6 +28,7 @@ import {
   canApproveImportedEvent,
   canDeleteImportedEvent,
   canRejectImportedEvent,
+  canRescanImportedEvent,
   publicAssetUrl,
   publicGalleryUrls,
   shouldEnqueueNotifications,
@@ -60,6 +61,8 @@ export type AdminEventServices = {
   get: (eventId: string) => Promise<AdminEventDetail | null>;
   approve: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
   reject: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
+  /** Send an imported review event back to the scan queue. */
+  rescan: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
   /** Cancel an in-review import and leave the row, even when people have checked in. */
   softDelete: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
   /** Remove an in-review import. Refuses when anyone has checked in, saved, rated, or been notified. */
@@ -271,6 +274,19 @@ function warningsFor(meta: unknown) {
   return reviewWarnings(readEventMeta(meta));
 }
 
+function tagCountOf(tagIds: readonly string[] | undefined): number {
+  return tagIds?.length ?? 0;
+}
+
+/** Correlated count of `event_tags` for the event row in the outer query. */
+function tagCountColumn() {
+  return sql<number>`(
+    select count(*)::int
+    from ${schema.eventTags}
+    where ${schema.eventTags.eventId} = ${schema.events.id}
+  )`;
+}
+
 function contentVerdictOf(value: string | null | undefined): ContentVerdict {
   if (value === 'safe' || value === 'harmful' || value === 'spam' || value === 'unknown') {
     return value;
@@ -297,6 +313,7 @@ function asListItem(
     featured: e.featured ?? false,
     checkInEnabled: e.checkInEnabled ?? false,
     contentVerdict: contentVerdictOf(e.contentVerdict),
+    tagCount: tagCountOf(e.tagIds),
     warnings: warningsFor(e.meta),
     createdAt: e.createdAt,
   };
@@ -399,6 +416,7 @@ export function createMemoryAdminEventServices(
           venueName: e.venueName,
           sourceUrl: e.sourceUrl,
           contentVerdict: contentVerdictOf(e.contentVerdict),
+          tagCount: tagCountOf(e.tagIds),
           warnings: warningsFor(e.meta),
           createdAt: e.createdAt,
         }));
@@ -473,6 +491,22 @@ export function createMemoryAdminEventServices(
         after: { status: 'cancelled' },
       });
       return { id: row.id, status: 'cancelled' as const };
+    },
+    async rescan(eventId, actor) {
+      const row = store.events.get(eventId);
+      if (!row || !canRescanImportedEvent(row)) return null;
+      const before = { status: row.status };
+      row.status = 'pending_scan';
+      row.updatedAt = now().toISOString();
+      await audit.write({
+        actor,
+        action: 'event.rescan',
+        entityType: 'event',
+        entityId: eventId,
+        before,
+        after: { status: 'pending_scan' },
+      });
+      return { id: row.id, status: 'pending_scan' as const };
     },
     async softDelete(eventId, actor) {
       const row = store.events.get(eventId);
@@ -625,6 +659,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
     if (!row) return null;
     const lat = row.lat == null ? null : Number(row.lat);
     const lng = row.lng == null ? null : Number(row.lng);
+    const tagIds = await tagIdsFor(eventId);
     return {
       id: row.id,
       publisherId: publisherIdOf(row.publisherId),
@@ -650,7 +685,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       sourceUrl: row.sourceUrl,
       refId: row.refId,
       workerId: row.workerId,
-      tagIds: await tagIdsFor(eventId),
+      tagIds,
+      tagCount: tagIds.length,
       links: await linksFor(eventId),
       ...(await imagesFor(eventId)),
       featured: row.featured,
@@ -714,6 +750,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           venueName: schema.events.venueName,
           sourceUrl: schema.events.sourceUrl,
           contentVerdict: schema.events.contentVerdict,
+          tagCount: tagCountColumn(),
           meta: schema.events.meta,
           createdAt: schema.events.createdAt,
         })
@@ -737,6 +774,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           venueName: r.venueName,
           sourceUrl: r.sourceUrl,
           contentVerdict: r.contentVerdict,
+          tagCount: Number(r.tagCount),
           warnings: warningsFor(r.meta),
           createdAt: r.createdAt.toISOString(),
         }));
@@ -770,6 +808,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           featured: schema.events.featured,
           checkInEnabled: schema.events.checkInEnabled,
           contentVerdict: schema.events.contentVerdict,
+          tagCount: tagCountColumn(),
           meta: schema.events.meta,
           createdAt: schema.events.createdAt,
         })
@@ -806,6 +845,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           featured: r.featured,
           checkInEnabled: r.checkInEnabled,
           contentVerdict: r.contentVerdict,
+          tagCount: Number(r.tagCount),
           warnings: warningsFor(r.meta),
           createdAt: r.createdAt.toISOString(),
         })),
@@ -907,6 +947,41 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         after: { status: 'cancelled' },
       });
       return { id: eventId, status: 'cancelled' as const };
+    },
+    async rescan(eventId, actor) {
+      const [row] = await db
+        .select({
+          id: schema.events.id,
+          status: schema.events.status,
+          origin: schema.events.origin,
+        })
+        .from(schema.events)
+        .where(eq(schema.events.id, eventId))
+        .limit(1);
+      if (!row || !canRescanImportedEvent(row)) return null;
+      const at = now();
+      const updated = await db
+        .update(schema.events)
+        .set({ status: 'pending_scan', scanClaimedUntil: null, updatedAt: at })
+        .where(
+          and(
+            eq(schema.events.id, eventId),
+            eq(schema.events.status, 'in_review'),
+            eq(schema.events.origin, 'imported'),
+          ),
+        )
+        .returning({ id: schema.events.id });
+      if (!updated[0]) return null;
+      await cancelOpenPushMessages(db, eventId, at);
+      await audit.write({
+        actor,
+        action: 'event.rescan',
+        entityType: 'event',
+        entityId: eventId,
+        before: { status: row.status },
+        after: { status: 'pending_scan' },
+      });
+      return { id: eventId, status: 'pending_scan' as const };
     },
     async softDelete(eventId, actor) {
       const [row] = await db

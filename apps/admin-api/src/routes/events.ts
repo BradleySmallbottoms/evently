@@ -190,6 +190,38 @@ export function registerAdminEventRoutes(
     }
   });
 
+  const rescan = createRoute({
+    method: 'post',
+    path: '/events/{id}/rescan',
+    request: { params: z.object({ id: z.uuid() }) },
+    responses: {
+      200: {
+        description: 'Imported event queued for another scan',
+        content: { 'application/json': { schema: AdminEventDecisionResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Not found or not an imported event in review',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(rescan, async (c) => {
+    try {
+      const session = await auth.requireSession(readAdminSessionToken(c));
+      const result = await events.rescan(c.req.valid('param').id, session.adminId);
+      if (!result) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json(result, 200);
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
   const remove = createRoute({
     method: 'delete',
     path: '/events/{id}',

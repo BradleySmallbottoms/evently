@@ -311,7 +311,7 @@ calls) in the same change as every new major feature.**
 - **Admin queues:** `/review` lists imports in `in_review`, unverified publishers, and `pending`
   notifications (approve/reject). A warning icon marks a row that needs a closer look, such as a
   possible duplicate. Import review and the event catalog can select rows and publish,
-  reject, or delete them. Publisher lists can select rows and verify them.
+  reject, or delete them. Scan again sends an imported review event back to `pending_scan`. Publisher lists can select rows and verify them.
   Delete cancels an imported review event and keeps the row. Wipe removes it and keeps
   the source id out of later imports, and leaves the row when someone has already
   checked in, saved, rated, or been notified

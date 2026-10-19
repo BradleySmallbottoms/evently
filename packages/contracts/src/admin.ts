@@ -62,7 +62,7 @@ export const AdminEventWarning = z.discriminatedUnion('code', [
     code: z.literal('possible_duplicate'),
     eventId: Id,
     title: z.string(),
-    matchedOn: z.enum(['title', 'event-link', 'link', 'id']),
+    matchedOn: z.enum(['title', 'event-link', 'link', 'id', 'llm']),
   }),
 ]);
 export type AdminEventWarning = z.infer<typeof AdminEventWarning>;
@@ -80,6 +80,8 @@ export const AdminEventReviewItem = z.object({
   venueName: z.string().nullable(),
   sourceUrl: z.string().nullable(),
   contentVerdict: ContentVerdict,
+  /** Rows in `event_tags` for this event. */
+  tagCount: z.number().int().nonnegative(),
   warnings: z.array(AdminEventWarning),
   createdAt: z.iso.datetime(),
 });
@@ -92,7 +94,7 @@ export type AdminEventReviewListResponse = z.infer<typeof AdminEventReviewListRe
 
 export const AdminEventDecisionResponse = z.object({
   id: Id,
-  status: z.enum(['published', 'cancelled']),
+  status: z.enum(['published', 'cancelled', 'pending_scan']),
 });
 export type AdminEventDecisionResponse = z.infer<typeof AdminEventDecisionResponse>;
 
@@ -309,6 +311,8 @@ export const AdminEventListItem = z.object({
   featured: z.boolean(),
   checkInEnabled: z.boolean(),
   contentVerdict: ContentVerdict,
+  /** Rows in `event_tags` for this event. */
+  tagCount: z.number().int().nonnegative(),
   warnings: z.array(AdminEventWarning),
   createdAt: z.iso.datetime(),
 });
