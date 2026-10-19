@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
 
+import { CategoryFiltersSheet } from '@/components/native/category-filters-sheet';
 import { AppText } from '@/components/ui/app-text';
 import { TAG_GROUP_STYLE, TagGroupIcon, TagGroupList } from '@/components/ui/tag-group-list';
 import { groupHomeTags, toggleGroupSelection, type HomeTag, type HomeTagGroup } from '@/lib/tag-groups';
@@ -17,8 +18,8 @@ type Props = {
   onChange: (ids: string[]) => void;
 };
 
-const CELL = 76;
-const CIRCLE = 64;
+const CELL = 55;
+const CIRCLE = 48;
 
 function tap() {
   if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
@@ -155,7 +156,7 @@ function ToggleCircle({
   );
 }
 
-/** Category circles. More stays pinned; opening it wraps every group, with Fewer last. */
+/** Category circles. More stays pinned and opens the tag list in a sheet. */
 export function TagFilters({ tags, selectedIds, onChange }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -163,20 +164,19 @@ export function TagFilters({ tags, selectedIds, onChange }: Props) {
 
   if (groups.length === 0) return null;
 
-  function toggleOpen() {
+  function openSheet() {
     tap();
-    setOpen((value) => !value);
+    setOpen(true);
   }
 
-  if (open) {
-    return (
-      <View style={{ gap: space.md }}>
-        {/* <View
-          style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            paddingHorizontal: space.md,
-          }}
+  return (
+    <>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flex: 1, minWidth: 0 }}
+          contentContainerStyle={{ paddingLeft: space.md, paddingRight: space.md }}
         >
           {groups.map((group) => (
             <GroupCircle
@@ -184,50 +184,16 @@ export function TagFilters({ tags, selectedIds, onChange }: Props) {
               group={group}
               selectedIds={selectedIds}
               onChange={onChange}
-              flexCell
             />
           ))}
-          <ToggleCircle
-            label={t('events.categoriesFewer')}
-            expanded
-            onPress={toggleOpen}
-            flexCell
-          />
-        </View> */}
-        <View style={{ paddingHorizontal: space.xl }}>
-          <TagGroupList tags={tags} selectedIds={selectedIds} onChange={onChange} />
+        <View style={{ paddingRight: space.md }}>
+          <ToggleCircle label={t('events.categoriesMore')} expanded={false} onPress={openSheet} />
         </View>
-        <View style={{ paddingHorizontal: space.xl, flex: 1, alignItems: 'center', }}>
-          <Pressable onPress={toggleOpen}
-            style={{ backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accent, padding: space.sm, borderRadius: space.md }}>
-            <AppText variant='caption' style={{ color: colors.accentDeep }}>Visa färre kategorier</AppText>
-          </Pressable>
-        </View>
+        </ScrollView>
       </View>
-    );
-  }
-
-  return (<>
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingLeft: space.xl, paddingRight: space.xs }}
-      >
-        {groups.map((group) => (
-          <GroupCircle
-            key={group.id}
-            group={group}
-            selectedIds={selectedIds}
-            onChange={onChange}
-          />
-        ))}
-      </ScrollView>
-      <View style={{ paddingRight: space.md }}>
-        <ToggleCircle label={t('events.categoriesMore')} expanded={false} onPress={toggleOpen} />
-      </View>
-    </View>
-  </>
+      <CategoryFiltersSheet isPresented={open} onDismiss={() => setOpen(false)}>
+        <TagGroupList tags={tags} selectedIds={selectedIds} onChange={onChange} />
+      </CategoryFiltersSheet>
+    </>
   );
 }

@@ -43,6 +43,11 @@ describe('runpodChatConfigFromEnv', () => {
       error: 'RUNPOD_CHAT_KEY is required when CHAT_PROVIDER=runpod',
     });
   });
+
+  it('serves Qwen3 unless RUNPOD_MODEL is set', () => {
+    const resolved = runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck' });
+    expect(resolved).toMatchObject({ model: 'Qwen/Qwen3-32B-AWQ' });
+  });
 });
 
 describe('createRunpodChat', () => {
@@ -105,7 +110,15 @@ describe('createRunpodChat', () => {
       }
       if (method === 'GET' && target.endsWith('/pods')) {
         return json({
-          pods: [{ id: 'pod_old', name: 'evnt-scan', status: 'EXITED', createdAt: '2026-10-01T00:00:00.000Z' }],
+          pods: [
+            {
+              id: 'pod_old',
+              name: 'evnt-scan',
+              status: 'EXITED',
+              createdAt: '2026-10-01T00:00:00.000Z',
+              env: { SCAN_MODEL: config.model },
+            },
+          ],
           pagination: { hasNextPage: false },
         });
       }
@@ -127,6 +140,60 @@ describe('createRunpodChat', () => {
 
     expect(actions).toEqual(['start', 'terminate']);
     expect(ready.podId).toBe('pod_new');
+  });
+
+  it('replaces a pod that was started with another model', async () => {
+    const actions: string[] = [];
+    let createdArgs = '';
+    let createdModel = '';
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const target = String(url);
+      const method = init?.method ?? 'GET';
+      if (target.endsWith('/network-volumes')) {
+        return json({
+          networkVolumes: [{ id: 'vol_1', name: 'evnt-scan-models', dataCenter: 'EU-SE-1' }],
+          pagination: { hasNextPage: false },
+        });
+      }
+      if (method === 'GET' && target.endsWith('/pods')) {
+        return json({
+          pods: [
+            {
+              id: 'pod_old',
+              name: 'evnt-scan',
+              status: 'EXITED',
+              env: { SCAN_MODEL: 'Qwen/Qwen2.5-32B-Instruct-AWQ' },
+            },
+          ],
+          pagination: { hasNextPage: false },
+        });
+      }
+      if (target.endsWith('/pods/pod_old/action')) {
+        const body = JSON.parse(String(init?.body)) as { action: string };
+        actions.push(body.action);
+        return json(null, 204);
+      }
+      if (method === 'POST' && target.endsWith('/pods')) {
+        const body = JSON.parse(String(init?.body)) as { args?: string; env?: { SCAN_MODEL?: string } };
+        createdArgs = body.args ?? '';
+        createdModel = body.env?.SCAN_MODEL ?? '';
+        return json({ id: 'pod_new', name: 'evnt-scan', status: 'PROVISIONING' });
+      }
+      if (target.endsWith('/pods/pod_new')) return json(runningPod('pod_new'));
+      if (target.includes('/v1/models')) return json({ data: [] });
+      return json({ title: target }, 500);
+    };
+    const chat = createRunpodChat(
+      { ...config, model: 'Qwen/Qwen3-32B-AWQ' },
+      { fetch: fetchImpl, sleep: async () => {} },
+    );
+
+    const ready = await chat.ensureReady();
+
+    expect(actions).toEqual(['terminate']);
+    expect(createdArgs).toContain('Qwen/Qwen3-32B-AWQ');
+    expect(createdModel).toBe('Qwen/Qwen3-32B-AWQ');
+    expect(ready.model).toBe('Qwen/Qwen3-32B-AWQ');
   });
 
   it('refuses a data center that has no network volumes', async () => {

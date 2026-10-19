@@ -141,7 +141,8 @@ calls) in the same change as every new major feature.**
   [Ollama](https://ollama.com) model (`ollama serve`, default `qwen3:8b`). `CHAT_PROVIDER=chatgpt`
   uses `OPENAI_API_KEY` (default `gpt-4.1-mini`). `CHAT_PROVIDER=claude` uses `ANTHROPIC_API_KEY`
   (default `claude-sonnet-5-5`). `CHAT_PROVIDER=runpod` starts one GPU pod
-  (`RUNPOD_API_KEY`, `RUNPOD_CHAT_KEY`), scans three events at a time, drains the queue,
+  (`RUNPOD_API_KEY`, `RUNPOD_CHAT_KEY`), serves `Qwen/Qwen3-32B-AWQ` with thinking turned off,
+  scans three events at a time, drains the queue,
   and stops the pod. The GPU bills only while that pod is running. The model weights stay on a
   network volume named `evnt-scan-models` in `CA-MTL-1`, and that volume keeps billing until it is deleted.
   `EU-SE-1` has no network volumes, so a volume cannot be created there.

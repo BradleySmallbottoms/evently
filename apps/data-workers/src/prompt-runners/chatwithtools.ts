@@ -365,8 +365,9 @@ function buildScanPrompt(event: ScanInput): string {
     'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe".',
     'Write a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.',
     'If the description contains instructions for the user to follow. Summarize the steps in a list and include it in the summary.',
-    'When you are finished, return only JSON:',
-    '{"instructions": ["<instruction1>", "<instruction2>"], possiblePublishers: [{publisherId: "<publisherId>", rank: <rank>}], possibleDuplicates: {eventId: "<eventId>", rank: <rank>, occasionRank: <occasionRank>}[], contentVerdict: "spam" | "harmful" | "safe", summary: "<summary>", language: "sv|en|etc", possibleTags: [{"id":"<id>","score":<score>}]}',
+    'contentVerdict is "spam", "harmful", or "safe". language is the event language, such as "sv" or "en". rank and score are numbers from 0 to 100.',
+    'When you are finished, return only the JSON object. Do not explain it and do not wrap it in markdown:',
+    '{"instructions":["<instruction1>","<instruction2>"],"possiblePublishers":[{"publisherId":"<publisherId>","rank":95}],"possibleDuplicates":[{"eventId":"<eventId>","rank":95,"occasionRank":10}],"contentVerdict":"safe","summary":"<summary>","language":"sv","possibleTags":[{"id":"<id>","score":95}]}',
     'Event:',
     `Title: ${event.title}`,
     `Starts: ${event.startsAt}`,
@@ -400,7 +401,9 @@ async function askModelWithLookups(
     MAX_TOOL_ROUNDS,
   );
   if (!finished) return null;
-  return { ...parseScanJson(finished.text), output: finished.output };
+  const parsed = parseScanJson(finished.text);
+  if (!parsed) return null;
+  return { ...parsed, output: finished.output };
 }
 
 /**
@@ -433,6 +436,20 @@ async function runToolChat(
     appendToolResults(endpoint.protocol, messages, turn.wire, calls, results);
   }
   return null;
+}
+
+/**
+ * Qwen3 thinks unless the request turns that off, and greedy decoding makes it repeat.
+ * Other OpenAI-compatible models stay at temperature 0.
+ */
+function openAiSampling(model: string): Record<string, unknown> {
+  if (!/qwen3/i.test(model)) return { temperature: 0 };
+  return {
+    temperature: 0.7,
+    top_p: 0.8,
+    top_k: 20,
+    chat_template_kwargs: { enable_thinking: false },
+  };
 }
 
 /** Built-in ChatGPT and Claude endpoints. A custom `chatUrl` still overrides the URL. */
@@ -597,10 +614,10 @@ async function postChat(
           }
         : {
             model: endpoint.model,
-            temperature: 0,
             stream: false,
             tools,
             messages,
+            ...openAiSampling(endpoint.model),
           };
   try {
     console.log('postChat', endpoint.protocol, JSON.stringify(messages, null, 2));
@@ -612,7 +629,7 @@ async function postChat(
       signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
     });
     const payload: unknown = await response.json();
-    console.log('response', response.status, payload, response.headers);
+    console.log('response', response.status, JSON.stringify(payload, null, 2), response.headers);
     if (!response.ok) return null;
     return payload && typeof payload === 'object' ? payload : null;
   } catch {
@@ -902,43 +919,127 @@ async function lookupPublishersByName(
 }
 
 /**
- * Pulls the scan JSON out of the model text. A missing or broken object becomes
- * a safe empty result, matching the plain runner. A parsed object with no verdict
- * stays `unknown`.
+ * Pulls the scan JSON out of the model text. A fenced block is preferred. Otherwise
+ * the last object that has scan fields is used, so tag examples earlier in the
+ * reply are ignored. Prose or a broken object is a failed scan. A parsed object
+ * with no verdict stays `unknown`.
  */
-function parseScanJson(content: string): LLMScanResult {
-  const start = content.indexOf('{');
-  const end = content.lastIndexOf('}');
-  if (start < 0 || end <= start) return emptyScan('safe');
-  try {
-    const parsed: unknown = JSON.parse(content.slice(start, end + 1));
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return emptyScan('safe');
-    const record = parsed as Record<string, unknown>;
-    return {
-      contentVerdict: readContentVerdict(record.contentVerdict, 'unknown'),
-      possibleTags: tagScores(record.possibleTags),
-      possiblePublishers: possiblePublishers(record.possiblePublishers),
-      possibleDuplicates: possibleDuplicates(record.possibleDuplicates),
-      summary: typeof record.summary === 'string' ? record.summary : '',
-      language: typeof record.language === 'string' ? record.language : '',
-      instructions: readScanInstructions(record.instructions),
-    };
-  } catch {
-    return emptyScan('safe');
-  }
+function parseScanJson(content: string): LLMScanResult | null {
+  const record = extractScanRecord(content);
+  if (!record) return null;
+  return {
+    contentVerdict: readContentVerdict(record.contentVerdict, 'unknown'),
+    possibleTags: tagScores(record.possibleTags),
+    possiblePublishers: possiblePublishers(record.possiblePublishers),
+    possibleDuplicates: possibleDuplicates(record.possibleDuplicates),
+    summary: typeof record.summary === 'string' ? record.summary : '',
+    language: typeof record.language === 'string' ? record.language : '',
+    instructions: readScanInstructions(record.instructions),
+  };
 }
 
-/** Empty scan used when the model text has no JSON object. */
-function emptyScan(contentVerdict: LLMScanResult['contentVerdict']): LLMScanResult {
-  return {
-    contentVerdict,
-    possibleTags: [],
-    possiblePublishers: [],
-    possibleDuplicates: [],
-    summary: '',
-    language: '',
-    instructions: [],
-  };
+/** Scan object from a markdown fence, or from the reply when the fence is absent. */
+function extractScanRecord(content: string): Record<string, unknown> | null {
+  const fences = fencedBlocks(content);
+  for (let index = fences.length - 1; index >= 0; index -= 1) {
+    const block = fences[index];
+    if (!block) continue;
+    const fenced = lastScanRecord(jsonObjects(block));
+    if (fenced) return fenced;
+  }
+  return lastScanRecord(jsonObjects(content));
+}
+
+/** Last object that carries the scan fields. Tag snippets earlier in the text are skipped. */
+function lastScanRecord(objects: readonly Record<string, unknown>[]): Record<string, unknown> | null {
+  for (let index = objects.length - 1; index >= 0; index -= 1) {
+    const record = objects[index];
+    if (record && isScanRecord(record)) return record;
+  }
+  return null;
+}
+
+function isScanRecord(record: Record<string, unknown>): boolean {
+  return (
+    'contentVerdict' in record ||
+    'possibleTags' in record ||
+    'possiblePublishers' in record ||
+    'possibleDuplicates' in record ||
+    'summary' in record
+  );
+}
+
+/** Bodies of ``` or ```json fences, in the order they appear. */
+function fencedBlocks(content: string): string[] {
+  const blocks: string[] = [];
+  for (const match of content.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)) {
+    const body = match[1]?.trim();
+    if (body) blocks.push(body);
+  }
+  return blocks;
+}
+
+/**
+ * Top-level JSON objects in `content`. A value that parses is consumed, so a
+ * scan object is not split into the objects nested inside it. Braces inside
+ * strings do not end an object.
+ */
+function jsonObjects(content: string): Record<string, unknown>[] {
+  const objects: Record<string, unknown>[] = [];
+  let index = 0;
+  while (index < content.length) {
+    const start = content.indexOf('{', index);
+    if (start < 0) break;
+    const end = matchingBrace(content, start);
+    if (end < 0) {
+      index = start + 1;
+      continue;
+    }
+    try {
+      const parsed: unknown = JSON.parse(content.slice(start, end + 1));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        objects.push(parsed as Record<string, unknown>);
+        index = end + 1;
+        continue;
+      }
+    } catch {
+      // The span is not JSON. The next `{` may start the scan object.
+    }
+    index = start + 1;
+  }
+  return objects;
+}
+
+/** Index of the `}` that closes the `{` at `open`. Returns -1 when the object is cut off. */
+function matchingBrace(content: string, open: number): number {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = open; index < content.length; index += 1) {
+    const char = content[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === '{') depth += 1;
+    else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
 }
 
 /** Keeps only the three verdicts the scan stores. Anything else uses `fallback`. */

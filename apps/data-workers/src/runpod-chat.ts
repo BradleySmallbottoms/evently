@@ -53,6 +53,8 @@ interface PodRecord {
   createdAt?: string;
   cost?: number;
   runtime?: { ports?: { private?: number }[] } | null;
+  /** Model this pod was started with. Missing on pods created before that label existed. */
+  env?: { SCAN_MODEL?: string };
 }
 
 interface VolumeRecord {
@@ -84,7 +86,7 @@ export function runpodChatConfigFromEnv(
     volumeName: env.RUNPOD_VOLUME_NAME?.trim() || 'evnt-scan-models',
     gpuId: env.RUNPOD_GPU?.trim() || 'NVIDIA A40',
     dataCenterId: env.RUNPOD_DATA_CENTER?.trim() || 'CA-MTL-1',
-    model: env.RUNPOD_MODEL?.trim() || 'Qwen/Qwen2.5-32B-Instruct-AWQ',
+    model: env.RUNPOD_MODEL?.trim() || 'Qwen/Qwen3-32B-AWQ',
     image: env.RUNPOD_IMAGE?.trim() || 'vllm/vllm-openai:v0.10.2',
     volumeGb,
     concurrency,
@@ -126,6 +128,10 @@ export function createRunpodChat(config: RunpodChatConfig, deps: RunpodDeps = {}
       const volumeId = await ensureVolume(api, config);
       const existing = await findPod(api, config.podName);
       let pod = existing;
+      if (pod && pod.env?.SCAN_MODEL !== config.model) {
+        await api(`/pods/${pod.id}/action`, { method: 'POST', body: { action: 'terminate' } });
+        pod = null;
+      }
       if (!pod) pod = await createPod(api, config, volumeId);
       else if (pod.status === 'EXITED' || pod.status === 'ERROR') {
         const started = await api(`/pods/${pod.id}/action`, { method: 'POST', body: { action: 'start' } });
@@ -242,7 +248,7 @@ async function createPod(
       image: config.image,
       ports: [`${CHAT_PORT}/http`],
       disk: 40,
-      env: { HF_HOME: '/models', HUGGING_FACE_HUB_CACHE: '/models' },
+      env: { HF_HOME: '/models', HUGGING_FACE_HUB_CACHE: '/models', SCAN_MODEL: config.model },
       args: JSON.stringify({
         entrypoint: ['vllm', 'serve'],
         cmd: [
@@ -344,6 +350,7 @@ function asPod(value: unknown): PodRecord | null {
     status: body.status as PodStatus,
     ...(typeof body.createdAt === 'string' ? { createdAt: body.createdAt } : {}),
     ...(typeof body.cost === 'number' ? { cost: body.cost } : {}),
+    ...(scanModel(body.env) ? { env: { SCAN_MODEL: scanModel(body.env) } } : {}),
     runtime: ports
       ? {
           ports: ports.flatMap((port) => {
@@ -361,6 +368,12 @@ function asVolume(value: unknown): VolumeRecord | null {
     return null;
   }
   return { id: body.id, name: body.name, dataCenter: body.dataCenter };
+}
+
+function scanModel(value: unknown): string | undefined {
+  const env = record(value);
+  const model = env?.SCAN_MODEL;
+  return typeof model === 'string' && model.trim() ? model : undefined;
 }
 
 function record(value: unknown): Record<string, unknown> | null {

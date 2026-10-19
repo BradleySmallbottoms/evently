@@ -264,10 +264,10 @@ Purpose: make it easy to find something appealing with minimal effort.
 
 Recommended order: 1. Greeting or concise screen title. 2. Current
 location selector. 3. Search field. 4. Category circles: Music, Sports, Culture, Family,
-Holidays, and Other, in one row. More stays pinned on the right. More wraps
-every circle into a grid, and the last cell is Fewer. A circle selects or
-clears that whole group. Under the grid, each group opens so individual tags
-can be chosen. The chosen tags stay on the device. 5. Featured
+Holidays, and Other, in one row. More stays pinned on the right and opens a
+sheet. The title and groups sit at the top. Each group opens so individual tags
+can be chosen. A button at the bottom shows the events.
+A circle selects or clears that whole group. The chosen tags stay on the device. 5. Featured
 event cards. The photo keeps the date badge and the save control. A light
 panel overlaps the bottom of the photo and shows the category, the title,
 a two-line description, the date span, and the place. The badge is the next

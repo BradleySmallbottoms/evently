@@ -238,6 +238,68 @@ describe('createOllamaWithToolsPromptRunner', () => {
     });
   });
 
+  it('reads the scan object when the model wraps it in prose and a markdown fence', async () => {
+    const store = storeWithNearbyRows();
+    const wrapped = [
+      'Based on the information gathered:',
+      '',
+      '- The event is a night trail run organized by Johannes Tyve.',
+      '- Nearby events were checked, but none matched the criteria for a duplicate.',
+      '',
+      'Possible Tags:',
+      '- {"id":"visit-soderhamn:30194","name":"Bandy & Innebandy"}',
+      '- {"id":"visit-soderhamn:56387","name":"Höstlov"}',
+      '',
+      'JSON Response:',
+      '```json',
+      '{',
+      '  "possiblePublishers": [],',
+      '  "possibleDuplicates": [],',
+      '  "contentVerdict": "safe",',
+      '  "summary": "Night Trail Run {kväll} i skogen.",',
+      '  "language": "sv",',
+      '  "possibleTags": [',
+      '    {"id":"visit-soderhamn:30194","score":100},',
+      '    {"id":"visit-soderhamn:56387","score":100}',
+      '  ]',
+      '}',
+      '```',
+    ].join('\n');
+    const { fetchImpl } = scriptedFetch([answer(wrapped)]);
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+
+    const [outcome] = await runner.scan([scanInput]);
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      contentVerdict: 'safe',
+      summary: 'Night Trail Run {kväll} i skogen.',
+      language: 'sv',
+      tags: [{ externalId: 'visit-soderhamn:30194', name: 'Bandy & Innebandy' }],
+      duplicate: null,
+      publisher: { kind: 'temporary', name: 'Föreningen' },
+    });
+  });
+
+  it('reads a scan object that follows other JSON in the reply', async () => {
+    const store = storeWithNearbyRows();
+    const wrapped =
+      'Tags:\n- {"id":"visit-soderhamn:30194","name":"Bandy & Innebandy"}\n' +
+      '{"contentVerdict":"harmful","summary":"Musik","language":"en","possibleTags":[{"id":"visit-soderhamn:30194","score":95}]}';
+    const { fetchImpl } = scriptedFetch([answer(wrapped)]);
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+
+    const [outcome] = await runner.scan([scanInput]);
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      contentVerdict: 'harmful',
+      summary: 'Musik',
+      language: 'en',
+      tags: [{ externalId: 'visit-soderhamn:30194', name: 'Bandy & Innebandy' }],
+    });
+  });
+
   it('skips a publisher id that is not a uuid', async () => {
     const store = storeWithNearbyRows();
     const lookedUp: string[] = [];
@@ -354,6 +416,28 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(rejected?.content).not.toContain('Hälsinglands museum');
   });
 
+  it('leaves the scan unavailable when the reply is prose without a scan object', async () => {
+    const store = createMemoryIngestStore();
+    const { fetchImpl } = scriptedFetch([
+      answer('The event looks safe. Summary: a concert. No JSON follows.'),
+    ]);
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+
+    const [outcome] = await runner.scan([scanInput]);
+
+    expect(outcome).toEqual({ ok: false, eventId, reason: 'unavailable' });
+  });
+
+  it('leaves the scan unavailable when the reply JSON is not a scan object', async () => {
+    const store = createMemoryIngestStore();
+    const { fetchImpl } = scriptedFetch([answer('{"id":"visit-soderhamn:30194","name":"Bandy"}')]);
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+
+    const [outcome] = await runner.scan([scanInput]);
+
+    expect(outcome).toEqual({ ok: false, eventId, reason: 'unavailable' });
+  });
+
   it('leaves the scan unavailable when the model reply has no text', async () => {
     const store = createMemoryIngestStore();
     const { fetchImpl } = scriptedFetch([{ role: 'assistant' }]);
@@ -439,6 +523,47 @@ describe('createOllamaWithToolsPromptRunner', () => {
       summary: 'Musik i Helsingehus',
       tags: [{ externalId: 'visit-soderhamn:30194', name: 'Bandy & Innebandy' }],
     });
+  });
+
+  it('turns thinking off when the model is Qwen3', async () => {
+    const store = createMemoryIngestStore();
+    let body: { temperature?: number; top_p?: number; top_k?: number; chat_template_kwargs?: { enable_thinking?: boolean } } = {};
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      body = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                role: 'assistant',
+                content: JSON.stringify({
+                  contentVerdict: 'safe',
+                  summary: 'Musik',
+                  language: 'sv',
+                  possibleTags: [],
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    };
+    const runner = createOllamaWithToolsPromptRunner(store, {
+      fetch: fetchImpl,
+      config: {
+        chatUrl: 'https://pod.example/v1/chat/completions',
+        chatModel: 'Qwen/Qwen3-32B-AWQ',
+        chatAuth: 'test-key',
+      },
+    });
+
+    await runner.scan([scanInput]);
+
+    expect(body.temperature).toBe(0.7);
+    expect(body.top_p).toBe(0.8);
+    expect(body.top_k).toBe(20);
+    expect(body.chat_template_kwargs).toEqual({ enable_thinking: false });
   });
 
   it('calls Claude with an API key and sends tool results as tool_result blocks', async () => {
