@@ -268,10 +268,14 @@ export default function EventsScreen() {
               <MonthStrip
                 year={month.y}
                 month={month.m}
+                earliest={{ y: today.y, m: today.m }}
                 locale={locale}
                 yearLabel={t('events.calendar.year')}
                 onYear={(year) => {
-                  setMonth((current) => ({ ...current, y: year }));
+                  setMonth((current) => {
+                    if (year === today.y && current.m < today.m) return { y: year, m: today.m };
+                    return { ...current, y: year };
+                  });
                   setQuick(null);
                 }}
                 onMonth={(year, next) => {

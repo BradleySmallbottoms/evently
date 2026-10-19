@@ -1,4 +1,4 @@
-const ZONE = 'Europe/Stockholm';
+export const ZONE = 'Europe/Stockholm';
 
 /** A calendar day. `m` is 1–12. */
 export type DayStamp = { y: number; m: number; d: number };
@@ -136,7 +136,7 @@ export function monthGrid(year: number, month: number): DayStamp[] {
   return cells;
 }
 
-function capitalize(value: string): string {
+export function capitalize(value: string): string {
   return value.length === 0 ? value : value.charAt(0).toUpperCase() + value.slice(1);
 }
 
@@ -164,19 +164,6 @@ export function formatMonthYear(year: number, month: number, locale: string): st
       zonedDate({ y: year, m: month, d: 1 }, false),
     ),
   );
-}
-
-export function formatMonthChip(
-  year: number,
-  month: number,
-  locale: string,
-  selectedYear: number,
-): string {
-  const text = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: ZONE })
-    .format(zonedDate({ y: year, m: month, d: 1 }, false))
-    .replace('.', '');
-  const label = capitalize(text);
-  return year === selectedYear ? label : `${label} ${year}`;
 }
 
 export function formatRangeShort(from: DayStamp, to: DayStamp, locale: string): string {
