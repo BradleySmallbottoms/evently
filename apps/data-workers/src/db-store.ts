@@ -13,8 +13,8 @@ import {
   slugifyPublisherName,
   tagSlug,
 } from '@local-events/domain';
-import { and, asc, count, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, sql } from 'drizzle-orm';
-import { type EventRecord, type PublisherRecord, NEARBY_RADIUS_M, PUBLISHER_NAME_SEARCH_RADIUS_M, publisherNameMatcher, type ImportedEventWrite, type IngestStore, type PendingScanRow, type ScanPublisherCandidate, type NearbyPublisherHit, type NearbyEventHit, NEARBY_RESULT_LIMIT, type PublisherLink } from './store';
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, sql } from 'drizzle-orm';
+import { type EventRecord, type PublisherRecord, NEARBY_RADIUS_M, PUBLISHER_NAME_SEARCH_RADIUS_M, publisherNameMatcher, type ImportedEventWrite, type IngestStore, type PendingPublisherRow, type PendingScanRow, type ScanPublisherCandidate, type NearbyPublisherHit, type NearbyEventHit, NEARBY_RESULT_LIMIT, type PublisherLink } from './store';
 import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
 
 function eventValues(input: ImportedEventWrite) {
@@ -148,7 +148,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           sourceId: publisherAliases.sourceId,
           publisherId: publisherAliases.publisherId,
           isTemporary: publishers.isTemporary,
-          verified: publishers.verified,
+          status: publishers.status,
           importNotificationPlan: publishers.importNotificationPlan,
           createdAt: publishers.createdAt,
           publisherName: publishers.name,
@@ -165,7 +165,7 @@ export function createDbIngestStore(db: Db): IngestStore {
               name: publishers.name,
               slug: publishers.slug,
               isTemporary: publishers.isTemporary,
-              verified: publishers.verified,
+              status: publishers.status,
               importNotificationPlan: publishers.importNotificationPlan,
               createdAt: publishers.createdAt,
               publisherName: publishers.name,
@@ -207,7 +207,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         publisherId: row.publisherId,
         sourceId: row.sourceId,
         key: row.organizerKey,
-        verified: row.verified,
+        status: row.status,
         createdAt: row.createdAt.getTime(),
         distanceMeters: nearIds.has(row.publisherId) ? nearIds.get(row.publisherId) ?? -1 : -1,
         isTemporary: row.isTemporary,
@@ -227,7 +227,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           publisherId: publisher.publisherId,
           sourceId: null,
           key: nameKey,
-          verified: publisher.verified,
+          status: publisher.status,
           createdAt: publisher.createdAt.getTime(),
           distanceMeters: nearIds.has(publisher.publisherId) ? nearIds.get(publisher.publisherId) ?? -1 : -1,
           isTemporary: publisher.isTemporary,
@@ -255,7 +255,7 @@ export function createDbIngestStore(db: Db): IngestStore {
       return {
         publisherId: match.publisherId,
         isTemporary: match.isTemporary,
-        verified: match.verified,
+        status: match.status,
         importNotificationPlan: match.importNotificationPlan,
       };
     },
@@ -268,7 +268,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             type: 'org',
             name: input.name.slice(0, 200),
             slug,
-            verified: false,
+            status: 'pending_scan',
             origin: 'imported',
             isTemporary: true,
           })
@@ -287,7 +287,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         return {
           publisherId: publisher.id,
           isTemporary: true,
-          verified: false,
+          status: 'pending_scan',
           importNotificationPlan: null,
         };
       });
@@ -849,7 +849,7 @@ export function createDbIngestStore(db: Db): IngestStore {
       }).from(publisherAliases).where(eq(publisherAliases.publisherId, publisherId));
       return {
         id: row.id,
-        verified: row.verified,
+        status: row.status,
         createdAt: row.createdAt.getTime(),
         isTemporary: row.isTemporary,
         importNotificationPlan: row.importNotificationPlan,
@@ -878,7 +878,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         .selectDistinctOn([publishers.id], {
           id: publishers.id,
           name: publishers.name,
-          verified: publishers.verified,
+          status: publishers.status,
           temporary: publishers.isTemporary,
           nearestEventTitle: events.title,
           distanceM: distance,
@@ -905,7 +905,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         const hit: NearbyPublisherHit = {
           id: row.id,
           name: row.name,
-          verified: row.verified,
+          status: row.status,
           temporary: row.temporary,
           nearestEventTitle: row.nearestEventTitle,
           distanceM: Math.round(Number(row.distanceM)),
@@ -930,7 +930,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         .selectDistinctOn([publishers.id], {
           id: publishers.id,
           name: publishers.name,
-          verified: publishers.verified,
+          status: publishers.status,
           temporary: publishers.isTemporary,
           nearestEventTitle: events.title,
           distanceM: distance,
@@ -957,7 +957,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         const hit: NearbyPublisherHit = {
           id: row.id,
           name: row.name,
-          verified: row.verified,
+          status: row.status,
           temporary: row.temporary,
           nearestEventTitle: row.nearestEventTitle,
           distanceM: Math.round(Number(row.distanceM)),
@@ -1007,6 +1007,128 @@ export function createDbIngestStore(db: Db): IngestStore {
         await writeTags(tx, input.eventId, input.tagIds);
         return true;
       });
+    },
+    async countPendingPublisherScans(publisherId) {
+      const now = new Date();
+      const [row] = await db
+        .select({ n: count() })
+        .from(publishers)
+        .where(
+          and(
+            eq(publishers.status, 'pending_scan'),
+            or(isNull(publishers.scanClaimedUntil), lt(publishers.scanClaimedUntil, now)),
+            ...(publisherId ? [eq(publishers.id, publisherId)] : []),
+          ),
+        );
+      return Number(row?.n ?? 0);
+    },
+    async claimPendingPublisherScans(limit, leaseMs, publisherId, skipPublisherIds) {
+      const now = new Date();
+      const until = new Date(now.getTime() + leaseMs);
+      const skip = skipPublisherIds?.filter((id) => id.length > 0) ?? [];
+      return db.transaction(async (tx) => {
+        const ids = await tx
+          .select({ id: publishers.id })
+          .from(publishers)
+          .where(
+            and(
+              eq(publishers.status, 'pending_scan'),
+              or(isNull(publishers.scanClaimedUntil), lt(publishers.scanClaimedUntil, now)),
+              ...(publisherId ? [eq(publishers.id, publisherId)] : []),
+              ...(skip.length > 0 ? [notInArray(publishers.id, skip)] : []),
+            ),
+          )
+          .orderBy(asc(publishers.createdAt))
+          .limit(publisherId ? 1 : limit)
+          .for('update', { skipLocked: true });
+        if (ids.length === 0) return [];
+        const idList = ids.map((row) => row.id);
+        await tx.update(publishers).set({ scanClaimedUntil: until }).where(inArray(publishers.id, idList));
+        const rows = await tx
+          .select({
+            id: publishers.id,
+            name: publishers.name,
+          })
+          .from(publishers)
+          .where(inArray(publishers.id, idList));
+        const aliasRows = await tx
+          .select({
+            publisherId: publisherAliases.publisherId,
+            key: publisherAliases.externalOrganizerKey,
+          })
+          .from(publisherAliases)
+          .where(inArray(publisherAliases.publisherId, idList));
+        const pending: PendingPublisherRow[] = [];
+        for (const id of idList) {
+          const row = rows.find((item) => item.id === id);
+          if (!row) continue;
+          const [event] = await tx
+            .select({
+              title: events.title,
+              description: events.description,
+              venueName: events.venueName,
+              sourceUrl: events.sourceUrl,
+              lat: sql<number | null>`ST_Y(${events.location}::geometry)`,
+              lng: sql<number | null>`ST_X(${events.location}::geometry)`,
+              sourceId: dataSources.id,
+              sourceSlug: dataSources.slug,
+            })
+            .from(events)
+            .leftJoin(externalRefs, eq(externalRefs.eventId, events.id))
+            .leftJoin(dataSources, eq(dataSources.id, externalRefs.sourceId))
+            .where(eq(events.publisherId, id))
+            .orderBy(desc(events.createdAt))
+            .limit(1);
+          pending.push({
+            publisherId: row.id,
+            name: row.name,
+            organizerKeys: aliasRows.filter((alias) => alias.publisherId === id).map((alias) => alias.key),
+            claimedUntil: until,
+            sourceId: event?.sourceId ?? null,
+            sourceSlug: event?.sourceSlug ?? null,
+            title: event?.title ?? null,
+            description: event?.description ?? null,
+            venueName: event?.venueName ?? null,
+            location:
+              event?.lat == null || event?.lng == null ? null : { lat: event.lat, lng: event.lng },
+            sourceUrl: event?.sourceUrl ?? null,
+          });
+        }
+        return pending;
+      });
+    },
+    async releasePublisherScanClaim(publisherId, claimedUntil) {
+      await db
+        .update(publishers)
+        .set({ scanClaimedUntil: null })
+        .where(
+          and(
+            eq(publishers.id, publisherId),
+            eq(publishers.status, 'pending_scan'),
+            eq(publishers.scanClaimedUntil, claimedUntil),
+          ),
+        );
+    },
+    async finishPublisherScan(input) {
+      const lookupSql = input.lookup
+        ? sql`jsonb_set(COALESCE(${publishers.meta}, '{}'::jsonb), '{lookup}', ${JSON.stringify(input.lookup)}::jsonb, true)`
+        : undefined;
+      const updated = await db
+        .update(publishers)
+        .set({
+          status: 'in_review',
+          scanClaimedUntil: null,
+          ...(lookupSql ? { meta: lookupSql } : {}),
+        })
+        .where(
+          and(
+            eq(publishers.id, input.publisherId),
+            eq(publishers.status, 'pending_scan'),
+            eq(publishers.scanClaimedUntil, input.claimedUntil),
+          ),
+        )
+        .returning({ id: publishers.id });
+      return updated.length > 0;
     },
   };
   return store;

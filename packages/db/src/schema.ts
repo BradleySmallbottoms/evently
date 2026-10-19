@@ -55,6 +55,16 @@ export const eventStatus = pgEnum('event_status', [
 export const contentVerdict = pgEnum('content_verdict', ['safe', 'harmful', 'spam', 'unknown']);
 export const origin = pgEnum('origin', ['native', 'imported']);
 export const publisherType = pgEnum('publisher_type', ['org', 'person']);
+/**
+ * `pending_scan` waits for the publisher lookup.
+ * `in_review` is looked up or registered and waiting for an admin.
+ * `published` is accepted.
+ */
+export const publisherStatus = pgEnum('publisher_status', [
+  'pending_scan',
+  'in_review',
+  'published',
+]);
 /** Marketing plan used for script-imported events. Null means no notifications. */
 export const importNotificationPlan = pgEnum('import_notification_plan', [
   'single',
@@ -245,7 +255,9 @@ export const publishers = pgTable(
     type: publisherType('type').notNull(),
     name: text('name').notNull(),
     slug: text('slug').notNull(),
-    verified: boolean('verified').notNull().default(false),
+    status: publisherStatus('status').notNull().default('in_review'),
+    /** Lease for the publisher lookup job. Null when the row is not claimed. */
+    scanClaimedUntil: timestamp('scan_claimed_until', { withTimezone: true }),
     origin: origin('origin').notNull().default('native'),
     isTemporary: boolean('is_temporary').notNull().default(false),
     /** Null: do not notify about script-imported events. Otherwise a marketing plan id. */
@@ -258,7 +270,10 @@ export const publishers = pgTable(
     meta: jsonb('meta').$type<PublisherMeta>().notNull().default({}),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex('publishers_slug_idx').on(t.slug)],
+  (t) => [
+    uniqueIndex('publishers_slug_idx').on(t.slug),
+    index('publishers_status_created_at_idx').on(t.status, t.createdAt),
+  ],
 );
 
 export const publisherMembers = pgTable(

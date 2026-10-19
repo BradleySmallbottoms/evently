@@ -264,7 +264,7 @@ export function createMemoryEventServices(
 
       row.status = statusOnPublish({
         origin: 'native',
-        publisherVerified: access.publisherVerified,
+        publisherStatus: access.publisherStatus,
       });
       row.updatedAt = now.toISOString();
       if (shouldEnqueueNotifications(row.status)) {
@@ -406,6 +406,6 @@ export function releaseAwaitingEventsInStore(
     }
   }
   const publisher = store.publishers.get(publisherId);
-  if (publisher) publisher.verified = true;
+  if (publisher) publisher.status = 'published';
   return released;
 }

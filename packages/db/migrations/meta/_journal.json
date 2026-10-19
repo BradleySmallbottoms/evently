@@ -351,6 +351,13 @@
       "when": 1794400000008,
       "tag": "0049_ordinary_runaways",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1794400000009,
+      "tag": "0050_wealthy_agent_zero",
+      "breakpoints": true
     }
   ]
 }

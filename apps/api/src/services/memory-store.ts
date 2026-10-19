@@ -48,7 +48,7 @@ export type MemoryPublisher = {
   type: 'org' | 'person';
   name: string;
   slug: string;
-  verified: boolean;
+  status: 'pending_scan' | 'in_review' | 'published';
   origin: 'native' | 'imported';
   createdAt: Date;
 };

@@ -887,7 +887,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       if (!updated[0]) return null;
       const [publisher] = await db
         .select({
-          verified: schema.publishers.verified,
+          status: schema.publishers.status,
           importNotificationPlan: schema.publishers.importNotificationPlan,
         })
         .from(schema.publishers)
@@ -895,7 +895,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .limit(1);
       const approvedPlan = publisher
         ? importPlanToSchedule({
-            publisherVerified: publisher.verified,
+            publisherStatus: publisher.status,
             planId: publisher.importNotificationPlan,
           })
         : null;
@@ -1136,7 +1136,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       ) {
         const [publisher] = await db
           .select({
-            verified: schema.publishers.verified,
+            status: schema.publishers.status,
             importNotificationPlan: schema.publishers.importNotificationPlan,
           })
           .from(schema.publishers)
@@ -1145,7 +1145,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         const editedPlan =
           existing.origin === 'imported' && nextStatus === 'published' && publisher
             ? importPlanToSchedule({
-                publisherVerified: publisher.verified,
+                publisherStatus: publisher.status,
                 planId: publisher.importNotificationPlan,
               })
             : null;
@@ -1165,7 +1165,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           await upsertEventPushDraft(db, {
             eventId,
             eventTitle: body.title ?? existing.title,
-            publisherVerified: publisher?.verified ?? false,
+            publisherStatus: publisher?.status ?? 'in_review',
             origin: existing.origin,
             now: at,
           });

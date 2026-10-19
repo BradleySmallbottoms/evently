@@ -76,7 +76,7 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
         name: publishers.name,
         slug: publishers.slug,
         type: publishers.type,
-        verified: publishers.verified,
+        status: publishers.status,
         role: publisherMembers.role,
       })
       .from(publisherMembers)
@@ -247,7 +247,7 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
               type: input.type,
               name: input.name,
               slug,
-              verified: false,
+              status: 'in_review',
               origin: 'native',
               isTemporary: false,
             })
@@ -527,7 +527,7 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
       const [membership] = await db
         .select({
           role: publisherMembers.role,
-          verified: publishers.verified,
+          status: publishers.status,
         })
         .from(publisherMembers)
         .innerJoin(publishers, eq(publishers.id, publisherMembers.publisherId))
@@ -542,7 +542,7 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
       return {
         accountId: account.accountId,
         role: membership.role,
-        publisherVerified: membership.verified,
+        publisherStatus: membership.status,
       };
     },
 
@@ -592,7 +592,7 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
           name: publishers.name,
           slug: publishers.slug,
           type: publishers.type,
-          verified: publishers.verified,
+          status: publishers.status,
           origin: publishers.origin,
         })
         .from(publishers)

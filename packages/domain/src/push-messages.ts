@@ -1,4 +1,5 @@
 import { eventNotificationCopy, type NotificationReason } from './notifications';
+import { publisherIsPublished, type PublisherStatus } from './types';
 
 /** Defer delivery when another matching message is due within this window. */
 export const PUSH_AGGREGATION_WINDOW_MS = 10 * 60 * 1000;
@@ -21,9 +22,9 @@ export function isOpenPushMessageStatus(status: PushMessageStatus): boolean {
   return (OPEN_PUSH_MESSAGE_STATUSES as readonly string[]).includes(status);
 }
 
-/** Trusted native publishers and mapped auto_publish imports skip admin approval. */
+/** Accepted native publishers and mapped auto_publish imports skip admin approval. */
 export function shouldAutoApprovePushMessage(input: {
-  publisherVerified: boolean;
+  publisherStatus: PublisherStatus;
   origin: 'native' | 'imported';
   sourceTrust?: 'auto_publish' | 'review';
   publisherIsTemporary?: boolean;
@@ -32,7 +33,7 @@ export function shouldAutoApprovePushMessage(input: {
     if (input.publisherIsTemporary) return false;
     return input.sourceTrust === 'auto_publish';
   }
-  return input.publisherVerified;
+  return publisherIsPublished(input.publisherStatus);
 }
 
 export function initialPushMessageStatus(autoApprove: boolean): 'pending' | 'approved' {
@@ -173,14 +174,14 @@ export function importNotificationMessages(input: {
 }
 
 /**
- * The plan to schedule, or null when the publisher is unverified or no plan is chosen.
+ * The plan to schedule, or null when the publisher is not published or no plan is chosen.
  * Script imports are notified only in that first case.
  */
 export function importPlanToSchedule(input: {
-  publisherVerified: boolean;
+  publisherStatus: PublisherStatus;
   planId: MarketingPushPlanId | null;
 }): MarketingPushPlanId | null {
-  if (!input.publisherVerified || input.planId === null) return null;
+  if (!publisherIsPublished(input.publisherStatus) || input.planId === null) return null;
   return marketingPushPlan(input.planId) ? input.planId : null;
 }
 

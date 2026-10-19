@@ -21,10 +21,19 @@ type PublisherRow = {
   name: string;
   slug: string;
   type: string;
-  verified: boolean;
+  status: 'pending_scan' | 'in_review' | 'published';
   origin: string;
   createdAt: string;
 };
+
+function statusLabel(
+  t: (key: 'statusPendingScan' | 'statusInReview' | 'statusPublished') => string,
+  status: PublisherRow['status'],
+): string {
+  if (status === 'pending_scan') return t('statusPendingScan');
+  if (status === 'in_review') return t('statusInReview');
+  return t('statusPublished');
+}
 
 export function PublisherCatalog() {
   const t = useTranslations('PublisherCatalog');
@@ -81,7 +90,7 @@ export function PublisherCatalog() {
     a.name.localeCompare(b.name, locale, { sensitivity: 'base' }),
   );
   const selectedIds = [...selected].filter((id) => items.some((item) => item.id === id));
-  const canVerify = items.some((item) => selected.has(item.id) && !item.verified);
+  const canVerify = items.some((item) => selected.has(item.id) && item.status !== 'published');
   const allSelected = items.length > 0 && selectedIds.length === items.length;
   const someSelected = selectedIds.length > 0 && !allSelected;
   const busy = verify.isPending || bulkVerify.isPending;
@@ -142,7 +151,7 @@ export function PublisherCatalog() {
                 setBulkError(false);
                 bulkVerify.mutate(
                   items
-                    .filter((item) => selected.has(item.id) && !item.verified)
+                    .filter((item) => selected.has(item.id) && item.status !== 'published')
                     .map((item) => item.id),
                 );
               }}
@@ -174,7 +183,7 @@ export function PublisherCatalog() {
               <TableCell>{t('name')}</TableCell>
               <TableCell>{t('slug')}</TableCell>
               <TableCell>{t('origin')}</TableCell>
-              <TableCell>{t('verified')}</TableCell>
+              <TableCell>{t('status')}</TableCell>
               <TableCell align="right">{t('actions')}</TableCell>
             </TableRow>
           </TableHead>
@@ -194,13 +203,13 @@ export function PublisherCatalog() {
                 </TableCell>
                 <TableCell>{item.slug}</TableCell>
                 <TableCell>{item.origin}</TableCell>
-                <TableCell>{item.verified ? '✓' : '—'}</TableCell>
+                <TableCell>{statusLabel(t, item.status)}</TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
                     <Button component={Link} href={`/publishers/${item.id}`} size="small">
                       {t('edit')}
                     </Button>
-                    {!item.verified ? (
+                    {item.status !== 'published' ? (
                       <Button size="small" disabled={busy} onClick={() => verify.mutate(item.id)}>
                         {t('verify')}
                       </Button>

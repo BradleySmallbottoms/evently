@@ -140,7 +140,7 @@ export function createDbPublisherPushMessageServices(
         return await createEventPushDraft(db, {
           eventId,
           eventTitle: event.title,
-          publisherVerified: access.publisherVerified,
+          publisherStatus: access.publisherStatus,
           origin: event.origin,
           copyOverride:
             body.titleSv || body.bodySv || body.titleEn || body.bodyEn

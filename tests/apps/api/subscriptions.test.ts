@@ -41,7 +41,7 @@ async function registerVerifiedPublisher(app: ReturnType<typeof createApp>, stor
   });
   const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0]!;
   expect(cookie).toContain(PUBLISHER_SESSION_COOKIE);
-  store.publishers.get(reg.publisherId)!.verified = true;
+  store.publishers.get(reg.publisherId)!.status = 'published';
   return { publisherId: reg.publisherId, cookie };
 }
 

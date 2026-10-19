@@ -61,10 +61,10 @@ export function createMemoryPublisherPushMessageServices(
     async create({ sessionToken, eventId, body }) {
       const event = store.events.get(eventId);
       if (!event) throw new EventError('not_found');
-      let verified = false;
+      let publisherStatus: 'pending_scan' | 'in_review' | 'published' = 'in_review';
       try {
         const access = await auth.requirePublisherMember(sessionToken, event.publisherId);
-        verified = access.publisherVerified;
+        publisherStatus = access.publisherStatus;
       } catch (err) {
         if (err instanceof AuthError) throw new EventError('unauthorized');
         throw err;
@@ -80,7 +80,7 @@ export function createMemoryPublisherPushMessageServices(
       const defaults = defaultPushMessageCopy(event.title);
       const status = initialPushMessageStatus(
         shouldAutoApprovePushMessage({
-          publisherVerified: verified,
+          publisherStatus,
           origin: event.origin,
         }),
       );

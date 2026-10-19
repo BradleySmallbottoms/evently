@@ -4,7 +4,7 @@ import { choosePossibleOccasionGroupId, statusAfterImportScan } from '../../../p
 describe('statusAfterImportScan', () => {
   const ready = {
     approved: true,
-    publisherVerified: true,
+    publisherStatus: 'published' as const,
     publisherIsTemporary: false,
     sourceTrust: 'auto_publish' as const,
     possibleDuplicate: false,
@@ -14,8 +14,9 @@ describe('statusAfterImportScan', () => {
     expect(statusAfterImportScan(ready)).toBe('published');
   });
 
-  it('keeps an unverified publisher in review', () => {
-    expect(statusAfterImportScan({ ...ready, publisherVerified: false })).toBe('in_review');
+  it('keeps a publisher that is not published in review', () => {
+    expect(statusAfterImportScan({ ...ready, publisherStatus: 'in_review' })).toBe('in_review');
+    expect(statusAfterImportScan({ ...ready, publisherStatus: 'pending_scan' })).toBe('in_review');
   });
 
   it('keeps a temporary publisher in review', () => {

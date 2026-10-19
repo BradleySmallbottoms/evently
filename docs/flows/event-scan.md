@@ -26,11 +26,8 @@ the scan lock. `--event` and `--limit` still scan one batch.
 For each event the Ollama runner:
 
 1. Loads publisher candidates and chooses one from alias, email, website, and nearby name, or
-   asks the worker to create a temporary publisher. A new temporary publisher runs a second
-   prompt that may call `searchWeb` and `fetchPage`. The returned profile is stored on
-   `publishers.meta.lookup`. A website from a page that was fetched is also stored as an
-   organizer key. That prompt runs only when `BRAVE_API_KEY` is set. A failed
-   lookup leaves the temporary publisher as it is.
+   asks the worker to create a temporary publisher. A new temporary publisher is `pending_scan`.
+   The event scan does not look it up. The publisher scan does that later.
 2. Loads nearby events and looks for a duplicate (distance, 30 minutes, then id, event link, any
    link, or title).
 3. Approves the content. This step always approves until a later prompt can reject harmful, spam,
@@ -49,11 +46,11 @@ when none is set. Public responses omit the field.
 | --- | --- |
 | Possible duplicate | `in_review` |
 | Content scan does not approve | `in_review` |
-| Temporary publisher, unverified publisher, or source trust `review` | `in_review` |
-| Approved, verified, not temporary, source trust `auto_publish` | `published` |
+| Temporary publisher, publisher that is not `published`, or source trust `review` | `in_review` |
+| Approved, publisher status `published`, not temporary, source trust `auto_publish` | `published` |
 
 `published` enqueues `event.published` and schedules the publisher's import reminders as approved.
-`in_review` schedules those reminders as pending when the publisher is verified and a plan is set.
+`in_review` schedules those reminders as pending when the publisher status is `published` and a plan is set.
 A model failure releases the lease and leaves that row `pending_scan`. The other rows in the batch
 still finish. An admin can send an imported `in_review` event back with `POST /v1/events/{id}/rescan`.
 That sets `pending_scan`, clears the scan lease, and cancels open reminders so the next run can claim it.
@@ -73,11 +70,6 @@ sequenceDiagram
   Job->>Runner: scan(batch, three at a time on the pod)
   Runner->>DB: load publisher and duplicate candidates
   Runner-->>Job: publisher, duplicate, approval, tags
-  alt new temporary publisher
-    Job->>Runner: lookupPublisher
-    Runner->>Runner: searchWeb and fetchPage
-    Job->>DB: store the profile on publishers.meta.lookup and a fetched website as an organizer key
-  end
   Job->>DB: set publisher, tags, in_review or published
   Job->>DB: enqueue event.published when published
   alt CHAT_PROVIDER=runpod

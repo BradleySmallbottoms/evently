@@ -67,7 +67,7 @@ describe('publisher profile + invites', () => {
       id: owner.publisherId,
       name: 'Café Söderhamn',
       role: 'owner',
-      verified: false,
+      status: 'in_review',
     });
 
     const patched = await app.request(`/v1/publishers/${owner.publisherId}`, {

@@ -59,7 +59,7 @@ export function createMemoryAuthServices(
           name: p.name,
           slug: p.slug,
           type: p.type,
-          verified: p.verified,
+          status: p.status,
           role: m.role,
         };
       })
@@ -192,7 +192,7 @@ export function createMemoryAuthServices(
         type: input.type,
         name: input.name,
         slug,
-        verified: false,
+        status: 'in_review',
         origin: 'native',
         createdAt: now,
       });
@@ -428,7 +428,7 @@ export function createMemoryAuthServices(
       return {
         accountId: account.id,
         role: membership.role,
-        publisherVerified: publisher.verified,
+        publisherStatus: publisher.status,
       };
     },
 
@@ -470,7 +470,7 @@ export function createMemoryAuthServices(
         name: publisher.name,
         slug: publisher.slug,
         type: publisher.type,
-        verified: publisher.verified,
+        status: publisher.status,
         origin: publisher.origin,
         role: access.role,
       };

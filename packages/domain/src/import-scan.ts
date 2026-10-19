@@ -1,16 +1,16 @@
 import type { SourceTrust } from './publishing';
-import type { EventStatus } from './types';
+import { publisherIsPublished, type EventStatus, type PublisherStatus } from './types';
 
 export type ImportScanStatus = Extract<EventStatus, 'in_review' | 'published'>;
 
 /**
  * Status after the import scan finishes.
- * Published needs an approved scan, a verified publisher that is not temporary,
+ * Published needs an approved scan, a published publisher that is not temporary,
  * and an auto-publish source. A possible duplicate stays in review.
  */
 export function statusAfterImportScan(input: {
   approved: boolean;
-  publisherVerified: boolean;
+  publisherStatus: PublisherStatus;
   publisherIsTemporary: boolean;
   sourceTrust: SourceTrust;
   possibleDuplicate: boolean;
@@ -19,7 +19,7 @@ export function statusAfterImportScan(input: {
     input.possibleDuplicate ||
     !input.approved ||
     input.publisherIsTemporary ||
-    !input.publisherVerified ||
+    !publisherIsPublished(input.publisherStatus) ||
     input.sourceTrust === 'review'
   ) {
     return 'in_review';

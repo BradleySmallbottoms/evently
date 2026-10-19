@@ -7,6 +7,7 @@ export type {
   PossibleDuplicateMatch,
   PromptRunner,
   PublisherLookup,
+  PublisherLookupOutcome,
   PublisherLookupInput,
   ScanInput,
   ScanOutcome,

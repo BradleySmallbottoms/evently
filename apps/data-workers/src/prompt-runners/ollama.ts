@@ -215,7 +215,7 @@ export function createOllamaPromptRunner(
             kind: 'existing',
             publisherId: match.publisherId,
             isTemporary: match.isTemporary,
-            verified: match.verified,
+            status: match.status,
             importNotificationPlan: match.importNotificationPlan,
           }
           : {
@@ -249,7 +249,7 @@ export function createOllamaPromptRunner(
       return outcomes;
     },
     async lookupPublisher() {
-      return null;
+      return { ok: false, reason: 'unavailable' };
     },
   };
 }

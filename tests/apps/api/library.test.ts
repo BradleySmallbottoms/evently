@@ -43,7 +43,7 @@ async function publishEvent(app: ReturnType<typeof createApp>, store: ReturnType
   });
   const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0]!;
   expect(cookie).toContain(PUBLISHER_SESSION_COOKIE);
-  store.publishers.get(reg.publisherId)!.verified = true;
+  store.publishers.get(reg.publisherId)!.status = 'published';
 
   const startsAt = new Date('2026-11-14T16:00:00.000Z');
   const created = await app.request(`/v1/publishers/${reg.publisherId}/events`, {

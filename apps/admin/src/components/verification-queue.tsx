@@ -44,7 +44,7 @@ export function VerificationQueue({ embedded = false }: { embedded?: boolean }) 
   const list = useQuery({
     queryKey: ['admin-publishers-unverified'],
     queryFn: async () => {
-      const body = await adminFetch<{ items: PublisherRow[] }>('/publishers?verified=false');
+      const body = await adminFetch<{ items: PublisherRow[] }>('/publishers?status=in_review');
       return body.items;
     },
     enabled: Boolean(me.data),

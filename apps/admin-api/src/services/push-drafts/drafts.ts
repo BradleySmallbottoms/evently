@@ -3,6 +3,7 @@ import {
   initialPushMessageStatus,
   shouldAutoApprovePushMessage,
   statusAfterDraftEdit,
+  type PublisherStatus,
   type PushMessageStatus,
 } from '@local-events/domain';
 import {
@@ -16,7 +17,7 @@ import {
 export type DraftPushInput = {
   eventId: string;
   eventTitle: string;
-  publisherVerified: boolean;
+  publisherStatus: PublisherStatus;
   origin: 'native' | 'imported';
   sourceTrust?: 'auto_publish' | 'review';
   publisherIsTemporary?: boolean;
@@ -37,7 +38,7 @@ export async function upsertEventPushDraft(
 ): Promise<PushMessageRow | null> {
   const now = input.now ?? new Date();
   const autoApprove = shouldAutoApprovePushMessage({
-    publisherVerified: input.publisherVerified,
+    publisherStatus: input.publisherStatus,
     origin: input.origin,
     sourceTrust: input.sourceTrust,
     publisherIsTemporary: input.publisherIsTemporary,

@@ -30,6 +30,7 @@ import type {
   VerifyPublisherEmailResponse,
   WebUserMeResponse,
 } from '@local-events/contracts';
+import type { PublisherStatus } from '@local-events/domain';
 
 export type AuthErrorCode =
   | 'invalid_credentials'
@@ -58,7 +59,7 @@ export class AuthError extends Error {
 export type PublisherMemberAccess = {
   accountId: string;
   role: 'owner' | 'editor';
-  publisherVerified: boolean;
+  publisherStatus: PublisherStatus;
 };
 
 export type UserSessionAccess = {

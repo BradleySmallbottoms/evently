@@ -1,7 +1,7 @@
 # Publisher import notifications
 
 Admin chooses how a script-imported event is notified. Nothing sends no import notification.
-A marketing plan is scheduled only when the publisher is verified.
+A marketing plan is scheduled only when the publisher status is `published`.
 
 ```mermaid
 sequenceDiagram
@@ -12,12 +12,12 @@ sequenceDiagram
 
   Admin->>API: PATCH /v1/publishers/{id}<br/>importNotificationPlan
   API->>DB: publishers.import_notification_plan
-  alt plan set and publisher verified
+  alt plan set and publisher published
     API->>DB: area_and_tag reminders<br/>approved if published, pending if in review
   end
 
   Worker->>DB: import event
-  alt publisher verified, plan set, no reminders yet
+  alt publisher published, plan set, no reminders yet
     Worker->>DB: future reminders<br/>approved if published, pending if in review
   end
 
@@ -25,7 +25,7 @@ sequenceDiagram
   API->>DB: pending reminders become approved
 
   Admin->>API: POST /v1/publishers/{id}/verify
-  API->>DB: publishers.verified = true
+  API->>DB: publishers.status = published
   alt plan already set
     API->>DB: schedule the plan for published and in-review imports
   end

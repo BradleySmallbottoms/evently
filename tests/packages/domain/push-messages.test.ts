@@ -22,13 +22,13 @@ import {
 
 describe('push-messages domain', () => {
   it('auto-approves verified native and mapped auto_publish imports', () => {
-    expect(shouldAutoApprovePushMessage({ publisherVerified: true, origin: 'native' })).toBe(true);
-    expect(shouldAutoApprovePushMessage({ publisherVerified: false, origin: 'native' })).toBe(
+    expect(shouldAutoApprovePushMessage({ publisherStatus: 'published', origin: 'native' })).toBe(true);
+    expect(shouldAutoApprovePushMessage({ publisherStatus: 'in_review', origin: 'native' })).toBe(
       false,
     );
     expect(
       shouldAutoApprovePushMessage({
-        publisherVerified: false,
+        publisherStatus: 'in_review',
         origin: 'imported',
         sourceTrust: 'auto_publish',
         publisherIsTemporary: false,
@@ -36,7 +36,7 @@ describe('push-messages domain', () => {
     ).toBe(true);
     expect(
       shouldAutoApprovePushMessage({
-        publisherVerified: false,
+        publisherStatus: 'in_review',
         origin: 'imported',
         sourceTrust: 'auto_publish',
         publisherIsTemporary: true,
@@ -66,9 +66,9 @@ describe('push-messages domain', () => {
   });
 
   it('schedules import reminders only for a verified publisher with a plan', () => {
-    expect(importPlanToSchedule({ publisherVerified: true, planId: 'single' })).toBe('single');
-    expect(importPlanToSchedule({ publisherVerified: false, planId: 'full' })).toBeNull();
-    expect(importPlanToSchedule({ publisherVerified: true, planId: null })).toBeNull();
+    expect(importPlanToSchedule({ publisherStatus: 'published', planId: 'single' })).toBe('single');
+    expect(importPlanToSchedule({ publisherStatus: 'in_review', planId: 'full' })).toBeNull();
+    expect(importPlanToSchedule({ publisherStatus: 'published', planId: null })).toBeNull();
 
     const startsAt = new Date('2026-06-20T18:00:00.000Z');
     const now = new Date('2026-06-19T12:00:00.000Z');

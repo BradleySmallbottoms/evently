@@ -1,4 +1,4 @@
-import type { DuplicateSignal, MarketingPushPlanId, SourceTrust } from '@local-events/domain';
+import type { DuplicateSignal, MarketingPushPlanId, PublisherStatus, SourceTrust } from '@local-events/domain';
 import type { TagChoice } from '@local-events/ingest';
 
 /** Event text plus the organizer keys saved at import. The runner loads everything else. */
@@ -24,7 +24,7 @@ export type ChosenPublisher =
       kind: 'existing';
       publisherId: string;
       isTemporary: boolean;
-      verified: boolean;
+      status: PublisherStatus;
       importNotificationPlan: MarketingPushPlanId | null;
     }
   | { kind: 'temporary'; name: string; organizerKeys: string[] };
@@ -87,12 +87,20 @@ export interface PublisherLookup {
 }
 
 /**
+ * A finished lookup. `profile` is null when the chat found nothing.
+ * `unavailable` means the model or the web search could not run, so the publisher stays `pending_scan`.
+ */
+export type PublisherLookupOutcome =
+  | { ok: true; profile: PublisherLookup | null }
+  | { ok: false; reason: 'unavailable' };
+
+/**
  * Scans a batch. Each client decides how to look up publishers and duplicates,
  * and whether to walk the batch or send it as one job.
- * `lookupPublisher` runs after a temporary publisher is created. A miss returns null.
+ * `lookupPublisher` runs from the publisher scan, after a temporary publisher exists.
  */
 export interface PromptRunner {
   readonly id: string;
   scan(batch: ScanInput[]): Promise<ScanOutcome[]>;
-  lookupPublisher(input: PublisherLookupInput): Promise<PublisherLookup | null>;
+  lookupPublisher(input: PublisherLookupInput): Promise<PublisherLookupOutcome>;
 }

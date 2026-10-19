@@ -7,13 +7,17 @@ import { describe, expect, it } from 'vitest';
 
 const slugs = ['glada-hudik', 'visit-soderhamn'];
 
-function row(overrides: Partial<PublisherCandidate> & Pick<PublisherCandidate, 'publisherId' | 'key'>): PublisherCandidate {
+function row(
+  overrides: Partial<PublisherCandidate> &
+    Pick<PublisherCandidate, 'publisherId' | 'key'> & { near?: boolean },
+): PublisherCandidate {
+  const { near = false, ...rest } = overrides;
   return {
     sourceId: 'other-source',
-    verified: false,
+    status: 'in_review',
     createdAt: 1,
-    near: false,
-    ...overrides,
+    distanceMeters: near ? 0 : -1,
+    ...rest,
   };
 }
 
@@ -28,7 +32,7 @@ describe('sharedOrganizerKeyKind', () => {
 describe('choosePublisher', () => {
   it('keeps this source mapping ahead of another source', () => {
     const chosen = choosePublisher('this-source', ['kansli@example.com'], slugs, [
-      row({ publisherId: 'other', key: 'kansli@example.com', verified: true, createdAt: 1 }),
+      row({ publisherId: 'other', key: 'kansli@example.com', status: 'published', createdAt: 1 }),
       row({
         publisherId: 'ours',
         sourceId: 'this-source',
@@ -42,7 +46,7 @@ describe('choosePublisher', () => {
   it('reuses an email from another source and prefers a verified publisher', () => {
     const chosen = choosePublisher('this-source', ['kansli@example.com'], slugs, [
       row({ publisherId: 'older', key: 'kansli@example.com', createdAt: 1 }),
-      row({ publisherId: 'verified', key: 'kansli@example.com', verified: true, createdAt: 9 }),
+      row({ publisherId: 'verified', key: 'kansli@example.com', status: 'published', createdAt: 9 }),
     ]);
     expect(chosen?.publisherId).toBe('verified');
   });
@@ -50,11 +54,11 @@ describe('choosePublisher', () => {
   it('reuses a nearby name and ignores the same name far away', () => {
     const near = choosePublisher('this-source', ['kulturhuset'], slugs, [
       row({ publisherId: 'near', key: 'kulturhuset', near: true }),
-      row({ publisherId: 'far', key: 'kulturhuset', near: false, createdAt: 0 }),
+      row({ publisherId: 'far', key: 'kulturhuset', createdAt: 0 }),
     ]);
     expect(near?.publisherId).toBe('near');
     const far = choosePublisher('this-source', ['kulturhuset'], slugs, [
-      row({ publisherId: 'far', key: 'kulturhuset', near: false }),
+      row({ publisherId: 'far', key: 'kulturhuset' }),
     ]);
     expect(far).toBeNull();
   });

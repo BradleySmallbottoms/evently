@@ -573,7 +573,7 @@ describe('saveIncomingEvents', () => {
       organizerKey: bandy.organizerKeys[0]!,
       name: 'Broberg',
       isTemporary: false,
-      verified: true,
+      status: 'published',
     });
     const published: DomainEvent[] = [];
     const sink = {
@@ -617,7 +617,7 @@ describe('saveIncomingEvents', () => {
       organizerKey: future.organizerKeys[0]!,
       name: 'Broberg',
       isTemporary: false,
-      verified: true,
+      status: 'published',
       importNotificationPlan: 'standard',
     });
     await saveIncomingEvents(store, trusted, [future]);
@@ -637,7 +637,7 @@ describe('saveIncomingEvents', () => {
       organizerKey: future.organizerKeys[0]!,
       name: 'Broberg',
       isTemporary: false,
-      verified: true,
+      status: 'published',
       importNotificationPlan: null,
     });
     await saveIncomingEvents(quiet, trusted, [future]);
@@ -650,7 +650,7 @@ describe('saveIncomingEvents', () => {
       organizerKey: future.organizerKeys[0]!,
       name: 'Broberg',
       isTemporary: false,
-      verified: false,
+      status: 'in_review',
       importNotificationPlan: 'full',
     });
     await saveIncomingEvents(unverified, trusted, [future]);
@@ -671,7 +671,7 @@ describe('saveIncomingEvents', () => {
       organizerKey: future.organizerKeys[0]!,
       name: 'Broberg',
       isTemporary: false,
-      verified: true,
+      status: 'published',
       importNotificationPlan: 'standard',
     });
     const published: DomainEvent[] = [];

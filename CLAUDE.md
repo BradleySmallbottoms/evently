@@ -127,18 +127,18 @@ Product invariants (enforced in domain, tested)
   and summary. Other languages are rows in `event_translations`: one row per event and language,
   with the translated fields in `data` as a JSON object.
 - A user id never authenticates; the app holds a device credential in secure storage.
-- Events from unverified publishers are `awaiting_verification`: not listed, searched or pushed.
+- Events from publishers that are not `published` are `awaiting_verification`: not listed, searched or pushed.
 - An event without a point is omitted from the public event list. Tags do not replace a missing
   point. It has no map pin and does not match nearby push. Direct lookup by id still returns it.
   The list also leaves out an event that has ended. A whole day, the same start and end, stays
   through that calendar day.
 - A new data-worker import is `pending_scan` until the scan job finishes. It becomes `published`
-  only when the scan approves it, the publisher is verified and not temporary, and the source
-  trust is `auto_publish`. A temporary publisher, an unverified publisher, or a review-trust
+  only when the scan approves it, the publisher status is `published` and the publisher is not temporary, and the source
+  trust is `auto_publish`. A temporary publisher, a publisher that is not `published`, or a review-trust
   source goes to `in_review`. Several publishers from one source can share an organizer key.
-  When the scan creates a temporary publisher, a second prompt may look that organizer up on the
-  web. The profile is stored on `publishers.meta.lookup`. A website from a fetched page is also stored as an organizer key. A failed lookup leaves the
-  temporary publisher unchanged.
+  A new temporary publisher is `pending_scan`. A separate publisher scan looks that organizer up on the
+  web. The profile is stored on `publishers.meta.lookup`. A website from a fetched page is also stored as an organizer key. A finished lookup sets `in_review`. A failed lookup leaves the
+  publisher `pending_scan`.
 - An imported physical event with no venue name uses the city in its scraped address. When that
   address has no city, the nearest city within 25 km of its point is used. A named venue stays.
 - Visit Söderhamn, Glada Hudik, and Destination Hälsingland turn each occasion into its own event.
@@ -163,7 +163,7 @@ Product invariants (enforced in domain, tested)
   Rejecting it cancels the event and leaves the row.
   Scan again (`POST /events/{id}/rescan`) sets an imported `in_review` event back to
   `pending_scan`, clears the scan lease, and cancels open reminders so the scan job claims it.
-- Script-imported events are notified only when the publisher is verified and its import
+- Script-imported events are notified only when the publisher status is `published` and its import
   notification plan is set. Future reminders are approved when the event is published, and
   stored as pending while the event is still in review. Publishing the event approves them.
   Nothing means no import notification.

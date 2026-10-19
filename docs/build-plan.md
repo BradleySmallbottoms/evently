@@ -45,7 +45,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Publisher profiles; owner/editor members with email invites
 - [x] Event CRUD (physical + digital), tags from the Visit Söderhamn vocabulary; image upload to S3 deferred
 - [x] Event `language` (`sv` / `en`, default `sv`) and optional `summary`. `event_translations` holds other languages as JSON field maps (`event_id`, `language`, `data`)
-- [x] Unverified publishers: events stored as `awaiting_verification`, released on verification
+- [x] Publishers that are not `published`: events stored as `awaiting_verification`, released when an admin publishes the publisher
 - [x] Public event pages on web; list and map views in the app
 - [x] Web sign-in by pairing code (app generates code → web exchanges for httpOnly cookie)
 - [x] Device linking with the same pairing-code mechanism
@@ -111,7 +111,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Admin login (password + TOTP) + publisher verification queue
 - [x] Entity CRUD (events, users, remaining publisher fields)
 - [x] Publisher editor: name, slug, type, and import notification plan (nothing, or a marketing plan
-      scheduled for verified publishers' script imports). In-review imports get `pending`
+      scheduled for published publishers' script imports). In-review imports get `pending`
       reminders; publishing the event approves them.
 - [x] Moderation queue for ratings and suspicious check-ins; user bans
 - [x] Data-source management with run history and a manual run button
@@ -133,7 +133,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Import scan queue: `pending_scan` rows, batch prompt runner, Ollama model client, EventBridge
       schedule every 5 minutes (`JOB=event-scan`). `CHAT_PROVIDER=runpod` serves that job from one
       GPU pod, three scans at a time, and stops the pod when the run ends. A duplicate ranked over 90 as another showing
-      stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates. A new temporary publisher may be looked up on the web (`BRAVE_API_KEY`). The profile is stored on `publishers.meta.lookup`, and a fetched website is also stored as an organizer key. Steps from the description are stored on `events.meta.instructions`.
+      stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates. A new temporary publisher is `pending_scan`. A separate publisher scan (`JOB=publisher-scan`) looks it up on the web (`BRAVE_API_KEY`), stores the profile on `publishers.meta.lookup`, stores a fetched website as an organizer key, and sets `in_review`. Steps from the description are stored on `events.meta.instructions`.
 - [x] Raw ingestion payloads to S3 (`raw/<slug>/<runId>`; no-op when `RAW_INGESTION_BUCKET` unset)
 - [x] Fargate task definition + EventBridge Scheduler schedules in CDK
 - [x] First real source: Visit Söderhamn adapter (Citybreak, Evenemang only). Occasions follow the shared collapse rule with Glada Hudik and Destination Hälsingland.

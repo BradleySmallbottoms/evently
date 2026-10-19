@@ -9,3 +9,10 @@ export type EventStatus =
   | 'ended';
 
 export type EventMode = 'physical' | 'digital';
+
+/** Lookup and admin acceptance for a publisher. `published` is the accepted state. */
+export type PublisherStatus = 'pending_scan' | 'in_review' | 'published';
+
+export function publisherIsPublished(status: PublisherStatus): boolean {
+  return status === 'published';
+}

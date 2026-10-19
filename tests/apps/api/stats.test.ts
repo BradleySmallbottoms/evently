@@ -58,7 +58,7 @@ describe('stats', () => {
     });
     const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0]!;
     expect(cookie).toContain(PUBLISHER_SESSION_COOKIE);
-    store.publishers.get(reg.publisherId)!.verified = true;
+    store.publishers.get(reg.publisherId)!.status = 'published';
 
     const created = await app.request(`/v1/publishers/${reg.publisherId}/events`, {
       method: 'POST',

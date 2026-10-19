@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { SEED_TAGS } from '@local-events/db';
 import { readEventMeta, type EventMeta } from '@local-events/contracts';
 import { distanceMeters } from '@local-events/geo';
+import type { PublisherStatus } from '@local-events/domain';
 import {
   choosePublisher,
   DUPLICATE_RADIUS_M,
@@ -21,6 +22,7 @@ import type {
   IngestStore,
   NearbyEventHit,
   NearbyPublisherHit,
+  PendingPublisherRow,
   PendingScanRow,
   PublisherLink,
   PublisherRecord,
@@ -37,9 +39,10 @@ interface StoredPublisher {
   name: string;
   slug: string;
   isTemporary: boolean;
-  verified: boolean;
+  status: PublisherStatus;
   importNotificationPlan: MarketingPushPlanId | null;
   createdAt: number;
+  scanClaimedUntil?: Date | null;
   meta?: { lookup?: PublisherLookup };
 }
 
@@ -116,7 +119,7 @@ export interface MemoryIngestStore extends IngestStore {
     organizerKey: string;
     name: string;
     isTemporary: boolean;
-    verified?: boolean;
+    status?: PublisherStatus;
     importNotificationPlan?: MarketingPushPlanId | null;
   }): PublisherLink;
 }
@@ -231,7 +234,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           publisherId: publisher.id,
           sourceId: alias.sourceId,
           key: alias.organizerKey,
-          verified: publisher.verified,
+          status: publisher.status,
           createdAt: publisher.createdAt,
           distanceMeters: nearIds.has(publisher.id) ? 0 : -1,
           isTemporary: publisher.isTemporary,
@@ -254,7 +257,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           publisherId: publisher.id,
           sourceId: null,
           key: nameKey,
-          verified: publisher.verified,
+          status: publisher.status,
           createdAt: publisher.createdAt,
           distanceMeters: nearIds.has(publisher.id) ? 0 : -1,
           isTemporary: publisher.isTemporary,
@@ -276,7 +279,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       return {
         publisherId: publisher.id,
         isTemporary: publisher.isTemporary,
-        verified: publisher.verified,
+        status: publisher.status,
         importNotificationPlan: publisher.importNotificationPlan,
       };
     },
@@ -287,7 +290,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         name: input.name,
         slug: uniqueSlug(input.name),
         isTemporary: true,
-        verified: false,
+        status: 'pending_scan',
         importNotificationPlan: null,
         createdAt: stamp(),
       });
@@ -297,7 +300,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       return {
         publisherId: id,
         isTemporary: true,
-        verified: false,
+        status: 'pending_scan',
         importNotificationPlan: null,
       };
     },
@@ -320,14 +323,14 @@ export function createMemoryIngestStore(): MemoryIngestStore {
     },
     linkPublisher(input) {
       const id = randomUUID();
-      const verified = input.verified ?? false;
+      const status = input.status ?? 'in_review';
       const importNotificationPlan = input.importNotificationPlan ?? null;
       publishers.push({
         id,
         name: input.name,
         slug: uniqueSlug(input.name),
         isTemporary: input.isTemporary,
-        verified,
+        status,
         importNotificationPlan,
         createdAt: stamp(),
       });
@@ -336,7 +339,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         organizerKey: input.organizerKey,
         publisherId: id,
       });
-      return { publisherId: id, isTemporary: input.isTemporary, verified, importNotificationPlan };
+      return { publisherId: id, isTemporary: input.isTemporary, status, importNotificationPlan };
     },
     async scheduleImportNotifications(input) {
       if (scheduledNotifications.some((row) => row.eventId === input.eventId)) return;
@@ -629,7 +632,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         const hit: NearbyPublisherHit = {
           id: publisher.id,
           name: publisher.name,
-          verified: publisher.verified,
+          status: publisher.status,
           temporary: publisher.isTemporary,
           nearestEventTitle: event.title,
           distanceM,
@@ -660,7 +663,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         const hit: NearbyPublisherHit = {
           id: publisher.id,
           name: publisher.name,
-          verified: publisher.verified,
+          status: publisher.status,
           temporary: publisher.isTemporary,
           nearestEventTitle: event.title,
           distanceM,
@@ -679,7 +682,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       if (!publisher) return null;
       return {
         id: publisher.id,
-        verified: publisher.verified,
+        status: publisher.status,
         createdAt: publisher.createdAt,
         isTemporary: publisher.isTemporary,
         importNotificationPlan: publisher.importNotificationPlan,
@@ -742,6 +745,70 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       event.summary = input.summary;
       event.language = input.language;
       event.scanClaimedUntil = null;
+      return true;
+    },
+    async countPendingPublisherScans(publisherId) {
+      const now = Date.now();
+      return publishers.filter(
+        (publisher) =>
+          publisher.status === 'pending_scan' &&
+          (publisher.scanClaimedUntil == null || publisher.scanClaimedUntil.getTime() < now) &&
+          (publisherId == null || publisher.id === publisherId),
+      ).length;
+    },
+    async claimPendingPublisherScans(limit, leaseMs, publisherId, skipPublisherIds) {
+      const now = Date.now();
+      const until = new Date(now + leaseMs);
+      const skip = new Set(skipPublisherIds ?? []);
+      const due = publishers
+        .filter(
+          (publisher) =>
+            publisher.status === 'pending_scan' &&
+            (publisher.scanClaimedUntil == null || publisher.scanClaimedUntil.getTime() < now) &&
+            (publisherId == null || publisher.id === publisherId) &&
+            !skip.has(publisher.id),
+        )
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .slice(0, publisherId ? 1 : limit);
+      const rows: PendingPublisherRow[] = [];
+      for (const publisher of due) {
+        publisher.scanClaimedUntil = until;
+        const linked = events
+          .filter((event) => event.publisherId === publisher.id)
+          .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0))[0];
+        const ref = linked ? refs.find((item) => item.eventId === linked.id) : undefined;
+        const source = ref ? sources.find((item) => item.id === ref.sourceId) : undefined;
+        rows.push({
+          publisherId: publisher.id,
+          name: publisher.name,
+          organizerKeys: aliases
+            .filter((alias) => alias.publisherId === publisher.id)
+            .map((alias) => alias.organizerKey),
+          claimedUntil: until,
+          sourceId: source?.id ?? null,
+          sourceSlug: source?.slug ?? null,
+          title: linked?.title ?? null,
+          description: linked?.description ?? null,
+          venueName: linked?.venueName ?? null,
+          location: linked?.location ?? null,
+          sourceUrl: linked?.sourceUrl ?? null,
+        });
+      }
+      return rows;
+    },
+    async releasePublisherScanClaim(publisherId, claimedUntil) {
+      const publisher = publishers.find((item) => item.id === publisherId);
+      if (!publisher || publisher.status !== 'pending_scan') return;
+      if (publisher.scanClaimedUntil?.getTime() !== claimedUntil.getTime()) return;
+      publisher.scanClaimedUntil = null;
+    },
+    async finishPublisherScan(input) {
+      const publisher = publishers.find((item) => item.id === input.publisherId);
+      if (!publisher || publisher.status !== 'pending_scan') return false;
+      if (publisher.scanClaimedUntil?.getTime() !== input.claimedUntil.getTime()) return false;
+      if (input.lookup) publisher.meta = { ...publisher.meta, lookup: input.lookup };
+      publisher.status = 'in_review';
+      publisher.scanClaimedUntil = null;
       return true;
     },
     async deleteEventImages(eventId, roles) {

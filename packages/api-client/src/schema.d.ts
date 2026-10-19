@@ -642,7 +642,8 @@ export interface paths {
                                 slug: string;
                                 /** @enum {string} */
                                 type: "org" | "person";
-                                verified: boolean;
+                                /** @enum {string} */
+                                status: "pending_scan" | "in_review" | "published";
                                 /** @enum {string} */
                                 role: "owner" | "editor";
                             }[];
@@ -752,7 +753,8 @@ export interface paths {
                                 slug: string;
                                 /** @enum {string} */
                                 type: "org" | "person";
-                                verified: boolean;
+                                /** @enum {string} */
+                                status: "pending_scan" | "in_review" | "published";
                                 /** @enum {string} */
                                 role: "owner" | "editor";
                             }[];
@@ -814,7 +816,8 @@ export interface paths {
                             slug: string;
                             /** @enum {string} */
                             type: "org" | "person";
-                            verified: boolean;
+                            /** @enum {string} */
+                            status: "pending_scan" | "in_review" | "published";
                             /** @enum {string} */
                             origin: "native" | "imported";
                             /** @enum {string} */
@@ -876,7 +879,8 @@ export interface paths {
                             slug: string;
                             /** @enum {string} */
                             type: "org" | "person";
-                            verified: boolean;
+                            /** @enum {string} */
+                            status: "pending_scan" | "in_review" | "published";
                             /** @enum {string} */
                             origin: "native" | "imported";
                             /** @enum {string} */

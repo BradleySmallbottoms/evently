@@ -1,6 +1,6 @@
 import type { EventMeta } from '@local-events/contracts';
 import type { PublisherLookup } from './prompt-runners/types';
-import type { EventStatus, MarketingPushPlanId, SourceTrust } from '@local-events/domain';
+import type { EventStatus, MarketingPushPlanId, PublisherStatus, SourceTrust } from '@local-events/domain';
 import type { IncomingEvent, TagChoice } from '@local-events/ingest';
 import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
 
@@ -66,7 +66,7 @@ export interface NearbyEventHit {
 export interface NearbyPublisherHit {
   id: string;
   name: string;
-  verified: boolean;
+  status: PublisherStatus;
   temporary: boolean;
   nearestEventTitle: string;
   distanceM: number;
@@ -77,7 +77,7 @@ export interface PublisherCandidate {
   publisherId: string;
   sourceId: string | null;
   key: string;
-  verified: boolean;
+  status: PublisherStatus;
   createdAt: number;
   distanceMeters: number;
   isTemporary: boolean;
@@ -95,7 +95,7 @@ export interface SourceRecord {
 
 export interface PublisherRecord {
   id: string;
-  verified: boolean;
+  status: PublisherStatus;
   createdAt: number;
   isTemporary: boolean;
   importNotificationPlan: MarketingPushPlanId | null;
@@ -122,7 +122,7 @@ export interface ScanPublisherCandidate {
   publisherId: string;
   sourceId: string | null;
   key: string;
-  verified: boolean;
+  status: PublisherStatus;
   createdAt: number;
   distanceMeters: number;
   isTemporary: boolean;
@@ -134,7 +134,7 @@ export interface ScanPublisherCandidate {
 export interface PublisherLink {
   publisherId: string;
   isTemporary: boolean;
-  verified: boolean;
+  status: PublisherStatus;
   importNotificationPlan: MarketingPushPlanId | null;
 }
 
@@ -303,6 +303,29 @@ export interface IngestStore {
    * Writes the scan result while this claim still holds the row.
    * Returns false when a newer import or a newer claim owns it.
    */
+  /** `pending_scan` publishers whose lease is free. `publisherId` counts that one row. */
+  countPendingPublisherScans(publisherId?: string): Promise<number>;
+  /**
+   * Claims up to `limit` `pending_scan` publishers whose lease is free.
+   * The rows stay `pending_scan` until {@link finishPublisherScan}.
+   */
+  claimPendingPublisherScans(
+    limit: number,
+    leaseMs: number,
+    publisherId?: string,
+    skipPublisherIds?: readonly string[],
+  ): Promise<PendingPublisherRow[]>;
+  /** Drops this claim so a later run can take the publisher again. */
+  releasePublisherScanClaim(publisherId: string, claimedUntil: Date): Promise<void>;
+  /**
+   * Moves the publisher to `in_review` while this claim still holds it.
+   * Returns false when an admin already published it or a newer claim owns it.
+   */
+  finishPublisherScan(input: {
+    publisherId: string;
+    claimedUntil: Date;
+    lookup: PublisherLookup | null;
+  }): Promise<boolean>;
   finishImportedScan(input: {
     eventId: string;
     publisherId: string;
@@ -339,4 +362,19 @@ export interface PendingScanRow {
   sourceTrust: SourceTrust;
   /** Lease timestamp written by the claim. Finish and release match this value. */
   claimedUntil: Date;
+}
+
+/** One unscanned publisher plus the newest linked event, when one exists. */
+export interface PendingPublisherRow {
+  publisherId: string;
+  name: string;
+  organizerKeys: string[];
+  claimedUntil: Date;
+  sourceId: string | null;
+  sourceSlug: string | null;
+  title: string | null;
+  description: string | null;
+  venueName: string | null;
+  location: { lat: number; lng: number } | null;
+  sourceUrl: string | null;
 }

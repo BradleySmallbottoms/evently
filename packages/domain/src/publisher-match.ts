@@ -1,4 +1,5 @@
 import { slugifyPublisherName } from './auth';
+import { publisherIsPublished, type PublisherStatus } from './types';
 
 /** Same display name or slug matches only when the publisher already has an event this close. */
 export const PUBLISHER_NAME_RADIUS_M = 10_000;
@@ -30,7 +31,7 @@ export interface PublisherCandidate {
   /** Set when the row is an alias. Null when it came from the publisher name or slug. */
   sourceId: string | null;
   key: string;
-  verified: boolean;
+  status: PublisherStatus;
   createdAt: number;
   distanceMeters: number;
 }
@@ -38,7 +39,9 @@ export interface PublisherCandidate {
 function prefer(rows: PublisherCandidate[]): PublisherCandidate | null {
   return rows.reduce<PublisherCandidate | null>((best, row) => {
     if (!best) return row;
-    if (row.verified !== best.verified) return row.verified ? row : best;
+    const rowPublished = publisherIsPublished(row.status);
+    const bestPublished = publisherIsPublished(best.status);
+    if (rowPublished !== bestPublished) return rowPublished ? row : best;
     return row.createdAt < best.createdAt ? row : best;
   }, null);
 }
@@ -47,7 +50,7 @@ function prefer(rows: PublisherCandidate[]): PublisherCandidate | null {
  * This source's own alias wins. Otherwise an email or website from any source.
  * A name or slug matches only when `near` is set, meaning the publisher has an
  * event within {@link PUBLISHER_NAME_RADIUS_M}. A source slug never crosses sources.
- * Two hits on the same key: the verified publisher, otherwise the older one.
+ * Two hits on the same key: the published publisher, otherwise the older one.
  */
 export function choosePublisher(
   sourceId: string,

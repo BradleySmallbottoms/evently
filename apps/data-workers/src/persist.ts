@@ -311,7 +311,7 @@ async function scheduleImportedNotifications(
   },
 ) {
   const planId = importPlanToSchedule({
-    publisherVerified: input.publisher.verified,
+    publisherStatus: input.publisher.status,
     planId: input.publisher.importNotificationPlan,
   });
   if (!planId || !store.scheduleImportNotifications) return;

@@ -85,6 +85,6 @@ with the earliest copy plus “And N more…”.
 ## Auth notes
 
 - Session alone is not enough for push-token registration: the body includes `deviceCredential`.
-- Unverified publishers’ events stay `awaiting_verification`; the draft may exist but the
+- Publishers that are not `published` keep events in `awaiting_verification`; the draft may exist but the
   worker only sends when the event is `published`.
 - `event.published` still drives publisher stats; fan-out is driven by approved `push_messages`.

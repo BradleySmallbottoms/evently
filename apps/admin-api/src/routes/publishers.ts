@@ -27,14 +27,14 @@ export function registerPublisherRoutes(
     path: '/publishers',
     request: {
       query: z.object({
-        verified: z.enum(['true', 'false']).optional(),
+        status: z.enum(['pending_scan', 'in_review', 'published']).optional(),
         temporary: z.enum(['true', 'false']).optional(),
         all: z.enum(['true', 'false']).optional(),
       }),
     },
     responses: {
       200: {
-        description: 'Publishers (unverified, temporary, or all)',
+        description: 'Publishers (in review, temporary, or all)',
         content: {
           'application/json': {
             schema: z.union([AdminPublisherListResponse, AdminTemporaryPublisherListResponse]),
@@ -50,14 +50,14 @@ export function registerPublisherRoutes(
   app.openapi(list, async (c) => {
     try {
       await auth.requireSession(readAdminSessionToken(c));
-      const { verified, temporary, all } = c.req.valid('query');
+      const { status, temporary, all } = c.req.valid('query');
       if (temporary === 'true') {
         return c.json({ items: await publishers.listTemporary() }, 200);
       }
       if (all === 'true') {
         return c.json({ items: await publishers.listAll() }, 200);
       }
-      if (verified === 'true') return c.json({ items: [] }, 200);
+      if (status && status !== 'in_review') return c.json({ items: [] }, 200);
       return c.json({ items: await publishers.listUnverified() }, 200);
     } catch (err) {
       return adminAuthErrorResponse(c, err);

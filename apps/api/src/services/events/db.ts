@@ -495,7 +495,7 @@ export function createDbEventServices(
         await upsertEventPushDraft(db, {
           eventId: updated.id,
           eventTitle: updated.title,
-          publisherVerified: access.publisherVerified,
+          publisherStatus: access.publisherStatus,
           origin: updated.origin,
           now: env.now(),
         });
@@ -529,7 +529,7 @@ export function createDbEventServices(
 
       const status = statusOnPublish({
         origin: 'native',
-        publisherVerified: access.publisherVerified,
+        publisherStatus: access.publisherStatus,
       });
       await db.update(events).set({ status, updatedAt: now }).where(eq(events.id, eventId));
       const published = await loadEvent(eventId);
@@ -537,7 +537,7 @@ export function createDbEventServices(
       await upsertEventPushDraft(db, {
         eventId: published.id,
         eventTitle: published.title,
-        publisherVerified: access.publisherVerified,
+        publisherStatus: access.publisherStatus,
         origin: 'native',
         now,
       });
@@ -685,7 +685,7 @@ export async function verifyPublisherInDb(
   now: Date,
 ): Promise<{ releasedEventCount: number } | null> {
   const [publisher] = await db
-    .select({ id: schema.publishers.id, verified: schema.publishers.verified })
+    .select({ id: schema.publishers.id, status: schema.publishers.status })
     .from(schema.publishers)
     .where(eq(schema.publishers.id, publisherId))
     .limit(1);
@@ -693,7 +693,7 @@ export async function verifyPublisherInDb(
 
   await db
     .update(schema.publishers)
-    .set({ verified: true })
+    .set({ status: 'published' })
     .where(eq(schema.publishers.id, publisherId));
 
   const awaiting = await db

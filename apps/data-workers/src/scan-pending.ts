@@ -4,7 +4,6 @@ import {
   choosePossibleOccasionGroupId,
   importPlanToSchedule,
   OCCASION_GROUP_MIN_RANK,
-  organizerKeys,
   shouldEnqueueNotifications,
   statusAfterImportScan,
 } from '@local-events/domain';
@@ -103,7 +102,7 @@ export async function scanPendingEvents(
     }
     let applied: 'published' | 'review' | 'skipped';
     try {
-      applied = await applyOutcome(store, row, outcome, enqueue, temporaries, runner);
+      applied = await applyOutcome(store, row, outcome, enqueue, temporaries);
     } catch (error) {
       console.error(
         'scan apply failed',
@@ -150,12 +149,11 @@ async function applyOutcome(
   outcome: Extract<ScanOutcome, { ok: true }>,
   enqueue: DomainEventSink,
   temporaries: Map<string, PublisherLink>,
-  runner: PromptRunner,
 ): Promise<'published' | 'review' | 'skipped'> {
-  const publisher = await publisherFor(store, row, outcome, temporaries, runner);
+  const publisher = await publisherFor(store, row, outcome, temporaries);
   const status = statusAfterImportScan({
     approved: outcome.approved,
-    publisherVerified: publisher.verified,
+    publisherStatus: publisher.status,
     publisherIsTemporary: publisher.isTemporary,
     sourceTrust: row.sourceTrust,
     possibleDuplicate: outcome.duplicate !== null,
@@ -192,7 +190,7 @@ async function applyOutcome(
   if (!saved) return 'skipped';
   if (store.scheduleImportNotifications) {
     const planId = importPlanToSchedule({
-      publisherVerified: publisher.verified,
+      publisherStatus: publisher.status,
       planId: publisher.importNotificationPlan,
     });
     if (planId) {
@@ -261,7 +259,6 @@ async function publisherFor(
   row: PendingScanRow,
   outcome: Extract<ScanOutcome, { ok: true }>,
   temporaries: Map<string, PublisherLink>,
-  runner: PromptRunner,
 ): Promise<PublisherLink> {
   if (outcome.publisher.kind === 'temporary') {
     const keys = outcome.publisher.organizerKeys;
@@ -279,7 +276,6 @@ async function publisherFor(
       name: outcome.publisher.name,
     });
     temporaries.set(keys.join('\n'), created);
-    await rememberLookedUpWebsite(store, row, created.publisherId, outcome.publisher, runner);
     return created;
   }
   await store.rememberOrganizerKeys(
@@ -290,44 +286,7 @@ async function publisherFor(
   return {
     publisherId: outcome.publisher.publisherId,
     isTemporary: outcome.publisher.isTemporary,
-    verified: outcome.publisher.verified,
+    status: outcome.publisher.status,
     importNotificationPlan: outcome.publisher.importNotificationPlan,
   };
-}
-
-/**
- * Looks the new temporary publisher up on the web. The returned profile is stored
- * on `meta.lookup`. A website from a fetched page is also stored as an organizer key.
- * A miss or a thrown lookup leaves the publisher as it is.
- */
-async function rememberLookedUpWebsite(
-  store: IngestStore,
-  row: PendingScanRow,
-  publisherId: string,
-  publisher: { name: string; organizerKeys: string[] },
-  runner: PromptRunner,
-): Promise<void> {
-  let profile: Awaited<ReturnType<PromptRunner['lookupPublisher']>> = null;
-  try {
-    profile = await runner.lookupPublisher({
-      publisherId,
-      name: publisher.name,
-      publisherUrl: row.sourceUrl ?? undefined,
-      organizerKeys: publisher.organizerKeys,
-      title: row.title,
-      ...(row.description ? { description: row.description } : {}),
-      ...(row.venueName ? { venue: row.venueName } : {}),
-      ...(row.location ? { location: row.location } : {}),
-    });
-  } catch {
-    return;
-  }
-  if (!profile) return;
-  await store.rememberPublisherLookup(publisherId, profile);
-  if (!profile.website) return;
-  const keys = organizerKeys({ infoUrls: [profile.website], fallback: row.sourceSlug }).filter(
-    (key) => key !== row.sourceSlug,
-  );
-  if (keys.length === 0) return;
-  await store.rememberOrganizerKeys(row.sourceId, publisherId, keys);
 }

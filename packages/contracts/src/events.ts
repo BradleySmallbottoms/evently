@@ -18,6 +18,9 @@ const EventStatus = z.enum([
 ]);
 const EventOrigin = z.enum(['native', 'imported']);
 
+export const PublisherStatus = z.enum(['pending_scan', 'in_review', 'published']);
+export type PublisherStatus = z.infer<typeof PublisherStatus>;
+
 export const Tag = z.object({
   id: Id,
   slug: z.string(),
@@ -356,7 +359,7 @@ export const PublisherSummaryAdmin = z.object({
   name: z.string(),
   slug: z.string(),
   type: z.enum(['org', 'person']),
-  verified: z.boolean(),
+  status: PublisherStatus,
   origin: EventOrigin,
   importNotificationPlan: ImportNotificationPlan.nullable(),
   createdAt: z.iso.datetime(),
@@ -370,7 +373,7 @@ export type AdminPublisherListResponse = z.infer<typeof AdminPublisherListRespon
 
 export const VerifyPublisherResponse = z.object({
   id: Id,
-  verified: z.literal(true),
+  status: z.literal('published'),
   releasedEventCount: z.number().int().nonnegative(),
 });
 export type VerifyPublisherResponse = z.infer<typeof VerifyPublisherResponse>;

@@ -83,7 +83,7 @@ describe('admin api', () => {
   it('rejects publisher list without session', async () => {
     const { auth } = await seededAuth();
     const app = createApp({ auth });
-    const list = await app.request('/v1/publishers?verified=false');
+    const list = await app.request('/v1/publishers?status=in_review');
     expect(list.status).toBe(401);
   });
 
@@ -97,7 +97,7 @@ describe('admin api', () => {
           name: 'Cafe',
           slug: 'cafe',
           type: 'org' as const,
-          verified: false,
+          status: 'in_review',
           origin: 'native' as const,
           createdAt: new Date('2026-01-01T00:00:00Z'),
         },
@@ -123,7 +123,7 @@ describe('admin api', () => {
 
     const cookie = await loginSession(app);
 
-    const list = await app.request('/v1/publishers?verified=false', {
+    const list = await app.request('/v1/publishers?status=in_review', {
       headers: { cookie },
     });
     expect(list.status).toBe(200);
@@ -135,7 +135,7 @@ describe('admin api', () => {
     });
     expect(verify.status).toBe(200);
     expect(await verify.json()).toMatchObject({
-      verified: true,
+      status: 'published',
       releasedEventCount: 1,
     });
     expect(events.get('33333333-3333-4333-8333-333333333301')?.status).toBe('published');
@@ -157,7 +157,7 @@ describe('admin api', () => {
           name: 'Cafe',
           slug: 'cafe',
           type: 'org' as const,
-          verified: true,
+          status: 'published',
           origin: 'imported' as const,
           importNotificationPlan: null,
           createdAt: new Date('2026-01-01T00:00:00Z'),

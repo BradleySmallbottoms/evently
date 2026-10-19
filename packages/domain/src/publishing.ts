@@ -1,19 +1,19 @@
-import type { EventStatus } from './types';
+import { publisherIsPublished, type EventStatus, type PublisherStatus } from './types';
 
 export type SourceTrust = 'auto_publish' | 'review';
 
 export type PublishInput =
-  | { origin: 'native'; publisherVerified: boolean }
+  | { origin: 'native'; publisherStatus: PublisherStatus }
   | { origin: 'imported'; sourceTrust: SourceTrust; publisherIsTemporary: boolean };
 
 /**
  * Status an event gets when it is published.
- * - Unverified native publishers: hidden, never pushed, until an admin verifies them.
+ * - Native publishers that are not published: hidden, never pushed, until an admin accepts them.
  * - Imported events: per-source trust; a temporary (unmapped) publisher always means review.
  */
 export function statusOnPublish(input: PublishInput): EventStatus {
   if (input.origin === 'native') {
-    return input.publisherVerified ? 'published' : 'awaiting_verification';
+    return publisherIsPublished(input.publisherStatus) ? 'published' : 'awaiting_verification';
   }
   if (input.publisherIsTemporary || input.sourceTrust === 'review') return 'in_review';
   return 'published';

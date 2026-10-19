@@ -6,6 +6,8 @@ import { persistSource } from './persist';
 import { promptRunnerFromEnv } from './prompt-runners';
 import { scanWithChatPod } from './scan-with-pod';
 import { parseScanSelection, scanPendingEvents } from './scan-pending';
+import { scanPendingPublishers } from './scan-publishers';
+import { scanPublishersWithChatPod } from './scan-with-pod';
 import { rawPayloadSinkFromEnv } from './raw-payload';
 import { runSource } from './run';
 import { initSentry, Sentry } from './sentry';
@@ -22,6 +24,11 @@ initSentry('data-workers');
  *   pnpm --filter @local-events/data-workers dev -- --job event-scan --event <event-id>
  *   pnpm --filter @local-events/data-workers dev -- --job event-scan --limit 1
  *
+ * The publisher scan looks up `pending_scan` publishers. Event scans do not.
+ *   pnpm --filter @local-events/data-workers dev -- --job publisher-scan
+ *   pnpm --filter @local-events/data-workers dev -- --job publisher-scan --publisher <publisher-id>
+ *
+
  * `CHAT_PROVIDER=runpod` starts the named GPU pod, drains pending rows in batches,
  * and stops the pod when the run ends.
  *
@@ -37,7 +44,7 @@ function argValue(flag: string, envName: string): string | undefined {
 
 const job = argValue('--job', 'JOB');
 const slug = argValue('--source', 'SOURCE_SLUG');
-if (job !== 'event-scan' && !slug) {
+if (job !== 'event-scan' && job !== 'publisher-scan' && !slug) {
   console.error('Missing source: pass --source <slug> or set SOURCE_SLUG');
   process.exit(2);
 }
@@ -69,6 +76,33 @@ async function main(): Promise<number> {
       process.env.CHAT_PROVIDER?.trim().toLowerCase() === 'runpod'
         ? await scanWithChatPod({ store, databaseUrl, enqueue, selection: scanOptions })
         : await scanPendingEvents(store, promptRunnerFromEnv(store), enqueue, scanOptions);
+    console.log(JSON.stringify(summary, null, 2));
+    return 0;
+  }
+
+  if (job === 'publisher-scan') {
+    const databaseUrl = resolveDatabaseUrl();
+    if (!databaseUrl) {
+      console.error('DATABASE_URL is required for --job publisher-scan');
+      return 1;
+    }
+    const db = createDb(databaseUrl);
+    const store = createDbIngestStore(db);
+    const publisherId = argValue('--publisher', 'PUBLISHER_ID');
+    const limitRaw = argValue('--limit', 'SCAN_LIMIT');
+    const limit = limitRaw ? Number(limitRaw) : undefined;
+    if (limit != null && (!Number.isInteger(limit) || limit < 1)) {
+      console.error('--limit must be a positive integer');
+      return 2;
+    }
+    const selection = {
+      ...(publisherId ? { publisherId } : {}),
+      ...(limit != null ? { limit } : {}),
+    };
+    const summary =
+      process.env.CHAT_PROVIDER?.trim().toLowerCase() === 'runpod'
+        ? await scanPublishersWithChatPod({ store, databaseUrl, selection })
+        : await scanPendingPublishers(store, promptRunnerFromEnv(store), selection);
     console.log(JSON.stringify(summary, null, 2));
     return 0;
   }

@@ -202,11 +202,12 @@ export function createOllamaWithToolsPromptRunner(
     },
     /**
      * A second chat, after a temporary publisher exists. Only the web tools are
-     * offered. A missing endpoint or a failed call returns null.
+     * offered. A missing key or a failed call is unavailable. A finished chat
+     * with no facts returns a null profile.
      */
     async lookupPublisher(input) {
       const braveApiKey = options.braveApiKey !== undefined ? options.braveApiKey.trim() : (process.env.BRAVE_API_KEY?.trim() ?? '');
-      if (!braveApiKey) return null;
+      if (!braveApiKey) return { ok: false, reason: 'unavailable' };
       const session = createPublisherToolSession();
       const finished = await runToolChat(
         publisherLookupPrompt(input),
@@ -223,8 +224,8 @@ export function createOllamaWithToolsPromptRunner(
         fetchImpl,
         PUBLISHER_LOOKUP_ROUNDS,
       );
-      if (!finished) return null;
-      return publisherProfileFromModel(finished.text, session.fetchedUrls);
+      if (!finished) return { ok: false, reason: 'unavailable' };
+      return { ok: true, profile: publisherProfileFromModel(finished.text, session.fetchedUrls) };
     },
   };
 }
@@ -313,7 +314,7 @@ async function bestPublisher(content: LLMScanResult & LLMOutput, context: Lookup
     kind: 'existing',
     publisherId: publisher.id,
     isTemporary: publisher.isTemporary,
-    verified: publisher.verified,
+    status: publisher.status,
     importNotificationPlan: publisher.importNotificationPlan,
   }
 }
@@ -882,7 +883,7 @@ async function lookupPossiblePublishers(
     publisherId: publisher.publisherId,
     sourceId: publisher.sourceId,
     key: publisher.key,
-    verified: publisher.verified,
+    status: publisher.status,
     createdAt: publisher.createdAt,
     distanceMeters: publisher.distanceMeters,
     isTemporary: publisher.isTemporary,

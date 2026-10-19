@@ -24,7 +24,7 @@ type Publisher = {
   name: string;
   slug: string;
   type: 'org' | 'person';
-  verified: boolean;
+  status: 'pending_scan' | 'in_review' | 'published';
   importNotificationPlan: MarketingPushPlanId | null;
 };
 
@@ -163,7 +163,11 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
             <MenuItem value="person">{t('typePerson')}</MenuItem>
           </TextField>
           <Typography color="text.secondary">
-            {current.verified ? t('verifiedYes') : t('verifiedNo')}
+            {current.status === 'pending_scan'
+              ? t('statusPendingScan')
+              : current.status === 'published'
+                ? t('statusPublished')
+                : t('statusInReview')}
           </Typography>
           <Typography variant="h6" component="h2">
             {t('settings')}
@@ -198,7 +202,7 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
           ) : null}
           {mode === 'plan' ? (
             <Typography variant="body2" color="text.secondary">
-              {current.verified ? t('notificationVerified') : t('notificationUnverified')}
+              {current.status === 'published' ? t('notificationVerified') : t('notificationUnverified')}
             </Typography>
           ) : null}
           <Button type="submit" variant="contained" disabled={save.isPending} sx={{ alignSelf: 'flex-start' }}>

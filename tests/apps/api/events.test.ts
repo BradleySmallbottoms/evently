@@ -165,7 +165,7 @@ describe('events', () => {
 
     const { publisherId, cookie } = await registerAndLogin(app, 'verified@example.com');
     const publisher = store.publishers.get(publisherId)!;
-    publisher.verified = true;
+    publisher.status = 'published';
 
     const created = await app.request(`/v1/publishers/${publisherId}/events`, {
       method: 'POST',

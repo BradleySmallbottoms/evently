@@ -128,6 +128,26 @@ export class DataWorkersStack extends Stack {
     const sourceSchedules: DataWorkerSourceSchedule[] =
       props.sourceSchedules ?? KNOWN_DATA_WORKER_SOURCE_SLUGS.map((slug) => ({ slug }));
 
+    new Schedule(this, 'PublisherScan', {
+      scheduleName: `local-events-${props.envName}-publisher-scan`.slice(0, 64),
+      description: 'Look up pending_scan publishers',
+      schedule: ScheduleExpression.rate(Duration.minutes(5)),
+      target: new EcsRunFargateTask(props.cluster, {
+        taskDefinition: this.taskDefinition,
+        vpcSubnets: privateSubnets,
+        securityGroups: [tasksSecurityGroup],
+        assignPublicIp: false,
+        input: ScheduleTargetInput.fromObject({
+          ContainerOverrides: [
+            {
+              Name: DATA_WORKERS_CONTAINER_NAME,
+              Environment: [{ Name: 'JOB', Value: 'publisher-scan' }],
+            },
+          ],
+        }),
+      }),
+    });
+
     new Schedule(this, 'ImportScan', {
       scheduleName: `local-events-${props.envName}-import-scan`.slice(0, 64),
       description: 'Scan pending_scan imports with the prompt runner',

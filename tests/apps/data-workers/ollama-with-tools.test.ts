@@ -64,7 +64,7 @@ function storeWithNearbyRows() {
       name: 'Kilometerns förening',
       slug: 'kilometerns-forening',
       isTemporary: false,
-      verified: true,
+      status: 'published',
       importNotificationPlan: null,
       createdAt: 3,
     },
@@ -73,7 +73,7 @@ function storeWithNearbyRows() {
       name: 'Hälsinglands museum',
       slug: 'halsinglands-museum',
       isTemporary: false,
-      verified: true,
+      status: 'published',
       importNotificationPlan: null,
       createdAt: 1,
     },
@@ -82,7 +82,7 @@ function storeWithNearbyRows() {
       name: 'Långt bort',
       slug: 'langt-bort',
       isTemporary: true,
-      verified: false,
+      status: 'in_review',
       importNotificationPlan: null,
       createdAt: 2,
     },
@@ -349,7 +349,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
 
     expect(outcome).toMatchObject({
       ok: true,
-      publisher: { kind: 'existing', publisherId: nearPublisherId, verified: true },
+      publisher: { kind: 'existing', publisherId: nearPublisherId, status: 'published' },
     });
   });
 
@@ -377,7 +377,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
       name: 'Hälsinglands teater',
       slug: 'halsinglands-teater',
       isTemporary: false,
-      verified: true,
+      status: 'published',
       importNotificationPlan: null,
       createdAt: 3,
     });
@@ -915,10 +915,13 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(chats[1]?.messages.some((message) => message.content.includes('Officiell sida'))).toBe(true);
     expect(chats[2]?.messages.some((message) => message.content.includes('Storgatan 1'))).toBe(true);
     expect(profile).toMatchObject({
-      website: 'https://www.foreningen.se/om',
-      address: 'Storgatan 1',
-      city: 'Söderhamn',
-      sources: [{ url: 'https://foreningen.se/om' }],
+      ok: true,
+      profile: {
+        website: 'https://www.foreningen.se/om',
+        address: 'Storgatan 1',
+        city: 'Söderhamn',
+        sources: [{ url: 'https://foreningen.se/om' }],
+      },
     });
   });
 
@@ -938,7 +941,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
       title: 'Konsert',
     });
 
-    expect(profile).toBeNull();
+    expect(profile).toEqual({ ok: false, reason: 'unavailable' });
     expect(called).toBe(false);
   });
 });

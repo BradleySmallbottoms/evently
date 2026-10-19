@@ -113,10 +113,10 @@ describe('stats', () => {
 
 describe('publishing', () => {
   it('hides events from unverified publishers', () => {
-    expect(statusOnPublish({ origin: 'native', publisherVerified: false })).toBe(
+    expect(statusOnPublish({ origin: 'native', publisherStatus: 'in_review' })).toBe(
       'awaiting_verification',
     );
-    expect(statusOnPublish({ origin: 'native', publisherVerified: true })).toBe('published');
+    expect(statusOnPublish({ origin: 'native', publisherStatus: 'published' })).toBe('published');
   });
   it('routes imported events by source trust', () => {
     expect(

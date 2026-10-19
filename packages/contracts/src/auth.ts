@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PublisherStatus } from './events';
 
 // Local mirrors of shared primitives to avoid a circular import with ./index.
 const Id = z.uuid();
@@ -82,7 +83,7 @@ export const PublisherSummary = z.object({
   name: z.string(),
   slug: z.string(),
   type: PublisherType,
-  verified: z.boolean(),
+  status: PublisherStatus,
   role: z.enum(['owner', 'editor']),
 });
 export type PublisherSummary = z.infer<typeof PublisherSummary>;
@@ -105,7 +106,7 @@ export const PublisherProfile = z.object({
   name: z.string(),
   slug: z.string(),
   type: PublisherType,
-  verified: z.boolean(),
+  status: PublisherStatus,
   origin: z.enum(['native', 'imported']),
   role: MemberRole.optional(),
 });

@@ -70,7 +70,7 @@ describe('scanPendingEvents', () => {
     const batches: ScanInput[][] = [];
     const runner: PromptRunner = {
       id: 'batch',
-      lookupPublisher: async () => null,
+      lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
         batches.push(batch);
         return batch.map((item): ScanOutcome => ({
@@ -107,7 +107,7 @@ describe('scanPendingEvents', () => {
     await saveIncomingEvents(store, source, [event]);
     const runner: PromptRunner = {
       id: 'instructions',
-      lookupPublisher: async () => null,
+      lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
         return batch.map((item): ScanOutcome => ({
           ok: true,
@@ -140,7 +140,7 @@ describe('scanPendingEvents', () => {
       organizerKey: event.organizerKeys[0]!,
       name: 'Föreningen',
       isTemporary: false,
-      verified: true,
+      status: 'published',
     });
     await saveIncomingEvents(store, source, [
       event,
@@ -148,7 +148,7 @@ describe('scanPendingEvents', () => {
     ]);
     const runner: PromptRunner = {
       id: 'partial',
-      lookupPublisher: async () => null,
+      lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
         return batch.map((item, index): ScanOutcome =>
           index === 0
@@ -160,7 +160,7 @@ describe('scanPendingEvents', () => {
                   kind: 'existing',
                   publisherId: store.publishers[0]!.id,
                   isTemporary: false,
-                  verified: true,
+                  status: 'published',
                   importNotificationPlan: null,
                 },
                 duplicate: null,
@@ -198,7 +198,7 @@ describe('scanPendingEvents', () => {
     const previous = store.events[0]?.tagIds[0];
     const runner: PromptRunner = {
       id: 'retag',
-      lookupPublisher: async () => null,
+      lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
         return batch.map((item): ScanOutcome => ({
           ok: true,
@@ -239,7 +239,7 @@ describe('scanPendingEvents', () => {
     };
     const runner: PromptRunner = {
       id: 'throws',
-      lookupPublisher: async () => null,
+      lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
         return batch.map((item): ScanOutcome => ({
           ok: true,
@@ -341,7 +341,7 @@ describe('scanPendingEvents', () => {
     const target = store.events.find((row) => row.title === 'Marknad')!;
     const runner: PromptRunner = {
       id: 'one',
-      lookupPublisher: async () => null,
+      lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
         return batch.map((item): ScanOutcome => ({
           ok: true,
@@ -387,7 +387,7 @@ describe('scanPendingEvents', () => {
     });
     const runner: PromptRunner = {
       id: 'occasion',
-      lookupPublisher: async () => null,
+      lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
         return batch.map((item): ScanOutcome => ({
           ok: true,
@@ -437,7 +437,7 @@ describe('scanPendingEvents', () => {
     });
     const runner: PromptRunner = {
       id: 'occasion-new',
-      lookupPublisher: async () => null,
+      lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
         return batch.map((item): ScanOutcome => ({
           ok: true,
@@ -477,7 +477,7 @@ describe('scanPendingEvents', () => {
     ]);
     const runner: PromptRunner = {
       id: 'pair',
-      lookupPublisher: async () => null,
+      lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
         const first = batch.find((item) => item.title === 'Konsert')!;
         const second = batch.find((item) => item.title === 'Marknad')!;
@@ -518,7 +518,7 @@ describe('scanPendingEvents', () => {
     ]);
     const runner: PromptRunner = {
       id: 'mutual',
-      lookupPublisher: async () => null,
+      lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
         const first = batch.find((item) => item.title === 'Konsert')!;
         const second = batch.find((item) => item.title === 'Marknad')!;
@@ -567,7 +567,7 @@ describe('scanPendingEvents', () => {
 
     const summary = await scanPendingEvents(store, {
       id: 'shared-key',
-      lookupPublisher: async () => null,
+      lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
         return batch.map(
           (item): ScanOutcome => ({
@@ -622,26 +622,19 @@ describe('scanPendingEvents', () => {
     expect(secondKeys).toEqual(['soderhamn.se']);
   });
 
-  it('stores a looked-up website once when a temporary publisher is created', async () => {
+  it('creates a temporary publisher without looking it up', async () => {
     const store = createMemoryIngestStore();
     store.sources.push(source);
     await saveIncomingEvents(store, source, [
       event,
       { ...event, externalId: 'cbis:2', title: 'Marknad' },
     ]);
-    const lookedUp: string[] = [];
+    let lookups = 0;
     const runner: PromptRunner = {
       id: 'lookup',
-      lookupPublisher: async (input) => {
-        lookedUp.push(input.publisherId);
-        return {
-          name: 'Föreningen',
-          website: 'https://www.foreningen.se/om/',
-          address: 'Storgatan 1',
-          city: 'Söderhamn',
-          description: 'En lokal förening',
-          sources: [{ url: 'https://foreningen.se/om' }],
-        };
+      lookupPublisher: async () => {
+        lookups += 1;
+        return { ok: true, profile: null };
       },
       async scan(batch) {
         return batch.map((item): ScanOutcome => ({
@@ -663,20 +656,10 @@ describe('scanPendingEvents', () => {
     const summary = await scanPendingEvents(store, runner);
 
     expect(summary).toMatchObject({ claimed: 2, review: 2 });
-    expect(lookedUp).toHaveLength(1);
-    const publisher = await store.getPublisher(lookedUp[0]!);
-    expect(publisher?.organizerKeys).toEqual(
-      expect.arrayContaining(['kansli@example.com', 'foreningen.se/om', 'foreningen.se']),
-    );
-    expect(publisher?.lookup).toEqual({
-      name: 'Föreningen',
-      website: 'https://www.foreningen.se/om/',
-      address: 'Storgatan 1',
-      city: 'Söderhamn',
-      description: 'En lokal förening',
-      sources: [{ url: 'https://foreningen.se/om' }],
-    });
-    expect(store.events.every((row) => row.publisherId === lookedUp[0])).toBe(true);
+    expect(lookups).toBe(0);
+    expect(store.publishers).toHaveLength(1);
+    expect(store.publishers[0]?.status).toBe('pending_scan');
+    expect(store.events.every((row) => row.publisherId === store.publishers[0]?.id)).toBe(true);
   });
 
   it('does not look up a publisher that already exists', async () => {
@@ -687,7 +670,7 @@ describe('scanPendingEvents', () => {
       organizerKey: event.organizerKeys[0]!,
       name: 'Föreningen',
       isTemporary: false,
-      verified: true,
+      status: 'published',
     });
     await saveIncomingEvents(store, source, [event]);
     let lookups = 0;
@@ -695,7 +678,7 @@ describe('scanPendingEvents', () => {
       id: 'existing',
       lookupPublisher: async () => {
         lookups += 1;
-        return null;
+        return { ok: true, profile: null };
       },
       async scan(batch) {
         return batch.map((item): ScanOutcome => ({
@@ -705,7 +688,7 @@ describe('scanPendingEvents', () => {
             kind: 'existing',
             publisherId: linked.publisherId,
             isTemporary: false,
-            verified: true,
+            status: 'published',
             importNotificationPlan: null,
           },
           duplicate: null,
@@ -722,75 +705,4 @@ describe('scanPendingEvents', () => {
     expect(lookups).toBe(0);
   });
 
-  it('finishes the scan when the publisher lookup throws', async () => {
-    const store = createMemoryIngestStore();
-    store.sources.push(source);
-    await saveIncomingEvents(store, source, [event]);
-    const runner: PromptRunner = {
-      id: 'lookup-fails',
-      lookupPublisher: async () => {
-        throw new Error('search down');
-      },
-      async scan(batch) {
-        return batch.map((item): ScanOutcome => ({
-          ok: true,
-          eventId: item.eventId,
-          publisher: {
-            kind: 'temporary',
-            name: 'Föreningen',
-            organizerKeys: item.organizer.keys,
-          },
-          duplicate: null,
-          approved: true,
-          tags: [],
-          ...scanned,
-        }));
-      },
-    };
-
-    const summary = await scanPendingEvents(store, runner);
-
-    expect(summary).toMatchObject({ review: 1, unavailable: 0 });
-    const publisher = await store.getPublisher(store.events[0]!.publisherId!);
-    expect(publisher?.organizerKeys).toEqual(['kansli@example.com']);
-    expect(publisher?.lookup).toBeNull();
-  });
-
-  it('does not store a social website from the publisher lookup', async () => {
-    const store = createMemoryIngestStore();
-    store.sources.push(source);
-    await saveIncomingEvents(store, source, [event]);
-    const runner: PromptRunner = {
-      id: 'social',
-      lookupPublisher: async () => ({
-        name: null,
-        website: 'https://facebook.com/foreningen',
-        address: null,
-        city: null,
-        description: null,
-        sources: [],
-      }),
-      async scan(batch) {
-        return batch.map((item): ScanOutcome => ({
-          ok: true,
-          eventId: item.eventId,
-          publisher: {
-            kind: 'temporary',
-            name: 'Föreningen',
-            organizerKeys: item.organizer.keys,
-          },
-          duplicate: null,
-          approved: true,
-          tags: [],
-          ...scanned,
-        }));
-      },
-    };
-
-    await scanPendingEvents(store, runner);
-
-    const publisher = await store.getPublisher(store.events[0]!.publisherId!);
-    expect(publisher?.organizerKeys).toEqual(['kansli@example.com']);
-    expect(publisher?.lookup?.website).toBe('https://facebook.com/foreningen');
-  });
 });

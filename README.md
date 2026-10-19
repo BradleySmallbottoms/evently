@@ -54,7 +54,7 @@ pnpm api-client:generate   # after public API OpenAPI changes
 
 - Admin edits a publisher at `/publishers/{id}` (name, slug, type, and notification settings).
   Notification settings are **nothing** or a marketing plan. A plan schedules reminders for events
-  a script imports for that publisher, and only when the publisher is **verified**. The reminders
+  a script imports for that publisher, and only when the publisher status is **published**. The reminders
   use saved area plus a matching interest (`area_and_tag`) and skip times already in the past.
   A published import (`auto_publish`) is approved immediately. An event still in review is stored
   as `pending` and is not sent until an admin publishes the event, which approves those rows.
@@ -147,17 +147,18 @@ calls) in the same change as every new major feature.**
   network volume named `evnt-scan-models` in `CA-MTL-1`, and that volume keeps billing until it is deleted.
   `EU-SE-1` has no network volumes, so a volume cannot be created there.
   `http` is only allowed on loopback. A scan replaces tags the event already has.
-  The worker publishes the event only when the scan approves it, the publisher is verified,
+  The worker publishes the event only when the scan approves it, the publisher status is `published`,
   and the source trust is `auto_publish`. Anything else that finishes goes to `in_review`. A model
-  failure leaves the row `pending_scan`. When the scan creates a temporary publisher, a second
-  prompt can search the web (`BRAVE_API_KEY`), store the profile on `publishers.meta.lookup`, and store a fetched website as an organizer key.
-  A missing key or a failed lookup leaves that publisher unchanged. A duplicate ranked over 90 as another showing stores
+  failure leaves the row `pending_scan`. A new temporary publisher is `pending_scan`. The event scan does not look it up.
+  `pnpm --filter @local-events/data-workers dev -- --job publisher-scan` claims those publishers.
+  With `BRAVE_API_KEY` it searches the web, stores the profile on `publishers.meta.lookup`, stores a fetched website as an organizer key, and sets `in_review`.
+  A missing key claims nothing. A failed lookup leaves the publisher `pending_scan`. A duplicate ranked over 90 as another showing stores
   `meta.possibleOccasionGroupId` on that event and the matches. An existing `occasionGroupId` is
   reused; otherwise a new id is created. Public responses omit it. `OLLAMA_BASE_URL` must be a loopback URL.
   `OLLAMA_DISABLED=1` skips local Ollama, so an event that still needs tags stays `pending_scan`.
   `pnpm --filter @local-events/data-workers dev -- --job event-scan`
   scans the next batch. Add `--event <event-id>` to scan one row, or `--limit 1` to cap the batch.
-  Flow: [docs/flows/event-scan.md](docs/flows/event-scan.md).
+  Flow: [docs/flows/event-scan.md](docs/flows/event-scan.md). Publisher lookup: [docs/flows/publisher-scan.md](docs/flows/publisher-scan.md).
 
 ### Destination Hälsingland import
 
@@ -227,8 +228,8 @@ calls) in the same change as every new major feature.**
 - Public `GET /v1/events` only returns **`status = published`** events that have a point inside
   the search radius and have not ended. A whole day, the same start and end, stays through that
   calendar day. An event without a point is left out of the app list and the map. Direct
-  lookup by id still returns it. Unverified
-  publishers’ events stay `awaiting_verification` until an admin verifies the publisher (which
+  lookup by id still returns it. Publishers that are not `published`
+  keep their events in `awaiting_verification` until an admin publishes the publisher (which
   releases upcoming events).
 - **Push drafts:** publishing creates a `push_messages` row. Trusted publishers auto-approve;
   others need admin approval under **Pushes**. After a send, publishers can **Notify again**
@@ -308,7 +309,7 @@ calls) in the same change as every new major feature.**
   otherwise `/_next` is 403 and the login form appears to do nothing. Session cookies are
   `SameSite=Lax` on the admin API host — keep the UI and `NEXT_PUBLIC_ADMIN_API_URL` on the
   same site (e.g. both `localhost`, or both `*.your-alias`) or the cookie will not stick.
-- **Admin queues:** `/review` lists imports in `in_review`, unverified publishers, and `pending`
+- **Admin queues:** `/review` lists imports in `in_review`, publishers in `in_review`, and `pending`
   notifications (approve/reject). A warning icon marks a row that needs a closer look, such as a
   possible duplicate. Import review and the event catalog can select rows and publish,
   reject, or delete them. Scan again sends an imported review event back to `pending_scan`. Publisher lists can select rows and verify them.
@@ -316,8 +317,8 @@ calls) in the same change as every new major feature.**
   the source id out of later imports, and leaves the row when someone has already
   checked in, saved, rated, or been notified
   ([docs/flows/import-review-delete.md](docs/flows/import-review-delete.md)). `/events` redirects there. `/events/manage`
-  pages the catalog 50 at a time and searches title, venue, and publisher, then patches status. `/publishers` verifies, remaps/completes temporary publishers, and toggles
-  verified. `/moderation` hides ratings and bans users (banned users cannot create sessions or
+  pages the catalog 50 at a time and searches title, venue, and publisher, then patches status. `/publishers` publishes a publisher, remaps or completes temporary publishers, and shows status.
+  `/moderation` hides ratings and bans users (banned users cannot create sessions or
   use existing ones). `/audit-log` lists admin actions. Ingest raw payloads go to S3 as
   `raw/<source>/<runId>` when `RAW_INGESTION_BUCKET` is set.
 - **Data workers:** `pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn`
