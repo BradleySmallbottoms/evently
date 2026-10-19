@@ -112,7 +112,9 @@ Closed beta around week 15, store launch around week 19.
 - [x] Entity CRUD (events, users, remaining publisher fields)
 - [x] Publisher editor: name, slug, type, and import notification plan (nothing, or a marketing plan
       scheduled for published publishers' script imports). In-review imports get `pending`
-      reminders; publishing the event approves them.
+      reminders; publishing the event approves them. The page lists the publisher's events.
+      Delete is available when that list is empty.
+
 - [x] Moderation queue for ratings and suspicious check-ins; user bans
 - [x] Data-source management with run history and a manual run button
 - [x] Review queue for imported events; publisher mapping queue (re-map a temporary publisher to an

@@ -24,6 +24,11 @@ export function shouldEnqueueNotifications(status: EventStatus): boolean {
   return status === 'published';
 }
 
+/** A publisher with any event stays. Members, invites, aliases, and follows go with an empty one. */
+export function canDeletePublisher(eventCount: number): boolean {
+  return eventCount === 0;
+}
+
 /** On publisher verification, upcoming hidden events are released; ended ones stay hidden. */
 export function releaseOnVerification(
   event: { status: EventStatus; endsAt: Date },

@@ -16,6 +16,8 @@ import { useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { adminFetch } from '@/lib/api';
 
+const OCCASION_PREVIEW = 10;
+
 type Occasion = {
   startsAt: string;
   endsAt?: string;
@@ -46,7 +48,9 @@ export function EventOccasions({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState(false);
   const [done, setDone] = useState(false);
+  const [showAllOccasions, setShowAllOccasions] = useState(false);
   const stored = occasions ?? [];
+  const visibleOccasions = showAllOccasions ? stored : stored.slice(0, OCCASION_PREVIEW);
 
   const group = useQuery({
     queryKey: ['admin-event-occasion-group', eventId, occasionGroupId],
@@ -74,6 +78,15 @@ export function EventOccasions({
   });
 
   const items = group.data?.items ?? [];
+  const selectable = items.filter((item) => item.id !== eventId);
+  const allSelected = selectable.length > 0 && selectable.every((item) => selected.has(item.id));
+  const someSelected = selected.size > 0 && !allSelected;
+
+  function toggleAll() {
+    setError(false);
+    setDone(false);
+    setSelected(allSelected ? new Set() : new Set(selectable.map((item) => item.id)));
+  }
 
   function toggle(id: string) {
     setError(false);
@@ -103,7 +116,7 @@ export function EventOccasions({
               </TableRow>
             </TableHead>
             <TableBody>
-              {stored.map((occasion) => (
+              {visibleOccasions.map((occasion) => (
                 <TableRow key={`${occasion.startsAt}-${occasion.endsAt ?? ''}`}>
                   <TableCell>{new Date(occasion.startsAt).toLocaleString()}</TableCell>
                   <TableCell>
@@ -114,6 +127,11 @@ export function EventOccasions({
               ))}
             </TableBody>
           </Table>
+          {stored.length > OCCASION_PREVIEW && !showAllOccasions ? (
+            <Button size="small" onClick={() => setShowAllOccasions(true)}>
+              {t('showMoreOccasions')}
+            </Button>
+          ) : null}
         </Stack>
       ) : null}
       {occasionGroupId ? (
@@ -140,7 +158,16 @@ export function EventOccasions({
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell padding="checkbox" />
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      size="small"
+                      checked={allSelected}
+                      indeterminate={someSelected}
+                      disabled={selectable.length === 0}
+                      onChange={toggleAll}
+                      slotProps={{ input: { 'aria-label': t('selectAll') } }}
+                    />
+                  </TableCell>
                   <TableCell>{t('name')}</TableCell>
                   <TableCell>{t('startsAt')}</TableCell>
                   <TableCell>{t('endsAt')}</TableCell>

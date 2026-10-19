@@ -181,6 +181,7 @@ export function PublisherCatalog() {
                 />
               </TableCell>
               <TableCell>{t('name')}</TableCell>
+              <TableCell>{t('id')}</TableCell>
               <TableCell>{t('slug')}</TableCell>
               <TableCell>{t('origin')}</TableCell>
               <TableCell>{t('status')}</TableCell>
@@ -201,6 +202,7 @@ export function PublisherCatalog() {
                 <TableCell>
                   <Link href={`/publishers/${item.id}`}>{item.name}</Link>
                 </TableCell>
+                <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{item.id}</TableCell>
                 <TableCell>{item.slug}</TableCell>
                 <TableCell>{item.origin}</TableCell>
                 <TableCell>{statusLabel(t, item.status)}</TableCell>

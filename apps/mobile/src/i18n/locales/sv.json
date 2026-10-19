@@ -4,6 +4,7 @@
   },
   "home": {
     "title": "Lokala evenemang",
+    "searchPlaceholder": "Vad vill du hitta?",
     "subtitle": "Hitta och checka in på evenemang nära dig.",
     "identityReady": "Enhet kopplad",
     "identityLoading": "Skapar anonym identitet…",

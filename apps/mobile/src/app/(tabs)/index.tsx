@@ -22,6 +22,7 @@ import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { FeaturedEventCard } from './_components/featured-event-card';
 import { EventCard } from '@/components/ui/event-card';
 import { EventListItem } from '@/components/ui/event-list-item';
+import { SearchBar } from '@/components/ui/search-bar';
 import { TagFilters } from '@/components/ui/tag-filters';
 import { PopularNow } from '@/components/ui/popular-now';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
@@ -78,6 +79,7 @@ export default function HomeScreen() {
   const [regionSuggestion, setRegionSuggestion] = useState<RegionSuggestion | null>(null);
   const [regionSheetOpen, setRegionSheetOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [q, setQ] = useState('');
 
   const { identity, preferences, point, placeId, radiusM, radiusMap, device } = useDiscoveryPoint();
   const saveDiscoveryRadius = useSaveDiscoveryRadius(identity.data);
@@ -107,10 +109,16 @@ export default function HomeScreen() {
   const tagsSettled = tags.isSuccess || tags.isError;
   const selectedTagIds = tags.isSuccess ? retainedTagIds(rawTagIds, knownTagIds) : rawTagIds;
   const selectedTagKey = [...selectedTagIds].sort().join('\n');
+  const query = q.trim();
+  const searching = query.length > 0;
   const events = useInfinitePublicEvents(
     storedTagIds.isSuccess && tagsSettled ? point.data : undefined,
-    { tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined, sort: 'soonest' },
-    ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM, selectedTagKey],
+    {
+      q: searching ? query : undefined,
+      tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+      sort: 'soonest',
+    },
+    ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM, selectedTagKey, query],
   );
   const popular = useQuery({
     queryKey: ['popular-events', point.data?.lat, point.data?.lng, point.data?.radiusM],
@@ -245,14 +253,17 @@ export default function HomeScreen() {
     t,
   ]);
 
-  const { featured, coming } = useMemo(() => {
+  const { featured, coming, matches } = useMemo(() => {
     const items = events.data?.pages.flatMap((page) => page.items) ?? [];
     return {
       featured: items.filter((event) => event.featured),
       coming: items.filter((event) => !event.featured),
+      matches: items,
     };
   }, [events.data]);
   const featuredIds = useMemo(() => new Set(featured.map((event) => event.id)), [featured]);
+  const homeFeaturedIds = useRef(featuredIds);
+  if (!searching) homeFeaturedIds.current = featuredIds;
   // A place change keeps the previous page visible. Those featured ids belong
   // to the old place, so skip them only after this place's list has settled.
   const forYouReady = (events.isSuccess && !events.isPlaceholderData) || events.isError;
@@ -261,7 +272,7 @@ export default function HomeScreen() {
     identity: identity.isSuccess ? identity.data : undefined,
     tagsReady: storedTagIds.isSuccess && tagsSettled,
     selectedTagIds,
-    featuredIds: forYouReady ? featuredIds : new Set(),
+    featuredIds: searching ? homeFeaturedIds.current : forYouReady ? featuredIds : new Set(),
   });
 
   async function generatePairingCode() {
@@ -385,7 +396,7 @@ export default function HomeScreen() {
     <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
       <FlatList
         style={{ flex: 1, width: '100%', maxWidth: MaxContentWidth }}
-        data={coming}
+        data={searching ? matches : coming}
         keyExtractor={(item) => item.id}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
@@ -451,13 +462,21 @@ export default function HomeScreen() {
               />
             </View>
 
+            <View style={{ paddingHorizontal: space.xl }}>
+              <SearchBar
+                value={q}
+                onChangeText={setQ}
+                placeholder={t('home.searchPlaceholder')}
+              />
+            </View>
+
             <TagFilters
               tags={tags.data?.items ?? []}
               selectedIds={selectedTagIds}
               onChange={changeHomeTags}
             />
 
-            {forYou.items.length > 0 ? (
+            {!searching && forYou.items.length > 0 ? (
               <View style={{ gap: space.md }}>
                 <View
                   style={{
@@ -511,7 +530,7 @@ export default function HomeScreen() {
               </View>
             ) : null}
 
-            {featured.length > 0 ? (
+            {!searching && featured.length > 0 ? (
               <View style={{ gap: space.md }}>
                 <View
                   style={{
@@ -562,14 +581,16 @@ export default function HomeScreen() {
               </View>
             ) : null}
 
-            <PopularNow
-              locale={locale}
-              items={popularItems}
-              onShowAll={() => router.push('/(tabs)/events')}
-              onPress={(id) => router.push(`/events/${id}`)}
-            />
+            {searching ? null : (
+              <PopularNow
+                locale={locale}
+                items={popularItems}
+                onShowAll={() => router.push('/(tabs)/events')}
+                onPress={(id) => router.push(`/events/${id}`)}
+              />
+            )}
 
-            {coming.length > 0 ? (
+            {!searching && coming.length > 0 ? (
               <AppText variant="subtitle" style={{ paddingHorizontal: space.xl }}>
                 {t('events.coming')}
               </AppText>
@@ -614,9 +635,9 @@ export default function HomeScreen() {
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <ActivityIndicator accessibilityLabel={t('events.loading')} color={colors.ink} />
             </View>
-          ) : events.isSuccess && !events.isPlaceholderData && featured.length === 0 ? (
+          ) : events.isSuccess && !events.isPlaceholderData && (searching ? matches.length === 0 : featured.length === 0) ? (
             <AppText variant="body" style={{ paddingHorizontal: space.xl }}>
-              {t('events.empty')}
+              {searching ? t('events.searchEmpty') : t('events.empty')}
             </AppText>
           ) : null
         }

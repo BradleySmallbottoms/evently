@@ -2,6 +2,11 @@
 
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormLabel from '@mui/material/FormLabel';
@@ -16,8 +21,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
+import { PublisherEvents } from './publisher-events';
 
 type Publisher = {
   id: string;
@@ -39,7 +45,10 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
   const t = useTranslations('PublisherEditor');
   const tPlans = useTranslations('PushMessages');
   const tApp = useTranslations('App');
+  const router = useRouter();
   const queryClient = useQueryClient();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState(false);
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -48,6 +57,28 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
   const [planId, setPlanId] = useState<MarketingPushPlanId>('single');
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const events = useQuery({
+    queryKey: ['admin-publisher-events', publisherId],
+    queryFn: () => adminFetch<{ total: number }>(`/publishers/${publisherId}/events`),
+    retry: false,
+  });
+  const canDelete = events.data != null && events.data.total === 0;
+
+  const remove = useMutation({
+    mutationFn: () => adminFetch(`/publishers/${publisherId}`, { method: 'DELETE' }),
+    onSuccess: async () => {
+      setConfirmDelete(false);
+      await queryClient.invalidateQueries({ queryKey: ['admin-publishers-all'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-publishers-unverified'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-publishers-temporary'] });
+      router.push('/publishers');
+    },
+    onError: () => {
+      setConfirmDelete(false);
+      setDeleteError(true);
+    },
+  });
 
   const publisher = useQuery({
     queryKey: ['admin-publisher', publisherId],
@@ -126,7 +157,7 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
   }
 
   return (
-    <Stack spacing={3} component="form" onSubmit={onSubmit}>
+    <Stack spacing={3}>
       <Button component={Link} href="/publishers" sx={{ alignSelf: 'flex-start' }}>
         {t('back')}
       </Button>
@@ -137,7 +168,7 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
       {notice ? <Alert severity="success">{notice}</Alert> : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
       {current ? (
-        <>
+        <Stack spacing={3} component="form" onSubmit={onSubmit}>
           <TextField
             label={t('name')}
             value={name}
@@ -205,11 +236,49 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
               {current.status === 'published' ? t('notificationVerified') : t('notificationUnverified')}
             </Typography>
           ) : null}
-          <Button type="submit" variant="contained" disabled={save.isPending} sx={{ alignSelf: 'flex-start' }}>
-            {save.isPending ? t('saving') : t('save')}
-          </Button>
-        </>
+          {deleteError ? <Alert severity="error">{t('deleteError')}</Alert> : null}
+          <Stack direction="row" spacing={1}>
+            <Button type="submit" variant="contained" disabled={save.isPending}>
+              {save.isPending ? t('saving') : t('save')}
+            </Button>
+            {canDelete ? (
+              <Button
+                type="button"
+                color="error"
+                variant="outlined"
+                disabled={remove.isPending}
+                onClick={() => {
+                  setDeleteError(false);
+                  setConfirmDelete(true);
+                }}
+              >
+                {remove.isPending ? t('deleting') : t('delete')}
+              </Button>
+            ) : null}
+          </Stack>
+        </Stack>
       ) : null}
+      {current ? <PublisherEvents publisherId={publisherId} /> : null}
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
+        <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{t('deleteConfirm')}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button type="button" onClick={() => setConfirmDelete(false)}>
+            {t('cancel')}
+          </Button>
+          <Button
+            type="button"
+            color="error"
+            variant="contained"
+            disabled={remove.isPending}
+            onClick={() => remove.mutate()}
+          >
+            {t('delete')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

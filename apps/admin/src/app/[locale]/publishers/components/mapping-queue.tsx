@@ -2,6 +2,11 @@
 
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -31,6 +36,8 @@ export function MappingQueue() {
   const locale = useLocale();
   const queryClient = useQueryClient();
   const [targets, setTargets] = useState<Record<string, string>>({});
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState(false);
   const [completeForms, setCompleteForms] = useState<
     Record<string, { name: string; slug: string; type: 'org' | 'person' }>
   >({});
@@ -50,6 +57,20 @@ export function MappingQueue() {
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin-publishers-temporary'] });
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => adminFetch(`/publishers/${id}`, { method: 'DELETE' }),
+    onSuccess: async () => {
+      setDeleteId(null);
+      setDeleteError(false);
+      await queryClient.invalidateQueries({ queryKey: ['admin-publishers-temporary'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-publishers-all'] });
+    },
+    onError: () => {
+      setDeleteId(null);
+      setDeleteError(true);
     },
   });
 
@@ -99,6 +120,7 @@ export function MappingQueue() {
       <Typography variant="h5" component="h2">
         {t('title')}
       </Typography>
+      {deleteError ? <Alert severity="error">{t('deleteError')}</Alert> : null}
       {list.isLoading ? <Typography color="text.secondary">{tApp('loading')}</Typography> : null}
       {!list.isLoading && items.length === 0 ? (
         <Typography color="text.secondary">{t('empty')}</Typography>
@@ -108,6 +130,7 @@ export function MappingQueue() {
           <TableHead>
             <TableRow>
               <TableCell>{t('name')}</TableCell>
+              <TableCell>{t('id')}</TableCell>
               <TableCell>{t('events')}</TableCell>
               <TableCell>{t('mapTo')}</TableCell>
               <TableCell>{t('complete')}</TableCell>
@@ -123,11 +146,12 @@ export function MappingQueue() {
               return (
                 <TableRow key={item.id}>
                   <TableCell>
-                    {item.name}
+                    <Link href={`/publishers/${item.id}`}>{item.name}</Link>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                       {item.slug}
                     </Typography>
                   </TableCell>
+                  <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{item.id}</TableCell>
                   <TableCell>{item.eventCount}</TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
@@ -193,6 +217,19 @@ export function MappingQueue() {
                       >
                         {t('save')}
                       </Button>
+                      {item.eventCount === 0 ? (
+                        <Button
+                          size="small"
+                          color="error"
+                          disabled={remove.isPending}
+                          onClick={() => {
+                            setDeleteError(false);
+                            setDeleteId(item.id);
+                          }}
+                        >
+                          {t('delete')}
+                        </Button>
+                      ) : null}
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -201,6 +238,25 @@ export function MappingQueue() {
           </TableBody>
         </Table>
       ) : null}
+      <Dialog open={deleteId !== null} onClose={() => setDeleteId(null)}>
+        <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{t('deleteConfirm')}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteId(null)}>{t('cancel')}</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={remove.isPending || deleteId == null}
+            onClick={() => {
+              if (deleteId) remove.mutate(deleteId);
+            }}
+          >
+            {t('delete')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

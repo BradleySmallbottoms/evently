@@ -1138,7 +1138,7 @@ export default function EventDetailScreen() {
                     primaryTagId
                       ? () =>
                         router.push({
-                          pathname: '/(tabs)/search',
+                          pathname: '/event-search',
                           params: { tagId: primaryTagId, tagAt: String(Date.now()) },
                         })
                       : undefined

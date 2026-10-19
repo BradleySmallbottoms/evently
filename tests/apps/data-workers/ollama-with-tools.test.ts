@@ -416,6 +416,25 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(rejected?.content).not.toContain('Hälsinglands museum');
   });
 
+  it('reads a scan object whose strings contain raw newlines', async () => {
+    const store = createMemoryIngestStore();
+    const reply = answer(
+      '{"reasoning_content":"The publisher matched.\n\nTags scored over 90.","contentVerdict":"safe","summary":"Musik i arenan.\n\n1. Kom till arenan.","language":"sv","possibleTags":[{"id":"visit-soderhamn:30194","score":95}],"possiblePublishers":[],"possibleDuplicates":[]}',
+    );
+    const { fetchImpl } = scriptedFetch([reply]);
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+
+    const [outcome] = await runner.scan([scanInput]);
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      contentVerdict: 'safe',
+      summary: 'Musik i arenan.\n\n1. Kom till arenan.',
+      language: 'sv',
+      tags: [{ externalId: 'visit-soderhamn:30194', name: 'Bandy & Innebandy' }],
+    });
+  });
+
   it('leaves the scan unavailable when the reply is prose without a scan object', async () => {
     const store = createMemoryIngestStore();
     const { fetchImpl } = scriptedFetch([

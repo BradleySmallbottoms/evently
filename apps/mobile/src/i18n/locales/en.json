@@ -4,6 +4,7 @@
   },
   "home": {
     "title": "Local Events",
+    "searchPlaceholder": "What are you looking for?",
     "subtitle": "Discover and check in to events near you.",
     "identityReady": "Device linked",
     "identityLoading": "Creating anonymous identity…",

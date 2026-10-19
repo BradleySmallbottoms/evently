@@ -4,6 +4,7 @@ import {
   canRate,
   eventEngagement,
   isPopularEvent,
+  canDeletePublisher,
   releaseOnVerification,
   resolveTravelDistanceM,
   shouldSuggestRegion,
@@ -117,6 +118,10 @@ describe('publishing', () => {
       'awaiting_verification',
     );
     expect(statusOnPublish({ origin: 'native', publisherStatus: 'published' })).toBe('published');
+  });
+  it('deletes a publisher only when it has no events', () => {
+    expect(canDeletePublisher(0)).toBe(true);
+    expect(canDeletePublisher(1)).toBe(false);
   });
   it('routes imported events by source trust', () => {
     expect(

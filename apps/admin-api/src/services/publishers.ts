@@ -2,6 +2,8 @@ import type {
   AdminCompletePublisherRequest,
   AdminCompletePublisherResponse,
   AdminMapPublisherResponse,
+  AdminPublisherDeleteResponse,
+  AdminPublisherEventListResponse,
   AdminPublisherListResponse,
   AdminPublisherPatchRequest,
   AdminTemporaryPublisherListResponse,
@@ -13,6 +15,7 @@ import type { Db } from '@local-events/db';
 import { approveOpenPushMessagesForPublisher, schema } from '@local-events/db';
 import {
   importNotificationMessages,
+  canDeletePublisher,
   releaseOnVerification,
   shouldEnqueueNotifications,
   importPlanToSchedule,
@@ -20,7 +23,7 @@ import {
   type MarketingPushPlanId,
   type PublisherStatus,
 } from '@local-events/domain';
-import { and, count, eq, ne, asc } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ne } from 'drizzle-orm';
 import { scheduleImportPlanForPublisher } from './import-notifications';
 import { createMemoryDomainEventPublisher } from './domain-events/memory';
 import { enqueueDomainEvent, type DomainEventPublisher } from './domain-events/types';
@@ -44,6 +47,13 @@ export type AdminPublisherServices = {
   ) => Promise<PublisherSummaryAdmin | null>;
   get: (publisherId: string) => Promise<PublisherSummaryAdmin | null>;
   listAll: () => Promise<PublisherSummaryAdmin[]>;
+  listEvents: (publisherId: string) => Promise<AdminPublisherEventListResponse | null>;
+  remove: (
+    publisherId: string,
+  ) => Promise<
+    | { ok: true; id: AdminPublisherDeleteResponse['id'] }
+    | { ok: false; reason: 'not_found' | 'has_events' }
+  >;
 };
 
 export type AdminPublisherEnv = {
@@ -78,6 +88,7 @@ export type AdminMemoryStore = {
       origin?: 'native' | 'imported';
       title?: string;
       startsAtDate?: Date;
+      venueName?: string | null;
     }
   >;
   /** Reminders recorded when a verified publisher's import plan is applied. */
@@ -106,6 +117,17 @@ function asPublisherSummary(
     importNotificationPlan: p.importNotificationPlan ?? null,
     createdAt: p.createdAt.toISOString(),
   };
+}
+
+const PUBLISHER_EVENT_LIST_LIMIT = 200;
+
+function publisherEventRows(store: AdminMemoryStore, publisherId: string) {
+  return [...store.events.values()]
+    .filter((event) => event.publisherId === publisherId)
+    .sort(
+      (a, b) =>
+        (b.startsAtDate ?? b.endsAtDate).getTime() - (a.startsAtDate ?? a.endsAtDate).getTime(),
+    );
 }
 
 function scheduleMemoryImportPlanIfReady(
@@ -289,6 +311,34 @@ export function createMemoryAdminPublisherServices(
         );
       }
       return asPublisherSummary(publisher);
+    },
+    async listEvents(publisherId) {
+      if (!store.publishers.has(publisherId)) return null;
+      const rows = publisherEventRows(store, publisherId);
+      return {
+        total: rows.length,
+        items: rows.slice(0, PUBLISHER_EVENT_LIST_LIMIT).map((event) => ({
+          id: event.id,
+          title: event.title ?? '',
+          status: event.status as AdminPublisherEventListResponse['items'][number]['status'],
+          startsAt: (event.startsAtDate ?? event.endsAtDate).toISOString(),
+          endsAt: event.endsAtDate.toISOString(),
+          venueName: event.venueName ?? null,
+        })),
+      };
+    },
+    async remove(publisherId) {
+      if (!store.publishers.has(publisherId)) return { ok: false, reason: 'not_found' };
+      if (!canDeletePublisher(publisherEventRows(store, publisherId).length)) {
+        return { ok: false, reason: 'has_events' };
+      }
+      if (store.aliases) {
+        for (const [id, alias] of store.aliases) {
+          if (alias.publisherId === publisherId) store.aliases.delete(id);
+        }
+      }
+      store.publishers.delete(publisherId);
+      return { ok: true, id: publisherId };
     },
   };
 }
@@ -622,5 +672,82 @@ export function createDbAdminPublisherServices(
         ? { ...updated, createdAt: updated.createdAt.toISOString() }
         : null;
     },
+    async listEvents(publisherId) {
+      const [publisher] = await db
+        .select({ id: schema.publishers.id })
+        .from(schema.publishers)
+        .where(eq(schema.publishers.id, publisherId))
+        .limit(1);
+      if (!publisher) return null;
+      const [counted] = await db
+        .select({ total: count() })
+        .from(schema.events)
+        .where(eq(schema.events.publisherId, publisherId));
+      const rows = await db
+        .select({
+          id: schema.events.id,
+          title: schema.events.title,
+          status: schema.events.status,
+          startsAt: schema.events.startsAt,
+          endsAt: schema.events.endsAt,
+          venueName: schema.events.venueName,
+        })
+        .from(schema.events)
+        .where(eq(schema.events.publisherId, publisherId))
+        .orderBy(desc(schema.events.startsAt))
+        .limit(PUBLISHER_EVENT_LIST_LIMIT);
+      return {
+        total: Number(counted?.total ?? 0),
+        items: rows.map((row) => ({
+          id: row.id,
+          title: row.title,
+          status: row.status,
+          startsAt: row.startsAt.toISOString(),
+          endsAt: row.endsAt.toISOString(),
+          venueName: row.venueName,
+        })),
+      };
+    },
+    async remove(publisherId) {
+      try {
+        return await db.transaction(async (tx) => {
+          const [publisher] = await tx
+            .select({ id: schema.publishers.id })
+            .from(schema.publishers)
+            .where(eq(schema.publishers.id, publisherId))
+            .limit(1);
+          if (!publisher) return { ok: false as const, reason: 'not_found' as const };
+          const [counted] = await tx
+            .select({ total: count() })
+            .from(schema.events)
+            .where(eq(schema.events.publisherId, publisherId));
+          if (!canDeletePublisher(Number(counted?.total ?? 0))) {
+            return { ok: false as const, reason: 'has_events' as const };
+          }
+          await tx
+            .delete(schema.publisherAliases)
+            .where(eq(schema.publisherAliases.publisherId, publisherId));
+          await tx
+            .delete(schema.subscriptions)
+            .where(
+              and(
+                eq(schema.subscriptions.targetType, 'publisher'),
+                eq(schema.subscriptions.targetId, publisherId),
+              ),
+            );
+          await tx.delete(schema.publishers).where(eq(schema.publishers.id, publisherId));
+          return { ok: true as const, id: publisherId };
+        });
+      } catch (err) {
+        if (isForeignKeyViolation(err)) return { ok: false, reason: 'has_events' };
+        throw err;
+      }
+    },
   };
+}
+
+function isForeignKeyViolation(err: unknown): boolean {
+  const code = (err as { code?: string; cause?: { code?: string } }).code
+    ?? (err as { cause?: { code?: string } }).cause?.code;
+  return code === '23503';
 }

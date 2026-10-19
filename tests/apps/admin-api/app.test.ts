@@ -67,6 +67,8 @@ describe('admin api', () => {
     expect(doc.paths['/publishers/{id}/verify']).toBeDefined();
     expect(doc.paths['/publishers/{id}/map']).toBeDefined();
     expect(doc.paths['/publishers/{id}/complete']).toBeDefined();
+    expect(doc.paths['/publishers/{id}/events']).toBeDefined();
+    expect((doc.paths['/publishers/{id}'] as { delete?: unknown }).delete).toBeDefined();
     expect(doc.paths['/events']).toBeDefined();
     expect(doc.paths['/events/{id}']).toBeDefined();
     expect(doc.paths['/tags']).toBeDefined();
@@ -229,6 +231,105 @@ describe('admin api', () => {
     });
     expect(cleared.status).toBe(200);
     expect(await cleared.json()).toMatchObject({ importNotificationPlan: null });
+  });
+
+  it('lists a publisher’s events and deletes the publisher only when it has none', async () => {
+    const { auth } = await seededAuth();
+    const emptyId = '22222222-2222-4222-8222-222222222202';
+    const busyId = '22222222-2222-4222-8222-222222222201';
+    const publishers = new Map([
+      [
+        emptyId,
+        {
+          id: emptyId,
+          name: 'Tomt',
+          slug: 'tomt',
+          type: 'org' as const,
+          status: 'in_review' as const,
+          origin: 'imported' as const,
+          importNotificationPlan: null,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+        },
+      ],
+      [
+        busyId,
+        {
+          id: busyId,
+          name: 'Cafe',
+          slug: 'cafe',
+          type: 'org' as const,
+          status: 'published' as const,
+          origin: 'imported' as const,
+          importNotificationPlan: null,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+        },
+      ],
+    ]);
+    const events = new Map([
+      [
+        '33333333-3333-4333-8333-333333333301',
+        {
+          id: '33333333-3333-4333-8333-333333333301',
+          publisherId: busyId,
+          status: 'published',
+          title: 'Jazzkväll',
+          venueName: 'Scen',
+          startsAtDate: new Date('2026-07-01T18:00:00.000Z'),
+          endsAtDate: new Date('2026-07-01T21:00:00.000Z'),
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    ]);
+    const aliases = new Map([
+      ['alias-1', { sourceId: 'src', externalOrganizerKey: 'tomt.se', publisherId: emptyId }],
+    ]);
+    const app = createApp({
+      auth,
+      publishers: createMemoryAdminPublisherServices({ publishers, events, aliases }),
+    });
+    const cookie = await loginSession(app);
+
+    const empty = await app.request(`/v1/publishers/${emptyId}/events`, { headers: { cookie } });
+    expect(empty.status).toBe(200);
+    expect(await empty.json()).toEqual({ items: [], total: 0 });
+
+    const listed = await app.request(`/v1/publishers/${busyId}/events`, { headers: { cookie } });
+    expect(listed.status).toBe(200);
+    expect(await listed.json()).toEqual({
+      total: 1,
+      items: [
+        {
+          id: '33333333-3333-4333-8333-333333333301',
+          title: 'Jazzkväll',
+          status: 'published',
+          startsAt: '2026-07-01T18:00:00.000Z',
+          endsAt: '2026-07-01T21:00:00.000Z',
+          venueName: 'Scen',
+        },
+      ],
+    });
+
+    const blocked = await app.request(`/v1/publishers/${busyId}`, {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    expect(blocked.status).toBe(409);
+    expect(publishers.has(busyId)).toBe(true);
+
+    const removed = await app.request(`/v1/publishers/${emptyId}`, {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    expect(removed.status).toBe(200);
+    expect(await removed.json()).toEqual({ id: emptyId });
+    expect(publishers.has(emptyId)).toBe(false);
+    expect(aliases.size).toBe(0);
+
+    const missing = await app.request(`/v1/publishers/${emptyId}`, {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    expect(missing.status).toBe(404);
   });
 
   it('approves and rejects imported events in review', async () => {

@@ -1,13 +1,15 @@
 import { canAddSavedArea } from '@local-events/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AreaTagGroupsSheet } from '@/components/native/area-tag-groups-sheet';
 import { LocationMenu } from '@/components/native/location-menu';
 import { AppText } from '@/components/ui/app-text';
+import { BackPill } from '@/components/ui/back-pill';
 import { EmptyState } from '@/components/ui/empty-state';
 import { EventListItem } from '@/components/ui/event-list-item';
 import { FilterDropdown } from '@/components/ui/filter-dropdown';
@@ -69,6 +71,8 @@ function dateBounds(id: DateFilterId): { from?: string; to?: string } {
 
 export default function SearchScreen() {
   const router = useRouter();
+  const stacked = usePathname() === '/event-search';
+  const insets = useSafeAreaInsets();
   const { focus, tagId: tagIdParam, tagAt } = useLocalSearchParams<{
     focus?: string;
     tagId?: string;
@@ -181,7 +185,14 @@ export default function SearchScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.canvas,
+        alignItems: 'center',
+        paddingTop: stacked ? insets.top : 0,
+      }}
+    >
       <FlatList
         style={{ width: '100%', maxWidth: MaxContentWidth }}
         contentInsetAdjustmentBehavior="automatic"
@@ -195,6 +206,11 @@ export default function SearchScreen() {
         contentContainerStyle={{ paddingBottom: BottomTabInset + space.xxxl, gap: space.md }}
         ListHeaderComponent={
           <View style={{ gap: space.md, paddingTop: space.sm }}>
+            {stacked ? (
+              <View style={{ paddingHorizontal: space.xl }}>
+                <BackPill />
+              </View>
+            ) : null}
             <View
               style={{
                 paddingHorizontal: space.xl,

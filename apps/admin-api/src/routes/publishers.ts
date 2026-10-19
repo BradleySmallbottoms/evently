@@ -4,6 +4,8 @@ import {
   AdminCompletePublisherResponse,
   AdminMapPublisherRequest,
   AdminMapPublisherResponse,
+  AdminPublisherDeleteResponse,
+  AdminPublisherEventListResponse,
   AdminPublisherListResponse,
   AdminPublisherPatchRequest,
   AdminTemporaryPublisherListResponse,
@@ -243,6 +245,80 @@ export function registerPublisherRoutes(
         return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
       }
       return c.json(result, 200);
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
+  const events = createRoute({
+    method: 'get',
+    path: '/publishers/{id}/events',
+    request: { params: z.object({ id: z.uuid() }) },
+    responses: {
+      200: {
+        description: 'Events for this publisher, newest start first',
+        content: { 'application/json': { schema: AdminPublisherEventListResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(events, async (c) => {
+    try {
+      await auth.requireSession(readAdminSessionToken(c));
+      const result = await publishers.listEvents(c.req.valid('param').id);
+      if (!result) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json(result, 200);
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
+  const remove = createRoute({
+    method: 'delete',
+    path: '/publishers/{id}',
+    request: { params: z.object({ id: z.uuid() }) },
+    responses: {
+      200: {
+        description: 'Publisher removed',
+        content: { 'application/json': { schema: AdminPublisherDeleteResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      409: {
+        description: 'Publisher still has events',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(remove, async (c) => {
+    try {
+      await auth.requireSession(readAdminSessionToken(c));
+      const result = await publishers.remove(c.req.valid('param').id);
+      if (!result.ok && result.reason === 'not_found') {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      if (!result.ok) {
+        return c.json(
+          { error: { code: 'publisher_has_events', message: 'Publisher has events' } },
+          409,
+        );
+      }
+      return c.json({ id: result.id }, 200);
     } catch (err) {
       return adminAuthErrorResponse(c, err);
     }

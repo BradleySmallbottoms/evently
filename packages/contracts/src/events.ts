@@ -377,3 +377,24 @@ export const VerifyPublisherResponse = z.object({
   releasedEventCount: z.number().int().nonnegative(),
 });
 export type VerifyPublisherResponse = z.infer<typeof VerifyPublisherResponse>;
+
+export const AdminPublisherEventItem = z.object({
+  id: Id,
+  title: z.string(),
+  status: EventStatus,
+  startsAt: z.iso.datetime(),
+  endsAt: z.iso.datetime(),
+  venueName: z.string().nullable(),
+});
+export type AdminPublisherEventItem = z.infer<typeof AdminPublisherEventItem>;
+
+export const AdminPublisherEventListResponse = z.object({
+  items: z.array(AdminPublisherEventItem),
+  total: z.number().int().nonnegative(),
+});
+export type AdminPublisherEventListResponse = z.infer<typeof AdminPublisherEventListResponse>;
+
+export const AdminPublisherDeleteResponse = z.object({
+  id: Id,
+});
+export type AdminPublisherDeleteResponse = z.infer<typeof AdminPublisherDeleteResponse>;

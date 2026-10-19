@@ -987,7 +987,8 @@ function fencedBlocks(content: string): string[] {
 /**
  * Top-level JSON objects in `content`. A value that parses is consumed, so a
  * scan object is not split into the objects nested inside it. Braces inside
- * strings do not end an object.
+ * strings do not end an object. Raw newlines inside a string are escaped
+ * before parsing; models emit those and strict JSON rejects them.
  */
 function jsonObjects(content: string): Record<string, unknown>[] {
   const objects: Record<string, unknown>[] = [];
@@ -1000,19 +1001,80 @@ function jsonObjects(content: string): Record<string, unknown>[] {
       index = start + 1;
       continue;
     }
-    try {
-      const parsed: unknown = JSON.parse(content.slice(start, end + 1));
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        objects.push(parsed as Record<string, unknown>);
-        index = end + 1;
-        continue;
-      }
-    } catch {
-      // The span is not JSON. The next `{` may start the scan object.
+    const parsed = parseJsonObject(content.slice(start, end + 1));
+    if (parsed) {
+      objects.push(parsed);
+      index = end + 1;
+      continue;
     }
     index = start + 1;
   }
   return objects;
+}
+
+/**
+ * Parses one JSON object. A model often puts a raw newline inside a string.
+ * That is not JSON, so those controls are escaped and the text is parsed again.
+ * A span that still does not parse, or that parses as something other than an
+ * object, is skipped.
+ */
+function parseJsonObject(text: string): Record<string, unknown> | null {
+  const parsed = parseJsonValue(text) ?? parseJsonValue(escapeControlsInJsonStrings(text));
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  return parsed as Record<string, unknown>;
+}
+
+function parseJsonValue(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Replaces raw control characters that sit inside JSON strings. Newlines,
+ * returns, and tabs become the usual escapes. Other controls become `\u00XX`.
+ * Characters outside strings are left as they are, so pretty-printed JSON
+ * stays valid.
+ */
+function escapeControlsInJsonStrings(text: string): string {
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index] ?? '';
+    const code = text.charCodeAt(index);
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        out += char;
+        continue;
+      }
+      if (char === '\\') {
+        escaped = true;
+        out += char;
+        continue;
+      }
+      if (char === '"') {
+        inString = false;
+        out += char;
+        continue;
+      }
+      if (code < 32) {
+        if (char === '\n') out += '\\n';
+        else if (char === '\r') out += '\\r';
+        else if (char === '\t') out += '\\t';
+        else out += `\\u${code.toString(16).padStart(4, '0')}`;
+        continue;
+      }
+      out += char;
+      continue;
+    }
+    if (char === '"') inString = true;
+    out += char;
+  }
+  return out;
 }
 
 /** Index of the `}` that closes the `{` at `open`. Returns -1 when the object is cut off. */

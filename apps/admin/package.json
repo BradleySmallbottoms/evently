@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start -p 13200",
     "lint": "eslint",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run --root ../.. tests/apps/admin/ --passWithNoTests"
   },
   "dependencies": {
     "@emotion/cache": "^11.14.0",
@@ -32,6 +33,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
+    "vitest": "^5.0.3",
     "eslint-config-next": "16.4.0",
     "typescript": "^5"
   }
