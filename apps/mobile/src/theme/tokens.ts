@@ -10,6 +10,7 @@ export const space = {
 
 /** Cards 20, buttons and search 14, chips fully round. */
 export const radius = {
+  xs: 8,
   sm: 12,
   md: 16,
   lg: 20,

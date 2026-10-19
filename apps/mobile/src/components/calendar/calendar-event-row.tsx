@@ -31,6 +31,41 @@ function Pin() {
   return <MaterialIcons name="place" size={14} color={colors.inkMuted} />;
 }
 
+/** Start, and end when the event has one, over the thumbnail. Whole day is one line. */
+function TimePill({ start, end }: { start: string; end?: string }) {
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        maxWidth: THUMB - 8,
+        backgroundColor: colors.card,
+        borderRadius: radius.sm,
+        paddingHorizontal: end ? 6 : 5,
+        paddingVertical: end ? 3 : 2,
+        alignItems: 'center',
+        boxShadow: shadow.hard,
+      }}
+    >
+      <AppText
+        variant="label"
+        numberOfLines={1}
+        style={{ color: colors.ink, fontWeight: '700', fontSize: 11, lineHeight: 14 }}
+      >
+        {start}
+      </AppText>
+      {end ? (
+        <AppText
+          variant="label"
+          numberOfLines={1}
+          style={{ color: colors.inkMuted, fontSize: 10, lineHeight: 12 }}
+        >
+          {end}
+        </AppText>
+      ) : null}
+    </View>
+  );
+}
+
 export function CalendarEventRow({
   title,
   where,
@@ -58,47 +93,35 @@ export function CalendarEventRow({
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={title}
+          accessibilityLabel={endLabel ? `${title}, ${startLabel}–${endLabel}` : `${title}, ${startLabel}`}
           onPress={onPress}
           style={{ flex: 1, flexDirection: 'row', gap: space.md, minWidth: 0 }}
         >
-          <View
-            style={{
-              width: THUMB,
-              height: THUMB,
-              borderRadius: radius.md,
-              overflow: 'hidden',
-              backgroundColor: colors.accentSoft,
-            }}
-          >
-            <EventImage imageUrl={imageUrl} tags={tags} style={{ width: THUMB, height: THUMB }} />
+          <View style={{ width: THUMB, height: THUMB }}>
+            <View
+              style={{
+                width: THUMB,
+                height: THUMB,
+                borderRadius: radius.md,
+                overflow: 'hidden',
+                backgroundColor: colors.accentSoft,
+              }}
+            >
+              <EventImage imageUrl={imageUrl} tags={tags} style={{ width: THUMB, height: THUMB }} />
+            </View>
+            <View style={{ position: 'absolute', left: 6, bottom: -6 }}>
+              <TimePill start={startLabel} end={endLabel} />
+            </View>
           </View>
           <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
             <AppText variant="subtitle" numberOfLines={2} style={{ fontSize: 16, lineHeight: 21 }}>
               {title}
             </AppText>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                <AppText variant="label" style={{ color: colors.ink, fontSize: 13 }}>
-                  {startLabel}
-                </AppText>
-                {endLabel ? (
-                  <>
-                    <AppText variant="caption" style={{ color: colors.inkMuted }}>
-                      -
-                    </AppText>
-                    <AppText variant="caption" style={{ color: colors.inkMuted }}>
-                      {endLabel}
-                    </AppText>
-                  </>
-                ) : null}
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                <Pin />
-                <AppText variant="caption" numberOfLines={1} style={{ flex: 1 }}>
-                  {where}
-                </AppText>
-              </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+              <Pin />
+              <AppText variant="caption" numberOfLines={1} style={{ flex: 1 }}>
+                {where}
+              </AppText>
             </View>
             <TagPills tags={chips} size="sm" />
           </View>
