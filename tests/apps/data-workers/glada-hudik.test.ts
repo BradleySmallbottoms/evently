@@ -506,29 +506,39 @@ describe('glada-hudik tag match', () => {
   });
 
   it('keeps catalog ids the model returns', () => {
-    expect(
-      parseTagChoices('{"externalIds":[{"id":"visit-soderhamn:30224","score":96}]}', catalog),
-    ).toEqual([catalog[0]]);
-    expect(parseTagChoices('{"externalIds":[{"id":"30224","score":91}]}', catalog)).toEqual([
-      catalog[0],
-    ]);
-    expect(parseTagChoices('{"externalIds":[{"id":30224,"score":100}]}', catalog)).toEqual([
-      catalog[0],
-    ]);
-    expect(
+    const scan = (possibleTags: unknown[]) =>
       parseTagChoices(
-        '{"externalIds":[{"id":"30224","score":95},{"id":"visit-soderhamn:30192","score":99},{"id":"30216","score":91},{"id":"30224","score":98},{"id":"nope","score":100},{"id":"30184","score":90},{"id":"30184","score":40}]}',
+        {
+          possiblePublishers: [],
+          possibleDuplicates: [],
+          contentVerdict: 'safe',
+          possibleTags,
+          summary: '',
+          language: 'sv',
+          instructions: [],
+        } as never,
         catalog,
-      ),
+      );
+    expect(scan([{ id: 'visit-soderhamn:30224', score: 96 }])).toEqual([catalog[0]]);
+    expect(scan([{ id: '30224', score: 91 }])).toEqual([catalog[0]]);
+    expect(scan([{ id: 30224, score: 100 }])).toEqual([catalog[0]]);
+    expect(
+      scan([
+        { id: '30224', score: 95 },
+        { id: 'visit-soderhamn:30192', score: 99 },
+        { id: '30216', score: 91 },
+        { id: '30224', score: 98 },
+        { id: 'nope', score: 100 },
+        { id: '30184', score: 90 },
+        { id: '30184', score: 40 },
+      ]),
     ).toEqual([catalog[0], catalog[1], catalog[2], catalog[3]]);
-    expect(parseTagChoices('{"externalIds":[]}', catalog)).toEqual([]);
-    expect(parseTagChoices('{"externalIds":[{"id":"made-up","score":99}]}', catalog)).toEqual([]);
-    expect(parseTagChoices('{"externalIds":[{"id":"302","score":99}]}', catalog)).toEqual([]);
-    expect(parseTagChoices('{"externalIds":[{"id":null,"score":99}]}', catalog)).toEqual([]);
-    expect(parseTagChoices('{"externalIds":[{"id":"30224","score":90}]}', catalog)).toEqual([
-      catalog[0],
-    ]);
-    expect(parseTagChoices('{"externalIds":["30224"]}', catalog)).toEqual([]);
+    expect(scan([])).toEqual([]);
+    expect(scan([{ id: 'made-up', score: 99 }])).toEqual([]);
+    expect(scan([{ id: '302', score: 99 }])).toEqual([]);
+    expect(scan([{ id: null, score: 99 }])).toEqual([]);
+    expect(scan([{ id: '30224', score: 90 }])).toEqual([catalog[0]]);
+    expect(scan(['30224'])).toEqual([]);
   });
 
   it('refuses an Ollama URL that is not on this machine', () => {
