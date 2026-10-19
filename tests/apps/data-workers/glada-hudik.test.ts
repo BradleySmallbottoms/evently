@@ -505,7 +505,7 @@ describe('glada-hudik tag match', () => {
     ).toEqual([{ externalId: 'visit-soderhamn:30224', name: 'Utställning' }]);
   });
 
-  it('keeps catalog ids scored above 90', () => {
+  it('keeps catalog ids the model returns', () => {
     expect(
       parseTagChoices('{"externalIds":[{"id":"visit-soderhamn:30224","score":96}]}', catalog),
     ).toEqual([catalog[0]]);
@@ -520,12 +520,14 @@ describe('glada-hudik tag match', () => {
         '{"externalIds":[{"id":"30224","score":95},{"id":"visit-soderhamn:30192","score":99},{"id":"30216","score":91},{"id":"30224","score":98},{"id":"nope","score":100},{"id":"30184","score":90},{"id":"30184","score":40}]}',
         catalog,
       ),
-    ).toEqual([catalog[0], catalog[1], catalog[2]]);
+    ).toEqual([catalog[0], catalog[1], catalog[2], catalog[3]]);
     expect(parseTagChoices('{"externalIds":[]}', catalog)).toEqual([]);
     expect(parseTagChoices('{"externalIds":[{"id":"made-up","score":99}]}', catalog)).toEqual([]);
     expect(parseTagChoices('{"externalIds":[{"id":"302","score":99}]}', catalog)).toEqual([]);
     expect(parseTagChoices('{"externalIds":[{"id":null,"score":99}]}', catalog)).toEqual([]);
-    expect(parseTagChoices('{"externalIds":[{"id":"30224","score":90}]}', catalog)).toEqual([]);
+    expect(parseTagChoices('{"externalIds":[{"id":"30224","score":90}]}', catalog)).toEqual([
+      catalog[0],
+    ]);
     expect(parseTagChoices('{"externalIds":["30224"]}', catalog)).toEqual([]);
   });
 
@@ -592,7 +594,7 @@ describe('glada-hudik tag match', () => {
     expect(result).toEqual({ ok: false });
   });
 
-  it('stores tags the local model scores above 90', async () => {
+  it('stores every tag the local model returns', async () => {
     const result = await matchEventTag({ title: 'Julmarknad' }, catalog, {}, async () =>
       json({
         message: {
@@ -603,7 +605,7 @@ describe('glada-hudik tag match', () => {
     );
     expect(result).toEqual({
       ok: true,
-      tags: [catalog[0], catalog[2]],
+      tags: [catalog[0], catalog[1], catalog[2], catalog[3]],
     });
   });
 });
