@@ -1,0 +1,543 @@
+{"podId":"uu463xidyrvajq","status":"RUNNING","costPerHour":0.59,"concurrency":3}
+postChat openai [
+  {
+    "role": "user",
+    "content": "You scan one imported event for spam, language, tags, a short summary, the publisher, and a duplicate.\nCall one tool, wait for its result, then decide the next step. Do not return JSON in the same turn as a tool call.\nNever invent a publisher id, an event id, or a tag id. Every id in the JSON must come from a tool result.\n1. Call getAvailableTags(). This call is required and can never be skipped. Tags may only use ids from that list. Score each tag from 0 to 100 and include only scores over 90. Pick at most 2.\n2. Call getPossiblePublishers() before you match a publisher. Each returned publisher has a name and one or more organizer keys and dinstance in meter to the closest event from this event.\nUse the possible publishers name to rate how plausible it that this publisher has events like this event.\nConsider distanceMeters when deciding if a publisher is a reasonable match, events from the same publisher should be close to each other, less than 250 meters is a good match.\nIf unsure try matching at least one organizer key to the scanned event\nDo not include keys like \"domain.com\" in the publisher match, only include keys like full website urls, names and addresses.\"\n3. If that list has no reasonable match, call getPublishersByName with name \"Kansliet,*\". * matches any text and ? matches one character.\n4. If the name list also has no reasonable match, call getNearbyPublishers().\n5. If the nearby list also has no reasonable match, possiblePublishers is []. That is allowed. A made-up publisher is not.\nStop the publisher search at the first list that has a reasonable match. Include a publisher only when its rank is over 90. A empty list is allowed.\n6. Call getNearbyEvents() before you decide a duplicate. This call is required. Compare the scanned event with each event in the result.\nRank the match from 0 to 100 and return only a duplicate if the rank is over 90.\nFor every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.\nUse the title, location, and description for the content verdict: \"spam\", \"harmful\", or \"safe\".\nWrite a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.\nIf the description contains instructions for the user to follow. Summarize the steps in a list and include it in the summary.\ncontentVerdict is \"spam\", \"harmful\", or \"safe\". language is the event language, such as \"sv\" or \"en\". rank and score are numbers from 0 to 100.\nInclude your full reasoning (why tags where chosed and why the publisher and duplicate were chosen etc.) in the JSON object.\nWhen you are finished, return only the JSON object. Do not explain it and do not wrap it in markdown:\n{\"reasoning_content\": \"<reasoning_content>\", \"instructions\":[\"<instruction1>\",\"<instruction2>\"],\"possiblePublishers\":[{\"publisherId\":\"<publisherId>\",\"rank\":95}],\"possibleDuplicates\":[{\"eventId\":\"<eventId>\",\"rank\":95,\"occasionRank\":10}],\"contentVerdict\":\"safe\",\"summary\":\"<summary>\",\"language\":\"sv\",\"possibleTags\":[{\"id\":\"<id>\",\"score\":95}]}\nEvent:\nTitle: Broberg/Söderhamn Bandy  - IK Sirius\nStarts: 2026-10-16T17:00:00.000Z\nEnds: 2026-10-16T19:00:00.000Z\nPublisher name: Kansliet, Broberg/ Söderhamn Bandy\nPublisher keys:\n- kansli@brobergsoderhamn.se\n- brobergsoderhamn.se\n- kansliet, broberg/ söderhamn bandy\nPoint: lat 61.2889624741782, lng 17.0723867422203\nLocation: Helsingehus Arena, Hällåsen\nDescription: Broberg spelar sina hemmamatcher i en inomhusarena för bandy och lockar i snitt 900 besökare per match. Temperaturen inomhus kommer ligga på ca -1 grad och vi kan garantera utmärkta förhållanden - varje match! Inne i arenan finns kiosker och souvenirshop som är öppen vid alla matcher."
+  }
+]
+response 200 {
+  "id": "chatcmpl-bc8bb04648ed4a5581fcef0c23adabb6",
+  "object": "chat.completion",
+  "created": 1792399937,
+  "model": "Qwen/Qwen3-32B-AWQ",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "refusal": null,
+        "annotations": null,
+        "audio": null,
+        "function_call": null,
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-65b0f7fac5fb4ce4a75c20da3883ff5e",
+            "type": "function",
+            "function": {
+              "name": "getAvailableTags",
+              "arguments": "{}"
+            }
+          }
+        ],
+        "reasoning_content": null
+      },
+      "logprobs": null,
+      "finish_reason": "tool_calls",
+      "stop_reason": null,
+      "token_ids": null
+    }
+  ],
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+    "prompt_tokens": 1510,
+    "total_tokens": 1527,
+    "completion_tokens": 17,
+    "prompt_tokens_details": null
+  },
+  "prompt_logprobs": null,
+  "prompt_token_ids": null,
+  "kv_transfer_params": null
+} Headers {
+  date: 'Mon, 19 Oct 2026 08:52:18 GMT',
+  'content-type': 'application/json',
+  server: 'cloudflare',
+  'strict-transport-security': 'max-age=63072000; includeSubDomains',
+  'cf-cache-status': 'DYNAMIC',
+  'content-encoding': 'gzip',
+  'cf-ray': 'a4ce8bb3bc608953-ARN'
+}
+Running call getAvailableTags
+postChat openai [
+  {
+    "role": "user",
+    "content": "You scan one imported event for spam, language, tags, a short summary, the publisher, and a duplicate.\nCall one tool, wait for its result, then decide the next step. Do not return JSON in the same turn as a tool call.\nNever invent a publisher id, an event id, or a tag id. Every id in the JSON must come from a tool result.\n1. Call getAvailableTags(). This call is required and can never be skipped. Tags may only use ids from that list. Score each tag from 0 to 100 and include only scores over 90. Pick at most 2.\n2. Call getPossiblePublishers() before you match a publisher. Each returned publisher has a name and one or more organizer keys and dinstance in meter to the closest event from this event.\nUse the possible publishers name to rate how plausible it that this publisher has events like this event.\nConsider distanceMeters when deciding if a publisher is a reasonable match, events from the same publisher should be close to each other, less than 250 meters is a good match.\nIf unsure try matching at least one organizer key to the scanned event\nDo not include keys like \"domain.com\" in the publisher match, only include keys like full website urls, names and addresses.\"\n3. If that list has no reasonable match, call getPublishersByName with name \"Kansliet,*\". * matches any text and ? matches one character.\n4. If the name list also has no reasonable match, call getNearbyPublishers().\n5. If the nearby list also has no reasonable match, possiblePublishers is []. That is allowed. A made-up publisher is not.\nStop the publisher search at the first list that has a reasonable match. Include a publisher only when its rank is over 90. A empty list is allowed.\n6. Call getNearbyEvents() before you decide a duplicate. This call is required. Compare the scanned event with each event in the result.\nRank the match from 0 to 100 and return only a duplicate if the rank is over 90.\nFor every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.\nUse the title, location, and description for the content verdict: \"spam\", \"harmful\", or \"safe\".\nWrite a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.\nIf the description contains instructions for the user to follow. Summarize the steps in a list and include it in the summary.\ncontentVerdict is \"spam\", \"harmful\", or \"safe\". language is the event language, such as \"sv\" or \"en\". rank and score are numbers from 0 to 100.\nInclude your full reasoning (why tags where chosed and why the publisher and duplicate were chosen etc.) in the JSON object.\nWhen you are finished, return only the JSON object. Do not explain it and do not wrap it in markdown:\n{\"reasoning_content\": \"<reasoning_content>\", \"instructions\":[\"<instruction1>\",\"<instruction2>\"],\"possiblePublishers\":[{\"publisherId\":\"<publisherId>\",\"rank\":95}],\"possibleDuplicates\":[{\"eventId\":\"<eventId>\",\"rank\":95,\"occasionRank\":10}],\"contentVerdict\":\"safe\",\"summary\":\"<summary>\",\"language\":\"sv\",\"possibleTags\":[{\"id\":\"<id>\",\"score\":95}]}\nEvent:\nTitle: Broberg/Söderhamn Bandy  - IK Sirius\nStarts: 2026-10-16T17:00:00.000Z\nEnds: 2026-10-16T19:00:00.000Z\nPublisher name: Kansliet, Broberg/ Söderhamn Bandy\nPublisher keys:\n- kansli@brobergsoderhamn.se\n- brobergsoderhamn.se\n- kansliet, broberg/ söderhamn bandy\nPoint: lat 61.2889624741782, lng 17.0723867422203\nLocation: Helsingehus Arena, Hällåsen\nDescription: Broberg spelar sina hemmamatcher i en inomhusarena för bandy och lockar i snitt 900 besökare per match. Temperaturen inomhus kommer ligga på ca -1 grad och vi kan garantera utmärkta förhållanden - varje match! Inne i arenan finns kiosker och souvenirshop som är öppen vid alla matcher."
+  },
+  {
+    "role": "assistant",
+    "content": null,
+    "refusal": null,
+    "annotations": null,
+    "audio": null,
+    "function_call": null,
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-65b0f7fac5fb4ce4a75c20da3883ff5e",
+        "type": "function",
+        "function": {
+          "name": "getAvailableTags",
+          "arguments": "{}"
+        }
+      }
+    ],
+    "reasoning_content": null
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-65b0f7fac5fb4ce4a75c20da3883ff5e",
+    "content": "{\"tags\":[{\"id\":\"visit-soderhamn:56386\",\"name\":\"Påsklov\"},{\"id\":\"visit-soderhamn:56387\",\"name\":\"Höstlov\"},{\"id\":\"visit-soderhamn:30178\",\"name\":\"Fest\"},{\"id\":\"visit-soderhamn:56388\",\"name\":\"Söderhamns Kulturfestival\"},{\"id\":\"visit-soderhamn:30179\",\"name\":\"Försäljning\"},{\"id\":\"visit-soderhamn:30180\",\"name\":\"Guidning\"},{\"id\":\"visit-soderhamn:30213\",\"name\":\"Konsert\"},{\"id\":\"visit-soderhamn:30181\",\"name\":\"Visitcenter\"},{\"id\":\"visit-soderhamn:30214\",\"name\":\"Show\"},{\"id\":\"visit-soderhamn:30195\",\"name\":\"Bowling\"},{\"id\":\"visit-soderhamn:30215\",\"name\":\"Spelmansstämma\"},{\"id\":\"visit-soderhamn:30182\",\"name\":\"Högtider\"},{\"id\":\"visit-soderhamn:30183\",\"name\":\"Internationella högtider\"},{\"id\":\"visit-soderhamn:30196\",\"name\":\"Fotboll\"},{\"id\":\"visit-soderhamn:30216\",\"name\":\"Mässor & Utställningar\"},{\"id\":\"visit-soderhamn:30197\",\"name\":\"Golf\"},{\"id\":\"visit-soderhamn:30217\",\"name\":\"Auktion & Marknad\"},{\"id\":\"visit-soderhamn:30198\",\"name\":\"Hockey\"},{\"id\":\"visit-soderhamn:30199\",\"name\":\"Hästsport\"},{\"id\":\"visit-soderhamn:30218\",\"name\":\"Film & Teater\"},{\"id\":\"visit-soderhamn:30200\",\"name\":\"Idrott\"},{\"id\":\"visit-soderhamn:30219\",\"name\":\"Föreläsningar & Seminarier\"},{\"id\":\"visit-soderhamn:30184\",\"name\":\"Jul & Nyår\"},{\"id\":\"visit-soderhamn:30185\",\"name\":\"Julbord\"},{\"id\":\"visit-soderhamn:30220\",\"name\":\"Försäljning\"},{\"id\":\"visit-soderhamn:30201\",\"name\":\"Skateboard\"},{\"id\":\"visit-soderhamn:30221\",\"name\":\"Mat & Dryck\"},{\"id\":\"visit-soderhamn:30222\",\"name\":\"Mässa\"},{\"id\":\"visit-soderhamn:30186\",\"name\":\"Julkonsert\"},{\"id\":\"visit-soderhamn:30187\",\"name\":\"ulmarknad\"},{\"id\":\"visit-soderhamn:30188\",\"name\":\"Julskyltning\"},{\"id\":\"visit-soderhamn:30202\",\"name\":\"Tennis\"},{\"id\":\"visit-soderhamn:30189\",\"name\":\"Midsommar\"},{\"id\":\"visit-soderhamn:30203\",\"name\":\"Tävlingar\"},{\"id\":\"visit-soderhamn:30204\",\"name\":\"Motor\"},{\"id\":\"visit-soderhamn:30205\",\"name\":\"Cruising\"},{\"id\":\"visit-soderhamn:30206\",\"name\":\"Träffar\"},{\"id\":\"visit-soderhamn:30207\",\"name\":\"Uppvisning\"},{\"id\":\"visit-soderhamn:30223\",\"name\":\"Skapande & Hantverk\"},{\"id\":\"visit-soderhamn:30224\",\"name\":\"Utställning\"},{\"id\":\"visit-soderhamn:30225\",\"name\":\"Vandringar\"},{\"id\":\"visit-soderhamn:halsa\",\"name\":\"Hälsa & Skönhet\"},{\"id\":\"visit-soderhamn:yoga\",\"name\":\"Yoga\"},{\"id\":\"visit-soderhamn:30173\",\"name\":\"Barn & Familj\"},{\"id\":\"visit-soderhamn:30190\",\"name\":\"Påsk\"},{\"id\":\"visit-soderhamn:30174\",\"name\":\"Barnaktivitet\"},{\"id\":\"visit-soderhamn:30208\",\"name\":\"Musik & Underhållning\"},{\"id\":\"visit-soderhamn:30209\",\"name\":\"Bingo\"},{\"id\":\"visit-soderhamn:30210\",\"name\":\"Dans\"},{\"id\":\"visit-soderhamn:30226\",\"name\":\"Öppet hus\"},{\"id\":\"visit-soderhamn:30211\",\"name\":\"Festival\"},{\"id\":\"visit-soderhamn:30227\",\"name\":\"Näringsliv\"},{\"id\":\"visit-soderhamn:55355\",\"name\":\"Sportlov\"},{\"id\":\"visit-soderhamn:30175\",\"name\":\"Läger\"},{\"id\":\"visit-soderhamn:30191\",\"name\":\"Valborg\"},{\"id\":\"visit-soderhamn:30192\",\"name\":\"Idrott & Tävlingar\"},{\"id\":\"visit-soderhamn:30193\",\"name\":\"Alpint & Längdskidor\"},{\"id\":\"visit-soderhamn:30176\",\"name\":\"Skollov\"},{\"id\":\"visit-soderhamn:30177\",\"name\":\"Hälsingegård\"},{\"id\":\"visit-soderhamn:30194\",\"name\":\"Bandy & Innebandy\"},{\"id\":\"visit-soderhamn:30212\",\"name\":\"Gudstjänst\"}]}"
+  }
+]
+response 200 {
+  "id": "chatcmpl-73991664fcd444f8bd6cbadb8990851b",
+  "object": "chat.completion",
+  "created": 1792399938,
+  "model": "Qwen/Qwen3-32B-AWQ",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "refusal": null,
+        "annotations": null,
+        "audio": null,
+        "function_call": null,
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-3469a4288dc742e4b6413ddc7b137b38",
+            "type": "function",
+            "function": {
+              "name": "getPossiblePublishers",
+              "arguments": "{}"
+            }
+          }
+        ],
+        "reasoning_content": null
+      },
+      "logprobs": null,
+      "finish_reason": "tool_calls",
+      "stop_reason": null,
+      "token_ids": null
+    }
+  ],
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+    "prompt_tokens": 2825,
+    "total_tokens": 2843,
+    "completion_tokens": 18,
+    "prompt_tokens_details": null
+  },
+  "prompt_logprobs": null,
+  "prompt_token_ids": null,
+  "kv_transfer_params": null
+} Headers {
+  date: 'Mon, 19 Oct 2026 08:52:20 GMT',
+  'content-type': 'application/json',
+  server: 'cloudflare',
+  'strict-transport-security': 'max-age=63072000; includeSubDomains',
+  'cf-cache-status': 'DYNAMIC',
+  'content-encoding': 'gzip',
+  'cf-ray': 'a4ce8bc21c0a8953-ARN'
+}
+Running call getPossiblePublishers
+postChat openai [
+  {
+    "role": "user",
+    "content": "You scan one imported event for spam, language, tags, a short summary, the publisher, and a duplicate.\nCall one tool, wait for its result, then decide the next step. Do not return JSON in the same turn as a tool call.\nNever invent a publisher id, an event id, or a tag id. Every id in the JSON must come from a tool result.\n1. Call getAvailableTags(). This call is required and can never be skipped. Tags may only use ids from that list. Score each tag from 0 to 100 and include only scores over 90. Pick at most 2.\n2. Call getPossiblePublishers() before you match a publisher. Each returned publisher has a name and one or more organizer keys and dinstance in meter to the closest event from this event.\nUse the possible publishers name to rate how plausible it that this publisher has events like this event.\nConsider distanceMeters when deciding if a publisher is a reasonable match, events from the same publisher should be close to each other, less than 250 meters is a good match.\nIf unsure try matching at least one organizer key to the scanned event\nDo not include keys like \"domain.com\" in the publisher match, only include keys like full website urls, names and addresses.\"\n3. If that list has no reasonable match, call getPublishersByName with name \"Kansliet,*\". * matches any text and ? matches one character.\n4. If the name list also has no reasonable match, call getNearbyPublishers().\n5. If the nearby list also has no reasonable match, possiblePublishers is []. That is allowed. A made-up publisher is not.\nStop the publisher search at the first list that has a reasonable match. Include a publisher only when its rank is over 90. A empty list is allowed.\n6. Call getNearbyEvents() before you decide a duplicate. This call is required. Compare the scanned event with each event in the result.\nRank the match from 0 to 100 and return only a duplicate if the rank is over 90.\nFor every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.\nUse the title, location, and description for the content verdict: \"spam\", \"harmful\", or \"safe\".\nWrite a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.\nIf the description contains instructions for the user to follow. Summarize the steps in a list and include it in the summary.\ncontentVerdict is \"spam\", \"harmful\", or \"safe\". language is the event language, such as \"sv\" or \"en\". rank and score are numbers from 0 to 100.\nInclude your full reasoning (why tags where chosed and why the publisher and duplicate were chosen etc.) in the JSON object.\nWhen you are finished, return only the JSON object. Do not explain it and do not wrap it in markdown:\n{\"reasoning_content\": \"<reasoning_content>\", \"instructions\":[\"<instruction1>\",\"<instruction2>\"],\"possiblePublishers\":[{\"publisherId\":\"<publisherId>\",\"rank\":95}],\"possibleDuplicates\":[{\"eventId\":\"<eventId>\",\"rank\":95,\"occasionRank\":10}],\"contentVerdict\":\"safe\",\"summary\":\"<summary>\",\"language\":\"sv\",\"possibleTags\":[{\"id\":\"<id>\",\"score\":95}]}\nEvent:\nTitle: Broberg/Söderhamn Bandy  - IK Sirius\nStarts: 2026-10-16T17:00:00.000Z\nEnds: 2026-10-16T19:00:00.000Z\nPublisher name: Kansliet, Broberg/ Söderhamn Bandy\nPublisher keys:\n- kansli@brobergsoderhamn.se\n- brobergsoderhamn.se\n- kansliet, broberg/ söderhamn bandy\nPoint: lat 61.2889624741782, lng 17.0723867422203\nLocation: Helsingehus Arena, Hällåsen\nDescription: Broberg spelar sina hemmamatcher i en inomhusarena för bandy och lockar i snitt 900 besökare per match. Temperaturen inomhus kommer ligga på ca -1 grad och vi kan garantera utmärkta förhållanden - varje match! Inne i arenan finns kiosker och souvenirshop som är öppen vid alla matcher."
+  },
+  {
+    "role": "assistant",
+    "content": null,
+    "refusal": null,
+    "annotations": null,
+    "audio": null,
+    "function_call": null,
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-65b0f7fac5fb4ce4a75c20da3883ff5e",
+        "type": "function",
+        "function": {
+          "name": "getAvailableTags",
+          "arguments": "{}"
+        }
+      }
+    ],
+    "reasoning_content": null
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-65b0f7fac5fb4ce4a75c20da3883ff5e",
+    "content": "{\"tags\":[{\"id\":\"visit-soderhamn:56386\",\"name\":\"Påsklov\"},{\"id\":\"visit-soderhamn:56387\",\"name\":\"Höstlov\"},{\"id\":\"visit-soderhamn:30178\",\"name\":\"Fest\"},{\"id\":\"visit-soderhamn:56388\",\"name\":\"Söderhamns Kulturfestival\"},{\"id\":\"visit-soderhamn:30179\",\"name\":\"Försäljning\"},{\"id\":\"visit-soderhamn:30180\",\"name\":\"Guidning\"},{\"id\":\"visit-soderhamn:30213\",\"name\":\"Konsert\"},{\"id\":\"visit-soderhamn:30181\",\"name\":\"Visitcenter\"},{\"id\":\"visit-soderhamn:30214\",\"name\":\"Show\"},{\"id\":\"visit-soderhamn:30195\",\"name\":\"Bowling\"},{\"id\":\"visit-soderhamn:30215\",\"name\":\"Spelmansstämma\"},{\"id\":\"visit-soderhamn:30182\",\"name\":\"Högtider\"},{\"id\":\"visit-soderhamn:30183\",\"name\":\"Internationella högtider\"},{\"id\":\"visit-soderhamn:30196\",\"name\":\"Fotboll\"},{\"id\":\"visit-soderhamn:30216\",\"name\":\"Mässor & Utställningar\"},{\"id\":\"visit-soderhamn:30197\",\"name\":\"Golf\"},{\"id\":\"visit-soderhamn:30217\",\"name\":\"Auktion & Marknad\"},{\"id\":\"visit-soderhamn:30198\",\"name\":\"Hockey\"},{\"id\":\"visit-soderhamn:30199\",\"name\":\"Hästsport\"},{\"id\":\"visit-soderhamn:30218\",\"name\":\"Film & Teater\"},{\"id\":\"visit-soderhamn:30200\",\"name\":\"Idrott\"},{\"id\":\"visit-soderhamn:30219\",\"name\":\"Föreläsningar & Seminarier\"},{\"id\":\"visit-soderhamn:30184\",\"name\":\"Jul & Nyår\"},{\"id\":\"visit-soderhamn:30185\",\"name\":\"Julbord\"},{\"id\":\"visit-soderhamn:30220\",\"name\":\"Försäljning\"},{\"id\":\"visit-soderhamn:30201\",\"name\":\"Skateboard\"},{\"id\":\"visit-soderhamn:30221\",\"name\":\"Mat & Dryck\"},{\"id\":\"visit-soderhamn:30222\",\"name\":\"Mässa\"},{\"id\":\"visit-soderhamn:30186\",\"name\":\"Julkonsert\"},{\"id\":\"visit-soderhamn:30187\",\"name\":\"ulmarknad\"},{\"id\":\"visit-soderhamn:30188\",\"name\":\"Julskyltning\"},{\"id\":\"visit-soderhamn:30202\",\"name\":\"Tennis\"},{\"id\":\"visit-soderhamn:30189\",\"name\":\"Midsommar\"},{\"id\":\"visit-soderhamn:30203\",\"name\":\"Tävlingar\"},{\"id\":\"visit-soderhamn:30204\",\"name\":\"Motor\"},{\"id\":\"visit-soderhamn:30205\",\"name\":\"Cruising\"},{\"id\":\"visit-soderhamn:30206\",\"name\":\"Träffar\"},{\"id\":\"visit-soderhamn:30207\",\"name\":\"Uppvisning\"},{\"id\":\"visit-soderhamn:30223\",\"name\":\"Skapande & Hantverk\"},{\"id\":\"visit-soderhamn:30224\",\"name\":\"Utställning\"},{\"id\":\"visit-soderhamn:30225\",\"name\":\"Vandringar\"},{\"id\":\"visit-soderhamn:halsa\",\"name\":\"Hälsa & Skönhet\"},{\"id\":\"visit-soderhamn:yoga\",\"name\":\"Yoga\"},{\"id\":\"visit-soderhamn:30173\",\"name\":\"Barn & Familj\"},{\"id\":\"visit-soderhamn:30190\",\"name\":\"Påsk\"},{\"id\":\"visit-soderhamn:30174\",\"name\":\"Barnaktivitet\"},{\"id\":\"visit-soderhamn:30208\",\"name\":\"Musik & Underhållning\"},{\"id\":\"visit-soderhamn:30209\",\"name\":\"Bingo\"},{\"id\":\"visit-soderhamn:30210\",\"name\":\"Dans\"},{\"id\":\"visit-soderhamn:30226\",\"name\":\"Öppet hus\"},{\"id\":\"visit-soderhamn:30211\",\"name\":\"Festival\"},{\"id\":\"visit-soderhamn:30227\",\"name\":\"Näringsliv\"},{\"id\":\"visit-soderhamn:55355\",\"name\":\"Sportlov\"},{\"id\":\"visit-soderhamn:30175\",\"name\":\"Läger\"},{\"id\":\"visit-soderhamn:30191\",\"name\":\"Valborg\"},{\"id\":\"visit-soderhamn:30192\",\"name\":\"Idrott & Tävlingar\"},{\"id\":\"visit-soderhamn:30193\",\"name\":\"Alpint & Längdskidor\"},{\"id\":\"visit-soderhamn:30176\",\"name\":\"Skollov\"},{\"id\":\"visit-soderhamn:30177\",\"name\":\"Hälsingegård\"},{\"id\":\"visit-soderhamn:30194\",\"name\":\"Bandy & Innebandy\"},{\"id\":\"visit-soderhamn:30212\",\"name\":\"Gudstjänst\"}]}"
+  },
+  {
+    "role": "assistant",
+    "content": null,
+    "refusal": null,
+    "annotations": null,
+    "audio": null,
+    "function_call": null,
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-3469a4288dc742e4b6413ddc7b137b38",
+        "type": "function",
+        "function": {
+          "name": "getPossiblePublishers",
+          "arguments": "{}"
+        }
+      }
+    ],
+    "reasoning_content": null
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-3469a4288dc742e4b6413ddc7b137b38",
+    "content": "{\"possiblePublishers\":[{\"publisherId\":\"b4fb67bf-7a2c-4b77-9922-28667dfd3399\",\"sourceId\":\"33333333-3333-4333-8333-333333333301\",\"key\":\"kansli@brobergsoderhamn.se\",\"status\":\"pending_scan\",\"createdAt\":1792318941127,\"distanceMeters\":0,\"isTemporary\":true,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"kansliet, broberg/ söderhamn bandy\",\"sportochfritid@soderhamn.se\",\"soderhamn.se\",\"sport och fritid, söderhamns kommun\",\"soderhamn.se/sidor/uppleva-och-gora/hallar-och-idrottsanlaggningar/allmanhetens-akning.html\",\"brobergs if\"],\"publisherName\":\"Kansliet, Broberg/ Söderhamn Bandy\"},{\"publisherId\":\"7668639a-66c3-4fed-a719-139a9b971ac0\",\"sourceId\":\"33333333-3333-4333-8333-333333333301\",\"key\":\"kansli@brobergsoderhamn.se\",\"status\":\"pending_scan\",\"createdAt\":1792341233154,\"distanceMeters\":-1,\"isTemporary\":true,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"brobergs if\"],\"publisherName\":\"Brobergs IF\"},{\"publisherId\":\"2dfc4879-42ad-40ee-8500-b1c60dac8764\",\"sourceId\":\"33333333-3333-4333-8333-333333333301\",\"key\":\"kansli@brobergsoderhamn.se\",\"status\":\"in_review\",\"createdAt\":1792362313156,\"distanceMeters\":-1,\"isTemporary\":true,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"kansliet, broberg/ söderhamn bandy\"],\"publisherName\":\"Kansliet, Broberg/ Söderhamn Bandy\"},{\"publisherId\":\"8a0d6d9f-9d75-4c8b-840d-42d870b556af\",\"sourceId\":\"33333333-3333-4333-8333-333333333301\",\"key\":\"kansli@brobergsoderhamn.se\",\"status\":\"in_review\",\"createdAt\":1792396873414,\"distanceMeters\":-1,\"isTemporary\":true,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"kansliet, broberg/ söderhamn bandy\"],\"publisherName\":\"Kansliet, Broberg/ Söderhamn Bandy\"}]}"
+  }
+]
+response 200 {
+  "id": "chatcmpl-c6e5b2bec9654812b9c50a269222523d",
+  "object": "chat.completion",
+  "created": 1792399940,
+  "model": "Qwen/Qwen3-32B-AWQ",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "refusal": null,
+        "annotations": null,
+        "audio": null,
+        "function_call": null,
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-14e7fd9e906f4b52b10b164f070d6015",
+            "type": "function",
+            "function": {
+              "name": "getPublishersByName",
+              "arguments": "{\"name\": \"Kansliet,*\"}"
+            }
+          }
+        ],
+        "reasoning_content": null
+      },
+      "logprobs": null,
+      "finish_reason": "tool_calls",
+      "stop_reason": null,
+      "token_ids": null
+    }
+  ],
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+    "prompt_tokens": 3630,
+    "total_tokens": 3656,
+    "completion_tokens": 26,
+    "prompt_tokens_details": null
+  },
+  "prompt_logprobs": null,
+  "prompt_token_ids": null,
+  "kv_transfer_params": null
+} Headers {
+  date: 'Mon, 19 Oct 2026 08:52:22 GMT',
+  'content-type': 'application/json',
+  server: 'cloudflare',
+  'strict-transport-security': 'max-age=63072000; includeSubDomains',
+  'cf-cache-status': 'DYNAMIC',
+  'content-encoding': 'gzip',
+  'cf-ray': 'a4ce8bcdffbe8953-ARN'
+}
+Running call getPublishersByName
+postChat openai [
+  {
+    "role": "user",
+    "content": "You scan one imported event for spam, language, tags, a short summary, the publisher, and a duplicate.\nCall one tool, wait for its result, then decide the next step. Do not return JSON in the same turn as a tool call.\nNever invent a publisher id, an event id, or a tag id. Every id in the JSON must come from a tool result.\n1. Call getAvailableTags(). This call is required and can never be skipped. Tags may only use ids from that list. Score each tag from 0 to 100 and include only scores over 90. Pick at most 2.\n2. Call getPossiblePublishers() before you match a publisher. Each returned publisher has a name and one or more organizer keys and dinstance in meter to the closest event from this event.\nUse the possible publishers name to rate how plausible it that this publisher has events like this event.\nConsider distanceMeters when deciding if a publisher is a reasonable match, events from the same publisher should be close to each other, less than 250 meters is a good match.\nIf unsure try matching at least one organizer key to the scanned event\nDo not include keys like \"domain.com\" in the publisher match, only include keys like full website urls, names and addresses.\"\n3. If that list has no reasonable match, call getPublishersByName with name \"Kansliet,*\". * matches any text and ? matches one character.\n4. If the name list also has no reasonable match, call getNearbyPublishers().\n5. If the nearby list also has no reasonable match, possiblePublishers is []. That is allowed. A made-up publisher is not.\nStop the publisher search at the first list that has a reasonable match. Include a publisher only when its rank is over 90. A empty list is allowed.\n6. Call getNearbyEvents() before you decide a duplicate. This call is required. Compare the scanned event with each event in the result.\nRank the match from 0 to 100 and return only a duplicate if the rank is over 90.\nFor every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.\nUse the title, location, and description for the content verdict: \"spam\", \"harmful\", or \"safe\".\nWrite a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.\nIf the description contains instructions for the user to follow. Summarize the steps in a list and include it in the summary.\ncontentVerdict is \"spam\", \"harmful\", or \"safe\". language is the event language, such as \"sv\" or \"en\". rank and score are numbers from 0 to 100.\nInclude your full reasoning (why tags where chosed and why the publisher and duplicate were chosen etc.) in the JSON object.\nWhen you are finished, return only the JSON object. Do not explain it and do not wrap it in markdown:\n{\"reasoning_content\": \"<reasoning_content>\", \"instructions\":[\"<instruction1>\",\"<instruction2>\"],\"possiblePublishers\":[{\"publisherId\":\"<publisherId>\",\"rank\":95}],\"possibleDuplicates\":[{\"eventId\":\"<eventId>\",\"rank\":95,\"occasionRank\":10}],\"contentVerdict\":\"safe\",\"summary\":\"<summary>\",\"language\":\"sv\",\"possibleTags\":[{\"id\":\"<id>\",\"score\":95}]}\nEvent:\nTitle: Broberg/Söderhamn Bandy  - IK Sirius\nStarts: 2026-10-16T17:00:00.000Z\nEnds: 2026-10-16T19:00:00.000Z\nPublisher name: Kansliet, Broberg/ Söderhamn Bandy\nPublisher keys:\n- kansli@brobergsoderhamn.se\n- brobergsoderhamn.se\n- kansliet, broberg/ söderhamn bandy\nPoint: lat 61.2889624741782, lng 17.0723867422203\nLocation: Helsingehus Arena, Hällåsen\nDescription: Broberg spelar sina hemmamatcher i en inomhusarena för bandy och lockar i snitt 900 besökare per match. Temperaturen inomhus kommer ligga på ca -1 grad och vi kan garantera utmärkta förhållanden - varje match! Inne i arenan finns kiosker och souvenirshop som är öppen vid alla matcher."
+  },
+  {
+    "role": "assistant",
+    "content": null,
+    "refusal": null,
+    "annotations": null,
+    "audio": null,
+    "function_call": null,
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-65b0f7fac5fb4ce4a75c20da3883ff5e",
+        "type": "function",
+        "function": {
+          "name": "getAvailableTags",
+          "arguments": "{}"
+        }
+      }
+    ],
+    "reasoning_content": null
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-65b0f7fac5fb4ce4a75c20da3883ff5e",
+    "content": "{\"tags\":[{\"id\":\"visit-soderhamn:56386\",\"name\":\"Påsklov\"},{\"id\":\"visit-soderhamn:56387\",\"name\":\"Höstlov\"},{\"id\":\"visit-soderhamn:30178\",\"name\":\"Fest\"},{\"id\":\"visit-soderhamn:56388\",\"name\":\"Söderhamns Kulturfestival\"},{\"id\":\"visit-soderhamn:30179\",\"name\":\"Försäljning\"},{\"id\":\"visit-soderhamn:30180\",\"name\":\"Guidning\"},{\"id\":\"visit-soderhamn:30213\",\"name\":\"Konsert\"},{\"id\":\"visit-soderhamn:30181\",\"name\":\"Visitcenter\"},{\"id\":\"visit-soderhamn:30214\",\"name\":\"Show\"},{\"id\":\"visit-soderhamn:30195\",\"name\":\"Bowling\"},{\"id\":\"visit-soderhamn:30215\",\"name\":\"Spelmansstämma\"},{\"id\":\"visit-soderhamn:30182\",\"name\":\"Högtider\"},{\"id\":\"visit-soderhamn:30183\",\"name\":\"Internationella högtider\"},{\"id\":\"visit-soderhamn:30196\",\"name\":\"Fotboll\"},{\"id\":\"visit-soderhamn:30216\",\"name\":\"Mässor & Utställningar\"},{\"id\":\"visit-soderhamn:30197\",\"name\":\"Golf\"},{\"id\":\"visit-soderhamn:30217\",\"name\":\"Auktion & Marknad\"},{\"id\":\"visit-soderhamn:30198\",\"name\":\"Hockey\"},{\"id\":\"visit-soderhamn:30199\",\"name\":\"Hästsport\"},{\"id\":\"visit-soderhamn:30218\",\"name\":\"Film & Teater\"},{\"id\":\"visit-soderhamn:30200\",\"name\":\"Idrott\"},{\"id\":\"visit-soderhamn:30219\",\"name\":\"Föreläsningar & Seminarier\"},{\"id\":\"visit-soderhamn:30184\",\"name\":\"Jul & Nyår\"},{\"id\":\"visit-soderhamn:30185\",\"name\":\"Julbord\"},{\"id\":\"visit-soderhamn:30220\",\"name\":\"Försäljning\"},{\"id\":\"visit-soderhamn:30201\",\"name\":\"Skateboard\"},{\"id\":\"visit-soderhamn:30221\",\"name\":\"Mat & Dryck\"},{\"id\":\"visit-soderhamn:30222\",\"name\":\"Mässa\"},{\"id\":\"visit-soderhamn:30186\",\"name\":\"Julkonsert\"},{\"id\":\"visit-soderhamn:30187\",\"name\":\"ulmarknad\"},{\"id\":\"visit-soderhamn:30188\",\"name\":\"Julskyltning\"},{\"id\":\"visit-soderhamn:30202\",\"name\":\"Tennis\"},{\"id\":\"visit-soderhamn:30189\",\"name\":\"Midsommar\"},{\"id\":\"visit-soderhamn:30203\",\"name\":\"Tävlingar\"},{\"id\":\"visit-soderhamn:30204\",\"name\":\"Motor\"},{\"id\":\"visit-soderhamn:30205\",\"name\":\"Cruising\"},{\"id\":\"visit-soderhamn:30206\",\"name\":\"Träffar\"},{\"id\":\"visit-soderhamn:30207\",\"name\":\"Uppvisning\"},{\"id\":\"visit-soderhamn:30223\",\"name\":\"Skapande & Hantverk\"},{\"id\":\"visit-soderhamn:30224\",\"name\":\"Utställning\"},{\"id\":\"visit-soderhamn:30225\",\"name\":\"Vandringar\"},{\"id\":\"visit-soderhamn:halsa\",\"name\":\"Hälsa & Skönhet\"},{\"id\":\"visit-soderhamn:yoga\",\"name\":\"Yoga\"},{\"id\":\"visit-soderhamn:30173\",\"name\":\"Barn & Familj\"},{\"id\":\"visit-soderhamn:30190\",\"name\":\"Påsk\"},{\"id\":\"visit-soderhamn:30174\",\"name\":\"Barnaktivitet\"},{\"id\":\"visit-soderhamn:30208\",\"name\":\"Musik & Underhållning\"},{\"id\":\"visit-soderhamn:30209\",\"name\":\"Bingo\"},{\"id\":\"visit-soderhamn:30210\",\"name\":\"Dans\"},{\"id\":\"visit-soderhamn:30226\",\"name\":\"Öppet hus\"},{\"id\":\"visit-soderhamn:30211\",\"name\":\"Festival\"},{\"id\":\"visit-soderhamn:30227\",\"name\":\"Näringsliv\"},{\"id\":\"visit-soderhamn:55355\",\"name\":\"Sportlov\"},{\"id\":\"visit-soderhamn:30175\",\"name\":\"Läger\"},{\"id\":\"visit-soderhamn:30191\",\"name\":\"Valborg\"},{\"id\":\"visit-soderhamn:30192\",\"name\":\"Idrott & Tävlingar\"},{\"id\":\"visit-soderhamn:30193\",\"name\":\"Alpint & Längdskidor\"},{\"id\":\"visit-soderhamn:30176\",\"name\":\"Skollov\"},{\"id\":\"visit-soderhamn:30177\",\"name\":\"Hälsingegård\"},{\"id\":\"visit-soderhamn:30194\",\"name\":\"Bandy & Innebandy\"},{\"id\":\"visit-soderhamn:30212\",\"name\":\"Gudstjänst\"}]}"
+  },
+  {
+    "role": "assistant",
+    "content": null,
+    "refusal": null,
+    "annotations": null,
+    "audio": null,
+    "function_call": null,
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-3469a4288dc742e4b6413ddc7b137b38",
+        "type": "function",
+        "function": {
+          "name": "getPossiblePublishers",
+          "arguments": "{}"
+        }
+      }
+    ],
+    "reasoning_content": null
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-3469a4288dc742e4b6413ddc7b137b38",
+    "content": "{\"possiblePublishers\":[{\"publisherId\":\"b4fb67bf-7a2c-4b77-9922-28667dfd3399\",\"sourceId\":\"33333333-3333-4333-8333-333333333301\",\"key\":\"kansli@brobergsoderhamn.se\",\"status\":\"pending_scan\",\"createdAt\":1792318941127,\"distanceMeters\":0,\"isTemporary\":true,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"kansliet, broberg/ söderhamn bandy\",\"sportochfritid@soderhamn.se\",\"soderhamn.se\",\"sport och fritid, söderhamns kommun\",\"soderhamn.se/sidor/uppleva-och-gora/hallar-och-idrottsanlaggningar/allmanhetens-akning.html\",\"brobergs if\"],\"publisherName\":\"Kansliet, Broberg/ Söderhamn Bandy\"},{\"publisherId\":\"7668639a-66c3-4fed-a719-139a9b971ac0\",\"sourceId\":\"33333333-3333-4333-8333-333333333301\",\"key\":\"kansli@brobergsoderhamn.se\",\"status\":\"pending_scan\",\"createdAt\":1792341233154,\"distanceMeters\":-1,\"isTemporary\":true,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"brobergs if\"],\"publisherName\":\"Brobergs IF\"},{\"publisherId\":\"2dfc4879-42ad-40ee-8500-b1c60dac8764\",\"sourceId\":\"33333333-3333-4333-8333-333333333301\",\"key\":\"kansli@brobergsoderhamn.se\",\"status\":\"in_review\",\"createdAt\":1792362313156,\"distanceMeters\":-1,\"isTemporary\":true,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"kansliet, broberg/ söderhamn bandy\"],\"publisherName\":\"Kansliet, Broberg/ Söderhamn Bandy\"},{\"publisherId\":\"8a0d6d9f-9d75-4c8b-840d-42d870b556af\",\"sourceId\":\"33333333-3333-4333-8333-333333333301\",\"key\":\"kansli@brobergsoderhamn.se\",\"status\":\"in_review\",\"createdAt\":1792396873414,\"distanceMeters\":-1,\"isTemporary\":true,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"kansliet, broberg/ söderhamn bandy\"],\"publisherName\":\"Kansliet, Broberg/ Söderhamn Bandy\"}]}"
+  },
+  {
+    "role": "assistant",
+    "content": null,
+    "refusal": null,
+    "annotations": null,
+    "audio": null,
+    "function_call": null,
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-14e7fd9e906f4b52b10b164f070d6015",
+        "type": "function",
+        "function": {
+          "name": "getPublishersByName",
+          "arguments": "{\"name\": \"Kansliet,*\"}"
+        }
+      }
+    ],
+    "reasoning_content": null
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-14e7fd9e906f4b52b10b164f070d6015",
+    "content": "{\"publishers\":[{\"id\":\"b4fb67bf-7a2c-4b77-9922-28667dfd3399\",\"name\":\"Kansliet, Broberg/ Söderhamn Bandy\",\"status\":\"pending_scan\",\"temporary\":true,\"nearestEventTitle\":\"Broberg/Söderhamn Bandy  - Åby/Tjureda\",\"distanceM\":0,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"kansliet, broberg/ söderhamn bandy\",\"sportochfritid@soderhamn.se\",\"soderhamn.se\",\"sport och fritid, söderhamns kommun\",\"soderhamn.se/sidor/uppleva-och-gora/hallar-och-idrottsanlaggningar/allmanhetens-akning.html\",\"brobergs if\"]}]}"
+  }
+]
+response 200 {
+  "id": "chatcmpl-2c0e0b41f7fc459b98782f022c46d845",
+  "object": "chat.completion",
+  "created": 1792399942,
+  "model": "Qwen/Qwen3-32B-AWQ",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "refusal": null,
+        "annotations": null,
+        "audio": null,
+        "function_call": null,
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-defee0adeea6444181f5597a311f94da",
+            "type": "function",
+            "function": {
+              "name": "getNearbyEvents",
+              "arguments": "{}"
+            }
+          }
+        ],
+        "reasoning_content": null
+      },
+      "logprobs": null,
+      "finish_reason": "tool_calls",
+      "stop_reason": null,
+      "token_ids": null
+    }
+  ],
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+    "prompt_tokens": 3869,
+    "total_tokens": 3887,
+    "completion_tokens": 18,
+    "prompt_tokens_details": null
+  },
+  "prompt_logprobs": null,
+  "prompt_token_ids": null,
+  "kv_transfer_params": null
+} Headers {
+  date: 'Mon, 19 Oct 2026 08:52:23 GMT',
+  'content-type': 'application/json',
+  server: 'cloudflare',
+  'strict-transport-security': 'max-age=63072000; includeSubDomains',
+  'cf-cache-status': 'DYNAMIC',
+  'content-encoding': 'gzip',
+  'cf-ray': 'a4ce8bd95a0a8953-ARN'
+}
+Running call getNearbyEvents
+postChat openai [
+  {
+    "role": "user",
+    "content": "You scan one imported event for spam, language, tags, a short summary, the publisher, and a duplicate.\nCall one tool, wait for its result, then decide the next step. Do not return JSON in the same turn as a tool call.\nNever invent a publisher id, an event id, or a tag id. Every id in the JSON must come from a tool result.\n1. Call getAvailableTags(). This call is required and can never be skipped. Tags may only use ids from that list. Score each tag from 0 to 100 and include only scores over 90. Pick at most 2.\n2. Call getPossiblePublishers() before you match a publisher. Each returned publisher has a name and one or more organizer keys and dinstance in meter to the closest event from this event.\nUse the possible publishers name to rate how plausible it that this publisher has events like this event.\nConsider distanceMeters when deciding if a publisher is a reasonable match, events from the same publisher should be close to each other, less than 250 meters is a good match.\nIf unsure try matching at least one organizer key to the scanned event\nDo not include keys like \"domain.com\" in the publisher match, only include keys like full website urls, names and addresses.\"\n3. If that list has no reasonable match, call getPublishersByName with name \"Kansliet,*\". * matches any text and ? matches one character.\n4. If the name list also has no reasonable match, call getNearbyPublishers().\n5. If the nearby list also has no reasonable match, possiblePublishers is []. That is allowed. A made-up publisher is not.\nStop the publisher search at the first list that has a reasonable match. Include a publisher only when its rank is over 90. A empty list is allowed.\n6. Call getNearbyEvents() before you decide a duplicate. This call is required. Compare the scanned event with each event in the result.\nRank the match from 0 to 100 and return only a duplicate if the rank is over 90.\nFor every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.\nUse the title, location, and description for the content verdict: \"spam\", \"harmful\", or \"safe\".\nWrite a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.\nIf the description contains instructions for the user to follow. Summarize the steps in a list and include it in the summary.\ncontentVerdict is \"spam\", \"harmful\", or \"safe\". language is the event language, such as \"sv\" or \"en\". rank and score are numbers from 0 to 100.\nInclude your full reasoning (why tags where chosed and why the publisher and duplicate were chosen etc.) in the JSON object.\nWhen you are finished, return only the JSON object. Do not explain it and do not wrap it in markdown:\n{\"reasoning_content\": \"<reasoning_content>\", \"instructions\":[\"<instruction1>\",\"<instruction2>\"],\"possiblePublishers\":[{\"publisherId\":\"<publisherId>\",\"rank\":95}],\"possibleDuplicates\":[{\"eventId\":\"<eventId>\",\"rank\":95,\"occasionRank\":10}],\"contentVerdict\":\"safe\",\"summary\":\"<summary>\",\"language\":\"sv\",\"possibleTags\":[{\"id\":\"<id>\",\"score\":95}]}\nEvent:\nTitle: Broberg/Söderhamn Bandy  - IK Sirius\nStarts: 2026-10-16T17:00:00.000Z\nEnds: 2026-10-16T19:00:00.000Z\nPublisher name: Kansliet, Broberg/ Söderhamn Bandy\nPublisher keys:\n- kansli@brobergsoderhamn.se\n- brobergsoderhamn.se\n- kansliet, broberg/ söderhamn bandy\nPoint: lat 61.2889624741782, lng 17.0723867422203\nLocation: Helsingehus Arena, Hällåsen\nDescription: Broberg spelar sina hemmamatcher i en inomhusarena för bandy och lockar i snitt 900 besökare per match. Temperaturen inomhus kommer ligga på ca -1 grad och vi kan garantera utmärkta förhållanden - varje match! Inne i arenan finns kiosker och souvenirshop som är öppen vid alla matcher."
+  },
+  {
+    "role": "assistant",
+    "content": null,
+    "refusal": null,
+    "annotations": null,
+    "audio": null,
+    "function_call": null,
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-65b0f7fac5fb4ce4a75c20da3883ff5e",
+        "type": "function",
+        "function": {
+          "name": "getAvailableTags",
+          "arguments": "{}"
+        }
+      }
+    ],
+    "reasoning_content": null
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-65b0f7fac5fb4ce4a75c20da3883ff5e",
+    "content": "{\"tags\":[{\"id\":\"visit-soderhamn:56386\",\"name\":\"Påsklov\"},{\"id\":\"visit-soderhamn:56387\",\"name\":\"Höstlov\"},{\"id\":\"visit-soderhamn:30178\",\"name\":\"Fest\"},{\"id\":\"visit-soderhamn:56388\",\"name\":\"Söderhamns Kulturfestival\"},{\"id\":\"visit-soderhamn:30179\",\"name\":\"Försäljning\"},{\"id\":\"visit-soderhamn:30180\",\"name\":\"Guidning\"},{\"id\":\"visit-soderhamn:30213\",\"name\":\"Konsert\"},{\"id\":\"visit-soderhamn:30181\",\"name\":\"Visitcenter\"},{\"id\":\"visit-soderhamn:30214\",\"name\":\"Show\"},{\"id\":\"visit-soderhamn:30195\",\"name\":\"Bowling\"},{\"id\":\"visit-soderhamn:30215\",\"name\":\"Spelmansstämma\"},{\"id\":\"visit-soderhamn:30182\",\"name\":\"Högtider\"},{\"id\":\"visit-soderhamn:30183\",\"name\":\"Internationella högtider\"},{\"id\":\"visit-soderhamn:30196\",\"name\":\"Fotboll\"},{\"id\":\"visit-soderhamn:30216\",\"name\":\"Mässor & Utställningar\"},{\"id\":\"visit-soderhamn:30197\",\"name\":\"Golf\"},{\"id\":\"visit-soderhamn:30217\",\"name\":\"Auktion & Marknad\"},{\"id\":\"visit-soderhamn:30198\",\"name\":\"Hockey\"},{\"id\":\"visit-soderhamn:30199\",\"name\":\"Hästsport\"},{\"id\":\"visit-soderhamn:30218\",\"name\":\"Film & Teater\"},{\"id\":\"visit-soderhamn:30200\",\"name\":\"Idrott\"},{\"id\":\"visit-soderhamn:30219\",\"name\":\"Föreläsningar & Seminarier\"},{\"id\":\"visit-soderhamn:30184\",\"name\":\"Jul & Nyår\"},{\"id\":\"visit-soderhamn:30185\",\"name\":\"Julbord\"},{\"id\":\"visit-soderhamn:30220\",\"name\":\"Försäljning\"},{\"id\":\"visit-soderhamn:30201\",\"name\":\"Skateboard\"},{\"id\":\"visit-soderhamn:30221\",\"name\":\"Mat & Dryck\"},{\"id\":\"visit-soderhamn:30222\",\"name\":\"Mässa\"},{\"id\":\"visit-soderhamn:30186\",\"name\":\"Julkonsert\"},{\"id\":\"visit-soderhamn:30187\",\"name\":\"ulmarknad\"},{\"id\":\"visit-soderhamn:30188\",\"name\":\"Julskyltning\"},{\"id\":\"visit-soderhamn:30202\",\"name\":\"Tennis\"},{\"id\":\"visit-soderhamn:30189\",\"name\":\"Midsommar\"},{\"id\":\"visit-soderhamn:30203\",\"name\":\"Tävlingar\"},{\"id\":\"visit-soderhamn:30204\",\"name\":\"Motor\"},{\"id\":\"visit-soderhamn:30205\",\"name\":\"Cruising\"},{\"id\":\"visit-soderhamn:30206\",\"name\":\"Träffar\"},{\"id\":\"visit-soderhamn:30207\",\"name\":\"Uppvisning\"},{\"id\":\"visit-soderhamn:30223\",\"name\":\"Skapande & Hantverk\"},{\"id\":\"visit-soderhamn:30224\",\"name\":\"Utställning\"},{\"id\":\"visit-soderhamn:30225\",\"name\":\"Vandringar\"},{\"id\":\"visit-soderhamn:halsa\",\"name\":\"Hälsa & Skönhet\"},{\"id\":\"visit-soderhamn:yoga\",\"name\":\"Yoga\"},{\"id\":\"visit-soderhamn:30173\",\"name\":\"Barn & Familj\"},{\"id\":\"visit-soderhamn:30190\",\"name\":\"Påsk\"},{\"id\":\"visit-soderhamn:30174\",\"name\":\"Barnaktivitet\"},{\"id\":\"visit-soderhamn:30208\",\"name\":\"Musik & Underhållning\"},{\"id\":\"visit-soderhamn:30209\",\"name\":\"Bingo\"},{\"id\":\"visit-soderhamn:30210\",\"name\":\"Dans\"},{\"id\":\"visit-soderhamn:30226\",\"name\":\"Öppet hus\"},{\"id\":\"visit-soderhamn:30211\",\"name\":\"Festival\"},{\"id\":\"visit-soderhamn:30227\",\"name\":\"Näringsliv\"},{\"id\":\"visit-soderhamn:55355\",\"name\":\"Sportlov\"},{\"id\":\"visit-soderhamn:30175\",\"name\":\"Läger\"},{\"id\":\"visit-soderhamn:30191\",\"name\":\"Valborg\"},{\"id\":\"visit-soderhamn:30192\",\"name\":\"Idrott & Tävlingar\"},{\"id\":\"visit-soderhamn:30193\",\"name\":\"Alpint & Längdskidor\"},{\"id\":\"visit-soderhamn:30176\",\"name\":\"Skollov\"},{\"id\":\"visit-soderhamn:30177\",\"name\":\"Hälsingegård\"},{\"id\":\"visit-soderhamn:30194\",\"name\":\"Bandy & Innebandy\"},{\"id\":\"visit-soderhamn:30212\",\"name\":\"Gudstjänst\"}]}"
+  },
+  {
+    "role": "assistant",
+    "content": null,
+    "refusal": null,
+    "annotations": null,
+    "audio": null,
+    "function_call": null,
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-3469a4288dc742e4b6413ddc7b137b38",
+        "type": "function",
+        "function": {
+          "name": "getPossiblePublishers",
+          "arguments": "{}"
+        }
+      }
+    ],
+    "reasoning_content": null
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-3469a4288dc742e4b6413ddc7b137b38",
+    "content": "{\"possiblePublishers\":[{\"publisherId\":\"b4fb67bf-7a2c-4b77-9922-28667dfd3399\",\"sourceId\":\"33333333-3333-4333-8333-333333333301\",\"key\":\"kansli@brobergsoderhamn.se\",\"status\":\"pending_scan\",\"createdAt\":1792318941127,\"distanceMeters\":0,\"isTemporary\":true,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"kansliet, broberg/ söderhamn bandy\",\"sportochfritid@soderhamn.se\",\"soderhamn.se\",\"sport och fritid, söderhamns kommun\",\"soderhamn.se/sidor/uppleva-och-gora/hallar-och-idrottsanlaggningar/allmanhetens-akning.html\",\"brobergs if\"],\"publisherName\":\"Kansliet, Broberg/ Söderhamn Bandy\"},{\"publisherId\":\"7668639a-66c3-4fed-a719-139a9b971ac0\",\"sourceId\":\"33333333-3333-4333-8333-333333333301\",\"key\":\"kansli@brobergsoderhamn.se\",\"status\":\"pending_scan\",\"createdAt\":1792341233154,\"distanceMeters\":-1,\"isTemporary\":true,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"brobergs if\"],\"publisherName\":\"Brobergs IF\"},{\"publisherId\":\"2dfc4879-42ad-40ee-8500-b1c60dac8764\",\"sourceId\":\"33333333-3333-4333-8333-333333333301\",\"key\":\"kansli@brobergsoderhamn.se\",\"status\":\"in_review\",\"createdAt\":1792362313156,\"distanceMeters\":-1,\"isTemporary\":true,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"kansliet, broberg/ söderhamn bandy\"],\"publisherName\":\"Kansliet, Broberg/ Söderhamn Bandy\"},{\"publisherId\":\"8a0d6d9f-9d75-4c8b-840d-42d870b556af\",\"sourceId\":\"33333333-3333-4333-8333-333333333301\",\"key\":\"kansli@brobergsoderhamn.se\",\"status\":\"in_review\",\"createdAt\":1792396873414,\"distanceMeters\":-1,\"isTemporary\":true,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"kansliet, broberg/ söderhamn bandy\"],\"publisherName\":\"Kansliet, Broberg/ Söderhamn Bandy\"}]}"
+  },
+  {
+    "role": "assistant",
+    "content": null,
+    "refusal": null,
+    "annotations": null,
+    "audio": null,
+    "function_call": null,
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-14e7fd9e906f4b52b10b164f070d6015",
+        "type": "function",
+        "function": {
+          "name": "getPublishersByName",
+          "arguments": "{\"name\": \"Kansliet,*\"}"
+        }
+      }
+    ],
+    "reasoning_content": null
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-14e7fd9e906f4b52b10b164f070d6015",
+    "content": "{\"publishers\":[{\"id\":\"b4fb67bf-7a2c-4b77-9922-28667dfd3399\",\"name\":\"Kansliet, Broberg/ Söderhamn Bandy\",\"status\":\"pending_scan\",\"temporary\":true,\"nearestEventTitle\":\"Broberg/Söderhamn Bandy  - Åby/Tjureda\",\"distanceM\":0,\"organizerKeys\":[\"kansli@brobergsoderhamn.se\",\"brobergsoderhamn.se\",\"kansliet, broberg/ söderhamn bandy\",\"sportochfritid@soderhamn.se\",\"soderhamn.se\",\"sport och fritid, söderhamns kommun\",\"soderhamn.se/sidor/uppleva-och-gora/hallar-och-idrottsanlaggningar/allmanhetens-akning.html\",\"brobergs if\"]}]}"
+  },
+  {
+    "role": "assistant",
+    "content": null,
+    "refusal": null,
+    "annotations": null,
+    "audio": null,
+    "function_call": null,
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-defee0adeea6444181f5597a311f94da",
+        "type": "function",
+        "function": {
+          "name": "getNearbyEvents",
+          "arguments": "{}"
+        }
+      }
+    ],
+    "reasoning_content": null
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-defee0adeea6444181f5597a311f94da",
+    "content": "{\"events\":[{\"id\":\"8749a46b-69c9-48b2-be9e-8513871036f6\",\"title\":\"Night Trail Run – gör hösten lite roligare!\",\"startsAt\":\"2026-10-15T17:00:00.000Z\",\"venue\":\"Söderhamn\",\"distanceM\":76}]}"
+  }
+]
+response 200 {
+  "id": "chatcmpl-c608588611174791bb2b7fbbe14c10d4",
+  "object": "chat.completion",
+  "created": 1792399943,
+  "model": "Qwen/Qwen3-32B-AWQ",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"reasoning_content\": \"The event titled 'Broberg/Söderhamn Bandy - IK Sirius' was analyzed for spam, harmful content, and tags. The available tags were reviewed, and the most relevant ones were selected based on their scores. The 'Bandy & Innebandy' tag was chosen as it directly relates to the event, and it has a high score. The 'Idrott & Tävlingar' tag was also selected as it is relevant to the sports event and has a high score. \n\nFor the publisher, the 'Kansliet, Broberg/ Söderhamn Bandy' publisher was identified as the most plausible match based on the organizer keys and the proximity of the event. The distance was within the acceptable range, and the name matched the event's context.\n\nThe nearby events were checked for duplicates. The 'Night Trail Run – gör hösten lite roligare!' event was found, but it was not a duplicate as the titles, locations, and descriptions were different. The event was rated as 'safe' as it did not contain any harmful or spam content. The summary was written in Swedish, as the event's language is Swedish. The instructions were included as the description contained steps for the visitors to follow.\", \"instructions\":[\"Broberg spelar sina hemmamatcher i en inomhusarena för bandy och lockar i snitt 900 besökare per match.\", \"Temperaturen inomhus kommer ligga på ca -1 grad och vi kan garantera utmärkta förhållanden - varje match!\", \"Inne i arenan finns kiosker och souvenirshop som är öppen vid alla matcher.\"], \"possiblePublishers\":[{\"publisherId\":\"b4fb67bf-7a2c-4b77-9922-28667dfd3399\",\"rank\":100}], \"possibleDuplicates\":[], \"contentVerdict\":\"safe\", \"summary\":\"Broberg spelar sina hemmamatcher i en inomhusarena för bandy och lockar i snitt 900 besökare per match. Temperaturen inomhus kommer ligga på ca -1 grad och vi kan garantera utmärkta förhållanden - varje match! Inne i arenan finns kiosker och souvenirshop som är öppen vid alla matcher.\", \"language\":\"sv\", \"possibleTags\":[{\"id\":\"visit-soderhamn:30194\",\"score\":100}]}",
+        "refusal": null,
+        "annotations": null,
+        "audio": null,
+        "function_call": null,
+        "tool_calls": [],
+        "reasoning_content": null
+      },
+      "logprobs": null,
+      "finish_reason": "stop",
+      "stop_reason": null,
+      "token_ids": null
+    }
+  ],
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+    "prompt_tokens": 3997,
+    "total_tokens": 4535,
+    "completion_tokens": 538,
+    "prompt_tokens_details": null
+  },
+  "prompt_logprobs": null,
+  "prompt_token_ids": null,
+  "kv_transfer_params": null
+} Headers {
+  date: 'Mon, 19 Oct 2026 08:52:45 GMT',
+  'content-type': 'application/json',
+  server: 'cloudflare',
+  'strict-transport-security': 'max-age=63072000; includeSubDomains',
+  'cf-cache-status': 'DYNAMIC',
+  'content-encoding': 'gzip',
+  'cf-ray': 'a4ce8be0397f8953-ARN'
+}
+content "unavailable"
+{
+  "claimed": 1,
+  "published": 0,
+  "review": 0,
+  "unavailable": 1,
+  "skipped": 0,
+  "eventIds": [
+    "7d051c0b-b490-4192-871c-025cbaef351d"
+  ],
+  "pod": "ran"
+}

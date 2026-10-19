@@ -580,6 +580,7 @@ export default function HomeScreen() {
                 {t('home.identityLoading')}
               </AppText>
             )}
+
             {identity.isError && (
               <AppText
                 variant="caption"
@@ -588,6 +589,7 @@ export default function HomeScreen() {
                 {t('home.identityError')}
               </AppText>
             )}
+
             {events.isError && (
               <AppText
                 variant="caption"
@@ -596,6 +598,7 @@ export default function HomeScreen() {
                 {t('events.loadError')}
               </AppText>
             )}
+            
           </View>
         }
         extraData={savedIdKey}

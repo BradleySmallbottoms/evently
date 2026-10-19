@@ -12,7 +12,9 @@ import {
   type AdminEventListResponse,
   type AdminEventPatchRequest,
   type AdminEventReviewListResponse,
+  type AdminOccasionGroupItem,
   type ContentVerdict,
+  type EventMeta,
   type Tag,
   type EventLink,
   readEventMeta,
@@ -29,6 +31,8 @@ import {
   canDeleteImportedEvent,
   canRejectImportedEvent,
   canRescanImportedEvent,
+  collapseOccasionSpan,
+  type CollapseMember,
   publicAssetUrl,
   publicGalleryUrls,
   shouldEnqueueNotifications,
@@ -63,6 +67,14 @@ export type AdminEventServices = {
   reject: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
   /** Send an imported review event back to the scan queue. */
   rescan: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
+  /** Events that share this event's occasion group, including this event. Null when it is missing. */
+  listOccasionGroup: (eventId: string) => Promise<AdminOccasionGroupItem[] | null>;
+  /** Fold the chosen events into this one and cancel them. */
+  collapseOccasions: (
+    eventId: string,
+    eventIds: string[],
+    actor: string,
+  ) => Promise<AdminEventDetail | null>;
   /** Cancel an in-review import and leave the row, even when people have checked in. */
   softDelete: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
   /** Remove an in-review import. Refuses when anyone has checked in, saved, rated, or been notified. */
@@ -286,6 +298,39 @@ function tagCountColumn() {
     where ${schema.eventTags.eventId} = ${schema.events.id}
   )`;
 }
+
+function metaWithoutGroup(meta: EventMeta): EventMeta {
+  const { occasionGroupId: _group, ...rest } = meta;
+  return rest;
+}
+
+function metaCollapsed(meta: EventMeta, occasions: EventMeta['occasions']): EventMeta {
+  return { ...metaWithoutGroup(meta), collapsed: true, occasions };
+}
+
+function collapseMember(row: {
+  startsAt: string;
+  endsAt: string;
+  venueName: string | null;
+  location: { lat: number; lng: number } | null;
+  meta: EventMeta;
+}): CollapseMember {
+  return {
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
+    venueName: row.venueName,
+    location: row.location,
+    ...(row.meta.occasions ? { occasions: row.meta.occasions } : {}),
+  };
+}
+
+const OPEN_OCCASION_STATUSES = [
+  'draft',
+  'awaiting_verification',
+  'pending_scan',
+  'in_review',
+  'published',
+] as const;
 
 function contentVerdictOf(value: string | null | undefined): ContentVerdict {
   if (value === 'safe' || value === 'harmful' || value === 'spam' || value === 'unknown') {
@@ -538,6 +583,95 @@ export function createMemoryAdminEventServices(
         after: null,
       });
       return { id: eventId };
+    },
+    async listOccasionGroup(eventId) {
+      const host = store.events.get(eventId);
+      if (!host) return null;
+      const groupId = readEventMeta(host.meta).occasionGroupId;
+      if (!groupId) return [];
+      return [...store.events.values()]
+        .filter(
+          (event) =>
+            readEventMeta(event.meta).occasionGroupId === groupId &&
+            event.status !== 'cancelled' &&
+            event.status !== 'ended',
+        )
+        .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
+        .map((event) => ({
+          id: event.id,
+          title: event.title,
+          status: event.status as AdminOccasionGroupItem['status'],
+          startsAt: event.startsAt,
+          endsAt: event.endsAt,
+          venueName: event.venueName,
+        }));
+    },
+    async collapseOccasions(eventId, eventIds, actor) {
+      const host = store.events.get(eventId);
+      const hostMeta = readEventMeta(host?.meta);
+      if (!host || !hostMeta.occasionGroupId) return null;
+      const unique = [...new Set(eventIds)];
+      if (unique.length !== eventIds.length || unique.includes(eventId)) {
+        throw new AdminEventError('invalid_event');
+      }
+      const members = unique.map((id) => store.events.get(id));
+      if (
+        members.some(
+          (event) =>
+            !event ||
+            readEventMeta(event.meta).occasionGroupId !== hostMeta.occasionGroupId ||
+            event.status === 'cancelled' ||
+            event.status === 'ended',
+        )
+      ) {
+        throw new AdminEventError('invalid_event');
+      }
+      const chosen = members.filter((event) => event != null);
+      const span = collapseOccasionSpan(
+        collapseMember({
+          startsAt: host.startsAt,
+          endsAt: host.endsAt,
+          venueName: host.venueName,
+          location: host.location ?? null,
+          meta: hostMeta,
+        }),
+        chosen.map((event) =>
+          collapseMember({
+            startsAt: event.startsAt,
+            endsAt: event.endsAt,
+            venueName: event.venueName,
+            location: event.location ?? null,
+            meta: readEventMeta(event.meta),
+          }),
+        ),
+      );
+      if (!span) throw new AdminEventError('invalid_event');
+      const at = now().toISOString();
+      host.startsAt = span.startsAt;
+      host.endsAt = span.endsAt;
+      host.meta = metaCollapsed(hostMeta, span.occasions);
+      host.updatedAt = at;
+      for (const event of chosen) {
+        event.status = 'cancelled';
+        event.meta = metaWithoutGroup(readEventMeta(event.meta));
+        event.updatedAt = at;
+      }
+      if (host.status === 'published') {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.updated',
+          eventId,
+          changedFields: ['startsAt', 'endsAt'],
+        });
+      }
+      await audit.write({
+        actor,
+        action: 'event.collapse',
+        entityType: 'event',
+        entityId: eventId,
+        before: { occasionGroupId: hostMeta.occasionGroupId },
+        after: { startsAt: span.startsAt, endsAt: span.endsAt, cancelledEventIds: unique },
+      });
+      return asDetail(host, store.publishers.get(host.publisherId)?.name ?? 'Unknown', env.assetsPublicBaseUrl);
     },
     async patch(eventId, body, actor) {
       const row = store.events.get(eventId);
@@ -1080,6 +1214,139 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         after: null,
       });
       return { id: deleted.id };
+    },
+    async listOccasionGroup(eventId) {
+      const [host] = await db
+        .select({ meta: schema.events.meta })
+        .from(schema.events)
+        .where(eq(schema.events.id, eventId))
+        .limit(1);
+      if (!host) return null;
+      const groupId = readEventMeta(host.meta).occasionGroupId;
+      if (!groupId) return [];
+      const rows = await db
+        .select({
+          id: schema.events.id,
+          title: schema.events.title,
+          status: schema.events.status,
+          startsAt: schema.events.startsAt,
+          endsAt: schema.events.endsAt,
+          venueName: schema.events.venueName,
+        })
+        .from(schema.events)
+        .where(
+          and(
+            sql`${schema.events.meta}->>'occasionGroupId' = ${groupId}`,
+            inArray(schema.events.status, [...OPEN_OCCASION_STATUSES]),
+          ),
+        )
+        .orderBy(asc(schema.events.startsAt), asc(schema.events.id));
+      return rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        startsAt: row.startsAt.toISOString(),
+        endsAt: row.endsAt.toISOString(),
+        venueName: row.venueName,
+      }));
+    },
+    async collapseOccasions(eventId, eventIds, actor) {
+      const host = await loadDetail(eventId);
+      if (!host?.meta.occasionGroupId) return null;
+      const unique = [...new Set(eventIds)];
+      if (unique.length !== eventIds.length || unique.includes(eventId)) {
+        throw new AdminEventError('invalid_event');
+      }
+      const rows = await db
+        .select({
+          id: schema.events.id,
+          status: schema.events.status,
+          startsAt: schema.events.startsAt,
+          endsAt: schema.events.endsAt,
+          venueName: schema.events.venueName,
+          meta: schema.events.meta,
+          lat: sql<number | null>`ST_Y(${schema.events.location}::geometry)`,
+          lng: sql<number | null>`ST_X(${schema.events.location}::geometry)`,
+        })
+        .from(schema.events)
+        .where(inArray(schema.events.id, unique));
+      if (rows.length !== unique.length) throw new AdminEventError('invalid_event');
+      const members = rows.map((row) => {
+        const meta = readEventMeta(row.meta);
+        if (
+          meta.occasionGroupId !== host.meta.occasionGroupId ||
+          row.status === 'cancelled' ||
+          row.status === 'ended'
+        ) {
+          throw new AdminEventError('invalid_event');
+        }
+        const lat = row.lat == null ? null : Number(row.lat);
+        const lng = row.lng == null ? null : Number(row.lng);
+        return collapseMember({
+          startsAt: row.startsAt.toISOString(),
+          endsAt: row.endsAt.toISOString(),
+          venueName: row.venueName,
+          location:
+            lat != null && lng != null && !Number.isNaN(lat) && !Number.isNaN(lng)
+              ? { lat, lng }
+              : null,
+          meta,
+        });
+      });
+      const span = collapseOccasionSpan(
+        collapseMember({
+          startsAt: host.startsAt,
+          endsAt: host.endsAt,
+          venueName: host.venueName,
+          location: host.location,
+          meta: host.meta,
+        }),
+        members,
+      );
+      if (!span) throw new AdminEventError('invalid_event');
+      const at = now();
+      const nextMeta = metaCollapsed(host.meta, span.occasions);
+      await db.transaction(async (tx) => {
+        await tx
+          .update(schema.events)
+          .set({
+            startsAt: new Date(span.startsAt),
+            endsAt: new Date(span.endsAt),
+            meta: nextMeta,
+            updatedAt: at,
+          })
+          .where(eq(schema.events.id, eventId));
+        for (const row of rows) {
+          await tx
+            .update(schema.events)
+            .set({
+              status: 'cancelled',
+              meta: metaWithoutGroup(readEventMeta(row.meta)),
+              updatedAt: at,
+            })
+            .where(eq(schema.events.id, row.id));
+        }
+      });
+      for (const row of rows) {
+        await cancelOpenPushMessages(db, row.id, at);
+      }
+      if (host.status === 'published') {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.updated',
+          eventId,
+          changedFields: ['startsAt', 'endsAt'],
+        });
+      }
+      const updated = await loadDetail(eventId);
+      await audit.write({
+        actor,
+        action: 'event.collapse',
+        entityType: 'event',
+        entityId: eventId,
+        before: { occasionGroupId: host.meta.occasionGroupId },
+        after: { startsAt: span.startsAt, endsAt: span.endsAt, cancelledEventIds: unique },
+      });
+      return updated;
     },
     async patch(eventId, body, actor) {
       const existing = await loadDetail(eventId);

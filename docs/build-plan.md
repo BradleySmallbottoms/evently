@@ -121,6 +121,8 @@ Closed beta around week 15, store launch around week 19.
       imported `in_review` event and keeps the row. Wipe removes it and records
       `import_suppressions` so the same external id is not imported again.
 - [x] Audit log viewer
+- [x] Collapse occasions on the admin event page. Checked events in the same
+      `occasionGroupId` become `meta.occasions` on the open event and are cancelled.
 
 ## Parallel track — Data workers (from week 6)
 

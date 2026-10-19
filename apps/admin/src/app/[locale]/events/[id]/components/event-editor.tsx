@@ -26,6 +26,7 @@ import { AdminApiError, adminFetch } from '@/lib/api';
 import { toDatetimeLocal, zonedLocalToIso } from '@/lib/zoned-datetime';
 import { EventImages } from './event-images';
 import { EventNotifications } from './event-notifications';
+import { EventOccasions } from './event-occasions';
 import { EventScan } from './event-scan';
 import { EventTagsField } from './event-tags-field';
 
@@ -56,13 +57,15 @@ type EventDetail = {
   refId: string | null;
   workerId: string | null;
   meta: {
+    occasionGroupId?: string;
+    occasions?: { startsAt: string; endsAt?: string; venueName?: string }[];
     possibleDuplicate?: {
       eventId: string;
       title: string;
       startsAt: string;
       refId: string | null;
       workerId: string | null;
-      matchedOn: 'title' | 'event-link' | 'link' | 'id';
+      matchedOn: 'title' | 'event-link' | 'link' | 'id' | 'llm';
     };
   };
   tagIds: string[];
@@ -124,7 +127,7 @@ const styles: Record<string, SxProps<Theme>> = {
   },
 };
 
-type EditorTab = 'info' | 'location' | 'notifications' | 'scan';
+type EditorTab = 'info' | 'location' | 'notifications' | 'scan' | 'occasions';
 
 function httpUrl(value: string | null): string | null {
   if (!value) return null;
@@ -312,6 +315,9 @@ export function EventEditor({ eventId }: { eventId: string }) {
   }
 
   const event = eventQuery.data;
+  const showOccasions =
+    (event?.meta.occasions?.length ?? 0) > 1 || Boolean(event?.meta.occasionGroupId);
+  const activeTab: EditorTab = tab === 'occasions' && !showOccasions ? 'info' : tab;
   const source = httpUrl(event?.sourceUrl ?? null);
   const saveError =
     formError ??
@@ -375,7 +381,7 @@ export function EventEditor({ eventId }: { eventId: string }) {
         </Alert>
       ) : null}
       <Tabs
-        value={tab}
+        value={activeTab}
         onChange={(_event, value: EditorTab) => setTab(value)}
         aria-label={t('tabsLabel')}
       >
@@ -383,8 +389,9 @@ export function EventEditor({ eventId }: { eventId: string }) {
         <Tab value="location" label={t('tabLocation')} />
         <Tab value="notifications" label={t('tabNotifications')} />
         <Tab value="scan" label={t('tabScan')} />
+        {showOccasions ? <Tab value="occasions" label={t('tabOccasions')} /> : null}
       </Tabs>
-      {tab === 'notifications' && event ? (
+      {activeTab === 'notifications' && event ? (
         <EventNotifications
           eventId={eventId}
           title={event.title}
@@ -392,13 +399,24 @@ export function EventEditor({ eventId }: { eventId: string }) {
           timezone={event.timezone}
           status={event.status}
         />
-      ) : tab === 'scan' ? (
+      ) : activeTab === 'scan' ? (
         <EventScan output={event?.llmOutput ?? null} />
+      ) : activeTab === 'occasions' && event ? (
+        <EventOccasions
+          eventId={eventId}
+          occasions={event.meta.occasions}
+          occasionGroupId={event.meta.occasionGroupId}
+          onCollapsed={() => {
+            setDraft(null);
+            setNotice(t('collapsed'));
+            setFormError(null);
+          }}
+        />
       ) : (
         <Stack component="form" spacing={2} onSubmit={onSubmit}>
           {notice ? <Alert severity="success">{notice}</Alert> : null}
           {saveError ? <Alert severity="error">{saveError}</Alert> : null}
-          {tab === 'info' ? (
+          {activeTab === 'info' ? (
             <>
               <EventImages imageUrl={event?.imageUrl ?? null} imageUrls={event?.imageUrls ?? []} />
               <TextField

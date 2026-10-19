@@ -7,7 +7,7 @@ export const brand = {
   background: '#F6F1E8',
   surface: '#FFFFFF',
   surfaceDarker: '#FAFDF6',
-  surfaceDarkest: '#FCF9F4',
+  surfaceDarkest: '#FCF9F3',
   surfaceOpacity: '#00000033',
   text: '#283533',
   textSecondary: '#64736C',

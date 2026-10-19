@@ -318,6 +318,26 @@ export const AdminEventListItem = z.object({
 });
 export type AdminEventListItem = z.infer<typeof AdminEventListItem>;
 
+export const AdminOccasionGroupItem = z.object({
+  id: Id,
+  title: z.string(),
+  status: AdminEventListItem.shape.status,
+  startsAt: z.iso.datetime(),
+  endsAt: z.iso.datetime(),
+  venueName: z.string().nullable(),
+});
+export type AdminOccasionGroupItem = z.infer<typeof AdminOccasionGroupItem>;
+
+export const AdminOccasionGroupResponse = z.object({
+  items: z.array(AdminOccasionGroupItem),
+});
+export type AdminOccasionGroupResponse = z.infer<typeof AdminOccasionGroupResponse>;
+
+export const AdminCollapseOccasionsRequest = z.object({
+  eventIds: z.array(Id).min(1).max(100),
+});
+export type AdminCollapseOccasionsRequest = z.infer<typeof AdminCollapseOccasionsRequest>;
+
 export const AdminEventListQuery = z.object({
   status: AdminEventListItem.shape.status.optional(),
   /** Matches title, venue, or publisher name. */

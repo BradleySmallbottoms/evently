@@ -45,7 +45,7 @@ export function EventListItem({
   return (
     <View
       style={{
-        backgroundColor: colors.card,
+        backgroundColor: colors.cardDarkest,
         borderRadius: radius.lg,
         borderCurve: 'continuous',
         padding: space.md,

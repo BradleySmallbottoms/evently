@@ -65,9 +65,9 @@ export function FeaturedEventCard({
         </View>
         <View
           style={{
-            marginTop: -36,
-            marginHorizontal: space.md,
-            backgroundColor: colors.card,
+            marginTop: -56,
+            // marginHorizontal: space.md,
+            backgroundColor: colors.cardDarkest,
             borderRadius: radius.lg,
             borderCurve: 'continuous',
             padding: space.lg,

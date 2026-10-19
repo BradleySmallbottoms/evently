@@ -1,5 +1,6 @@
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
+  AdminCollapseOccasionsRequest,
   AdminEventDecisionResponse,
   AdminEventDeleteResponse,
   AdminEventDetail,
@@ -7,6 +8,7 @@ import {
   AdminEventListResponse,
   AdminEventPatchRequest,
   AdminEventReviewListResponse,
+  AdminOccasionGroupResponse,
   TagListResponse,
   ErrorResponse,
 } from '@local-events/contracts';
@@ -283,6 +285,84 @@ export function registerAdminEventRoutes(
       return c.json(result, 200);
     } catch (err) {
       return adminAuthErrorResponse(c, err);
+    }
+  });
+
+  const occasionGroup = createRoute({
+    method: 'get',
+    path: '/events/{id}/occasion-group',
+    request: { params: z.object({ id: z.uuid() }) },
+    responses: {
+      200: {
+        description: 'Other events that share this event’s occasion group',
+        content: { 'application/json': { schema: AdminOccasionGroupResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(occasionGroup, async (c) => {
+    try {
+      await auth.requireSession(readAdminSessionToken(c));
+      const items = await events.listOccasionGroup(c.req.valid('param').id);
+      if (!items) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json({ items }, 200);
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
+  const collapse = createRoute({
+    method: 'post',
+    path: '/events/{id}/collapse',
+    request: {
+      params: z.object({ id: z.uuid() }),
+      body: {
+        content: { 'application/json': { schema: AdminCollapseOccasionsRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Checked events folded into this event and cancelled',
+        content: { 'application/json': { schema: AdminEventDetail } },
+      },
+      400: {
+        description: 'The selection is not part of this occasion group',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Not found or this event has no occasion group',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(collapse, async (c) => {
+    try {
+      const session = await auth.requireSession(readAdminSessionToken(c));
+      const result = await events.collapseOccasions(
+        c.req.valid('param').id,
+        c.req.valid('json').eventIds,
+        session.adminId,
+      );
+      if (!result) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json(result, 200);
+    } catch (err) {
+      return eventWriteError(c, err);
     }
   });
 

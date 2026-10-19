@@ -150,6 +150,8 @@ Product invariants (enforced in domain, tested)
   (`GET /events/occasions`). An event with no point is included. A collapsed span lists each
   `meta.occasions` row that has not ended on that same page. The date shown for that event is the next of those rows.
   The same start and end is a whole day: the time reads “Whole Day”, and that occasion stays current through its calendar day.
+  Admin can fold other events in that group into the open event (`POST /events/{id}/collapse`).
+  Its start becomes the earliest start and its end the latest end. The checked events are cancelled.
 - A lookalike within 500 m and 30 minutes is still inserted, then marked `in_review` by the scan
   job, with `meta.possibleDuplicate` pointing at the existing event. A duplicate ranked over 90 as
   another showing stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates.

@@ -74,6 +74,8 @@ describe('admin api', () => {
     expect(doc.paths['/events/{id}/approve']).toBeDefined();
     expect(doc.paths['/events/{id}/reject']).toBeDefined();
     expect(doc.paths['/events/{id}/rescan']).toBeDefined();
+    expect(doc.paths['/events/{id}/occasion-group']).toBeDefined();
+    expect(doc.paths['/events/{id}/collapse']).toBeDefined();
     expect((doc.paths['/events/{id}'] as { delete?: unknown }).delete).toBeDefined();
     expect(doc.paths['/data-sources']).toBeDefined();
     expect(doc.paths['/data-sources/{id}/runs']).toBeDefined();
@@ -386,6 +388,143 @@ describe('admin api', () => {
       headers: { cookie },
     });
     expect(again.status).toBe(404);
+  });
+
+  it('collapses checked occasions into the open event and cancels them', async () => {
+    const { auth } = await seededAuth();
+    const hostId = '44444444-4444-4444-8444-444444444401';
+    const earlyId = '44444444-4444-4444-8444-444444444402';
+    const lateId = '44444444-4444-4444-8444-444444444403';
+    const otherId = '44444444-4444-4444-8444-444444444404';
+    const publisherId = '22222222-2222-4222-8222-222222222201';
+    const base = {
+      publisherId,
+      mode: 'physical' as const,
+      status: 'published' as const,
+      origin: 'imported' as const,
+      venueName: 'Hall',
+      sourceUrl: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const eventStore = {
+      publishers: new Map([[publisherId, { id: publisherId, name: 'Band' }]]),
+      events: new Map([
+        [
+          hostId,
+          {
+            ...base,
+            id: hostId,
+            title: 'Host',
+            startsAt: '2026-08-02T16:00:00.000Z',
+            endsAt: '2026-08-02T18:00:00.000Z',
+            meta: { occasionGroupId: 'product-1', freeEntry: true },
+          },
+        ],
+        [
+          earlyId,
+          {
+            ...base,
+            id: earlyId,
+            title: 'Early',
+            startsAt: '2026-08-01T10:00:00.000Z',
+            endsAt: '2026-08-01T12:00:00.000Z',
+            venueName: 'Park',
+            meta: { occasionGroupId: 'product-1' },
+          },
+        ],
+        [
+          lateId,
+          {
+            ...base,
+            id: lateId,
+            title: 'Late',
+            startsAt: '2026-08-04T19:00:00.000Z',
+            endsAt: '2026-08-04T21:00:00.000Z',
+            meta: { occasionGroupId: 'product-1' },
+          },
+        ],
+        [
+          otherId,
+          {
+            ...base,
+            id: otherId,
+            title: 'Other product',
+            startsAt: '2026-08-03T19:00:00.000Z',
+            endsAt: '2026-08-03T21:00:00.000Z',
+            meta: { occasionGroupId: 'product-2' },
+          },
+        ],
+      ]),
+    };
+    const domainEvents = createMemoryDomainEventPublisher();
+    const { createMemoryAdminEventServices } =
+      await import('../../../apps/admin-api/src/services/events');
+    const app = createApp({
+      auth,
+      events: createMemoryAdminEventServices(eventStore, { domainEvents }),
+    });
+    const cookie = await loginSession(app);
+
+    const denied = await app.request(`/v1/events/${hostId}/occasion-group`);
+    expect(denied.status).toBe(401);
+
+    const group = await app.request(`/v1/events/${hostId}/occasion-group`, {
+      headers: { cookie },
+    });
+    expect(group.status).toBe(200);
+    const listed = (await group.json()) as { items: { id: string }[] };
+    expect(listed.items.map((item) => item.id)).toEqual([earlyId, hostId, lateId]);
+
+    const wrong = await app.request(`/v1/events/${hostId}/collapse`, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ eventIds: [otherId] }),
+    });
+    expect(wrong.status).toBe(400);
+
+    const collapsed = await app.request(`/v1/events/${hostId}/collapse`, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ eventIds: [lateId, earlyId] }),
+    });
+    expect(collapsed.status).toBe(200);
+    expect(await collapsed.json()).toMatchObject({
+      id: hostId,
+      startsAt: '2026-08-01T10:00:00.000Z',
+      endsAt: '2026-08-04T21:00:00.000Z',
+      meta: {
+        collapsed: true,
+        freeEntry: true,
+        occasions: [
+          {
+            startsAt: '2026-08-01T10:00:00.000Z',
+            endsAt: '2026-08-01T12:00:00.000Z',
+            venueName: 'Park',
+          },
+          {
+            startsAt: '2026-08-02T16:00:00.000Z',
+            endsAt: '2026-08-02T18:00:00.000Z',
+            venueName: 'Hall',
+          },
+          {
+            startsAt: '2026-08-04T19:00:00.000Z',
+            endsAt: '2026-08-04T21:00:00.000Z',
+            venueName: 'Hall',
+          },
+        ],
+      },
+    });
+    expect(eventStore.events.get(hostId)?.meta).not.toHaveProperty('occasionGroupId');
+    expect(eventStore.events.get(earlyId)?.status).toBe('cancelled');
+    expect(eventStore.events.get(lateId)?.status).toBe('cancelled');
+    expect(eventStore.events.get(lateId)?.meta).not.toHaveProperty('occasionGroupId');
+    expect(domainEvents.events).toEqual([
+      { type: 'event.updated', eventId: hostId, changedFields: ['startsAt', 'endsAt'] },
+    ]);
+
+    const after = await app.request(`/v1/events/${hostId}/occasion-group`, { headers: { cookie } });
+    expect(await after.json()).toMatchObject({ items: [] });
   });
 
   it('deletes an imported event in review and refuses other statuses', async () => {
