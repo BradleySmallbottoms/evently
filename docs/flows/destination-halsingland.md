@@ -38,7 +38,8 @@ arena name. The source slug is used only when none of those exist. The scan job 
 and keeps the first publisher it finds.
 
 Those requests go through `curl` over HTTP/1.1 with `PostmanRuntime/2.11.0`. Node's own HTTPS
-client is answered with a Cloudflare challenge. The seeded row stays disabled until a manual
+client is answered with a Cloudflare challenge. The event scan fetches a page on this host the
+same way. The seeded row stays disabled until a manual
 run succeeds.
 
 ```mermaid

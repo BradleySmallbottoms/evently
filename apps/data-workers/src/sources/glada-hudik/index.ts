@@ -4,6 +4,7 @@ import {
   priceAmountFromText,
   organizerKeys,
   stockholmWallTime,
+  type EventLinkKind,
 } from '@local-events/domain';
 import {
   defineAdapter,
@@ -71,7 +72,7 @@ export interface GladaOccasion {
 }
 
 export interface GladaLink {
-  type: 'tickets' | 'registration' | 'info';
+  type: EventLinkKind;
   url: string;
   label?: string;
 }

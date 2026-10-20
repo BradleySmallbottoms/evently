@@ -1,6 +1,7 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { load } from 'cheerio';
+import { fetchPublicDocument } from './http1';
 import type { PublisherLookup, PublisherLookupInput } from './prompt-runners/types';
 
 /** Searches and page fetches one publisher lookup may run. */
@@ -12,13 +13,16 @@ export const PUBLISHER_LOOKUP_ROUNDS = 5;
 const RESULT_LIMIT = 5;
 const QUERY_LIMIT = 200;
 const FETCH_TIMEOUT_MS = 8_000;
-const BODY_LIMIT = 100_000;
+const BODY_LIMIT = 500_000;
 const TEXT_LIMIT = 4_000;
 const TITLE_LIMIT = 200;
 const FIELD_LIMIT = 200;
 const DESCRIPTION_LIMIT = 500;
 const EVENT_LIMIT = 5;
 const MAX_REDIRECTS = 5;
+const COOKIE_LIMIT = 16;
+const COOKIE_NAME_LIMIT = 64;
+const COOKIE_VALUE_LIMIT = 512;
 const BRAVE_SEARCH_URL = 'https://api.search.brave.com/res/v1/web/search';
 
 export interface WebHit {
@@ -216,7 +220,8 @@ async function searchWeb(
 }
 
 /**
- * Fetches one public https page. Redirects are checked again. A private, loopback,
+ * Fetches one public https page. Redirects are checked again, and cookies from those
+ * redirects are sent on the next request when the host and path match. A private, loopback,
  * or link-local address is refused before the request is sent.
  */
 async function fetchPage(
@@ -241,20 +246,24 @@ export async function loadPublicHtml(
   const initial = parseHttpsUrl(raw);
   if ('error' in initial) return initial;
   let current = initial;
+  const cookies: StoredCookie[] = [];
   const resolveHost = deps.resolveHost ?? defaultResolveHost;
   try {
     for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect++) {
       const allowed = await assertPublicHost(current.hostname, resolveHost);
       if ('error' in allowed) return allowed;
-      console.log('Fetching', current.toString());
-      const response = await deps.fetch(current, {
+      const cookie = cookieHeader(cookies, current);
+      const response = await fetchPublicDocument(current, {
         method: 'GET',
         redirect: 'manual',
-        headers: { accept: 'text/html,application/xhtml+xml' },
+        headers: {
+          accept: 'text/html,application/xhtml+xml',
+          ...(cookie ? { cookie } : {}),
+        },
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      });
-      console.log('Response', response.status);
+      }, deps.fetch);
       if (response.status >= 300 && response.status < 400) {
+        rememberCookies(cookies, response.headers.getSetCookie(), current);
         await response.body?.cancel();
         const location = response.headers.get('location');
         if (!location || redirect === MAX_REDIRECTS) return { error: 'Page could not be fetched.' };
@@ -307,6 +316,96 @@ function readSearchResults(payload: unknown): WebHit[] {
     if (hits.length >= RESULT_LIMIT) break;
   }
   return hits;
+}
+
+interface StoredCookie {
+  name: string;
+  value: string;
+  /** Response host. A cookie is sent only back to this host. */
+  host: string;
+  path: string;
+}
+
+/**
+ * Keeps cookies from a redirect for later requests in the same fetch.
+ * A Domain attribute must match the response host, and the cookie is still
+ * sent only to that host. Max-Age of 0 drops a cookie that was stored earlier.
+ */
+function rememberCookies(jar: StoredCookie[], rawCookies: string[], requestUrl: URL): void {
+  for (const raw of rawCookies) {
+    const cookie = parseSetCookie(raw, requestUrl);
+    if (!cookie) continue;
+    const index = jar.findIndex(
+      (item) => item.name === cookie.name && item.host === cookie.host && item.path === cookie.path,
+    );
+    if (cookie.drop) {
+      if (index >= 0) jar.splice(index, 1);
+      continue;
+    }
+    if (index >= 0) jar[index] = cookie;
+    else if (jar.length < COOKIE_LIMIT) jar.push(cookie);
+  }
+}
+
+function parseSetCookie(raw: string, requestUrl: URL): (StoredCookie & { drop: boolean }) | null {
+  const [pair, ...attrs] = raw.split(';');
+  if (!pair) return null;
+  const eq = pair.indexOf('=');
+  if (eq <= 0) return null;
+  const name = pair.slice(0, eq).trim();
+  const value = pair.slice(eq + 1).trim();
+  if (!/^[\w!#$%&'*+\-.^`|~]+$/.test(name) || name.length > COOKIE_NAME_LIMIT) return null;
+  if (value.length > COOKIE_VALUE_LIMIT || /[\u0000-\u001F\u007F]/.test(value)) return null;
+  const host = requestUrl.hostname.toLowerCase().replace(/\.$/, '');
+  let path = defaultCookiePath(requestUrl.pathname);
+  let drop = false;
+  for (const attr of attrs) {
+    const separator = attr.indexOf('=');
+    const key = (separator < 0 ? attr : attr.slice(0, separator)).trim().toLowerCase();
+    const attrValue = separator < 0 ? '' : attr.slice(separator + 1).trim();
+    if (key === 'domain' && attrValue) {
+      const wanted = attrValue.replace(/^\./, '').toLowerCase().replace(/\.$/, '');
+      if (!domainAttributeMatches(host, wanted)) return null;
+    } else if (key === 'path' && attrValue.startsWith('/') && !/[\u0000-\u001F\u007F]/.test(attrValue)) {
+      path = attrValue.slice(0, 200);
+    } else if (key === 'max-age' && /^-?\d+$/.test(attrValue) && Number(attrValue) <= 0) {
+      drop = true;
+    }
+  }
+  if (!value) drop = true;
+  return { name, value, host, path, drop };
+}
+
+function cookieHeader(jar: StoredCookie[], url: URL): string | undefined {
+  const matches = jar
+    .filter((cookie) => cookieMatches(cookie, url))
+    .sort((a, b) => b.path.length - a.path.length);
+  if (matches.length === 0) return undefined;
+  return matches.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ');
+}
+
+function cookieMatches(cookie: StoredCookie, url: URL): boolean {
+  const host = url.hostname.toLowerCase().replace(/\.$/, '');
+  if (host !== cookie.host) return false;
+  return pathMatches(url.pathname || '/', cookie.path);
+}
+
+function domainAttributeMatches(host: string, domain: string): boolean {
+  if (isIP(host)) return host === domain;
+  if (!domain.includes('.')) return false;
+  return host === domain || host.endsWith(`.${domain}`);
+}
+
+function pathMatches(requestPath: string, cookiePath: string): boolean {
+  if (requestPath === cookiePath) return true;
+  if (!requestPath.startsWith(cookiePath)) return false;
+  return cookiePath.endsWith('/') || requestPath[cookiePath.length] === '/';
+}
+
+function defaultCookiePath(pathname: string): string {
+  if (!pathname.startsWith('/') || pathname === '/') return '/';
+  const slash = pathname.lastIndexOf('/');
+  return slash <= 0 ? '/' : pathname.slice(0, slash);
 }
 
 /** https only, default port, no userinfo. Anything else is refused before DNS. */

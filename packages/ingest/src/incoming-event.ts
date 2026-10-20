@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { EventMeta, EventMode, GeoPointSchema, HttpUrl } from '@local-events/contracts';
+import { EventLinkType, EventMeta, EventMode, GeoPointSchema, HttpUrl } from '@local-events/contracts';
 import { z } from 'zod';
 
 /** The shape every source adapter maps raw data into. `ingest` takes it from here. */
@@ -29,7 +29,7 @@ export const IncomingEvent = z.object({
   links: z
     .array(
       z.object({
-        type: z.enum(['tickets', 'registration', 'info']),
+        type: EventLinkType,
         url: HttpUrl,
         label: z.string().trim().min(1).max(80).optional(),
       }),

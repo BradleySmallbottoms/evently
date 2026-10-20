@@ -57,7 +57,7 @@ export function choosePossibleOccasionGroupId(input: {
 }
 
 /** A venue guess counts only when its rank is over this. Same cutoff as a publisher match. */
-export const VENUE_NAME_MIN_RANK = 90;
+export const VENUE_NAME_MIN_RANK = 80;
 const VENUE_NAME_LIMIT = 200;
 
 export interface PossibleVenueName {

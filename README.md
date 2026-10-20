@@ -151,14 +151,15 @@ calls) in the same change as every new major feature.**
   `EU-SE-1` has no network volumes, so a volume cannot be created there.
   `http` is only allowed on loopback. A scan replaces tags the event already has.
   Importers store the street, postcode, and city on `meta.address`, with the event point when they have one.
-  When a ticket or info link exists, the tool-calling scan may open the ticket
-  link, or the info link when there is no ticket link. The model uses that page for tags,
+  The tool-calling scan opens one https page: the source URL, then a ticket
+  link, then an info link, then a Facebook page. A page on visit.destinationhalsingland.se
+  is fetched with curl over HTTP/1.1. The model uses that page for tags,
   instructions, the summary, missing dates, and the address. The model returns that address
   in the scan JSON. A scraped point and address are kept. When the event has no point, the
   scraped address is geocoded, and the model address is used only when the import stored none.
-  A street, or a postcode with a city, is geocoded, and only a hit in Sweden is kept.
+  A street, or a postcode with a city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept.
   The model does not supply coordinates. The model returns possible venue names. A venue the
-  import already stored is kept. Otherwise the highest rank over 90 is written.
+  import already stored is kept. Otherwise the highest rank above 80 is written.
   The worker publishes the event only when the scan approves it, the publisher status is `published`,
   and the source trust is `auto_publish`. Anything else that finishes goes to `in_review`. A model
   failure leaves the row `pending_scan`. A new temporary publisher is `pending_scan`. The event scan does not look it up.

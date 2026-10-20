@@ -145,12 +145,13 @@ Product invariants (enforced in domain, tested)
   An import with no occasion, and a library page or ICS event with no date, is still saved, with empty start and end.
   The event scan fills both when it can read them from the text or from the ticket or info page.
   The model may read that page for tags, instructions, and the summary.
+  A page on visit.destinationhalsingland.se is fetched with curl over HTTP/1.1.
   An event with no start stays off the public list.
   Importers store a scraped point and the street, postcode, and city on `meta.address`. They do not
   geocode. The model returns an address in the scan JSON. The scan keeps a scraped point. When the
   event has none, it geocodes the scraped address, or the model address when the import stored none.
-  A street, or a postcode and city, is geocoded, and only a hit in Sweden is kept. The model does not supply coordinates.
-  The model returns possible venue names. A venue the import already stored is kept. Otherwise the highest rank over 90 is written.
+  A street, or a postcode and city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept. The model does not supply coordinates.
+  The model returns possible venue names. A venue the import already stored is kept. Otherwise the highest rank above 80 is written.
   A dense run longer than `data_sources.config.occasionSpanDays` (default 21) that covers at least
   `occasionCoverage` of those days (default 0.6) becomes one span (`externalId` `{productId}:span`,
   `meta.collapsed` true, with every occasion on `meta.occasions`).

@@ -45,7 +45,7 @@ export const TagListQuery = z.object({
 });
 export type TagListQuery = z.infer<typeof TagListQuery>;
 
-export const EventLinkType = z.enum(['tickets', 'registration', 'info']);
+export const EventLinkType = z.enum(['tickets', 'registration', 'info', 'facebook', 'instagram']);
 export type EventLinkType = z.infer<typeof EventLinkType>;
 
 /** Web links only. `z.url()` also accepts `javascript:` and other schemes. */

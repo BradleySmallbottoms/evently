@@ -741,7 +741,10 @@ export function createDbIngestStore(db: Db): IngestStore {
             pageLinks: linkRows
               .filter((link) => link.eventId === id)
               .flatMap((link) =>
-                link.type === 'tickets' || link.type === 'registration' || link.type === 'info'
+                link.type === 'tickets' ||
+                  link.type === 'registration' ||
+                  link.type === 'info' ||
+                  link.type === 'facebook'
                   ? [{ type: link.type, url: link.url }]
                   : [],
               ),

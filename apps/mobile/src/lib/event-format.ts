@@ -3,7 +3,7 @@ import { selectPrimaryLink, type PrimaryEventAction } from '@local-events/domain
 import { isWholeDay } from './span-occasions';
 
 export type EventLink = {
-  type: 'tickets' | 'registration' | 'info';
+  type: 'tickets' | 'registration' | 'info' | 'facebook' | 'instagram';
   url: string;
   label?: string | null;
 };

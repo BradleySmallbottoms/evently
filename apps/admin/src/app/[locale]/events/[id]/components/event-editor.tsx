@@ -34,7 +34,7 @@ import { EventTagsField } from './event-tags-field';
 type EventMode = 'physical' | 'digital';
 type EventStatus =
   'draft' | 'awaiting_verification' | 'in_review' | 'published' | 'cancelled' | 'ended';
-type LinkType = 'tickets' | 'registration' | 'info';
+type LinkType = 'tickets' | 'registration' | 'info' | 'facebook' | 'instagram';
 
 type EventDetail = {
   id: string;
@@ -580,6 +580,8 @@ export function EventEditor({ eventId }: { eventId: string }) {
                         <MenuItem value="tickets">{t('linkTickets')}</MenuItem>
                         <MenuItem value="registration">{t('linkRegistration')}</MenuItem>
                         <MenuItem value="info">{t('linkInfo')}</MenuItem>
+                        <MenuItem value="facebook">{t('linkFacebook')}</MenuItem>
+                        <MenuItem value="instagram">{t('linkInstagram')}</MenuItem>
                       </Select>
                     </FormControl>
                     <TextField

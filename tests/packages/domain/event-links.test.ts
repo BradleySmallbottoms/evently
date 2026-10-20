@@ -26,6 +26,21 @@ describe('selectPrimaryLink', () => {
     });
     expect(selectPrimaryLink([links[0]!], null)?.kind).toBe('info');
     expect(selectPrimaryLink([], null)).toBeNull();
+    expect(
+      selectPrimaryLink(
+        [{ type: 'facebook', url: 'https://www.facebook.com/example', label: 'Facebooksida' }],
+        null,
+      )?.kind,
+    ).toBe('facebook');
+    expect(
+      selectPrimaryLink(
+        [
+          { type: 'facebook', url: 'https://www.facebook.com/example' },
+          { type: 'info', url: 'https://example.com/info', label: 'Mer' },
+        ],
+        null,
+      )?.kind,
+    ).toBe('info');
   });
 });
 

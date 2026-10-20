@@ -37,15 +37,16 @@ For each event the Ollama runner:
    Steps the model lists from the description are stored on `meta.instructions`.
    When the event has no start and no end, the model also returns both instants. Those
    replace the empty dates. A range that is missing one side is ignored.
-   When a ticket or info link exists, the tool-calling scan may call
-   `fetchEventPage`. That opens one https link: the ticket link, or the info link when there
-   is no ticket link. The model uses the page text for tags, instructions, the summary, and
+   The tool-calling scan may call `fetchEventPage`. That opens one https page:
+   the source URL, then a ticket link, then an info link, then a Facebook page.
+   A page on visit.destinationhalsingland.se is fetched with curl over HTTP/1.1.
+   The model uses the page text for tags, instructions, the summary, and
    missing dates, and for the address. The model returns that address in the scan JSON.
    A scraped point is kept. When the event has no point, the scraped address is geocoded,
    and the address from that JSON is used only when the import stored none. A street, or a
-   postcode with a city, is geocoded, and only a hit in Sweden is kept. The model does not
+   postcode with a city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept. The model does not
    supply coordinates. The model also returns possible venue names. A venue the import
-   already stored is kept. Otherwise the highest rank over 90 is written. A later import
+   already stored is kept. Otherwise the highest rank above 80 is written. A later import
    keeps that address, and keeps its point when the new address has none.
 
 The worker writes the publisher, tags, and `meta.possibleDuplicate`, then sets the status.

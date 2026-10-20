@@ -129,8 +129,14 @@ export const checkInMethod = pgEnum('check_in_method', ['geo', 'code']);
 export const eventLinkAudience = pgEnum('event_link_audience', ['public', 'attendees']);
 export const eventContentKind = pgEnum('event_content_kind', ['map', 'schedule', 'info', 'file']);
 export const eventContentVisibility = pgEnum('event_content_visibility', ['public', 'attendees']);
-/** Outbound action on an event: buy tickets, register, or read more. */
-export const eventLinkType = pgEnum('event_link_type', ['tickets', 'registration', 'info']);
+/** Outbound action on an event: buy tickets, register, read more, or open a social page. */
+export const eventLinkType = pgEnum('event_link_type', [
+  'tickets',
+  'registration',
+  'info',
+  'facebook',
+  'instagram',
+]);
 
 // ---------- identity ----------
 export const users = pgTable('users', {
@@ -493,7 +499,7 @@ export const eventTags = pgTable(
   ],
 );
 
-/** One or more outbound links (tickets, registration, info) on an event. */
+/** One or more outbound links (tickets, registration, info, facebook, instagram) on an event. */
 export const eventLinks = pgTable(
   'event_links',
   {

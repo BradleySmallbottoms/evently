@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { SEED_TAGS } from '@local-events/db';
 import { readEventMeta, type EventMeta } from '@local-events/contracts';
 import { distanceMeters } from '@local-events/geo';
-import type { PublisherStatus } from '@local-events/domain';
+import type { EventLinkKind, PublisherStatus } from '@local-events/domain';
 import {
   choosePublisher,
   mergeEventAddress,
@@ -70,7 +70,7 @@ interface StoredEvent {
   meta: EventMeta;
   summary?: string | null;
   language?: 'sv' | 'en';
-  links?: { type: 'tickets' | 'registration' | 'info'; url: string; label?: string }[];
+  links?: { type: EventLinkKind; url: string; label?: string }[];
 }
 
 interface StoredRef {
@@ -584,7 +584,10 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           sourceUrl: event.sourceUrl,
           links: (event.links ?? []).map((link) => link.url),
           pageLinks: (event.links ?? []).flatMap((link) =>
-            link.type === 'tickets' || link.type === 'registration' || link.type === 'info'
+            link.type === 'tickets' ||
+              link.type === 'registration' ||
+              link.type === 'info' ||
+              link.type === 'facebook'
               ? [{ type: link.type, url: link.url }]
               : [],
           ),

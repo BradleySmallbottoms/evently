@@ -359,7 +359,7 @@ export interface PendingScanRow {
   location: { lat: number; lng: number } | null;
   sourceUrl: string | null;
   links: string[];
-  pageLinks: { type: 'tickets' | 'registration' | 'info'; url: string }[];
+  pageLinks: { type: 'tickets' | 'registration' | 'info' | 'facebook'; url: string }[];
   externalId: string;
   workerId: string;
   tagIds: string[];

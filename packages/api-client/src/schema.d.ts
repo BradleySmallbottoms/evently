@@ -2334,6 +2334,7 @@ export interface paths {
                                 /** Format: uuid */
                                 publisherId: string;
                                 title: string;
+                                summary: string | null;
                                 description: string | null;
                                 /** @enum {string} */
                                 mode: "physical" | "digital";
@@ -2400,7 +2401,7 @@ export interface paths {
                                     /** Format: uuid */
                                     id: string;
                                     /** @enum {string} */
-                                    type: "tickets" | "registration" | "info";
+                                    type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                     /** Format: uri */
                                     url: string;
                                     label: string | null;
@@ -2585,6 +2586,7 @@ export interface paths {
                                 /** Format: uuid */
                                 publisherId: string;
                                 title: string;
+                                summary: string | null;
                                 description: string | null;
                                 /** @enum {string} */
                                 mode: "physical" | "digital";
@@ -2651,7 +2653,7 @@ export interface paths {
                                     /** Format: uuid */
                                     id: string;
                                     /** @enum {string} */
-                                    type: "tickets" | "registration" | "info";
+                                    type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                     /** Format: uri */
                                     url: string;
                                     label: string | null;
@@ -2842,6 +2844,7 @@ export interface paths {
                                     /** Format: uuid */
                                     publisherId: string;
                                     title: string;
+                                    summary: string | null;
                                     description: string | null;
                                     /** @enum {string} */
                                     mode: "physical" | "digital";
@@ -2908,7 +2911,7 @@ export interface paths {
                                         /** Format: uuid */
                                         id: string;
                                         /** @enum {string} */
-                                        type: "tickets" | "registration" | "info";
+                                        type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                         /** Format: uri */
                                         url: string;
                                         label: string | null;
@@ -2981,6 +2984,7 @@ export interface paths {
                                 /** Format: uuid */
                                 publisherId: string;
                                 title: string;
+                                summary: string | null;
                                 description: string | null;
                                 /** @enum {string} */
                                 mode: "physical" | "digital";
@@ -3047,7 +3051,7 @@ export interface paths {
                                     /** Format: uuid */
                                     id: string;
                                     /** @enum {string} */
-                                    type: "tickets" | "registration" | "info";
+                                    type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                     /** Format: uri */
                                     url: string;
                                     label: string | null;
@@ -3200,6 +3204,7 @@ export interface paths {
                                 /** Format: uuid */
                                 publisherId: string;
                                 title: string;
+                                summary: string | null;
                                 description: string | null;
                                 /** @enum {string} */
                                 mode: "physical" | "digital";
@@ -3266,7 +3271,7 @@ export interface paths {
                                     /** Format: uuid */
                                     id: string;
                                     /** @enum {string} */
-                                    type: "tickets" | "registration" | "info";
+                                    type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                     /** Format: uri */
                                     url: string;
                                     label: string | null;
@@ -3568,6 +3573,7 @@ export interface paths {
                                 /** Format: uuid */
                                 publisherId: string;
                                 title: string;
+                                summary: string | null;
                                 description: string | null;
                                 /** @enum {string} */
                                 mode: "physical" | "digital";
@@ -3634,7 +3640,7 @@ export interface paths {
                                     /** Format: uuid */
                                     id: string;
                                     /** @enum {string} */
-                                    type: "tickets" | "registration" | "info";
+                                    type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                     /** Format: uri */
                                     url: string;
                                     label: string | null;
@@ -3709,7 +3715,7 @@ export interface paths {
                         /** @default [] */
                         links?: {
                             /** @enum {string} */
-                            type: "tickets" | "registration" | "info";
+                            type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                             /** Format: uri */
                             url: string;
                             label?: string;
@@ -3732,6 +3738,7 @@ export interface paths {
                             /** Format: uuid */
                             publisherId: string;
                             title: string;
+                            summary: string | null;
                             description: string | null;
                             /** @enum {string} */
                             mode: "physical" | "digital";
@@ -3798,7 +3805,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** @enum {string} */
-                                type: "tickets" | "registration" | "info";
+                                type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                 /** Format: uri */
                                 url: string;
                                 label: string | null;
@@ -3897,6 +3904,7 @@ export interface paths {
                                 /** Format: uuid */
                                 publisherId: string;
                                 title: string;
+                                summary: string | null;
                                 description: string | null;
                                 /** @enum {string} */
                                 mode: "physical" | "digital";
@@ -3963,7 +3971,7 @@ export interface paths {
                                     /** Format: uuid */
                                     id: string;
                                     /** @enum {string} */
-                                    type: "tickets" | "registration" | "info";
+                                    type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                     /** Format: uri */
                                     url: string;
                                     label: string | null;
@@ -4027,6 +4035,7 @@ export interface paths {
                                 /** Format: uuid */
                                 publisherId: string;
                                 title: string;
+                                summary: string | null;
                                 description: string | null;
                                 /** @enum {string} */
                                 mode: "physical" | "digital";
@@ -4093,7 +4102,7 @@ export interface paths {
                                     /** Format: uuid */
                                     id: string;
                                     /** @enum {string} */
-                                    type: "tickets" | "registration" | "info";
+                                    type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                     /** Format: uri */
                                     url: string;
                                     label: string | null;
@@ -4155,6 +4164,7 @@ export interface paths {
                             /** Format: uuid */
                             publisherId: string;
                             title: string;
+                            summary: string | null;
                             description: string | null;
                             /** @enum {string} */
                             mode: "physical" | "digital";
@@ -4221,7 +4231,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** @enum {string} */
-                                type: "tickets" | "registration" | "info";
+                                type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                 /** Format: uri */
                                 url: string;
                                 label: string | null;
@@ -4296,6 +4306,7 @@ export interface paths {
                             /** Format: uuid */
                             publisherId: string;
                             title: string;
+                            summary: string | null;
                             description: string | null;
                             /** @enum {string} */
                             mode: "physical" | "digital";
@@ -4362,7 +4373,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** @enum {string} */
-                                type: "tickets" | "registration" | "info";
+                                type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                 /** Format: uri */
                                 url: string;
                                 label: string | null;
@@ -4459,7 +4470,7 @@ export interface paths {
                         currency?: string;
                         links?: {
                             /** @enum {string} */
-                            type: "tickets" | "registration" | "info";
+                            type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                             /** Format: uri */
                             url: string;
                             label?: string;
@@ -4487,6 +4498,7 @@ export interface paths {
                             /** Format: uuid */
                             publisherId: string;
                             title: string;
+                            summary: string | null;
                             description: string | null;
                             /** @enum {string} */
                             mode: "physical" | "digital";
@@ -4553,7 +4565,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** @enum {string} */
-                                type: "tickets" | "registration" | "info";
+                                type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                 /** Format: uri */
                                 url: string;
                                 label: string | null;
@@ -4646,6 +4658,7 @@ export interface paths {
                             /** Format: uuid */
                             publisherId: string;
                             title: string;
+                            summary: string | null;
                             description: string | null;
                             /** @enum {string} */
                             mode: "physical" | "digital";
@@ -4712,7 +4725,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** @enum {string} */
-                                type: "tickets" | "registration" | "info";
+                                type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                 /** Format: uri */
                                 url: string;
                                 label: string | null;
@@ -4801,6 +4814,7 @@ export interface paths {
                             /** Format: uuid */
                             publisherId: string;
                             title: string;
+                            summary: string | null;
                             description: string | null;
                             /** @enum {string} */
                             mode: "physical" | "digital";
@@ -4867,7 +4881,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** @enum {string} */
-                                type: "tickets" | "registration" | "info";
+                                type: "tickets" | "registration" | "info" | "facebook" | "instagram";
                                 /** Format: uri */
                                 url: string;
                                 label: string | null;

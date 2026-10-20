@@ -103,14 +103,14 @@ describe('venueNameFromScan', () => {
     ).toBeUndefined();
   });
 
-  it('uses the highest rank over 90 when the event has no venue', () => {
+  it('uses the highest rank above 80 when the event has no venue', () => {
     expect(
       venueNameFromScan(null, [
-        { name: 'Folkets hus', rank: 91 },
+        { name: 'Folkets hus', rank: 81 },
         { name: 'Svea Bio', rank: 96 },
-        { name: 'Torget', rank: 90 },
+        { name: 'Torget', rank: 80 },
       ]),
     ).toBe('Svea Bio');
-    expect(venueNameFromScan('', [{ name: 'Torget', rank: 90 }])).toBeUndefined();
+    expect(venueNameFromScan('', [{ name: 'Torget', rank: 80 }])).toBeUndefined();
   });
 });

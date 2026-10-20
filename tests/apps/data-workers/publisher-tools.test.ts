@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createPublisherToolSession,
   executePublisherTool,
+  loadPublicHtml,
   publisherProfileFromModel,
   type PublisherToolDeps,
   type PublisherToolSession,
@@ -127,6 +128,77 @@ describe('fetchPage', () => {
     );
     expect(result).toEqual({ error: 'That address is not allowed.' });
     expect(calls).toEqual(['https://foreningen.se/om']);
+  });
+
+  it('sends a cookie from a redirect on the next request', async () => {
+    const seen: { url: string; cookie: string | null }[] = [];
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const cookie = new Headers(init?.headers).get('cookie');
+      seen.push({ url: String(url), cookie });
+      if (String(url) === 'https://foreningen.se/om') {
+        const headers = new Headers({ location: 'https://foreningen.se/in' });
+        headers.append('set-cookie', 'sid=abc; Domain=.foreningen.se; Path=/');
+        headers.append('set-cookie', 'other=no; Domain=evil.example');
+        return new Response(null, { status: 302, headers });
+      }
+      return new Response('<html><head><title>Inne</title></head><body><p>Hej</p></body></html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      });
+    };
+
+    const loaded = await loadPublicHtml('https://foreningen.se/om', deps(fetchImpl));
+
+    expect(seen).toEqual([
+      { url: 'https://foreningen.se/om', cookie: null },
+      { url: 'https://foreningen.se/in', cookie: 'sid=abc' },
+    ]);
+    expect(loaded).toMatchObject({ url: 'https://foreningen.se/in', html: expect.stringContaining('Hej') });
+  });
+
+  it('keeps a host cookie off a redirect to another site', async () => {
+    const seen: { url: string; cookie: string | null }[] = [];
+    const fetchImpl: typeof fetch = async (url, init) => {
+      seen.push({ url: String(url), cookie: new Headers(init?.headers).get('cookie') });
+      if (seen.length === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: 'https://other.example/in', 'set-cookie': 'sid=abc; Path=/' },
+        });
+      }
+      return new Response('<html><head><title>Annan</title></head><body><p>Hej</p></body></html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      });
+    };
+
+    await loadPublicHtml('https://foreningen.se/om', deps(fetchImpl));
+
+    expect(seen[1]).toEqual({ url: 'https://other.example/in', cookie: null });
+  });
+
+  it('does not send a parent-domain cookie to another site on that suffix', async () => {
+    const seen: { url: string; cookie: string | null }[] = [];
+    const fetchImpl: typeof fetch = async (url, init) => {
+      seen.push({ url: String(url), cookie: new Headers(init?.headers).get('cookie') });
+      if (seen.length === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location: 'https://victim.github.io/in',
+            'set-cookie': 'sid=secret; Domain=github.io; Path=/',
+          },
+        });
+      }
+      return new Response('<html><head><title>Annan</title></head><body><p>Hej</p></body></html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      });
+    };
+
+    await loadPublicHtml('https://evil.github.io/start', deps(fetchImpl));
+
+    expect(seen[1]).toEqual({ url: 'https://victim.github.io/in', cookie: null });
   });
 
   it('returns the title, excerpt, and schema.org event', async () => {

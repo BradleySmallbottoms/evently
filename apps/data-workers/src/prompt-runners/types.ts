@@ -12,7 +12,7 @@ export interface ScanInput {
   location?: { lat: number; lng: number };
   sourceUrl?: string;
   links: string[];
-  pageLinks: { type: 'tickets' | 'registration' | 'info'; url: string }[];
+  pageLinks: { type: 'tickets' | 'registration' | 'info' | 'facebook'; url: string }[];
   externalId: string;
   workerId: string;
   existingTags: TagChoice[];

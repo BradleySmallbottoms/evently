@@ -182,7 +182,7 @@ function chatToolDefinitions(event: ScanInput): object[] {
       function: {
         name: 'fetchEventPage',
         description:
-          'Fetch the ticket page, or the info page when there is no ticket page. Takes no arguments. Use the page text for tags, instructions, the summary, the address, a venue name, and a missing start or end. Returns the page title and text.',
+          'Fetch the one event page. Takes no arguments. That page is the source URL, or else a ticket page, an info page, or a Facebook page, in that order. Use the page text for tags, instructions, the summary, the address, a venue name, and a missing start or end. Returns the page title and text.',
         parameters: noArguments,
       },
     });
@@ -190,9 +190,9 @@ function chatToolDefinitions(event: ScanInput): object[] {
   return tools;
 }
 
-/** The one page this scan may open: the ticket link, otherwise the info link. */
+/** The one page this scan may open. */
 function eventPageUrl(event: ScanInput): string | undefined {
-  return lookupPageUrl(event.pageLinks);
+  return lookupPageUrl(event.pageLinks, event.sourceUrl);
 }
 
 /**
@@ -873,9 +873,9 @@ function readToolArguments(raw: unknown): Record<string, unknown> {
  * `{ error }` so the model can correct itself. A lookup failure is the same shape
  * and does not abort the rest of the scan.
  */
-/** Opens the chosen ticket or info link and keeps the place for the scan outcome. */
+/** Opens the chosen source, ticket, info, or Facebook page. */
 async function fetchEventPage(context: LookupContext): Promise<ToolResult> {
-  const url = lookupPageUrl(context.event.pageLinks);
+  const url = lookupPageUrl(context.event.pageLinks, context.event.sourceUrl);
   if (!url || !context.fetch) return { error: 'No page to fetch.' };
   console.log('Fetching page', url);
   const loaded = await loadPublicHtml(url, {

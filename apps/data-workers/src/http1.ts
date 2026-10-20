@@ -2,6 +2,9 @@ import { spawn } from 'node:child_process';
 
 /** Marker stripped before the request is sent. Node's fetch is challenged by this host. */
 export const HTTP1_HEADER = 'x-local-events-http1';
+const DESTINATION_HALSINGLAND_HOST = 'visit.destinationhalsingland.se';
+/** The user agent curl sends. Cloudflare challenges Node and a bare curl HTTP/2 client. */
+export const DESTINATION_HALSINGLAND_USER_AGENT = 'PostmanRuntime/2.11.0';
 
 const STATUS_MARK = '\n__LOCAL_EVENTS_CURL_STATUS__:';
 
@@ -15,8 +18,34 @@ function headerRecord(headers: Headers): Record<string, string> {
 }
 
 /**
+ * Node fetch for other hosts. `visit.destinationhalsingland.se` goes through curl,
+ * because Cloudflare answers Node's TLS fingerprint with a challenge page.
+ */
+export function fetchPublicDocument(
+  input: Parameters<typeof fetch>[0],
+  init: RequestInit | undefined,
+  base: typeof fetch,
+  curl: typeof http1Fetch = http1Fetch,
+): Promise<Response> {
+  const url = requestUrl(input);
+  if (url?.hostname.toLowerCase() !== DESTINATION_HALSINGLAND_HOST) return base(input, init);
+  const headers = new Headers(init?.headers);
+  if (!headers.has('user-agent')) headers.set('user-agent', DESTINATION_HALSINGLAND_USER_AGENT);
+  return curl(url, { ...init, headers });
+}
+
+function requestUrl(input: Parameters<typeof fetch>[0]): URL | undefined {
+  try {
+    if (typeof input === 'string' || input instanceof URL) return new URL(input);
+    return new URL(input.url);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * The calendar host answers Node's TLS fingerprint with a Cloudflare challenge, including
- * HTTP/1.1. curl over HTTP/1.1 receives the JSON. Redirects are not followed.
+ * HTTP/1.1. curl over HTTP/1.1 receives the page. Redirects are not followed.
  */
 export function http1Fetch(
   input: Parameters<typeof fetch>[0],

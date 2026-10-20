@@ -65,7 +65,7 @@ export function mergeEventAddress(
   return { ...incoming, location: stored.location };
 }
 
-/** A street, or a postcode together with a city, can be geocoded. A city alone cannot. */
+/** A street, or a postcode together with a city. A city alone is not a precise query. */
 export function canGeocodeAddress(input: EventAddressParts): boolean {
   return Boolean(textOf(input.address, 200) || (zipCodeOf(input.zipCode) && textOf(input.city, 80)));
 }

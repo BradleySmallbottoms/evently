@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { readScanInstructions, readScanRange } from '@local-events/ingest';
 import {
-  canGeocodeAddress,
   choosePossibleOccasionGroupId,
   importPlanToSchedule,
   OCCASION_GROUP_MIN_RANK,
@@ -250,7 +249,7 @@ async function placeFromScan(
   const chosen = scraped ?? outcome.address;
   if (row.location) return scraped || !chosen ? {} : { address: chosen };
   if (!chosen) return {};
-  const location = canGeocodeAddress(chosen) ? await geocodeSwedishAddress(chosen, fetchImpl) : undefined;
+  const location = await geocodeSwedishAddress(chosen, fetchImpl);
   const address = location ? { ...chosen, location } : chosen;
   return {
     ...(location ? { location } : {}),

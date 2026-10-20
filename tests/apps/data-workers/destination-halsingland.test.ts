@@ -5,9 +5,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../apps/data-workers/src/http1', () => ({
   HTTP1_HEADER: 'x-local-events-http1',
+  DESTINATION_HALSINGLAND_USER_AGENT: 'PostmanRuntime/2.11.0',
   http1Fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
 }));
 import fixture from '../../../apps/data-workers/src/sources/destination-halsingland/fixture.json' with { type: 'json' };
+import productContent from '../../../apps/data-workers/src/sources/destination-halsingland/product-content.json' with { type: 'json' };
 import {
   destinationHalsingland,
   pointFromCoordinates,
@@ -224,8 +226,9 @@ describe('destination-halsingland fetch', () => {
           url: 'https://www.tickster.com/se/billy',
         }),
         expect.objectContaining({
-          type: 'info',
+          type: 'tickets',
           url: 'https://kulturhuset.example/billy',
+          label: 'Evenemangslänk',
         }),
       ]),
     );
@@ -280,7 +283,7 @@ describe('destination-halsingland fetch', () => {
     );
     expect(eventPages).toEqual([
       {
-        type: 'info',
+        type: 'tickets',
         url: 'https://event.paloma.se/Event/foretagarfrukost',
         label: 'Evenemangslänk',
       },
@@ -341,6 +344,65 @@ describe('destination-halsingland fetch', () => {
     expect(fallback?.venueName).toBeUndefined();
     expect(fallback?.address).toBe('Hudiksvall');
     expect(fallback?.location).toEqual({ lat: 61.3505711, lng: 16.3952167 });
+  });
+
+  it('uses the goodToKnow street and postal line before an address in the text', async () => {
+    async function load(body: Record<string, unknown>) {
+      const fetched = await destinationHalsingland.fetchRaw(
+        ctx(async (input) => {
+          const url = String(input);
+          if (url.includes('/se-och-gora/products')) {
+            const page = new URL(url).searchParams.get('page');
+            if (page === '1') return json({ totalResults: 1, items: [listItem] });
+            return json({ totalResults: 1, items: [] });
+          }
+          if (url.includes('/product/productcontent')) return json(body);
+          return json({ occasions: [] });
+        }),
+      );
+      return destinationHalsingland.map(fetched)[0];
+    }
+    const labeled = await load({
+      ...productContent,
+      description: 'Hitta oss på Drottninggatan 1, 111 22 Stockholm.',
+    });
+    expect(labeled?.meta?.address).toEqual({
+      address: 'Storgatan 37',
+      zipCode: '82452',
+      city: 'Hudiksvall',
+      country: 'Sweden',
+      location: { lat: 61.3505711, lng: 16.3952167 },
+    });
+    expect(labeled?.venueName).toBe('Hudiksvall');
+    expect(labeled?.links).toEqual([
+      {
+        type: 'facebook',
+        url: 'https://www.facebook.com/Mobackes',
+        label: 'Facebooksida',
+      },
+      {
+        type: 'instagram',
+        url: 'https://www.instagram.com/mobackestradgardscenter',
+        label: 'Instagramsida',
+      },
+      {
+        type: 'tickets',
+        url: 'https://mobackes.se/amaryllisutstallning',
+        label: 'Evenemangslänk',
+      },
+      { type: 'info', url: 'https://mobackes.se/', label: 'Externa länkar' },
+    ]);
+    const fromText = await load({
+      ...content,
+      description: 'Välkommen till Storgatan 12, 824 71 Delsbo. Fri entré.',
+      goodToKnow: [],
+    });
+    expect(fromText?.meta?.address).toMatchObject({
+      address: 'Storgatan 12',
+      zipCode: '82471',
+      city: 'Delsbo',
+    });
+    expect(fromText?.venueName).toBe('Delsbo');
   });
 
   it('treats a free-admission label as free and leaves parking text alone', async () => {

@@ -4004,6 +4004,10 @@
                           "title": {
                             "type": "string"
                           },
+                          "summary": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "description": {
                             "type": "string",
                             "nullable": true
@@ -4251,7 +4255,9 @@
                                   "enum": [
                                     "tickets",
                                     "registration",
-                                    "info"
+                                    "info",
+                                    "facebook",
+                                    "instagram"
                                   ]
                                 },
                                 "url": {
@@ -4322,6 +4328,7 @@
                           "id",
                           "publisherId",
                           "title",
+                          "summary",
                           "description",
                           "mode",
                           "status",
@@ -4575,6 +4582,10 @@
                           "title": {
                             "type": "string"
                           },
+                          "summary": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "description": {
                             "type": "string",
                             "nullable": true
@@ -4822,7 +4833,9 @@
                                   "enum": [
                                     "tickets",
                                     "registration",
-                                    "info"
+                                    "info",
+                                    "facebook",
+                                    "instagram"
                                   ]
                                 },
                                 "url": {
@@ -4893,6 +4906,7 @@
                           "id",
                           "publisherId",
                           "title",
+                          "summary",
                           "description",
                           "mode",
                           "status",
@@ -5162,6 +5176,10 @@
                                 "title": {
                                   "type": "string"
                                 },
+                                "summary": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
                                 "description": {
                                   "type": "string",
                                   "nullable": true
@@ -5409,7 +5427,9 @@
                                         "enum": [
                                           "tickets",
                                           "registration",
-                                          "info"
+                                          "info",
+                                          "facebook",
+                                          "instagram"
                                         ]
                                       },
                                       "url": {
@@ -5480,6 +5500,7 @@
                                 "id",
                                 "publisherId",
                                 "title",
+                                "summary",
                                 "description",
                                 "mode",
                                 "status",
@@ -5612,6 +5633,10 @@
                           },
                           "title": {
                             "type": "string"
+                          },
+                          "summary": {
+                            "type": "string",
+                            "nullable": true
                           },
                           "description": {
                             "type": "string",
@@ -5860,7 +5885,9 @@
                                   "enum": [
                                     "tickets",
                                     "registration",
-                                    "info"
+                                    "info",
+                                    "facebook",
+                                    "instagram"
                                   ]
                                 },
                                 "url": {
@@ -5931,6 +5958,7 @@
                           "id",
                           "publisherId",
                           "title",
+                          "summary",
                           "description",
                           "mode",
                           "status",
@@ -6101,6 +6129,10 @@
                           "title": {
                             "type": "string"
                           },
+                          "summary": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "description": {
                             "type": "string",
                             "nullable": true
@@ -6348,7 +6380,9 @@
                                   "enum": [
                                     "tickets",
                                     "registration",
-                                    "info"
+                                    "info",
+                                    "facebook",
+                                    "instagram"
                                   ]
                                 },
                                 "url": {
@@ -6419,6 +6453,7 @@
                           "id",
                           "publisherId",
                           "title",
+                          "summary",
                           "description",
                           "mode",
                           "status",
@@ -6974,6 +7009,10 @@
                           "title": {
                             "type": "string"
                           },
+                          "summary": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "description": {
                             "type": "string",
                             "nullable": true
@@ -7221,7 +7260,9 @@
                                   "enum": [
                                     "tickets",
                                     "registration",
-                                    "info"
+                                    "info",
+                                    "facebook",
+                                    "instagram"
                                   ]
                                 },
                                 "url": {
@@ -7292,6 +7333,7 @@
                           "id",
                           "publisherId",
                           "title",
+                          "summary",
                           "description",
                           "mode",
                           "status",
@@ -7463,7 +7505,9 @@
                           "enum": [
                             "tickets",
                             "registration",
-                            "info"
+                            "info",
+                            "facebook",
+                            "instagram"
                           ]
                         },
                         "url": {
@@ -7522,6 +7566,10 @@
                     },
                     "title": {
                       "type": "string"
+                    },
+                    "summary": {
+                      "type": "string",
+                      "nullable": true
                     },
                     "description": {
                       "type": "string",
@@ -7770,7 +7818,9 @@
                             "enum": [
                               "tickets",
                               "registration",
-                              "info"
+                              "info",
+                              "facebook",
+                              "instagram"
                             ]
                           },
                           "url": {
@@ -7841,6 +7891,7 @@
                     "id",
                     "publisherId",
                     "title",
+                    "summary",
                     "description",
                     "mode",
                     "status",
@@ -8089,6 +8140,10 @@
                           "title": {
                             "type": "string"
                           },
+                          "summary": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "description": {
                             "type": "string",
                             "nullable": true
@@ -8336,7 +8391,9 @@
                                   "enum": [
                                     "tickets",
                                     "registration",
-                                    "info"
+                                    "info",
+                                    "facebook",
+                                    "instagram"
                                   ]
                                 },
                                 "url": {
@@ -8407,6 +8464,7 @@
                           "id",
                           "publisherId",
                           "title",
+                          "summary",
                           "description",
                           "mode",
                           "status",
@@ -8490,6 +8548,10 @@
                           "title": {
                             "type": "string"
                           },
+                          "summary": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "description": {
                             "type": "string",
                             "nullable": true
@@ -8737,7 +8799,9 @@
                                   "enum": [
                                     "tickets",
                                     "registration",
-                                    "info"
+                                    "info",
+                                    "facebook",
+                                    "instagram"
                                   ]
                                 },
                                 "url": {
@@ -8808,6 +8872,7 @@
                           "id",
                           "publisherId",
                           "title",
+                          "summary",
                           "description",
                           "mode",
                           "status",
@@ -8878,6 +8943,10 @@
                     },
                     "title": {
                       "type": "string"
+                    },
+                    "summary": {
+                      "type": "string",
+                      "nullable": true
                     },
                     "description": {
                       "type": "string",
@@ -9126,7 +9195,9 @@
                             "enum": [
                               "tickets",
                               "registration",
-                              "info"
+                              "info",
+                              "facebook",
+                              "instagram"
                             ]
                           },
                           "url": {
@@ -9197,6 +9268,7 @@
                     "id",
                     "publisherId",
                     "title",
+                    "summary",
                     "description",
                     "mode",
                     "status",
@@ -9292,6 +9364,10 @@
                     "title": {
                       "type": "string"
                     },
+                    "summary": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "description": {
                       "type": "string",
                       "nullable": true
@@ -9539,7 +9615,9 @@
                             "enum": [
                               "tickets",
                               "registration",
-                              "info"
+                              "info",
+                              "facebook",
+                              "instagram"
                             ]
                           },
                           "url": {
@@ -9639,6 +9717,7 @@
                     "id",
                     "publisherId",
                     "title",
+                    "summary",
                     "description",
                     "mode",
                     "status",
@@ -9839,7 +9918,9 @@
                           "enum": [
                             "tickets",
                             "registration",
-                            "info"
+                            "info",
+                            "facebook",
+                            "instagram"
                           ]
                         },
                         "url": {
@@ -9916,6 +9997,10 @@
                     },
                     "title": {
                       "type": "string"
+                    },
+                    "summary": {
+                      "type": "string",
+                      "nullable": true
                     },
                     "description": {
                       "type": "string",
@@ -10164,7 +10249,9 @@
                             "enum": [
                               "tickets",
                               "registration",
-                              "info"
+                              "info",
+                              "facebook",
+                              "instagram"
                             ]
                           },
                           "url": {
@@ -10264,6 +10351,7 @@
                     "id",
                     "publisherId",
                     "title",
+                    "summary",
                     "description",
                     "mode",
                     "status",
@@ -10391,6 +10479,10 @@
                     "title": {
                       "type": "string"
                     },
+                    "summary": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "description": {
                       "type": "string",
                       "nullable": true
@@ -10638,7 +10730,9 @@
                             "enum": [
                               "tickets",
                               "registration",
-                              "info"
+                              "info",
+                              "facebook",
+                              "instagram"
                             ]
                           },
                           "url": {
@@ -10709,6 +10803,7 @@
                     "id",
                     "publisherId",
                     "title",
+                    "summary",
                     "description",
                     "mode",
                     "status",
@@ -10834,6 +10929,10 @@
                     "title": {
                       "type": "string"
                     },
+                    "summary": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "description": {
                       "type": "string",
                       "nullable": true
@@ -11081,7 +11180,9 @@
                             "enum": [
                               "tickets",
                               "registration",
-                              "info"
+                              "info",
+                              "facebook",
+                              "instagram"
                             ]
                           },
                           "url": {
@@ -11152,6 +11253,7 @@
                     "id",
                     "publisherId",
                     "title",
+                    "summary",
                     "description",
                     "mode",
                     "status",

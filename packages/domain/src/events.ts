@@ -114,14 +114,15 @@ export const MAX_EVENT_LISTS = 20;
 export const MAX_EVENTS_PER_LIST = 100;
 export const MAX_EVENT_LINKS = 10;
 
-export type EventLinkKind = 'tickets' | 'registration' | 'info';
+export type EventLinkKind = 'tickets' | 'registration' | 'info' | 'facebook' | 'instagram';
 
 export type PrimaryEventAction =
-  | { kind: 'tickets' | 'registration' | 'info'; url: string; label: string | null }
+  | { kind: EventLinkKind; url: string; label: string | null }
   | { kind: 'online'; url: string; label: null };
 
 /**
- * Detail CTA: first tickets link, then registration, then the digital event URL, then info.
+ * Detail CTA: first tickets link, then registration, then the digital event URL,
+ * then info, then a Facebook or Instagram page.
  */
 export function selectPrimaryLink(
   links: { type: EventLinkKind; url: string; label?: string | null }[],
@@ -132,8 +133,10 @@ export function selectPrimaryLink(
     if (found) return { kind: type, url: found.url, label: found.label ?? null };
   }
   if (onlineUrl) return { kind: 'online', url: onlineUrl, label: null };
-  const info = links.find((link) => link.type === 'info');
-  if (info) return { kind: 'info', url: info.url, label: info.label ?? null };
+  for (const type of ['info', 'facebook', 'instagram'] as const) {
+    const found = links.find((link) => link.type === type);
+    if (found) return { kind: type, url: found.url, label: found.label ?? null };
+  }
   return null;
 }
 

@@ -4,6 +4,7 @@ import {
   eventAddress,
   eventUrlKey,
   organizerKeys,
+  type EventLinkKind,
   parseLinksFromText,
   priceAmountFromText,
   stockholmWallTime,
@@ -19,7 +20,7 @@ import {
   type OccasionCollapseOptions,
   type SourceRunContext,
 } from '@local-events/ingest';
-import { HTTP1_HEADER } from '../../http1';
+import { DESTINATION_HALSINGLAND_USER_AGENT, HTTP1_HEADER } from '../../http1';
 
 /**
  * Destination Hälsingland via the public Citybreak JSON the calendar page already loads.
@@ -36,8 +37,6 @@ const DEFAULT_LANGUAGE = 'sv';
 const DEFAULT_FILTER = 'c=4559';
 const DEFAULT_SORTING = 'st=a;so=a;split=hl';
 const DEFAULT_PAGE_SIZE = 10;
-/** Node's TLS fingerprint is challenged. These calls go through curl over HTTP/1.1. */
-const CALENDAR_USER_AGENT = 'PostmanRuntime/2.11.0';
 const MAX_LIST_PAGES = 40;
 const SOURCE_SKIP_HOSTS = ['visit.destinationhalsingland.se', 'destinationhalsingland.se'];
 
@@ -49,7 +48,7 @@ export interface HalsinglandOccasion {
 }
 
 export interface HalsinglandLink {
-  type: 'tickets' | 'registration' | 'info';
+  type: EventLinkKind;
   url: string;
   label?: string;
 }
@@ -336,10 +335,6 @@ function goodToKnowText(content: ContentBody | undefined, label: string): string
   return undefined;
 }
 
-function postalCityOf(content: ContentBody | undefined): string | undefined {
-  return cityAfterPostcode(goodToKnowText(content, 'postadress') ?? '');
-}
-
 function freeEntryOf(content: ContentBody | undefined): boolean {
   const groups = content?.goodToKnow;
   if (!Array.isArray(groups)) return false;
@@ -371,10 +366,48 @@ function contentHtml(content: ContentBody | undefined): string {
   return parts.join('\n');
 }
 
-const CONTENT_LINK_LABELS: Record<string, string> = {
-  webbsida: 'Webbsida',
-  evenemangslänk: 'Evenemangslänk',
-  'externa länkar': 'Externa länkar',
+const STREET_IN_TEXT =
+  /\b([A-ZÅÄÖa-zåäö][A-Za-zÅÄÖåäö-]{0,40}(?:gatan|gata|vägen|väg|gränden|gränd|torget|torg|allén|allé|stigen|stig|kajen|esplanaden))\s+(\d{1,4}\s?[A-Za-z]?)\b/;
+const POSTAL_IN_TEXT =
+  /\b(\d{3}\s?\d{2})\s+([A-ZÅÄÖa-zåäö][A-Za-zÅÄÖåäö-]{1,40}(?:\s+[A-ZÅÄÖa-zåäö][A-Za-zÅÄÖåäö-]{1,40}){0,2})\b/;
+
+/**
+ * Street and postal line. `Gatuadress` and `Postadress` in goodToKnow win.
+ * A missing label is read from the description, the introduction, and the other
+ * goodToKnow text.
+ */
+function addressPartsOf(content: ContentBody | undefined): { street?: string; postalLine?: string } {
+  const labeledStreet = goodToKnowText(content, 'gatuadress');
+  const labeledPostal = goodToKnowText(content, 'postadress');
+  if (labeledStreet && labeledPostal) return { street: labeledStreet, postalLine: labeledPostal };
+  const text = contentHtml(content).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const street = labeledStreet ?? streetFromText(text);
+  const postalLine = labeledPostal ?? postalLineFromText(text);
+  return {
+    ...(street ? { street } : {}),
+    ...(postalLine ? { postalLine } : {}),
+  };
+}
+
+function streetFromText(text: string): string | undefined {
+  const match = STREET_IN_TEXT.exec(text);
+  if (!match) return undefined;
+  return `${match[1]} ${match[2]}`.replace(/\s+/g, ' ').trim();
+}
+
+function postalLineFromText(text: string): string | undefined {
+  const match = POSTAL_IN_TEXT.exec(text);
+  if (!match) return undefined;
+  const line = `${match[1]} ${match[2]}`.replace(/\s+/g, ' ').trim();
+  return cityAfterPostcode(line) ? line : undefined;
+}
+
+const CONTENT_LINKS: Record<string, { type: EventLinkKind; label: string }> = {
+  webbsida: { type: 'info', label: 'Webbsida' },
+  facebooksida: { type: 'facebook', label: 'Facebooksida' },
+  evenemangslänk: { type: 'tickets', label: 'Evenemangslänk' },
+  instagramsida: { type: 'instagram', label: 'Instagramsida' },
+  'externa länkar': { type: 'info', label: 'Externa länkar' },
 };
 
 function addLink(links: HalsinglandLink[], link: HalsinglandLink): void {
@@ -393,18 +426,18 @@ function addLink(links: HalsinglandLink[], link: HalsinglandLink): void {
   });
 }
 
-/** Webbsida, Evenemangslänk, and Externa länkar from the product content groups. */
+/** Labeled goodToKnow groups. Their type wins over a link later found in the text. */
 function namedContentLinks(content: ContentBody | undefined): HalsinglandLink[] {
   if (!Array.isArray(content?.goodToKnow)) return [];
   const links: HalsinglandLink[] = [];
   for (const group of content.goodToKnow) {
     if (!group || typeof group !== 'object' || !('name' in group)) continue;
-    const label = CONTENT_LINK_LABELS[textOf(group.name).toLocaleLowerCase('sv')];
-    if (!label || !('attributes' in group) || !Array.isArray(group.attributes)) continue;
+    const labeled = CONTENT_LINKS[textOf(group.name).toLocaleLowerCase('sv')];
+    if (!labeled || !('attributes' in group) || !Array.isArray(group.attributes)) continue;
     for (const attribute of group.attributes) {
       if (!attribute || typeof attribute !== 'object' || !('name' in attribute)) continue;
       for (const link of parseLinksFromText(textOf(attribute.name))) {
-        links.push({ type: link.type, url: link.url, label });
+        links.push({ type: labeled.type, url: link.url, label: labeled.label });
       }
     }
   }
@@ -413,6 +446,7 @@ function namedContentLinks(content: ContentBody | undefined): HalsinglandLink[] 
 
 function linksOf(content: ContentBody | undefined, bookingUrl: unknown): HalsinglandLink[] {
   const links: HalsinglandLink[] = [];
+  for (const link of namedContentLinks(content)) addLink(links, link);
   const booking = httpsUrl(bookingUrl);
   if (booking?.startsWith('https:')) addLink(links, { type: 'tickets', url: booking });
   for (const link of parseLinksFromText(contentHtml(content))) {
@@ -422,7 +456,6 @@ function linksOf(content: ContentBody | undefined, bookingUrl: unknown): Halsing
       ...(link.label ? { label: link.label } : {}),
     });
   }
-  for (const link of namedContentLinks(content)) addLink(links, link);
   return links;
 }
 
@@ -448,7 +481,9 @@ function organizerOf(
   return {
     organizerKeys: organizerKeys({
       emails: [email],
-      infoUrls: links.filter((link) => link.type === 'info').map((link) => link.url),
+      infoUrls: links
+        .filter((link) => link.type === 'info' || link.label === 'Evenemangslänk')
+        .map((link) => link.url),
       names: [organizerName],
       town,
       fallback: 'destination-halsingland',
@@ -509,9 +544,8 @@ function normalizeProduct(
   const occasions = occasionsOf(booking);
   if (!id || !title || !sourceUrl) return undefined;
   const town = textOf(content?.location) || textOf(item.location) || undefined;
-  const postalLine = goodToKnowText(content, 'postadress');
-  const postalCity = postalCityOf(content);
-  const street = goodToKnowText(content, 'gatuadress');
+  const { street, postalLine } = addressPartsOf(content);
+  const postalCity = cityAfterPostcode(postalLine ?? '');
   const zipCode = zipCodeOf(postalLine);
   const location = pointFromCoordinates(item.coordinates);
   const pictures = imagesOf(content?.images ?? item.images);
@@ -687,7 +721,7 @@ function mapProduct(
 function calendarRequest(): RequestInit {
   return {
     redirect: 'manual',
-    headers: { 'user-agent': CALENDAR_USER_AGENT, [HTTP1_HEADER]: '1' },
+    headers: { 'user-agent': DESTINATION_HALSINGLAND_USER_AGENT, [HTTP1_HEADER]: '1' },
   };
 }
 
