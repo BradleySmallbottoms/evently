@@ -1,15 +1,13 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import type { SxProps, Theme } from '@mui/material/styles';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 import { useRouter } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 import { OtpCodeInput } from './otp-code-input';
@@ -20,27 +18,6 @@ type Challenge =
   | { status: 'totp_setup'; setupToken: string; otpauthUrl: string; secret: string };
 
 const TOTP_AUTO_SUBMIT_MS = 500;
-
-const styles: Record<string, SxProps<Theme>> = {
-  screen: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  form: {
-    width: '100%',
-    maxWidth: 420,
-  },
-  stack: {
-    alignItems: 'center',
-    textAlign: 'center',
-  },
-  fullWidth: {
-    width: '100%',
-  },
-};
 
 export function LoginForm() {
   const t = useTranslations('Login');
@@ -119,86 +96,73 @@ export function LoginForm() {
 
   if (challenge) {
     return (
-      <Box sx={styles.screen}>
-        <Box
-          component="form"
+      <div className="flex w-full flex-1 items-center justify-center">
+        <form
           method="post"
           onSubmit={(event) => {
             event.preventDefault();
             void confirmTotp(totpCode);
           }}
-          sx={styles.form}
+          className="flex w-full max-w-[420px] flex-col items-center gap-4 text-center"
         >
-          <Stack spacing={2} sx={styles.stack}>
-            <Typography variant="h4" component="h1">
-              {challenge.status === 'totp_setup' ? t('setupTitle') : t('title')}
-            </Typography>
-            {challenge.status === 'totp_setup' ? (
-              <>
-                <Typography color="text.secondary">{t('setupHint')}</Typography>
-                <TotpQr otpauthUrl={challenge.otpauthUrl} />
-              </>
-            ) : null}
-            <OtpCodeInput
-              label={t('totpCode')}
-              value={totpCode}
-              onChange={setTotpCode}
-              disabled={pending}
-              autoFocus
-            />
-            {error ? (
-              <Alert severity="error" sx={styles.fullWidth}>
-                {error}
-              </Alert>
-            ) : null}
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={pending || totpCode.length !== 6}
-              sx={styles.fullWidth}
-            >
-              {t('confirmTotp')}
-            </Button>
-          </Stack>
-        </Box>
-      </Box>
+          <h1 className="text-2xl font-semibold">
+            {challenge.status === 'totp_setup' ? t('setupTitle') : t('title')}
+          </h1>
+          {challenge.status === 'totp_setup' ? (
+            <>
+              <p className="text-sm text-muted-foreground">{t('setupHint')}</p>
+              <TotpQr otpauthUrl={challenge.otpauthUrl} />
+            </>
+          ) : null}
+          <OtpCodeInput
+            label={t('totpCode')}
+            value={totpCode}
+            onChange={setTotpCode}
+            disabled={pending}
+            autoFocus
+          />
+          {error ? (
+            <Alert variant="destructive" className="w-full text-left">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <Button type="submit" className="w-full" disabled={pending || totpCode.length !== 6}>
+            {pending ? <Spinner data-icon="inline-start" /> : null}
+            {t('confirmTotp')}
+          </Button>
+        </form>
+      </div>
     );
   }
 
   return (
-    <Box sx={styles.screen}>
-      <Box component="form" method="post" onSubmit={onPassword} sx={styles.form}>
-        <Stack spacing={2} sx={styles.stack}>
-          <Typography variant="h4" component="h1">
-            {t('title')}
-          </Typography>
-          <TextField
-            name="email"
-            type="email"
-            label={t('email')}
-            required
-            fullWidth
-            autoFocus
-            sx={styles.fullWidth}
-          />
-          <TextField
-            name="password"
-            type="password"
-            label={t('password')}
-            required
-            fullWidth
-            sx={styles.fullWidth}
-          />
-          {error ? (
-            <Alert severity="error" sx={styles.fullWidth}>
-              {error}
-            </Alert>
-          ) : null}
-          <Button type="submit" variant="contained" disabled={pending} sx={styles.fullWidth}>
-            {t('continue')}
-          </Button>
-        </Stack>
-      </Box>
-    </Box>
+    <div className="flex w-full flex-1 items-center justify-center">
+      <form
+        method="post"
+        onSubmit={onPassword}
+        className="flex w-full max-w-[420px] flex-col items-center gap-4 text-center"
+      >
+        <h1 className="text-2xl font-semibold">{t('title')}</h1>
+        <FieldGroup className="w-full text-left">
+          <Field>
+            <FieldLabel htmlFor="login-email">{t('email')}</FieldLabel>
+            <Input id="login-email" name="email" type="email" required autoFocus />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="login-password">{t('password')}</FieldLabel>
+            <Input id="login-password" name="password" type="password" required />
+          </Field>
+        </FieldGroup>
+        {error ? (
+          <Alert variant="destructive" className="w-full text-left">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        <Button type="submit" className="w-full" disabled={pending}>
+          {pending ? <Spinner data-icon="inline-start" /> : null}
+          {t('continue')}
+        </Button>
+      </form>
+    </div>
   );
 }

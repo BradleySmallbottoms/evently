@@ -15,6 +15,6 @@ When building or changing UI in `apps/mobile`, always read and follow
 - Prefer `@expo/ui` for BottomSheet, pickers, menus, toggles, grouped lists
 - Use SwiftUI (`@expo/ui/swift-ui`) for ConfirmationDialog, ContextMenu, DatePicker, Alert —
   only in `src/components/**/*.ios.tsx` (never under `app/`)
-- Custom RN components for cards, search, chips, screens — not React Native Paper or MUI
+- Custom RN components for cards, search, chips, screens — not React Native Paper or shadcn
 - Component placement (see CLAUDE.md): shared → `src/components/` (`ui/`, chrome);
   route-only → `app/<route>/_components/`; native overlays stay in `src/components/native/`

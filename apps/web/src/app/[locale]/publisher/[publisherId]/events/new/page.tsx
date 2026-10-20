@@ -1,6 +1,5 @@
 'use client';
 
-import Typography from '@mui/material/Typography';
 import { Suspense } from 'react';
 import { PageMain } from '@/components/page-main';
 import { QueryProvider } from '@/lib/query-provider';
@@ -10,13 +9,7 @@ export default function NewPublisherEventPage() {
   return (
     <PageMain>
       <QueryProvider>
-        <Suspense
-          fallback={
-            <Typography variant="body2" color="text.secondary">
-              …
-            </Typography>
-          }
-        >
+        <Suspense fallback={<p className="text-sm text-muted-foreground">…</p>}>
           <NewEventForm />
         </Suspense>
       </QueryProvider>

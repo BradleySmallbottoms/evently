@@ -33,7 +33,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] CDK app with network stack
 - [x] Create `apps/mobile`, `apps/web`, `apps/admin` (see `apps/README.md`)
 - [x] i18n setup on all three frontends: Swedish default, English
-- [x] Material UI on admin and web; mobile custom UI + `@expo/ui` / SwiftUI overlays
+- [x] shadcn/ui on admin and web; mobile custom UI + `@expo/ui` / SwiftUI overlays
 - [x] `POST /v1/identities` (anonymous device identity) + session exchange
 - [x] Publisher registration + email verification + login (web)
 - [x] OpenAPI → `packages/api-client` generation; Sentry on all apps
@@ -149,7 +149,8 @@ Closed beta around week 15, store launch around week 19.
 - [x] Glada Hudik public calendar (`glada-hudik`, no API key). The import saves each event before the next page is fetched and does not attach tags. A page without a map point is saved without a point. The scan geocodes a missing point later.
 - [x] Destination Hälsingland public calendar JSON (`destination-halsingland`, no API key). The worker reads the event list (`filter=c=4559`), then each product’s text and occasions, and saves that product before the next one is fetched. A missing coordinate stays missing. Gatuadress, Postadress, and the list coordinate are stored on `meta.address`. Later sources:
       `docs/event-sources.md`
-- [x] Söderhamns stadsbibliotek (`soderhamn-biblioteket`). Sitevision event pages. The worker reads the calendar list, then each event page, and saves that event before the next page is fetched. `robots.txt` disallows `jsessionid` URLs, so later pages use `skip` without a session id. A date that cannot be read is still saved, with empty start and end. Tickster stays next once an API key exists.
+- [x] Söderhamns stadsbibliotek (`soderhamn-biblioteket`). Sitevision event pages. The worker reads the calendar list, then each event page, and saves that event before the next page is fetched. `robots.txt` disallows `jsessionid` URLs, so later pages use `skip` without a session id. A date that cannot be read is still saved, with empty start and end.
+- [x] Bollnäs kommun (`bollnas-kommun`). Soleil eventsCalendar JSON the calendar page already loads. The worker reads `/items?start=` and saves each row before the next page. `robots.txt` disallows `jsessionid` URLs. A `Z` time is that instant. The place is stored on `meta.address`. The import does not geocode. Tickster stays next once an API key exists.
 - **Exit:** sources run on schedule unattended, and an imported event notifies users exactly like a
   native one.
 

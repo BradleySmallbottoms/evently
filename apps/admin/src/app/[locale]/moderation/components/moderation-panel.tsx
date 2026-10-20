@@ -1,18 +1,22 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { FlagIcon, MapPinIcon, StarIcon, UsersIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { EmptyState, LoadingRows } from '@/components/list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -93,8 +97,7 @@ export function ModerationPanel() {
     },
   });
   const hideRating = useMutation({
-    mutationFn: (id: string) =>
-      adminFetch(`/moderation/ratings/${id}/hide`, { method: 'POST' }),
+    mutationFn: (id: string) => adminFetch(`/moderation/ratings/${id}/hide`, { method: 'POST' }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin-moderation-ratings'] });
     },
@@ -106,200 +109,200 @@ export function ModerationPanel() {
 
   if (unauthorized) {
     return (
-      <Alert severity="info">
-        {t('needLogin')} <Link href="/login">{tApp('navLogin')}</Link>
+      <Alert>
+        <AlertDescription>
+          {t('needLogin')}{' '}
+          <Link href="/login" className="underline underline-offset-4">
+            {tApp('navLogin')}
+          </Link>
+        </AlertDescription>
       </Alert>
     );
   }
 
   if (users.isError || ratings.isError || checkIns.isError || eventReports.isError) {
-    return <Alert severity="error">{t('loadError')}</Alert>;
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{t('loadError')}</AlertDescription>
+      </Alert>
+    );
   }
 
   return (
-    <Stack spacing={4}>
-      <Typography variant="h4" component="h1">
-        {t('title')}
-      </Typography>
+    <div className="flex flex-col gap-8">
+      <h1 className="text-2xl font-semibold">{t('title')}</h1>
 
-      <Stack spacing={2}>
-        <Typography variant="h5" component="h2">
-          {t('usersTitle')}
-        </Typography>
-        {users.isLoading ? (
-          <Typography color="text.secondary">{tApp('loading')}</Typography>
-        ) : null}
+      <div className="flex flex-col gap-4">
+        <h2 className="text-xl font-semibold">{t('usersTitle')}</h2>
+        {users.isLoading ? <LoadingRows /> : null}
         {(users.data?.items ?? []).length === 0 && !users.isLoading ? (
-          <Typography color="text.secondary">{t('usersEmpty')}</Typography>
+          <EmptyState icon={UsersIcon} title={t('usersEmpty')} />
         ) : null}
         {(users.data?.items ?? []).length > 0 ? (
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('user')}</TableCell>
-                <TableCell>{t('status')}</TableCell>
-                <TableCell align="right">{t('actions')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(users.data?.items ?? []).map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell>
-                    {u.displayName ?? u.recoveryEmail ?? u.id}
-                    {u.banReason ? (
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ display: 'block' }}
-                      >
-                        {u.banReason}
-                      </Typography>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>
-                    {u.bannedAt ? t('banned') : t('active')}
-                  </TableCell>
-                  <TableCell align="right">
-                    {u.bannedAt ? (
-                      <Button
-                        size="small"
-                        onClick={() => unban.mutate(u.id)}
-                        disabled={unban.isPending}
-                      >
-                        {t('unban')}
-                      </Button>
-                    ) : (
-                      <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-                        <TextField
-                          size="small"
-                          placeholder={t('banReason')}
-                          value={banReason[u.id] ?? ''}
-                          onChange={(e) =>
-                            setBanReason((prev) => ({ ...prev, [u.id]: e.target.value }))
-                          }
-                          sx={{ minWidth: 160 }}
-                        />
-                        <Button
-                          size="small"
-                          color="error"
-                          disabled={!(banReason[u.id]?.trim()) || ban.isPending}
-                          onClick={() =>
-                            ban.mutate({ id: u.id, reason: banReason[u.id]!.trim() })
-                          }
-                        >
-                          {t('ban')}
-                        </Button>
-                      </Stack>
-                    )}
-                  </TableCell>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader className="rounded-t-lg border-b bg-muted">
+                <TableRow>
+                  <TableHead>{t('user')}</TableHead>
+                  <TableHead>{t('status')}</TableHead>
+                  <TableHead className="text-right">{t('actions')}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {(users.data?.items ?? []).map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell>
+                      {u.displayName ?? u.recoveryEmail ?? u.id}
+                      {u.banReason ? (
+                        <span className="block text-xs text-muted-foreground">{u.banReason}</span>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>{u.bannedAt ? t('banned') : t('active')}</TableCell>
+                    <TableCell className="text-right">
+                      {u.bannedAt ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => unban.mutate(u.id)}
+                          disabled={unban.isPending}
+                        >
+                          {unban.isPending ? <Spinner data-icon="inline-start" /> : null}
+                          {t('unban')}
+                        </Button>
+                      ) : (
+                        <div className="flex justify-end gap-2">
+                          <Input
+                            className="min-w-40"
+                            placeholder={t('banReason')}
+                            value={banReason[u.id] ?? ''}
+                            onChange={(event) =>
+                              setBanReason((prev) => ({ ...prev, [u.id]: event.target.value }))
+                            }
+                          />
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={!banReason[u.id]?.trim() || ban.isPending}
+                            onClick={() =>
+                              ban.mutate({ id: u.id, reason: banReason[u.id]!.trim() })
+                            }
+                          >
+                            {ban.isPending ? <Spinner data-icon="inline-start" /> : null}
+                            {t('ban')}
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         ) : null}
-      </Stack>
+      </div>
 
-      <Stack spacing={2}>
-        <Typography variant="h5" component="h2">
-          {t('ratingsTitle')}
-        </Typography>
+      <div className="flex flex-col gap-4">
+        <h2 className="text-xl font-semibold">{t('ratingsTitle')}</h2>
         {(ratings.data?.items ?? []).length === 0 && !ratings.isLoading ? (
-          <Typography color="text.secondary">{t('ratingsEmpty')}</Typography>
+          <EmptyState icon={StarIcon} title={t('ratingsEmpty')} />
         ) : null}
         {(ratings.data?.items ?? []).length > 0 ? (
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('event')}</TableCell>
-                <TableCell>{t('score')}</TableCell>
-                <TableCell>{t('comment')}</TableCell>
-                <TableCell align="right">{t('actions')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(ratings.data?.items ?? []).map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{r.eventTitle}</TableCell>
-                  <TableCell>{r.score}</TableCell>
-                  <TableCell>{r.comment ?? '—'}</TableCell>
-                  <TableCell align="right">
-                    {r.hiddenAt ? (
-                      t('hidden')
-                    ) : (
-                      <Button
-                        size="small"
-                        color="warning"
-                        disabled={hideRating.isPending}
-                        onClick={() => hideRating.mutate(r.id)}
-                      >
-                        {t('hide')}
-                      </Button>
-                    )}
-                  </TableCell>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader className="rounded-t-lg border-b bg-muted">
+                <TableRow>
+                  <TableHead>{t('event')}</TableHead>
+                  <TableHead>{t('score')}</TableHead>
+                  <TableHead>{t('comment')}</TableHead>
+                  <TableHead className="text-right">{t('actions')}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {(ratings.data?.items ?? []).map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>{r.eventTitle}</TableCell>
+                    <TableCell>{r.score}</TableCell>
+                    <TableCell className="whitespace-normal">{r.comment ?? '—'}</TableCell>
+                    <TableCell className="text-right">
+                      {r.hiddenAt ? (
+                        t('hidden')
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={hideRating.isPending}
+                          onClick={() => hideRating.mutate(r.id)}
+                        >
+                          {hideRating.isPending ? <Spinner data-icon="inline-start" /> : null}
+                          {t('hide')}
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         ) : null}
-      </Stack>
+      </div>
 
-      <Stack spacing={2}>
-        <Typography variant="h5" component="h2">
-          {t('reportsTitle')}
-        </Typography>
+      <div className="flex flex-col gap-4">
+        <h2 className="text-xl font-semibold">{t('reportsTitle')}</h2>
         {(eventReports.data?.items ?? []).length === 0 && !eventReports.isLoading ? (
-          <Typography color="text.secondary">{t('reportsEmpty')}</Typography>
+          <EmptyState icon={FlagIcon} title={t('reportsEmpty')} />
         ) : null}
         {(eventReports.data?.items ?? []).length > 0 ? (
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('event')}</TableCell>
-                <TableCell>{t('at')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(eventReports.data?.items ?? []).map((report) => (
-                <TableRow key={report.id}>
-                  <TableCell>{report.eventTitle}</TableCell>
-                  <TableCell>{new Date(report.createdAt).toLocaleString()}</TableCell>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader className="rounded-t-lg border-b bg-muted">
+                <TableRow>
+                  <TableHead>{t('event')}</TableHead>
+                  <TableHead>{t('at')}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {(eventReports.data?.items ?? []).map((report) => (
+                  <TableRow key={report.id}>
+                    <TableCell>{report.eventTitle}</TableCell>
+                    <TableCell>{new Date(report.createdAt).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         ) : null}
-      </Stack>
+      </div>
 
-      <Stack spacing={2}>
-        <Typography variant="h5" component="h2">
-          {t('checkInsTitle')}
-        </Typography>
+      <div className="flex flex-col gap-4">
+        <h2 className="text-xl font-semibold">{t('checkInsTitle')}</h2>
         {(checkIns.data?.items ?? []).length === 0 && !checkIns.isLoading ? (
-          <Typography color="text.secondary">{t('checkInsEmpty')}</Typography>
+          <EmptyState icon={MapPinIcon} title={t('checkInsEmpty')} />
         ) : null}
         {(checkIns.data?.items ?? []).length > 0 ? (
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('event')}</TableCell>
-                <TableCell>{t('method')}</TableCell>
-                <TableCell>{t('accuracy')}</TableCell>
-                <TableCell>{t('at')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(checkIns.data?.items ?? []).map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>{c.eventTitle}</TableCell>
-                  <TableCell>{c.method}</TableCell>
-                  <TableCell>{c.accuracyM != null ? `${c.accuracyM} m` : '—'}</TableCell>
-                  <TableCell>{new Date(c.createdAt).toLocaleString()}</TableCell>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader className="rounded-t-lg border-b bg-muted">
+                <TableRow>
+                  <TableHead>{t('event')}</TableHead>
+                  <TableHead>{t('method')}</TableHead>
+                  <TableHead>{t('accuracy')}</TableHead>
+                  <TableHead>{t('at')}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {(checkIns.data?.items ?? []).map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell>{c.eventTitle}</TableCell>
+                    <TableCell>{c.method}</TableCell>
+                    <TableCell>{c.accuracyM != null ? `${c.accuracyM} m` : '—'}</TableCell>
+                    <TableCell>{new Date(c.createdAt).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         ) : null}
-      </Stack>
-    </Stack>
+      </div>
+    </div>
   );
 }

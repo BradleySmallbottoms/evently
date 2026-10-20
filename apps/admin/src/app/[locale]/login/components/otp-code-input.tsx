@@ -1,32 +1,11 @@
 'use client';
 
-import Box from '@mui/material/Box';
-import FormLabel from '@mui/material/FormLabel';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import type { SxProps, Theme } from '@mui/material/styles';
 import { useEffect, useId, useRef } from 'react';
 import type { ClipboardEvent, KeyboardEvent, ChangeEvent } from 'react';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 
 const LENGTH = 6;
-
-const styles: Record<string, SxProps<Theme>> = {
-  root: {
-    width: '100%',
-  },
-  boxes: {
-    justifyContent: 'center',
-  },
-  cell: {
-    width: 48,
-    '& .MuiInputBase-input': {
-      textAlign: 'center',
-      fontSize: '1.25rem',
-      fontWeight: 600,
-      py: 1.25,
-    },
-  },
-};
 
 function digitsOnly(value: string): string {
   return value.replace(/\D/g, '').slice(0, LENGTH);
@@ -70,14 +49,10 @@ export function OtpCodeInput({
     onChange(next.join('').slice(0, LENGTH));
   }
 
-  function onCellChange(
-    index: number,
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) {
+  function onCellChange(index: number, event: ChangeEvent<HTMLInputElement>) {
     const raw = event.target.value;
     const incoming = digitsOnly(raw);
     if (incoming.length > 1) {
-      // Mobile autofill / multi-char into one cell
       const merged = digitsOnly(value.slice(0, index) + incoming + value.slice(index + 1));
       onChange(merged);
       focusAt(Math.min(merged.length, LENGTH - 1));
@@ -89,7 +64,7 @@ export function OtpCodeInput({
     if (incoming) focusAt(index + 1);
   }
 
-  function onCellKeyDown(index: number, event: KeyboardEvent<HTMLDivElement>) {
+  function onCellKeyDown(index: number, event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Backspace') {
       event.preventDefault();
       if (digits[index]) {
@@ -118,7 +93,7 @@ export function OtpCodeInput({
     }
   }
 
-  function onCellPaste(index: number, event: ClipboardEvent<HTMLDivElement>) {
+  function onCellPaste(index: number, event: ClipboardEvent<HTMLInputElement>) {
     event.preventDefault();
     const pasted = digitsOnly(event.clipboardData.getData('text'));
     if (!pasted) return;
@@ -131,37 +106,31 @@ export function OtpCodeInput({
   }
 
   return (
-    <Box sx={styles.root}>
-      <FormLabel id={labelId} sx={{ mb: 1, display: 'block', textAlign: 'center' }}>
-        {label}
-      </FormLabel>
-      <Stack direction="row" spacing={1} sx={styles.boxes} role="group" aria-labelledby={labelId}>
+    <Field className="w-full items-center">
+      <FieldLabel id={labelId}>{label}</FieldLabel>
+      <div className="flex justify-center gap-2" role="group" aria-labelledby={labelId}>
         {digits.map((digit, index) => (
-          <TextField
+          <Input
             key={index}
             value={digit}
             disabled={disabled}
             autoComplete={index === 0 ? 'one-time-code' : 'off'}
             autoFocus={autoFocus && index === 0}
-            inputRef={(el) => {
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={1}
+            aria-label={`${label} ${index + 1}`}
+            ref={(el) => {
               refs.current[index] = el;
             }}
-            sx={styles.cell}
+            className="size-12 px-0 text-center text-xl font-semibold md:text-xl"
             onChange={(event) => onCellChange(index, event)}
             onKeyDown={(event) => onCellKeyDown(index, event)}
             onPaste={(event) => onCellPaste(index, event)}
             onFocus={(event) => event.target.select()}
-            slotProps={{
-              htmlInput: {
-                inputMode: 'numeric',
-                pattern: '[0-9]*',
-                maxLength: 1,
-                'aria-label': `${label} ${index + 1}`,
-              },
-            }}
           />
         ))}
-      </Stack>
-    </Box>
+      </div>
+    </Field>
   );
 }

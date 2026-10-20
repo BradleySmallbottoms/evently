@@ -1,24 +1,31 @@
-import Container from '@mui/material/Container';
-import type { ContainerProps } from '@mui/material/Container';
-import type { SxProps, Theme } from '@mui/material/styles';
+import type { ReactNode } from 'react';
+import { cn } from 'cn';
 
-const pageMainSx: SxProps<Theme> = {
-  py: { xs: 4, md: 8 },
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 3,
-  flexGrow: 1,
-};
+const widths = {
+  xs: 'max-w-sm',
+  sm: 'max-w-xl',
+  md: 'max-w-3xl',
+  lg: 'max-w-5xl',
+} as const;
 
-export function PageMain({ children, maxWidth = 'md', sx, ...props }: ContainerProps) {
+export function PageMain({
+  children,
+  maxWidth = 'md',
+  className,
+}: {
+  children: ReactNode;
+  maxWidth?: keyof typeof widths;
+  className?: string;
+}) {
   return (
-    <Container
-      component="main"
-      maxWidth={maxWidth}
-      sx={[pageMainSx, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])]}
-      {...props}
+    <main
+      className={cn(
+        'mx-auto flex w-full flex-1 flex-col gap-6 px-5 py-10 md:py-16',
+        widths[maxWidth],
+        className,
+      )}
     >
       {children}
-    </Container>
+    </main>
   );
 }

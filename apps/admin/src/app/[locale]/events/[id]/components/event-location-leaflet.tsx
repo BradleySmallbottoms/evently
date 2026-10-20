@@ -1,6 +1,5 @@
 'use client';
 
-import Box from '@mui/material/Box';
 import L from 'leaflet';
 import { useEffect, useMemo, useRef } from 'react';
 import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
@@ -19,7 +18,7 @@ const pin = L.divIcon({
   iconSize: [32, 42],
   iconAnchor: [16, 42],
   html: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42" aria-hidden="true">
-    <path fill="var(--mui-palette-primary-main)" d="M16 1C7.7 1 1 7.7 1 16c0 11.2 15 24.2 15 24.2S31 27.2 31 16C31 7.7 24.3 1 16 1z"/>
+    <path fill="var(--primary)" d="M16 1C7.7 1 1 7.7 1 16c0 11.2 15 24.2 15 24.2S31 27.2 31 16C31 7.7 24.3 1 16 1z"/>
     <circle fill="#fff" cx="16" cy="15.5" r="5.5"/>
   </svg>`,
 });
@@ -84,13 +83,7 @@ export function EventLocationLeaflet({ lat, lng, radiusM, onPlace }: EventLocati
   const center = pinned ?? DEFAULT_MAP_CENTER;
 
   return (
-    <Box
-      sx={{
-        height: '100%',
-        '& .leaflet-container': { height: '100%', width: '100%', cursor: 'crosshair' },
-        '& .event-location-pin': { background: 'transparent', border: 'none' },
-      }}
-    >
+    <div className="h-full w-full [&_.leaflet-container]:h-full [&_.leaflet-container]:w-full [&_.leaflet-container]:cursor-crosshair [&_.event-location-pin]:border-none [&_.event-location-pin]:bg-transparent">
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={pinned ? 15 : 11}
@@ -113,8 +106,8 @@ export function EventLocationLeaflet({ lat, lng, radiusM, onPlace }: EventLocati
             center={[pinned.lat, pinned.lng]}
             radius={radius}
             pathOptions={{
-              color: 'var(--mui-palette-primary-main)',
-              fillColor: 'var(--mui-palette-primary-main)',
+              color: 'var(--primary)',
+              fillColor: 'var(--primary)',
               fillOpacity: 0.15,
               weight: 2,
             }}
@@ -135,6 +128,6 @@ export function EventLocationLeaflet({ lat, lng, radiusM, onPlace }: EventLocati
           />
         ) : null}
       </MapContainer>
-    </Box>
+    </div>
   );
 }

@@ -1,27 +1,30 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import FormControl from '@mui/material/FormControl';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import IconButton from '@mui/material/IconButton';
-import InputLabel from '@mui/material/InputLabel';
-import Link from '@mui/material/Link';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Select from '@mui/material/Select';
-import Stack from '@mui/material/Stack';
-import Switch from '@mui/material/Switch';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import type { SxProps, Theme } from '@mui/material/styles';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { XIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link as AppLink } from '@/i18n/navigation';
+import { cn } from 'cn';
+import { LoadingRows } from '@/components/list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 import { toDatetimeLocal, zonedLocalToIso } from '@/lib/zoned-datetime';
 import { EventImages } from './event-images';
@@ -114,19 +117,7 @@ const STATUSES: EventStatus[] = [
   'ended',
 ];
 
-const styles: Record<string, SxProps<Theme>> = {
-  grid2: {
-    display: 'grid',
-    gap: 2,
-    gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-  },
-  section: {
-    p: 2,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-  },
-};
+const LINK_TYPES: LinkType[] = ['tickets', 'registration', 'info', 'facebook', 'instagram'];
 
 type EditorTab = 'info' | 'location' | 'notifications' | 'scan' | 'occasions';
 
@@ -166,6 +157,16 @@ function toDraft(event: EventDetail): Draft {
       label: link.label ?? '',
     })),
   };
+}
+
+function isEditorTab(value: unknown): value is EditorTab {
+  return (
+    value === 'info' ||
+    value === 'location' ||
+    value === 'notifications' ||
+    value === 'scan' ||
+    value === 'occasions'
+  );
 }
 
 export function EventEditor({ eventId }: { eventId: string }) {
@@ -297,22 +298,27 @@ export function EventEditor({ eventId }: { eventId: string }) {
       eventQuery.error instanceof AdminApiError && eventQuery.error.status === 401;
     const missing = eventQuery.error instanceof AdminApiError && eventQuery.error.status === 404;
     return (
-      <Alert severity={unauthorized ? 'info' : 'error'}>
-        {unauthorized ? (
-          <>
-            {t('needLogin')} <AppLink href="/login">{tApp('navLogin')}</AppLink>
-          </>
-        ) : missing ? (
-          t('notFound')
-        ) : (
-          t('loadError')
-        )}
+      <Alert variant={unauthorized ? 'default' : 'destructive'}>
+        <AlertDescription>
+          {unauthorized ? (
+            <>
+              {t('needLogin')}{' '}
+              <Link href="/login" className="underline underline-offset-4">
+                {tApp('navLogin')}
+              </Link>
+            </>
+          ) : missing ? (
+            t('notFound')
+          ) : (
+            t('loadError')
+          )}
+        </AlertDescription>
       </Alert>
     );
   }
 
   if (!form || eventQuery.isLoading) {
-    return <Typography color="text.secondary">{tApp('loading')}</Typography>;
+    return <LoadingRows />;
   }
 
   const event = eventQuery.data;
@@ -330,30 +336,84 @@ export function EventEditor({ eventId }: { eventId: string }) {
           : t('saveError')
       : null);
 
-  const saveButton = (
-    <Button
-      type="submit"
-      variant="contained"
-      disabled={save.isPending}
-      sx={{ alignSelf: 'flex-start' }}
-    >
-      {save.isPending ? t('saving') : t('save')}
-    </Button>
-  );
+  const statusLabel = (status: EventStatus) =>
+    t(
+      status === 'awaiting_verification'
+        ? 'statusAwaiting'
+        : status === 'in_review'
+          ? 'statusInReview'
+          : status === 'draft'
+            ? 'statusDraft'
+            : status === 'published'
+              ? 'statusPublished'
+              : status === 'cancelled'
+                ? 'statusCancelled'
+                : 'statusEnded',
+    );
+  const statusItems = Object.fromEntries(STATUSES.map((status) => [status, statusLabel(status)]));
+  const modeItems = {
+    physical: t('modePhysical'),
+    digital: t('modeDigital'),
+  };
+  const linkTypeLabel = (type: LinkType) =>
+    t(
+      type === 'tickets'
+        ? 'linkTickets'
+        : type === 'registration'
+          ? 'linkRegistration'
+          : type === 'info'
+            ? 'linkInfo'
+            : type === 'facebook'
+              ? 'linkFacebook'
+              : 'linkInstagram',
+    );
+  const linkTypeItems = Object.fromEntries(LINK_TYPES.map((type) => [type, linkTypeLabel(type)]));
+
+  function renderAlerts() {
+    return (
+      <>
+        {notice ? (
+          <Alert>
+            <AlertDescription>{notice}</AlertDescription>
+          </Alert>
+        ) : null}
+        {saveError ? (
+          <Alert variant="destructive">
+            <AlertDescription>{saveError}</AlertDescription>
+          </Alert>
+        ) : null}
+      </>
+    );
+  }
+
+  function renderSaveButton() {
+    return (
+      <Button type="submit" disabled={save.isPending} className="self-start">
+        {save.isPending ? <Spinner data-icon="inline-start" /> : null}
+        {save.isPending ? t('saving') : t('save')}
+      </Button>
+    );
+  }
 
   return (
-    <Stack spacing={2}>
-      <Button component={AppLink} href="/events/manage" sx={{ alignSelf: 'flex-start' }}>
+    <div className="flex flex-col gap-4">
+      <Link
+        href="/events/manage"
+        className={cn(buttonVariants({ variant: 'ghost' }), 'self-start')}
+      >
         {t('back')}
-      </Button>
-      <Typography variant="h4" component="h1">
-        {t('title')}
-      </Typography>
+      </Link>
+      <h1 className="text-2xl font-semibold">{t('title')}</h1>
       {event ? (
-        <Typography variant="body2" color="text.secondary">
+        <p className="text-sm text-muted-foreground">
           {t('publisher')}:{' '}
           {event.publisherId ? (
-            <AppLink href={`/publishers/${event.publisherId}`}>{event.publisherName}</AppLink>
+            <Link
+              href={`/publishers/${event.publisherId}`}
+              className="underline underline-offset-4"
+            >
+              {event.publisherName}
+            </Link>
           ) : (
             event.publisherName || '—'
           )}
@@ -368,225 +428,236 @@ export function EventEditor({ eventId }: { eventId: string }) {
           {source ? (
             <>
               {' · '}
-              <Link href={source} target="_blank" rel="noopener noreferrer">
+              <a
+                href={source}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4"
+              >
                 {t('source')}
-              </Link>
+              </a>
             </>
           ) : null}
-        </Typography>
+        </p>
       ) : null}
       {event?.meta.possibleDuplicate ? (
-        <Alert severity="warning">
-          {event.meta.possibleDuplicate.workerId || event.meta.possibleDuplicate.refId
-            ? t('possibleDuplicate', {
-                matchedOn: event.meta.possibleDuplicate.matchedOn,
-                worker: event.meta.possibleDuplicate.workerId ?? '',
-                ref: event.meta.possibleDuplicate.refId ?? '',
-              })
-            : t('possibleDuplicateSame', {
-                matchedOn: event.meta.possibleDuplicate.matchedOn,
-              })}{' '}
-          <AppLink href={`/events/${event.meta.possibleDuplicate.eventId}`}>
-            {event.meta.possibleDuplicate.title}
-          </AppLink>
+        <Alert>
+          <AlertDescription>
+            {event.meta.possibleDuplicate.workerId || event.meta.possibleDuplicate.refId
+              ? t('possibleDuplicate', {
+                  matchedOn: event.meta.possibleDuplicate.matchedOn,
+                  worker: event.meta.possibleDuplicate.workerId ?? '',
+                  ref: event.meta.possibleDuplicate.refId ?? '',
+                })
+              : t('possibleDuplicateSame', {
+                  matchedOn: event.meta.possibleDuplicate.matchedOn,
+                })}{' '}
+            <Link
+              href={`/events/${event.meta.possibleDuplicate.eventId}`}
+              className="underline underline-offset-4"
+            >
+              {event.meta.possibleDuplicate.title}
+            </Link>
+          </AlertDescription>
         </Alert>
       ) : null}
       <Tabs
+        className="gap-4"
         value={activeTab}
-        onChange={(_event, value: EditorTab) => setTab(value)}
-        aria-label={t('tabsLabel')}
+        onValueChange={(value) => {
+          if (isEditorTab(value)) setTab(value);
+        }}
       >
-        <Tab value="info" label={t('tabInfo')} />
-        <Tab value="location" label={t('tabLocation')} />
-        <Tab value="notifications" label={t('tabNotifications')} />
-        <Tab value="scan" label={t('tabScan')} />
-        {showOccasions ? <Tab value="occasions" label={t('tabOccasions')} /> : null}
-      </Tabs>
-      {activeTab === 'notifications' && event ? (
-        <EventNotifications
-          eventId={eventId}
-          title={event.title}
-          startsAt={event.startsAt}
-          timezone={event.timezone}
-          status={event.status}
-        />
-      ) : activeTab === 'scan' ? (
-        <EventScan output={event?.llmOutput ?? null} />
-      ) : activeTab === 'occasions' && event ? (
-        <EventOccasions
-          eventId={eventId}
-          occasions={event.meta.occasions}
-          occasionGroupId={event.meta.occasionGroupId}
-          onCollapsed={() => {
-            setDraft(null);
-            setNotice(t('collapsed'));
-            setFormError(null);
-          }}
-        />
-      ) : (
-        <Stack component="form" spacing={2} onSubmit={onSubmit}>
-          {notice ? <Alert severity="success">{notice}</Alert> : null}
-          {saveError ? <Alert severity="error">{saveError}</Alert> : null}
-          {activeTab === 'info' ? (
-            <>
-              <EventImages imageUrl={event?.imageUrl ?? null} imageUrls={event?.imageUrls ?? []} />
-              <TextField
-                label={t('name')}
+        <TabsList aria-label={t('tabsLabel')}>
+          <TabsTrigger value="info">{t('tabInfo')}</TabsTrigger>
+          <TabsTrigger value="location">{t('tabLocation')}</TabsTrigger>
+          <TabsTrigger value="notifications">{t('tabNotifications')}</TabsTrigger>
+          <TabsTrigger value="scan">{t('tabScan')}</TabsTrigger>
+          {showOccasions ? <TabsTrigger value="occasions">{t('tabOccasions')}</TabsTrigger> : null}
+        </TabsList>
+        <TabsContent value="info">
+          <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+            {renderAlerts()}
+            <EventImages imageUrl={event?.imageUrl ?? null} imageUrls={event?.imageUrls ?? []} />
+            <Field>
+              <FieldLabel htmlFor="event-title">{t('name')}</FieldLabel>
+              <Input
+                id="event-title"
                 required
-                fullWidth
                 value={form.title}
                 onChange={(e) => update('title', e.target.value)}
               />
-              <TextField
-                label={t('description')}
-                fullWidth
-                multiline
-                minRows={4}
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="event-description">{t('description')}</FieldLabel>
+              <Textarea
+                id="event-description"
+                rows={4}
                 value={form.description}
                 onChange={(e) => update('description', e.target.value)}
               />
-              <Stack sx={styles.grid2}>
-                <FormControl fullWidth>
-                  <InputLabel id="event-mode-label">{t('mode')}</InputLabel>
-                  <Select
-                    labelId="event-mode-label"
-                    label={t('mode')}
-                    value={form.mode}
-                    onChange={(e) =>
-                      update('mode', e.target.value === 'digital' ? 'digital' : 'physical')
-                    }
-                  >
-                    <MenuItem value="physical">{t('modePhysical')}</MenuItem>
-                    <MenuItem value="digital">{t('modeDigital')}</MenuItem>
-                  </Select>
-                </FormControl>
-                <FormControl fullWidth>
-                  <InputLabel id="event-status-label">{t('status')}</InputLabel>
-                  <Select
-                    labelId="event-status-label"
-                    label={t('status')}
-                    value={form.status}
-                    onChange={(e) => update('status', e.target.value as EventStatus)}
-                  >
-                    {STATUSES.map((status) => (
-                      <MenuItem key={status} value={status}>
-                        {t(
-                          status === 'awaiting_verification'
-                            ? 'statusAwaiting'
-                            : status === 'in_review'
-                              ? 'statusInReview'
-                              : status === 'draft'
-                                ? 'statusDraft'
-                                : status === 'published'
-                                  ? 'statusPublished'
-                                  : status === 'cancelled'
-                                    ? 'statusCancelled'
-                                    : 'statusEnded',
-                        )}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Stack>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={form.featured}
-                    onChange={(_event, checked) => update('featured', checked)}
-                  />
-                }
-                label={t('featured')}
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="event-mode">{t('mode')}</FieldLabel>
+                <Select
+                  items={modeItems}
+                  value={form.mode}
+                  onValueChange={(next) => {
+                    if (next == null) return;
+                    update('mode', next === 'digital' ? 'digital' : 'physical');
+                  }}
+                >
+                  <SelectTrigger id="event-mode" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="physical">{t('modePhysical')}</SelectItem>
+                      <SelectItem value="digital">{t('modeDigital')}</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="event-status">{t('status')}</FieldLabel>
+                <Select
+                  items={statusItems}
+                  value={form.status}
+                  onValueChange={(next) => {
+                    if (next == null || !STATUSES.includes(next as EventStatus)) return;
+                    update('status', next as EventStatus);
+                  }}
+                >
+                  <SelectTrigger id="event-status" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {STATUSES.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {statusLabel(status)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <Field orientation="horizontal">
+              <Switch
+                id="event-featured"
+                checked={form.featured}
+                onCheckedChange={(checked) => update('featured', checked)}
               />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={form.checkInEnabled}
-                    onChange={(_event, checked) => update('checkInEnabled', checked)}
-                  />
-                }
-                label={t('checkInEnabled')}
+              <FieldLabel htmlFor="event-featured">{t('featured')}</FieldLabel>
+            </Field>
+            <Field orientation="horizontal">
+              <Switch
+                id="event-check-in"
+                checked={form.checkInEnabled}
+                onCheckedChange={(checked) => update('checkInEnabled', checked)}
               />
-              <Stack sx={styles.grid2}>
-                <TextField
-                  label={t('startsAt')}
+              <FieldLabel htmlFor="event-check-in">{t('checkInEnabled')}</FieldLabel>
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="event-starts">{t('startsAt')}</FieldLabel>
+                <Input
+                  id="event-starts"
                   type="datetime-local"
                   required
-                  fullWidth
                   value={form.startsAt}
                   onChange={(e) => update('startsAt', e.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }}
                 />
-                <TextField
-                  label={t('endsAt')}
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="event-ends">{t('endsAt')}</FieldLabel>
+                <Input
+                  id="event-ends"
                   type="datetime-local"
                   required
-                  fullWidth
                   value={form.endsAt}
                   onChange={(e) => update('endsAt', e.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }}
                 />
-              </Stack>
-              <TextField
-                label={t('timezone')}
+              </Field>
+            </div>
+            <Field>
+              <FieldLabel htmlFor="event-timezone">{t('timezone')}</FieldLabel>
+              <Input
+                id="event-timezone"
                 required
-                fullWidth
                 value={form.timezone}
                 onChange={(e) => update('timezone', e.target.value)}
-                helperText={t('timezoneHint')}
               />
-              <Stack sx={styles.grid2}>
-                <TextField
-                  label={t('priceAmount')}
-                  fullWidth
+              <FieldDescription>{t('timezoneHint')}</FieldDescription>
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="event-price">{t('priceAmount')}</FieldLabel>
+                <Input
+                  id="event-price"
+                  inputMode="numeric"
                   value={form.priceAmount}
                   onChange={(e) => update('priceAmount', e.target.value)}
-                  helperText={t('priceHint')}
-                  slotProps={{ htmlInput: { inputMode: 'numeric' } }}
                 />
-                <TextField
-                  label={t('currency')}
-                  fullWidth
+                <FieldDescription>{t('priceHint')}</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="event-currency">{t('currency')}</FieldLabel>
+                <Input
+                  id="event-currency"
+                  maxLength={3}
                   value={form.currency}
                   onChange={(e) => update('currency', e.target.value)}
-                  slotProps={{ htmlInput: { maxLength: 3 } }}
                 />
-              </Stack>
-              <EventTagsField
-                tags={categories.data?.items ?? []}
-                selectedIds={form.tagIds}
-                disabled={categories.isLoading || categories.isError}
-                onChange={(ids) => update('tagIds', ids)}
-              />
-              <Paper variant="outlined" sx={styles.section}>
-                <Typography variant="overline" color="text.secondary">
-                  {t('links')}
-                </Typography>
-                {form.links.map((link, index) => (
-                  <Stack key={index} direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                    <FormControl sx={{ minWidth: 160 }}>
-                      <InputLabel id={`link-type-${index}`}>{t('linkType')}</InputLabel>
-                      <Select
-                        labelId={`link-type-${index}`}
-                        label={t('linkType')}
-                        value={link.type}
-                        onChange={(e) => {
-                          const type = e.target.value as LinkType;
-                          update(
-                            'links',
-                            form.links.map((item, i) => (i === index ? { ...item, type } : item)),
-                          );
-                        }}
-                      >
-                        <MenuItem value="tickets">{t('linkTickets')}</MenuItem>
-                        <MenuItem value="registration">{t('linkRegistration')}</MenuItem>
-                        <MenuItem value="info">{t('linkInfo')}</MenuItem>
-                        <MenuItem value="facebook">{t('linkFacebook')}</MenuItem>
-                        <MenuItem value="instagram">{t('linkInstagram')}</MenuItem>
-                      </Select>
-                    </FormControl>
-                    <TextField
-                      label={t('linkUrl')}
-                      fullWidth
+              </Field>
+            </div>
+            <EventTagsField
+              tags={categories.data?.items ?? []}
+              selectedIds={form.tagIds}
+              disabled={categories.isLoading || categories.isError}
+              onChange={(ids) => update('tagIds', ids)}
+            />
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('links')}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+              {form.links.map((link, index) => (
+                <div key={index} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <Field className="w-full min-w-40 sm:w-40">
+                    <FieldLabel htmlFor={`link-type-${index}`}>{t('linkType')}</FieldLabel>
+                    <Select
+                      items={linkTypeItems}
+                      value={link.type}
+                      onValueChange={(next) => {
+                        if (next == null || !LINK_TYPES.includes(next as LinkType)) return;
+                        const type = next as LinkType;
+                        update(
+                          'links',
+                          form.links.map((item, i) => (i === index ? { ...item, type } : item)),
+                        );
+                      }}
+                    >
+                      <SelectTrigger id={`link-type-${index}`} className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {LINK_TYPES.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {linkTypeLabel(type)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field className="min-w-0 flex-1">
+                    <FieldLabel htmlFor={`link-url-${index}`}>{t('linkUrl')}</FieldLabel>
+                    <Input
+                      id={`link-url-${index}`}
                       value={link.url}
                       onChange={(e) =>
                         update(
@@ -597,8 +668,11 @@ export function EventEditor({ eventId }: { eventId: string }) {
                         )
                       }
                     />
-                    <TextField
-                      label={t('linkLabel')}
+                  </Field>
+                  <Field className="sm:w-48">
+                    <FieldLabel htmlFor={`link-label-${index}`}>{t('linkLabel')}</FieldLabel>
+                    <Input
+                      id={`link-label-${index}`}
                       value={link.label}
                       onChange={(e) =>
                         update(
@@ -609,88 +683,136 @@ export function EventEditor({ eventId }: { eventId: string }) {
                         )
                       }
                     />
-                    <IconButton
-                      aria-label={t('removeLink')}
-                      onClick={() =>
-                        update(
-                          'links',
-                          form.links.filter((_, i) => i !== index),
-                        )
-                      }
-                    >
-                      ×
-                    </IconButton>
-                  </Stack>
-                ))}
-                <Button
-                  type="button"
-                  onClick={() =>
-                    update('links', [...form.links, { type: 'info', url: '', label: '' }])
-                  }
-                >
-                  {t('addLink')}
-                </Button>
-              </Paper>
-              {saveButton}
-            </>
-          ) : (
-            <>
-              {form.mode === 'physical' ? (
-                <Paper variant="outlined" sx={styles.section}>
-                  <Typography variant="overline" color="text.secondary">
-                    {t('physicalDetails')}
-                  </Typography>
-                  <EventLocationMap
-                    lat={form.lat}
-                    lng={form.lng}
-                    radiusM={form.geofenceRadiusM}
-                    onPlace={(lat, lng) => setDraft({ ...form, lat, lng })}
-                  />
-                  <TextField
-                    label={t('venueName')}
-                    fullWidth
+                  </Field>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t('removeLink')}
+                    onClick={() =>
+                      update(
+                        'links',
+                        form.links.filter((_, i) => i !== index),
+                      )
+                    }
+                  >
+                    <XIcon />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="ghost"
+                className="self-start"
+                onClick={() =>
+                  update('links', [...form.links, { type: 'info', url: '', label: '' }])
+                }
+              >
+                {t('addLink')}
+              </Button>
+              </CardContent>
+            </Card>
+            {renderSaveButton()}
+          </form>
+        </TabsContent>
+        <TabsContent value="location">
+          <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+            {renderAlerts()}
+            {form.mode === 'physical' ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t('physicalDetails')}</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                <EventLocationMap
+                  lat={form.lat}
+                  lng={form.lng}
+                  radiusM={form.geofenceRadiusM}
+                  onPlace={(lat, lng) => setDraft({ ...form, lat, lng })}
+                />
+                <Field>
+                  <FieldLabel htmlFor="event-venue">{t('venueName')}</FieldLabel>
+                  <Input
+                    id="event-venue"
                     value={form.venueName}
                     onChange={(e) => update('venueName', e.target.value)}
                   />
-                  <Stack sx={styles.grid2}>
-                    <TextField
-                      label={t('latitude')}
-                      fullWidth
+                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="event-lat">{t('latitude')}</FieldLabel>
+                    <Input
+                      id="event-lat"
+                      inputMode="decimal"
                       value={form.lat}
                       onChange={(e) => update('lat', e.target.value)}
-                      slotProps={{ htmlInput: { inputMode: 'decimal' } }}
                     />
-                    <TextField
-                      label={t('longitude')}
-                      fullWidth
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="event-lng">{t('longitude')}</FieldLabel>
+                    <Input
+                      id="event-lng"
+                      inputMode="decimal"
                       value={form.lng}
                       onChange={(e) => update('lng', e.target.value)}
-                      slotProps={{ htmlInput: { inputMode: 'decimal' } }}
                     />
-                  </Stack>
-                  <TextField
-                    label={t('geofenceRadiusM')}
-                    fullWidth
+                  </Field>
+                </div>
+                <Field>
+                  <FieldLabel htmlFor="event-radius">{t('geofenceRadiusM')}</FieldLabel>
+                  <Input
+                    id="event-radius"
+                    inputMode="numeric"
                     value={form.geofenceRadiusM}
                     onChange={(e) => update('geofenceRadiusM', e.target.value)}
-                    slotProps={{ htmlInput: { inputMode: 'numeric' } }}
                   />
-                </Paper>
-              ) : (
-                <TextField
-                  label={t('onlineUrl')}
+                </Field>
+                </CardContent>
+              </Card>
+            ) : (
+              <Field>
+                <FieldLabel htmlFor="event-online">{t('onlineUrl')}</FieldLabel>
+                <Input
+                  id="event-online"
                   type="url"
                   required
-                  fullWidth
                   value={form.onlineUrl}
                   onChange={(e) => update('onlineUrl', e.target.value)}
                 />
-              )}
-              {saveButton}
-            </>
-          )}
-        </Stack>
-      )}
-    </Stack>
+              </Field>
+            )}
+            {renderSaveButton()}
+          </form>
+        </TabsContent>
+        <TabsContent value="notifications">
+          {event ? (
+            <EventNotifications
+              eventId={eventId}
+              title={event.title}
+              startsAt={event.startsAt}
+              timezone={event.timezone}
+              status={event.status}
+            />
+          ) : null}
+        </TabsContent>
+        <TabsContent value="scan">
+          <EventScan output={event?.llmOutput ?? null} />
+        </TabsContent>
+        {showOccasions && event ? (
+          <TabsContent value="occasions">
+            <EventOccasions
+              eventId={eventId}
+              occasions={event.meta.occasions}
+              occasionGroupId={event.meta.occasionGroupId}
+              onCollapsed={() => {
+                setDraft(null);
+                setNotice(t('collapsed'));
+                setFormError(null);
+              }}
+            />
+          </TabsContent>
+        ) : null}
+      </Tabs>
+    </div>
   );
 }

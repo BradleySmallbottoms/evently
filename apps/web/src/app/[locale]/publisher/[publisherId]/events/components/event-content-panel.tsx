@@ -1,15 +1,21 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import MenuItem from '@mui/material/MenuItem';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { api, throwIfError } from '@/lib/api';
 
 type Props = {
@@ -20,6 +26,7 @@ export function EventContentPanel({ eventId }: Props) {
   const t = useTranslations('Events');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formKey, setFormKey] = useState(0);
 
   const list = useQuery({
     queryKey: ['managed-content', eventId],
@@ -50,7 +57,7 @@ export function EventContentPanel({ eventId }: Props) {
           },
         }),
       );
-      formEvent.currentTarget.reset();
+      setFormKey((key) => key + 1);
       await list.refetch();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('contentError'));
@@ -74,74 +81,83 @@ export function EventContentPanel({ eventId }: Props) {
   }
 
   return (
-    <Stack spacing={2}>
-      <Typography variant="h6" component="h2">
-        {t('contentTitle')}
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        {t('contentHelp')}
-      </Typography>
-      {error && <Alert severity="error">{error}</Alert>}
-      {list.isError && <Alert severity="error">{t('contentError')}</Alert>}
-      <Stack component="form" onSubmit={create} spacing={1.5}>
-        <TextField name="title" label={t('contentItemTitle')} required fullWidth size="small" />
-        <TextField
-          name="body"
-          label={t('contentBody')}
-          fullWidth
-          size="small"
-          multiline
-          minRows={2}
-        />
-        <TextField name="kind" label={t('contentKind')} select defaultValue="info" size="small">
-          <MenuItem value="info">{t('contentKindInfo')}</MenuItem>
-          <MenuItem value="map">{t('contentKindMap')}</MenuItem>
-          <MenuItem value="schedule">{t('contentKindSchedule')}</MenuItem>
-          <MenuItem value="file">{t('contentKindFile')}</MenuItem>
-        </TextField>
-        <TextField
-          name="visibility"
-          label={t('contentVisibility')}
-          select
-          defaultValue="attendees"
-          size="small"
-        >
-          <MenuItem value="attendees">{t('contentVisibilityAttendees')}</MenuItem>
-          <MenuItem value="public">{t('contentVisibilityPublic')}</MenuItem>
-        </TextField>
-        <TextField
-          name="s3Key"
-          label={t('contentS3Key')}
-          fullWidth
-          size="small"
-          helperText={t('contentS3KeyHelp')}
-        />
-        <Button type="submit" variant="contained" disabled={pending}>
+    <div className="flex flex-col gap-4">
+      <h2 className="text-xl font-semibold text-foreground">{t('contentTitle')}</h2>
+      <p className="text-sm text-muted-foreground">{t('contentHelp')}</p>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {list.isError && (
+        <Alert variant="destructive">
+          <AlertDescription>{t('contentError')}</AlertDescription>
+        </Alert>
+      )}
+      <form key={formKey} onSubmit={create} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="content-title">{t('contentItemTitle')}</Label>
+          <Input id="content-title" name="title" required />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="content-body">{t('contentBody')}</Label>
+          <Textarea id="content-body" name="body" rows={2} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="content-kind">{t('contentKind')}</Label>
+          <Select name="kind" defaultValue="info">
+            <SelectTrigger id="content-kind" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="info">{t('contentKindInfo')}</SelectItem>
+              <SelectItem value="map">{t('contentKindMap')}</SelectItem>
+              <SelectItem value="schedule">{t('contentKindSchedule')}</SelectItem>
+              <SelectItem value="file">{t('contentKindFile')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="content-visibility">{t('contentVisibility')}</Label>
+          <Select name="visibility" defaultValue="attendees">
+            <SelectTrigger id="content-visibility" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="attendees">{t('contentVisibilityAttendees')}</SelectItem>
+              <SelectItem value="public">{t('contentVisibilityPublic')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="content-s3">{t('contentS3Key')}</Label>
+          <Input id="content-s3" name="s3Key" />
+          <p className="text-sm text-muted-foreground">{t('contentS3KeyHelp')}</p>
+        </div>
+        <Button type="submit" variant="brand" disabled={pending}>
           {pending ? t('contentAdding') : t('contentAdd')}
         </Button>
-      </Stack>
-      <Stack spacing={1}>
+      </form>
+      <div className="flex flex-col gap-2">
         {(list.data?.items ?? []).map((item) => (
-          <Stack
-            key={item.id}
-            direction="row"
-            spacing={1}
-            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <Typography variant="body2">
+          <div key={item.id} className="flex flex-row items-center justify-between gap-2">
+            <p className="text-sm text-foreground">
               {item.title} · {item.kind} · {item.visibility}
-            </Typography>
-            <Button size="small" color="error" onClick={() => void remove(item.id)}>
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              onClick={() => void remove(item.id)}
+            >
               {t('contentDelete')}
             </Button>
-          </Stack>
+          </div>
         ))}
         {list.isSuccess && list.data.items.length === 0 && (
-          <Typography variant="body2" color="text.secondary">
-            {t('contentEmpty')}
-          </Typography>
+          <p className="text-sm text-muted-foreground">{t('contentEmpty')}</p>
         )}
-      </Stack>
-    </Stack>
+      </div>
+    </div>
   );
 }

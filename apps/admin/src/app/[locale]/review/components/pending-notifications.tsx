@@ -1,16 +1,20 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { BellIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { EmptyState, LoadingRows } from '@/components/list-state';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -26,7 +30,6 @@ type PendingPush = {
 
 export function PendingNotifications() {
   const t = useTranslations('Review');
-  const tApp = useTranslations('App');
   const queryClient = useQueryClient();
   const list = useQuery({
     queryKey: ['admin-push-messages', 'pending'],
@@ -49,8 +52,10 @@ export function PendingNotifications() {
   if (list.isError) {
     const unauthorized = list.error instanceof AdminApiError && list.error.status === 401;
     return (
-      <Alert severity={unauthorized ? 'info' : 'error'}>
-        {unauthorized ? t('needLogin') : t('notificationsError')}
+      <Alert variant={unauthorized ? 'default' : 'destructive'}>
+        <AlertDescription>
+          {unauthorized ? t('needLogin') : t('notificationsError')}
+        </AlertDescription>
       </Alert>
     );
   }
@@ -58,68 +63,79 @@ export function PendingNotifications() {
   const items = list.data?.items ?? [];
 
   return (
-    <Stack spacing={2}>
-      <Typography variant="h5" component="h2">
-        {t('notificationsTitle')}
-      </Typography>
-      {list.isLoading ? <Typography color="text.secondary">{tApp('loading')}</Typography> : null}
+    <div className="flex flex-col gap-4">
+      <h2 className="text-xl font-semibold">{t('notificationsTitle')}</h2>
+      {list.isLoading ? <LoadingRows /> : null}
       {!list.isLoading && items.length === 0 ? (
-        <Typography color="text.secondary">{t('notificationsEmpty')}</Typography>
+        <EmptyState icon={BellIcon} title={t('notificationsEmpty')} />
       ) : null}
       {items.length > 0 ? (
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('notification')}</TableCell>
-              <TableCell>{t('event')}</TableCell>
-              <TableCell>{t('publisher')}</TableCell>
-              <TableCell>{t('sendAt')}</TableCell>
-              <TableCell align="right">{t('actions')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {items.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>{item.titleSv}</TableCell>
-                <TableCell>
-                  {item.eventId ? (
-                    <Link href={`/events/${item.eventId}`}>{item.eventTitle ?? item.eventId}</Link>
-                  ) : (
-                    (item.eventTitle ?? '—')
-                  )}
-                </TableCell>
-                <TableCell>{item.publisherName ?? '—'}</TableCell>
-                <TableCell>
-                  {item.sendAt ? new Date(item.sendAt).toLocaleString() : t('asap')}
-                </TableCell>
-                <TableCell align="right">
-                  <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-                    <Button component={Link} href={`/push-messages/${item.id}`} size="small">
-                      {t('view')}
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      disabled={decide.isPending}
-                      onClick={() => decide.mutate({ id: item.id, action: 'approve' })}
-                    >
-                      {t('approve')}
-                    </Button>
-                    <Button
-                      size="small"
-                      color="inherit"
-                      disabled={decide.isPending}
-                      onClick={() => decide.mutate({ id: item.id, action: 'reject' })}
-                    >
-                      {t('reject')}
-                    </Button>
-                  </Stack>
-                </TableCell>
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="rounded-t-lg border-b bg-muted">
+              <TableRow>
+                <TableHead>{t('notification')}</TableHead>
+                <TableHead>{t('event')}</TableHead>
+                <TableHead>{t('publisher')}</TableHead>
+                <TableHead>{t('sendAt')}</TableHead>
+                <TableHead className="text-right">{t('actions')}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="whitespace-normal">{item.titleSv}</TableCell>
+                  <TableCell className="whitespace-normal">
+                    {item.eventId ? (
+                      <Link
+                        href={`/events/${item.eventId}`}
+                        className="underline underline-offset-4"
+                      >
+                        {item.eventTitle ?? item.eventId}
+                      </Link>
+                    ) : (
+                      (item.eventTitle ?? '—')
+                    )}
+                  </TableCell>
+                  <TableCell>{item.publisherName ?? '—'}</TableCell>
+                  <TableCell>
+                    {item.sendAt ? new Date(item.sendAt).toLocaleString() : t('asap')}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex flex-row justify-end gap-2">
+                      <Link
+                        href={`/push-messages/${item.id}`}
+                        className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+                      >
+                        {t('view')}
+                      </Link>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={decide.isPending}
+                        onClick={() => decide.mutate({ id: item.id, action: 'approve' })}
+                      >
+                        {decide.isPending ? <Spinner data-icon="inline-start" /> : null}
+                        {t('approve')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={decide.isPending}
+                        onClick={() => decide.mutate({ id: item.id, action: 'reject' })}
+                      >
+                        {decide.isPending ? <Spinner data-icon="inline-start" /> : null}
+                        {t('reject')}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : null}
-    </Stack>
+    </div>
   );
 }

@@ -1,14 +1,13 @@
 'use client';
 
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import { AppLink } from '@/components/app-link';
 import { PageMain } from '@/components/page-main';
 import { QueryProvider } from '@/lib/query-provider';
 import { PublisherSettingsPanel } from './components/publisher-settings-panel';
+
+const backLinkClass = 'text-sm text-muted-foreground underline-offset-4 hover:underline';
 
 export default function PublisherSettingsPage() {
   const t = useTranslations('Publisher');
@@ -17,29 +16,17 @@ export default function PublisherSettingsPage() {
 
   return (
     <PageMain maxWidth="sm">
-      <Stack spacing={1}>
-        <Link
-          component={AppLink}
-          href="/publisher"
-          underline="hover"
-          variant="body2"
-          color="text.secondary"
-        >
+      <div className="flex flex-col gap-2">
+        <AppLink href="/publisher" className={backLinkClass}>
           {nav('workspace')}
-        </Link>
-        <Link
-          component={AppLink}
-          href={`/publisher/${params.publisherId}/events`}
-          underline="hover"
-          variant="body2"
-          color="text.secondary"
-        >
+        </AppLink>
+        <AppLink href={`/publisher/${params.publisherId}/events`} className={backLinkClass}>
           {t('manageEvents')}
-        </Link>
-        <Typography variant="h4" component="h1">
+        </AppLink>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
           {t('settingsTitle')}
-        </Typography>
-      </Stack>
+        </h1>
+      </div>
       <QueryProvider>
         <PublisherSettingsPanel />
       </QueryProvider>

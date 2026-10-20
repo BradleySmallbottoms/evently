@@ -1,24 +1,32 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { UsersIcon } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { EmptyState, LoadingRows } from '@/components/list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -48,8 +56,7 @@ export function MappingQueue() {
 
   const list = useQuery({
     queryKey: ['admin-publishers-temporary'],
-    queryFn: () =>
-      adminFetch<{ items: TempPublisher[] }>('/publishers?temporary=true'),
+    queryFn: () => adminFetch<{ items: TempPublisher[] }>('/publishers?temporary=true'),
     retry: false,
   });
 
@@ -79,12 +86,7 @@ export function MappingQueue() {
   });
 
   const complete = useMutation({
-    mutationFn: async (input: {
-      id: string;
-      name: string;
-      slug: string;
-      type: 'org' | 'person';
-    }) =>
+    mutationFn: async (input: { id: string; name: string; slug: string; type: 'org' | 'person' }) =>
       adminFetch(`/publishers/${input.id}/complete`, {
         method: 'POST',
         body: JSON.stringify({
@@ -141,18 +143,18 @@ export function MappingQueue() {
   });
 
   if (list.isError) {
-    const unauthorized =
-      list.error instanceof AdminApiError && list.error.status === 401;
+    const unauthorized = list.error instanceof AdminApiError && list.error.status === 401;
     return (
-      <Alert severity={unauthorized ? 'info' : 'error'}>
-        {unauthorized ? (
-          <>
-            {t('needLogin')}{' '}
-            <Link href="/login">{tApp('navLogin')}</Link>
-          </>
-        ) : (
-          t('loadError')
-        )}
+      <Alert variant={unauthorized ? 'default' : 'destructive'}>
+        <AlertDescription>
+          {unauthorized ? (
+            <>
+              {t('needLogin')} <Link href="/login">{tApp('navLogin')}</Link>
+            </>
+          ) : (
+            t('loadError')
+          )}
+        </AlertDescription>
       </Alert>
     );
   }
@@ -179,196 +181,227 @@ export function MappingQueue() {
   }
 
   return (
-    <Stack spacing={2} sx={{ mt: 4 }}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1}
-        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
-      >
-        <Typography variant="h5" component="h2">
-          {t('title')}
-        </Typography>
+    <div className="mt-8 flex flex-col gap-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-xl font-semibold">{t('title')}</h2>
         {items.length > 0 ? (
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <div className="flex items-center gap-2">
             {selectedRows.length > 0 ? (
-              <Typography variant="body2" color="text.secondary">
+              <p className="text-sm text-muted-foreground">
                 {t('selected', { count: selectedRows.length })}
-              </Typography>
+              </p>
             ) : null}
             <Button
-              size="small"
+              size="sm"
+              variant="ghost"
               disabled={batchBusy || selectedRows.length === 0}
               onClick={() => saveAll.mutate(selectedRows)}
             >
+              {saveAll.isPending ? <Spinner data-icon="inline-start" /> : null}
               {saveAll.isPending ? t('savingAll') : t('saveSelected')}
             </Button>
             <Button
-              size="small"
-              variant="contained"
+              size="sm"
               disabled={batchBusy || selectedRows.length === 0}
               onClick={() => verifyAll.mutate(selectedRows)}
             >
+              {verifyAll.isPending ? <Spinner data-icon="inline-start" /> : null}
               {verifyAll.isPending ? t('verifyingAll') : t('verifySelected')}
             </Button>
-          </Stack>
+          </div>
         ) : null}
-      </Stack>
-      {bulkNotice ? <Alert severity="success">{bulkNotice}</Alert> : null}
-      {bulkError ? <Alert severity="error">{bulkError}</Alert> : null}
-      {deleteError ? <Alert severity="error">{t('deleteError')}</Alert> : null}
-      {list.isLoading ? <Typography color="text.secondary">{tApp('loading')}</Typography> : null}
+      </div>
+      {bulkNotice ? (
+        <Alert>
+          <AlertDescription>{bulkNotice}</AlertDescription>
+        </Alert>
+      ) : null}
+      {bulkError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{bulkError}</AlertDescription>
+        </Alert>
+      ) : null}
+      {deleteError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{t('deleteError')}</AlertDescription>
+        </Alert>
+      ) : null}
+      {list.isLoading ? <LoadingRows /> : null}
       {!list.isLoading && items.length === 0 ? (
-        <Typography color="text.secondary">{t('empty')}</Typography>
+        <EmptyState icon={UsersIcon} title={t('empty')} />
       ) : null}
       {items.length > 0 ? (
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell padding="checkbox">
-                <Checkbox
-                  size="small"
-                  checked={allSelected}
-                  indeterminate={someSelected}
-                  onChange={toggleAll}
-                  slotProps={{ input: { 'aria-label': t('selectAll') } }}
-                />
-              </TableCell>
-              <TableCell>{t('name')}</TableCell>
-              <TableCell>{t('id')}</TableCell>
-              <TableCell>{t('events')}</TableCell>
-              <TableCell>{t('mapTo')}</TableCell>
-              <TableCell>{t('complete')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {items.map((item) => {
-              const form = completeForms[item.id] ?? {
-                name: item.name,
-                slug: item.slug,
-                type: item.type,
-              };
-              return (
-                <TableRow key={item.id} hover selected={selected.has(item.id)}>
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      size="small"
-                      checked={selected.has(item.id)}
-                      onChange={() => toggleOne(item.id)}
-                      slotProps={{ input: { 'aria-label': t('selectRow', { name: item.name }) } }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Link href={`/publishers/${item.id}`}>{item.name}</Link>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {item.slug}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{item.id}</TableCell>
-                  <TableCell>{item.eventCount}</TableCell>
-                  <TableCell>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                      <TextField
-                        size="small"
-                        label={t('targetId')}
-                        value={targets[item.id] ?? ''}
-                        onChange={(e) =>
-                          setTargets((prev) => ({ ...prev, [item.id]: e.target.value }))
-                        }
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="rounded-t-lg border-b bg-muted">
+              <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allSelected}
+                    indeterminate={someSelected}
+                    onCheckedChange={() => toggleAll()}
+                    aria-label={t('selectAll')}
+                  />
+                </TableHead>
+                <TableHead>{t('name')}</TableHead>
+                <TableHead>{t('id')}</TableHead>
+                <TableHead>{t('events')}</TableHead>
+                <TableHead>{t('mapTo')}</TableHead>
+                <TableHead>{t('complete')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => {
+                const form = completeForms[item.id] ?? {
+                  name: item.name,
+                  slug: item.slug,
+                  type: item.type,
+                };
+                return (
+                  <TableRow
+                    key={item.id}
+                    data-state={selected.has(item.id) ? 'selected' : undefined}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selected.has(item.id)}
+                        onCheckedChange={() => toggleOne(item.id)}
+                        aria-label={t('selectRow', { name: item.name })}
                       />
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        disabled={map.isPending || !(targets[item.id] ?? '').trim()}
-                        onClick={() =>
-                          map.mutate({
-                            id: item.id,
-                            targetPublisherId: (targets[item.id] ?? '').trim(),
-                          })
-                        }
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/publishers/${item.id}`}
+                        className="text-primary underline-offset-4 hover:underline"
                       >
-                        {t('map')}
-                      </Button>
-                    </Stack>
-                  </TableCell>
-                  <TableCell>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                      <TextField
-                        size="small"
-                        label={t('name')}
-                        value={form.name}
-                        onChange={(e) =>
-                          setCompleteForms((prev) => ({
-                            ...prev,
-                            [item.id]: { ...form, name: e.target.value },
-                          }))
-                        }
-                      />
-                      <TextField
-                        size="small"
-                        label={t('slug')}
-                        value={form.slug}
-                        onChange={(e) =>
-                          setCompleteForms((prev) => ({
-                            ...prev,
-                            [item.id]: { ...form, slug: e.target.value },
-                          }))
-                        }
-                      />
-                      <Button
-                        size="small"
-                        variant="contained"
-                        disabled={complete.isPending || batchBusy}
-                        onClick={() =>
-                          complete.mutate({
-                            id: item.id,
-                            name: form.name,
-                            slug: form.slug,
-                            type: form.type,
-                          })
-                        }
-                      >
-                        {t('save')}
-                      </Button>
-                      {item.eventCount === 0 ? (
+                        {item.name}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">{item.slug}</p>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">{item.id}</TableCell>
+                    <TableCell>{item.eventCount}</TableCell>
+                    <TableCell>
+                      <div className="flex items-end gap-2">
+                        <Field className="w-40">
+                          <FieldLabel htmlFor={`map-target-${item.id}`}>{t('targetId')}</FieldLabel>
+                          <Input
+                            id={`map-target-${item.id}`}
+                            value={targets[item.id] ?? ''}
+                            onChange={(e) =>
+                              setTargets((prev) => ({ ...prev, [item.id]: e.target.value }))
+                            }
+                          />
+                        </Field>
                         <Button
-                          size="small"
-                          color="error"
-                          disabled={remove.isPending}
-                          onClick={() => {
-                            setDeleteError(false);
-                            setDeleteId(item.id);
-                          }}
+                          size="sm"
+                          variant="outline"
+                          disabled={map.isPending || !(targets[item.id] ?? '').trim()}
+                          onClick={() =>
+                            map.mutate({
+                              id: item.id,
+                              targetPublisherId: (targets[item.id] ?? '').trim(),
+                            })
+                          }
                         >
-                          {t('delete')}
+                          {map.isPending ? <Spinner data-icon="inline-start" /> : null}
+                          {t('map')}
                         </Button>
-                      ) : null}
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-end gap-2">
+                        <Field className="w-40">
+                          <FieldLabel htmlFor={`complete-name-${item.id}`}>{t('name')}</FieldLabel>
+                          <Input
+                            id={`complete-name-${item.id}`}
+                            value={form.name}
+                            onChange={(e) =>
+                              setCompleteForms((prev) => ({
+                                ...prev,
+                                [item.id]: { ...form, name: e.target.value },
+                              }))
+                            }
+                          />
+                        </Field>
+                        <Field className="w-40">
+                          <FieldLabel htmlFor={`complete-slug-${item.id}`}>{t('slug')}</FieldLabel>
+                          <Input
+                            id={`complete-slug-${item.id}`}
+                            value={form.slug}
+                            onChange={(e) =>
+                              setCompleteForms((prev) => ({
+                                ...prev,
+                                [item.id]: { ...form, slug: e.target.value },
+                              }))
+                            }
+                          />
+                        </Field>
+                        <Button
+                          size="sm"
+                          disabled={complete.isPending || batchBusy}
+                          onClick={() =>
+                            complete.mutate({
+                              id: item.id,
+                              name: form.name,
+                              slug: form.slug,
+                              type: form.type,
+                            })
+                          }
+                        >
+                          {complete.isPending ? <Spinner data-icon="inline-start" /> : null}
+                          {t('save')}
+                        </Button>
+                        {item.eventCount === 0 ? (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={remove.isPending}
+                            onClick={() => {
+                              setDeleteError(false);
+                              setDeleteId(item.id);
+                            }}
+                          >
+                            {remove.isPending ? <Spinner data-icon="inline-start" /> : null}
+                            {t('delete')}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       ) : null}
-      <Dialog open={deleteId !== null} onClose={() => setDeleteId(null)}>
-        <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
+      <Dialog
+        open={deleteId !== null}
+        onOpenChange={(next) => {
+          if (!next) setDeleteId(null);
+        }}
+      >
         <DialogContent>
-          <DialogContentText>{t('deleteConfirm')}</DialogContentText>
+          <DialogHeader>
+            <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
+            <DialogDescription>{t('deleteConfirm')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteId(null)}>
+              {t('cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={remove.isPending || deleteId == null}
+              onClick={() => {
+                if (deleteId) remove.mutate(deleteId);
+              }}
+            >
+              {remove.isPending ? <Spinner data-icon="inline-start" /> : null}
+              {t('delete')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteId(null)}>{t('cancel')}</Button>
-          <Button
-            color="error"
-            variant="contained"
-            disabled={remove.isPending || deleteId == null}
-            onClick={() => {
-              if (deleteId) remove.mutate(deleteId);
-            }}
-          >
-            {t('delete')}
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Stack>
+    </div>
   );
 }

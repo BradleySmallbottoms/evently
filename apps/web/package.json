@@ -10,28 +10,31 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@emotion/cache": "^11.14.0",
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
+    "@base-ui/react": "^1.9.0",
     "@local-events/api-client": "workspace:*",
     "@local-events/contracts": "workspace:*",
     "@local-events/domain": "workspace:*",
     "@local-events/geo": "workspace:*",
-    "@mui/material": "^9.4.0",
-    "@mui/material-nextjs": "^9.4.0",
     "@sentry/nextjs": "^11.4.0",
     "@tanstack/react-query": "^5.104.1",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.5.0",
+    "lucide-react": "^1.59.0",
     "next": "16.4.0",
     "next-intl": "^4.14.9",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "shadcn": "^4.22.1",
+    "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5"
   }
 }

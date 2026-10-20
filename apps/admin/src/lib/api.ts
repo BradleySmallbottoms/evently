@@ -1,6 +1,5 @@
 /** Admin API base including version prefix. */
-export const ADMIN_API_URL =
-  process.env.NEXT_PUBLIC_ADMIN_API_URL ?? 'http://localhost:13001/v1';
+export const ADMIN_API_URL = process.env.NEXT_PUBLIC_ADMIN_API_URL ?? 'http://localhost:13001/v1';
 
 export class AdminApiError extends Error {
   constructor(
@@ -13,10 +12,7 @@ export class AdminApiError extends Error {
   }
 }
 
-export async function adminFetch<T>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
+export async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${ADMIN_API_URL}${path}`, {
     ...init,
     credentials: 'include',
@@ -27,9 +23,7 @@ export async function adminFetch<T>(
   });
   if (res.status === 204) return undefined as T;
   const body = (await res.json().catch(() => null)) as
-    | T
-    | { error?: { code?: string; message?: string } }
-    | null;
+    T | { error?: { code?: string; message?: string } } | null;
   if (!res.ok) {
     const err = body && typeof body === 'object' && 'error' in body ? body.error : undefined;
     throw new AdminApiError(

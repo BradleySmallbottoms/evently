@@ -1,58 +1,47 @@
 'use client';
 
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import type { SxProps, Theme } from '@mui/material/styles';
+import { ScanSearchIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { EmptyState } from '@/components/list-state';
+import { Card, CardContent } from '@/components/ui/card';
 import { readScanView } from './scan-output';
 
-const jsonSx: SxProps<Theme> = {
-  p: 2,
-  m: 0,
-  overflow: 'auto',
-  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-  fontSize: '0.8125rem',
-  lineHeight: 1.5,
-  whiteSpace: 'pre',
-};
+const jsonClass = 'm-0 overflow-auto p-4 font-mono text-[0.8125rem] leading-normal whitespace-pre';
 
 export function EventScan({ output }: { output: unknown }) {
   const t = useTranslations('EventEditor');
   const view = readScanView(output);
   if (!view) {
-    return <Typography color="text.secondary">{t('scanEmpty')}</Typography>;
+    return <EmptyState icon={ScanSearchIcon} title={t('scanEmpty')} />;
   }
   return (
-    <Stack spacing={3}>
+    <div className="flex flex-col gap-6">
       {view.finalObject ? (
-        <Stack spacing={1}>
-          <Typography variant="h6" component="h2">
-            {t('scanResult')}
-          </Typography>
-          <Paper variant="outlined" component="pre" sx={jsonSx}>
-            {JSON.stringify(view.finalObject, null, 2)}
-          </Paper>
-        </Stack>
+        <div className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold">{t('scanResult')}</h2>
+          <Card className="py-0">
+            <CardContent className="p-0">
+              <pre className={jsonClass}>{JSON.stringify(view.finalObject, null, 2)}</pre>
+            </CardContent>
+          </Card>
+        </div>
       ) : null}
       {view.reasoning ? (
-        <Stack spacing={1}>
-          <Typography variant="h6" component="h2">
-            {t('scanReasoning')}
-          </Typography>
-          <Paper variant="outlined" sx={{ p: 2, whiteSpace: 'pre-wrap' }}>
-            {view.reasoning}
-          </Paper>
-        </Stack>
+        <div className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold">{t('scanReasoning')}</h2>
+          <Card>
+            <CardContent className="whitespace-pre-wrap">{view.reasoning}</CardContent>
+          </Card>
+        </div>
       ) : null}
-      <Stack spacing={1}>
-        <Typography variant="h6" component="h2">
-          {t('scanFull')}
-        </Typography>
-        <Paper variant="outlined" component="pre" sx={{ ...jsonSx, maxHeight: '70vh' }}>
-          {view.full}
-        </Paper>
-      </Stack>
-    </Stack>
+      <div className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold">{t('scanFull')}</h2>
+        <Card className="py-0">
+          <CardContent className="p-0">
+            <pre className={`${jsonClass} max-h-[70vh]`}>{view.full}</pre>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }

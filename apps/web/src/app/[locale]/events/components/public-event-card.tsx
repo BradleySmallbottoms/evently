@@ -1,7 +1,3 @@
-import Card from '@mui/material/Card';
-import CardActionArea from '@mui/material/CardActionArea';
-import CardContent from '@mui/material/CardContent';
-import Typography from '@mui/material/Typography';
 import { AppLink } from '@/components/app-link';
 
 export type PublicEventCardData = {
@@ -12,6 +8,7 @@ export type PublicEventCardData = {
   mode: 'physical' | 'digital';
   venueName: string | null;
   onlineUrl: string | null;
+  imageUrl?: string | null;
 };
 
 type Props = {
@@ -34,26 +31,25 @@ export function PublicEventCard({
   readMoreLabel,
 }: Props) {
   return (
-    <Card component="li" variant="outlined" sx={{ borderRadius: 2 }}>
-      <CardActionArea component={AppLink} href={`/events/${event.id}`} aria-label={readMoreLabel}>
-        <CardContent>
-          <Typography variant="h6" component="h2">
-            {event.title}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+    <li className="overflow-hidden rounded-2xl bg-card text-card-foreground ring-1 ring-border">
+      <AppLink href={`/events/${event.id}`} aria-label={readMoreLabel} className="flex flex-col">
+        {event.imageUrl ? (
+          <img src={event.imageUrl} alt="" className="aspect-[16/10] w-full object-cover" />
+        ) : null}
+        <div className="flex flex-col gap-2 p-4">
+          <h2 className="line-clamp-2 text-lg font-medium text-foreground">{event.title}</h2>
+          <p className="text-sm text-muted-foreground">
             {new Date(event.startsAt).toLocaleString(locale)} -{' '}
             {new Date(event.endsAt).toLocaleString(locale)}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          </p>
+          <p className="text-sm text-muted-foreground">
             {event.mode === 'physical'
               ? `${venueLabel}: ${event.venueName ?? missingVenue}`
               : `${onlineLabel}: ${event.onlineUrl ?? missingUrl}`}
-          </Typography>
-          <Typography variant="body2" color="primary" sx={{ mt: 1.5, fontWeight: 600 }}>
-            {readMoreLabel}
-          </Typography>
-        </CardContent>
-      </CardActionArea>
-    </Card>
+          </p>
+          <p className="text-sm font-semibold text-info">{readMoreLabel}</p>
+        </div>
+      </AppLink>
+    </li>
   );
 }

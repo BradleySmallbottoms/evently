@@ -1,19 +1,5 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Autocomplete from '@mui/material/Autocomplete';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import FormControl from '@mui/material/FormControl';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import FormLabel from '@mui/material/FormLabel';
-import Paper from '@mui/material/Paper';
-import Radio from '@mui/material/Radio';
-import RadioGroup from '@mui/material/RadioGroup';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import type { SxProps, Theme } from '@mui/material/styles';
 import {
   canAdminNotifyEvent,
   defaultPushMessageCopy,
@@ -27,13 +13,24 @@ import {
   PushScheduleOffsetSelect,
   type ScheduleOffsetChoice,
 } from '@/components/push-schedule-offset';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from '@/components/ui/combobox';
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
 import { Link, useRouter } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
-
-const styles: Record<string, SxProps<Theme>> = {
-  root: { display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 720 },
-  panel: { p: 2, display: 'flex', flexDirection: 'column', gap: 2 },
-};
 
 type EventOption = {
   id: string;
@@ -156,124 +153,162 @@ export function EventPushComposer({ initialEventId }: { initialEventId?: string 
     !create.isPending;
 
   return (
-    <Box sx={styles.root}>
-      <Button component={Link} href="/push-messages" size="small" sx={{ alignSelf: 'flex-start' }}>
+    <div className="flex max-w-3xl flex-col gap-4">
+      <Link
+        href="/push-messages"
+        className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'self-start' })}
+      >
         {t('back')}
-      </Button>
-      <Typography variant="h5">{t('eventTitle')}</Typography>
-      <Paper sx={styles.panel} variant="outlined">
-        {error ? <Alert severity="error">{error}</Alert> : null}
-        {events.isError ? <Alert severity="error">{t('eventLoadError')}</Alert> : null}
-        <Autocomplete
-          options={events.data?.items ?? []}
-          value={selected}
-          loading={events.isLoading}
-          onChange={(_event, value) => setEventId(value?.id ?? '')}
-          getOptionLabel={(option) => option.title}
-          isOptionEqualToValue={(option, value) => option.id === value.id}
-          renderOption={(props, option) => {
-            const { key, ...rest } = props;
-            return (
-              <li key={key} {...rest}>
-                <Box>
-                  <Typography variant="body2">{option.title}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {option.publisherName}
-                    {' · '}
-                    {option.startsAt ? new Date(option.startsAt).toLocaleString() : '—'}
-                    {option.status === 'published' ? '' : ` · ${t('heldUntilPublished')}`}
-                  </Typography>
-                </Box>
-              </li>
-            );
-          }}
-          renderInput={(params) => (
-            <TextField {...params} label={t('eventPicker')} required fullWidth />
-          )}
-        />
-        {selected && selected.status !== 'published' ? (
-          <Alert severity="info">{t('planHeld')}</Alert>
-        ) : null}
-        <FormControl>
-          <FormLabel id="event-push-audience-label">{t('audienceRule')}</FormLabel>
-          <RadioGroup
-            aria-labelledby="event-push-audience-label"
-            value={audience}
-            onChange={(e) => setAudience(e.target.value as 'area' | 'area_and_tag')}
-          >
-            <FormControlLabel value="area" control={<Radio />} label={t('audienceArea')} />
-            <FormControlLabel
-              value="area_and_tag"
-              control={<Radio />}
-              label={t('audienceAreaAndTag')}
+      </Link>
+      <h1 className="text-2xl font-semibold">{t('eventTitle')}</h1>
+      <Card>
+        <CardContent className="flex flex-col gap-4">
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          {events.isError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{t('eventLoadError')}</AlertDescription>
+            </Alert>
+          ) : null}
+          <Field>
+            <FieldLabel htmlFor="event-push-picker">{t('eventPicker')}</FieldLabel>
+            <Combobox
+              items={events.data?.items ?? []}
+              value={selected}
+              onValueChange={(value) => setEventId(value?.id ?? '')}
+              itemToStringLabel={(item) => item.title}
+              itemToStringValue={(item) => item.id}
+              isItemEqualToValue={(item, value) => item.id === value.id}
+            >
+              <ComboboxInput
+                id="event-push-picker"
+                placeholder={t('eventPicker')}
+                disabled={events.isLoading}
+                showClear
+                className="w-full"
+                required
+              />
+              <ComboboxContent>
+                <ComboboxEmpty>{events.isLoading ? '…' : '—'}</ComboboxEmpty>
+                <ComboboxList>
+                  {(option: EventOption) => (
+                    <ComboboxItem key={option.id} value={option}>
+                      <span className="flex min-w-0 flex-col">
+                        <span className="text-sm">{option.title}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {option.publisherName}
+                          {' · '}
+                          {option.startsAt ? new Date(option.startsAt).toLocaleString() : '—'}
+                          {option.status === 'published' ? '' : ` · ${t('heldUntilPublished')}`}
+                        </span>
+                      </span>
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          </Field>
+          {selected && selected.status !== 'published' ? (
+            <Alert>
+              <AlertDescription>{t('planHeld')}</AlertDescription>
+            </Alert>
+          ) : null}
+          <FieldSet>
+            <FieldLegend variant="label" id="event-push-audience-label">
+              {t('audienceRule')}
+            </FieldLegend>
+            <RadioGroup
+              aria-labelledby="event-push-audience-label"
+              value={audience}
+              onValueChange={(next) => {
+                if (next === 'area' || next === 'area_and_tag') setAudience(next);
+              }}
+            >
+              <Field orientation="horizontal">
+                <RadioGroupItem value="area" id="event-push-audience-area" />
+                <FieldLabel htmlFor="event-push-audience-area">{t('audienceArea')}</FieldLabel>
+              </Field>
+              <Field orientation="horizontal">
+                <RadioGroupItem value="area_and_tag" id="event-push-audience-area-tag" />
+                <FieldLabel htmlFor="event-push-audience-area-tag">
+                  {t('audienceAreaAndTag')}
+                </FieldLabel>
+              </Field>
+            </RadioGroup>
+            <p className="text-sm">{t('eventAudienceLead')}</p>
+            <FieldDescription>
+              {audience === 'area' ? t('eventAudienceArea') : t('eventAudienceAreaAndTag')}
+            </FieldDescription>
+            <FieldDescription>{t('eventHint')}</FieldDescription>
+          </FieldSet>
+          <Field>
+            <FieldLabel htmlFor="event-push-title-sv">{t('titleSv')}</FieldLabel>
+            <Input
+              id="event-push-title-sv"
+              value={titleSv}
+              onChange={(event) => setTitleSv(event.target.value)}
+              required
             />
-          </RadioGroup>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            {t('eventAudienceLead')}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {audience === 'area' ? t('eventAudienceArea') : t('eventAudienceAreaAndTag')}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {t('eventHint')}
-          </Typography>
-        </FormControl>
-        <TextField
-          label={t('titleSv')}
-          value={titleSv}
-          onChange={(e) => setTitleSv(e.target.value)}
-          fullWidth
-          required
-        />
-        <TextField
-          label={t('bodySv')}
-          value={bodySv}
-          onChange={(e) => setBodySv(e.target.value)}
-          fullWidth
-          required
-          multiline
-          minRows={2}
-        />
-        <TextField
-          label={t('titleEn')}
-          value={titleEn}
-          onChange={(e) => setTitleEn(e.target.value)}
-          fullWidth
-          required
-        />
-        <TextField
-          label={t('bodyEn')}
-          value={bodyEn}
-          onChange={(e) => setBodyEn(e.target.value)}
-          fullWidth
-          required
-          multiline
-          minRows={2}
-        />
-        <PushScheduleOffsetSelect
-          id="event-push-offset"
-          value={offset}
-          disabled={!selected}
-          onChange={(next) => applyOffset(next)}
-        />
-        <TextField
-          label={t('sendAt')}
-          type="datetime-local"
-          value={sendAt}
-          onChange={(e) => {
-            setSendAt(e.target.value);
-            setOffset('custom');
-          }}
-          fullWidth
-          helperText={t('eventSendAtHint')}
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
-        <Stack direction="row" spacing={1}>
-          <Button variant="contained" onClick={() => create.mutate()} disabled={!canSubmit}>
-            {t('eventCreate')}
-          </Button>
-        </Stack>
-      </Paper>
-    </Box>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="event-push-body-sv">{t('bodySv')}</FieldLabel>
+            <Textarea
+              id="event-push-body-sv"
+              value={bodySv}
+              onChange={(event) => setBodySv(event.target.value)}
+              required
+              rows={2}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="event-push-title-en">{t('titleEn')}</FieldLabel>
+            <Input
+              id="event-push-title-en"
+              value={titleEn}
+              onChange={(event) => setTitleEn(event.target.value)}
+              required
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="event-push-body-en">{t('bodyEn')}</FieldLabel>
+            <Textarea
+              id="event-push-body-en"
+              value={bodyEn}
+              onChange={(event) => setBodyEn(event.target.value)}
+              required
+              rows={2}
+            />
+          </Field>
+          <PushScheduleOffsetSelect
+            id="event-push-offset"
+            value={offset}
+            disabled={!selected}
+            onChange={(next) => applyOffset(next)}
+          />
+          <Field>
+            <FieldLabel htmlFor="event-push-send-at">{t('sendAt')}</FieldLabel>
+            <Input
+              id="event-push-send-at"
+              type="datetime-local"
+              value={sendAt}
+              onChange={(event) => {
+                setSendAt(event.target.value);
+                setOffset('custom');
+              }}
+            />
+            <FieldDescription>{t('eventSendAtHint')}</FieldDescription>
+          </Field>
+          <div className="flex gap-2">
+            <Button onClick={() => create.mutate()} disabled={!canSubmit}>
+              {create.isPending ? <Spinner data-icon="inline-start" /> : null}
+              {t('eventCreate')}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

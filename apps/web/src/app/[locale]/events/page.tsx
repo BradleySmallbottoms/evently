@@ -1,6 +1,3 @@
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppLink } from '@/components/app-link';
 import { PageMain } from '@/components/page-main';
@@ -10,6 +7,8 @@ const FALLBACK_LAT = 61.3037;
 const FALLBACK_LNG = 17.0592;
 const FALLBACK_RADIUS_M = 50_000;
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:13000/v1';
+
+const backLinkClass = 'text-sm text-muted-foreground underline-offset-4 hover:underline';
 
 export default async function PublicEventsPage({
   params,
@@ -31,21 +30,17 @@ export default async function PublicEventsPage({
 
   return (
     <PageMain>
-      <Stack spacing={1}>
-        <Link component={AppLink} href="/" underline="hover" variant="body2" color="text.secondary">
+      <div className="flex flex-col gap-2">
+        <AppLink href="/" className={backLinkClass}>
           {nav('home')}
-        </Link>
-        <Typography variant="h4" component="h1">
-          {t('title')}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {t('subtitle')}
-        </Typography>
-      </Stack>
+        </AppLink>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
+      </div>
       {items.length === 0 ? (
-        <Typography color="text.secondary">{t('empty')}</Typography>
+        <p className="text-muted-foreground">{t('empty')}</p>
       ) : (
-        <Stack spacing={1.5} component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
+        <ul className="m-0 flex list-none flex-col gap-3 p-0">
           {items.map((event) => (
             <PublicEventCard
               key={event.id}
@@ -58,7 +53,7 @@ export default async function PublicEventsPage({
               readMoreLabel={t('readMore')}
             />
           ))}
-        </Stack>
+        </ul>
       )}
     </PageMain>
   );

@@ -1,27 +1,41 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TablePagination from '@mui/material/TablePagination';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CalendarIcon, MoreHorizontalIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { ContentVerdictChip, type ContentVerdict } from '@/components/content-verdict';
 import { EventTagCount, EventWarningMark, type EventWarning } from '@/components/event-warning';
+import { EmptyState, LoadingRows } from '@/components/list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -102,11 +116,8 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
     retry: false,
   });
 
-  useEffect(() => {
-    if (!list.data) return;
-    const lastPage = Math.max(0, Math.ceil(list.data.total / PAGE_SIZE) - 1);
-    if (page > lastPage) setPage(lastPage);
-  }, [list.data, page]);
+  const lastPage = list.data ? Math.max(0, Math.ceil(list.data.total / PAGE_SIZE) - 1) : null;
+  if (lastPage != null && page > lastPage) setPage(lastPage);
 
   const decide = useMutation({
     mutationFn: async (input: { id: string; action: 'approve' | 'reject' | 'rescan' }) =>
@@ -149,14 +160,19 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   if (list.isError) {
     const unauthorized = list.error instanceof AdminApiError && list.error.status === 401;
     return (
-      <Alert severity={unauthorized ? 'info' : 'error'}>
-        {unauthorized ? (
-          <>
-            {t('needLogin')} <Link href="/login">{tApp('navLogin')}</Link>
-          </>
-        ) : (
-          t('loadError')
-        )}
+      <Alert variant={unauthorized ? 'default' : 'destructive'}>
+        <AlertDescription>
+          {unauthorized ? (
+            <>
+              {t('needLogin')}{' '}
+              <Link href="/login" className="underline underline-offset-4">
+                {tApp('navLogin')}
+              </Link>
+            </>
+          ) : (
+            t('loadError')
+          )}
+        </AlertDescription>
       </Alert>
     );
   }
@@ -196,237 +212,296 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
     bulk.mutate({ action, ids });
   }
 
+  const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const to = Math.min(total, (page + 1) * PAGE_SIZE);
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const Title = embedded ? 'h2' : 'h1';
+
   return (
-    <Stack spacing={2}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1}
-        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
-      >
-        <Typography variant={embedded ? 'h5' : 'h4'} component={embedded ? 'h2' : 'h1'}>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <Title className={embedded ? 'text-xl font-semibold' : 'text-2xl font-semibold'}>
           {t('reviewTitle')}
-        </Typography>
+        </Title>
         {items.length > 0 ? (
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="flex flex-row flex-wrap items-center gap-2">
             {selectedIds.length > 0 ? (
-              <Typography variant="body2" color="text.secondary">
+              <p className="text-sm text-muted-foreground">
                 {t('selected', { count: selectedIds.length })}
-              </Typography>
+              </p>
             ) : null}
             <Button
-              size="small"
-              color="error"
-              variant="outlined"
+              type="button"
+              size="sm"
+              variant="destructive"
               disabled={importedIds.length === 0 || busy}
               onClick={() => setConfirmDelete(true)}
             >
               {t('delete')}
             </Button>
             <Button
-              size="small"
-              color="error"
-              variant="outlined"
+              type="button"
+              size="sm"
+              variant="destructive"
               disabled={importedIds.length === 0 || busy}
               onClick={() => setConfirmWipe(true)}
             >
               {t('wipe')}
             </Button>
             <Button
-              size="small"
+              type="button"
+              variant="ghost"
+              size="sm"
               disabled={importedIds.length === 0 || busy}
               onClick={() => runBulk('rescan')}
             >
               {t('rescan')}
             </Button>
             <Button
-              size="small"
+              type="button"
+              variant="ghost"
+              size="sm"
               disabled={selectedIds.length === 0 || busy}
               onClick={() => runBulk('reject')}
             >
               {t('reject')}
             </Button>
             <Button
-              size="small"
-              variant="contained"
+              type="button"
+              size="sm"
               disabled={selectedIds.length === 0 || busy}
               onClick={() => runBulk('approve')}
             >
               {t('approve')}
             </Button>
-          </Stack>
+          </div>
         ) : null}
-      </Stack>
-      {bulkError ? <Alert severity="error">{t('bulkError')}</Alert> : null}
-      <TextField
-        size="small"
-        label={t('search')}
-        value={searchInput}
-        onChange={(event) => setSearchInput(event.target.value)}
-        sx={{ maxWidth: { sm: 420 } }}
-      />
-      {waitingForPage ? <Typography color="text.secondary">{tApp('loading')}</Typography> : null}
+      </div>
+      {bulkError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{t('bulkError')}</AlertDescription>
+        </Alert>
+      ) : null}
+      <Field className="sm:max-w-[420px]">
+        <FieldLabel htmlFor="review-search">{t('search')}</FieldLabel>
+        <Input
+          id="review-search"
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+        />
+      </Field>
+      {waitingForPage ? <LoadingRows /> : null}
       {!waitingForPage && items.length === 0 ? (
-        <Typography color="text.secondary">{q ? t('reviewNoMatch') : t('reviewEmpty')}</Typography>
+        <EmptyState icon={CalendarIcon} title={q ? t('reviewNoMatch') : t('reviewEmpty')} />
       ) : null}
       {items.length > 0 ? (
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell padding="checkbox">
-                <Checkbox
-                  size="small"
-                  checked={allSelected}
-                  indeterminate={someSelected}
-                  onChange={toggleAll}
-                  slotProps={{ input: { 'aria-label': t('selectAll') } }}
-                />
-              </TableCell>
-              <TableCell>{t('title')}</TableCell>
-              <TableCell>{t('tags')}</TableCell>
-              <TableCell>{t('publisher')}</TableCell>
-              <TableCell>{t('starts')}</TableCell>
-              <TableCell>{t('venue')}</TableCell>
-              <TableCell>{tVerdict('label')}</TableCell>
-              <TableCell align="right">{t('actions')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {items.map((item) => {
-              const source = httpUrl(item.sourceUrl);
-              return (
-                <TableRow key={item.id} selected={selected.has(item.id)}>
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      size="small"
-                      checked={selected.has(item.id)}
-                      onChange={() => toggleOne(item.id)}
-                      slotProps={{ input: { 'aria-label': t('selectRow', { title: item.title }) } }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                      <EventWarningMark warnings={item.warnings} />
-                      <Link href={`/events/${item.id}`}>{item.title}</Link>
-                    </Stack>
-                  </TableCell>
-                  <TableCell>
-                    <EventTagCount count={item.tagCount} />
-                  </TableCell>
-                  <TableCell>
-                    <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>
-                  </TableCell>
-                  <TableCell>{item.startsAt ? new Date(item.startsAt).toLocaleString() : '—'}</TableCell>
-                  <TableCell>{item.venueName ?? '—'}</TableCell>
-                  <TableCell>
-                    <ContentVerdictChip verdict={item.contentVerdict} />
-                  </TableCell>
-                  <TableCell align="right">
-                    <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-                      {source ? (
-                        <Button
-                          component="a"
-                          href={source}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          size="small"
-                        >
-                          {t('view')}
-                        </Button>
-                      ) : null}
-                      <Button
-                        size="small"
-                        variant="contained"
-                        disabled={busy}
-                        onClick={() => decide.mutate({ id: item.id, action: 'approve' })}
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="rounded-t-lg border-b bg-muted">
+              <TableRow>
+                <TableHead>
+                  <Checkbox
+                    checked={allSelected}
+                    indeterminate={someSelected}
+                    onCheckedChange={() => toggleAll()}
+                    aria-label={t('selectAll')}
+                  />
+                </TableHead>
+                <TableHead>{t('title')}</TableHead>
+                <TableHead>{t('tags')}</TableHead>
+                <TableHead>{t('publisher')}</TableHead>
+                <TableHead>{t('starts')}</TableHead>
+                <TableHead>{t('venue')}</TableHead>
+                <TableHead>{tVerdict('label')}</TableHead>
+                <TableHead className="text-right">{t('actions')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => {
+                const source = httpUrl(item.sourceUrl);
+                return (
+                  <TableRow
+                    key={item.id}
+                    data-state={selected.has(item.id) ? 'selected' : undefined}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selected.has(item.id)}
+                        onCheckedChange={() => toggleOne(item.id)}
+                        aria-label={t('selectRow', { title: item.title })}
+                      />
+                    </TableCell>
+                    <TableCell className="whitespace-normal">
+                      <div className="flex flex-row items-center gap-1.5">
+                        <EventWarningMark warnings={item.warnings} />
+                        <Link href={`/events/${item.id}`} className="underline underline-offset-4">
+                          {item.title}
+                        </Link>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <EventTagCount count={item.tagCount} />
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/publishers/${item.publisherId}`}
+                        className="underline underline-offset-4"
                       >
-                        {t('approve')}
-                      </Button>
-                      {item.origin === 'imported' ? (
-                        <Button
-                          size="small"
-                          disabled={busy}
-                          onClick={() => decide.mutate({ id: item.id, action: 'rescan' })}
-                        >
-                          {t('rescan')}
-                        </Button>
-                      ) : null}
-                      <Button
-                        size="small"
-                        color="inherit"
-                        disabled={busy}
-                        onClick={() => decide.mutate({ id: item.id, action: 'reject' })}
-                      >
-                        {t('reject')}
-                      </Button>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                        {item.publisherName}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      {item.startsAt ? new Date(item.startsAt).toLocaleString() : '—'}
+                    </TableCell>
+                    <TableCell>{item.venueName ?? '—'}</TableCell>
+                    <TableCell>
+                      <ContentVerdictChip verdict={item.contentVerdict} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button variant="ghost" size="icon" className="size-8" disabled={busy}>
+                              <MoreHorizontalIcon />
+                              <span className="sr-only">{t('openMenu')}</span>
+                            </Button>
+                          }
+                        />
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuGroup>
+                            {source ? (
+                              <DropdownMenuItem
+                                render={
+                                  <a href={source} target="_blank" rel="noopener noreferrer" />
+                                }
+                              >
+                                {t('view')}
+                              </DropdownMenuItem>
+                            ) : null}
+                            <DropdownMenuItem
+                              disabled={busy}
+                              onClick={() => decide.mutate({ id: item.id, action: 'approve' })}
+                            >
+                              {t('approve')}
+                            </DropdownMenuItem>
+                            {item.origin === 'imported' ? (
+                              <DropdownMenuItem
+                                disabled={busy}
+                                onClick={() => decide.mutate({ id: item.id, action: 'rescan' })}
+                              >
+                                {t('rescan')}
+                              </DropdownMenuItem>
+                            ) : null}
+                          </DropdownMenuGroup>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              disabled={busy}
+                              onClick={() => decide.mutate({ id: item.id, action: 'reject' })}
+                            >
+                              {t('reject')}
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       ) : null}
       {total > 0 ? (
-        <TablePagination
-          component="div"
-          count={total}
-          page={page}
-          onPageChange={(_, next) => {
-            setSelected(new Set());
-            setPage(next);
-          }}
-          rowsPerPage={PAGE_SIZE}
-          rowsPerPageOptions={[]}
-          labelDisplayedRows={({ from, to, count }) => t('pageRange', { from, to, count })}
-          getItemAriaLabel={(type) =>
-            type === 'next'
-              ? t('pageNext')
-              : type === 'previous'
-                ? t('pagePrev')
-                : type === 'first'
-                  ? t('pageFirst')
-                  : t('pageLast')
-          }
-        />
+        <div className="flex items-center justify-end gap-2 px-2 py-2">
+          <p className="text-sm text-muted-foreground">
+            {t('pageRange', { from, to, count: total })}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={t('pagePrev')}
+            disabled={page === 0}
+            onClick={() => {
+              setSelected(new Set());
+              setPage(page - 1);
+            }}
+          >
+            {t('pagePrev')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={t('pageNext')}
+            disabled={page >= pageCount - 1}
+            onClick={() => {
+              setSelected(new Set());
+              setPage(page + 1);
+            }}
+          >
+            {t('pageNext')}
+          </Button>
+        </div>
       ) : null}
-      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
-        <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
+      <Dialog
+        open={confirmDelete}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDelete(false);
+        }}
+      >
         <DialogContent>
-          <DialogContentText>
-            {t('deleteConfirmBody', { count: importedIds.length })}
-          </DialogContentText>
+          <DialogHeader>
+            <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('deleteConfirmBody', { count: importedIds.length })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setConfirmDelete(false)}>
+              {t('cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={busy || importedIds.length === 0}
+              onClick={() => runBulk('delete')}
+            >
+              {t('delete')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDelete(false)}>{t('cancel')}</Button>
-          <Button
-            color="error"
-            variant="contained"
-            disabled={busy || importedIds.length === 0}
-            onClick={() => runBulk('delete')}
-          >
-            {t('delete')}
-          </Button>
-        </DialogActions>
       </Dialog>
-      <Dialog open={confirmWipe} onClose={() => setConfirmWipe(false)}>
-        <DialogTitle>{t('wipeConfirmTitle')}</DialogTitle>
+      <Dialog
+        open={confirmWipe}
+        onOpenChange={(open) => {
+          if (!open) setConfirmWipe(false);
+        }}
+      >
         <DialogContent>
-          <DialogContentText>
-            {t('wipeConfirmBody', { count: importedIds.length })}
-          </DialogContentText>
+          <DialogHeader>
+            <DialogTitle>{t('wipeConfirmTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('wipeConfirmBody', { count: importedIds.length })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setConfirmWipe(false)}>
+              {t('cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={busy || importedIds.length === 0}
+              onClick={() => runBulk('wipe')}
+            >
+              {t('wipe')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmWipe(false)}>{t('cancel')}</Button>
-          <Button
-            color="error"
-            variant="contained"
-            disabled={busy || importedIds.length === 0}
-            onClick={() => runBulk('wipe')}
-          >
-            {t('wipe')}
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Stack>
+    </div>
   );
 }

@@ -29,10 +29,10 @@ Copy `example-fixture/` as the starting point. Then:
 - `kind`: `api` | `feed` | `scraper`.
 - `fetchRaw(ctx)`: use `ctx.fetch` (adds User-Agent and timeout); read URLs/ids from `ctx.config`,
   never hard-code secrets.
-- `map(raw)`: return `IncomingEvent[]`. Times as ISO with offset (`Europe/Stockholm`), `sourceUrl`
-  always set, `location` as `{ lat, lng }` when known, `categoryHints` from the source's tags.
-  Put known ticket, registration, and info URLs on `links`. The pipeline also extracts http(s)
-  links from `description` for every source.
+- `map(raw)`: return `IncomingEvent[]`. Follow the import-adapter rules in `CLAUDE.md` for the
+  fetch, link types (`tickets`, `registration`, `info`, `facebook`, `instagram`), and what goes
+  on `meta`. Times go through `sourceDateTime`. `sourceUrl` is always set. A point is stored only
+  when the source gave coordinates. The adapter does not geocode.
 - Libraries: `ical.js` for ICS, a feed parser for RSS, `cheerio` for static HTML. Playwright only
   when nothing else works; it needs the separate browser image.
 

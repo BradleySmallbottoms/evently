@@ -1,6 +1,5 @@
-import Typography from '@mui/material/Typography';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default async function AdminHomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -8,28 +7,11 @@ export default async function AdminHomePage({ params }: { params: Promise<{ loca
   const t = await getTranslations('App');
 
   return (
-    <>
-      <Typography variant="h3" component="h1" gutterBottom>
-        {t('name')}
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 2 }}>
-        {t('tagline')}
-      </Typography>
-      <Typography>
-        <Link href="/review">{t('navEvents')}</Link>
-        {' · '}
-        <Link href="/events/manage">{t('navEventCatalog')}</Link>
-        {' · '}
-        <Link href="/publishers">{t('navPublishers')}</Link>
-        {' · '}
-        <Link href="/moderation">{t('navModeration')}</Link>
-        {' · '}
-        <Link href="/data-sources">{t('navDataSources')}</Link>
-        {' · '}
-        <Link href="/audit-log">{t('navAuditLog')}</Link>
-        {' · '}
-        <Link href="/login">{t('navLogin')}</Link>
-      </Typography>
-    </>
+    <Card className="max-w-lg">
+      <CardHeader>
+        <CardTitle>{t('name')}</CardTitle>
+        <CardDescription>{t('tagline')}</CardDescription>
+      </CardHeader>
+    </Card>
   );
 }

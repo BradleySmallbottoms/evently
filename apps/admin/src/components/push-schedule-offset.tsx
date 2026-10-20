@@ -1,11 +1,16 @@
 'use client';
 
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
 import { useTranslations } from 'next-intl';
 import type { PushScheduleOffset } from '@local-events/domain';
+import { Field, FieldLabel } from '@/components/ui/field';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export type ScheduleOffsetChoice = PushScheduleOffset | 'custom';
 
@@ -22,23 +27,28 @@ export function PushScheduleOffsetSelect({
 }) {
   const t = useTranslations('PushMessages');
   return (
-    <FormControl fullWidth disabled={disabled}>
-      <InputLabel id={`${id}-label`}>{t('scheduleOffset')}</InputLabel>
+    <Field className="w-full">
+      <FieldLabel htmlFor={id}>{t('scheduleOffset')}</FieldLabel>
       <Select
-        labelId={`${id}-label`}
-        id={id}
-        label={t('scheduleOffset')}
         value={value}
-        onChange={(event) => {
-          const next = event.target.value;
+        disabled={disabled}
+        onValueChange={(next) => {
+          if (next == null) return;
           onChange(next === 'week' || next === 'day' || next === 'hour' ? next : 'custom');
         }}
       >
-        <MenuItem value="week">{t('offsetWeek')}</MenuItem>
-        <MenuItem value="day">{t('offsetDay')}</MenuItem>
-        <MenuItem value="hour">{t('offsetHour')}</MenuItem>
-        <MenuItem value="custom">{t('offsetCustom')}</MenuItem>
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectItem value="week">{t('offsetWeek')}</SelectItem>
+            <SelectItem value="day">{t('offsetDay')}</SelectItem>
+            <SelectItem value="hour">{t('offsetHour')}</SelectItem>
+            <SelectItem value="custom">{t('offsetCustom')}</SelectItem>
+          </SelectGroup>
+        </SelectContent>
       </Select>
-    </FormControl>
+    </Field>
   );
 }

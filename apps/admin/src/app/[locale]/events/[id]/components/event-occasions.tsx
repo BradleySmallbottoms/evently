@@ -1,18 +1,22 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CalendarIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { EmptyState, LoadingRows } from '@/components/list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Link } from '@/i18n/navigation';
 import { adminFetch } from '@/lib/api';
 
@@ -100,122 +104,145 @@ export function EventOccasions({
   }
 
   return (
-    <Stack spacing={3}>
-      {done ? <Alert severity="success">{t('collapsed')}</Alert> : null}
+    <div className="flex flex-col gap-6">
+      {done ? (
+        <Alert>
+          <AlertDescription>{t('collapsed')}</AlertDescription>
+        </Alert>
+      ) : null}
       {stored.length > 0 ? (
-        <Stack spacing={1}>
-          <Typography variant="h6" component="h2">
-            {t('occasionsTitle')}
-          </Typography>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('startsAt')}</TableCell>
-                <TableCell>{t('endsAt')}</TableCell>
-                <TableCell>{t('venueName')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {visibleOccasions.map((occasion) => (
-                <TableRow key={`${occasion.startsAt}-${occasion.endsAt ?? ''}`}>
-                  <TableCell>{new Date(occasion.startsAt).toLocaleString()}</TableCell>
-                  <TableCell>
-                    {occasion.endsAt ? new Date(occasion.endsAt).toLocaleString() : '—'}
-                  </TableCell>
-                  <TableCell>{occasion.venueName ?? '—'}</TableCell>
+        <div className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold">{t('occasionsTitle')}</h2>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader className="rounded-t-lg border-b bg-muted">
+                <TableRow>
+                  <TableHead>{t('startsAt')}</TableHead>
+                  <TableHead>{t('endsAt')}</TableHead>
+                  <TableHead>{t('venueName')}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {visibleOccasions.map((occasion) => (
+                  <TableRow key={`${occasion.startsAt}-${occasion.endsAt ?? ''}`}>
+                    <TableCell>{new Date(occasion.startsAt).toLocaleString()}</TableCell>
+                    <TableCell>
+                      {occasion.endsAt ? new Date(occasion.endsAt).toLocaleString() : '—'}
+                    </TableCell>
+                    <TableCell>{occasion.venueName ?? '—'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
           {stored.length > OCCASION_PREVIEW && !showAllOccasions ? (
-            <Button size="small" onClick={() => setShowAllOccasions(true)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAllOccasions(true)}
+            >
               {t('showMoreOccasions')}
             </Button>
           ) : null}
-        </Stack>
+        </div>
       ) : null}
       {occasionGroupId ? (
-        <Stack spacing={1}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-row items-center gap-2">
             <Button
-              variant="contained"
-              size="small"
+              type="button"
+              size="sm"
               disabled={selected.size === 0 || collapse.isPending}
               onClick={() => collapse.mutate([...selected])}
             >
+              {collapse.isPending ? <Spinner data-icon="inline-start" /> : null}
               {t('collapse')}
             </Button>
-          </Stack>
-          {error ? <Alert severity="error">{t('collapseError')}</Alert> : null}
-          {group.isLoading ? (
-            <Typography color="text.secondary">{t('groupLoading')}</Typography>
+          </div>
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{t('collapseError')}</AlertDescription>
+            </Alert>
           ) : null}
-          {group.isError ? <Alert severity="error">{t('collapseError')}</Alert> : null}
+          {group.isLoading ? <LoadingRows /> : null}
+          {group.isError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{t('collapseError')}</AlertDescription>
+            </Alert>
+          ) : null}
           {!group.isLoading && items.length === 0 ? (
-            <Typography color="text.secondary">{t('groupEmpty')}</Typography>
+            <EmptyState icon={CalendarIcon} title={t('groupEmpty')} />
           ) : null}
           {items.length > 0 ? (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      size="small"
-                      checked={allSelected}
-                      indeterminate={someSelected}
-                      disabled={selectable.length === 0}
-                      onChange={toggleAll}
-                      slotProps={{ input: { 'aria-label': t('selectAll') } }}
-                    />
-                  </TableCell>
-                  <TableCell>{t('name')}</TableCell>
-                  <TableCell>{t('startsAt')}</TableCell>
-                  <TableCell>{t('endsAt')}</TableCell>
-                  <TableCell>{t('venueName')}</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {items.map((item) => {
-                  const current = item.id === eventId;
-                  return (
-                    <TableRow
-                      key={item.id}
-                      selected={selected.has(item.id)}
-                      sx={
-                        current
-                          ? { '& .MuiTableCell-root': { color: 'text.disabled' } }
-                          : undefined
-                      }
-                    >
-                      <TableCell padding="checkbox">
-                        <Checkbox
-                          size="small"
-                          checked={current ? false : selected.has(item.id)}
-                          disabled={current}
-                          onChange={() => toggle(item.id)}
-                          slotProps={{
-                            input: {
-                              'aria-label': current
+            <div className="overflow-hidden rounded-lg border">
+              <Table>
+                <TableHeader className="rounded-t-lg border-b bg-muted">
+                  <TableRow>
+                    <TableHead>
+                      <Checkbox
+                        checked={allSelected}
+                        indeterminate={someSelected}
+                        disabled={selectable.length === 0}
+                        onCheckedChange={() => toggleAll()}
+                        aria-label={t('selectAll')}
+                      />
+                    </TableHead>
+                    <TableHead>{t('name')}</TableHead>
+                    <TableHead>{t('startsAt')}</TableHead>
+                    <TableHead>{t('endsAt')}</TableHead>
+                    <TableHead>{t('venueName')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((item) => {
+                    const current = item.id === eventId;
+                    return (
+                      <TableRow
+                        key={item.id}
+                        data-state={selected.has(item.id) ? 'selected' : undefined}
+                        className={current ? 'text-muted-foreground' : undefined}
+                      >
+                        <TableCell>
+                          <Checkbox
+                            checked={current ? false : selected.has(item.id)}
+                            disabled={current}
+                            onCheckedChange={() => toggle(item.id)}
+                            aria-label={
+                              current
                                 ? t('currentOccasion')
-                                : t('selectOccasion', { title: item.title }),
-                            },
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {current ? item.title : <Link href={`/events/${item.id}`}>{item.title}</Link>}
-                      </TableCell>
-                      <TableCell>{item.startsAt ? new Date(item.startsAt).toLocaleString() : '—'}</TableCell>
-                      <TableCell>{item.endsAt ? new Date(item.endsAt).toLocaleString() : '—'}</TableCell>
-                      <TableCell>{item.venueName ?? '—'}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                                : t('selectOccasion', { title: item.title })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="whitespace-normal">
+                          {current ? (
+                            item.title
+                          ) : (
+                            <Link
+                              href={`/events/${item.id}`}
+                              className="underline underline-offset-4"
+                            >
+                              {item.title}
+                            </Link>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {item.startsAt ? new Date(item.startsAt).toLocaleString() : '—'}
+                        </TableCell>
+                        <TableCell>
+                          {item.endsAt ? new Date(item.endsAt).toLocaleString() : '—'}
+                        </TableCell>
+                        <TableCell>{item.venueName ?? '—'}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           ) : null}
-        </Stack>
+        </div>
       ) : null}
-    </Stack>
+    </div>
   );
 }

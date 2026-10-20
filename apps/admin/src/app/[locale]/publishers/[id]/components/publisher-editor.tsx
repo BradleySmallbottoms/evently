@@ -1,26 +1,35 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import FormControl from '@mui/material/FormControl';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import FormLabel from '@mui/material/FormLabel';
-import MenuItem from '@mui/material/MenuItem';
-import Radio from '@mui/material/Radio';
-import RadioGroup from '@mui/material/RadioGroup';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { MARKETING_PUSH_PLANS, type MarketingPushPlanId } from '@local-events/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { cn } from 'cn';
+import { LoadingRows } from '@/components/list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { Link, useRouter } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 import { PublisherEvents } from './publisher-events';
@@ -133,152 +142,200 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
   }
 
   if (publisher.isError) {
-    const unauthorized =
-      publisher.error instanceof AdminApiError && publisher.error.status === 401;
+    const unauthorized = publisher.error instanceof AdminApiError && publisher.error.status === 401;
     const missing = publisher.error instanceof AdminApiError && publisher.error.status === 404;
     return (
-      <Stack spacing={2}>
-        <Button component={Link} href="/publishers" sx={{ alignSelf: 'flex-start' }}>
+      <div className="flex flex-col gap-4">
+        <Link href="/publishers" className={cn(buttonVariants({ variant: 'ghost' }), 'self-start')}>
           {t('back')}
-        </Button>
-        <Alert severity={unauthorized || missing ? 'info' : 'error'}>
-          {unauthorized ? (
-            <>
-              {t('needLogin')} <Link href="/login">{tApp('navLogin')}</Link>
-            </>
-          ) : missing ? (
-            t('notFound')
-          ) : (
-            t('loadError')
-          )}
+        </Link>
+        <Alert variant={unauthorized || missing ? 'default' : 'destructive'}>
+          <AlertDescription>
+            {unauthorized ? (
+              <>
+                {t('needLogin')} <Link href="/login">{tApp('navLogin')}</Link>
+              </>
+            ) : missing ? (
+              t('notFound')
+            ) : (
+              t('loadError')
+            )}
+          </AlertDescription>
         </Alert>
-      </Stack>
+      </div>
     );
   }
 
   return (
-    <Stack spacing={3}>
-      <Button component={Link} href="/publishers" sx={{ alignSelf: 'flex-start' }}>
+    <div className="flex flex-col gap-6">
+      <Link href="/publishers" className={cn(buttonVariants({ variant: 'ghost' }), 'self-start')}>
         {t('back')}
-      </Button>
-      <Typography variant="h4" component="h1">
-        {t('title')}
-      </Typography>
-      {publisher.isLoading ? <Typography color="text.secondary">{tApp('loading')}</Typography> : null}
-      {notice ? <Alert severity="success">{notice}</Alert> : null}
-      {error ? <Alert severity="error">{error}</Alert> : null}
+      </Link>
+      <h1 className="text-2xl font-semibold">{t('title')}</h1>
+      {publisher.isLoading ? <LoadingRows /> : null}
+      {notice ? (
+        <Alert>
+          <AlertDescription>{notice}</AlertDescription>
+        </Alert>
+      ) : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
       {current ? (
-        <Stack spacing={3} component="form" onSubmit={onSubmit}>
-          <TextField
-            label={t('name')}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            required
-            fullWidth
-          />
-          <TextField
-            label={t('slug')}
-            value={slug}
-            onChange={(event) => setSlug(event.target.value)}
-            required
-            fullWidth
-          />
-          <TextField
-            select
-            label={t('type')}
-            value={type}
-            onChange={(event) => setType(event.target.value as 'org' | 'person')}
-            fullWidth
-          >
-            <MenuItem value="org">{t('typeOrg')}</MenuItem>
-            <MenuItem value="person">{t('typePerson')}</MenuItem>
-          </TextField>
-          <Typography color="text.secondary">
-            {current.status === 'pending_scan'
-              ? t('statusPendingScan')
-              : current.status === 'published'
-                ? t('statusPublished')
-                : t('statusInReview')}
-          </Typography>
-          <Typography variant="h6" component="h2">
-            {t('settings')}
-          </Typography>
-          <FormControl>
-            <FormLabel>{t('notificationSettings')}</FormLabel>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 1 }}>
-              {t('notificationLead')}
-            </Typography>
-            <RadioGroup
-              value={mode}
-              onChange={(event) => setMode(event.target.value as 'nothing' | 'plan')}
-            >
-              <FormControlLabel value="nothing" control={<Radio />} label={t('notificationNothing')} />
-              <FormControlLabel value="plan" control={<Radio />} label={t('notificationPlan')} />
-            </RadioGroup>
-          </FormControl>
-          {mode === 'plan' ? (
-            <TextField
-              select
-              label={t('plan')}
-              value={planId}
-              onChange={(event) => setPlanId(event.target.value as MarketingPushPlanId)}
-              fullWidth
-            >
-              {MARKETING_PUSH_PLANS.map((plan) => (
-                <MenuItem key={plan.id} value={plan.id}>
-                  {tPlans(PLAN_LABEL[plan.id])}
-                </MenuItem>
-              ))}
-            </TextField>
-          ) : null}
-          {mode === 'plan' ? (
-            <Typography variant="body2" color="text.secondary">
-              {current.status === 'published' ? t('notificationVerified') : t('notificationUnverified')}
-            </Typography>
-          ) : null}
-          {deleteError ? <Alert severity="error">{t('deleteError')}</Alert> : null}
-          <Stack direction="row" spacing={1}>
-            <Button type="submit" variant="contained" disabled={save.isPending}>
-              {save.isPending ? t('saving') : t('save')}
-            </Button>
-            {canDelete ? (
-              <Button
-                type="button"
-                color="error"
-                variant="outlined"
-                disabled={remove.isPending}
-                onClick={() => {
-                  setDeleteError(false);
-                  setConfirmDelete(true);
-                }}
-              >
-                {remove.isPending ? t('deleting') : t('delete')}
-              </Button>
-            ) : null}
-          </Stack>
-        </Stack>
+        <form onSubmit={onSubmit}>
+          <Card>
+            <CardContent className="flex flex-col gap-4">
+              <Field>
+                <FieldLabel htmlFor="publisher-name">{t('name')}</FieldLabel>
+                <Input
+                  id="publisher-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  required
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="publisher-slug">{t('slug')}</FieldLabel>
+                <Input
+                  id="publisher-slug"
+                  value={slug}
+                  onChange={(event) => setSlug(event.target.value)}
+                  required
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="publisher-type">{t('type')}</FieldLabel>
+                <Select
+                  value={type}
+                  onValueChange={(next) => {
+                    if (next != null) setType(next);
+                  }}
+                >
+                  <SelectTrigger id="publisher-type" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="org">{t('typeOrg')}</SelectItem>
+                      <SelectItem value="person">{t('typePerson')}</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <p className="text-sm text-muted-foreground">
+                {current.status === 'pending_scan'
+                  ? t('statusPendingScan')
+                  : current.status === 'published'
+                    ? t('statusPublished')
+                    : t('statusInReview')}
+              </p>
+              <h2 className="text-lg font-semibold">{t('settings')}</h2>
+              <FieldSet>
+                <FieldLegend variant="label">{t('notificationSettings')}</FieldLegend>
+                <FieldDescription>{t('notificationLead')}</FieldDescription>
+                <RadioGroup value={mode} onValueChange={(next) => setMode(next)}>
+                  <Field orientation="horizontal">
+                    <RadioGroupItem value="nothing" id="publisher-notify-nothing" />
+                    <FieldLabel htmlFor="publisher-notify-nothing">
+                      {t('notificationNothing')}
+                    </FieldLabel>
+                  </Field>
+                  <Field orientation="horizontal">
+                    <RadioGroupItem value="plan" id="publisher-notify-plan" />
+                    <FieldLabel htmlFor="publisher-notify-plan">{t('notificationPlan')}</FieldLabel>
+                  </Field>
+                </RadioGroup>
+              </FieldSet>
+              {mode === 'plan' ? (
+                <Field>
+                  <FieldLabel htmlFor="publisher-plan">{t('plan')}</FieldLabel>
+                  <Select
+                    value={planId}
+                    onValueChange={(next) => {
+                      if (next != null) setPlanId(next);
+                    }}
+                  >
+                    <SelectTrigger id="publisher-plan" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {MARKETING_PUSH_PLANS.map((plan) => (
+                          <SelectItem key={plan.id} value={plan.id}>
+                            {tPlans(PLAN_LABEL[plan.id])}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              ) : null}
+              {mode === 'plan' ? (
+                <p className="text-sm text-muted-foreground">
+                  {current.status === 'published'
+                    ? t('notificationVerified')
+                    : t('notificationUnverified')}
+                </p>
+              ) : null}
+              {deleteError ? (
+                <Alert variant="destructive">
+                  <AlertDescription>{t('deleteError')}</AlertDescription>
+                </Alert>
+              ) : null}
+              <div className="flex gap-2">
+                <Button type="submit" disabled={save.isPending}>
+                  {save.isPending ? <Spinner data-icon="inline-start" /> : null}
+                  {save.isPending ? t('saving') : t('save')}
+                </Button>
+                {canDelete ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={remove.isPending}
+                    onClick={() => {
+                      setDeleteError(false);
+                      setConfirmDelete(true);
+                    }}
+                  >
+                    {remove.isPending ? <Spinner data-icon="inline-start" /> : null}
+                    {remove.isPending ? t('deleting') : t('delete')}
+                  </Button>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        </form>
       ) : null}
       {current ? <PublisherEvents publisherId={publisherId} /> : null}
-      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
-        <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
+      <Dialog
+        open={confirmDelete}
+        onOpenChange={(next) => {
+          if (!next) setConfirmDelete(false);
+        }}
+      >
         <DialogContent>
-          <DialogContentText>{t('deleteConfirm')}</DialogContentText>
+          <DialogHeader>
+            <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
+            <DialogDescription>{t('deleteConfirm')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setConfirmDelete(false)}>
+              {t('cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={remove.isPending}
+              onClick={() => remove.mutate()}
+            >
+              {remove.isPending ? <Spinner data-icon="inline-start" /> : null}
+              {t('delete')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button type="button" onClick={() => setConfirmDelete(false)}>
-            {t('cancel')}
-          </Button>
-          <Button
-            type="button"
-            color="error"
-            variant="contained"
-            disabled={remove.isPending}
-            onClick={() => remove.mutate()}
-          >
-            {t('delete')}
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Stack>
+    </div>
   );
 }

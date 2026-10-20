@@ -1,11 +1,10 @@
 'use client';
 
-import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
+import { ImageIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { EmptyState } from '@/components/list-state';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type Props = {
   imageUrl: string | null;
@@ -18,16 +17,15 @@ export function EventImages({ imageUrl, imageUrls }: Props) {
   const images = [imageUrl, ...imageUrls].filter((url): url is string => url != null);
 
   return (
-    <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Typography variant="overline" color="text.secondary">
-        {t('images')}
-      </Typography>
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('images')}</CardTitle>
+      </CardHeader>
+      <CardContent>
       {images.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
-          {t('imagesEmpty')}
-        </Typography>
+        <EmptyState icon={ImageIcon} title={t('imagesEmpty')} />
       ) : (
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+        <div className="flex flex-wrap gap-4">
           {images.map((url, index) => (
             <EventImage
               key={url}
@@ -39,37 +37,34 @@ export function EventImages({ imageUrl, imageUrls }: Props) {
               }
             />
           ))}
-        </Box>
+        </div>
       )}
-    </Paper>
+      </CardContent>
+    </Card>
   );
 }
 
 function EventImage({ url, label }: { url: string; label: string }) {
   const [failed, setFailed] = useState(false);
   return (
-    <Box sx={{ width: 160, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+    <div className="flex w-40 flex-col gap-1">
       {failed ? null : (
-        <Box
-          component="img"
+        <img
           src={url}
           alt={label}
           onError={() => setFailed(true)}
-          sx={{
-            width: 160,
-            height: 120,
-            objectFit: 'cover',
-            borderRadius: 1,
-            bgcolor: 'action.hover',
-          }}
+          className="h-[120px] w-40 rounded-md bg-muted object-cover"
         />
       )}
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Link href={url} target="_blank" rel="noopener noreferrer" variant="caption" sx={{ wordBreak: 'break-all' }}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs break-all underline underline-offset-4"
+      >
         {url}
-      </Link>
-    </Box>
+      </a>
+    </div>
   );
 }

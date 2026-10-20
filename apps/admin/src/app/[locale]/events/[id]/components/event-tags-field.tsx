@@ -1,11 +1,18 @@
 'use client';
 
-import Autocomplete from '@mui/material/Autocomplete';
-import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
+import { XIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from '@/components/ui/combobox';
+import { Field, FieldLabel } from '@/components/ui/field';
 
 type TagOption = { id: string; name: string };
 
@@ -20,50 +27,62 @@ type Props = {
 export function EventTagsField({ tags, selectedIds, disabled, onChange }: Props) {
   const t = useTranslations('EventEditor');
   const [input, setInput] = useState('');
-  const selected = selectedIds.map(
-    (id) => tags.find((tag) => tag.id === id) ?? { id, name: id },
-  );
+  const selected = selectedIds.map((id) => tags.find((tag) => tag.id === id) ?? { id, name: id });
   const options = tags.filter((tag) => !selectedIds.includes(tag.id));
 
   return (
-    <Stack spacing={1}>
-      <Autocomplete
-        options={options}
+    <Field>
+      <FieldLabel htmlFor="event-tags">{t('categories')}</FieldLabel>
+      <Combobox<TagOption>
+        items={options}
         value={null}
         inputValue={input}
         disabled={disabled}
-        onInputChange={(_event, value, reason) => {
-          setInput(reason === 'reset' ? '' : value);
+        itemToStringLabel={(option) => option.name}
+        isItemEqualToValue={(option, item) => option.id === item.id}
+        onInputValueChange={(value, details) => {
+          setInput(details.reason === 'item-press' ? '' : value);
         }}
-        onChange={(_event, value) => {
-          if (!value || selectedIds.includes(value.id)) return;
+        onValueChange={(value) => {
+          if (value == null || selectedIds.includes(value.id)) return;
           onChange([...selectedIds, value.id]);
           setInput('');
         }}
-        getOptionLabel={(option) => option.name}
-        isOptionEqualToValue={(option, value) => option.id === value.id}
-        noOptionsText={t('categoriesEmpty')}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label={t('categories')}
-            placeholder={t('categoriesPlaceholder')}
-            fullWidth
-          />
-        )}
-      />
+      >
+        <ComboboxInput
+          id="event-tags"
+          className="w-full"
+          placeholder={t('categoriesPlaceholder')}
+          disabled={disabled}
+          showClear={false}
+        />
+        <ComboboxContent>
+          <ComboboxEmpty>{t('categoriesEmpty')}</ComboboxEmpty>
+          <ComboboxList>
+            {(tag: TagOption) => (
+              <ComboboxItem key={tag.id} value={tag}>
+                {tag.name}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
       {selected.length > 0 ? (
-        <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap gap-2">
           {selected.map((tag) => (
-            <Chip
-              key={tag.id}
-              size="small"
-              label={tag.name}
-              onDelete={() => onChange(selectedIds.filter((id) => id !== tag.id))}
-            />
+            <Badge key={tag.id} variant="secondary">
+              {tag.name}
+              <button
+                type="button"
+                aria-label={tag.name}
+                onClick={() => onChange(selectedIds.filter((id) => id !== tag.id))}
+              >
+                <XIcon />
+              </button>
+            </Badge>
           ))}
-        </Stack>
+        </div>
       ) : null}
-    </Stack>
+    </Field>
   );
 }

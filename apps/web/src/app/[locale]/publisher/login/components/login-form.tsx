@@ -1,16 +1,14 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { ApiError } from '@local-events/api-client';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { AppLink } from '@/components/app-link';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useRouter } from '@/i18n/navigation';
 import { api, throwIfError } from '@/lib/api';
 
@@ -49,22 +47,32 @@ export function LoginForm() {
   }
 
   return (
-    <Stack component="form" onSubmit={onSubmit} spacing={2}>
-      <TextField name="email" type="email" label={t('email')} required fullWidth />
-      <TextField name="password" type="password" label={t('password')} required fullWidth />
-      {error && <Alert severity="error">{error}</Alert>}
-      <Button type="submit" variant="contained" disabled={pending}>
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="publisher-email">{t('email')}</Label>
+        <Input id="publisher-email" name="email" type="email" required />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="publisher-password">{t('password')}</Label>
+        <Input id="publisher-password" name="password" type="password" required />
+      </div>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      <Button type="submit" variant="brand" disabled={pending}>
         {t('loginSubmit')}
       </Button>
-      <Typography variant="body2" color="text.secondary">
-        <Link component={AppLink} href="/publisher/register" underline="hover">
+      <p className="text-sm text-muted-foreground">
+        <AppLink href="/publisher/register" className="underline-offset-4 hover:underline">
           {t('registerTitle')}
-        </Link>
+        </AppLink>
         {' · '}
-        <Link component={AppLink} href="/publisher/verify" underline="hover">
+        <AppLink href="/publisher/verify" className="underline-offset-4 hover:underline">
           {t('verifyTitle')}
-        </Link>
-      </Typography>
-    </Stack>
+        </AppLink>
+      </p>
+    </form>
   );
 }

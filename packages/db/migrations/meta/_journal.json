@@ -379,6 +379,13 @@
       "when": 1794400000012,
       "tag": "0053_brainy_vapor",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1794400000013,
+      "tag": "0054_seed_bollnas_kommun",
+      "breakpoints": true
     }
   ]
 }

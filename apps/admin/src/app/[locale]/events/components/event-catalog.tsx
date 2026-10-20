@@ -1,28 +1,49 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import MenuItem from '@mui/material/MenuItem';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TablePagination from '@mui/material/TablePagination';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CalendarIcon, MoreHorizontalIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { ContentVerdictChip, type ContentVerdict } from '@/components/content-verdict';
 import { EventTagCount, EventWarningMark, type EventWarning } from '@/components/event-warning';
+import { EmptyState, LoadingRows } from '@/components/list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Field, FieldLabel } from '@/components/ui/field';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -52,6 +73,8 @@ const STATUSES = [
   'cancelled',
   'ended',
 ] as const;
+
+const ALL_STATUSES = 'all';
 
 type BulkAction = 'approve' | 'cancel' | 'delete' | 'wipe';
 
@@ -178,14 +201,19 @@ export function EventCatalog() {
   if (list.isError) {
     const unauthorized = list.error instanceof AdminApiError && list.error.status === 401;
     return (
-      <Alert severity={unauthorized ? 'info' : 'error'}>
-        {unauthorized ? (
-          <>
-            {t('needLogin')} <Link href="/login">{tApp('navLogin')}</Link>
-          </>
-        ) : (
-          t('loadError')
-        )}
+      <Alert variant={unauthorized ? 'default' : 'destructive'}>
+        <AlertDescription>
+          {unauthorized ? (
+            <>
+              {t('needLogin')}{' '}
+              <Link href="/login" className="underline underline-offset-4">
+                {tApp('navLogin')}
+              </Link>
+            </>
+          ) : (
+            t('loadError')
+          )}
+        </AlertDescription>
       </Alert>
     );
   }
@@ -248,245 +276,319 @@ export function EventCatalog() {
     });
   }
 
+  const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const to = Math.min(total, (page + 1) * PAGE_SIZE);
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const statusItems = {
+    [ALL_STATUSES]: t('allStatuses'),
+    ...Object.fromEntries(STATUSES.map((status) => [status, status])),
+  };
+
   return (
-    <Stack spacing={2}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1}
-        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
-      >
-        <Typography variant="h4" component="h1">
-          {t('title')}
-        </Typography>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold">{t('title')}</h1>
         {items.length > 0 ? (
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="flex flex-row flex-wrap items-center gap-2">
             {selectedIds.length > 0 ? (
-              <Typography variant="body2" color="text.secondary">
+              <p className="text-sm text-muted-foreground">
                 {t('selected', { count: selectedIds.length })}
-              </Typography>
+              </p>
             ) : null}
             <Button
-              size="small"
-              color="error"
-              variant="outlined"
+              type="button"
+              size="sm"
+              variant="destructive"
               disabled={!canRemove || busy}
               onClick={() => setConfirmDelete(true)}
             >
               {t('delete')}
             </Button>
             <Button
-              size="small"
-              color="error"
-              variant="outlined"
+              type="button"
+              size="sm"
+              variant="destructive"
               disabled={!canRemove || busy}
               onClick={() => setConfirmWipe(true)}
             >
               {t('wipe')}
             </Button>
-            <Button size="small" disabled={!canCancel || busy} onClick={() => runBulk('cancel')}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={!canCancel || busy}
+              onClick={() => runBulk('cancel')}
+            >
               {t('cancel')}
             </Button>
             <Button
-              size="small"
-              variant="contained"
+              type="button"
+              size="sm"
               disabled={!canPublish || busy}
               onClick={() => runBulk('approve')}
             >
               {t('publish')}
             </Button>
-          </Stack>
+          </div>
         ) : null}
-      </Stack>
-      {bulkError ? <Alert severity="error">{t('bulkError')}</Alert> : null}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-        <TextField
-          size="small"
-          label={t('search')}
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          sx={{ flex: 1, maxWidth: { sm: 420 } }}
-        />
-        <TextField
-          select
-          size="small"
-          label={t('statusFilter')}
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setPage(0);
-            setSelected(new Set());
-          }}
-          sx={{ minWidth: 180, maxWidth: 240 }}
-        >
-          <MenuItem value="">{t('allStatuses')}</MenuItem>
-          {STATUSES.map((s) => (
-            <MenuItem key={s} value={s}>
-              {s}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Stack>
-      {list.isLoading ? <Typography color="text.secondary">{tApp('loading')}</Typography> : null}
+      </div>
+      {bulkError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{t('bulkError')}</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Field className="flex-1 sm:max-w-[420px]">
+          <FieldLabel htmlFor="event-catalog-search">{t('search')}</FieldLabel>
+          <Input
+            id="event-catalog-search"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+        </Field>
+        <Field className="w-full min-w-[180px] max-w-60">
+          <FieldLabel htmlFor="event-catalog-status">{t('statusFilter')}</FieldLabel>
+          <Select
+            items={statusItems}
+            value={statusFilter === '' ? ALL_STATUSES : statusFilter}
+            onValueChange={(next) => {
+              if (next == null) return;
+              setStatusFilter(next === ALL_STATUSES ? '' : next);
+              setPage(0);
+              setSelected(new Set());
+            }}
+          >
+            <SelectTrigger id="event-catalog-status" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value={ALL_STATUSES}>{t('allStatuses')}</SelectItem>
+                {STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      {list.isLoading ? <LoadingRows /> : null}
       {!list.isLoading && items.length === 0 ? (
-        <Typography color="text.secondary">{t('empty')}</Typography>
+        <EmptyState icon={CalendarIcon} title={q || statusFilter ? t('emptyMatch') : t('empty')} />
       ) : null}
       {items.length > 0 ? (
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell padding="checkbox">
-                <Checkbox
-                  size="small"
-                  checked={allSelected}
-                  indeterminate={someSelected}
-                  onChange={toggleAll}
-                  slotProps={{ input: { 'aria-label': t('selectAll') } }}
-                />
-              </TableCell>
-              <TableCell>{t('titleCol')}</TableCell>
-              <TableCell>{t('tags')}</TableCell>
-              <TableCell>{t('publisher')}</TableCell>
-              <TableCell>{t('status')}</TableCell>
-              <TableCell>{tVerdict('label')}</TableCell>
-              <TableCell>{t('featured')}</TableCell>
-              <TableCell>{t('checkIn')}</TableCell>
-              <TableCell>{t('starts')}</TableCell>
-              <TableCell>{t('venue')}</TableCell>
-              <TableCell align="right">{t('actions')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {items.map((item) => (
-              <TableRow key={item.id} selected={selected.has(item.id)}>
-                <TableCell padding="checkbox">
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="rounded-t-lg border-b bg-muted">
+              <TableRow>
+                <TableHead>
                   <Checkbox
-                    size="small"
-                    checked={selected.has(item.id)}
-                    onChange={() => toggleOne(item.id)}
-                    slotProps={{ input: { 'aria-label': t('selectRow', { title: item.title }) } }}
+                    checked={allSelected}
+                    indeterminate={someSelected}
+                    onCheckedChange={() => toggleAll()}
+                    aria-label={t('selectAll')}
                   />
-                </TableCell>
-                <TableCell>
-                  <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                    <EventWarningMark warnings={item.warnings} />
-                    <Link href={`/events/${item.id}`}>{item.title}</Link>
-                  </Stack>
-                </TableCell>
-                <TableCell>
-                  <EventTagCount count={item.tagCount} />
-                </TableCell>
-                <TableCell>
-                  {item.publisherId ? (
-                    <Link href={`/publishers/${item.publisherId}`}>{item.publisherName}</Link>
-                  ) : (
-                    item.publisherName
-                  )}
-                </TableCell>
-                <TableCell>{item.status}</TableCell>
-                <TableCell>
-                  <ContentVerdictChip verdict={item.contentVerdict} />
-                </TableCell>
-                <TableCell>{item.featured ? t('featuredYes') : t('featuredNo')}</TableCell>
-                <TableCell>{item.checkInEnabled ? t('featuredYes') : t('featuredNo')}</TableCell>
-                <TableCell>{item.startsAt ? new Date(item.startsAt).toLocaleString() : '—'}</TableCell>
-                <TableCell>{item.venueName}</TableCell>
-                <TableCell align="right">
-                  <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-                    {item.status === 'in_review' ? (
-                      <Button size="small" disabled={busy} onClick={() => decide.mutate(item.id)}>
-                        {t('publish')}
-                      </Button>
-                    ) : null}
-                    {item.status === 'in_review' && item.origin === 'imported' ? (
-                      <Button
-                        size="small"
-                        color="error"
-                        disabled={busy}
-                        onClick={() => setRowDeleteId(item.id)}
-                      >
-                        {t('delete')}
-                      </Button>
-                    ) : null}
-                    {item.status === 'in_review' && item.origin === 'imported' ? (
-                      <Button
-                        size="small"
-                        color="error"
-                        disabled={busy}
-                        onClick={() => setRowWipeId(item.id)}
-                      >
-                        {t('wipe')}
-                      </Button>
-                    ) : null}
-                  </Stack>
-                </TableCell>
+                </TableHead>
+                <TableHead>{t('titleCol')}</TableHead>
+                <TableHead>{t('tags')}</TableHead>
+                <TableHead>{t('publisher')}</TableHead>
+                <TableHead>{t('status')}</TableHead>
+                <TableHead>{tVerdict('label')}</TableHead>
+                <TableHead>{t('featured')}</TableHead>
+                <TableHead>{t('checkIn')}</TableHead>
+                <TableHead>{t('starts')}</TableHead>
+                <TableHead>{t('venue')}</TableHead>
+                <TableHead className="text-right">{t('actions')}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={item.id} data-state={selected.has(item.id) ? 'selected' : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.has(item.id)}
+                      onCheckedChange={() => toggleOne(item.id)}
+                      aria-label={t('selectRow', { title: item.title })}
+                    />
+                  </TableCell>
+                  <TableCell className="whitespace-normal">
+                    <div className="flex flex-row items-center gap-1.5">
+                      <EventWarningMark warnings={item.warnings} />
+                      <Link href={`/events/${item.id}`} className="underline underline-offset-4">
+                        {item.title}
+                      </Link>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <EventTagCount count={item.tagCount} />
+                  </TableCell>
+                  <TableCell>
+                    {item.publisherId ? (
+                      <Link
+                        href={`/publishers/${item.publisherId}`}
+                        className="underline underline-offset-4"
+                      >
+                        {item.publisherName}
+                      </Link>
+                    ) : (
+                      item.publisherName
+                    )}
+                  </TableCell>
+                  <TableCell>{item.status}</TableCell>
+                  <TableCell>
+                    <ContentVerdictChip verdict={item.contentVerdict} />
+                  </TableCell>
+                  <TableCell>{item.featured ? t('featuredYes') : t('featuredNo')}</TableCell>
+                  <TableCell>{item.checkInEnabled ? t('featuredYes') : t('featuredNo')}</TableCell>
+                  <TableCell>
+                    {item.startsAt ? new Date(item.startsAt).toLocaleString() : '—'}
+                  </TableCell>
+                  <TableCell>{item.venueName}</TableCell>
+                  <TableCell className="text-right">
+                    {item.status === 'in_review' ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button variant="ghost" size="icon" className="size-8" disabled={busy}>
+                              <MoreHorizontalIcon />
+                              <span className="sr-only">{t('openMenu')}</span>
+                            </Button>
+                          }
+                        />
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              disabled={busy}
+                              onClick={() => decide.mutate(item.id)}
+                            >
+                              {t('publish')}
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                          {item.origin === 'imported' ? (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuGroup>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  disabled={busy}
+                                  onClick={() => setRowDeleteId(item.id)}
+                                >
+                                  {t('delete')}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  disabled={busy}
+                                  onClick={() => setRowWipeId(item.id)}
+                                >
+                                  {t('wipe')}
+                                </DropdownMenuItem>
+                              </DropdownMenuGroup>
+                            </>
+                          ) : null}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : null}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : null}
       {total > 0 ? (
-        <TablePagination
-          component="div"
-          count={total}
-          page={page}
-          onPageChange={(_, next) => {
-            setSelected(new Set());
-            setPage(next);
-          }}
-          rowsPerPage={PAGE_SIZE}
-          rowsPerPageOptions={[]}
-          labelDisplayedRows={({ from, to, count }) => t('pageRange', { from, to, count })}
-          getItemAriaLabel={(type) =>
-            type === 'next'
-              ? t('pageNext')
-              : type === 'previous'
-                ? t('pagePrev')
-                : type === 'first'
-                  ? t('pageFirst')
-                  : t('pageLast')
-          }
-        />
+        <div className="flex items-center justify-end gap-2 px-2 py-2">
+          <p className="text-sm text-muted-foreground">
+            {t('pageRange', { from, to, count: total })}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={t('pagePrev')}
+            disabled={page === 0}
+            onClick={() => {
+              setSelected(new Set());
+              setPage(page - 1);
+            }}
+          >
+            {t('pagePrev')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={t('pageNext')}
+            disabled={page >= pageCount - 1}
+            onClick={() => {
+              setSelected(new Set());
+              setPage(page + 1);
+            }}
+          >
+            {t('pageNext')}
+          </Button>
+        </div>
       ) : null}
-      <Dialog open={confirmDelete || rowDeleteId !== null} onClose={closeDelete}>
-        <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
+      <Dialog
+        open={confirmDelete || rowDeleteId !== null}
+        onOpenChange={(open) => {
+          if (!open) closeDelete();
+        }}
+      >
         <DialogContent>
-          <DialogContentText>{t('deleteConfirmBody', { count: deleteCount })}</DialogContentText>
+          <DialogHeader>
+            <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
+            <DialogDescription>{t('deleteConfirmBody', { count: deleteCount })}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={closeDelete}>
+              {t('cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={rowDeleteId ? busy : !canRemove || busy}
+              onClick={() => {
+                if (rowDeleteId) removeOne.mutate(rowDeleteId);
+                else runBulk('delete');
+              }}
+            >
+              {t('delete')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={closeDelete}>{t('cancel')}</Button>
-          <Button
-            color="error"
-            variant="contained"
-            disabled={rowDeleteId ? busy : !canRemove || busy}
-            onClick={() => {
-              if (rowDeleteId) removeOne.mutate(rowDeleteId);
-              else runBulk('delete');
-            }}
-          >
-            {t('delete')}
-          </Button>
-        </DialogActions>
       </Dialog>
-      <Dialog open={confirmWipe || rowWipeId !== null} onClose={closeWipe}>
-        <DialogTitle>{t('wipeConfirmTitle')}</DialogTitle>
+      <Dialog
+        open={confirmWipe || rowWipeId !== null}
+        onOpenChange={(open) => {
+          if (!open) closeWipe();
+        }}
+      >
         <DialogContent>
-          <DialogContentText>{t('wipeConfirmBody', { count: wipeCount })}</DialogContentText>
+          <DialogHeader>
+            <DialogTitle>{t('wipeConfirmTitle')}</DialogTitle>
+            <DialogDescription>{t('wipeConfirmBody', { count: wipeCount })}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={closeWipe}>
+              {t('cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={rowWipeId ? busy : !canRemove || busy}
+              onClick={() => {
+                if (rowWipeId) wipeOne.mutate(rowWipeId);
+                else runBulk('wipe');
+              }}
+            >
+              {t('wipe')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={closeWipe}>{t('cancel')}</Button>
-          <Button
-            color="error"
-            variant="contained"
-            disabled={rowWipeId ? busy : !canRemove || busy}
-            onClick={() => {
-              if (rowWipeId) wipeOne.mutate(rowWipeId);
-              else runBulk('wipe');
-            }}
-          >
-            {t('wipe')}
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Stack>
+    </div>
   );
 }

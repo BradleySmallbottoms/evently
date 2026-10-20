@@ -1,15 +1,12 @@
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AppLink } from '@/components/app-link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:13000/v1';
 
-function safeHttpUrl(value: string | null): string | null {
+const backLinkClass = 'text-sm text-muted-foreground underline-offset-4 hover:underline';
+
+function safeHttpUrl(value: string | null | undefined): string | null {
   if (!value) return null;
   try {
     const url = new URL(value);
@@ -31,6 +28,7 @@ type PublicEvent = {
   location: { lat: number; lng: number } | null;
   onlineUrl: string | null;
   status: string;
+  imageUrl?: string | null;
 };
 
 export async function PublicEventDetail({
@@ -47,6 +45,7 @@ export async function PublicEventDetail({
   if (!res.ok) notFound();
   const event = (await res.json()) as PublicEvent;
   const onlineUrl = safeHttpUrl(event.onlineUrl);
+  const imageUrl = safeHttpUrl(event.imageUrl);
   const statsParams = new URLSearchParams();
   for (const key of ['numCheckins', 'numRatings', 'totalRatingValue']) {
     statsParams.append('key', key);
@@ -64,76 +63,69 @@ export async function PublicEventDetail({
   const ratingAverage =
     numRatings > 0 ? Math.round((totalRatingValue / numRatings) * 10) / 10 : null;
   const stats =
-    numCheckins > 0 || numRatings > 0
-      ? { numCheckins, numRatings, ratingAverage }
-      : null;
+    numCheckins > 0 || numRatings > 0 ? { numCheckins, numRatings, ratingAverage } : null;
 
   return (
     <>
-      <Stack spacing={1}>
-        <Link
-          component={AppLink}
-          href="/events"
-          underline="hover"
-          variant="body2"
-          color="text.secondary"
-        >
+      <div className="flex flex-col gap-2">
+        <AppLink href="/events" className={backLinkClass}>
           {t('title')}
-        </Link>
-        <Typography variant="h3" component="h1">
-          {event.title}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
+        </AppLink>
+        {imageUrl ? (
+          <img src={imageUrl} alt="" className="aspect-[16/10] w-full rounded-2xl object-cover" />
+        ) : null}
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">{event.title}</h1>
+        <p className="text-sm text-muted-foreground">
           {new Date(event.startsAt).toLocaleString(locale)} -{' '}
           {new Date(event.endsAt).toLocaleString(locale)}
-        </Typography>
-      </Stack>
-      <Card variant="outlined" component="section">
-        <CardContent>
-          <Stack spacing={1.5}>
-            <Typography variant="body2" color="text.secondary">
-              {t('statusLabel')}: {t(`status.${event.status}`)}
-            </Typography>
-            {stats ? (
-              <Typography variant="body2" color="text.secondary">
-                {t('statsLine', {
-                  checkIns: stats.numCheckins,
-                  average: stats.ratingAverage ?? '–',
-                  ratings: stats.numRatings,
-                })}
-              </Typography>
-            ) : null}
-            <Typography>{event.description ?? t('noDescription')}</Typography>
-            {event.mode === 'physical' ? (
-              <Stack spacing={0.5}>
-                <Typography variant="body2">
-                  {t('venue')}: {event.venueName ?? t('missingVenue')}
-                </Typography>
-                {event.location && (
-                  <Typography variant="body2">
-                    {t('coordinates')}: {event.location.lat.toFixed(5)},{' '}
-                    {event.location.lng.toFixed(5)}
-                  </Typography>
-                )}
-              </Stack>
-            ) : (
-              <Typography variant="body2">
-                {t('online')}:{' '}
-                {onlineUrl ? (
-                  <Link href={onlineUrl} target="_blank" rel="noreferrer" underline="hover">
-                    {onlineUrl}
-                  </Link>
-                ) : (
-                  t('missingUrl')
-                )}
-              </Typography>
+        </p>
+      </div>
+      <section className="flex flex-col gap-3 rounded-2xl bg-card p-5 text-card-foreground ring-1 ring-border">
+        <p className="text-sm text-muted-foreground">
+          {t('statusLabel')}: {t(`status.${event.status}`)}
+        </p>
+        {stats ? (
+          <p className="text-sm text-muted-foreground">
+            {t('statsLine', {
+              checkIns: stats.numCheckins,
+              average: stats.ratingAverage ?? '–',
+              ratings: stats.numRatings,
+            })}
+          </p>
+        ) : null}
+        <p className="text-base text-foreground">{event.description ?? t('noDescription')}</p>
+        {event.mode === 'physical' ? (
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-foreground">
+              {t('venue')}: {event.venueName ?? t('missingVenue')}
+            </p>
+            {event.location && (
+              <p className="text-sm text-foreground">
+                {t('coordinates')}: {event.location.lat.toFixed(5)}, {event.location.lng.toFixed(5)}
+              </p>
             )}
-          </Stack>
-        </CardContent>
-      </Card>
-      <Link component={AppLink} href="/" underline="hover" variant="body2" color="text.secondary">
+          </div>
+        ) : (
+          <p className="text-sm text-foreground">
+            {t('online')}:{' '}
+            {onlineUrl ? (
+              <a
+                href={onlineUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-info underline-offset-4 hover:underline"
+              >
+                {onlineUrl}
+              </a>
+            ) : (
+              t('missingUrl')
+            )}
+          </p>
+        )}
+      </section>
+      <AppLink href="/" className={backLinkClass}>
         {nav('home')}
-      </Link>
+      </AppLink>
     </>
   );
 }

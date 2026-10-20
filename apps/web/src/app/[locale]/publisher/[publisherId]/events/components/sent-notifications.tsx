@@ -1,15 +1,16 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { API_URL } from '@/lib/api';
 
 type SentNotification = {
@@ -55,54 +56,52 @@ export function SentNotifications({ eventId }: { eventId: string }) {
   });
 
   return (
-    <Stack spacing={1}>
-      <Typography variant="h6" component="h2">
-        {t('sentNotifications')}
-      </Typography>
-      {list.isError ? <Alert severity="error">{t('sentNotificationsError')}</Alert> : null}
+    <div className="flex flex-col gap-2">
+      <h2 className="text-xl font-semibold text-foreground">{t('sentNotifications')}</h2>
+      {list.isError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{t('sentNotificationsError')}</AlertDescription>
+        </Alert>
+      ) : null}
       {list.isLoading ? (
-        <Typography variant="body2" color="text.secondary">
-          {t('sentNotificationsLoading')}
-        </Typography>
+        <p className="text-sm text-muted-foreground">{t('sentNotificationsLoading')}</p>
       ) : null}
       {list.data?.items.length === 0 ? (
-        <Alert severity="info">{t('sentNotificationsEmpty')}</Alert>
+        <Alert>
+          <AlertDescription>{t('sentNotificationsEmpty')}</AlertDescription>
+        </Alert>
       ) : null}
       {(list.data?.items.length ?? 0) > 0 ? (
-        <Table size="small">
-          <TableHead>
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell>{t('colSent')}</TableCell>
-              <TableCell>{t('colMessage')}</TableCell>
-              <TableCell>{t('colAudience')}</TableCell>
-              <TableCell align="right">{t('colRecipients')}</TableCell>
+              <TableHead>{t('colSent')}</TableHead>
+              <TableHead>{t('colMessage')}</TableHead>
+              <TableHead>{t('colAudience')}</TableHead>
+              <TableHead className="text-right">{t('colRecipients')}</TableHead>
             </TableRow>
-          </TableHead>
+          </TableHeader>
           <TableBody>
             {list.data?.items.map((row) => {
               const title = locale === 'en' ? row.titleEn : row.titleSv;
               const body = locale === 'en' ? row.bodyEn : row.bodySv;
               return (
-                <TableRow key={row.id} hover>
+                <TableRow key={row.id}>
                   <TableCell>
-                    {row.sentAt
-                      ? new Date(row.sentAt).toLocaleString(locale)
-                      : t('statusSending')}
+                    {row.sentAt ? new Date(row.sentAt).toLocaleString(locale) : t('statusSending')}
                   </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{title}</Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {body}
-                    </Typography>
+                  <TableCell className="whitespace-normal">
+                    <p className="text-sm text-foreground">{title}</p>
+                    <p className="text-xs text-muted-foreground">{body}</p>
                   </TableCell>
                   <TableCell>{audienceLabel(row, t)}</TableCell>
-                  <TableCell align="right">{row.recipientCount}</TableCell>
+                  <TableCell className="text-right">{row.recipientCount}</TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
       ) : null}
-    </Stack>
+    </div>
   );
 }

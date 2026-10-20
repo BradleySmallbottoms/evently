@@ -1,4 +1,3 @@
-import Typography from '@mui/material/Typography';
 import { Suspense } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { EventPushComposer } from './components/event-push-composer';
@@ -11,7 +10,7 @@ export default function EventPushPage({
   searchParams: Promise<{ eventId?: string }>;
 }) {
   return (
-    <Suspense fallback={<Typography color="text.secondary">…</Typography>}>
+    <Suspense fallback={<p className="text-sm text-muted-foreground">…</p>}>
       <EventPushDetails params={params} searchParams={searchParams} />
     </Suspense>
   );

@@ -1,19 +1,20 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import Link from '@mui/material/Link';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { AppLink } from '@/components/app-link';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useRouter } from '@/i18n/navigation';
 import { api, throwIfError } from '@/lib/api';
 
@@ -35,8 +36,7 @@ export function RegisterForm() {
           password: String(formData.get('password') ?? ''),
           name: String(formData.get('name') ?? ''),
           type: (String(formData.get('type') ?? 'org') === 'person' ? 'person' : 'org') as
-            | 'org'
-            | 'person',
+            'org' | 'person',
         },
       });
       const data = throwIfError(result);
@@ -52,45 +52,44 @@ export function RegisterForm() {
   }
 
   return (
-    <Stack component="form" onSubmit={onSubmit} spacing={2}>
-      <TextField name="email" type="email" label={t('email')} required fullWidth />
-      <TextField
-        name="password"
-        type="password"
-        label={t('password')}
-        required
-        fullWidth
-        slotProps={{ htmlInput: { minLength: 10 } }}
-      />
-      <TextField
-        name="name"
-        type="text"
-        label={t('name')}
-        required
-        fullWidth
-        slotProps={{ htmlInput: { minLength: 2 } }}
-      />
-      <FormControl fullWidth>
-        <InputLabel id="publisher-type-label">{t('type')}</InputLabel>
-        <Select
-          labelId="publisher-type-label"
-          name="type"
-          label={t('type')}
-          defaultValue="org"
-        >
-          <MenuItem value="org">{t('typeOrg')}</MenuItem>
-          <MenuItem value="person">{t('typePerson')}</MenuItem>
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="register-email">{t('email')}</Label>
+        <Input id="register-email" name="email" type="email" required />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="register-password">{t('password')}</Label>
+        <Input id="register-password" name="password" type="password" required minLength={10} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="register-name">{t('name')}</Label>
+        <Input id="register-name" name="name" type="text" required minLength={2} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="publisher-type">{t('type')}</Label>
+        <Select name="type" defaultValue="org">
+          <SelectTrigger id="publisher-type" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="org">{t('typeOrg')}</SelectItem>
+            <SelectItem value="person">{t('typePerson')}</SelectItem>
+          </SelectContent>
         </Select>
-      </FormControl>
-      {error && <Alert severity="error">{error}</Alert>}
-      <Button type="submit" variant="contained" disabled={pending}>
+      </div>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      <Button type="submit" variant="brand" disabled={pending}>
         {t('registerSubmit')}
       </Button>
-      <Typography variant="body2" color="text.secondary">
-        <Link component={AppLink} href="/publisher/login" underline="hover">
+      <p className="text-sm text-muted-foreground">
+        <AppLink href="/publisher/login" className="underline-offset-4 hover:underline">
           {t('loginTitle')}
-        </Link>
-      </Typography>
-    </Stack>
+        </AppLink>
+      </p>
+    </form>
   );
 }

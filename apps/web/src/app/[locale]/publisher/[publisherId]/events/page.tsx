@@ -1,7 +1,5 @@
 'use client';
 
-import Link from '@mui/material/Link';
-import Typography from '@mui/material/Typography';
 import { useTranslations } from 'next-intl';
 import { Suspense } from 'react';
 import { AppLink } from '@/components/app-link';
@@ -9,27 +7,17 @@ import { PageMain } from '@/components/page-main';
 import { QueryProvider } from '@/lib/query-provider';
 import { PublisherEventsList } from './components/publisher-events-list';
 
+const backLinkClass = 'text-sm text-muted-foreground underline-offset-4 hover:underline';
+
 export default function PublisherEventsPage() {
   const t = useTranslations('Nav');
   return (
     <PageMain>
-      <Link
-        component={AppLink}
-        href="/publisher"
-        underline="hover"
-        variant="body2"
-        color="text.secondary"
-      >
+      <AppLink href="/publisher" className={backLinkClass}>
         {t('workspace')}
-      </Link>
+      </AppLink>
       <QueryProvider>
-        <Suspense
-          fallback={
-            <Typography variant="body2" color="text.secondary">
-              …
-            </Typography>
-          }
-        >
+        <Suspense fallback={<p className="text-sm text-muted-foreground">…</p>}>
           <PublisherEventsList />
         </Suspense>
       </QueryProvider>

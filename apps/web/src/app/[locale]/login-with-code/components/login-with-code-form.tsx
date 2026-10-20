@@ -1,13 +1,13 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
 import { ApiError } from '@local-events/api-client';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { api, throwIfError } from '@/lib/api';
 
 type Props = {
@@ -61,34 +61,36 @@ export function LoginWithCodeForm({ initialCode }: Props) {
   }
 
   return (
-    <Stack component="form" onSubmit={onSubmit} spacing={2}>
-      <TextField
-        name="code"
-        label={t('codeLabel')}
-        required
-        fullWidth
-        defaultValue={initialCode ?? ''}
-        disabled={pending}
-        slotProps={{
-          htmlInput: {
-            minLength: 8,
-            maxLength: 16,
-            autoCapitalize: 'characters',
-            autoCorrect: 'off',
-            spellCheck: false,
-            style: {
-              fontFamily: 'ui-monospace, monospace',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-            },
-          },
-        }}
-      />
-      {error && <Alert severity="error">{error}</Alert>}
-      {userId && <Alert severity="success">{t('loginSuccess', { userId })}</Alert>}
-      <Button type="submit" variant="contained" disabled={pending}>
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="pairing-code">{t('codeLabel')}</Label>
+        <Input
+          id="pairing-code"
+          name="code"
+          required
+          defaultValue={initialCode ?? ''}
+          disabled={pending}
+          minLength={8}
+          maxLength={16}
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
+          className="font-mono tracking-[0.08em] uppercase"
+        />
+      </div>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {userId && (
+        <Alert>
+          <AlertDescription>{t('loginSuccess', { userId })}</AlertDescription>
+        </Alert>
+      )}
+      <Button type="submit" variant="brand" disabled={pending}>
         {t('submit')}
       </Button>
-    </Stack>
+    </form>
   );
 }

@@ -13,7 +13,7 @@ export const PUBLISHER_LOOKUP_ROUNDS = 5;
 const RESULT_LIMIT = 5;
 const QUERY_LIMIT = 200;
 const FETCH_TIMEOUT_MS = 8_000;
-const BODY_LIMIT = 500_000;
+const BODY_LIMIT = 1_500_000;
 const TEXT_LIMIT = 4_000;
 const TITLE_LIMIT = 200;
 const FIELD_LIMIT = 200;
@@ -505,10 +505,10 @@ function blockedIpv6(address: string): boolean {
 
 async function readLimited(response: Response, limit: number): Promise<string | { error: string }> {
   const declared = Number(response.headers.get('content-length'));
-  if (Number.isFinite(declared) && declared > limit) return { error: 'Page is too large.' };
+  if (Number.isFinite(declared) && declared > limit) return { error: 'Page is too large (' + declared + ' > ' + limit + ')' };
   if (!response.body) {
     const text = await response.text();
-    return text.length > limit ? { error: 'Page is too large.' } : text;
+    return text.length > limit ? { error: 'Page is too large (' + text.length + ' > ' + limit + ')' } : text;
   }
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -520,7 +520,7 @@ async function readLimited(response: Response, limit: number): Promise<string | 
     size += value.byteLength;
     if (size > limit) {
       await reader.cancel();
-      return { error: 'Page is too large.' };
+      return { error: 'Page is too large (' + size + ' > ' + limit + ')' };
     }
     chunks.push(value);
   }

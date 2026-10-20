@@ -1,30 +1,18 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import type { SxProps, Theme } from '@mui/material/styles';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+import { LoadingRows } from '@/components/list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
 import { Link } from '@/i18n/navigation';
 import { adminFetch } from '@/lib/api';
-
-const styles: Record<string, SxProps<Theme>> = {
-  root: {
-    display: 'grid',
-    gap: 3,
-    gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' },
-    alignItems: 'start',
-  },
-  panel: { p: 2, display: 'flex', flexDirection: 'column', gap: 2 },
-  stats: { p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 },
-  statRow: { display: 'flex', justifyContent: 'space-between', gap: 2 },
-};
 
 type PushMessage = {
   id: string;
@@ -129,8 +117,7 @@ export function PushMessageEditor({ pushMessageId }: { pushMessageId: string }) 
   });
 
   const reject = useMutation({
-    mutationFn: () =>
-      adminFetch<PushMessage>(`/push-messages/${id}/reject`, { method: 'POST' }),
+    mutationFn: () => adminFetch<PushMessage>(`/push-messages/${id}/reject`, { method: 'POST' }),
     onSuccess: async () => {
       setNotice(t('rejected'));
       setError(null);
@@ -141,10 +128,14 @@ export function PushMessageEditor({ pushMessageId }: { pushMessageId: string }) 
   });
 
   if (message.isLoading) {
-    return <Typography color="text.secondary">{t('loading')}</Typography>;
+    return <LoadingRows />;
   }
   if (message.isError || !message.data) {
-    return <Alert severity="error">{t('loadError')}</Alert>;
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{t('loadError')}</AlertDescription>
+      </Alert>
+    );
   }
 
   const editable =
@@ -152,158 +143,187 @@ export function PushMessageEditor({ pushMessageId }: { pushMessageId: string }) 
     message.data.status === 'approved' ||
     message.data.status === 'rejected';
 
-  return (
-    <Box sx={styles.root}>
-      <Paper sx={styles.panel} variant="outlined">
-        <Button component={Link} href="/push-messages" size="small" sx={{ alignSelf: 'flex-start' }}>
-          {t('back')}
-        </Button>
-        <Typography variant="h5">{t('editorTitle')}</Typography>
-        <Typography variant="body2" color="text.secondary">
-          {message.data.kind === 'broadcast'
-            ? `${t('kindBroadcast')} · ${
-                message.data.audience === 'tag_interest'
-                  ? t('audienceTagLabel', { tag: message.data.audienceTagName ?? '—' })
-                  : t('audienceEveryone')
-              } · ${message.data.status}`
-            : `${message.data.eventTitle ?? '—'} · ${message.data.publisherName ?? '—'} · ${
-                message.data.audience === 'area'
-                  ? t('audienceArea')
-                  : message.data.audience === 'area_and_tag'
-                    ? t('audienceAreaAndTag')
-                    : t('audienceEventMatch')
-              } · ${message.data.status}`}
-        </Typography>
-        {notice ? <Alert severity="success">{notice}</Alert> : null}
-        {error ? <Alert severity="error">{error}</Alert> : null}
-        <TextField
-          label={t('titleSv')}
-          value={titleSv}
-          onChange={(e) => setTitleSv(e.target.value)}
-          disabled={!editable}
-          fullWidth
-        />
-        <TextField
-          label={t('bodySv')}
-          value={bodySv}
-          onChange={(e) => setBodySv(e.target.value)}
-          disabled={!editable}
-          fullWidth
-          multiline
-          minRows={2}
-        />
-        <TextField
-          label={t('titleEn')}
-          value={titleEn}
-          onChange={(e) => setTitleEn(e.target.value)}
-          disabled={!editable}
-          fullWidth
-        />
-        <TextField
-          label={t('bodyEn')}
-          value={bodyEn}
-          onChange={(e) => setBodyEn(e.target.value)}
-          disabled={!editable}
-          fullWidth
-          multiline
-          minRows={2}
-        />
-        <TextField
-          label={t('sendAt')}
-          type="datetime-local"
-          value={sendAt}
-          onChange={(e) => setSendAt(e.target.value)}
-          disabled={!editable}
-          fullWidth
-          helperText={
-            message.data.kind === 'broadcast' ? t('broadcastSendAtHint') : t('sendAtHint')
-          }
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
-        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-          <Button
-            variant="contained"
-            onClick={() => save.mutate()}
-            disabled={!editable || save.isPending}
-          >
-            {t('save')}
-          </Button>
-          {message.data.kind !== 'broadcast' ? (
-            <Button
-              variant="contained"
-              color="success"
-              onClick={() => approve.mutate()}
-              disabled={!editable || approve.isPending}
-            >
-              {t('approve')}
-            </Button>
-          ) : null}
-          <Button
-            variant="outlined"
-            color="warning"
-            onClick={() => reject.mutate()}
-            disabled={!editable || reject.isPending}
-          >
-            {message.data.kind === 'broadcast' ? t('cancelBroadcast') : t('reject')}
-          </Button>
-          {message.data.eventId ? (
-            <Button component={Link} href={`/events/${message.data.eventId}`} size="small">
-              {t('openEvent')}
-            </Button>
-          ) : null}
-        </Stack>
-      </Paper>
+  const summary =
+    message.data.kind === 'broadcast'
+      ? `${t('kindBroadcast')} · ${
+          message.data.audience === 'tag_interest'
+            ? t('audienceTagLabel', { tag: message.data.audienceTagName ?? '—' })
+            : t('audienceEveryone')
+        } · ${message.data.status}`
+      : `${message.data.eventTitle ?? '—'} · ${message.data.publisherName ?? '—'} · ${
+          message.data.audience === 'area'
+            ? t('audienceArea')
+            : message.data.audience === 'area_and_tag'
+              ? t('audienceAreaAndTag')
+              : t('audienceEventMatch')
+        } · ${message.data.status}`;
 
-      <Paper sx={styles.stats} variant="outlined">
-        <Typography variant="h6">{t('audienceTitle')}</Typography>
-        <Typography variant="body2" color="text.secondary">
-          {t('audienceHint')}
-        </Typography>
-        {message.data.kind !== 'broadcast' && !audience.data?.eventPublished ? (
-          <Alert severity="info">{t('notPublished')}</Alert>
-        ) : null}
-        {audience.isLoading ? (
-          <Typography color="text.secondary">{t('loading')}</Typography>
-        ) : audience.data ? (
-          <>
-            {message.data.kind === 'broadcast' ? null : (
-              <>
-                <Box sx={styles.statRow}>
-                  <Typography>
-                    {message.data.audience === 'area'
-                      ? t('audienceArea')
-                      : message.data.audience === 'area_and_tag'
-                        ? t('audienceAreaAndTag')
-                        : t('statNearby')}
-                  </Typography>
-                  <Typography sx={{ fontWeight: 600 }}>{audience.data.nearby}</Typography>
-                </Box>
-                <Box sx={styles.statRow}>
-                  <Typography>{t('statFollowers')}</Typography>
-                  <Typography sx={{ fontWeight: 600 }}>
-                    {audience.data.publisherFollowers}
-                  </Typography>
-                </Box>
-              </>
-            )}
-            <Box sx={styles.statRow}>
-              <Typography>{t('statUnique')}</Typography>
-              <Typography sx={{ fontWeight: 600 }}>{audience.data.uniqueRecipients}</Typography>
-            </Box>
-            <Box sx={styles.statRow}>
-              <Typography>{t('statTokens')}</Typography>
-              <Typography sx={{ fontWeight: 600 }}>{audience.data.withPushToken}</Typography>
-            </Box>
-            {audience.data.capped ? <Alert severity="warning">{t('capped')}</Alert> : null}
-            <Typography variant="caption" color="text.secondary">
-              {t('aggregateNote')}
-            </Typography>
-          </>
-        ) : null}
-        <Button size="small" onClick={() => void audience.refetch()}>
-          {t('refreshAudience')}
-        </Button>
-      </Paper>
-    </Box>
+  return (
+    <div className="grid items-start gap-6 md:grid-cols-[2fr_1fr]">
+      <Card>
+        <CardHeader>
+          <Link
+            href="/push-messages"
+            className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'self-start' })}
+          >
+            {t('back')}
+          </Link>
+          <CardTitle className="text-2xl font-semibold">{t('editorTitle')}</CardTitle>
+          <CardDescription>{summary}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {notice ? (
+            <Alert>
+              <AlertDescription>{notice}</AlertDescription>
+            </Alert>
+          ) : null}
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <Field>
+            <FieldLabel htmlFor="push-title-sv">{t('titleSv')}</FieldLabel>
+            <Input
+              id="push-title-sv"
+              value={titleSv}
+              onChange={(event) => setTitleSv(event.target.value)}
+              disabled={!editable}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="push-body-sv">{t('bodySv')}</FieldLabel>
+            <Textarea
+              id="push-body-sv"
+              value={bodySv}
+              onChange={(event) => setBodySv(event.target.value)}
+              disabled={!editable}
+              rows={2}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="push-title-en">{t('titleEn')}</FieldLabel>
+            <Input
+              id="push-title-en"
+              value={titleEn}
+              onChange={(event) => setTitleEn(event.target.value)}
+              disabled={!editable}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="push-body-en">{t('bodyEn')}</FieldLabel>
+            <Textarea
+              id="push-body-en"
+              value={bodyEn}
+              onChange={(event) => setBodyEn(event.target.value)}
+              disabled={!editable}
+              rows={2}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="push-send-at">{t('sendAt')}</FieldLabel>
+            <Input
+              id="push-send-at"
+              type="datetime-local"
+              value={sendAt}
+              onChange={(event) => setSendAt(event.target.value)}
+              disabled={!editable}
+            />
+            <FieldDescription>
+              {message.data.kind === 'broadcast' ? t('broadcastSendAtHint') : t('sendAtHint')}
+            </FieldDescription>
+          </Field>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => save.mutate()} disabled={!editable || save.isPending}>
+              {save.isPending ? <Spinner data-icon="inline-start" /> : null}
+              {t('save')}
+            </Button>
+            {message.data.kind !== 'broadcast' ? (
+              <Button onClick={() => approve.mutate()} disabled={!editable || approve.isPending}>
+                {approve.isPending ? <Spinner data-icon="inline-start" /> : null}
+                {t('approve')}
+              </Button>
+            ) : null}
+            <Button
+              variant="outline"
+              onClick={() => reject.mutate()}
+              disabled={!editable || reject.isPending}
+            >
+              {reject.isPending ? <Spinner data-icon="inline-start" /> : null}
+              {message.data.kind === 'broadcast' ? t('cancelBroadcast') : t('reject')}
+            </Button>
+            {message.data.eventId ? (
+              <Link
+                href={`/events/${message.data.eventId}`}
+                className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+              >
+                {t('openEvent')}
+              </Link>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold">{t('audienceTitle')}</CardTitle>
+          <CardDescription>{t('audienceHint')}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {message.data.kind !== 'broadcast' && !audience.data?.eventPublished ? (
+            <Alert>
+              <AlertDescription>{t('notPublished')}</AlertDescription>
+            </Alert>
+          ) : null}
+          {audience.isLoading ? (
+            <LoadingRows />
+          ) : audience.data ? (
+            <>
+              {message.data.kind === 'broadcast' ? null : (
+                <>
+                  <div className="flex justify-between gap-4">
+                    <p className="text-sm">
+                      {message.data.audience === 'area'
+                        ? t('audienceArea')
+                        : message.data.audience === 'area_and_tag'
+                          ? t('audienceAreaAndTag')
+                          : t('statNearby')}
+                    </p>
+                    <p className="text-sm font-semibold">{audience.data.nearby}</p>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <p className="text-sm">{t('statFollowers')}</p>
+                    <p className="text-sm font-semibold">{audience.data.publisherFollowers}</p>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between gap-4">
+                <p className="text-sm">{t('statUnique')}</p>
+                <p className="text-sm font-semibold">{audience.data.uniqueRecipients}</p>
+              </div>
+              <div className="flex justify-between gap-4">
+                <p className="text-sm">{t('statTokens')}</p>
+                <p className="text-sm font-semibold">{audience.data.withPushToken}</p>
+              </div>
+              {audience.data.capped ? (
+                <Alert>
+                  <AlertDescription>{t('capped')}</AlertDescription>
+                </Alert>
+              ) : null}
+              <p className="text-xs text-muted-foreground">{t('aggregateNote')}</p>
+            </>
+          ) : null}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void audience.refetch()}
+            disabled={audience.isFetching}
+          >
+            {audience.isFetching ? <Spinner data-icon="inline-start" /> : null}
+            {t('refreshAudience')}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

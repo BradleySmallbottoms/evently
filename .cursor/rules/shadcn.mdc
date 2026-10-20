@@ -1,0 +1,27 @@
+---
+description: Always use shadcn for admin and web UI work in this repo
+alwaysApply: true
+---
+
+# shadcn (admin + web)
+
+When building or changing UI in `apps/admin` or `apps/web`, use the shadcn
+components already in `src/components/ui` (Base UI, Tailwind CSS v4). Add more
+with `pnpm dlx shadcn@latest add <name> -c apps/<app>`.
+
+For `apps/web`, also read `DESIGN.md` and open `docs/reference-app.png` before
+building UI. The web theme tokens in `src/app/[locale]/globals.css` already map
+those colors. `apps/admin` stays on the neutral shadcn theme and does not follow
+that consumer visual language.
+
+Patterns:
+
+- Prefer the local shadcn components (`Button`, `Input`, `Card`, `Dialog`, `Table`, and so on)
+- Style with Tailwind utilities and theme tokens (`text-muted-foreground`, `bg-card`, `gap-4`)
+- Links that look like buttons use `buttonVariants()` on the locale `Link`. Do not pass a link through `Button`
+- `cn` comes from the `cn` package
+- Do not add Material UI, Emotion, Gluestack, UniWind, React Native Paper, or react-native-web
+- Component placement (see CLAUDE.md): shared → `src/components/`; route-only →
+  `app/.../<route>/components/`. Reuse existing components instead of duplicating.
+
+Mobile UI rules live in `.cursor/rules/expo-mobile-ui.mdc` and `CLAUDE.md`.

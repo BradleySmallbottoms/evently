@@ -1,17 +1,15 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { ApiError } from '@local-events/api-client';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { AppLink } from '@/components/app-link';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useRouter } from '@/i18n/navigation';
 import { api, throwIfError } from '@/lib/api';
 
@@ -53,23 +51,24 @@ export function AcceptInviteForm() {
   }
 
   return (
-    <Stack component="form" onSubmit={onSubmit} spacing={2}>
-      <TextField
-        name="token"
-        label={t('inviteToken')}
-        required
-        fullWidth
-        defaultValue={initialToken}
-      />
-      {error && <Alert severity="error">{error}</Alert>}
-      <Button type="submit" variant="contained" disabled={pending}>
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="invite-token">{t('inviteToken')}</Label>
+        <Input id="invite-token" name="token" required defaultValue={initialToken} />
+      </div>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      <Button type="submit" variant="brand" disabled={pending}>
         {t('acceptInvite')}
       </Button>
-      <Typography variant="body2" color="text.secondary">
-        <Link component={AppLink} href="/publisher/login" underline="hover">
+      <p className="text-sm text-muted-foreground">
+        <AppLink href="/publisher/login" className="underline-offset-4 hover:underline">
           {t('loginTitle')}
-        </Link>
-      </Typography>
-    </Stack>
+        </AppLink>
+      </p>
+    </form>
   );
 }

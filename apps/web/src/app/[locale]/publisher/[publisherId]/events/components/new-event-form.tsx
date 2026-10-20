@@ -1,23 +1,18 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { AppLink } from '@/components/app-link';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/navigation';
 import { api, throwIfError } from '@/lib/api';
-import {
-  ManagedEventFields,
-  readManagedEventForm,
-  type EventMode,
-} from './managed-event-fields';
+import { ManagedEventFields, readManagedEventForm, type EventMode } from './managed-event-fields';
+
+const textLinkClass = 'text-sm underline-offset-4 hover:underline';
 
 export function NewEventForm() {
   const t = useTranslations('Events');
@@ -64,11 +59,9 @@ export function NewEventForm() {
   }
 
   return (
-    <Stack spacing={3}>
-      <Typography variant="h4" component="h1">
-        {t('newEvent')}
-      </Typography>
-      <Stack component="form" onSubmit={onSubmit} spacing={2}>
+    <div className="flex flex-col gap-6">
+      <h1 className="text-3xl font-semibold tracking-tight text-foreground">{t('newEvent')}</h1>
+      <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <ManagedEventFields
           mode={mode}
           onModeChange={setMode}
@@ -77,21 +70,20 @@ export function NewEventForm() {
           categoriesError={categories.isError}
           categoriesInputId="categories"
         />
-        {error && <Alert severity="error">{error}</Alert>}
-        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-          <Button type="submit" variant="contained" disabled={pending}>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <div className="flex flex-row items-center gap-4">
+          <Button type="submit" variant="brand" disabled={pending}>
             {t('createDraft')}
           </Button>
-          <Link
-            component={AppLink}
-            href={`/publisher/${publisherId}/events`}
-            underline="hover"
-            variant="body2"
-          >
+          <AppLink href={`/publisher/${publisherId}/events`} className={textLinkClass}>
             {t('backToEvents')}
-          </Link>
-        </Stack>
-      </Stack>
-    </Stack>
+          </AppLink>
+        </div>
+      </form>
+    </div>
   );
 }

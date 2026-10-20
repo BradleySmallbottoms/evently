@@ -1,23 +1,22 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemText from '@mui/material/ListItemText';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { ApiError } from '@local-events/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { api, throwIfError } from '@/lib/api';
 
 export function PublisherSettingsPanel() {
@@ -33,7 +32,9 @@ export function PublisherSettingsPanel() {
   const profile = useQuery({
     queryKey: ['publisher-profile', publisherId],
     queryFn: async () =>
-      throwIfError(await api.GET('/publishers/{publisherId}', { params: { path: { publisherId } } })),
+      throwIfError(
+        await api.GET('/publishers/{publisherId}', { params: { path: { publisherId } } }),
+      ),
   });
 
   const members = useQuery({
@@ -112,15 +113,15 @@ export function PublisherSettingsPanel() {
   });
 
   if (profile.isPending) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        …
-      </Typography>
-    );
+    return <p className="text-sm text-muted-foreground">…</p>;
   }
 
   if (profile.isError || !profile.data) {
-    return <Alert severity="error">{t('errorGeneric')}</Alert>;
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{t('errorGeneric')}</AlertDescription>
+      </Alert>
+    );
   }
 
   async function onSaveProfile(event: FormEvent<HTMLFormElement>) {
@@ -145,115 +146,126 @@ export function PublisherSettingsPanel() {
   }
 
   return (
-    <Stack spacing={4}>
-      <Stack component="form" onSubmit={onSaveProfile} spacing={2}>
-        <Typography variant="h6" component="h2">
-          {t('profileTitle')}
-        </Typography>
-        <TextField
-          name="name"
-          label={t('name')}
-          required
-          fullWidth
-          defaultValue={profile.data.name}
-          disabled={!isOwner}
-          slotProps={{ htmlInput: { minLength: 2 } }}
-        />
-        <TextField
-          name="slug"
-          label={t('slug')}
-          required
-          fullWidth
-          defaultValue={profile.data.slug}
-          disabled={!isOwner}
-          slotProps={{ htmlInput: { minLength: 2, pattern: '[a-z0-9]+(?:-[a-z0-9]+)*' } }}
-        />
-        <FormControl fullWidth disabled={!isOwner}>
-          <InputLabel id="publisher-settings-type">{t('type')}</InputLabel>
-          <Select
-            labelId="publisher-settings-type"
-            name="type"
-            label={t('type')}
-            defaultValue={profile.data.type}
-          >
-            <MenuItem value="org">{t('typeOrg')}</MenuItem>
-            <MenuItem value="person">{t('typePerson')}</MenuItem>
+    <div className="flex flex-col gap-8">
+      <form onSubmit={onSaveProfile} className="flex flex-col gap-4">
+        <h2 className="text-xl font-semibold text-foreground">{t('profileTitle')}</h2>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="profile-name">{t('name')}</Label>
+          <Input
+            id="profile-name"
+            name="name"
+            required
+            defaultValue={profile.data.name}
+            disabled={!isOwner}
+            minLength={2}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="profile-slug">{t('slug')}</Label>
+          <Input
+            id="profile-slug"
+            name="slug"
+            required
+            defaultValue={profile.data.slug}
+            disabled={!isOwner}
+            minLength={2}
+            pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="profile-type">{t('type')}</Label>
+          <Select name="type" defaultValue={profile.data.type} disabled={!isOwner}>
+            <SelectTrigger id="profile-type" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="org">{t('typeOrg')}</SelectItem>
+              <SelectItem value="person">{t('typePerson')}</SelectItem>
+            </SelectContent>
           </Select>
-        </FormControl>
-        {!isOwner && (
-          <Typography variant="body2" color="text.secondary">
-            {t('ownerOnlyEdit')}
-          </Typography>
+        </div>
+        {!isOwner && <p className="text-sm text-muted-foreground">{t('ownerOnlyEdit')}</p>}
+        {profileError && (
+          <Alert variant="destructive">
+            <AlertDescription>{profileError}</AlertDescription>
+          </Alert>
         )}
-        {profileError && <Alert severity="error">{profileError}</Alert>}
-        {saved && <Alert severity="success">{t('profileSaved')}</Alert>}
+        {saved && (
+          <Alert>
+            <AlertDescription>{t('profileSaved')}</AlertDescription>
+          </Alert>
+        )}
         {isOwner && (
-          <Button type="submit" variant="contained" disabled={saveProfile.isPending}>
+          <Button type="submit" variant="brand" disabled={saveProfile.isPending}>
             {t('saveProfile')}
           </Button>
         )}
-      </Stack>
+      </form>
 
-      <Stack spacing={1.5}>
-        <Typography variant="h6" component="h2">
-          {t('membersTitle')}
-        </Typography>
-        <List disablePadding sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
+      <div className="flex flex-col gap-3">
+        <h2 className="text-xl font-semibold text-foreground">{t('membersTitle')}</h2>
+        <ul className="divide-y divide-border overflow-hidden rounded-2xl bg-card ring-1 ring-border">
           {(members.data?.items ?? []).map((m) => (
-            <ListItem key={m.publisherAccountId} divider>
-              <ListItemText primary={m.email} secondary={m.role} />
-            </ListItem>
+            <li key={m.publisherAccountId} className="p-4">
+              <p className="text-base text-foreground">{m.email}</p>
+              <p className="text-sm text-muted-foreground">{m.role}</p>
+            </li>
           ))}
-        </List>
-      </Stack>
+        </ul>
+      </div>
 
       {isOwner && (
-        <Stack spacing={2}>
-          <Typography variant="h6" component="h2">
-            {t('invitesTitle')}
-          </Typography>
-          <Stack component="form" onSubmit={onInvite} spacing={2}>
-            <TextField name="email" type="email" label={t('email')} required fullWidth />
-            <FormControl fullWidth>
-              <InputLabel id="invite-role-label">{t('inviteRole')}</InputLabel>
-              <Select
-                labelId="invite-role-label"
-                name="role"
-                label={t('inviteRole')}
-                defaultValue="editor"
-              >
-                <MenuItem value="editor">{t('roleEditor')}</MenuItem>
-                <MenuItem value="owner">{t('roleOwner')}</MenuItem>
+        <div className="flex flex-col gap-4">
+          <h2 className="text-xl font-semibold text-foreground">{t('invitesTitle')}</h2>
+          <form onSubmit={onInvite} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="invite-email">{t('email')}</Label>
+              <Input id="invite-email" name="email" type="email" required />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="invite-role">{t('inviteRole')}</Label>
+              <Select name="role" defaultValue="editor">
+                <SelectTrigger id="invite-role" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="editor">{t('roleEditor')}</SelectItem>
+                  <SelectItem value="owner">{t('roleOwner')}</SelectItem>
+                </SelectContent>
               </Select>
-            </FormControl>
-            {inviteError && <Alert severity="error">{inviteError}</Alert>}
-            {inviteToken && (
-              <Alert severity="info">
-                {t('inviteTokenHint')} {inviteToken}
+            </div>
+            {inviteError && (
+              <Alert variant="destructive">
+                <AlertDescription>{inviteError}</AlertDescription>
               </Alert>
             )}
-            <Button type="submit" variant="contained" disabled={createInvite.isPending}>
+            {inviteToken && (
+              <Alert>
+                <AlertDescription>
+                  {t('inviteTokenHint')} {inviteToken}
+                </AlertDescription>
+              </Alert>
+            )}
+            <Button type="submit" variant="outline" disabled={createInvite.isPending}>
               {t('sendInvite')}
             </Button>
-          </Stack>
-          <List disablePadding sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
+          </form>
+          <ul className="divide-y divide-border overflow-hidden rounded-2xl bg-card ring-1 ring-border">
             {(invites.data?.items ?? []).length === 0 ? (
-              <ListItem>
-                <ListItemText secondary={t('noPendingInvites')} />
-              </ListItem>
+              <li className="p-4 text-sm text-muted-foreground">{t('noPendingInvites')}</li>
             ) : (
               (invites.data?.items ?? []).map((i) => (
-                <ListItem key={i.id} divider>
-                  <ListItemText
-                    primary={i.email}
-                    secondary={`${i.role} · ${t('expiresAt', { date: i.expiresAt })}`}
-                  />
-                </ListItem>
+                <li key={i.id} className="p-4">
+                  <p className="text-base text-foreground">{i.email}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {i.role} · {t('expiresAt', { date: i.expiresAt })}
+                  </p>
+                </li>
               ))
             )}
-          </List>
-        </Stack>
+          </ul>
+        </div>
       )}
-    </Stack>
+    </div>
   );
 }

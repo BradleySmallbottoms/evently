@@ -121,6 +121,44 @@ Architecture
   until the scan job resolves the publisher, duplicate check, and tags. Steps the scan lists
   from the description are stored on `meta.instructions`.
 
+Import adapters (every new source)
+
+- Fetch with `ctx.fetch`. Read URLs and ids from `data_sources.config`. A secret stays in the
+  environment. Prefer an official API, then ICS, then the JSON or RSS the page already loads, then
+  HTML. Stay on the configured host. A redirect to another host fails that request. Read
+  `robots.txt` and do not request a disallowed URL. Sitevision disallows `/*;jsessionid=*`, so
+  pagination uses a clean URL (`skip`, `start`, or the JSON route) and never a session id.
+  `each()` saves one event before the next page or product is fetched. A new source starts at
+  trust `review`. The seed stays disabled. The schedule is `0 */6 * * *`.
+- Times go through `sourceDateTime`. A `Z` or a numeric offset is that instant. A clock with no
+  zone is `stockholmWallTime` (Europe/Stockholm). The same start and end, or a date with no clock,
+  is a whole day. A page or row with no readable date is still saved, with `startsAt` and `endsAt`
+  omitted.
+- Links are `tickets`, `registration`, `info`, `facebook`, or `instagram`, at most 10. The event's
+  own page is `info`. A booking or ticket URL (`ticket`, `biljett`, `tickster`, `nortic`,
+  `ticketco`, `bokning`, `booking`), and Destination Hälsingland's booking URL and the label
+  Evenemangslänk, are `tickets`. Anmälan, signup, registration, Typeform, and Google Forms are
+  `registration`. A labeled Facebook page (Facebooksida), or a `facebook.com` URL, is `facebook`.
+  A labeled Instagram page (Instagramsida), or an `instagram.com` URL, is `instagram`. A labeled
+  website (Webbsida) or any other http(s) link is `info`. `parseLinksFromText` reads anchors,
+  markdown, and bare URLs. Image files are skipped. `mergeImportedLinks` keeps the adapter links
+  and their types, then fills from the description. Ticket shops, Facebook, and Instagram are not
+  organizer keys.
+- `meta.address` comes from `eventAddress`: street, five-digit postcode, city, `country: Sweden`,
+  and a point only when the source gave coordinates. The adapter does not geocode. `meta.freeEntry`
+  is set when the source says the event is free (`Gratis`, `fritt inträde`, `fri entré`,
+  `kostnadsfritt`, or a flag such as `freeEntry` `Ja`). `priceAmount` is then `0` and `currency`
+  is `SEK`. A `kr` amount in the text is minor units. An unknown price is omitted. `meta.ageLimit`
+  is set only when the source states a minimum age (`Åldersgräns`, or `från N år`). Accessibility
+  flags are set only when the source says they are true. `tags` stay empty. `categoryHints` may
+  carry the source's own category names. The scan assigns tags.
+- `organizerKeys()` is the ordered list: ids, email, an info-link host plus its path, that host,
+  the name, then the slug fallback only when nothing else identifies the organizer. `skipHosts`
+  includes the source site. Occasion collapse (`occasionSpanDays`, `occasionCoverage`,
+  `meta.collapsed`, `meta.occasions`, `meta.occasionGroupId`) is only for Visit Söderhamn, Glada
+  Hudik, and Destination Hälsingland, where one product has many occasions. A calendar that already
+  lists one showing per row stores that row as one event. The page or item id is the external id.
+
 Product invariants (enforced in domain, tested)
 
 - An event's `language` is `sv` or `en` (default `sv`) and is the language of its title, description,
@@ -254,20 +292,25 @@ warmth, density, and corner treatment. When the written spec and the image disag
 prefer the image for atmosphere and `DESIGN.md` for tokens and rules. `apps/admin` does not
 follow this consumer visual language.
 
-1. **Admin and web (`apps/admin`, `apps/web`)** — always use the **MUI** skill before building
-   or changing UI. Read `.agents/skills/mui/SKILL.md` (and
-   `.agents/skills/mui/resources/` as needed). Use stock `@mui/material` with typed `sx` /
-   theme tokens; Next App Router via `@mui/material-nextjs/v16-appRouter`. Do not use
-   Gluestack, UniWind, React Native Paper, or `react-native-web` in these apps. On `apps/web`,
-   implement with MUI but take color, type, spacing, and hierarchy from `DESIGN.md` and
-   `docs/reference-app.png`.
+1. **Admin (`apps/admin`)** — always use the **shadcn** skill. Read
+   `.agents/skills/shadcn/SKILL.md` before building or changing UI. Use the shadcn
+   components in `src/components/ui` (Base UI + Tailwind). Add components with
+   `pnpm dlx shadcn@latest add <name> -c apps/admin`. Style with Tailwind utilities and
+   the CSS variables in `globals.css`. Do not add Material UI, Emotion, Gluestack, UniWind,
+   React Native Paper, or `react-native-web`.
 
-2. **Mobile (`apps/mobile`)** — always use the **expo-ui** skill (and **expo-native-ui** for
+2. **Web (`apps/web`)** — use the shadcn components in `src/components/ui` (Base UI +
+   Tailwind). Add components with `pnpm dlx shadcn@latest add <name> -c apps/web`. Style
+   with Tailwind utilities and the CSS variables in `globals.css`. Do not add Material UI,
+   Emotion, Gluestack, UniWind, React Native Paper, or `react-native-web`. Take color, type,
+   spacing, and hierarchy from `DESIGN.md` and `docs/reference-app.png`.
+
+3. **Mobile (`apps/mobile`)** — always use the **expo-ui** skill (and **expo-native-ui** for
    layout/HIG). Read `.agents/skills/expo-ui/SKILL.md` before building or changing UI.
    Prefer `@expo/ui` for sheets, pickers, menus, toggles; SwiftUI (`@expo/ui/swift-ui`) for
    ConfirmationDialog, ContextMenu, DatePicker, Alert/popups (in `src/components/**/*.ios.tsx`,
    never under `app/`). Custom RN components for everything else. Do not use React Native
-   Paper or MUI. Look and feel come from `DESIGN.md` and `docs/reference-app.png`.
+   Paper or shadcn. Look and feel come from `DESIGN.md` and `docs/reference-app.png`.
 
 ### Frontend component placement (required)
 

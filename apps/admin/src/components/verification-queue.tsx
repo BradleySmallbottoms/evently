@@ -1,19 +1,22 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { UsersIcon } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { EmptyState, LoadingRows } from '@/components/list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Spinner } from '@/components/ui/spinner';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -90,20 +93,27 @@ export function VerificationQueue({ embedded = false }: { embedded?: boolean }) 
     },
   });
 
+  const Title = embedded ? 'h2' : 'h1';
+
   if (me.isPending) {
-    return <Typography color="text.secondary">{tApp('loading')}</Typography>;
+    return <LoadingRows />;
   }
 
   if (me.isError || !me.data) {
     return (
-      <Stack spacing={2}>
-        <Typography variant={embedded ? 'h5' : 'h4'} component={embedded ? 'h2' : 'h1'}>
+      <div className="flex flex-col gap-4">
+        <Title className={embedded ? 'text-xl font-semibold' : 'text-2xl font-semibold'}>
           {t('title')}
-        </Typography>
-        <Alert severity="info">
-          {t('needLogin')} <Link href="/login">{tApp('navLogin')}</Link>
+        </Title>
+        <Alert>
+          <AlertDescription>
+            {t('needLogin')}{' '}
+            <Link href="/login" className="underline underline-offset-4">
+              {tApp('navLogin')}
+            </Link>
+          </AlertDescription>
         </Alert>
-      </Stack>
+      </div>
     );
   }
 
@@ -131,25 +141,20 @@ export function VerificationQueue({ embedded = false }: { embedded?: boolean }) 
   }
 
   return (
-    <Stack spacing={2}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1}
-        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
-      >
-        <Typography variant={embedded ? 'h5' : 'h4'} component={embedded ? 'h2' : 'h1'}>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <Title className={embedded ? 'text-xl font-semibold' : 'text-2xl font-semibold'}>
           {t('title')}
-        </Typography>
+        </Title>
         {items.length > 0 ? (
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap items-center gap-2">
             {selectedIds.length > 0 ? (
-              <Typography variant="body2" color="text.secondary">
+              <p className="text-sm text-muted-foreground">
                 {t('selected', { count: selectedIds.length })}
-              </Typography>
+              </p>
             ) : null}
             <Button
-              size="small"
-              variant="contained"
+              size="sm"
               disabled={selectedIds.length === 0 || busy}
               onClick={() => {
                 setNotice(null);
@@ -157,90 +162,104 @@ export function VerificationQueue({ embedded = false }: { embedded?: boolean }) 
                 bulkVerify.mutate(selectedIds);
               }}
             >
+              {busy ? <Spinner data-icon="inline-start" /> : null}
               {t('verify')}
             </Button>
-          </Stack>
+          </div>
         ) : null}
-      </Stack>
-      {notice ? <Alert severity="success">{notice}</Alert> : null}
-      {bulkError ? <Alert severity="error">{t('bulkError')}</Alert> : null}
+      </div>
+      {notice ? (
+        <Alert>
+          <AlertDescription>{notice}</AlertDescription>
+        </Alert>
+      ) : null}
+      {bulkError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{t('bulkError')}</AlertDescription>
+        </Alert>
+      ) : null}
       {list.isError ? (
-        <Alert severity="error">
-          {list.error instanceof AdminApiError ? list.error.message : t('loadError')}
+        <Alert variant="destructive">
+          <AlertDescription>
+            {list.error instanceof AdminApiError ? list.error.message : t('loadError')}
+          </AlertDescription>
         </Alert>
       ) : null}
       {list.isPending ? (
-        <Typography color="text.secondary">{tApp('loading')}</Typography>
+        <LoadingRows />
       ) : list.data && list.data.length === 0 ? (
-        <Typography color="text.secondary">{t('empty')}</Typography>
+        <EmptyState icon={UsersIcon} title={t('empty')} />
       ) : (
-        <Paper variant="outlined">
-          <Table size="small">
-            <TableHead>
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="rounded-t-lg border-b bg-muted">
               <TableRow>
-                <TableCell padding="checkbox">
+                <TableHead className="w-10">
                   <Checkbox
-                    size="small"
                     checked={allSelected}
                     indeterminate={someSelected}
-                    onChange={toggleAll}
-                    slotProps={{ input: { 'aria-label': t('selectAll') } }}
+                    onCheckedChange={() => toggleAll()}
+                    aria-label={t('selectAll')}
                   />
-                </TableCell>
-                <TableCell>{t('name')}</TableCell>
-                <TableCell>{t('id')}</TableCell>
-                <TableCell>{t('events')}</TableCell>
-                <TableCell>{t('slug')}</TableCell>
-                <TableCell>{t('type')}</TableCell>
-                <TableCell>{t('origin')}</TableCell>
-                <TableCell>{t('created')}</TableCell>
-                <TableCell align="right" />
+                </TableHead>
+                <TableHead>{t('name')}</TableHead>
+                <TableHead>{t('id')}</TableHead>
+                <TableHead>{t('events')}</TableHead>
+                <TableHead>{t('slug')}</TableHead>
+                <TableHead>{t('type')}</TableHead>
+                <TableHead>{t('origin')}</TableHead>
+                <TableHead>{t('created')}</TableHead>
+                <TableHead />
               </TableRow>
-            </TableHead>
+            </TableHeader>
             <TableBody>
               {items.map((row) => (
-                <TableRow key={row.id} selected={selected.has(row.id)}>
-                  <TableCell padding="checkbox">
+                <TableRow key={row.id} data-state={selected.has(row.id) ? 'selected' : undefined}>
+                  <TableCell>
                     <Checkbox
-                      size="small"
                       checked={selected.has(row.id)}
-                      onChange={() => toggleOne(row.id)}
-                      slotProps={{ input: { 'aria-label': t('selectRow', { name: row.name }) } }}
+                      onCheckedChange={() => toggleOne(row.id)}
+                      aria-label={t('selectRow', { name: row.name })}
                     />
                   </TableCell>
                   <TableCell>
-                    <Link href={`/publishers/${row.id}`}>{row.name}</Link>
+                    <Link href={`/publishers/${row.id}`} className="underline underline-offset-4">
+                      {row.name}
+                    </Link>
                   </TableCell>
-                  <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{row.id}</TableCell>
+                  <TableCell className="font-mono text-xs">{row.id}</TableCell>
                   <TableCell>{row.eventCount}</TableCell>
                   <TableCell>{row.slug}</TableCell>
                   <TableCell>{row.type}</TableCell>
                   <TableCell>{row.origin}</TableCell>
                   <TableCell>{new Date(row.createdAt).toLocaleString()}</TableCell>
-                  <TableCell align="right">
-                    <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-                      <Button component={Link} href={`/publishers/${row.id}`} size="small">
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Link
+                        href={`/publishers/${row.id}`}
+                        className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+                      >
                         {t('edit')}
-                      </Button>
+                      </Link>
                       <Button
-                        size="small"
-                        variant="contained"
+                        size="sm"
                         disabled={busy}
                         onClick={() => {
                           setNotice(null);
                           verify.mutate(row.id);
                         }}
                       >
+                        {busy ? <Spinner data-icon="inline-start" /> : null}
                         {busy ? t('verifying') : t('verify')}
                       </Button>
-                    </Stack>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </Paper>
+        </div>
       )}
-    </Stack>
+    </div>
   );
 }

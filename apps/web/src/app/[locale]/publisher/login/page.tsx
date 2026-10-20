@@ -1,10 +1,9 @@
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppLink } from '@/components/app-link';
 import { PageMain } from '@/components/page-main';
 import { LoginForm } from './components/login-form';
+
+const backLinkClass = 'text-sm text-muted-foreground underline-offset-4 hover:underline';
 
 export default async function LoginPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -14,14 +13,12 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
 
   return (
     <PageMain maxWidth="sm">
-      <Stack spacing={1}>
-        <Link component={AppLink} href="/" underline="hover" variant="body2" color="text.secondary">
+      <div className="flex flex-col gap-2">
+        <AppLink href="/" className={backLinkClass}>
           {nav('home')}
-        </Link>
-        <Typography variant="h4" component="h1">
-          {t('loginTitle')}
-        </Typography>
-      </Stack>
+        </AppLink>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">{t('loginTitle')}</h1>
+      </div>
       <LoginForm />
     </PageMain>
   );

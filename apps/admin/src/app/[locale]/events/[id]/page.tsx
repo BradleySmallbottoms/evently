@@ -1,11 +1,10 @@
-import Typography from '@mui/material/Typography';
 import { Suspense } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { EventEditor } from './components/event-editor';
 
 export default function EventPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   return (
-    <Suspense fallback={<Typography color="text.secondary">…</Typography>}>
+    <Suspense fallback={<p className="text-sm text-muted-foreground">…</p>}>
       <EventDetails params={params} />
     </Suspense>
   );

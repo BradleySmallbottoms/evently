@@ -1,12 +1,10 @@
 'use client';
 
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import { useTranslations } from 'next-intl';
 import { useSyncExternalStore } from 'react';
+import { LoadingRows } from '@/components/list-state';
+import { VerificationQueue } from '@/components/verification-queue';
 import { MappingQueue } from './mapping-queue';
 import { PublisherCatalog } from './publisher-catalog';
-import { VerificationQueue } from '@/components/verification-queue';
 
 function subscribe() {
   return () => {};
@@ -26,18 +24,17 @@ function useHydrated() {
 }
 
 export function PublishersBoard() {
-  const tApp = useTranslations('App');
   const hydrated = useHydrated();
 
   if (!hydrated) {
-    return <Typography color="text.secondary">{tApp('loading')}</Typography>;
+    return <LoadingRows />;
   }
 
   return (
-    <Stack spacing={4}>
+    <div className="flex flex-col gap-8">
       <VerificationQueue />
       <MappingQueue />
       <PublisherCatalog />
-    </Stack>
+    </div>
   );
 }

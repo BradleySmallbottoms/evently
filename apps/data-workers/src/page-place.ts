@@ -8,9 +8,9 @@ export function lookupPageUrl(
   links: { type: string; url: string }[] | undefined,
   sourceUrl?: string | null,
 ): string | undefined {
-  if (sourceUrl?.startsWith('https://')) return sourceUrl;
+  if (sourceUrl?.startsWith('https://') && !isFacebookUrl(sourceUrl)) return sourceUrl;
   const pages = links ?? [];
-  const ticket = pages.find((link) => link.type === 'tickets' && link.url.startsWith('https://'));
+  const ticket = pages.find((link) => link.type === 'tickets' && link.url.startsWith('https://') && !isFacebookUrl(link.url));
   if (ticket) return ticket.url;
   const info = pages.find(
     (link) => link.type === 'info' && link.url.startsWith('https://') && !isFacebookUrl(link.url),

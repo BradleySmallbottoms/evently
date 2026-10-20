@@ -1,7 +1,6 @@
 'use client';
 
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
+import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
@@ -26,26 +25,13 @@ export function TotpQr({ otpauthUrl }: { otpauthUrl: string }) {
   }, [otpauthUrl]);
 
   return (
-    <Box
-      sx={{
-        p: 1.5,
-        bgcolor: 'common.white',
-        borderRadius: 1,
-        border: 1,
-        borderColor: 'divider',
-        minHeight: 220,
-        minWidth: 220,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
+    <div className="flex min-h-[220px] min-w-[220px] items-center justify-center rounded-lg border bg-white p-3">
       {dataUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- data: URL from local QR encode
         <img src={dataUrl} alt={t('qrAlt')} width={220} height={220} />
       ) : (
-        <CircularProgress size={32} />
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
       )}
-    </Box>
+    </div>
   );
 }

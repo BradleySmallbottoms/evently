@@ -1,38 +1,24 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import type { SxProps, Theme } from '@mui/material/styles';
+import { X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { AppLink } from '@/components/app-link';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { API_URL, api, throwIfError } from '@/lib/api';
 import { DigitalCodePanel } from './digital-code-panel';
 import { EventContentPanel } from './event-content-panel';
 import { SentNotifications } from './sent-notifications';
-import {
-  ManagedEventFields,
-  readManagedEventForm,
-  type EventMode,
-} from './managed-event-fields';
+import { ManagedEventFields, readManagedEventForm, type EventMode } from './managed-event-fields';
 
-
-const styles: Record<string, SxProps<Theme>> = {
-  actions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 1.5,
-  },
-};
+const textLinkClass = 'text-sm underline-offset-4 hover:underline';
 
 function toInputDatetime(iso: string): string {
   return iso.slice(0, 16);
@@ -87,12 +73,7 @@ export function EditEventForm() {
     queryKey: ['publisher-stats', publisherId],
     queryFn: async () => {
       const params = new URLSearchParams();
-      for (const key of [
-        'numPublishedEvents',
-        'numCheckins',
-        'numRatings',
-        'totalRatingValue',
-      ]) {
+      for (const key of ['numPublishedEvents', 'numCheckins', 'numRatings', 'totalRatingValue']) {
         params.append('key', key);
       }
       const res = await fetch(`${API_URL}/stats/publisher/${publisherId}?${params}`, {
@@ -144,6 +125,11 @@ export function EditEventForm() {
     { url: '', label: '' },
   ]);
   const [attendeeEventId, setAttendeeEventId] = useState<string | null>(null);
+  const [modeEvent, setModeEvent] = useState<typeof event>(undefined);
+  if (event && event !== modeEvent) {
+    setModeEvent(event);
+    setMode(event.mode);
+  }
   if (event && attendeeEventId !== event.id) {
     setAttendeeEventId(event.id);
     setAttendeeText(event.attendeeText ?? '');
@@ -153,9 +139,6 @@ export function EditEventForm() {
         : [{ url: '', label: '' }],
     );
   }
-  useEffect(() => {
-    if (event) setMode(event.mode);
-  }, [event]);
 
   async function save(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
@@ -267,50 +250,40 @@ export function EditEventForm() {
   }
 
   if (eventQuery.isPending) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        {t('loading')}
-      </Typography>
-    );
+    return <p className="text-sm text-muted-foreground">{t('loading')}</p>;
   }
   if (eventQuery.isError || !event) {
-    return (
-      <Typography variant="body2" color="error">
-        {t('loadError')}
-      </Typography>
-    );
+    return <p className="text-sm text-destructive">{t('loadError')}</p>;
   }
 
   return (
-    <Stack spacing={3}>
-      <Stack spacing={1}>
-        <Typography variant="h4" component="h1">
-          {event.title}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">{event.title}</h1>
+        <p className="text-sm text-muted-foreground">
           {t('currentStatus')}: {t(`status.${event.status}`)}
-        </Typography>
+        </p>
         {publisherStats.data ? (
-          <Typography variant="body2" color="text.secondary">
+          <p className="text-sm text-muted-foreground">
             {t('publisherStatsLine', {
               published: publisherStats.data.numPublishedEvents,
               checkIns: publisherStats.data.numCheckins,
               average: publisherStats.data.ratingAverage ?? '–',
               ratings: publisherStats.data.numRatings,
             })}
-          </Typography>
+          </p>
         ) : null}
         {eventStats.data ? (
-          <Typography variant="body2" color="text.secondary">
+          <p className="text-sm text-muted-foreground">
             {t('eventStatsLine', {
               checkIns: eventStats.data.numCheckins,
               average: eventStats.data.ratingAverage ?? '–',
               ratings: eventStats.data.numRatings,
             })}
-          </Typography>
+          </p>
         ) : null}
-      </Stack>
-      <Stack component="form" onSubmit={save} spacing={2}>
+      </div>
+      <form onSubmit={save} className="flex flex-col gap-4">
         <ManagedEventFields
           mode={mode}
           onModeChange={setMode}
@@ -334,46 +307,52 @@ export function EditEventForm() {
           }}
         />
         {event.checkInEnabled ? (
-          <Stack spacing={2}>
-            <Typography variant="h6" component="h2">
-              {t('attendeeTitle')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {t('attendeeHelp')}
-            </Typography>
-            <TextField
-              label={t('attendeeText')}
-              value={attendeeText}
-              onChange={(e) => setAttendeeText(e.target.value)}
-              multiline
-              minRows={3}
-              fullWidth
-            />
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl font-semibold text-foreground">{t('attendeeTitle')}</h2>
+            <p className="text-sm text-muted-foreground">{t('attendeeHelp')}</p>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="attendee-text">{t('attendeeText')}</Label>
+              <Textarea
+                id="attendee-text"
+                value={attendeeText}
+                onChange={(e) => setAttendeeText(e.target.value)}
+                rows={3}
+              />
+            </div>
             {attendeeLinks.map((link, index) => (
-              <Stack key={index} direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <TextField
-                  label={t('attendeeLinkUrl')}
-                  value={link.url}
-                  onChange={(e) =>
-                    setAttendeeLinks((current) =>
-                      current.map((item, i) => (i === index ? { ...item, url: e.target.value } : item)),
-                    )
-                  }
-                  fullWidth
-                />
-                <TextField
-                  label={t('attendeeLinkLabel')}
-                  value={link.label}
-                  onChange={(e) =>
-                    setAttendeeLinks((current) =>
-                      current.map((item, i) =>
-                        i === index ? { ...item, label: e.target.value } : item,
-                      ),
-                    )
-                  }
-                  fullWidth
-                />
-                <IconButton
+              <div key={index} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div className="flex flex-1 flex-col gap-2">
+                  <Label htmlFor={`attendee-link-url-${index}`}>{t('attendeeLinkUrl')}</Label>
+                  <Input
+                    id={`attendee-link-url-${index}`}
+                    value={link.url}
+                    onChange={(e) =>
+                      setAttendeeLinks((current) =>
+                        current.map((item, i) =>
+                          i === index ? { ...item, url: e.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                </div>
+                <div className="flex flex-1 flex-col gap-2">
+                  <Label htmlFor={`attendee-link-label-${index}`}>{t('attendeeLinkLabel')}</Label>
+                  <Input
+                    id={`attendee-link-label-${index}`}
+                    value={link.label}
+                    onChange={(e) =>
+                      setAttendeeLinks((current) =>
+                        current.map((item, i) =>
+                          i === index ? { ...item, label: e.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
                   aria-label={t('attendeeLinkRemove')}
                   onClick={() =>
                     setAttendeeLinks((current) =>
@@ -383,48 +362,55 @@ export function EditEventForm() {
                     )
                   }
                 >
-                  ×
-                </IconButton>
-              </Stack>
+                  <X />
+                </Button>
+              </div>
             ))}
             <Button
               type="button"
+              variant="ghost"
               onClick={() => setAttendeeLinks((current) => [...current, { url: '', label: '' }])}
             >
               {t('attendeeLinkAdd')}
             </Button>
-          </Stack>
+          </div>
         ) : null}
-        {error && <Alert severity="error">{error}</Alert>}
-        {notice && <Alert severity="success">{notice}</Alert>}
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {notice && (
+          <Alert>
+            <AlertDescription>{notice}</AlertDescription>
+          </Alert>
+        )}
         <SentNotifications eventId={eventId} />
         {pushDraft.data?.pushMessage ? (
-          <Alert severity="info">
-            {t('pushDraftStatus', { status: pushDraft.data.pushMessage.status })}
+          <Alert>
+            <AlertDescription>
+              {t('pushDraftStatus', { status: pushDraft.data.pushMessage.status })}
+            </AlertDescription>
           </Alert>
         ) : null}
         {!pushDraft.data?.pushMessage &&
         (event.status === 'published' ||
           event.status === 'awaiting_verification' ||
           event.status === 'in_review') ? (
-          <Alert severity="info">{t('notifyAgainHint')}</Alert>
+          <Alert>
+            <AlertDescription>{t('notifyAgainHint')}</AlertDescription>
+          </Alert>
         ) : null}
-        <Stack sx={styles.actions}>
-          <Button type="submit" variant="contained" disabled={pendingSave}>
+        <div className="flex flex-row flex-wrap items-center gap-3">
+          <Button type="submit" variant="brand" disabled={pendingSave}>
             {t('saveChanges')}
           </Button>
-          <Button
-            type="button"
-            variant="contained"
-            color="success"
-            onClick={publish}
-            disabled={pendingPublish}
-          >
+          <Button type="button" variant="outline" onClick={publish} disabled={pendingPublish}>
             {t('publish')}
           </Button>
           <Button
             type="button"
-            variant="outlined"
+            variant="outline"
             onClick={notifyAgain}
             disabled={
               pendingNotify ||
@@ -436,31 +422,20 @@ export function EditEventForm() {
           >
             {t('notifyAgain')}
           </Button>
-          <Button
-            type="button"
-            variant="outlined"
-            color="error"
-            onClick={cancel}
-            disabled={pendingCancel}
-          >
+          <Button type="button" variant="destructive" onClick={cancel} disabled={pendingCancel}>
             {t('cancel')}
           </Button>
-          <Link
-            component={AppLink}
-            href={`/publisher/${publisherId}/events`}
-            underline="hover"
-            variant="body2"
-          >
+          <AppLink href={`/publisher/${publisherId}/events`} className={textLinkClass}>
             {t('backToEvents')}
-          </Link>
-        </Stack>
-      </Stack>
+          </AppLink>
+        </div>
+      </form>
       {event.checkInEnabled ? (
         <>
           <DigitalCodePanel eventId={eventId} published={event.status === 'published'} />
           <EventContentPanel eventId={eventId} />
         </>
       ) : null}
-    </Stack>
+    </div>
   );
 }

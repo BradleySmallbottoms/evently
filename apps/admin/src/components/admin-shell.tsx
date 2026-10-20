@@ -1,35 +1,53 @@
 'use client';
 
-import AppBar from '@mui/material/AppBar';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
-import Toolbar from '@mui/material/Toolbar';
-import Typography from '@mui/material/Typography';
-import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
+import {
+  BellIcon,
+  CalendarIcon,
+  ClipboardCheckIcon,
+  DatabaseIcon,
+  LogOutIcon,
+  ScrollTextIcon,
+  ShieldIcon,
+  StoreIcon,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
+import type { ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { adminFetch } from '@/lib/api';
-
-const styles: Record<string, SxProps<Theme>> = {
-  main: {
-    py: 3,
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  title: {
-    flexGrow: 1,
-    fontWeight: 600,
-  },
-};
 
 type Me = { adminId: string; email: string; role: string; expiresAt: string };
 
-export function AdminShell({ children }: { children: React.ReactNode }) {
+const NAV = [
+  { href: '/review', key: 'navEvents', icon: ClipboardCheckIcon, match: (path: string) => path.startsWith('/review') },
+  { href: '/events/manage', key: 'navEventCatalog', icon: CalendarIcon, match: (path: string) => path.startsWith('/events') },
+  { href: '/publishers', key: 'navPublishers', icon: StoreIcon, match: (path: string) => path.startsWith('/publishers') },
+  { href: '/push-messages', key: 'navPushMessages', icon: BellIcon, match: (path: string) => path.startsWith('/push-messages') },
+  { href: '/moderation', key: 'navModeration', icon: ShieldIcon, match: (path: string) => path.startsWith('/moderation') },
+  { href: '/data-sources', key: 'navDataSources', icon: DatabaseIcon, match: (path: string) => path.startsWith('/data-sources') },
+  { href: '/audit-log', key: 'navAuditLog', icon: ScrollTextIcon, match: (path: string) => path.startsWith('/audit-log') },
+] as const;
+
+export function AdminShell({ children }: { children: ReactNode }) {
   const t = useTranslations('App');
   const router = useRouter();
+  const pathname = usePathname();
   const me = useQuery({
     queryKey: ['admin-me'],
     queryFn: () => adminFetch<Me>('/admin/me'),
@@ -42,59 +60,88 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     router.push('/login');
   }
 
-  return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <AppBar position="static" color="default" elevation={0}>
-        <Toolbar>
-          <Typography
-            component={Link}
-            href="/"
-            variant="h6"
-            color="inherit"
-            sx={{ ...styles.title, textDecoration: 'none' }}
+  if (me.isPending) {
+    return (
+      <div className="flex min-h-svh flex-col">
+        <header className="flex h-14 items-center border-b px-4">
+          <Skeleton className="h-5 w-24" />
+        </header>
+        <main className="flex flex-1 flex-col">{children}</main>
+      </div>
+    );
+  }
+
+  if (!me.data) {
+    return (
+      <div className="flex min-h-svh flex-col">
+        <header className="flex h-14 items-center border-b bg-card px-4">
+          <span className="text-base font-semibold">{t('name')}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto"
+            nativeButton={false}
+            render={<Link href="/login" />}
           >
-            {t('name')}
-          </Typography>
-          {me.data ? (
-            <>
-              <Button component={Link} href="/review" color="inherit">
-                {t('navEvents')}
-              </Button>
-              <Button component={Link} href="/events/manage" color="inherit">
-                {t('navEventCatalog')}
-              </Button>
-              <Button component={Link} href="/publishers" color="inherit">
-                {t('navPublishers')}
-              </Button>
-              <Button component={Link} href="/push-messages" color="inherit">
-                {t('navPushMessages')}
-              </Button>
-              <Button component={Link} href="/moderation" color="inherit">
-                {t('navModeration')}
-              </Button>
-              <Button component={Link} href="/data-sources" color="inherit">
-                {t('navDataSources')}
-              </Button>
-              <Button component={Link} href="/audit-log" color="inherit">
-                {t('navAuditLog')}
-              </Button>
-              <Typography variant="body2" color="text.secondary" sx={{ mx: 1 }}>
-                {me.data.email}
-              </Typography>
-              <Button color="inherit" onClick={() => void logout()}>
-                {t('logout')}
-              </Button>
-            </>
-          ) : (
-            <Button component={Link} href="/login" color="inherit">
-              {t('navLogin')}
-            </Button>
-          )}
-        </Toolbar>
-      </AppBar>
-      <Container component="main" maxWidth="lg" sx={styles.main}>
-        {children}
-      </Container>
-    </Box>
+            {t('navLogin')}
+          </Button>
+        </header>
+        <main className="flex flex-1 flex-col">{children}</main>
+      </div>
+    );
+  }
+
+  return (
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" render={<Link href="/" />}>
+                <span className="font-semibold">{t('name')}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {NAV.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton render={<Link href={item.href} />} isActive={item.match(pathname)}>
+                        <Icon />
+                        <span>{t(item.key)}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <span className="truncate px-2 text-xs text-sidebar-foreground/70">{me.data.email}</span>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={() => void logout()}>
+                <LogOutIcon />
+                <span>{t('logout')}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset>
+        <header className="flex h-14 items-center border-b px-4">
+          <SidebarTrigger />
+        </header>
+        <main className="flex flex-1 flex-col px-6 py-6">{children}</main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

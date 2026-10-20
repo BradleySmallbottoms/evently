@@ -1,4 +1,5 @@
 import type { SourceAdapter } from '@local-events/ingest';
+import { bollnasKommun } from './bollnas-kommun';
 import { destinationHalsingland } from './destination-halsingland';
 import { exampleFixture } from './example-fixture';
 import { gladaHudik } from './glada-hudik';
@@ -14,6 +15,7 @@ export const sources: Record<string, SourceAdapter<any>> = {
   [destinationHalsingland.slug]: destinationHalsingland,
   [icsFeed.slug]: icsFeed,
   [soderhamnBiblioteket.slug]: soderhamnBiblioteket,
+  [bollnasKommun.slug]: bollnasKommun,
 };
 
 /** Slugs that identify a data source, not an organizer. They never match across workers. */

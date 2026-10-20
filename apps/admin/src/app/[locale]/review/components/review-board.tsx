@@ -1,11 +1,10 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import { LoadingRows } from '@/components/list-state';
 import { VerificationQueue } from '@/components/verification-queue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Link } from '@/i18n/navigation';
 import { adminFetch } from '@/lib/api';
 import { PendingNotifications } from './pending-notifications';
@@ -21,33 +20,34 @@ export function ReviewBoard() {
   });
 
   if (me.isPending) {
-    return <Typography color="text.secondary">{tApp('loading')}</Typography>;
+    return <LoadingRows />;
   }
 
   if (me.isError || !me.data) {
     return (
-      <Stack spacing={2}>
-        <Typography variant="h4" component="h1">
-          {t('title')}
-        </Typography>
-        <Alert severity="info">
-          {t('needLogin')} <Link href="/login">{tApp('navLogin')}</Link>
+      <div className="flex flex-col gap-4">
+        <h1 className="text-2xl font-semibold">{t('title')}</h1>
+        <Alert>
+          <AlertDescription>
+            {t('needLogin')}{' '}
+            <Link href="/login" className="underline underline-offset-4">
+              {tApp('navLogin')}
+            </Link>
+          </AlertDescription>
         </Alert>
-      </Stack>
+      </div>
     );
   }
 
   return (
-    <Stack spacing={4}>
-      <Stack spacing={1}>
-        <Typography variant="h4" component="h1">
-          {t('title')}
-        </Typography>
-        <Typography color="text.secondary">{t('lead')}</Typography>
-      </Stack>
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-semibold">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('lead')}</p>
+      </div>
       <ReviewQueue embedded />
       <VerificationQueue embedded />
       <PendingNotifications />
-    </Stack>
+    </div>
   );
 }

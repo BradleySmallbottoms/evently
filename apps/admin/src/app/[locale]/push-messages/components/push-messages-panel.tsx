@@ -1,32 +1,23 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
-import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
+import { BellIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { EmptyState, LoadingRows } from '@/components/list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Link } from '@/i18n/navigation';
 import { adminFetch } from '@/lib/api';
-
-const styles: Record<string, SxProps<Theme>> = {
-  root: { display: 'flex', flexDirection: 'column', gap: 2 },
-  header: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 2,
-  },
-};
 
 type PushMessage = {
   id: string;
@@ -61,81 +52,84 @@ export function PushMessagesPanel() {
   }
 
   return (
-    <Box sx={styles.root}>
-      <Box sx={styles.header}>
-        <Box>
-          <Typography variant="h5">{t('title')}</Typography>
-          <Typography variant="body2" color="text.secondary">
-            {t('hint')}
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-          <Button component={Link} href="/push-messages/event" variant="outlined">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">{t('title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('hint')}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/push-messages/event" className={buttonVariants({ variant: 'outline' })}>
             {t('composeEvent')}
-          </Button>
-          <Button component={Link} href="/push-messages/broadcast" variant="contained">
+          </Link>
+          <Link href="/push-messages/broadcast" className={buttonVariants()}>
             {t('composeBroadcast')}
-          </Button>
-        </Stack>
-      </Box>
-      {list.isError ? <Alert severity="error">{t('loadError')}</Alert> : null}
-      {list.isLoading ? <Typography color="text.secondary">{t('loading')}</Typography> : null}
-      {list.data?.items.length === 0 ? (
-        <Alert severity="info">{t('empty')}</Alert>
+          </Link>
+        </div>
+      </div>
+      {list.isError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{t('loadError')}</AlertDescription>
+        </Alert>
       ) : null}
+      {list.isLoading ? <LoadingRows /> : null}
+      {list.data?.items.length === 0 ? <EmptyState icon={BellIcon} title={t('empty')} /> : null}
       {(list.data?.items.length ?? 0) > 0 ? (
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('colKind')}</TableCell>
-              <TableCell>{t('colTarget')}</TableCell>
-              <TableCell>{t('colAudience')}</TableCell>
-              <TableCell>{t('colStatus')}</TableCell>
-              <TableCell>{t('colSendAt')}</TableCell>
-              <TableCell />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {list.data?.items.map((row) => (
-              <TableRow key={row.id} hover>
-                <TableCell>
-                  <Chip
-                    size="small"
-                    label={row.kind === 'broadcast' ? t('kindBroadcast') : t('kindEvent')}
-                  />
-                </TableCell>
-                <TableCell>
-                  {row.kind === 'broadcast'
-                    ? t('broadcastTarget')
-                    : (row.eventTitle ?? '—')}
-                  {row.publisherName ? (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {row.publisherName}
-                    </Typography>
-                  ) : null}
-                </TableCell>
-                <TableCell>{audienceLabel(row)}</TableCell>
-                <TableCell>
-                  <Chip size="small" label={row.status} />
-                </TableCell>
-                <TableCell>
-                  {row.sendAt ? new Date(row.sendAt).toLocaleString() : t('asap')}
-                </TableCell>
-                <TableCell align="right">
-                  <Button component={Link} href={`/push-messages/${row.id}`} size="small">
-                    {t('edit')}
-                  </Button>
-                </TableCell>
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="rounded-t-lg border-b bg-muted">
+              <TableRow>
+                <TableHead>{t('colKind')}</TableHead>
+                <TableHead>{t('colTarget')}</TableHead>
+                <TableHead>{t('colAudience')}</TableHead>
+                <TableHead>{t('colStatus')}</TableHead>
+                <TableHead>{t('colSendAt')}</TableHead>
+                <TableHead />
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {list.data?.items.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>
+                    <Badge variant="secondary">
+                      {row.kind === 'broadcast' ? t('kindBroadcast') : t('kindEvent')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {row.kind === 'broadcast' ? t('broadcastTarget') : (row.eventTitle ?? '—')}
+                    {row.publisherName ? (
+                      <span className="block text-xs text-muted-foreground">
+                        {row.publisherName}
+                      </span>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>{audienceLabel(row)}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{row.status}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {row.sendAt ? new Date(row.sendAt).toLocaleString() : t('asap')}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Link
+                      href={`/push-messages/${row.id}`}
+                      className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+                    >
+                      {t('edit')}
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : null}
-      <Stack direction="row" spacing={1}>
-        <Button onClick={() => void list.refetch()} disabled={list.isFetching}>
+      <div className="flex gap-2">
+        <Button variant="ghost" onClick={() => void list.refetch()} disabled={list.isFetching}>
+          {list.isFetching ? <Spinner data-icon="inline-start" /> : null}
           {t('refresh')}
         </Button>
-      </Stack>
-    </Box>
+      </div>
+    </div>
   );
 }

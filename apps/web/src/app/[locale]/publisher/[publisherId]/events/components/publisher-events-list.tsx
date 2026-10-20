@@ -1,38 +1,17 @@
 'use client';
 
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardActions from '@mui/material/CardActions';
-import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { AppLink } from '@/components/app-link';
+import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import { api, throwIfError } from '@/lib/api';
 
-const styles: Record<string, SxProps<Theme>> = {
-  list: {
-    listStyle: 'none',
-    m: 0,
-    p: 0,
-  },
-  header: {
-    flexDirection: { xs: 'column', sm: 'row' },
-    alignItems: { xs: 'stretch', sm: 'center' },
-    justifyContent: 'space-between',
-    gap: 2,
-  },
-};
-
-function statusColor(status: string): 'success' | 'warning' | 'error' | 'default' {
-  if (status === 'published') return 'success';
-  if (status === 'awaiting_verification') return 'warning';
-  if (status === 'cancelled') return 'error';
-  return 'default';
+function statusVariant(status: string): 'secondary' | 'destructive' | 'outline' {
+  if (status === 'published') return 'secondary';
+  if (status === 'cancelled') return 'destructive';
+  return 'outline';
 }
 
 export function PublisherEventsList() {
@@ -50,81 +29,57 @@ export function PublisherEventsList() {
   });
 
   if (list.isPending) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        {t('loading')}
-      </Typography>
-    );
+    return <p className="text-sm text-muted-foreground">{t('loading')}</p>;
   }
   if (list.isError) {
-    return (
-      <Typography variant="body2" color="error">
-        {t('loadError')}
-      </Typography>
-    );
+    return <p className="text-sm text-destructive">{t('loadError')}</p>;
   }
 
   return (
-    <Stack spacing={3}>
-      <Stack sx={styles.header}>
-        <Typography variant="h4" component="h1">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
           {t('publisherEventsTitle')}
-        </Typography>
-        <Button
-          component={AppLink}
+        </h1>
+        <AppLink
           href={`/publisher/${publisherId}/events/new`}
-          variant="contained"
+          className={buttonVariants({ variant: 'brand' })}
         >
           {t('newEvent')}
-        </Button>
-      </Stack>
+        </AppLink>
+      </div>
 
       {list.data.items.length === 0 ? (
-        <Typography color="text.secondary">{t('noEvents')}</Typography>
+        <p className="text-muted-foreground">{t('noEvents')}</p>
       ) : (
-        <Stack spacing={1.5} component="ul" sx={styles.list}>
+        <ul className="m-0 flex list-none flex-col gap-3 p-0">
           {list.data.items.map((event) => (
-            <Card key={event.id} component="li" variant="outlined">
-              <CardContent>
-                <Stack
-                  direction="row"
-                  spacing={2}
-                  useFlexGap
-                  sx={{
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <Stack spacing={0.5}>
-                    <Typography variant="h6" component="h2">
-                      {event.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {new Date(event.startsAt).toLocaleString()} -{' '}
-                      {new Date(event.endsAt).toLocaleString()}
-                    </Typography>
-                  </Stack>
-                  <Chip
-                    size="small"
-                    label={t(`status.${event.status}`)}
-                    color={statusColor(event.status)}
-                  />
-                </Stack>
-              </CardContent>
-              <CardActions>
-                <Button
-                  component={AppLink}
+            <li
+              key={event.id}
+              className="rounded-2xl bg-card p-4 text-card-foreground ring-1 ring-border"
+            >
+              <div className="flex flex-row flex-wrap items-start justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-lg font-medium text-foreground">{event.title}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(event.startsAt).toLocaleString()} -{' '}
+                    {new Date(event.endsAt).toLocaleString()}
+                  </p>
+                </div>
+                <Badge variant={statusVariant(event.status)}>{t(`status.${event.status}`)}</Badge>
+              </div>
+              <div className="mt-3">
+                <AppLink
                   href={`/publisher/${publisherId}/events/${event.id}`}
-                  size="small"
+                  className={buttonVariants({ variant: 'ghost', size: 'sm' })}
                 >
                   {t('editEvent')}
-                </Button>
-              </CardActions>
-            </Card>
+                </AppLink>
+              </div>
+            </li>
           ))}
-        </Stack>
+        </ul>
       )}
-    </Stack>
+    </div>
   );
 }

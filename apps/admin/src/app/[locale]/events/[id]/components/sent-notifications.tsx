@@ -1,16 +1,19 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
+import { BellIcon } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { EmptyState, LoadingRows } from '@/components/list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { buttonVariants } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Link } from '@/i18n/navigation';
 import { adminFetch } from '@/lib/api';
 
@@ -50,58 +53,61 @@ export function SentNotifications({ eventId }: { eventId: string }) {
   });
 
   return (
-    <Stack spacing={1}>
-      <Typography variant="h6" component="h2">
-        {t('sentNotifications')}
-      </Typography>
-      {list.isError ? <Alert severity="error">{t('sentNotificationsError')}</Alert> : null}
-      {list.isLoading ? (
-        <Typography color="text.secondary">{t('sentNotificationsLoading')}</Typography>
+    <div className="flex flex-col gap-2">
+      <h2 className="text-lg font-semibold">{t('sentNotifications')}</h2>
+      {list.isError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{t('sentNotificationsError')}</AlertDescription>
+        </Alert>
       ) : null}
+      {list.isLoading ? <LoadingRows /> : null}
       {list.data?.items.length === 0 ? (
-        <Alert severity="info">{t('sentNotificationsEmpty')}</Alert>
+        <EmptyState icon={BellIcon} title={t('sentNotificationsEmpty')} />
       ) : null}
       {(list.data?.items.length ?? 0) > 0 ? (
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('colSent')}</TableCell>
-              <TableCell>{t('colMessage')}</TableCell>
-              <TableCell>{t('colAudience')}</TableCell>
-              <TableCell align="right">{t('colRecipients')}</TableCell>
-              <TableCell />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {list.data?.items.map((row) => {
-              const title = locale === 'en' ? row.titleEn : row.titleSv;
-              const body = locale === 'en' ? row.bodyEn : row.bodySv;
-              return (
-                <TableRow key={row.id} hover>
-                  <TableCell>
-                    {row.sentAt
-                      ? new Date(row.sentAt).toLocaleString(locale)
-                      : t('statusSending')}
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{title}</Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {body}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>{audienceLabel(row, t)}</TableCell>
-                  <TableCell align="right">{row.recipientCount}</TableCell>
-                  <TableCell align="right">
-                    <Button component={Link} href={`/push-messages/${row.id}`} size="small">
-                      {t('openNotification')}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="rounded-t-lg border-b bg-muted">
+              <TableRow>
+                <TableHead>{t('colSent')}</TableHead>
+                <TableHead>{t('colMessage')}</TableHead>
+                <TableHead>{t('colAudience')}</TableHead>
+                <TableHead className="text-right">{t('colRecipients')}</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {list.data?.items.map((row) => {
+                const title = locale === 'en' ? row.titleEn : row.titleSv;
+                const body = locale === 'en' ? row.bodyEn : row.bodySv;
+                return (
+                  <TableRow key={row.id}>
+                    <TableCell>
+                      {row.sentAt
+                        ? new Date(row.sentAt).toLocaleString(locale)
+                        : t('statusSending')}
+                    </TableCell>
+                    <TableCell className="whitespace-normal">
+                      <p className="text-sm">{title}</p>
+                      <p className="block text-xs text-muted-foreground">{body}</p>
+                    </TableCell>
+                    <TableCell>{audienceLabel(row, t)}</TableCell>
+                    <TableCell className="text-right">{row.recipientCount}</TableCell>
+                    <TableCell className="text-right">
+                      <Link
+                        href={`/push-messages/${row.id}`}
+                        className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+                      >
+                        {t('openNotification')}
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       ) : null}
-    </Stack>
+    </div>
   );
 }

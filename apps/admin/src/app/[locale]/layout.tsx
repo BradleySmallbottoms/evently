@@ -1,21 +1,26 @@
-import { AppRouterCacheProvider } from '@mui/material-nextjs/v16-appRouter';
-import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
-import { Roboto } from 'next/font/google';
+import { DM_Sans, Geist_Mono } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { AdminShell } from '@/components/admin-shell';
+import { ColorScheme } from '@/components/color-scheme';
 import { SentryProvider } from '@/components/sentry-provider';
-import { ThemeRegistry } from '@/components/theme-registry';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { routing } from '@/i18n/routing';
 import { QueryProvider } from '@/lib/query-provider';
 import './globals.css';
 
-const roboto = Roboto({
-  weight: ['300', '400', '500', '700'],
+const dmSans = DM_Sans({
   subsets: ['latin'],
-  display: 'swap',
+  variable: '--font-dm-sans',
 });
+
+const geistMono = Geist_Mono({
+  subsets: ['latin'],
+  variable: '--font-geist-mono',
+});
+
+const colorSchemeScript = `try{document.documentElement.classList.toggle('dark',matchMedia('(prefers-color-scheme: dark)').matches)}catch(e){}`;
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -34,20 +39,25 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={roboto.className} suppressHydrationWarning>
-      <body>
-        <InitColorSchemeScript attribute="data" />
-        <AppRouterCacheProvider>
-          <ThemeRegistry>
-            <NextIntlClientProvider messages={messages}>
-              <SentryProvider>
-                <QueryProvider>
-                  <AdminShell>{children}</AdminShell>
-                </QueryProvider>
-              </SentryProvider>
-            </NextIntlClientProvider>
-          </ThemeRegistry>
-        </AppRouterCacheProvider>
+    <html
+      lang={locale}
+      className={`${dmSans.variable} ${geistMono.variable} h-full`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: colorSchemeScript }} />
+      </head>
+      <body className="flex min-h-full flex-col bg-background text-foreground">
+        <ColorScheme />
+        <TooltipProvider>
+          <NextIntlClientProvider messages={messages}>
+            <SentryProvider>
+              <QueryProvider>
+                <AdminShell>{children}</AdminShell>
+              </QueryProvider>
+            </SentryProvider>
+          </NextIntlClientProvider>
+        </TooltipProvider>
       </body>
     </html>
   );

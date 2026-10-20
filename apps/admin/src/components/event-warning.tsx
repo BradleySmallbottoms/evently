@@ -1,10 +1,8 @@
 'use client';
 
-import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
-import SvgIcon from '@mui/material/SvgIcon';
-import Tooltip from '@mui/material/Tooltip';
+import { TriangleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export type EventWarning = {
   code: 'possible_duplicate';
@@ -26,17 +24,15 @@ function warningLabel(warnings: EventWarning[], labelFor: (title: string) => str
 
 function WarningGlyph({ label }: { label: string }) {
   return (
-    <Tooltip title={label}>
-      <Box
-        component="span"
-        role="img"
-        aria-label={label}
-        sx={{ display: 'inline-flex', color: 'warning.main', flexShrink: 0 }}
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span role="img" aria-label={label} className="inline-flex shrink-0 text-amber-600" />
+        }
       >
-        <SvgIcon fontSize="small" aria-hidden>
-          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
-        </SvgIcon>
-      </Box>
+        <TriangleAlert className="size-4" aria-hidden />
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
     </Tooltip>
   );
 }
@@ -54,11 +50,9 @@ export function EventTagCount({ count }: { count: number }) {
   const t = useTranslations('Events');
   const none = count === 0;
   return (
-    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+    <div className="flex items-center gap-1">
       {none ? <WarningGlyph label={t('warningNoTags')} /> : null}
-      <Box component="span" sx={{ color: none ? 'warning.main' : 'text.primary' }}>
-        {count}
-      </Box>
-    </Stack>
+      <span className={none ? 'text-amber-600' : undefined}>{count}</span>
+    </div>
   );
 }

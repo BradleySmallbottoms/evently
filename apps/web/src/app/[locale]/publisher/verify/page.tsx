@@ -1,11 +1,10 @@
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Suspense } from 'react';
 import { AppLink } from '@/components/app-link';
 import { PageMain } from '@/components/page-main';
 import { VerifyForm } from './components/verify-form';
+
+const backLinkClass = 'text-sm text-muted-foreground underline-offset-4 hover:underline';
 
 export default async function VerifyPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -15,17 +14,15 @@ export default async function VerifyPage({ params }: { params: Promise<{ locale:
 
   return (
     <PageMain maxWidth="sm">
-      <Stack spacing={1}>
-        <Link component={AppLink} href="/" underline="hover" variant="body2" color="text.secondary">
+      <div className="flex flex-col gap-2">
+        <AppLink href="/" className={backLinkClass}>
           {nav('home')}
-        </Link>
-        <Typography variant="h4" component="h1">
+        </AppLink>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
           {t('verifyTitle')}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {t('registerSuccess')}
-        </Typography>
-      </Stack>
+        </h1>
+        <p className="text-sm text-muted-foreground">{t('registerSuccess')}</p>
+      </div>
       <Suspense fallback={null}>
         <VerifyForm />
       </Suspense>

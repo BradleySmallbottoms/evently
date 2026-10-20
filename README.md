@@ -210,6 +210,17 @@ calls) in the same change as every new major feature.**
   `pending_scan` events. The seeded row stays disabled. Flow:
   [docs/flows/soderhamn-biblioteket.md](docs/flows/soderhamn-biblioteket.md).
 
+### Bollnäs kommun import
+
+- The events calendar on bollnas.se, with no API key. The worker reads the Soleil eventsCalendar
+  JSON the page already loads (`/appresource/…/items?start=`) and saves each row before the next
+  page. `robots.txt` disallows `jsessionid` URLs. Each row is one showing. The item id is the
+  external id. A `Z` time is that instant. `freeEntry` `Ja` is free. The place street and city
+  are stored on `meta.address`. The import does not geocode. The scan geocodes a missing point
+  later. `pnpm --filter @local-events/data-workers dev -- --source bollnas-kommun` writes
+  `pending_scan` events. The seeded row stays disabled. Flow:
+  [docs/flows/bollnas-kommun.md](docs/flows/bollnas-kommun.md).
+
 ### Event share links
 
 - Mobile share uses the OS sheet with `EXPO_PUBLIC_WEB_URL/events/{id}` (default local web
@@ -422,7 +433,7 @@ calls) in the same change as every new major feature.**
 
 ### Frontend structure
 
-- Admin/web: **MUI** only. Mobile: custom UI + `@expo/ui` / SwiftUI overlays (not Paper/MUI).
+- Admin/web: **shadcn/ui** only. Mobile: custom UI + `@expo/ui` / SwiftUI overlays (not Paper).
 - Shared components → `src/components/`. Route-only → Next `app/.../components/`, Expo
   `app/.../_components/`. Native/SwiftUI overlays stay under `apps/mobile/src/components/native/`.
   Details in `CLAUDE.md`.
@@ -530,8 +541,8 @@ apps/
   worker/         SQS consumer: notifications, stats
   data-workers/   Scheduled ingestion, one adapter per source
   mobile/         Expo app
-  web/            Next.js public web (MUI)
-  admin/          Next.js admin (MUI)
+  web/            Next.js public web (shadcn)
+  admin/          Next.js admin (shadcn)
 packages/
   contracts/      Zod schemas shared by APIs and clients
   domain/         Business rules (check-in, ratings, publishing, entitlements, regions)
@@ -546,7 +557,7 @@ docs/             Project description, build plan, decisions
 docs/flows/       Mermaid e2e flow charts for major features
 tests/            Vitest + Playwright (not colocated under apps/)
 .claude/          Claude Code settings and skills
-.agents/skills/   Frontend UI skills (MUI, Expo UI, …)
+.agents/skills/   Frontend UI skills (Expo UI, …)
 ```
 
 ## Docker images

@@ -76,8 +76,11 @@ function assistantMessage(root: Record<string, unknown> | null): Record<string, 
     const message = asRecord(choice?.message);
     if (message) return message;
   }
-  if(Array.isArray(root.content)) {
-    const message = asRecord({type: 'message', content: root.content.map(part => part.text).join('\n')});
+  if (Array.isArray(root.content)) {
+    const message = asRecord({
+      type: 'message',
+      content: root.content.map((part) => part.text).join('\n'),
+    });
     if (message) return message;
   }
   const message = asRecord(root.message);

@@ -1,16 +1,14 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { AppLink } from '@/components/app-link';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useRouter } from '@/i18n/navigation';
 import { api, throwIfError } from '@/lib/api';
 
@@ -44,28 +42,36 @@ export function VerifyForm() {
   }
 
   return (
-    <Stack component="form" onSubmit={onSubmit} spacing={2}>
-      <TextField
-        name="token"
-        type="text"
-        label={t('verifyToken')}
-        required
-        fullWidth
-        defaultValue={initialToken}
-        slotProps={{
-          input: { sx: { fontFamily: 'ui-monospace, monospace', fontSize: 14 } },
-        }}
-      />
-      {error && <Alert severity="error">{error}</Alert>}
-      {success && <Alert severity="success">{t('verifySuccess')}</Alert>}
-      <Button type="submit" variant="contained" disabled={pending}>
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="verify-token">{t('verifyToken')}</Label>
+        <Input
+          id="verify-token"
+          name="token"
+          type="text"
+          required
+          defaultValue={initialToken}
+          className="font-mono text-sm"
+        />
+      </div>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {success && (
+        <Alert>
+          <AlertDescription>{t('verifySuccess')}</AlertDescription>
+        </Alert>
+      )}
+      <Button type="submit" variant="brand" disabled={pending}>
         {t('verifySubmit')}
       </Button>
-      <Typography variant="body2" color="text.secondary">
-        <Link component={AppLink} href="/publisher/login" underline="hover">
+      <p className="text-sm text-muted-foreground">
+        <AppLink href="/publisher/login" className="underline-offset-4 hover:underline">
           {t('loginTitle')}
-        </Link>
-      </Typography>
-    </Stack>
+        </AppLink>
+      </p>
+    </form>
   );
 }

@@ -1,7 +1,5 @@
-import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { buttonVariants } from '@/components/ui/button';
 import { AppLink } from '@/components/app-link';
 import { PageMain } from '@/components/page-main';
 
@@ -12,29 +10,25 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const nav = await getTranslations('Nav');
 
   return (
-    <PageMain maxWidth="sm" sx={{ justifyContent: 'center' }}>
-      <Stack spacing={1.5}>
-        <Typography variant="h3" component="h1">
-          {t('name')}
-        </Typography>
-        <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 400 }}>
-          {t('tagline')}
-        </Typography>
-      </Stack>
-      <Stack direction="row" useFlexGap spacing={1.5} sx={{ flexWrap: 'wrap' }}>
-        <Button component={AppLink} href="/events" variant="contained">
+    <PageMain maxWidth="sm" className="justify-center">
+      <div className="flex flex-col gap-3">
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">{t('name')}</h1>
+        <p className="text-lg font-normal text-muted-foreground">{t('tagline')}</p>
+      </div>
+      <div className="flex flex-row flex-wrap items-center gap-3">
+        <AppLink href="/events" className={buttonVariants({ variant: 'brand' })}>
           {nav('events')}
-        </Button>
-        <Button component={AppLink} href="/login-with-code" variant="outlined">
+        </AppLink>
+        <AppLink href="/login-with-code" className={buttonVariants({ variant: 'outline' })}>
           {nav('loginWithCode')}
-        </Button>
-        <Button component={AppLink} href="/publisher/login" variant="outlined">
+        </AppLink>
+        <AppLink href="/publisher/login" className={buttonVariants({ variant: 'outline' })}>
           {nav('publisherLogin')}
-        </Button>
-        <Button component={AppLink} href="/publisher/register" variant="text">
+        </AppLink>
+        <AppLink href="/publisher/register" className={buttonVariants({ variant: 'ghost' })}>
           {nav('publisherRegister')}
-        </Button>
-      </Stack>
+        </AppLink>
+      </div>
     </PageMain>
   );
 }

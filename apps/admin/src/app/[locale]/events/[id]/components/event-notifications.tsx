@@ -1,20 +1,5 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import FormControl from '@mui/material/FormControl';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import FormLabel from '@mui/material/FormLabel';
-import InputLabel from '@mui/material/InputLabel';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Radio from '@mui/material/Radio';
-import RadioGroup from '@mui/material/RadioGroup';
-import Select from '@mui/material/Select';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import type { SxProps, Theme } from '@mui/material/styles';
 import {
   canAdminNotifyEvent,
   DEFAULT_MARKETING_PUSH_PLAN,
@@ -32,13 +17,26 @@ import {
   PushScheduleOffsetSelect,
   type ScheduleOffsetChoice,
 } from '@/components/push-schedule-offset';
+import { LoadingRows } from '@/components/list-state';
+import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
 import { AdminApiError, adminFetch } from '@/lib/api';
 import { toDatetimeLocal, zonedLocalToIso } from '@/lib/zoned-datetime';
 import { SentNotifications } from './sent-notifications';
-
-const styles: Record<string, SxProps<Theme>> = {
-  card: { p: 2, display: 'flex', flexDirection: 'column', gap: 2 },
-};
 
 type Audience = 'area' | 'area_and_tag';
 
@@ -134,7 +132,12 @@ export function EventNotifications({
 
   const canNotify = canAdminNotifyEvent(status);
   const scheduleKey = `${eventId}|${startsAt}|${timezone}`;
-  if (canNotify && startsAt && !customized && (builtScheduleKey !== scheduleKey || builtPlan !== planId)) {
+  if (
+    canNotify &&
+    startsAt &&
+    !customized &&
+    (builtScheduleKey !== scheduleKey || builtPlan !== planId)
+  ) {
     setBuiltScheduleKey(scheduleKey);
     setBuiltPlan(planId);
     setDrafts(draftsForPlan(planId, title, startsAt, timezone));
@@ -266,203 +269,257 @@ export function EventNotifications({
     ? new Date(startsAt).toLocaleString(locale, { timeZone: timezone })
     : '—';
   const scheduleStale = customized && builtScheduleKey !== null && builtScheduleKey !== scheduleKey;
+  const planLabels = {
+    single: t('planSingle'),
+    standard: t('planStandard'),
+    countdown: t('planCountdown'),
+    full: t('planFull'),
+  };
 
   return (
-    <Stack spacing={2}>
-      <Typography variant="body2" color="text.secondary">
-        {t('planStarts', { when: startsLabel })}
-      </Typography>
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">{t('planStarts', { when: startsLabel })}</p>
       {canNotify ? (
-        <Paper variant="outlined" sx={styles.card}>
-          <Typography variant="body2">{t('planLead')}</Typography>
-          {status === 'published' ? null : <Alert severity="info">{t('planHeld')}</Alert>}
-          {notice ? <Alert severity="success">{notice}</Alert> : null}
-          {error ? <Alert severity="error">{error}</Alert> : null}
-          {scheduleStale ? (
-            <Alert
-              severity="info"
-              action={
-                <Button color="inherit" size="small" onClick={() => setCustomized(false)}>
+        <Card>
+          <CardContent className="flex flex-col gap-4">
+            <p className="text-sm">{t('planLead')}</p>
+            {status === 'published' ? null : (
+              <Alert>
+                <AlertDescription>{t('planHeld')}</AlertDescription>
+              </Alert>
+            )}
+            {notice ? (
+              <Alert>
+                <AlertDescription>{notice}</AlertDescription>
+              </Alert>
+            ) : null}
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+            {scheduleStale ? (
+              <Alert>
+                <AlertDescription>{t('startChanged')}</AlertDescription>
+                <AlertAction>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCustomized(false)}
+                  >
+                    {t('refreshPlan')}
+                  </Button>
+                </AlertAction>
+              </Alert>
+            ) : null}
+            <Field>
+              <FieldLabel htmlFor="notification-plan">{t('plan')}</FieldLabel>
+              <Select
+                items={planLabels}
+                value={planId}
+                onValueChange={(next) => {
+                  if (next == null) return;
+                  const plan = marketingPushPlan(next);
+                  if (!plan) return;
+                  setPlanId(plan.id);
+                  setCustomized(false);
+                }}
+              >
+                <SelectTrigger id="notification-plan" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="single">{t('planSingle')}</SelectItem>
+                    <SelectItem value="standard">{t('planStandard')}</SelectItem>
+                    <SelectItem value="countdown">{t('planCountdown')}</SelectItem>
+                    <SelectItem value="full">{t('planFull')}</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                {planId === 'single'
+                  ? t('planSingleHint')
+                  : planId === 'countdown'
+                    ? t('planCountdownHint')
+                    : planId === 'full'
+                      ? t('planFullHint')
+                      : t('planStandardHint')}
+              </FieldDescription>
+            </Field>
+            <FieldSet>
+              <FieldLegend variant="label" id="plan-audience-label">
+                {t('audienceRule')}
+              </FieldLegend>
+              <RadioGroup
+                aria-labelledby="plan-audience-label"
+                value={audience}
+                onValueChange={(next) => setAudience(next === 'area' ? 'area' : 'area_and_tag')}
+              >
+                <Field orientation="horizontal">
+                  <RadioGroupItem value="area" id="audience-area" />
+                  <FieldLabel htmlFor="audience-area">{t('audienceArea')}</FieldLabel>
+                </Field>
+                <Field orientation="horizontal">
+                  <RadioGroupItem value="area_and_tag" id="audience-area-and-tag" />
+                  <FieldLabel htmlFor="audience-area-and-tag">{t('audienceAreaAndTag')}</FieldLabel>
+                </Field>
+              </RadioGroup>
+            </FieldSet>
+            {drafts.map((draft, index) => {
+              const past = sendTimeInPast(draft.sendAtLocal, timezone);
+              return (
+                <Card key={draft.id}>
+                  <CardHeader>
+                    <CardTitle>{t('notificationN', { n: index + 1 })}</CardTitle>
+                    <CardAction>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setCustomized(true);
+                          setDrafts((current) => current.filter((item) => item.id !== draft.id));
+                        }}
+                      >
+                        {t('removeNotification')}
+                      </Button>
+                    </CardAction>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-4">
+                    <PushScheduleOffsetSelect
+                      id={`plan-offset-${draft.id}`}
+                      value={draft.offset}
+                      onChange={(offset) => onOffset(draft.id, offset)}
+                    />
+                    <Field data-invalid={past || undefined}>
+                      <FieldLabel htmlFor={`plan-send-${draft.id}`}>{t('sendAt')}</FieldLabel>
+                      <Input
+                        id={`plan-send-${draft.id}`}
+                        type="datetime-local"
+                        required
+                        value={draft.sendAtLocal}
+                        aria-invalid={past || undefined}
+                        onChange={(event) =>
+                          updateDraft(draft.id, {
+                            sendAtLocal: event.target.value,
+                            offset: 'custom',
+                          })
+                        }
+                      />
+                      <FieldDescription>
+                        {past ? t('planPast') : t('planSendAtHint')}
+                      </FieldDescription>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor={`plan-title-sv-${draft.id}`}>{t('titleSv')}</FieldLabel>
+                      <Input
+                        id={`plan-title-sv-${draft.id}`}
+                        required
+                        value={draft.titleSv}
+                        onChange={(event) => updateDraft(draft.id, { titleSv: event.target.value })}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor={`plan-body-sv-${draft.id}`}>{t('bodySv')}</FieldLabel>
+                      <Textarea
+                        id={`plan-body-sv-${draft.id}`}
+                        required
+                        rows={2}
+                        value={draft.bodySv}
+                        onChange={(event) => updateDraft(draft.id, { bodySv: event.target.value })}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor={`plan-title-en-${draft.id}`}>{t('titleEn')}</FieldLabel>
+                      <Input
+                        id={`plan-title-en-${draft.id}`}
+                        required
+                        value={draft.titleEn}
+                        onChange={(event) => updateDraft(draft.id, { titleEn: event.target.value })}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor={`plan-body-en-${draft.id}`}>{t('bodyEn')}</FieldLabel>
+                      <Textarea
+                        id={`plan-body-en-${draft.id}`}
+                        required
+                        rows={2}
+                        value={draft.bodyEn}
+                        onChange={(event) => updateDraft(draft.id, { bodyEn: event.target.value })}
+                      />
+                    </Field>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            <div className="flex flex-row flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (!startsAt) return;
+                  setCustomized(true);
+                  setDrafts((current) => [
+                    ...current,
+                    draftFromOffset(title, startsAt, timezone, nextOffset(current)),
+                  ]);
+                }}
+                disabled={drafts.length >= MAX_ADMIN_EVENT_PUSH_PLAN}
+              >
+                {t('addNotification')}
+              </Button>
+              <Button
+                type="button"
+                onClick={approvePlan}
+                disabled={approve.isPending || drafts.length === 0}
+              >
+                {approve.isPending ? <Spinner data-icon="inline-start" /> : null}
+                {approve.isPending
+                  ? status === 'published'
+                    ? t('approvingPlan')
+                    : t('savingPlan')
+                  : status === 'published'
+                    ? t('approvePlan')
+                    : t('savePlan')}
+              </Button>
+              {drafts.length === 0 ? (
+                <Button type="button" variant="ghost" onClick={() => setCustomized(false)}>
                   {t('refreshPlan')}
                 </Button>
-              }
-            >
-              {t('startChanged')}
-            </Alert>
-          ) : null}
-          <FormControl fullWidth>
-            <InputLabel id="notification-plan-label">{t('plan')}</InputLabel>
-            <Select
-              labelId="notification-plan-label"
-              label={t('plan')}
-              value={planId}
-              onChange={(event) => {
-                const next = marketingPushPlan(event.target.value);
-                if (!next) return;
-                setPlanId(next.id);
-                setCustomized(false);
-              }}
-            >
-              <MenuItem value="single">{t('planSingle')}</MenuItem>
-              <MenuItem value="standard">{t('planStandard')}</MenuItem>
-              <MenuItem value="countdown">{t('planCountdown')}</MenuItem>
-              <MenuItem value="full">{t('planFull')}</MenuItem>
-            </Select>
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-              {planId === 'single'
-                ? t('planSingleHint')
-                : planId === 'countdown'
-                  ? t('planCountdownHint')
-                  : planId === 'full'
-                    ? t('planFullHint')
-                    : t('planStandardHint')}
-            </Typography>
-          </FormControl>
-          <FormControl>
-            <FormLabel id="plan-audience-label">{t('audienceRule')}</FormLabel>
-            <RadioGroup
-              aria-labelledby="plan-audience-label"
-              value={audience}
-              onChange={(event) =>
-                setAudience(event.target.value === 'area' ? 'area' : 'area_and_tag')
-              }
-            >
-              <FormControlLabel value="area" control={<Radio />} label={t('audienceArea')} />
-              <FormControlLabel
-                value="area_and_tag"
-                control={<Radio />}
-                label={t('audienceAreaAndTag')}
-              />
-            </RadioGroup>
-          </FormControl>
-          {drafts.map((draft, index) => (
-            <Paper key={draft.id} variant="outlined" sx={styles.card}>
-              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="subtitle1">{t('notificationN', { n: index + 1 })}</Typography>
-                <Button
-                  size="small"
-                  color="inherit"
-                  onClick={() => {
-                    setCustomized(true);
-                    setDrafts((current) => current.filter((item) => item.id !== draft.id));
-                  }}
-                >
-                  {t('removeNotification')}
-                </Button>
-              </Stack>
-              <PushScheduleOffsetSelect
-                id={`plan-offset-${draft.id}`}
-                value={draft.offset}
-                onChange={(offset) => onOffset(draft.id, offset)}
-              />
-              <TextField
-                label={t('sendAt')}
-                type="datetime-local"
-                value={draft.sendAtLocal}
-                onChange={(event) =>
-                  updateDraft(draft.id, { sendAtLocal: event.target.value, offset: 'custom' })
-                }
-                fullWidth
-                required
-                error={sendTimeInPast(draft.sendAtLocal, timezone)}
-                helperText={
-                  sendTimeInPast(draft.sendAtLocal, timezone) ? t('planPast') : t('planSendAtHint')
-                }
-                slotProps={{ inputLabel: { shrink: true } }}
-              />
-              <TextField
-                label={t('titleSv')}
-                value={draft.titleSv}
-                onChange={(event) => updateDraft(draft.id, { titleSv: event.target.value })}
-                fullWidth
-                required
-              />
-              <TextField
-                label={t('bodySv')}
-                value={draft.bodySv}
-                onChange={(event) => updateDraft(draft.id, { bodySv: event.target.value })}
-                fullWidth
-                required
-                multiline
-                minRows={2}
-              />
-              <TextField
-                label={t('titleEn')}
-                value={draft.titleEn}
-                onChange={(event) => updateDraft(draft.id, { titleEn: event.target.value })}
-                fullWidth
-                required
-              />
-              <TextField
-                label={t('bodyEn')}
-                value={draft.bodyEn}
-                onChange={(event) => updateDraft(draft.id, { bodyEn: event.target.value })}
-                fullWidth
-                required
-                multiline
-                minRows={2}
-              />
-            </Paper>
-          ))}
-          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-            <Button
-              variant="outlined"
-              onClick={() => {
-                if (!startsAt) return;
-                setCustomized(true);
-                setDrafts((current) => [
-                  ...current,
-                  draftFromOffset(title, startsAt, timezone, nextOffset(current)),
-                ]);
-              }}
-              disabled={drafts.length >= MAX_ADMIN_EVENT_PUSH_PLAN}
-            >
-              {t('addNotification')}
-            </Button>
-            <Button
-              variant="contained"
-              onClick={approvePlan}
-              disabled={approve.isPending || drafts.length === 0}
-            >
-              {approve.isPending
-                ? status === 'published'
-                  ? t('approvingPlan')
-                  : t('savingPlan')
-                : status === 'published'
-                  ? t('approvePlan')
-                  : t('savePlan')}
-            </Button>
-            {drafts.length === 0 ? (
-              <Button onClick={() => setCustomized(false)}>{t('refreshPlan')}</Button>
-            ) : null}
-          </Stack>
-        </Paper>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
       ) : (
-        <Alert severity="info">{t('eventNotPublished')}</Alert>
+        <Alert>
+          <AlertDescription>{t('eventNotPublished')}</AlertDescription>
+        </Alert>
       )}
-      <Stack spacing={1}>
-        <Typography variant="h6" component="h2">
-          {t('scheduledTitle')}
-        </Typography>
+      <div className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold">{t('scheduledTitle')}</h2>
         {scheduled.isError || pending.isError ? (
-          <Alert severity="error">{t('loadError')}</Alert>
+          <Alert variant="destructive">
+            <AlertDescription>{t('loadError')}</AlertDescription>
+          </Alert>
         ) : null}
-        {scheduled.isLoading || pending.isLoading ? (
-          <Typography color="text.secondary">{t('loading')}</Typography>
-        ) : null}
+        {scheduled.isLoading || pending.isLoading ? <LoadingRows /> : null}
         {(scheduled.data || pending.data) && waiting.length === 0 ? (
-          <Alert severity="info">{t('scheduledEmpty')}</Alert>
+          <Alert>
+            <AlertDescription>{t('scheduledEmpty')}</AlertDescription>
+          </Alert>
         ) : null}
         {waiting.map((item) => (
-          <Typography key={item.id} variant="body2">
+          <p key={item.id} className="text-sm">
             {item.sendAt ? new Date(item.sendAt).toLocaleString(locale) : t('asap')}
             {' · '}
             {locale === 'en' ? item.titleEn : item.titleSv}
             {item.status === 'pending' ? ` · ${t('inReview')}` : ''}
-          </Typography>
+          </p>
         ))}
-      </Stack>
+      </div>
       <SentNotifications eventId={eventId} />
-    </Stack>
+    </div>
   );
 }

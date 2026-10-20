@@ -1,18 +1,22 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { UsersIcon } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { EmptyState, LoadingRows } from '@/components/list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Spinner } from '@/components/ui/spinner';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -113,38 +117,33 @@ export function PublisherCatalog() {
   if (list.isError) {
     const unauthorized = list.error instanceof AdminApiError && list.error.status === 401;
     return (
-      <Alert severity={unauthorized ? 'info' : 'error'}>
-        {unauthorized ? (
-          <>
-            {t('needLogin')} <Link href="/login">{tApp('navLogin')}</Link>
-          </>
-        ) : (
-          t('loadError')
-        )}
+      <Alert variant={unauthorized ? 'default' : 'destructive'}>
+        <AlertDescription>
+          {unauthorized ? (
+            <>
+              {t('needLogin')} <Link href="/login">{tApp('navLogin')}</Link>
+            </>
+          ) : (
+            t('loadError')
+          )}
+        </AlertDescription>
       </Alert>
     );
   }
 
   return (
-    <Stack spacing={2}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1}
-        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
-      >
-        <Typography variant="h5" component="h2">
-          {t('title')}
-        </Typography>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-xl font-semibold">{t('title')}</h2>
         {items.length > 0 ? (
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="flex flex-row flex-wrap items-center gap-2">
             {selectedIds.length > 0 ? (
-              <Typography variant="body2" color="text.secondary">
+              <p className="text-sm text-muted-foreground">
                 {t('selected', { count: selectedIds.length })}
-              </Typography>
+              </p>
             ) : null}
             <Button
-              size="small"
-              variant="contained"
+              size="sm"
               disabled={!canVerify || busy}
               onClick={() => {
                 setNotice(null);
@@ -156,73 +155,96 @@ export function PublisherCatalog() {
                 );
               }}
             >
+              {busy ? <Spinner data-icon="inline-start" /> : null}
               {t('verify')}
             </Button>
-          </Stack>
+          </div>
         ) : null}
-      </Stack>
-      {notice ? <Alert severity="success">{notice}</Alert> : null}
-      {bulkError ? <Alert severity="error">{t('bulkError')}</Alert> : null}
-      {list.isLoading ? <Typography color="text.secondary">{tApp('loading')}</Typography> : null}
+      </div>
+      {notice ? (
+        <Alert>
+          <AlertDescription>{notice}</AlertDescription>
+        </Alert>
+      ) : null}
+      {bulkError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{t('bulkError')}</AlertDescription>
+        </Alert>
+      ) : null}
+      {list.isLoading ? <LoadingRows /> : null}
       {!list.isLoading && items.length === 0 ? (
-        <Typography color="text.secondary">{t('empty')}</Typography>
+        <EmptyState icon={UsersIcon} title={t('empty')} />
       ) : null}
       {items.length > 0 ? (
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell padding="checkbox">
-                <Checkbox
-                  size="small"
-                  checked={allSelected}
-                  indeterminate={someSelected}
-                  onChange={toggleAll}
-                  slotProps={{ input: { 'aria-label': t('selectAll') } }}
-                />
-              </TableCell>
-              <TableCell>{t('name')}</TableCell>
-              <TableCell>{t('id')}</TableCell>
-              <TableCell>{t('slug')}</TableCell>
-              <TableCell>{t('origin')}</TableCell>
-              <TableCell>{t('status')}</TableCell>
-              <TableCell align="right">{t('actions')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {items.map((item) => (
-              <TableRow key={item.id} hover selected={selected.has(item.id)}>
-                <TableCell padding="checkbox">
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="rounded-t-lg border-b bg-muted">
+              <TableRow>
+                <TableHead className="w-10">
                   <Checkbox
-                    size="small"
-                    checked={selected.has(item.id)}
-                    onChange={() => toggleOne(item.id)}
-                    slotProps={{ input: { 'aria-label': t('selectRow', { name: item.name }) } }}
+                    checked={allSelected}
+                    indeterminate={someSelected}
+                    onCheckedChange={() => toggleAll()}
+                    aria-label={t('selectAll')}
                   />
-                </TableCell>
-                <TableCell>
-                  <Link href={`/publishers/${item.id}`}>{item.name}</Link>
-                </TableCell>
-                <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{item.id}</TableCell>
-                <TableCell>{item.slug}</TableCell>
-                <TableCell>{item.origin}</TableCell>
-                <TableCell>{statusLabel(t, item.status)}</TableCell>
-                <TableCell align="right">
-                  <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-                    <Button component={Link} href={`/publishers/${item.id}`} size="small">
-                      {t('edit')}
-                    </Button>
-                    {item.status !== 'published' ? (
-                      <Button size="small" disabled={busy} onClick={() => verify.mutate(item.id)}>
-                        {t('verify')}
-                      </Button>
-                    ) : null}
-                  </Stack>
-                </TableCell>
+                </TableHead>
+                <TableHead>{t('name')}</TableHead>
+                <TableHead>{t('id')}</TableHead>
+                <TableHead>{t('slug')}</TableHead>
+                <TableHead>{t('origin')}</TableHead>
+                <TableHead>{t('status')}</TableHead>
+                <TableHead className="text-right">{t('actions')}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={item.id} data-state={selected.has(item.id) ? 'selected' : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.has(item.id)}
+                      onCheckedChange={() => toggleOne(item.id)}
+                      aria-label={t('selectRow', { name: item.name })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      href={`/publishers/${item.id}`}
+                      className="text-primary underline-offset-4 hover:underline"
+                    >
+                      {item.name}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">{item.id}</TableCell>
+                  <TableCell>{item.slug}</TableCell>
+                  <TableCell>{item.origin}</TableCell>
+                  <TableCell>{statusLabel(t, item.status)}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Link
+                        href={`/publishers/${item.id}`}
+                        className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+                      >
+                        {t('edit')}
+                      </Link>
+                      {item.status !== 'published' ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() => verify.mutate(item.id)}
+                        >
+                          {busy ? <Spinner data-icon="inline-start" /> : null}
+                          {t('verify')}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : null}
-    </Stack>
+    </div>
   );
 }

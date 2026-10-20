@@ -1,29 +1,11 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { api, throwIfError } from '@/lib/api';
-
-const styles: Record<string, SxProps<Theme>> = {
-  code: {
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-    fontSize: '2.5rem',
-    letterSpacing: '0.35em',
-    fontWeight: 700,
-    lineHeight: 1.2,
-  },
-  payload: {
-    wordBreak: 'break-all',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-    fontSize: '0.85rem',
-  },
-};
 
 type Props = {
   eventId: string;
@@ -58,8 +40,8 @@ export function DigitalCodePanel({ eventId, published }: Props) {
     if (!session.data?.slotEndsAt || !session.data.revealed) return;
     const ms = new Date(session.data.slotEndsAt).getTime() - Date.now() + 250;
     if (ms <= 0) {
-      setTick((n) => n + 1);
-      return;
+      const id = window.setTimeout(() => setTick((n) => n + 1), 0);
+      return () => window.clearTimeout(id);
     }
     const id = window.setTimeout(() => setTick((n) => n + 1), ms);
     return () => window.clearTimeout(id);
@@ -85,44 +67,51 @@ export function DigitalCodePanel({ eventId, published }: Props) {
 
   if (!published) {
     return (
-      <Alert severity="info">{t('digitalCodePublishFirst')}</Alert>
+      <Alert>
+        <AlertDescription>{t('digitalCodePublishFirst')}</AlertDescription>
+      </Alert>
     );
   }
 
   const live = session.data;
 
   return (
-    <Stack spacing={2}>
-      <Typography variant="h6" component="h2">
-        {t('digitalCodeTitle')}
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        {t('digitalCodeHelp')}
-      </Typography>
-      {error && <Alert severity="error">{error}</Alert>}
-      {session.isError && <Alert severity="error">{t('digitalCodeError')}</Alert>}
+    <div className="flex flex-col gap-4">
+      <h2 className="text-xl font-semibold text-foreground">{t('digitalCodeTitle')}</h2>
+      <p className="text-sm text-muted-foreground">{t('digitalCodeHelp')}</p>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {session.isError && (
+        <Alert variant="destructive">
+          <AlertDescription>{t('digitalCodeError')}</AlertDescription>
+        </Alert>
+      )}
       {!live?.revealed ? (
-        <Button variant="contained" onClick={start} disabled={pendingStart}>
+        <Button type="button" variant="brand" onClick={start} disabled={pendingStart}>
           {pendingStart ? t('digitalCodeStarting') : t('digitalCodeStart')}
         </Button>
       ) : (
-        <Stack spacing={1.5}>
-          <Typography sx={styles.code} component="p" aria-live="polite">
+        <div className="flex flex-col gap-3">
+          <p
+            className="font-mono text-4xl font-bold tracking-[0.35em] text-foreground"
+            aria-live="polite"
+          >
             {live.code}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
+          </p>
+          <p className="text-sm text-muted-foreground">
             {t('digitalCodeRotates', { seconds: live.rotationS })}
-          </Typography>
+          </p>
           {live.qrPayload && (
-            <Typography sx={styles.payload} color="text.secondary">
-              {live.qrPayload}
-            </Typography>
+            <p className="font-mono text-sm break-all text-muted-foreground">{live.qrPayload}</p>
           )}
-          <Button variant="outlined" onClick={start} disabled={pendingStart}>
+          <Button type="button" variant="outline" onClick={start} disabled={pendingStart}>
             {t('digitalCodeRefresh')}
           </Button>
-        </Stack>
+        </div>
       )}
-    </Stack>
+    </div>
   );
 }

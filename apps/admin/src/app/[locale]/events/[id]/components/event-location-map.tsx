@@ -1,7 +1,5 @@
 'use client';
 
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { geofenceMeters, type EventLocationMapProps } from './event-location';
@@ -10,7 +8,7 @@ const LeafletMap = dynamic(
   () => import('./event-location-leaflet').then((mod) => mod.EventLocationLeaflet),
   {
     ssr: false,
-    loading: () => <Box sx={{ height: '100%', bgcolor: 'action.hover' }} />,
+    loading: () => <div className="h-full w-full bg-muted" />,
   },
 );
 
@@ -18,26 +16,18 @@ export function EventLocationMap(props: EventLocationMapProps) {
   const t = useTranslations('EventEditor');
   const idle = props.lat.trim() === '' && props.lng.trim() === '';
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-      <Box
+    <div className="flex flex-col gap-2">
+      <div
         role="region"
         aria-label={t('mapLabel')}
-        sx={{
-          height: 360,
-          borderRadius: 1,
-          overflow: 'hidden',
-          border: 1,
-          borderColor: 'divider',
-          position: 'relative',
-          zIndex: 0,
-        }}
+        className="relative z-0 h-[360px] overflow-hidden rounded-md border"
       >
         <LeafletMap {...props} />
-      </Box>
-      <Typography variant="body2" color="text.secondary">
+      </div>
+      <p className="text-sm text-muted-foreground">
         {idle ? t('mapEmpty') : t('mapHint')}
         {geofenceMeters(props.radiusM) != null ? ` ${t('mapRadiusHint')}` : ''}
-      </Typography>
-    </Box>
+      </p>
+    </div>
   );
 }

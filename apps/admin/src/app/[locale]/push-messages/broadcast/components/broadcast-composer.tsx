@@ -1,29 +1,26 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import FormControl from '@mui/material/FormControl';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import FormLabel from '@mui/material/FormLabel';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Radio from '@mui/material/Radio';
-import RadioGroup from '@mui/material/RadioGroup';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import type { SxProps, Theme } from '@mui/material/styles';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
 import { Link, useRouter } from '@/i18n/navigation';
 import { adminFetch } from '@/lib/api';
-
-const styles: Record<string, SxProps<Theme>> = {
-  root: { display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 720 },
-  panel: { p: 2, display: 'flex', flexDirection: 'column', gap: 2 },
-};
 
 type TagOption = { id: string; name: string };
 
@@ -83,103 +80,126 @@ export function BroadcastComposer() {
     !create.isPending;
 
   return (
-    <Box sx={styles.root}>
-      <Button component={Link} href="/push-messages" size="small" sx={{ alignSelf: 'flex-start' }}>
+    <div className="flex max-w-3xl flex-col gap-4">
+      <Link
+        href="/push-messages"
+        className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'self-start' })}
+      >
         {t('back')}
-      </Button>
-      <Typography variant="h5">{t('broadcastTitle')}</Typography>
-      <Typography variant="body2" color="text.secondary">
-        {t('broadcastHint')}
-      </Typography>
-      <Paper sx={styles.panel} variant="outlined">
-        {error ? <Alert severity="error">{error}</Alert> : null}
-        <TextField
-          label={t('titleSv')}
-          value={titleSv}
-          onChange={(e) => setTitleSv(e.target.value)}
-          fullWidth
-          required
-        />
-        <TextField
-          label={t('bodySv')}
-          value={bodySv}
-          onChange={(e) => setBodySv(e.target.value)}
-          fullWidth
-          required
-          multiline
-          minRows={2}
-        />
-        <TextField
-          label={t('titleEn')}
-          value={titleEn}
-          onChange={(e) => setTitleEn(e.target.value)}
-          fullWidth
-          required
-        />
-        <TextField
-          label={t('bodyEn')}
-          value={bodyEn}
-          onChange={(e) => setBodyEn(e.target.value)}
-          fullWidth
-          required
-          multiline
-          minRows={2}
-        />
-        <FormControl>
-          <FormLabel id="broadcast-audience-label">{t('audienceRule')}</FormLabel>
-          <RadioGroup
-            aria-labelledby="broadcast-audience-label"
-            value={audience}
-            onChange={(e) => setAudience(e.target.value as 'everyone' | 'tag_interest')}
-          >
-            <FormControlLabel
-              value="everyone"
-              control={<Radio />}
-              label={t('audienceEveryone')}
+      </Link>
+      <h1 className="text-2xl font-semibold">{t('broadcastTitle')}</h1>
+      <p className="text-sm text-muted-foreground">{t('broadcastHint')}</p>
+      <Card>
+        <CardContent className="flex flex-col gap-4">
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <Field>
+            <FieldLabel htmlFor="broadcast-title-sv">{t('titleSv')}</FieldLabel>
+            <Input
+              id="broadcast-title-sv"
+              value={titleSv}
+              onChange={(event) => setTitleSv(event.target.value)}
+              required
             />
-            <FormControlLabel
-              value="tag_interest"
-              control={<Radio />}
-              label={t('audienceTagInterest')}
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="broadcast-body-sv">{t('bodySv')}</FieldLabel>
+            <Textarea
+              id="broadcast-body-sv"
+              value={bodySv}
+              onChange={(event) => setBodySv(event.target.value)}
+              required
+              rows={2}
             />
-          </RadioGroup>
-        </FormControl>
-        {audience === 'tag_interest' ? (
-          <TextField
-            select
-            label={t('audienceTag')}
-            value={audienceTagId}
-            onChange={(e) => setAudienceTagId(e.target.value)}
-            fullWidth
-            required
-            helperText={t('audienceTagHint')}
-          >
-            {(tags.data?.items ?? []).map((tag) => (
-              <MenuItem key={tag.id} value={tag.id}>
-                {tag.name}
-              </MenuItem>
-            ))}
-          </TextField>
-        ) : null}
-        <TextField
-          label={t('sendAt')}
-          type="datetime-local"
-          value={sendAt}
-          onChange={(e) => setSendAt(e.target.value)}
-          fullWidth
-          helperText={t('broadcastSendAtHint')}
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
-        <Stack direction="row" spacing={1}>
-          <Button
-            variant="contained"
-            onClick={() => create.mutate()}
-            disabled={!canSubmit}
-          >
-            {t('broadcastCreate')}
-          </Button>
-        </Stack>
-      </Paper>
-    </Box>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="broadcast-title-en">{t('titleEn')}</FieldLabel>
+            <Input
+              id="broadcast-title-en"
+              value={titleEn}
+              onChange={(event) => setTitleEn(event.target.value)}
+              required
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="broadcast-body-en">{t('bodyEn')}</FieldLabel>
+            <Textarea
+              id="broadcast-body-en"
+              value={bodyEn}
+              onChange={(event) => setBodyEn(event.target.value)}
+              required
+              rows={2}
+            />
+          </Field>
+          <FieldSet>
+            <FieldLegend variant="label" id="broadcast-audience-label">
+              {t('audienceRule')}
+            </FieldLegend>
+            <RadioGroup
+              aria-labelledby="broadcast-audience-label"
+              value={audience}
+              onValueChange={(next) => {
+                if (next === 'everyone' || next === 'tag_interest') setAudience(next);
+              }}
+            >
+              <Field orientation="horizontal">
+                <RadioGroupItem value="everyone" id="broadcast-audience-everyone" />
+                <FieldLabel htmlFor="broadcast-audience-everyone">
+                  {t('audienceEveryone')}
+                </FieldLabel>
+              </Field>
+              <Field orientation="horizontal">
+                <RadioGroupItem value="tag_interest" id="broadcast-audience-tag" />
+                <FieldLabel htmlFor="broadcast-audience-tag">{t('audienceTagInterest')}</FieldLabel>
+              </Field>
+            </RadioGroup>
+          </FieldSet>
+          {audience === 'tag_interest' ? (
+            <Field>
+              <FieldLabel htmlFor="broadcast-audience-tag-id">{t('audienceTag')}</FieldLabel>
+              <Select
+                value={audienceTagId || null}
+                onValueChange={(next) => {
+                  if (next != null) setAudienceTagId(next);
+                }}
+              >
+                <SelectTrigger id="broadcast-audience-tag-id" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {(tags.data?.items ?? []).map((tag) => (
+                      <SelectItem key={tag.id} value={tag.id}>
+                        {tag.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <FieldDescription>{t('audienceTagHint')}</FieldDescription>
+            </Field>
+          ) : null}
+          <Field>
+            <FieldLabel htmlFor="broadcast-send-at">{t('sendAt')}</FieldLabel>
+            <Input
+              id="broadcast-send-at"
+              type="datetime-local"
+              value={sendAt}
+              onChange={(event) => setSendAt(event.target.value)}
+            />
+            <FieldDescription>{t('broadcastSendAtHint')}</FieldDescription>
+          </Field>
+          <div className="flex gap-2">
+            <Button onClick={() => create.mutate()} disabled={!canSubmit}>
+              {create.isPending ? <Spinner data-icon="inline-start" /> : null}
+              {t('broadcastCreate')}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

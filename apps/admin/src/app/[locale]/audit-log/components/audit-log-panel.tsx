@@ -1,15 +1,18 @@
 'use client';
 
-import Alert from '@mui/material/Alert';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
+import { ScrollTextIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { EmptyState, LoadingRows } from '@/components/list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 
@@ -32,18 +35,21 @@ export function AuditLogPanel() {
   });
 
   if (list.isError) {
-    const unauthorized =
-      list.error instanceof AdminApiError && list.error.status === 401;
+    const unauthorized = list.error instanceof AdminApiError && list.error.status === 401;
     return (
-      <Alert severity={unauthorized ? 'info' : 'error'}>
-        {unauthorized ? (
-          <>
-            {t('needLogin')}{' '}
-            <Link href="/login">{tApp('navLogin')}</Link>
-          </>
-        ) : (
-          t('loadError')
-        )}
+      <Alert variant={unauthorized ? 'default' : 'destructive'}>
+        <AlertDescription>
+          {unauthorized ? (
+            <>
+              {t('needLogin')}{' '}
+              <Link href="/login" className="underline underline-offset-4">
+                {tApp('navLogin')}
+              </Link>
+            </>
+          ) : (
+            t('loadError')
+          )}
+        </AlertDescription>
       </Alert>
     );
   }
@@ -51,43 +57,39 @@ export function AuditLogPanel() {
   const items = list.data?.items ?? [];
 
   return (
-    <Stack spacing={2}>
-      <Typography variant="h4" component="h1">
-        {t('title')}
-      </Typography>
-      {list.isLoading ? <Typography color="text.secondary">{tApp('loading')}</Typography> : null}
+    <div className="flex flex-col gap-4">
+      <h1 className="text-2xl font-semibold">{t('title')}</h1>
+      {list.isLoading ? <LoadingRows /> : null}
       {!list.isLoading && items.length === 0 ? (
-        <Typography color="text.secondary">{t('empty')}</Typography>
+        <EmptyState icon={ScrollTextIcon} title={t('empty')} />
       ) : null}
       {items.length > 0 ? (
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>{t('at')}</TableCell>
-              <TableCell>{t('actor')}</TableCell>
-              <TableCell>{t('action')}</TableCell>
-              <TableCell>{t('entity')}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {items.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>{new Date(item.at).toLocaleString()}</TableCell>
-                <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                  {item.actor}
-                </TableCell>
-                <TableCell>{item.action}</TableCell>
-                <TableCell>
-                  {item.entityType}{' '}
-                  <Typography component="span" variant="caption" color="text.secondary">
-                    {item.entityId}
-                  </Typography>
-                </TableCell>
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="rounded-t-lg border-b bg-muted">
+              <TableRow>
+                <TableHead>{t('at')}</TableHead>
+                <TableHead>{t('actor')}</TableHead>
+                <TableHead>{t('action')}</TableHead>
+                <TableHead>{t('entity')}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>{new Date(item.at).toLocaleString()}</TableCell>
+                  <TableCell className="font-mono text-xs">{item.actor}</TableCell>
+                  <TableCell>{item.action}</TableCell>
+                  <TableCell>
+                    {item.entityType}{' '}
+                    <span className="text-xs text-muted-foreground">{item.entityId}</span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : null}
-    </Stack>
+    </div>
   );
 }
