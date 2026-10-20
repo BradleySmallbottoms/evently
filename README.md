@@ -170,7 +170,8 @@ calls) in the same change as every new major feature.**
   product’s text and occasions. It does not read HTML. List coordinates are longitude then
   latitude. A product with no coordinate is still saved, without a map point. The list URL is kept
   when it points at another site. Webbsida, Evenemangslänk, and Externa länkar are added when that
-  page is not already a link. A product
+  page is not already a link. A product with no venue uses the city after the postcode in Postadress.
+  When that line has no city, the town and the list coordinate stay as they are. A product
   with no occasion is still saved, with empty start and end. The event scan fills both
   when it can read them from the text. An event with no start stays off the public list. A long daily
   exhibition becomes one event; a concert stays one event per occasion and stores the product id

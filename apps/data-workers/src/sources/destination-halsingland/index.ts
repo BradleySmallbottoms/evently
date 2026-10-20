@@ -1,5 +1,6 @@
 import type { EventMeta } from '@local-events/contracts';
 import {
+  cityFromAddress,
   eventUrlKey,
   organizerKeys,
   parseLinksFromText,
@@ -66,6 +67,8 @@ export interface HalsinglandProduct {
   ageLimit?: number;
   organizerKeys: string[];
   organizerName?: string;
+  /** City after the postcode in goodToKnow Postadress. Used when no venue is named. */
+  postalCity?: string;
   links: HalsinglandLink[];
   occasions: HalsinglandOccasion[];
 }
@@ -308,6 +311,27 @@ function isFreeAdmission(name: string): boolean {
   return /^(?:fritt inträde|fri entré|gratis inträde|gratis)[.!]?$/i.test(text);
 }
 
+/** `82471 Delsbo` or `824 71 Delsbo`. A 6-digit postcode is accepted too. */
+function cityAfterPostcode(value: string): string | undefined {
+  const match = /^(?:\d{3}\s?\d{2}|\d{6})\s+(.+)$/.exec(value);
+  return cityFromAddress(match?.[1]) ?? undefined;
+}
+
+function postalCityOf(content: ContentBody | undefined): string | undefined {
+  if (!Array.isArray(content?.goodToKnow)) return undefined;
+  for (const group of content.goodToKnow) {
+    if (!group || typeof group !== 'object' || !('name' in group)) continue;
+    if (textOf(group.name).toLocaleLowerCase('sv') !== 'postadress') continue;
+    if (!('attributes' in group) || !Array.isArray(group.attributes)) continue;
+    for (const attribute of group.attributes) {
+      if (!attribute || typeof attribute !== 'object' || !('name' in attribute)) continue;
+      const city = cityAfterPostcode(textOf(attribute.name));
+      if (city) return city;
+    }
+  }
+  return undefined;
+}
+
 function freeEntryOf(content: ContentBody | undefined): boolean {
   const groups = content?.goodToKnow;
   if (!Array.isArray(groups)) return false;
@@ -477,6 +501,7 @@ function normalizeProduct(
   const occasions = occasionsOf(booking);
   if (!id || !title || !sourceUrl) return undefined;
   const town = textOf(content?.location) || textOf(item.location) || undefined;
+  const postalCity = postalCityOf(content);
   const location = pointFromCoordinates(item.coordinates);
   const pictures = imagesOf(content?.images ?? item.images);
   const intro = plainText(content?.introduction) || plainText(item.introduction) || undefined;
@@ -501,6 +526,7 @@ function normalizeProduct(
     ...(freeEntry ? { freeEntry } : {}),
     ...(ageLimit !== undefined ? { ageLimit } : {}),
     ...organizer,
+    ...(postalCity ? { postalCity } : {}),
     links,
     occasions,
   };
@@ -581,6 +607,7 @@ function mapProduct(
     (product.freeEntry ? 0 : undefined);
   const venue = sharedVenue(occasions);
   const digital = venue?.toLocaleLowerCase('sv') === 'digitalt';
+  const venueName = !digital ? venue || product.postalCity : undefined;
   const meta = metaOf(product);
   const onlineUrl = digital ? product.links.find((link) => link.url)?.url : undefined;
   const base = {
@@ -590,7 +617,7 @@ function mapProduct(
     ...(meta ? { meta } : {}),
     mode: digital ? ('digital' as const) : ('physical' as const),
     timezone: 'Europe/Stockholm' as const,
-    ...(venue && !digital ? { venueName: venue } : {}),
+    ...(venueName ? { venueName } : {}),
     ...(product.town && !digital ? { address: product.town } : {}),
     ...(product.location && !digital ? { location: product.location } : {}),
     ...(onlineUrl ? { onlineUrl } : {}),

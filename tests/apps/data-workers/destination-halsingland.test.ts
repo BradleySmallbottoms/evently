@@ -290,6 +290,46 @@ describe('destination-halsingland fetch', () => {
     );
   });
 
+  it('uses the postadress city when the product has no venue', async () => {
+    async function load(postadress: string, arena?: string) {
+      const fetched = await destinationHalsingland.fetchRaw(
+        ctx(async (input) => {
+          const url = String(input);
+          if (url.includes('/se-och-gora/products')) {
+            const page = new URL(url).searchParams.get('page');
+            if (page === '1') return json({ totalResults: 1, items: [listItem] });
+            return json({ totalResults: 1, items: [] });
+          }
+          if (url.includes('/product/productcontent')) {
+            return json({
+              ...content,
+              location: 'Hudiksvall',
+              goodToKnow: [{ name: 'Postadress', attributes: [{ name: postadress }] }],
+            });
+          }
+          return json({
+            occasions: arena ? [{ date: '2026-11-14', period: '19:00 - 20:30', arena }] : [],
+          });
+        }),
+      );
+      return destinationHalsingland.map(fetched)[0];
+    }
+    const fromPostcode = await load('82471 Delsbo');
+    expect(fromPostcode?.venueName).toBe('Delsbo');
+    expect(fromPostcode?.address).toBe('Hudiksvall');
+    expect(fromPostcode?.location).toEqual({ lat: 61.3505711, lng: 16.3952167 });
+    const spaced = await load('824 71 Iggesund');
+    expect(spaced?.venueName).toBe('Iggesund');
+    const sixDigits = await load('123456 Järvsö');
+    expect(sixDigits?.venueName).toBe('Järvsö');
+    const named = await load('82471 Delsbo', 'Svea Bio');
+    expect(named?.venueName).toBe('Svea Bio');
+    const fallback = await load('Köpmangatan 14');
+    expect(fallback?.venueName).toBeUndefined();
+    expect(fallback?.address).toBe('Hudiksvall');
+    expect(fallback?.location).toEqual({ lat: 61.3505711, lng: 16.3952167 });
+  });
+
   it('treats a free-admission label as free and leaves parking text alone', async () => {
     async function load(attribute: string) {
       return destinationHalsingland.fetchRaw(

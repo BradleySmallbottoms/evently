@@ -28,7 +28,9 @@ live on `data_sources.config`. Times use the Europe/Stockholm offset.
 `meta.freeEntry`. “Åldersgräns N” sets `meta.ageLimit`. The list `url` is the event page, including
 when it is on another site. Ticket and info links come from the product text and
 `externalBookingUrl`. Webbsida, Evenemangslänk, and Externa länkar in the product content are added
-when that page is not already a link. A lookalike is flagged by the scan job, which sets
+when that page is not already a link. A product with no venue uses the city after the postcode in
+goodToKnow Postadress (`82471 Delsbo`). When that line has no city, the town and the list coordinate
+stay as they are. A lookalike is flagged by the scan job, which sets
 `meta.possibleDuplicate` and leaves the row `in_review`.
 The organizer keys are the same for every worker: email, then an info-link host plus its path, then that host, then the
 arena name. The source slug is used only when none of those exist. The scan job tries that list
