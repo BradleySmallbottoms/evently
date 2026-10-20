@@ -1,4 +1,5 @@
 import {
+  eventAddress,
   parseLinksFromText,
   priceAmountFromText,
   organizerKeys,
@@ -15,15 +16,14 @@ import {
   type SourceRunContext,
 } from '@local-events/ingest';
 import { load } from 'cheerio';
-import { createLocationLookupState, geocodeDelayMs, resolveGladaLocation } from './location';
 
 /**
  * Glada Hudik (Hudiksvall) via the public Citybreak calendar.
  * No API key. The list is GET /sv/api/cbis-product-list?nodeId=&page= only.
  * robots.txt disallows filtered queries (order, occasion, filter, search, categories, geo, arena).
  * A dense run of daily opening hours becomes one event. Span and coverage come from source config.
- * A page without map coordinates is geocoded from the location pin, then the
- * contact address, then Hudiksvall centre.
+ * A page map coordinate is kept. A page without one is saved without a point.
+ * The contact address is stored for the scan to geocode.
  */
 
 const DEFAULT_ORIGIN = 'https://www.gladahudik.se';
@@ -89,6 +89,8 @@ export interface GladaProduct {
   /** Location pin under the price. A venue name or a street address. */
   placeName?: string;
   address?: string;
+  street?: string;
+  zipCode?: string;
   /** Town from the contact block, such as Hudiksvall or Bjuråker. */
   city?: string;
   links: GladaLink[];
@@ -226,6 +228,8 @@ function parseContact(texts: string[]): {
   organizerName?: string;
   organizerEmail?: string;
   address?: string;
+  street?: string;
+  zipCode?: string;
   city?: string;
 } {
   const email = texts.find((item) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item))?.toLowerCase();
@@ -245,6 +249,8 @@ function parseContact(texts: string[]): {
     ...(organizerName ? { organizerName } : {}),
     ...(email ? { organizerEmail: email } : {}),
     ...(address ? { address } : {}),
+    ...(street ? { street } : {}),
+    ...(postal ? { zipCode: postal } : {}),
     ...(city ? { city } : {}),
   };
 }
@@ -260,13 +266,6 @@ function parsePlaceName($: ReturnType<typeof load>): string | undefined {
       .text(),
   );
   return text || undefined;
-}
-
-function isDigitalProduct(product: GladaProduct): boolean {
-  const venues = product.occasions
-    .map((occasion) => occasion.venue?.toLocaleLowerCase('sv'))
-    .filter((venue): venue is string => Boolean(venue));
-  return venues.length > 0 && venues.every((venue) => venue === 'digitalt');
 }
 
 /** Event page: title, occasions, price, links, contact, hero image. */
@@ -424,6 +423,14 @@ function mapProduct(
   const digital = venue?.toLowerCase() === 'digitalt';
   const links = product.links;
   const onlineUrl = digital ? links.find((link) => link.url)?.url : undefined;
+  const place = digital
+    ? undefined
+    : eventAddress({
+        address: product.street,
+        zipCode: product.zipCode,
+        city: product.city,
+        location: product.location,
+      });
   const base = {
     title: product.title,
     ...(description ? { description } : {}),
@@ -433,6 +440,7 @@ function mapProduct(
     ...(venue && !digital ? { venueName: venue } : {}),
     ...(product.address && !digital ? { address: product.address } : {}),
     ...(product.location && !digital ? { location: product.location } : {}),
+    ...(place ? { meta: { address: place } } : {}),
     ...(onlineUrl ? { onlineUrl } : {}),
     sourceUrl,
     ...(links.length > 0 ? { links } : {}),
@@ -462,7 +470,7 @@ function mapProduct(
         startsAt: first.startsAt,
         ...(last.endsAt ? { endsAt: last.endsAt } : {}),
         meta: withCollapsedSpan(
-          undefined,
+          place ? { address: place } : undefined,
           occasions.map((occasion) => ({
             startsAt: occasion.startsAt,
             ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
@@ -472,7 +480,7 @@ function mapProduct(
       },
     ];
   }
-  const grouped = withOccasionGroup(undefined, product.id, occasions.length);
+  const grouped = withOccasionGroup(place ? { address: place } : undefined, product.id, occasions.length);
   return occasions.map((occasion) => {
     const externalId = `${product.id}:${occasion.startsAt.slice(0, 19)}:${occasion.endsAt?.slice(0, 19) ?? ''}`;
     return {
@@ -544,8 +552,6 @@ async function* eachProduct(ctx: {
   const origin = originFromConfig(ctx.config);
   const delayMs = delayMsFromConfig(ctx.config);
   const hits = await fetchList(ctx);
-  const locations = createLocationLookupState();
-  const delayMsForGeocode = geocodeDelayMs(ctx.config);
   let yielded = 0;
   for (const hit of hits) {
     if (ctx.limit != null && yielded >= ctx.limit) break;
@@ -561,13 +567,6 @@ async function* eachProduct(ctx: {
     if (!product) {
       ctx.log('glada-hudik skipped event with no title', { id: hit.id });
       continue;
-    }
-    if (!product.location && !isDigitalProduct(product)) {
-      product.location = await resolveGladaLocation(product, ctx.fetch, {
-        delayMs: delayMsForGeocode,
-        state: locations,
-        log: ctx.log,
-      });
     }
     yielded += 1;
     yield { now: new Date().toISOString(), origin: origin.origin, products: [product] };

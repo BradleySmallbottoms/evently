@@ -1,6 +1,6 @@
 /**
- * When a Glada Hudik page has no map point, look up a coordinate and otherwise
- * use Hudiksvall centre. The public Photon geocoder is biased toward that town.
+ * Query helpers for a Glada Hudik place. The importer does not geocode.
+ * A missing point is geocoded after the scan. The public Photon geocoder is biased toward that town.
  * A hit counts only inside Hudiksvall municipality (including Bjuråker, Delsbo,
  * and Iggesund).
  */

@@ -143,6 +143,7 @@ export function registerEventRoutes(app: OpenAPIHono, events: EventServices): vo
         eventId: id,
         publicOnly: true,
       });
+      console.log('result', JSON.stringify(result, null, 2));
       return c.json(result, 200);
     } catch (err) {
       return eventErrorResponse(c, err);

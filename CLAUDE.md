@@ -143,7 +143,13 @@ Product invariants (enforced in domain, tested)
   address has no city, the nearest city within 25 km of its point is used. A named venue stays.
 - Visit Söderhamn, Glada Hudik, and Destination Hälsingland turn each occasion into its own event.
   An import with no occasion, and a library page or ICS event with no date, is still saved, with empty start and end.
-  The event scan fills both when it can read them from the text. An event with no start stays off the public list.
+  The event scan fills both when it can read them from the text or from the ticket or info page.
+  The model may read that page for tags, instructions, and the summary.
+  An event with no start stays off the public list.
+  Importers store a scraped point and the street, postcode, and city on `meta.address`. They do not
+  geocode. The model returns an address in the scan JSON. The scan keeps a scraped point. When the
+  event has none, it geocodes the scraped address, or the model address when the import stored none.
+  A street, or a postcode and city, is geocoded, and only a hit in Sweden is kept. The model does not supply coordinates.
   A dense run longer than `data_sources.config.occasionSpanDays` (default 21) that covers at least
   `occasionCoverage` of those days (default 0.6) becomes one span (`externalId` `{productId}:span`,
   `meta.collapsed` true, with every occasion on `meta.occasions`).

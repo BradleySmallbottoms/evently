@@ -12,6 +12,7 @@ export interface ScanInput {
   location?: { lat: number; lng: number };
   sourceUrl?: string;
   links: string[];
+  pageLinks: { type: 'tickets' | 'registration' | 'info'; url: string }[];
   externalId: string;
   workerId: string;
   existingTags: TagChoice[];
@@ -61,6 +62,16 @@ export type ScanOutcome =
       /** Both set when the model found a range for an undated event. */
       startsAt?: string | null;
       endsAt?: string | null;
+      /** Point geocoded from the address in the scan JSON. Set only when the event had none. */
+      location?: { lat: number; lng: number };
+      /** Address from the scan JSON, including the point when one was found. */
+      address?: {
+        address?: string;
+        zipCode?: string;
+        city?: string;
+        country?: 'Sweden';
+        location?: { lat: number; lng: number };
+      };
     }
   | { ok: false; eventId: string; reason: 'unavailable' };
 

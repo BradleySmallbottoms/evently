@@ -20,6 +20,7 @@ const scanInput: ScanInput = {
   location: { lat: 61.3, lng: 17.07 },
   sourceUrl: 'https://example.com/konsert',
   links: [],
+  pageLinks: [],
   externalId: 'cbis:1',
   workerId: 'visit-soderhamn',
   existingTags: [],

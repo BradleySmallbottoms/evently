@@ -21,8 +21,7 @@ The organizer key is the library desk email, `biblioteket@soderhamn.se`. The chi
 same contact card is not used. An `Arrangör` line in the text is the organizer name. Otherwise the
 name is Söderhamns stadsbibliotek.
 
-A place at the library is looked up on the public Photon geocoder. A miss uses the library map
-point on Köpmangatan. Another venue stays without a point when that lookup misses. The seeded row
+The place street, postcode, and city are stored on `meta.address`. The import does not geocode. The scan geocodes a missing point later. The seeded row
 stays disabled until a manual run succeeds.
 
 ```mermaid

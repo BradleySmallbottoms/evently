@@ -467,7 +467,9 @@ export default function EventDetailScreen() {
   async function openDirections(location?: { lat: number; lng: number } | null) {
     if (!location) return;
     try {
-      await Linking.openURL(directionsUrl(location.lat, location.lng, Platform.OS));
+      await Linking.openURL(
+        directionsUrl(location.lat, location.lng, Platform.OS, event.data?.meta.address),
+      );
     } catch {
       Alert.alert(t('events.directions'), t('events.directionsError'));
     }
@@ -525,7 +527,7 @@ export default function EventDetailScreen() {
   const multiDay = event.data
     ? isOpenPeriod(event.data.startsAt, event.data.endsAt, timeZone)
     : false;
-  const copy = descriptionParts(event.data?.description);
+  const copy = descriptionParts(event.data?.description, event.data?.summary);
   const tagNames = namesForTagIds(event.data?.tagIds ?? [], tags.data?.items);
   const interestCount = Math.max(0, (event.data?.numSaved ?? 0) + savedDelta);
   const comingCount = Math.max(0, (event.data?.numComing ?? 0) + comingDelta);
@@ -653,7 +655,6 @@ export default function EventDetailScreen() {
     ? periodStatus(event.data.startsAt, event.data.endsAt, new Date(), timeZone)
     : 'soon';
   const aboutLong = copy.about.length > 280;
-
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
       <View style={{ flex: 1, width: '100%', maxWidth: MaxContentWidth }}>

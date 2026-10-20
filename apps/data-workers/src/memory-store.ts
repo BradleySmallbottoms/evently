@@ -5,6 +5,7 @@ import { distanceMeters } from '@local-events/geo';
 import type { PublisherStatus } from '@local-events/domain';
 import {
   choosePublisher,
+  mergeEventAddress,
   DUPLICATE_RADIUS_M,
   importNotificationMessages,
   PUBLISHER_NAME_RADIUS_M,
@@ -482,10 +483,13 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       if (!next.meta.possibleDuplicate && event.meta.possibleDuplicate) {
         next.meta = { ...next.meta, possibleDuplicate: event.meta.possibleDuplicate };
       }
+      const address = mergeEventAddress(next.meta.address, event.meta.address);
+      if (address) next.meta = { ...next.meta, address };
       if (!input.event.startsAt) {
         next.startsAt = event.startsAt;
         next.endsAt = event.endsAt;
       }
+      if (!input.event.location) next.location = event.location;
       const createdAt = event.createdAt ?? new Date();
       Object.assign(event, next);
       event.createdAt = createdAt;
@@ -579,6 +583,11 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           location: event.location ?? null,
           sourceUrl: event.sourceUrl,
           links: (event.links ?? []).map((link) => link.url),
+          pageLinks: (event.links ?? []).flatMap((link) =>
+            link.type === 'tickets' || link.type === 'registration' || link.type === 'info'
+              ? [{ type: link.type, url: link.url }]
+              : [],
+          ),
           externalId: ref.externalId,
           workerId: event.workerId ?? source.slug,
           tagIds: event.tagIds,
@@ -752,6 +761,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         event.startsAt = input.startsAt;
         event.endsAt = input.endsAt;
       }
+      if (input.location) event.location = input.location;
       event.scanClaimedUntil = null;
       return true;
     },

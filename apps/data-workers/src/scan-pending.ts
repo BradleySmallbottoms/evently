@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { readScanInstructions, readScanRange } from '@local-events/ingest';
 import {
+  canGeocodeAddress,
   choosePossibleOccasionGroupId,
   importPlanToSchedule,
   OCCASION_GROUP_MIN_RANK,
   shouldEnqueueNotifications,
   statusAfterImportScan,
 } from '@local-events/domain';
+import { geocodeSwedishAddress } from './page-place';
 import { emitDomainEvent, noopDomainEvents, type DomainEventSink } from './domain-events';
 import type { PromptRunner, ScanInput, ScanOutcome } from './prompt-runners';
 import type { IngestStore, PendingScanRow, PublisherLink } from './store';
@@ -69,7 +71,13 @@ export async function scanPendingEvents(
   store: IngestStore,
   runner: PromptRunner,
   enqueue: DomainEventSink = noopDomainEvents,
-  options: { limit?: number; leaseMs?: number; eventId?: string; skipEventIds?: readonly string[] } = {},
+  options: {
+    limit?: number;
+    leaseMs?: number;
+    eventId?: string;
+    skipEventIds?: readonly string[];
+    fetch?: typeof fetch;
+  } = {},
 ): Promise<ScanSummary> {
   const limit = options.limit ?? SCAN_BATCH_LIMIT;
   const leaseMs = options.leaseMs ?? SCAN_LEASE_MS;
@@ -83,6 +91,7 @@ export async function scanPendingEvents(
     eventIds: claimed.map((row) => row.eventId),
   };
   if (claimed.length === 0) return summary;
+  const fetchImpl = options.fetch ?? fetch;
   const batch: ScanInput[] = [];
   const rows = new Map<string, PendingScanRow>();
   for (const row of claimed) {
@@ -102,7 +111,7 @@ export async function scanPendingEvents(
     }
     let applied: 'published' | 'review' | 'skipped';
     try {
-      applied = await applyOutcome(store, row, outcome, enqueue, temporaries);
+      applied = await applyOutcome(store, row, outcome, enqueue, temporaries, fetchImpl);
     } catch (error) {
       console.error(
         'scan apply failed',
@@ -132,6 +141,7 @@ function scanInputFor(row: PendingScanRow): ScanInput {
     ...(row.location ? { location: row.location } : {}),
     ...(row.sourceUrl ? { sourceUrl: row.sourceUrl } : {}),
     links: row.links,
+    pageLinks: row.pageLinks,
     externalId: row.externalId,
     workerId: row.workerId,
     existingTags: row.tags,
@@ -149,6 +159,7 @@ async function applyOutcome(
   outcome: Extract<ScanOutcome, { ok: true }>,
   enqueue: DomainEventSink,
   temporaries: Map<string, PublisherLink>,
+  fetchImpl: typeof fetch,
 ): Promise<'published' | 'review' | 'skipped'> {
   const publisher = await publisherFor(store, row, outcome, temporaries);
   const status = statusAfterImportScan({
@@ -176,6 +187,8 @@ async function applyOutcome(
     if (kept) meta.possibleOccasionGroupId = kept;
   }
   const dates = datesFromScan(row, outcome);
+  const place = await placeFromScan(row, outcome, fetchImpl);
+  if (place.address) meta.address = place.address;
   const saved = await store.finishImportedScan({
     eventId: row.eventId,
     publisherId: publisher.publisherId,
@@ -188,6 +201,7 @@ async function applyOutcome(
     language: eventLanguage(outcome.language),
     claimedUntil: row.claimedUntil,
     ...(dates ?? {}),
+    ...(place.location ? { location: place.location } : {}),
   });
   if (!saved) return 'skipped';
   const startsAt = dates?.startsAt ?? row.startsAt;
@@ -216,6 +230,31 @@ async function applyOutcome(
  * Dates from the scan, used only when the stored event has neither start nor end
  * and the model returned both.
  */
+/**
+ * A scraped point is kept. A scraped address is kept, and geocoded when the
+ * event has no point. The address from the scan JSON is used only when the
+ * import stored none. The model does not supply the point.
+ */
+async function placeFromScan(
+  row: PendingScanRow,
+  outcome: Extract<ScanOutcome, { ok: true }>,
+  fetchImpl: typeof fetch,
+): Promise<{
+  location?: { lat: number; lng: number };
+  address?: NonNullable<PendingScanRow['meta']['address']>;
+}> {
+  const scraped = row.meta.address;
+  const chosen = scraped ?? outcome.address;
+  if (row.location) return scraped || !chosen ? {} : { address: chosen };
+  if (!chosen) return {};
+  const location = canGeocodeAddress(chosen) ? await geocodeSwedishAddress(chosen, fetchImpl) : undefined;
+  const address = location ? { ...chosen, location } : chosen;
+  return {
+    ...(location ? { location } : {}),
+    address,
+  };
+}
+
 function datesFromScan(
   row: PendingScanRow,
   outcome: Extract<ScanOutcome, { ok: true }>,

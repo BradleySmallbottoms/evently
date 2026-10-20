@@ -57,6 +57,7 @@ type LocRow = {
   id: string;
   publisherId: string | null;
   title: string;
+  summary: string | null;
   description: string | null;
   mode: Event['mode'];
   status: Event['status'];
@@ -110,6 +111,7 @@ function mapEvent(
     id: row.id,
     publisherId: requirePublisherId(row.publisherId),
     title: row.title,
+    summary: row.summary,
     description: row.description,
     mode: row.mode,
     status: row.status,
@@ -171,6 +173,7 @@ const eventSelect = {
   id: schema.events.id,
   publisherId: schema.events.publisherId,
   title: schema.events.title,
+  summary: schema.events.summary,
   description: schema.events.description,
   mode: schema.events.mode,
   status: schema.events.status,

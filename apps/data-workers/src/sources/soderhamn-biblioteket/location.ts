@@ -1,7 +1,6 @@
 /**
- * A library page has no map point. Look the place up on the public Photon
- * geocoder, biased toward Söderhamn. The library itself is a known point from
- * OpenStreetMap (Söderhamns stadsbibliotek, Köpmangatan) used when that lookup misses.
+ * Query helpers for a library place. The importer does not geocode.
+ * A missing point is geocoded after the scan. The public Photon geocoder is biased toward Söderhamn.
  */
 
 /** Söderhamns stadsbibliotek, Köpmangatan. */

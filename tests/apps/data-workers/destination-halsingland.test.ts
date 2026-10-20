@@ -204,7 +204,14 @@ describe('destination-halsingland fetch', () => {
     expect(fetched.products).toHaveLength(1);
     const [event] = destinationHalsingland.map(fetched);
     expect(event?.priceAmount).toBe(20_000);
-    expect(event?.meta).toEqual({ ageLimit: 18 });
+    expect(event?.meta).toEqual({
+      ageLimit: 18,
+      address: {
+        city: 'Bollnäs',
+        country: 'Sweden',
+        location: { lat: 61.3505711, lng: 16.3952167 },
+      },
+    });
     expect(event?.organizerKeys).toEqual([
       'kulturhuset.example/billy',
       'kulturhuset.example',
@@ -318,6 +325,12 @@ describe('destination-halsingland fetch', () => {
     expect(fromPostcode?.venueName).toBe('Delsbo');
     expect(fromPostcode?.address).toBe('Hudiksvall');
     expect(fromPostcode?.location).toEqual({ lat: 61.3505711, lng: 16.3952167 });
+    expect(fromPostcode?.meta?.address).toEqual({
+      zipCode: '82471',
+      city: 'Delsbo',
+      country: 'Sweden',
+      location: { lat: 61.3505711, lng: 16.3952167 },
+    });
     const spaced = await load('824 71 Iggesund');
     expect(spaced?.venueName).toBe('Iggesund');
     const sixDigits = await load('123456 Järvsö');
@@ -355,7 +368,14 @@ describe('destination-halsingland fetch', () => {
     expect(free?.meta).toMatchObject({ freeEntry: true, ageLimit: 18 });
     const [parking] = destinationHalsingland.map(await load('Gratis parkering'));
     expect(parking?.priceAmount).toBeUndefined();
-    expect(parking?.meta).toEqual({ ageLimit: 18 });
+    expect(parking?.meta).toEqual({
+      ageLimit: 18,
+      address: {
+        city: 'Bollnäs',
+        country: 'Sweden',
+        location: { lat: 61.3505711, lng: 16.3952167 },
+      },
+    });
   });
 
   it('keeps an event that has occasions but no coordinate', async () => {

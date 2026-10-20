@@ -38,19 +38,27 @@ function formatJson(value: unknown): string | null {
   }
 }
 
+/** Later models name the explanation `decision_explanation`; earlier ones use `reasoning_content`. */
+const REASONING_FIELDS = ['decision_explanation', 'reasoning_content'] as const;
+
 function reasoningText(
   finalRecord: Record<string, unknown> | null,
   message: Record<string, unknown> | null,
 ): string | null {
-  const fromObject = textField(finalRecord?.reasoning_content);
-  if (fromObject) return fromObject;
-  return textField(message?.reasoning_content);
+  for (const source of [finalRecord, message]) {
+    if (!source) continue;
+    for (const field of REASONING_FIELDS) {
+      const text = textField(source[field]);
+      if (text) return text;
+    }
+  }
+  return null;
 }
 
 function withoutReasoning(record: Record<string, unknown>): Record<string, unknown> {
-  if (!('reasoning_content' in record)) return record;
+  if (!REASONING_FIELDS.some((field) => field in record)) return record;
   const rest = { ...record };
-  delete rest.reasoning_content;
+  for (const field of REASONING_FIELDS) delete rest[field];
   return rest;
 }
 
@@ -66,6 +74,10 @@ function assistantMessage(root: Record<string, unknown> | null): Record<string, 
   if (Array.isArray(choices)) {
     const choice = asRecord(choices[0]);
     const message = asRecord(choice?.message);
+    if (message) return message;
+  }
+  if(Array.isArray(root.content)) {
+    const message = asRecord({type: 'message', content: root.content.map(part => part.text).join('\n')});
     if (message) return message;
   }
   const message = asRecord(root.message);

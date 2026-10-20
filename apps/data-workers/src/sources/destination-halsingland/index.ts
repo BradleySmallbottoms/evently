@@ -1,11 +1,13 @@
 import type { EventMeta } from '@local-events/contracts';
 import {
   cityFromAddress,
+  eventAddress,
   eventUrlKey,
   organizerKeys,
   parseLinksFromText,
   priceAmountFromText,
   stockholmWallTime,
+  zipCodeOf,
 } from '@local-events/domain';
 import {
   defineAdapter,
@@ -69,6 +71,8 @@ export interface HalsinglandProduct {
   organizerName?: string;
   /** City after the postcode in goodToKnow Postadress. Used when no venue is named. */
   postalCity?: string;
+  street?: string;
+  zipCode?: string;
   links: HalsinglandLink[];
   occasions: HalsinglandOccasion[];
 }
@@ -317,19 +321,23 @@ function cityAfterPostcode(value: string): string | undefined {
   return cityFromAddress(match?.[1]) ?? undefined;
 }
 
-function postalCityOf(content: ContentBody | undefined): string | undefined {
+function goodToKnowText(content: ContentBody | undefined, label: string): string | undefined {
   if (!Array.isArray(content?.goodToKnow)) return undefined;
   for (const group of content.goodToKnow) {
     if (!group || typeof group !== 'object' || !('name' in group)) continue;
-    if (textOf(group.name).toLocaleLowerCase('sv') !== 'postadress') continue;
+    if (textOf(group.name).toLocaleLowerCase('sv') !== label) continue;
     if (!('attributes' in group) || !Array.isArray(group.attributes)) continue;
     for (const attribute of group.attributes) {
       if (!attribute || typeof attribute !== 'object' || !('name' in attribute)) continue;
-      const city = cityAfterPostcode(textOf(attribute.name));
-      if (city) return city;
+      const text = textOf(attribute.name).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (text) return text;
     }
   }
   return undefined;
+}
+
+function postalCityOf(content: ContentBody | undefined): string | undefined {
+  return cityAfterPostcode(goodToKnowText(content, 'postadress') ?? '');
 }
 
 function freeEntryOf(content: ContentBody | undefined): boolean {
@@ -501,7 +509,10 @@ function normalizeProduct(
   const occasions = occasionsOf(booking);
   if (!id || !title || !sourceUrl) return undefined;
   const town = textOf(content?.location) || textOf(item.location) || undefined;
+  const postalLine = goodToKnowText(content, 'postadress');
   const postalCity = postalCityOf(content);
+  const street = goodToKnowText(content, 'gatuadress');
+  const zipCode = zipCodeOf(postalLine);
   const location = pointFromCoordinates(item.coordinates);
   const pictures = imagesOf(content?.images ?? item.images);
   const intro = plainText(content?.introduction) || plainText(item.introduction) || undefined;
@@ -527,6 +538,8 @@ function normalizeProduct(
     ...(ageLimit !== undefined ? { ageLimit } : {}),
     ...organizer,
     ...(postalCity ? { postalCity } : {}),
+    ...(street ? { street } : {}),
+    ...(zipCode ? { zipCode } : {}),
     links,
     occasions,
   };
@@ -593,6 +606,13 @@ function metaOf(product: HalsinglandProduct): EventMeta | undefined {
   const meta: EventMeta = {};
   if (product.ageLimit !== undefined) meta.ageLimit = product.ageLimit;
   if (product.freeEntry) meta.freeEntry = true;
+  const place = eventAddress({
+    address: product.street,
+    zipCode: product.zipCode,
+    city: product.postalCity || product.town,
+    location: product.location,
+  });
+  if (place) meta.address = place;
   return Object.keys(meta).length > 0 ? meta : undefined;
 }
 

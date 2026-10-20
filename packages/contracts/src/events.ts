@@ -82,10 +82,24 @@ export const AttendeeLinkInput = z.object({
 export type AttendeeLinkInput = z.infer<typeof AttendeeLinkInput>;
 
 /**
+ * Street, postcode, city, and point for one event. A missing part is left out.
+ * `zipCode` is five digits. `location` uses the same point as the event.
+ */
+export const EventAddress = z.object({
+  address: z.string().trim().min(1).max(200).optional(),
+  zipCode: z.string().regex(/^\d{5}$/).optional(),
+  city: z.string().trim().min(1).max(80).optional(),
+  country: z.literal('Sweden').optional(),
+  location: GeoPointSchema.optional(),
+});
+export type EventAddress = z.infer<typeof EventAddress>;
+
+/**
  * Facts that are not their own columns. Imports fill what the source knows.
  * An empty object means the event has none.
  */
 export const EventMeta = z.object({
+  address: EventAddress.optional(),
   /** Minimum age in years, when the source states one. */
   ageLimit: z.number().int().min(0).max(120).optional(),
   freeEntry: z.boolean().optional(),
@@ -189,6 +203,7 @@ export const Event = z.object({
   id: Id,
   publisherId: Id,
   title: z.string(),
+  summary: z.string().nullable(),
   description: z.string().nullable(),
   mode: EventMode,
   status: EventStatus,

@@ -20,8 +20,12 @@ import {
   publisherLookupPrompt,
   publisherProfileFromModel,
   publisherToolDefinitions,
+  loadPublicHtml,
+  pageFromHtml,
   type PublisherToolResult,
 } from '../publisher-tools';
+import { eventAddress, type EventAddressRecord } from '@local-events/domain';
+import { lookupPageUrl } from '../page-place';
 import { LOCAL_ORGANIZER_SLUGS } from '../sources';
 import { NEARBY_DAYS_AFTER, NEARBY_DAYS_BEFORE, publisherNameMatcher, type IngestStore, type NearbyEventHit, type NearbyPublisherHit, type PublisherCandidate, type PublisherRecord } from '../store';
 import type {
@@ -97,6 +101,10 @@ interface LookupContext {
   store: IngestStore;
   event: ScanInput;
   catalog: TagChoice[];
+  /** Fetch for the ticket or info page. The model never supplies the URL. */
+  fetch?: typeof fetch;
+  /** Resolves a hostname to addresses for the public-host check. */
+  resolveHost?: (hostname: string) => Promise<string[]>;
 }
 
 type ToolResult =
@@ -112,9 +120,9 @@ type ToolResult =
  * OpenAI and Ollama share this shape. Anthropic is mapped in {@link anthropicToolDefinitions}.
  * Radius, time window, and row cap are described here and enforced in the lookups.
  */
-function chatToolDefinitions(): object[] {
+function chatToolDefinitions(event: ScanInput): object[] {
   const noArguments = { type: 'object', properties: {} };
-  return [
+  const tools: object[] = [
     {
       type: 'function',
       function: {
@@ -168,6 +176,23 @@ function chatToolDefinitions(): object[] {
       },
     },
   ];
+  if (eventPageUrl(event)) {
+    tools.push({
+      type: 'function',
+      function: {
+        name: 'fetchEventPage',
+        description:
+          'Fetch the ticket page, or the info page when there is no ticket page. Takes no arguments. Use the page text for tags, instructions, the summary, the address, and a missing start or end. Returns the page title and text.',
+        parameters: noArguments,
+      },
+    });
+  }
+  return tools;
+}
+
+/** The one page this scan may open: the ticket link, otherwise the info link. */
+function eventPageUrl(event: ScanInput): string | undefined {
+  return lookupPageUrl(event.pageLinks);
 }
 
 /**
@@ -195,7 +220,18 @@ export function createOllamaWithToolsPromptRunner(
       }));
       const concurrency = Math.min(8, Math.max(1, options.concurrency ?? 1));
       return mapPool(batch, concurrency, (event) =>
-        scanOneEvent(event, { store, event, catalog }, config, fetchImpl).catch((error: unknown) => {
+        scanOneEvent(
+          event,
+          {
+            store,
+            event,
+            catalog,
+            fetch: fetchImpl,
+            ...(options.resolveHost ? { resolveHost: options.resolveHost } : {}),
+          },
+          config,
+          fetchImpl,
+        ).catch((error: unknown) => {
           console.error('scan failed', event.eventId, error instanceof Error ? error.message : error);
           return { ok: false as const, eventId: event.eventId, reason: 'unavailable' as const };
         }),
@@ -301,6 +337,7 @@ async function scanOneEvent(
     instructions: content.instructions,
     startsAt: content.startsAt,
     endsAt: content.endsAt,
+    ...(content.address ? { address: content.address } : {}),
     llmOutput: content.output,
   };
 }
@@ -371,15 +408,25 @@ function buildScanPrompt(event: ScanInput): string {
     'For every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.',
     'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe".',
     'Write a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.',
-    'If the description contains instructions for the user to follow. Summarize the steps in a list and include it in the summary.',
-    'When Starts or Ends is missing, read the title and description and extract the event start and end.',
+    'If the description or the event page contains instructions for the user to follow, summarize the steps in a list and include it in the summary. Also return those steps in instructions.',
+    'When Starts or Ends is missing, read the title, the description, and the event page and extract the event start and end.',
+    ...(eventPageUrl(event)
+      ? [
+          `Page: ${eventPageUrl(event)}`,
+          'Call fetchEventPage before you choose tags, instructions, the summary, or missing dates. The tool takes no arguments.',
+          'Use the page text together with the title and description. Tags still have to be ids from getAvailableTags.',
+          'Use the page for a missing start and end, and for the address.',
+        ]
+      : []),
+    'Read the description and the event page and extract the street, postcode, and city into address.',
+    'Use null when you cannot find one. Do not invent an address or coordinates.',
     'Return both as ISO-8601 datetimes with a numeric offset. When the text names no time zone, use Europe/Stockholm.',
     'A date with no clock is that whole day: start at 00:00:00 and end at 23:59:59.',
     'Set startsAt and endsAt to null when you cannot find both. When Starts and Ends are already set, copy those instants.',
     'contentVerdict is "spam", "harmful", or "safe". language is the event language, such as "sv" or "en". rank and score are numbers from 0 to 100.',
-    'Include your full reasoning (why tags where chosed and why the publisher and duplicate were chosen etc.) in the JSON object.',
+    'Include a explanation of why tags where chosed and why the publisher and duplicate were chosen etc. in the JSON object.',
     'When you are finished, return only the JSON object. Do not explain it and do not wrap it in markdown:',
-    '{"reasoning_content": "<reasoning_content>", "instructions":["<instruction1>","<instruction2>"],"possiblePublishers":[{"publisherId":"<publisherId>","rank":95}],"possibleDuplicates":[{"eventId":"<eventId>","rank":95,"occasionRank":10}],"contentVerdict":"safe","summary":"<summary>","language":"sv","possibleTags":[{"id":"<id>","score":95}],"startsAt":null,"endsAt":null}',
+    '{"decision_explanation": "<decision_explanation>", "instructions":["<instruction1>","<instruction2>"],"possiblePublishers":[{"publisherId":"<publisherId>","rank":95}],"possibleDuplicates":[{"eventId":"<eventId>","rank":95,"occasionRank":10}],"contentVerdict":"safe","summary":"<summary>","language":"sv","possibleTags":[{"id":"<id>","score":95}],"startsAt":null,"endsAt":null,"address":{"address":"Köpmangatan 14","zipCode":"82471","city":"Delsbo"}}',
     'Event:',
     `Title: ${event.title}`,
     `Starts: ${event.startsAt || '(missing)'}`,
@@ -406,7 +453,7 @@ async function askModelWithLookups(
 ): Promise<LLMScanResult & LLMOutput | null> {
   const finished = await runToolChat(
     prompt,
-    chatToolDefinitions(),
+    chatToolDefinitions(context.event),
     (call) => executeToolCall(call, context),
     config,
     fetchImpl,
@@ -823,6 +870,18 @@ function readToolArguments(raw: unknown): Record<string, unknown> {
  * `{ error }` so the model can correct itself. A lookup failure is the same shape
  * and does not abort the rest of the scan.
  */
+/** Opens the chosen ticket or info link and keeps the place for the scan outcome. */
+async function fetchEventPage(context: LookupContext): Promise<ToolResult> {
+  const url = lookupPageUrl(context.event.pageLinks);
+  if (!url || !context.fetch) return { error: 'No page to fetch.' };
+  const loaded = await loadPublicHtml(url, {
+    fetch: context.fetch,
+    ...(context.resolveHost ? { resolveHost: context.resolveHost } : {}),
+  });
+  if ('error' in loaded) return loaded;
+  return pageFromHtml(loaded.html, loaded.url);
+}
+
 async function executeToolCall(call: ParsedToolCall, context: LookupContext): Promise<ToolResult> {
   try {
     console.log('Running call', call.name);
@@ -831,6 +890,7 @@ async function executeToolCall(call: ParsedToolCall, context: LookupContext): Pr
     if (call.name === 'getNearbyPublishers') return lookupNearbyPublishers(context);
     if (call.name === 'getPublishersByName') return lookupPublishersByName(call.arguments, context);
     if (call.name === 'getPossiblePublishers') return lookupPossiblePublishers(context);
+    if (call.name === 'fetchEventPage') return fetchEventPage(context);
     return { error: `Unknown tool ${call.name}.` };
   } catch {
     return { error: 'Lookup failed.' };
@@ -953,7 +1013,20 @@ function parseScanJson(content: string): LLMScanResult | null {
     language: typeof record.language === 'string' ? record.language : '',
     instructions: readScanInstructions(record.instructions),
     ...scanRangeOf(record),
+    ...addressFromModel(record.address),
   };
+}
+
+/** Street, postcode, and city from the scan JSON. A coordinate in that object is dropped. */
+function addressFromModel(value: unknown): { address: EventAddressRecord } | Record<string, never> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const record = value as Record<string, unknown>;
+  const address = eventAddress({
+    address: typeof record.address === 'string' ? record.address : undefined,
+    zipCode: typeof record.zipCode === 'string' ? record.zipCode : undefined,
+    city: typeof record.city === 'string' ? record.city : undefined,
+  });
+  return address ? { address } : {};
 }
 
 /** Scan object from a markdown fence, or from the reply when the fence is absent. */

@@ -114,6 +114,13 @@ describe('glada-hudik map', () => {
     expect(event.currency).toBe('SEK');
     expect(event.venueName).toBe('Kulturhuset Glada Hudik');
     expect(event.location).toEqual({ lat: 61.7279731, lng: 17.1077112 });
+    expect(event.meta?.address).toEqual({
+      address: 'Kulturhuset Glada Hudik, Storgatan 37',
+      zipCode: '82452',
+      city: 'Hudiksvall',
+      country: 'Sweden',
+      location: { lat: 61.7279731, lng: 17.1077112 },
+    });
     expect(event.organizerKeys).toEqual([
       'info@skenecomedy.se',
       'fredrikanderssonproductions.com',
@@ -244,46 +251,32 @@ describe('glada-hudik fetch', () => {
     expect(fetched.products[0]?.title).toBe('Fredrik Andersson - TOO SOON');
   });
 
-  it('geocodes the pin when the page has no map', async () => {
+  it('keeps a page without a map unpointed and stores the contact address', async () => {
     const noMap = showHtml.replace(/<div class="sidebar-map[^>]*><\/div>/, '');
     const calls: string[] = [];
     const card = '<a href="/sv/fredrik-andersson-too-soon" data-productid="cbis:2823720">Show</a>';
     const fetched = await gladaHudik.fetchRaw(
-      ctx(
-        async (input) => {
-          const url = String(input);
-          calls.push(url);
-          if (url.includes('/api/cbis-product-list')) {
-            const page = new URL(url).searchParams.get('page');
-            if (page === '0') return json({ totalCount: 1, items: [card] });
-            return json({ totalCount: 1, items: [] });
-          }
-          if (url.includes('photon.komoot.io')) {
-            return json({
-              features: [
-                {
-                  geometry: { coordinates: [17.1115273, 61.7277652] },
-                  properties: {
-                    name: 'Glada Hudik Kulturhus',
-                    city: 'Hudiksvall',
-                    countrycode: 'SE',
-                  },
-                },
-              ],
-            });
-          }
-          return new Response(noMap, { status: 200, headers: { 'content-type': 'text/html' } });
-        },
-        { geocodeDelayMs: 0 },
-      ),
+      ctx(async (input) => {
+        const url = String(input);
+        calls.push(url);
+        if (url.includes('/api/cbis-product-list')) {
+          const page = new URL(url).searchParams.get('page');
+          if (page === '0') return json({ totalCount: 1, items: [card] });
+          return json({ totalCount: 1, items: [] });
+        }
+        return new Response(noMap, { status: 200, headers: { 'content-type': 'text/html' } });
+      }),
     );
-    const lookup = calls.find((url) => url.includes('photon.komoot.io'));
-    expect(lookup).toBeDefined();
-    expect(new URL(lookup!).searchParams.get('q')).toBe('Kulturhuset Glada Hudik');
-    expect(fetched.products[0]?.location).toEqual({ lat: 61.7277652, lng: 17.1115273 });
+    expect(calls.some((url) => url.includes('photon.komoot.io'))).toBe(false);
+    expect(fetched.products[0]?.location).toBeUndefined();
     const [event] = gladaHudik.map(fetched);
-    expect(event?.location).toEqual({ lat: 61.7277652, lng: 17.1115273 });
+    expect(event?.location).toBeUndefined();
     expect(event?.venueName).toBe('Kulturhuset Glada Hudik');
+    expect(event?.meta?.address).toMatchObject({
+      address: 'Kulturhuset Glada Hudik, Storgatan 37',
+      zipCode: '82452',
+      city: 'Hudiksvall',
+    });
   });
 
   it('leaves a digital showing without a point', async () => {

@@ -93,7 +93,10 @@ describe('soderhamn-biblioteket page parse', () => {
       address: 'Köpmangatan 11, Söderhamn',
       priceAmount: 0,
       currency: 'SEK',
-      meta: { freeEntry: true },
+      meta: {
+        freeEntry: true,
+        address: { address: 'Köpmangatan 11', city: 'Söderhamn', country: 'Sweden' },
+      },
       organizerName: 'Söderhamns stadsbibliotek',
       organizerKeys: ['biblioteket@soderhamn.se', 'söderhamns stadsbibliotek'],
       tags: [],
@@ -210,7 +213,7 @@ describe('soderhamn-biblioteket list', () => {
       ]);
       expect(requested.some((url) => url.includes('jsessionid'))).toBe(false);
       expect(requested.some((url) => url.includes('skip=1'))).toBe(true);
-      expect(store.events[0]?.location).toEqual(SODERHAMN_LIBRARY_LOCATION);
+      expect(store.events[0]?.location).toBeUndefined();
     } finally {
       vi.unstubAllGlobals();
     }

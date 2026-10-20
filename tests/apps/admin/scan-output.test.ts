@@ -21,6 +21,41 @@ describe('readScanView', () => {
     expect(view?.full).toContain('"usage"');
   });
 
+  it('lifts decision_explanation from later models and keeps it out of the result', () => {
+    const view = readScanView({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              decision_explanation: 'The lecture matches business.',
+              contentVerdict: 'safe',
+            }),
+          },
+        },
+      ],
+    });
+    expect(view?.reasoning).toBe('The lecture matches business.');
+    expect(view?.finalObject).toEqual({ contentVerdict: 'safe' });
+  });
+
+  it('prefers decision_explanation when both explanation fields are present', () => {
+    const view = readScanView({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              decision_explanation: 'Later model explanation.',
+              reasoning_content: 'Earlier model explanation.',
+              contentVerdict: 'safe',
+            }),
+          },
+        },
+      ],
+    });
+    expect(view?.reasoning).toBe('Later model explanation.');
+    expect(view?.finalObject).toEqual({ contentVerdict: 'safe' });
+  });
+
   it('uses the message reasoning when the scan object has none', () => {
     const view = readScanView({
       choices: [

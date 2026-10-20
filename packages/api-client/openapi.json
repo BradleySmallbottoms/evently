@@ -4089,6 +4089,50 @@
                           "meta": {
                             "type": "object",
                             "properties": {
+                              "address": {
+                                "type": "object",
+                                "properties": {
+                                  "address": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "zipCode": {
+                                    "type": "string",
+                                    "pattern": "^\\d{5}$"
+                                  },
+                                  "city": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 80
+                                  },
+                                  "country": {
+                                    "type": "string",
+                                    "enum": [
+                                      "Sweden"
+                                    ]
+                                  },
+                                  "location": {
+                                    "type": "object",
+                                    "properties": {
+                                      "lat": {
+                                        "type": "number",
+                                        "minimum": -90,
+                                        "maximum": 90
+                                      },
+                                      "lng": {
+                                        "type": "number",
+                                        "minimum": -180,
+                                        "maximum": 180
+                                      }
+                                    },
+                                    "required": [
+                                      "lat",
+                                      "lng"
+                                    ]
+                                  }
+                                }
+                              },
                               "ageLimit": {
                                 "type": "integer",
                                 "minimum": 0,
@@ -4616,6 +4660,50 @@
                           "meta": {
                             "type": "object",
                             "properties": {
+                              "address": {
+                                "type": "object",
+                                "properties": {
+                                  "address": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "zipCode": {
+                                    "type": "string",
+                                    "pattern": "^\\d{5}$"
+                                  },
+                                  "city": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 80
+                                  },
+                                  "country": {
+                                    "type": "string",
+                                    "enum": [
+                                      "Sweden"
+                                    ]
+                                  },
+                                  "location": {
+                                    "type": "object",
+                                    "properties": {
+                                      "lat": {
+                                        "type": "number",
+                                        "minimum": -90,
+                                        "maximum": 90
+                                      },
+                                      "lng": {
+                                        "type": "number",
+                                        "minimum": -180,
+                                        "maximum": 180
+                                      }
+                                    },
+                                    "required": [
+                                      "lat",
+                                      "lng"
+                                    ]
+                                  }
+                                }
+                              },
                               "ageLimit": {
                                 "type": "integer",
                                 "minimum": 0,
@@ -5159,6 +5247,50 @@
                                 "meta": {
                                   "type": "object",
                                   "properties": {
+                                    "address": {
+                                      "type": "object",
+                                      "properties": {
+                                        "address": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "zipCode": {
+                                          "type": "string",
+                                          "pattern": "^\\d{5}$"
+                                        },
+                                        "city": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 80
+                                        },
+                                        "country": {
+                                          "type": "string",
+                                          "enum": [
+                                            "Sweden"
+                                          ]
+                                        },
+                                        "location": {
+                                          "type": "object",
+                                          "properties": {
+                                            "lat": {
+                                              "type": "number",
+                                              "minimum": -90,
+                                              "maximum": 90
+                                            },
+                                            "lng": {
+                                              "type": "number",
+                                              "minimum": -180,
+                                              "maximum": 180
+                                            }
+                                          },
+                                          "required": [
+                                            "lat",
+                                            "lng"
+                                          ]
+                                        }
+                                      }
+                                    },
                                     "ageLimit": {
                                       "type": "integer",
                                       "minimum": 0,
@@ -5566,6 +5698,50 @@
                           "meta": {
                             "type": "object",
                             "properties": {
+                              "address": {
+                                "type": "object",
+                                "properties": {
+                                  "address": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "zipCode": {
+                                    "type": "string",
+                                    "pattern": "^\\d{5}$"
+                                  },
+                                  "city": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 80
+                                  },
+                                  "country": {
+                                    "type": "string",
+                                    "enum": [
+                                      "Sweden"
+                                    ]
+                                  },
+                                  "location": {
+                                    "type": "object",
+                                    "properties": {
+                                      "lat": {
+                                        "type": "number",
+                                        "minimum": -90,
+                                        "maximum": 90
+                                      },
+                                      "lng": {
+                                        "type": "number",
+                                        "minimum": -180,
+                                        "maximum": 180
+                                      }
+                                    },
+                                    "required": [
+                                      "lat",
+                                      "lng"
+                                    ]
+                                  }
+                                }
+                              },
                               "ageLimit": {
                                 "type": "integer",
                                 "minimum": 0,
@@ -6010,6 +6186,50 @@
                           "meta": {
                             "type": "object",
                             "properties": {
+                              "address": {
+                                "type": "object",
+                                "properties": {
+                                  "address": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "zipCode": {
+                                    "type": "string",
+                                    "pattern": "^\\d{5}$"
+                                  },
+                                  "city": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 80
+                                  },
+                                  "country": {
+                                    "type": "string",
+                                    "enum": [
+                                      "Sweden"
+                                    ]
+                                  },
+                                  "location": {
+                                    "type": "object",
+                                    "properties": {
+                                      "lat": {
+                                        "type": "number",
+                                        "minimum": -90,
+                                        "maximum": 90
+                                      },
+                                      "lng": {
+                                        "type": "number",
+                                        "minimum": -180,
+                                        "maximum": 180
+                                      }
+                                    },
+                                    "required": [
+                                      "lat",
+                                      "lng"
+                                    ]
+                                  }
+                                }
+                              },
                               "ageLimit": {
                                 "type": "integer",
                                 "minimum": 0,
@@ -6839,6 +7059,50 @@
                           "meta": {
                             "type": "object",
                             "properties": {
+                              "address": {
+                                "type": "object",
+                                "properties": {
+                                  "address": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "zipCode": {
+                                    "type": "string",
+                                    "pattern": "^\\d{5}$"
+                                  },
+                                  "city": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 80
+                                  },
+                                  "country": {
+                                    "type": "string",
+                                    "enum": [
+                                      "Sweden"
+                                    ]
+                                  },
+                                  "location": {
+                                    "type": "object",
+                                    "properties": {
+                                      "lat": {
+                                        "type": "number",
+                                        "minimum": -90,
+                                        "maximum": 90
+                                      },
+                                      "lng": {
+                                        "type": "number",
+                                        "minimum": -180,
+                                        "maximum": 180
+                                      }
+                                    },
+                                    "required": [
+                                      "lat",
+                                      "lng"
+                                    ]
+                                  }
+                                }
+                              },
                               "ageLimit": {
                                 "type": "integer",
                                 "minimum": 0,
@@ -7344,6 +7608,50 @@
                     "meta": {
                       "type": "object",
                       "properties": {
+                        "address": {
+                          "type": "object",
+                          "properties": {
+                            "address": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "zipCode": {
+                              "type": "string",
+                              "pattern": "^\\d{5}$"
+                            },
+                            "city": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "country": {
+                              "type": "string",
+                              "enum": [
+                                "Sweden"
+                              ]
+                            },
+                            "location": {
+                              "type": "object",
+                              "properties": {
+                                "lat": {
+                                  "type": "number",
+                                  "minimum": -90,
+                                  "maximum": 90
+                                },
+                                "lng": {
+                                  "type": "number",
+                                  "minimum": -180,
+                                  "maximum": 180
+                                }
+                              },
+                              "required": [
+                                "lat",
+                                "lng"
+                              ]
+                            }
+                          }
+                        },
                         "ageLimit": {
                           "type": "integer",
                           "minimum": 0,
@@ -7866,6 +8174,50 @@
                           "meta": {
                             "type": "object",
                             "properties": {
+                              "address": {
+                                "type": "object",
+                                "properties": {
+                                  "address": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "zipCode": {
+                                    "type": "string",
+                                    "pattern": "^\\d{5}$"
+                                  },
+                                  "city": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 80
+                                  },
+                                  "country": {
+                                    "type": "string",
+                                    "enum": [
+                                      "Sweden"
+                                    ]
+                                  },
+                                  "location": {
+                                    "type": "object",
+                                    "properties": {
+                                      "lat": {
+                                        "type": "number",
+                                        "minimum": -90,
+                                        "maximum": 90
+                                      },
+                                      "lng": {
+                                        "type": "number",
+                                        "minimum": -180,
+                                        "maximum": 180
+                                      }
+                                    },
+                                    "required": [
+                                      "lat",
+                                      "lng"
+                                    ]
+                                  }
+                                }
+                              },
                               "ageLimit": {
                                 "type": "integer",
                                 "minimum": 0,
@@ -8223,6 +8575,50 @@
                           "meta": {
                             "type": "object",
                             "properties": {
+                              "address": {
+                                "type": "object",
+                                "properties": {
+                                  "address": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "zipCode": {
+                                    "type": "string",
+                                    "pattern": "^\\d{5}$"
+                                  },
+                                  "city": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 80
+                                  },
+                                  "country": {
+                                    "type": "string",
+                                    "enum": [
+                                      "Sweden"
+                                    ]
+                                  },
+                                  "location": {
+                                    "type": "object",
+                                    "properties": {
+                                      "lat": {
+                                        "type": "number",
+                                        "minimum": -90,
+                                        "maximum": 90
+                                      },
+                                      "lng": {
+                                        "type": "number",
+                                        "minimum": -180,
+                                        "maximum": 180
+                                      }
+                                    },
+                                    "required": [
+                                      "lat",
+                                      "lng"
+                                    ]
+                                  }
+                                }
+                              },
                               "ageLimit": {
                                 "type": "integer",
                                 "minimum": 0,
@@ -8568,6 +8964,50 @@
                     "meta": {
                       "type": "object",
                       "properties": {
+                        "address": {
+                          "type": "object",
+                          "properties": {
+                            "address": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "zipCode": {
+                              "type": "string",
+                              "pattern": "^\\d{5}$"
+                            },
+                            "city": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "country": {
+                              "type": "string",
+                              "enum": [
+                                "Sweden"
+                              ]
+                            },
+                            "location": {
+                              "type": "object",
+                              "properties": {
+                                "lat": {
+                                  "type": "number",
+                                  "minimum": -90,
+                                  "maximum": 90
+                                },
+                                "lng": {
+                                  "type": "number",
+                                  "minimum": -180,
+                                  "maximum": 180
+                                }
+                              },
+                              "required": [
+                                "lat",
+                                "lng"
+                              ]
+                            }
+                          }
+                        },
                         "ageLimit": {
                           "type": "integer",
                           "minimum": 0,
@@ -8937,6 +9377,50 @@
                     "meta": {
                       "type": "object",
                       "properties": {
+                        "address": {
+                          "type": "object",
+                          "properties": {
+                            "address": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "zipCode": {
+                              "type": "string",
+                              "pattern": "^\\d{5}$"
+                            },
+                            "city": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "country": {
+                              "type": "string",
+                              "enum": [
+                                "Sweden"
+                              ]
+                            },
+                            "location": {
+                              "type": "object",
+                              "properties": {
+                                "lat": {
+                                  "type": "number",
+                                  "minimum": -90,
+                                  "maximum": 90
+                                },
+                                "lng": {
+                                  "type": "number",
+                                  "minimum": -180,
+                                  "maximum": 180
+                                }
+                              },
+                              "required": [
+                                "lat",
+                                "lng"
+                              ]
+                            }
+                          }
+                        },
                         "ageLimit": {
                           "type": "integer",
                           "minimum": 0,
@@ -9518,6 +10002,50 @@
                     "meta": {
                       "type": "object",
                       "properties": {
+                        "address": {
+                          "type": "object",
+                          "properties": {
+                            "address": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "zipCode": {
+                              "type": "string",
+                              "pattern": "^\\d{5}$"
+                            },
+                            "city": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "country": {
+                              "type": "string",
+                              "enum": [
+                                "Sweden"
+                              ]
+                            },
+                            "location": {
+                              "type": "object",
+                              "properties": {
+                                "lat": {
+                                  "type": "number",
+                                  "minimum": -90,
+                                  "maximum": 90
+                                },
+                                "lng": {
+                                  "type": "number",
+                                  "minimum": -180,
+                                  "maximum": 180
+                                }
+                              },
+                              "required": [
+                                "lat",
+                                "lng"
+                              ]
+                            }
+                          }
+                        },
                         "ageLimit": {
                           "type": "integer",
                           "minimum": 0,
@@ -9948,6 +10476,50 @@
                     "meta": {
                       "type": "object",
                       "properties": {
+                        "address": {
+                          "type": "object",
+                          "properties": {
+                            "address": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "zipCode": {
+                              "type": "string",
+                              "pattern": "^\\d{5}$"
+                            },
+                            "city": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "country": {
+                              "type": "string",
+                              "enum": [
+                                "Sweden"
+                              ]
+                            },
+                            "location": {
+                              "type": "object",
+                              "properties": {
+                                "lat": {
+                                  "type": "number",
+                                  "minimum": -90,
+                                  "maximum": 90
+                                },
+                                "lng": {
+                                  "type": "number",
+                                  "minimum": -180,
+                                  "maximum": 180
+                                }
+                              },
+                              "required": [
+                                "lat",
+                                "lng"
+                              ]
+                            }
+                          }
+                        },
                         "ageLimit": {
                           "type": "integer",
                           "minimum": 0,
@@ -10347,6 +10919,50 @@
                     "meta": {
                       "type": "object",
                       "properties": {
+                        "address": {
+                          "type": "object",
+                          "properties": {
+                            "address": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "zipCode": {
+                              "type": "string",
+                              "pattern": "^\\d{5}$"
+                            },
+                            "city": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "country": {
+                              "type": "string",
+                              "enum": [
+                                "Sweden"
+                              ]
+                            },
+                            "location": {
+                              "type": "object",
+                              "properties": {
+                                "lat": {
+                                  "type": "number",
+                                  "minimum": -90,
+                                  "maximum": 90
+                                },
+                                "lng": {
+                                  "type": "number",
+                                  "minimum": -180,
+                                  "maximum": 180
+                                }
+                              },
+                              "required": [
+                                "lat",
+                                "lng"
+                              ]
+                            }
+                          }
+                        },
                         "ageLimit": {
                           "type": "integer",
                           "minimum": 0,

@@ -1,5 +1,6 @@
 import type { EventMeta } from '@local-events/contracts';
 import {
+  eventAddress,
   mergeImportedLinks,
   organizerKeys,
   priceAmountFromText,
@@ -331,6 +332,21 @@ type AmenityKey = {
   [Key in keyof EventMeta]: EventMeta[Key] extends boolean | undefined ? Key : never;
 }[keyof EventMeta];
 
+function addressed(
+  meta: EventMeta | undefined,
+  product: VisitProduct,
+  location?: { lat: number; lng: number },
+): EventMeta | undefined {
+  const address = eventAddress({
+    address: textField(product, STREET),
+    zipCode: textField(product, POSTAL_CODE),
+    city: textField(product, CITY),
+    location,
+  });
+  if (!address) return meta;
+  return { ...meta, address };
+}
+
 function metaOf(product: VisitProduct): EventMeta | undefined {
   const meta: EventMeta = {};
   const age = numberValue(infoValue(product, AGE_LIMIT));
@@ -557,12 +573,13 @@ function mapProduct(
   };
   if (occasions.length === 0) {
     const location = pointOf(product.Position);
+    const next = addressed(meta, product, location);
     return [
       {
         ...base,
         externalId: String(product.Id),
         ...(location ? { location } : {}),
-        ...(meta ? { meta } : {}),
+        ...(next ? { meta: next } : {}),
       },
     ];
   }
@@ -581,7 +598,7 @@ function mapProduct(
         ...(venue ? { venueName: venue } : {}),
         ...(location ? { location } : {}),
         meta: withCollapsedSpan(
-          meta,
+          addressed(meta, product, location),
           occasions.map((occasion) => ({
             startsAt: occasion.startsAt,
             ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
@@ -593,15 +610,19 @@ function mapProduct(
     ];
   }
   const grouped = withOccasionGroup(meta, product.Id, occasions.length);
-  return occasions.map((occasion) => ({
-    ...base,
-    externalId: `${product.Id}:${occasion.startRaw}:${occasion.endRaw ?? ''}`,
-    startsAt: occasion.startsAt,
-    ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
-    ...(occasion.venue ? { venueName: occasion.venue } : {}),
-    ...(occasion.location ? { location: occasion.location } : {}),
-    ...(grouped ? { meta: grouped } : {}),
-  }));
+  return occasions.map((occasion) => {
+    const location = occasion.location;
+    const next = addressed(grouped, product, location);
+    return {
+      ...base,
+      externalId: `${product.Id}:${occasion.startRaw}:${occasion.endRaw ?? ''}`,
+      startsAt: occasion.startsAt,
+      ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
+      ...(occasion.venue ? { venueName: occasion.venue } : {}),
+      ...(location ? { location } : {}),
+      ...(next ? { meta: next } : {}),
+    };
+  });
 }
 
 export const visitSoderhamn = defineAdapter<VisitRaw>({

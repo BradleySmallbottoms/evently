@@ -1,19 +1,13 @@
 import type { EventMeta } from '@local-events/contracts';
-import { organizerKeys, priceAmountFromText, stockholmWallTime } from '@local-events/domain';
+import { eventAddress, organizerKeys, priceAmountFromText, stockholmWallTime } from '@local-events/domain';
 import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
 import { load, type CheerioAPI } from 'cheerio';
-import { geocodeDelayMs } from '../../venue-city';
-import {
-  createLocationLookupState,
-  resolveBibliotekLocation,
-  type BibliotekLocationInput,
-} from './location';
 
 /**
  * Söderhamns stadsbibliotek via the public Sitevision calendar.
  * robots.txt allows the calendar and disallows jsessionid URLs, so later pages
  * use skip on the clean list URL. Each event page is one occasion. A page with no date is still saved, with empty start and end. The Sitevision
- * page id is the external id. A library place is geocoded, then the library point.
+ * page id is the external id. The place address is stored. The scan geocodes a missing point.
  */
 
 const DEFAULT_ORIGIN = 'https://www.soderhamn.se';
@@ -311,24 +305,37 @@ function descriptionOf(event: BibliotekEvent): string | undefined {
   return body || intro;
 }
 
-function venueAndAddress(event: BibliotekEvent): { venueName?: string; address?: string } {
+function venueAndAddress(event: BibliotekEvent): {
+  venueName?: string;
+  address?: string;
+  street?: string;
+  zipCode?: string;
+} {
   const city = textOf(event.city);
   const cityKey = city.toLocaleLowerCase('sv');
   const parts = textOf(event.place)
     .split(',')
     .map((part) => part.trim())
     .filter((part) => part && part.toLocaleLowerCase('sv') !== cityKey);
-  if (parts.length === 0) return city ? { venueName: city } : {};
-  if (parts.length === 1) {
-    const venueName = parts[0]!;
-    return { venueName, address: city ? `${venueName}, ${city}` : venueName };
+  const zipCode = parts.find((part) => /^\d{3}\s?\d{2}$/.test(part));
+  const rest = parts.filter((part) => part !== zipCode);
+  if (rest.length === 0) return { ...(city ? { venueName: city } : {}), ...(zipCode ? { zipCode } : {}) };
+  if (rest.length === 1) {
+    const venueName = rest[0]!;
+    const address = [venueName, zipCode, city].filter(Boolean).join(', ');
+    return { venueName, ...(address ? { address } : {}), ...(zipCode ? { zipCode } : {}) };
   }
-  const last = parts.at(-1)!;
-  const room = parts.length >= 3 && !/\d/.test(last) ? last : undefined;
-  const venueName = room ? `${parts[0]}, ${room}` : parts[0]!;
-  const street = parts.slice(1, room ? -1 : undefined).join(', ');
-  const address = [street, city].filter(Boolean).join(', ');
-  return { venueName, ...(address ? { address } : {}) };
+  const last = rest.at(-1)!;
+  const room = rest.length >= 3 && !/\d/.test(last) ? last : undefined;
+  const venueName = room ? `${rest[0]}, ${room}` : rest[0]!;
+  const street = rest.slice(1, room ? -1 : undefined).join(', ');
+  const address = [street, zipCode, city].filter(Boolean).join(', ');
+  return {
+    venueName,
+    ...(address ? { address } : {}),
+    ...(street ? { street } : {}),
+    ...(zipCode ? { zipCode } : {}),
+  };
 }
 
 function atWall(date: NonNullable<BibliotekEvent['date']>, clockText: string): string {
@@ -353,13 +360,20 @@ function freeEntry(priceText: string | undefined, amount: number | undefined): b
 export function mapBibliotekEvent(event: BibliotekEvent, origin: string): IncomingEvent | null {
   const sourceUrl = absoluteUrl(event.path, new URL(origin));
   if (!sourceUrl) return null;
-  const { venueName, address } = venueAndAddress(event);
+  const { venueName, address, street, zipCode } = venueAndAddress(event);
   const description = descriptionOf(event);
   const parsedPrice = priceAmountFromText(event.priceText?.replace(/\bSEK\b/gi, 'kr'));
   const free = freeEntry(event.priceText, parsedPrice);
   const priceAmount = parsedPrice ?? (free ? 0 : undefined);
   const meta: EventMeta = {};
   if (free) meta.freeEntry = true;
+  const place = eventAddress({
+    address: street,
+    zipCode,
+    city: event.city,
+    location: event.location,
+  });
+  if (place) meta.address = place;
   const startsAt = !event.date
     ? undefined
     : event.wholeDay || !event.start
@@ -443,8 +457,6 @@ async function* eachEvent(ctx: SourceRunContext): AsyncGenerator<BibliotekRaw> {
   const origin = originFromConfig(ctx.config);
   const delayMs = delayMsFromConfig(ctx.config);
   const paths = await fetchPaths(ctx, origin);
-  const locations = createLocationLookupState();
-  const geocodeDelay = geocodeDelayMs(ctx.config);
   let yielded = 0;
   for (const path of paths) {
     if (ctx.limit != null && yielded >= ctx.limit) break;
@@ -461,18 +473,6 @@ async function* eachEvent(ctx: SourceRunContext): AsyncGenerator<BibliotekRaw> {
       ctx.log('soderhamn-biblioteket skipped event with no title', { path });
       continue;
     }
-    const place = venueAndAddress(event);
-    const located: BibliotekLocationInput = {
-      id: event.id,
-      ...(place.venueName ? { venueName: place.venueName } : {}),
-      ...(place.address ? { address: place.address } : {}),
-      ...(event.city ? { city: event.city } : {}),
-    };
-    event.location = await resolveBibliotekLocation(located, ctx.fetch, {
-      delayMs: geocodeDelay,
-      state: locations,
-      log: ctx.log,
-    });
     yielded += 1;
     yield { now: new Date().toISOString(), origin: origin.origin, events: [event] };
   }

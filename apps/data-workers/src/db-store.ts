@@ -1,5 +1,6 @@
 import type { Db } from '@local-events/db';
 import { readEventMeta } from '@local-events/contracts';
+import { mergeEventAddress } from '@local-events/domain';
 import { insertApprovedEventReminders, pointEwkt, schema } from '@local-events/db';
 import {
   choosePublisher,
@@ -523,11 +524,13 @@ export function createDbIngestStore(db: Db): IngestStore {
           .where(eq(events.id, eventId))
           .limit(1);
         const stored = readEventMeta(current?.meta);
-        const meta = values.meta.possibleDuplicate
+        const merged = values.meta.possibleDuplicate
           ? values.meta
           : stored.possibleDuplicate
             ? { ...values.meta, possibleDuplicate: stored.possibleDuplicate }
             : values.meta;
+        const address = mergeEventAddress(merged.address, stored.address);
+        const meta = address ? { ...merged, address } : merged;
         const updated = await tx
           .update(events)
           .set({
@@ -539,7 +542,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             ...(input.event.startsAt ? { startsAt: values.startsAt, endsAt: values.endsAt } : {}),
             timezone: values.timezone,
             venueName: values.venueName,
-            location: values.location,
+            ...(input.event.location ? { location: values.location } : {}),
             ...(input.event.onlineUrl !== undefined ? { onlineUrl: values.onlineUrl } : {}),
             ...(input.event.priceAmount !== undefined ? { priceAmount: values.priceAmount } : {}),
             ...(input.event.currency !== undefined ? { currency: values.currency } : {}),
@@ -707,7 +710,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           .innerJoin(dataSources, eq(dataSources.id, externalRefs.sourceId))
           .where(inArray(events.id, idList));
         const linkRows = await tx
-          .select({ eventId: eventLinks.eventId, url: eventLinks.url })
+          .select({ eventId: eventLinks.eventId, url: eventLinks.url, type: eventLinks.type })
           .from(eventLinks)
           .where(inArray(eventLinks.eventId, idList));
         const tagRows = await tx
@@ -735,6 +738,13 @@ export function createDbIngestStore(db: Db): IngestStore {
             location: row.lat == null || row.lng == null ? null : { lat: row.lat, lng: row.lng },
             sourceUrl: row.sourceUrl,
             links: linkRows.filter((link) => link.eventId === id).map((link) => link.url),
+            pageLinks: linkRows
+              .filter((link) => link.eventId === id)
+              .flatMap((link) =>
+                link.type === 'tickets' || link.type === 'registration' || link.type === 'info'
+                  ? [{ type: link.type, url: link.url }]
+                  : [],
+              ),
             externalId: row.externalId,
             workerId: row.workerId ?? row.sourceSlug,
             tagIds: eventTagsForRow.map((tag) => tag.tagId),
@@ -1001,6 +1011,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             ...(input.startsAt && input.endsAt
               ? { startsAt: input.startsAt, endsAt: input.endsAt }
               : {}),
+            ...(input.location ? { location: pointEwkt(input.location) } : {}),
           })
           .where(
             and(

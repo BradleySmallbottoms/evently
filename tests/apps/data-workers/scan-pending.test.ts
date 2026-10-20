@@ -808,4 +808,174 @@ describe('scanPendingEvents', () => {
     expect(store.events[0]?.status).toBe('in_review');
   });
 
+  it('writes a page point only when the event has none, and keeps an imported address', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [
+      {
+        ...event,
+        location: undefined,
+        links: [{ type: 'tickets' as const, url: 'https://tickets.example/show' }],
+        meta: {
+          address: { address: 'Köpmangatan 14', city: 'Delsbo', country: 'Sweden' as const },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'page',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        expect(batch[0]?.pageLinks).toEqual([
+          { type: 'tickets', url: 'https://tickets.example/show' },
+        ]);
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          address: { address: 'Annan gata 1', city: 'Hudiksvall', country: 'Sweden' },
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () =>
+        Response.json({
+          features: [
+            { geometry: { coordinates: [16.55, 61.8] }, properties: { countrycode: 'SE' } },
+          ],
+        }),
+    });
+
+    expect(store.events[0]?.location).toEqual({ lat: 61.8, lng: 16.55 });
+    expect(store.events[0]?.meta.address).toEqual({
+      address: 'Köpmangatan 14',
+      city: 'Delsbo',
+      country: 'Sweden',
+      location: { lat: 61.8, lng: 16.55 },
+    });
+  });
+
+  it('leaves an existing point and stores a page address when the import had none', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    const runner: PromptRunner = {
+      id: 'page-address',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          location: { lat: 1, lng: 2 },
+          address: { address: 'Storgatan 1', city: 'Söderhamn', country: 'Sweden' },
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner);
+
+    expect(store.events[0]?.location).toEqual({ lat: 61.3, lng: 17.07 });
+    expect(store.events[0]?.meta.address).toEqual({
+      address: 'Storgatan 1',
+      city: 'Söderhamn',
+      country: 'Sweden',
+    });
+  });
+
+  it('geocodes the model address when the import stored neither a point nor an address', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const { location: _location, ...withoutPoint } = event;
+    await saveIncomingEvents(store, source, [withoutPoint]);
+    const runner: PromptRunner = {
+      id: 'model-address',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          address: { address: 'Köpmangatan 14', city: 'Delsbo', country: 'Sweden' },
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () =>
+        Response.json({
+          features: [
+            { geometry: { coordinates: [16.55, 61.8] }, properties: { countrycode: 'SE' } },
+          ],
+        }),
+    });
+
+    expect(store.events[0]?.location).toEqual({ lat: 61.8, lng: 16.55 });
+    expect(store.events[0]?.meta.address).toEqual({
+      address: 'Köpmangatan 14',
+      city: 'Delsbo',
+      country: 'Sweden',
+      location: { lat: 61.8, lng: 16.55 },
+    });
+  });
+
+  it('keeps a scan point when a later import has no location', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    const row = store.events[0]!;
+    row.location = { lat: 61.8, lng: 16.55 };
+    row.meta = {
+      ...row.meta,
+      address: {
+        address: 'Köpmangatan 14',
+        city: 'Delsbo',
+        country: 'Sweden',
+        location: { lat: 61.8, lng: 16.55 },
+      },
+    };
+    row.status = 'pending_scan';
+    const { location: _location, ...withoutPoint } = event;
+
+    const saved = await store.updateImported(row.id, {
+      sourceId: source.id,
+      externalId: event.externalId,
+      contentHash: 'again',
+      publisherId: null,
+      status: 'pending_scan',
+      event: withoutPoint,
+      endsAt: event.endsAt!,
+      tagIds: [],
+      refId: event.externalId,
+      workerId: source.slug,
+    });
+
+    expect(saved).toBe(true);
+    expect(row.location).toEqual({ lat: 61.8, lng: 16.55 });
+    expect(row.meta.address?.location).toEqual({ lat: 61.8, lng: 16.55 });
+  });
 });

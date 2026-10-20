@@ -2357,6 +2357,17 @@ export interface paths {
                                 priceAmount: number | null;
                                 currency: string;
                                 meta: {
+                                    address?: {
+                                        address?: string;
+                                        zipCode?: string;
+                                        city?: string;
+                                        /** @enum {string} */
+                                        country?: "Sweden";
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    };
                                     ageLimit?: number;
                                     freeEntry?: boolean;
                                     accessibleParking?: boolean;
@@ -2597,6 +2608,17 @@ export interface paths {
                                 priceAmount: number | null;
                                 currency: string;
                                 meta: {
+                                    address?: {
+                                        address?: string;
+                                        zipCode?: string;
+                                        city?: string;
+                                        /** @enum {string} */
+                                        country?: "Sweden";
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    };
                                     ageLimit?: number;
                                     freeEntry?: boolean;
                                     accessibleParking?: boolean;
@@ -2843,6 +2865,17 @@ export interface paths {
                                     priceAmount: number | null;
                                     currency: string;
                                     meta: {
+                                        address?: {
+                                            address?: string;
+                                            zipCode?: string;
+                                            city?: string;
+                                            /** @enum {string} */
+                                            country?: "Sweden";
+                                            location?: {
+                                                lat: number;
+                                                lng: number;
+                                            };
+                                        };
                                         ageLimit?: number;
                                         freeEntry?: boolean;
                                         accessibleParking?: boolean;
@@ -2971,6 +3004,17 @@ export interface paths {
                                 priceAmount: number | null;
                                 currency: string;
                                 meta: {
+                                    address?: {
+                                        address?: string;
+                                        zipCode?: string;
+                                        city?: string;
+                                        /** @enum {string} */
+                                        country?: "Sweden";
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    };
                                     ageLimit?: number;
                                     freeEntry?: boolean;
                                     accessibleParking?: boolean;
@@ -3179,6 +3223,17 @@ export interface paths {
                                 priceAmount: number | null;
                                 currency: string;
                                 meta: {
+                                    address?: {
+                                        address?: string;
+                                        zipCode?: string;
+                                        city?: string;
+                                        /** @enum {string} */
+                                        country?: "Sweden";
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    };
                                     ageLimit?: number;
                                     freeEntry?: boolean;
                                     accessibleParking?: boolean;
@@ -3536,6 +3591,17 @@ export interface paths {
                                 priceAmount: number | null;
                                 currency: string;
                                 meta: {
+                                    address?: {
+                                        address?: string;
+                                        zipCode?: string;
+                                        city?: string;
+                                        /** @enum {string} */
+                                        country?: "Sweden";
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    };
                                     ageLimit?: number;
                                     freeEntry?: boolean;
                                     accessibleParking?: boolean;
@@ -3689,6 +3755,17 @@ export interface paths {
                             priceAmount: number | null;
                             currency: string;
                             meta: {
+                                address?: {
+                                    address?: string;
+                                    zipCode?: string;
+                                    city?: string;
+                                    /** @enum {string} */
+                                    country?: "Sweden";
+                                    location?: {
+                                        lat: number;
+                                        lng: number;
+                                    };
+                                };
                                 ageLimit?: number;
                                 freeEntry?: boolean;
                                 accessibleParking?: boolean;
@@ -3843,6 +3920,17 @@ export interface paths {
                                 priceAmount: number | null;
                                 currency: string;
                                 meta: {
+                                    address?: {
+                                        address?: string;
+                                        zipCode?: string;
+                                        city?: string;
+                                        /** @enum {string} */
+                                        country?: "Sweden";
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    };
                                     ageLimit?: number;
                                     freeEntry?: boolean;
                                     accessibleParking?: boolean;
@@ -3962,6 +4050,17 @@ export interface paths {
                                 priceAmount: number | null;
                                 currency: string;
                                 meta: {
+                                    address?: {
+                                        address?: string;
+                                        zipCode?: string;
+                                        city?: string;
+                                        /** @enum {string} */
+                                        country?: "Sweden";
+                                        location?: {
+                                            lat: number;
+                                            lng: number;
+                                        };
+                                    };
                                     ageLimit?: number;
                                     freeEntry?: boolean;
                                     accessibleParking?: boolean;
@@ -4079,6 +4178,17 @@ export interface paths {
                             priceAmount: number | null;
                             currency: string;
                             meta: {
+                                address?: {
+                                    address?: string;
+                                    zipCode?: string;
+                                    city?: string;
+                                    /** @enum {string} */
+                                    country?: "Sweden";
+                                    location?: {
+                                        lat: number;
+                                        lng: number;
+                                    };
+                                };
                                 ageLimit?: number;
                                 freeEntry?: boolean;
                                 accessibleParking?: boolean;
@@ -4209,6 +4319,17 @@ export interface paths {
                             priceAmount: number | null;
                             currency: string;
                             meta: {
+                                address?: {
+                                    address?: string;
+                                    zipCode?: string;
+                                    city?: string;
+                                    /** @enum {string} */
+                                    country?: "Sweden";
+                                    location?: {
+                                        lat: number;
+                                        lng: number;
+                                    };
+                                };
                                 ageLimit?: number;
                                 freeEntry?: boolean;
                                 accessibleParking?: boolean;
@@ -4389,6 +4510,17 @@ export interface paths {
                             priceAmount: number | null;
                             currency: string;
                             meta: {
+                                address?: {
+                                    address?: string;
+                                    zipCode?: string;
+                                    city?: string;
+                                    /** @enum {string} */
+                                    country?: "Sweden";
+                                    location?: {
+                                        lat: number;
+                                        lng: number;
+                                    };
+                                };
                                 ageLimit?: number;
                                 freeEntry?: boolean;
                                 accessibleParking?: boolean;
@@ -4537,6 +4669,17 @@ export interface paths {
                             priceAmount: number | null;
                             currency: string;
                             meta: {
+                                address?: {
+                                    address?: string;
+                                    zipCode?: string;
+                                    city?: string;
+                                    /** @enum {string} */
+                                    country?: "Sweden";
+                                    location?: {
+                                        lat: number;
+                                        lng: number;
+                                    };
+                                };
                                 ageLimit?: number;
                                 freeEntry?: boolean;
                                 accessibleParking?: boolean;
@@ -4681,6 +4824,17 @@ export interface paths {
                             priceAmount: number | null;
                             currency: string;
                             meta: {
+                                address?: {
+                                    address?: string;
+                                    zipCode?: string;
+                                    city?: string;
+                                    /** @enum {string} */
+                                    country?: "Sweden";
+                                    location?: {
+                                        lat: number;
+                                        lng: number;
+                                    };
+                                };
                                 ageLimit?: number;
                                 freeEntry?: boolean;
                                 accessibleParking?: boolean;

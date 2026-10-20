@@ -14,10 +14,7 @@ least `occasionCoverage` of those days (default 0.6) becomes one event (`externa
 each of those events stores the product id on `meta.occasionGroupId`. A page with no occasion is still saved, with empty start and end. The scan fills both when it can read them from the text. Both knobs live on
 `data_sources.config`.
 The hero is the event page `og:image`. `data-lat` and `data-lng` on the page map become the
-event point. A page without that map is geocoded from the location pin under the price, then
-the contact address (and, if that misses, the contact town). A hit is kept only when it falls
-inside Hudiksvall municipality. Otherwise the event uses Hudiksvall centre
-(61.728161, 17.105575). Lookups go to the public Photon geocoder, one unique query at a time.
+event point. A page without that map is saved without a point. The contact street, postcode, and city are stored on `meta.address`. The scan geocodes a missing point later.
 A digital showing stays without a point.
 
 A booking link (`Bokningslänk`) is `tickets`. Event, website, and Facebook links in
@@ -39,7 +36,7 @@ sequenceDiagram
   end
   loop each event, save before the next page
     Runner->>Site: GET /sv/{event}
-    Note over Runner: one event per occasion<br/>daily opening hours over occasionSpanDays (default 21) at occasionCoverage (default 0.6) become one span<br/>separate occasions share meta.occasionGroupId<br/>map data-lat / data-lng, else pin, contact, Hudiksvall centre<br/>Europe/Stockholm offset<br/>organizer keys = email, website, name<br/>Bokningslänk → tickets<br/>Facebook and other content links → info
+    Note over Runner: one event per occasion<br/>daily opening hours over occasionSpanDays (default 21) at occasionCoverage (default 0.6) become one span<br/>separate occasions share meta.occasionGroupId<br/>map data-lat / data-lng is kept; a missing point is geocoded after the scan<br/>Europe/Stockholm offset<br/>organizer keys = email, website, name<br/>Bokningslänk → tickets<br/>Facebook and other content links → info
     Runner->>DB: insert this event (status pending_scan, origin imported)<br/>external_refs, meta.import
   end
   Runner->>DB: finish ingestion_runs

@@ -25,6 +25,7 @@ import { Link as AppLink } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 import { toDatetimeLocal, zonedLocalToIso } from '@/lib/zoned-datetime';
 import { EventImages } from './event-images';
+import { EventLocationMap } from './event-location-map';
 import { EventNotifications } from './event-notifications';
 import { EventOccasions } from './event-occasions';
 import { EventScan } from './event-scan';
@@ -637,6 +638,12 @@ export function EventEditor({ eventId }: { eventId: string }) {
                   <Typography variant="overline" color="text.secondary">
                     {t('physicalDetails')}
                   </Typography>
+                  <EventLocationMap
+                    lat={form.lat}
+                    lng={form.lng}
+                    radiusM={form.geofenceRadiusM}
+                    onPlace={(lat, lng) => setDraft({ ...form, lat, lng })}
+                  />
                   <TextField
                     label={t('venueName')}
                     fullWidth

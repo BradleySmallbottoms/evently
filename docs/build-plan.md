@@ -146,8 +146,8 @@ Closed beta around week 15, store launch around week 19.
       `<img>`) and stores the other crawled images as gallery roles
 - [x] Remaining launch-area sources (generic `ics-feed` adapter + seed; configure `feedUrl` per
       calendar — Visit Gävle has no public ICS yet)
-- [x] Glada Hudik public calendar (`glada-hudik`, no API key). The import saves each event before the next page is fetched and does not attach tags. A page without a map point is geocoded from the location pin, then the contact address, otherwise Hudiksvall centre.
-- [x] Destination Hälsingland public calendar JSON (`destination-halsingland`, no API key). The worker reads the event list (`filter=c=4559`), then each product’s text and occasions, and saves that product before the next one is fetched. A missing coordinate stays missing. Later sources:
+- [x] Glada Hudik public calendar (`glada-hudik`, no API key). The import saves each event before the next page is fetched and does not attach tags. A page without a map point is saved without a point. The scan geocodes a missing point later.
+- [x] Destination Hälsingland public calendar JSON (`destination-halsingland`, no API key). The worker reads the event list (`filter=c=4559`), then each product’s text and occasions, and saves that product before the next one is fetched. A missing coordinate stays missing. Gatuadress, Postadress, and the list coordinate are stored on `meta.address`. Later sources:
       `docs/event-sources.md`
 - [x] Söderhamns stadsbibliotek (`soderhamn-biblioteket`). Sitevision event pages. The worker reads the calendar list, then each event page, and saves that event before the next page is fetched. `robots.txt` disallows `jsessionid` URLs, so later pages use `skip` without a session id. A date that cannot be read is still saved, with empty start and end. Tickster stays next once an API key exists.
 - **Exit:** sources run on schedule unattended, and an imported event notifies users exactly like a

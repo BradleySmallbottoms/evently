@@ -342,6 +342,8 @@ export interface IngestStore {
     /** Set only when the scan found both and the row had neither. */
     startsAt?: Date;
     endsAt?: Date;
+    /** Set only when the row had no point and the page lookup found one. */
+    location?: { lat: number; lng: number };
   }): Promise<boolean>;
 }
 
@@ -355,6 +357,7 @@ export interface PendingScanRow {
   location: { lat: number; lng: number } | null;
   sourceUrl: string | null;
   links: string[];
+  pageLinks: { type: 'tickets' | 'registration' | 'info'; url: string }[];
   externalId: string;
   workerId: string;
   tagIds: string[];

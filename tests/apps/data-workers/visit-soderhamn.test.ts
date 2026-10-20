@@ -95,6 +95,13 @@ describe('visit-soderhamn map', () => {
       accessibleParking: true,
       hearingLoop: true,
       accessibleToilet: true,
+      address: {
+        address: 'Oxtorgsgatan 5',
+        zipCode: '82632',
+        city: 'Söderhamn',
+        country: 'Sweden',
+        location: { lat: 61.2887228674144, lng: 17.0729084004415 },
+      },
     });
     expect(events[1]?.location).toEqual({ lat: 61.3010138, lng: 17.0444639 });
   });
@@ -306,6 +313,13 @@ describe('visit-soderhamn map', () => {
       accessibleParking: true,
       visuallyImpairedAccess: true,
       occasionGroupId: 'cbis:2682743',
+      address: {
+        address: 'Oxtorgsgatan 5',
+        zipCode: '82632',
+        city: 'Söderhamn',
+        country: 'Sweden',
+        location: { lat: 61.3010138, lng: 17.0444639 },
+      },
     });
   });
 
@@ -341,7 +355,17 @@ describe('visit-soderhamn map', () => {
     };
     const [event] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
     expect(event?.priceAmount).toBe(0);
-    expect(event?.meta).toEqual({ freeEntry: true, occasionGroupId: 'cbis:2682743' });
+    expect(event?.meta).toEqual({
+      freeEntry: true,
+      occasionGroupId: 'cbis:2682743',
+      address: {
+        address: 'Oxtorgsgatan 5',
+        zipCode: '82632',
+        city: 'Söderhamn',
+        country: 'Sweden',
+        location: { lat: 61.3010138, lng: 17.0444639 },
+      },
+    });
   });
 });
 

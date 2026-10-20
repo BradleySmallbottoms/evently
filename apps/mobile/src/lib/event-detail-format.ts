@@ -137,22 +137,26 @@ export function formatTimeRange(
  * Short line under the title, and the rest for "About".
  * A short description is only the lead. A long one keeps the first sentence
  * as the lead and the remainder as the about text.
+ * If a summary is provided, it is used as the lead.
  */
-export function descriptionParts(description: string | null | undefined): {
+export function descriptionParts(
+  description: string | null | undefined,
+  summary?: string | null,
+): {
   lead: string;
   about: string;
 } {
   const trimmed = description?.trim() ?? '';
-  if (!trimmed) return { lead: '', about: '' };
-  if (trimmed.length <= 180) return { lead: trimmed, about: '' };
+  if (!trimmed) return { lead: summary ?? '', about: '' };
+  if (trimmed.length <= 180) return { lead: summary || trimmed, about: '' };
   const match = trimmed.match(/^[\s\S]*?[.!?](?:\s|$)/);
   const sentence = match?.[0]?.trim() ?? '';
   if (!sentence || sentence.length > 180) {
-    return { lead: `${trimmed.slice(0, 160).trimEnd()}…`, about: trimmed };
+    return { lead: summary || `${trimmed.slice(0, 160).trimEnd()}…`, about: trimmed };
   }
   const rest = trimmed.slice(sentence.length).trim();
-  if (!rest) return { lead: trimmed, about: '' };
-  return { lead: sentence, about: rest };
+  if (!rest) return { lead: summary || trimmed, about: '' };
+  return { lead: summary || sentence, about: rest };
 }
 
 /** Hostname for a "more information" link, without a leading www. */

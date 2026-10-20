@@ -122,8 +122,8 @@ calls) in the same change as every new major feature.**
 - Hudiksvall’s public calendar, with no Citybreak API key. The worker reads the unfiltered product
   list (`nodeId` 841) and then each event page. Filtered list queries are left out because
   `robots.txt` disallows them. The page map’s `data-lat` and `data-lng` become the event point.
-  A page without a map is geocoded from the location pin, then the contact address, and otherwise
-  uses Hudiksvall centre so the event still has a point. A digital showing stays without one.
+  A page without a map is saved without a point. The contact address is stored, and the scan
+  geocodes a missing point later. A digital showing stays without one.
   Links in the description, information, and contact (including Facebook) are stored. The site
   footer is not. A long daily exhibition becomes one event; a concert or a monthly circle stays
   one event per occasion and stores the product id on `meta.occasionGroupId`. A page with no occasion is still saved, with empty start and end. A collapsed span sets `meta.collapsed` and keeps every occasion on `meta.occasions`. Span length and
@@ -150,6 +150,14 @@ calls) in the same change as every new major feature.**
   network volume named `evnt-scan-models` in `CA-MTL-1`, and that volume keeps billing until it is deleted.
   `EU-SE-1` has no network volumes, so a volume cannot be created there.
   `http` is only allowed on loopback. A scan replaces tags the event already has.
+  Importers store the street, postcode, and city on `meta.address`, with the event point when they have one.
+  When a ticket or info link exists, the tool-calling scan may open the ticket
+  link, or the info link when there is no ticket link. The model uses that page for tags,
+  instructions, the summary, missing dates, and the address. The model returns that address
+  in the scan JSON. A scraped point and address are kept. When the event has no point, the
+  scraped address is geocoded, and the model address is used only when the import stored none.
+  A street, or a postcode with a city, is geocoded, and only a hit in Sweden is kept.
+  The model does not supply coordinates.
   The worker publishes the event only when the scan approves it, the publisher status is `published`,
   and the source trust is `auto_publish`. Anything else that finishes goes to `in_review`. A model
   failure leaves the row `pending_scan`. A new temporary publisher is `pending_scan`. The event scan does not look it up.
@@ -171,7 +179,8 @@ calls) in the same change as every new major feature.**
   latitude. A product with no coordinate is still saved, without a map point. The list URL is kept
   when it points at another site. Webbsida, Evenemangslänk, and Externa länkar are added when that
   page is not already a link. A product with no venue uses the city after the postcode in Postadress.
-  When that line has no city, the town and the list coordinate stay as they are. A product
+  When that line has no city, the town and the list coordinate stay as they are. Gatuadress,
+  Postadress, and the list coordinate are stored on `meta.address`. A product
   with no occasion is still saved, with empty start and end. The event scan fills both
   when it can read them from the text. An event with no start stays off the public list. A long daily
   exhibition becomes one event; a concert stays one event per occasion and stores the product id
@@ -193,8 +202,8 @@ calls) in the same change as every new major feature.**
   `jsessionid` URLs, so later pages use `skip` on the clean list URL. Date, time, place, and price
   come from the page. The Sitevision page id is the external id, so two showings of the same title
   stay separate. A date that cannot be read is still saved, with empty start and end. The library
-  desk email is the organizer key. A library place is geocoded, and a miss uses the library map
-  point. Times use the Europe/Stockholm offset.
+  desk email is the organizer key. The place address is stored. The import does not geocode.
+  The scan geocodes a missing point later. Times use the Europe/Stockholm offset.
   `pnpm --filter @local-events/data-workers dev -- --source soderhamn-biblioteket` writes
   `pending_scan` events. The seeded row stays disabled. Flow:
   [docs/flows/soderhamn-biblioteket.md](docs/flows/soderhamn-biblioteket.md).

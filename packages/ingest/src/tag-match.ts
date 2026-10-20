@@ -181,6 +181,13 @@ export type LLMScanResult = {
   /** Both set when the model found a range. Null when it did not. */
   startsAt: string | null;
   endsAt: string | null;
+  /** Street, postcode, and city from the description or the event page. Absent when the model found none. */
+  address?: {
+    address?: string;
+    zipCode?: string;
+    city?: string;
+    country?: 'Sweden';
+  };
 }
 
 const INSTRUCTION_LIMIT = 20;

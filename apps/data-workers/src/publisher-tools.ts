@@ -224,10 +224,22 @@ async function fetchPage(
   session: PublisherToolSession,
   deps: PublisherToolDeps,
 ): Promise<PublisherToolResult> {
-  const initial = parseHttpsUrl(raw);
-  if ('error' in initial) return initial;
   if (session.fetchesLeft <= 0) return { error: 'Fetch limit reached.' };
   session.fetchesLeft -= 1;
+  const loaded = await loadPublicHtml(raw, deps);
+  if ('error' in loaded) return loaded;
+  const page = pageFromHtml(loaded.html, loaded.url);
+  session.fetchedUrls.push(page.url);
+  return page;
+}
+
+/** One public https page. The same host checks as the publisher lookup. */
+export async function loadPublicHtml(
+  raw: string,
+  deps: PublisherToolDeps,
+): Promise<{ error: string } | { html: string; url: string }> {
+  const initial = parseHttpsUrl(raw);
+  if ('error' in initial) return initial;
   let current = initial;
   const resolveHost = deps.resolveHost ?? defaultResolveHost;
   try {
@@ -260,9 +272,7 @@ async function fetchPage(
       }
       const body = await readLimited(response, BODY_LIMIT);
       if (typeof body !== 'string') return body;
-      const page = pageFromHtml(body, current.toString());
-      session.fetchedUrls.push(page.url);
-      return page;
+      return { html: body, url: current.toString() };
     }
   } catch {
     return { error: 'Page could not be fetched.' };
@@ -422,7 +432,7 @@ async function readLimited(response: Response, limit: number): Promise<string | 
   return new TextDecoder().decode(bytes);
 }
 
-function pageFromHtml(html: string, pageUrl: string): { title: string; url: string; text: string; events: PageEvent[] } {
+export function pageFromHtml(html: string, pageUrl: string): { title: string; url: string; text: string; events: PageEvent[] } {
   const $ = load(html);
   const events: PageEvent[] = [];
   $('script[type="application/ld+json"]').each((_, element) => {
