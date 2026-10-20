@@ -95,22 +95,30 @@ describe('choosePossibleOccasionGroupId', () => {
 });
 
 describe('venueNameFromScan', () => {
-  it('keeps a venue the import already stored', () => {
+  it('uses the highest rank above 80 ahead of an imported name', () => {
     expect(
-      venueNameFromScan('Svea Bio', [
-        { name: 'Kulturhuset', rank: 99 },
-      ]),
-    ).toBeUndefined();
+      venueNameFromScan(
+        [
+          { name: 'Folkets hus', rank: 81 },
+          { name: 'Svea Bio', rank: 96 },
+          { name: 'Torget', rank: 80 },
+        ],
+        { arenaName: 'Helsingehus', venueName: 'Hudiksvall' },
+      ),
+    ).toBe('Svea Bio');
   });
 
-  it('uses the highest rank above 80 when the event has no venue', () => {
+  it('uses the arena name when no rank is above 80', () => {
     expect(
-      venueNameFromScan(null, [
-        { name: 'Folkets hus', rank: 81 },
-        { name: 'Svea Bio', rank: 96 },
-        { name: 'Torget', rank: 80 },
-      ]),
-    ).toBe('Svea Bio');
-    expect(venueNameFromScan('', [{ name: 'Torget', rank: 80 }])).toBeUndefined();
+      venueNameFromScan([{ name: 'Torget', rank: 80 }], {
+        arenaName: 'Helsingehus',
+        venueName: 'Hudiksvall',
+      }),
+    ).toBe('Helsingehus');
+  });
+
+  it('uses the imported venue when there is no arena', () => {
+    expect(venueNameFromScan(undefined, { venueName: 'Hudiksvall' })).toBe('Hudiksvall');
+    expect(venueNameFromScan([], { arenaName: '  ', venueName: '   ' })).toBeUndefined();
   });
 });

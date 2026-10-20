@@ -154,13 +154,17 @@ export const EventMeta = z.object({
    */
   instructions: z.array(z.string().trim().min(1).max(500)).max(20).optional(),
   /**
-   * Organizer identity saved with a data-worker import. The scan job reads it
-   * before a publisher is chosen. Public responses omit it.
+   * Organizer identity and the imported place name. The scan job reads them
+   * before a publisher and a venue are chosen. Public responses omit this block.
    */
   import: z
     .object({
       organizerKeys: z.array(z.string().min(1).max(200)).min(1).max(8),
       organizerName: z.string().optional(),
+      /** Place name the adapter stored. The scan may replace it on the venue column. */
+      venueName: z.string().trim().min(1).max(500).optional(),
+      /** Visit Söderhamn arena name. Preferred over `venueName` when the model has none. */
+      arenaName: z.string().trim().min(1).max(500).optional(),
     })
     .optional(),
 });

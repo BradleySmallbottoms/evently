@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readScanInstructions, readScanRange } from '@local-events/ingest';
 import {
   choosePossibleOccasionGroupId,
+  importedVenueName,
   importPlanToSchedule,
   OCCASION_GROUP_MIN_RANK,
   shouldEnqueueNotifications,
@@ -131,11 +132,12 @@ export async function scanPendingEvents(
 
 function scanInputFor(row: PendingScanRow): ScanInput {
   const organizerKeys = row.meta.import?.organizerKeys ?? [];
+  const venue = importedVenueName(row.meta.import);
   return {
     eventId: row.eventId,
     title: row.title,
     ...(row.description ? { description: row.description } : {}),
-    ...(row.venueName ? { venue: row.venueName } : {}),
+    ...(venue ? { venue } : {}),
     startsAt: row.startsAt?.toISOString() ?? '',
     endsAt: row.endsAt?.toISOString() ?? '',
     ...(row.location ? { location: row.location } : {}),
@@ -188,7 +190,7 @@ async function applyOutcome(
   }
   const dates = datesFromScan(row, outcome);
   const place = await placeFromScan(row, outcome, fetchImpl);
-  const venueName = venueNameFromScan(row.venueName, outcome.possibleVenueNames);
+  const venueName = venueNameFromScan(outcome.possibleVenueNames, row.meta.import);
   if (place.address) meta.address = place.address;
   const saved = await store.finishImportedScan({
     eventId: row.eventId,

@@ -31,7 +31,6 @@ const UPDATED_FIELDS = [
   'startsAt',
   'endsAt',
   'timezone',
-  'venueName',
   'location',
   'sourceUrl',
   'onlineUrl',
@@ -340,14 +339,26 @@ async function scheduleImportedNotifications(
   });
 }
 
+function storedImportName(value: string | undefined): string | undefined {
+  const name = value?.replace(/\s+/g, ' ').trim();
+  return name ? name.slice(0, 500) : undefined;
+}
+
+/** The venue column stays empty until the scan. The imported names live on `meta.import`. */
 function withImportContext(event: IncomingEvent): IncomingEvent {
+  const venueName = storedImportName(event.venueName);
+  const arenaName = storedImportName(event.arenaName);
+  const { venueName: _venue, arenaName: _arena, meta, ...rest } = event;
   return {
-    ...event,
+    ...rest,
     meta: {
-      ...event.meta,
+      ...meta,
       import: {
+        ...meta?.import,
         organizerKeys: event.organizerKeys,
         ...(event.organizerName ? { organizerName: event.organizerName } : {}),
+        ...(venueName ? { venueName } : {}),
+        ...(arenaName ? { arenaName } : {}),
       },
     },
   };

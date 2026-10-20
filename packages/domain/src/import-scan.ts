@@ -65,22 +65,37 @@ export interface PossibleVenueName {
   rank: number;
 }
 
+function cleanVenueName(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  const name = value.replace(/\s+/g, ' ').trim().slice(0, VENUE_NAME_LIMIT);
+  return name || undefined;
+}
+
 /**
- * Venue to write after a scan. An event that already has one keeps it.
- * Otherwise the highest rank over {@link VENUE_NAME_MIN_RANK} is used.
+ * Place name passed to the scan as its location, and used when the model
+ * returns no venue above {@link VENUE_NAME_MIN_RANK}. An arena name wins.
+ */
+export function importedVenueName(
+  input: { arenaName?: string | null; venueName?: string | null } | null | undefined,
+): string | undefined {
+  return cleanVenueName(input?.arenaName) ?? cleanVenueName(input?.venueName);
+}
+
+/**
+ * Venue to write after a scan. The highest rank over {@link VENUE_NAME_MIN_RANK}
+ * wins. Otherwise {@link importedVenueName}.
  */
 export function venueNameFromScan(
-  existing: string | null | undefined,
   possible: PossibleVenueName[] | undefined,
+  imported?: { arenaName?: string | null; venueName?: string | null } | null,
 ): string | undefined {
-  if (existing?.trim()) return undefined;
   let best: { name: string; rank: number } | undefined;
   for (const item of possible ?? []) {
-    const name = item.name.replace(/\s+/g, ' ').trim().slice(0, VENUE_NAME_LIMIT);
+    const name = cleanVenueName(item.name);
     if (!name || !Number.isFinite(item.rank) || item.rank <= VENUE_NAME_MIN_RANK) continue;
     if (!best || item.rank > best.rank) best = { name, rank: item.rank };
   }
-  return best?.name;
+  return best?.name ?? importedVenueName(imported);
 }
 
 function firstGroupId(

@@ -70,6 +70,7 @@ describe('visit-soderhamn map', () => {
     expect(bandy.endsAt).toBe('2025-01-31T21:00:00+01:00');
     expect(bandy.timezone).toBe('Europe/Stockholm');
     expect(bandy.venueName).toBe('Helsingehus Arena, Hällåsen');
+    expect(bandy.arenaName).toBe('Helsingehus Arena, Hällåsen');
     expect(bandy.address).toBe('Hällåsen, 826 40 Söderhamn, Sweden');
     expect(bandy.location).toEqual({ lat: 61.2887228674144, lng: 17.0729084004415 });
     expect(bandy.sourceUrl).toBe('https://brobergsoderhamn.se/');
@@ -183,6 +184,7 @@ describe('visit-soderhamn map', () => {
     expect(span?.startsAt).toBe('2026-11-13T10:00:00+01:00');
     expect(span?.endsAt).toBe('2026-12-22T18:00:00+01:00');
     expect(span?.venueName).toBe('Helsingehus Arena, Hällåsen');
+    expect(span?.arenaName).toBe('Helsingehus Arena, Hällåsen');
     expect(span?.meta?.collapsed).toBe(true);
     expect(span?.meta?.occasionGroupId).toBeUndefined();
     expect(span?.meta?.occasions).toHaveLength(40);

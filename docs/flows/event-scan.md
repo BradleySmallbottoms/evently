@@ -1,7 +1,9 @@
 # Import scan
 
-A data-worker insert saves a new event as `pending_scan` with no publisher. Organizer keys and
-the organizer name are stored on `meta.import`. Public responses omit that block.
+A data-worker insert saves a new event as `pending_scan` with no publisher. Organizer keys,
+the organizer name, and the imported venue are stored on `meta.import`. Visit Söderhamn also
+stores the arena name there. `events.venue_name` stays empty until the scan writes it. Public
+responses omit that block.
 
 EventBridge runs the data-workers task every 5 minutes with `JOB=event-scan`. Locally:
 
@@ -45,9 +47,13 @@ For each event the Ollama runner:
    A scraped point is kept. When the event has no point, the scraped address is geocoded,
    and the address from that JSON is used only when the import stored none. A street, or a
    postcode with a city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept. The model does not
-   supply coordinates. The model also returns possible venue names. A venue the import
-   already stored is kept. Otherwise the highest rank above 80 is written. A later import
-   keeps that address, and keeps its point when the new address has none.
+   supply coordinates. The model also returns possible venue names. Importers leave
+   `events.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn
+   also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena
+   name, then that venue name, as the location. The highest rank above 80 is written. When
+   the model returns none, the arena name is written, then the imported venue name. A later
+   import does not clear a venue the scan already wrote. A later import keeps that address,
+   and keeps its point when the new address has none.
 
 The worker writes the publisher, tags, and `meta.possibleDuplicate`, then sets the status.
 A duplicate ranked over 90 as another showing also stores `meta.possibleOccasionGroupId` on the

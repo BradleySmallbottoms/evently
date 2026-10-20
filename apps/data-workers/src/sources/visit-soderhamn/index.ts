@@ -595,7 +595,7 @@ function mapProduct(
         externalId: `${product.Id}:span`,
         startsAt: first.startsAt,
         ...(last.endsAt ? { endsAt: last.endsAt } : {}),
-        ...(venue ? { venueName: venue } : {}),
+        ...(venue ? { venueName: venue, arenaName: venue } : {}),
         ...(location ? { location } : {}),
         meta: withCollapsedSpan(
           addressed(meta, product, location),
@@ -618,7 +618,7 @@ function mapProduct(
       externalId: `${product.Id}:${occasion.startRaw}:${occasion.endRaw ?? ''}`,
       startsAt: occasion.startsAt,
       ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
-      ...(occasion.venue ? { venueName: occasion.venue } : {}),
+      ...(occasion.venue ? { venueName: occasion.venue, arenaName: occasion.venue } : {}),
       ...(location ? { location } : {}),
       ...(next ? { meta: next } : {}),
     };

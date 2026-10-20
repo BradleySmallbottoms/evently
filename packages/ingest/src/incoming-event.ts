@@ -12,7 +12,10 @@ export const IncomingEvent = z.object({
   startsAt: z.iso.datetime({ offset: true }).optional(),
   endsAt: z.iso.datetime({ offset: true }).optional(),
   timezone: z.string().default('Europe/Stockholm'),
+  /** Moved onto `meta.import.venueName` before insert. The venue column stays empty. */
   venueName: z.string().optional(),
+  /** Visit Söderhamn only. Moved onto `meta.import.arenaName` before insert. */
+  arenaName: z.string().optional(),
   address: z.string().optional(),
   location: GeoPointSchema.optional(),
   onlineUrl: HttpUrl.optional(),

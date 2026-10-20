@@ -979,18 +979,28 @@ describe('scanPendingEvents', () => {
     expect(row.meta.address?.location).toEqual({ lat: 61.8, lng: 16.55 });
   });
 
-  it('writes the highest venue guess only when the event has none', async () => {
+  it('writes a model venue ahead of the imported arena and venue', async () => {
     const store = createMemoryIngestStore();
     store.sources.push(source);
     const { venueName: _venue, ...withoutVenue } = event;
     await saveIncomingEvents(store, source, [
-      withoutVenue,
-      { ...event, externalId: 'cbis:2', title: 'Marknad' },
+      event,
+      {
+        ...event,
+        externalId: 'cbis:arena',
+        title: 'Arena',
+        venueName: 'Hudiksvall',
+        arenaName: 'Café Carlsson',
+      },
+      { ...event, externalId: 'cbis:city', title: 'Stad', venueName: 'Hudiksvall' },
+      { ...withoutVenue, externalId: 'cbis:none', title: 'Tom' },
     ]);
+    const locations: string[] = [];
     const runner: PromptRunner = {
       id: 'venue',
       lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
+        locations.push(...batch.map((item) => `${item.title}:${item.venue ?? ''}`));
         return batch.map((item): ScanOutcome => ({
           ok: true,
           eventId: item.eventId,
@@ -1003,21 +1013,32 @@ describe('scanPendingEvents', () => {
           approved: true,
           tags: [],
           ...scanned,
-          possibleVenueNames: [
-            { name: 'Folkets hus', rank: 91 },
-            { name: 'Svea Bio', rank: 96 },
-          ],
+          possibleVenueNames:
+            item.title === 'Konsert'
+              ? [
+                  { name: 'Folkets hus', rank: 81 },
+                  { name: 'Svea Bio', rank: 96 },
+                ]
+              : [{ name: 'Torget', rank: 80 }],
         }));
       },
     };
 
     await scanPendingEvents(store, runner);
 
+    expect(locations).toEqual([
+      'Konsert:Helsingehus',
+      'Arena:Café Carlsson',
+      'Stad:Hudiksvall',
+      'Tom:',
+    ]);
     const venueOf = (externalId: string) => {
       const eventId = store.refs.find((item) => item.externalId === externalId)?.eventId;
       return store.events.find((item) => item.id === eventId)?.venueName;
     };
     expect(venueOf('cbis:1')).toBe('Svea Bio');
-    expect(venueOf('cbis:2')).toBe('Helsingehus');
+    expect(venueOf('cbis:arena')).toBe('Café Carlsson');
+    expect(venueOf('cbis:city')).toBe('Hudiksvall');
+    expect(venueOf('cbis:none')).toBeNull();
   });
 });

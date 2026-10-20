@@ -132,12 +132,11 @@ Closed beta around week 15, store launch around week 19.
 - [x] Runner with an example fixture adapter
 - [x] Persist: upsert, `external_refs`, `ingestion_runs`. A new import is `pending_scan` with no
       publisher. The scan job resolves the publisher, duplicate check, and tags, then sets
-      `in_review` or `published`. A physical import with no venue name uses the city in its address,
-      then the nearest city within 25 km of its point.
+      `in_review` or `published`. A physical import with no venue name stores the city from its address on `meta.import.venueName`, or the nearest city within 25 km of its point when that address has no city.
 - [x] Import scan queue: `pending_scan` rows, batch prompt runner, Ollama model client, EventBridge
       schedule every 5 minutes (`JOB=event-scan`). `CHAT_PROVIDER=runpod` serves that job from one
       GPU pod, three scans at a time, and stops the pod when the run ends. A duplicate ranked over 90 as another showing
-      stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates. A new temporary publisher is `pending_scan`. A separate publisher scan (`JOB=publisher-scan`) looks it up on the web (`BRAVE_API_KEY`), stores the profile on `publishers.meta.lookup`, stores a fetched website as an organizer key, and sets `in_review`. Steps from the description are stored on `events.meta.instructions`. Possible venue names come back from the model. A venue the import already stored is kept. Otherwise the highest rank above 80 is written.
+      stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates. A new temporary publisher is `pending_scan`. A separate publisher scan (`JOB=publisher-scan`) looks it up on the web (`BRAVE_API_KEY`), stores the profile on `publishers.meta.lookup`, stores a fetched website as an organizer key, and sets `in_review`. Steps from the description are stored on `events.meta.instructions`. Possible venue names come back from the model. Importers leave `events.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written. When the model returns none, the arena name is written, then the imported venue name. A later import does not clear a venue the scan already wrote.
 - [x] Raw ingestion payloads to S3 (`raw/<slug>/<runId>`; no-op when `RAW_INGESTION_BUCKET` unset)
 - [x] Fargate task definition + EventBridge Scheduler schedules in CDK
 - [x] First real source: Visit Söderhamn adapter (Citybreak, Evenemang only). Occasions follow the shared collapse rule with Glada Hudik and Destination Hälsingland.

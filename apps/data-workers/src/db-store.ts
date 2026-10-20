@@ -541,7 +541,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             sourceUrl: values.sourceUrl,
             ...(input.event.startsAt ? { startsAt: values.startsAt, endsAt: values.endsAt } : {}),
             timezone: values.timezone,
-            venueName: values.venueName,
+            ...(input.event.venueName !== undefined ? { venueName: values.venueName } : {}),
             ...(input.event.location ? { location: values.location } : {}),
             ...(input.event.onlineUrl !== undefined ? { onlineUrl: values.onlineUrl } : {}),
             ...(input.event.priceAmount !== undefined ? { priceAmount: values.priceAmount } : {}),

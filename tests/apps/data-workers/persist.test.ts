@@ -30,6 +30,7 @@ const bandy: IncomingEvent = {
   endsAt: '2025-01-31T21:00:00+01:00',
   timezone: 'Europe/Stockholm',
   venueName: 'Helsingehus Arena, Hällåsen',
+  arenaName: 'Helsingehus Arena, Hällåsen',
   location: { lat: 61.2887, lng: 17.0729 },
   sourceUrl: 'https://brobergsoderhamn.se/',
   organizerKeys: ['kansli@brobergsoderhamn.se', 'brobergsoderhamn.se'],
@@ -78,19 +79,39 @@ describe('saveIncomingEvents', () => {
       publisherId: null,
       origin: 'imported',
       sourceUrl: bandy.sourceUrl,
-      venueName: bandy.venueName,
+      venueName: null,
       tagIds: BANDY_TAGS,
       meta: {
         ageLimit: 13,
         import: {
           organizerKeys: bandy.organizerKeys,
           organizerName: bandy.organizerName,
+          venueName: bandy.venueName,
+          arenaName: bandy.arenaName,
         },
       },
     });
     expect(store.publishers).toHaveLength(0);
     expect(store.refs).toHaveLength(1);
     expect(published).toEqual([]);
+  });
+
+  it('keeps a venue the scan wrote when a later import has none', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [bandy]);
+    await finishScan(store);
+    const row = store.events[0]!;
+    row.venueName = 'Café Carlsson';
+
+    const counts = await saveIncomingEvents(store, source, [
+      { ...bandy, description: 'Uppdaterad beskrivning' },
+    ]);
+
+    expect(counts.updated).toBe(1);
+    expect(row.venueName).toBe('Café Carlsson');
+    expect(row.meta.import?.venueName).toBe(bandy.venueName);
+    expect(row.meta.import?.arenaName).toBe(bandy.arenaName);
   });
 
   it('skips an external id deleted from review', async () => {

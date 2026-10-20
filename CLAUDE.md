@@ -177,8 +177,8 @@ Product invariants (enforced in domain, tested)
   A new temporary publisher is `pending_scan`. A separate publisher scan looks that organizer up on the
   web. The profile is stored on `publishers.meta.lookup`. A website from a fetched page is also stored as an organizer key. A finished lookup sets `in_review`. A failed lookup leaves the
   publisher `pending_scan`.
-- An imported physical event with no venue name uses the city in its scraped address. When that
-  address has no city, the nearest city within 25 km of its point is used. A named venue stays.
+- An imported physical event with no venue name stores the city from its scraped address on `meta.import.venueName`. When that
+  address has no city, the nearest city within 25 km of its point is used. A name the adapter already set stays on that field.
 - Visit Söderhamn, Glada Hudik, and Destination Hälsingland turn each occasion into its own event.
   An import with no occasion, and a library page or ICS event with no date, is still saved, with empty start and end.
   The event scan fills both when it can read them from the text or from the ticket or info page.
@@ -189,7 +189,7 @@ Product invariants (enforced in domain, tested)
   geocode. The model returns an address in the scan JSON. The scan keeps a scraped point. When the
   event has none, it geocodes the scraped address, or the model address when the import stored none.
   A street, or a postcode and city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept. The model does not supply coordinates.
-  The model returns possible venue names. A venue the import already stored is kept. Otherwise the highest rank above 80 is written.
+  The model returns possible venue names. Importers leave `events.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written. When the model returns none, the arena name is written, then the imported venue name. A later import does not clear a venue the scan already wrote.
   A dense run longer than `data_sources.config.occasionSpanDays` (default 21) that covers at least
   `occasionCoverage` of those days (default 0.6) becomes one span (`externalId` `{productId}:span`,
   `meta.collapsed` true, with every occasion on `meta.occasions`).

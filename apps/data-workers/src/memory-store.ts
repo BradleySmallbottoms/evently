@@ -490,6 +490,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         next.endsAt = event.endsAt;
       }
       if (!input.event.location) next.location = event.location;
+      if (input.event.venueName === undefined) next.venueName = event.venueName;
       const createdAt = event.createdAt ?? new Date();
       Object.assign(event, next);
       event.createdAt = createdAt;
