@@ -1,6 +1,7 @@
 /**
  * One reused GPU pod for the import scan. The job starts it, waits until vLLM
- * answers, then stops it. The model weights live on a network volume in the
+ * answers, then stops it. A start with no free GPU keeps that pod and retries
+ * until one is free. The model weights live on a network volume in the
  * same data center, so a later start does not download them again.
  */
 
@@ -8,6 +9,23 @@ const RUNPOD_API = 'https://api.runpod.io/v2';
 const CHAT_PORT = 8000;
 const READY_TIMEOUT_MS = 15 * 60 * 1000;
 const POLL_MS = 5_000;
+const A40_GPU_ID = 'NVIDIA A40';
+
+/**
+ * Upper bound on scans in flight. The default is this same number.
+ * One A40 holds about 10 sequences at the 8192 cap (about 18 GB of AWQ
+ * weights and 2 GB of KV cache each, inside 43 GB usable). Two A40s hold
+ * about 30, because the weights are split. Four hold this cap. An H100 or
+ * H200 finishes a batch sooner and costs more per finished scan.
+ */
+export const MAX_SCAN_CONCURRENCY = 50;
+
+/** A40s required so `concurrency` sequences fit at the 8192 cap. */
+export function a40CountForConcurrency(concurrency: number): 1 | 2 | 4 {
+  if (concurrency <= 10) return 1;
+  if (concurrency <= 30) return 2;
+  return 4;
+}
 
 export interface RunpodChatConfig {
   apiKey: string;
@@ -15,6 +33,8 @@ export interface RunpodChatConfig {
   podName: string;
   volumeName: string;
   gpuId: string;
+  /** A40s on one pod. 1, 2, or 4, so vLLM can split the model. */
+  gpuCount: number;
   dataCenterId: string;
   model: string;
   image: string;
@@ -53,8 +73,14 @@ interface PodRecord {
   createdAt?: string;
   cost?: number;
   runtime?: { ports?: { private?: number }[] } | null;
-  /** Model this pod was started with. Missing on pods created before that label existed. */
-  env?: { SCAN_MODEL?: string };
+  /** Shape this pod was started with. Missing on pods created before that label existed. */
+  env?: {
+    SCAN_MODEL?: string;
+    SCAN_CONCURRENCY?: string;
+    SCAN_GPU_COUNT?: string;
+    /** Set when more than one GPU serves with stock NCCL. */
+    SCAN_ALLREDUCE?: 'nccl';
+  };
 }
 
 interface VolumeRecord {
@@ -75,16 +101,18 @@ export function runpodChatConfigFromEnv(
   if (!Number.isInteger(volumeGb) || volumeGb < 10) {
     return { error: 'RUNPOD_VOLUME_GB must be a whole number of at least 10' };
   }
-  const concurrency = Number(env.SCAN_CONCURRENCY?.trim() || '3');
-  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) {
-    return { error: 'SCAN_CONCURRENCY must be a whole number from 1 to 4' };
+  const concurrency = Number(env.SCAN_CONCURRENCY?.trim() || String(MAX_SCAN_CONCURRENCY));
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > MAX_SCAN_CONCURRENCY) {
+    return { error: `SCAN_CONCURRENCY must be a whole number from 1 to ${MAX_SCAN_CONCURRENCY}` };
   }
+  const gpuId = env.RUNPOD_GPU?.trim() || A40_GPU_ID;
   return {
     apiKey,
     chatKey,
     podName: env.RUNPOD_POD_NAME?.trim() || 'evnt-scan',
     volumeName: env.RUNPOD_VOLUME_NAME?.trim() || 'evnt-scan-models',
-    gpuId: env.RUNPOD_GPU?.trim() || 'NVIDIA A40',
+    gpuId,
+    gpuCount: gpuId === A40_GPU_ID ? a40CountForConcurrency(concurrency) : 1,
     dataCenterId: env.RUNPOD_DATA_CENTER?.trim() || 'CA-MTL-1',
     model: env.RUNPOD_MODEL?.trim() || 'Qwen/Qwen3-32B-AWQ',
     image: env.RUNPOD_IMAGE?.trim() || 'vllm/vllm-openai:v0.10.2',
@@ -128,21 +156,15 @@ export function createRunpodChat(config: RunpodChatConfig, deps: RunpodDeps = {}
       const volumeId = await ensureVolume(api, config);
       const existing = await findPod(api, config.podName);
       let pod = existing;
-      if (pod && pod.env?.SCAN_MODEL !== config.model) {
+      if (pod && !sameShape(pod, config)) {
         await api(`/pods/${pod.id}/action`, { method: 'POST', body: { action: 'terminate' } });
         pod = null;
       }
       if (!pod) pod = await createPod(api, config, volumeId);
-      else if (pod.status === 'EXITED' || pod.status === 'ERROR') {
-        const started = await api(`/pods/${pod.id}/action`, { method: 'POST', body: { action: 'start' } });
-        if (started.status >= 400) {
-          await api(`/pods/${pod.id}/action`, { method: 'POST', body: { action: 'terminate' } });
-          pod = await createPod(api, config, volumeId);
-        } else {
-          pod = asPod(started.body) ?? pod;
-        }
-      }
       podId = pod.id;
+      if (pod.status === 'EXITED' || pod.status === 'ERROR') {
+        await startWhenFree(api, pod.id, config, now, sleep);
+      }
       const ready = await waitUntilReady(api, fetchImpl, pod.id, config, now, sleep);
       console.log(
         JSON.stringify({
@@ -150,6 +172,7 @@ export function createRunpodChat(config: RunpodChatConfig, deps: RunpodDeps = {}
           status: ready.status,
           costPerHour: ready.cost ?? null,
           concurrency: config.concurrency,
+          gpuCount: config.gpuCount,
         }),
       );
       return {
@@ -244,31 +267,22 @@ async function createPod(
       name: config.podName,
       cloud: 'SECURE',
       dataCenterIds: [config.dataCenterId],
-      gpu: { id: config.gpuId, count: 1, minCudaVersion: '12.8' },
+      gpu: { id: config.gpuId, count: config.gpuCount, minCudaVersion: '12.8' },
       image: config.image,
       ports: [`${CHAT_PORT}/http`],
       disk: 40,
-      env: { HF_HOME: '/models', HUGGING_FACE_HUB_CACHE: '/models', SCAN_MODEL: config.model },
+      env: {
+        HF_HOME: '/models',
+        HUGGING_FACE_HUB_CACHE: '/models',
+        SCAN_MODEL: config.model,
+        SCAN_CONCURRENCY: String(config.concurrency),
+        SCAN_GPU_COUNT: String(config.gpuCount),
+        ...(config.gpuCount > 1 ? { SCAN_ALLREDUCE: 'nccl' } : {}),
+        VLLM_API_KEY: config.chatKey,
+      },
       args: JSON.stringify({
         entrypoint: ['vllm', 'serve'],
-        cmd: [
-          config.model,
-          '--host',
-          '0.0.0.0',
-          '--port',
-          String(CHAT_PORT),
-          '--api-key',
-          config.chatKey,
-          '--enable-auto-tool-choice',
-          '--tool-call-parser',
-          'hermes',
-          '--download-dir',
-          '/models',
-          '--max-model-len',
-          '8192',
-          '--max-num-seqs',
-          String(config.concurrency),
-        ],
+        cmd: vllmCommand(config),
       }),
       mounts: { network: [{ volumeId, path: '/models' }] },
     },
@@ -277,6 +291,34 @@ async function createPod(
   const pod = asPod(created.body);
   if (!pod) throw new Error('Runpod create pod returned no id');
   return pod;
+}
+
+/**
+ * Retries start until a GPU is free. This wait and the later model-ready wait
+ * each get `readyTimeoutMs`. A missing pod or a rejected key fails at once.
+ * The pod stays either way.
+ */
+async function startWhenFree(
+  api: (path: string, init?: { method?: string; body?: unknown }) => Promise<{ status: number; body: unknown }>,
+  id: string,
+  config: RunpodChatConfig,
+  now: () => number,
+  sleep: (ms: number) => Promise<void>,
+): Promise<void> {
+  const deadline = now() + config.readyTimeoutMs;
+  for (;;) {
+    const started = await api(`/pods/${id}/action`, { method: 'POST', body: { action: 'start' } });
+    if (started.status < 400) return;
+    const failure = apiError('start pod', started.status, started.body);
+    if (!startCanWait(started.status) || now() > deadline) throw failure;
+    console.log(JSON.stringify({ podId: id, waiting: 'gpu', status: started.status }));
+    await sleep(POLL_MS);
+  }
+}
+
+/** Capacity and transient start errors are worth another try. Auth and a missing pod are not. */
+function startCanWait(status: number): boolean {
+  return status !== 401 && status !== 403 && status !== 404 && status !== 422;
 }
 
 async function waitUntilReady(
@@ -350,7 +392,7 @@ function asPod(value: unknown): PodRecord | null {
     status: body.status as PodStatus,
     ...(typeof body.createdAt === 'string' ? { createdAt: body.createdAt } : {}),
     ...(typeof body.cost === 'number' ? { cost: body.cost } : {}),
-    ...(scanModel(body.env) ? { env: { SCAN_MODEL: scanModel(body.env) } } : {}),
+    ...(scanEnv(body.env) ? { env: scanEnv(body.env) } : {}),
     runtime: ports
       ? {
           ports: ports.flatMap((port) => {
@@ -370,10 +412,50 @@ function asVolume(value: unknown): VolumeRecord | null {
   return { id: body.id, name: body.name, dataCenter: body.dataCenter };
 }
 
-function scanModel(value: unknown): string | undefined {
+function vllmCommand(config: RunpodChatConfig): string[] {
+  return [
+    config.model,
+    '--host',
+    '0.0.0.0',
+    '--port',
+    String(CHAT_PORT),
+    '--enable-auto-tool-choice',
+    '--tool-call-parser',
+    'hermes',
+    '--download-dir',
+    '/models',
+    '--max-model-len',
+    '8192',
+    '--max-num-seqs',
+    String(config.concurrency),
+    ...(config.gpuCount > 1
+      ? ['--tensor-parallel-size', String(config.gpuCount), '--disable-custom-all-reduce']
+      : []),
+  ];
+}
+
+function sameShape(pod: PodRecord, config: RunpodChatConfig): boolean {
+  const allReduce = config.gpuCount > 1 ? pod.env?.SCAN_ALLREDUCE === 'nccl' : true;
+  return (
+    allReduce &&
+    pod.env?.SCAN_MODEL === config.model &&
+    pod.env?.SCAN_CONCURRENCY === String(config.concurrency) &&
+    pod.env?.SCAN_GPU_COUNT === String(config.gpuCount)
+  );
+}
+
+function scanEnv(value: unknown): PodRecord['env'] | undefined {
   const env = record(value);
   const model = env?.SCAN_MODEL;
-  return typeof model === 'string' && model.trim() ? model : undefined;
+  const concurrency = env?.SCAN_CONCURRENCY;
+  const gpuCount = env?.SCAN_GPU_COUNT;
+  if (typeof model !== 'string' || !model.trim()) return undefined;
+  return {
+    SCAN_MODEL: model,
+    ...(typeof concurrency === 'string' && concurrency.trim() ? { SCAN_CONCURRENCY: concurrency } : {}),
+    ...(typeof gpuCount === 'string' && gpuCount.trim() ? { SCAN_GPU_COUNT: gpuCount } : {}),
+    ...(env?.SCAN_ALLREDUCE === 'nccl' ? { SCAN_ALLREDUCE: 'nccl' as const } : {}),
+  };
 }
 
 function record(value: unknown): Record<string, unknown> | null {

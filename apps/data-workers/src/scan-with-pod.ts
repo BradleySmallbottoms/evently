@@ -72,7 +72,13 @@ export async function scanWithChatPod(input: {
           chatAuth: ready.auth,
         },
       });
-      const drained = await drainScans(input.store, runner, input.enqueue ?? noopDomainEvents, input.selection);
+      const drained = await drainScans(
+        input.store,
+        runner,
+        input.enqueue ?? noopDomainEvents,
+        input.selection,
+        ready.concurrency,
+      );
       summary = { ...drained, pod: 'ran' };
     }
   } catch (err) {
@@ -95,6 +101,7 @@ async function drainScans(
   runner: Parameters<typeof scanPendingEvents>[1],
   enqueue: DomainEventSink,
   selection: { eventId?: string; limit?: number } = {},
+  batchLimit = SCAN_BATCH_LIMIT,
 ): Promise<ScanSummary> {
   const totals = emptySummary();
   const skip = new Set<string>();
@@ -102,7 +109,7 @@ async function drainScans(
   for (;;) {
     const summary = await scanPendingEvents(store, runner, enqueue, {
       leaseMs: POD_SCAN_LEASE_MS,
-      limit: selection.limit ?? SCAN_BATCH_LIMIT,
+      limit: selection.limit ?? batchLimit,
       ...(selection.eventId ? { eventId: selection.eventId } : {}),
       skipEventIds: [...skip],
     });
@@ -172,7 +179,7 @@ export async function scanPublishersWithChatPod(input: {
           chatAuth: ready.auth,
         },
       });
-      const drained = await drainPublisherScans(input.store, runner, input.selection, env);
+      const drained = await drainPublisherScans(input.store, runner, input.selection, env, ready.concurrency);
       summary = { ...drained, pod: 'ran' };
     }
   } catch (err) {
@@ -195,6 +202,7 @@ async function drainPublisherScans(
   runner: Parameters<typeof scanPendingPublishers>[1],
   selection: { publisherId?: string; limit?: number } = {},
   env: NodeJS.ProcessEnv,
+  batchLimit = PUBLISHER_SCAN_BATCH_LIMIT,
 ): Promise<PublisherScanSummary> {
   const totals = emptyPublisherSummary();
   const skip = new Set<string>();
@@ -202,7 +210,7 @@ async function drainPublisherScans(
   for (;;) {
     const summary = await scanPendingPublishers(store, runner, {
       leaseMs: POD_SCAN_LEASE_MS,
-      limit: selection.limit ?? PUBLISHER_SCAN_BATCH_LIMIT,
+      limit: selection.limit ?? batchLimit,
       ...(selection.publisherId ? { publisherId: selection.publisherId } : {}),
       skipPublisherIds: [...skip],
       env,

@@ -7,6 +7,7 @@ const config: RunpodChatConfig = {
   podName: 'evnt-scan',
   volumeName: 'evnt-scan-models',
   gpuId: 'NVIDIA A40',
+  gpuCount: 1,
   dataCenterId: 'EU-SE-1',
   model: 'Qwen/Qwen2.5-32B-Instruct-AWQ',
   image: 'vllm/vllm-openai:v0.10.2',
@@ -44,9 +45,40 @@ describe('runpodChatConfigFromEnv', () => {
     });
   });
 
-  it('serves Qwen3 unless RUNPOD_MODEL is set', () => {
+  it('serves Qwen3 on four A40s unless the model or the concurrency is set', () => {
     const resolved = runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck' });
-    expect(resolved).toMatchObject({ model: 'Qwen/Qwen3-32B-AWQ' });
+    expect(resolved).toMatchObject({
+      model: 'Qwen/Qwen3-32B-AWQ',
+      concurrency: 50,
+      gpuId: 'NVIDIA A40',
+      gpuCount: 4,
+    });
+  });
+
+  it('uses one A40 for a small batch and two up to 30', () => {
+    expect(
+      runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck', SCAN_CONCURRENCY: '3' }),
+    ).toMatchObject({ concurrency: 3, gpuCount: 1 });
+    expect(
+      runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck', SCAN_CONCURRENCY: '20' }),
+    ).toMatchObject({ concurrency: 20, gpuCount: 2 });
+  });
+
+  it('keeps a custom GPU as one card', () => {
+    expect(
+      runpodChatConfigFromEnv({
+        RUNPOD_API_KEY: 'rp',
+        RUNPOD_CHAT_KEY: 'ck',
+        RUNPOD_GPU: 'NVIDIA H100 80GB HBM3',
+        SCAN_CONCURRENCY: '50',
+      }),
+    ).toMatchObject({ gpuId: 'NVIDIA H100 80GB HBM3', gpuCount: 1, concurrency: 50 });
+  });
+
+  it('rejects concurrency above 50', () => {
+    expect(
+      runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck', SCAN_CONCURRENCY: '51' }),
+    ).toEqual({ error: 'SCAN_CONCURRENCY must be a whole number from 1 to 50' });
   });
 });
 
@@ -72,10 +104,16 @@ describe('createRunpodChat', () => {
         return json({ pods: [], pagination: { hasNextPage: false, nextCursor: null } });
       }
       if (method === 'POST' && target.endsWith('/pods')) {
-        const body = JSON.parse(String(init?.body)) as { args?: string; mounts?: { network?: { volumeId: string }[] } };
+        const body = JSON.parse(String(init?.body)) as {
+          args?: string;
+          env?: { VLLM_API_KEY?: string };
+          mounts?: { network?: { volumeId: string }[] };
+        };
         expect(body.mounts?.network?.[0]?.volumeId).toBe('vol_1');
-        expect(body.args).toContain('chat-key');
+        expect(body.env?.VLLM_API_KEY).toBe('chat-key');
+        expect(body.args).not.toContain('chat-key');
         expect(body.args).toContain('--max-num-seqs');
+        expect(body.args).not.toContain('--disable-custom-all-reduce');
         return json({ id: 'pod_1', name: 'evnt-scan', status: 'PROVISIONING' });
       }
       if (target.endsWith('/pods/pod_1/action')) return json({ ...runningPod(), status: 'EXITED' });
@@ -97,8 +135,10 @@ describe('createRunpodChat', () => {
     expect(calls.some((call) => call.includes('/pods/pod_1/action'))).toBe(true);
   });
 
-  it('replaces a pod that cannot start', async () => {
+  it('retries a start with no GPU and keeps the stopped pod', async () => {
     const actions: string[] = [];
+    let starts = 0;
+    let clock = 0;
     const fetchImpl: typeof fetch = async (url, init) => {
       const target = String(url);
       const method = init?.method ?? 'GET';
@@ -116,7 +156,7 @@ describe('createRunpodChat', () => {
               name: 'evnt-scan',
               status: 'EXITED',
               createdAt: '2026-10-01T00:00:00.000Z',
-              env: { SCAN_MODEL: config.model },
+              env: { SCAN_MODEL: config.model, SCAN_CONCURRENCY: '3', SCAN_GPU_COUNT: '1' },
             },
           ],
           pagination: { hasNextPage: false },
@@ -125,21 +165,110 @@ describe('createRunpodChat', () => {
       if (target.endsWith('/pods/pod_old/action')) {
         const body = JSON.parse(String(init?.body)) as { action: string };
         actions.push(body.action);
-        return body.action === 'start' ? json({ title: 'no GPU' }, 400) : json(null, 204);
+        starts += 1;
+        return starts < 3 ? json({ title: 'no GPU' }, 400) : json(runningPod('pod_old'));
       }
-      if (method === 'POST' && target.endsWith('/pods')) {
-        return json({ id: 'pod_new', name: 'evnt-scan', status: 'PROVISIONING' });
-      }
-      if (target.endsWith('/pods/pod_new')) return json(runningPod('pod_new'));
+      if (target.endsWith('/pods/pod_old')) return json(runningPod('pod_old'));
       if (target.includes('/v1/models')) return json({ data: [] });
+      return json({ title: target }, 500);
+    };
+    const chat = createRunpodChat(config, {
+      fetch: fetchImpl,
+      sleep: async (ms) => {
+        clock += ms;
+      },
+      now: () => clock,
+    });
+
+    const ready = await chat.ensureReady();
+
+    expect(actions).toEqual(['start', 'start', 'start']);
+    expect(ready.podId).toBe('pod_old');
+  });
+
+  it('leaves the pod stopped when no GPU appears before the ready timeout', async () => {
+    const actions: string[] = [];
+    let clock = 0;
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const target = String(url);
+      const method = init?.method ?? 'GET';
+      if (target.endsWith('/network-volumes')) {
+        return json({
+          networkVolumes: [{ id: 'vol_1', name: 'evnt-scan-models', dataCenter: 'EU-SE-1' }],
+          pagination: { hasNextPage: false },
+        });
+      }
+      if (method === 'GET' && target.endsWith('/pods')) {
+        return json({
+          pods: [
+            {
+              id: 'pod_old',
+              name: 'evnt-scan',
+              status: 'EXITED',
+              env: { SCAN_MODEL: config.model, SCAN_CONCURRENCY: '3', SCAN_GPU_COUNT: '1' },
+            },
+          ],
+          pagination: { hasNextPage: false },
+        });
+      }
+      if (target.endsWith('/pods/pod_old/action')) {
+        const body = JSON.parse(String(init?.body)) as { action: string };
+        actions.push(body.action);
+        return json({ title: 'no GPU' }, 400);
+      }
+      if (target.endsWith('/pods/pod_old')) return json({ id: 'pod_old', name: 'evnt-scan', status: 'EXITED' });
+      return json({ title: target }, 500);
+    };
+    const chat = createRunpodChat(
+      { ...config, readyTimeoutMs: 10_000 },
+      {
+        fetch: fetchImpl,
+        sleep: async (ms) => {
+          clock += ms;
+        },
+        now: () => clock,
+      },
+    );
+
+    await expect(chat.ensureReady()).rejects.toThrow('Runpod start pod failed: no GPU');
+    expect(actions.every((action) => action === 'start')).toBe(true);
+    expect(actions.length).toBeGreaterThan(1);
+  });
+
+  it('fails at once when the stopped pod is gone', async () => {
+    let starts = 0;
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const target = String(url);
+      const method = init?.method ?? 'GET';
+      if (target.endsWith('/network-volumes')) {
+        return json({
+          networkVolumes: [{ id: 'vol_1', name: 'evnt-scan-models', dataCenter: 'EU-SE-1' }],
+          pagination: { hasNextPage: false },
+        });
+      }
+      if (method === 'GET' && target.endsWith('/pods')) {
+        return json({
+          pods: [
+            {
+              id: 'pod_old',
+              name: 'evnt-scan',
+              status: 'EXITED',
+              env: { SCAN_MODEL: config.model, SCAN_CONCURRENCY: '3', SCAN_GPU_COUNT: '1' },
+            },
+          ],
+          pagination: { hasNextPage: false },
+        });
+      }
+      if (target.endsWith('/pods/pod_old/action')) {
+        starts += 1;
+        return json({ title: 'not found' }, 404);
+      }
       return json({ title: target }, 500);
     };
     const chat = createRunpodChat(config, { fetch: fetchImpl, sleep: async () => {} });
 
-    const ready = await chat.ensureReady();
-
-    expect(actions).toEqual(['start', 'terminate']);
-    expect(ready.podId).toBe('pod_new');
+    await expect(chat.ensureReady()).rejects.toThrow('Runpod start pod failed: not found');
+    expect(starts).toBe(1);
   });
 
   it('replaces a pod that was started with another model', async () => {
@@ -194,6 +323,113 @@ describe('createRunpodChat', () => {
     expect(createdArgs).toContain('Qwen/Qwen3-32B-AWQ');
     expect(createdModel).toBe('Qwen/Qwen3-32B-AWQ');
     expect(ready.model).toBe('Qwen/Qwen3-32B-AWQ');
+  });
+
+  it('replaces a one-GPU pod when fifty scans need four A40s', async () => {
+    let created: {
+      gpu?: { count?: number };
+      args?: string;
+      env?: { SCAN_CONCURRENCY?: string; SCAN_GPU_COUNT?: string; SCAN_ALLREDUCE?: string };
+    } =
+      {};
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const target = String(url);
+      const method = init?.method ?? 'GET';
+      if (target.endsWith('/network-volumes')) {
+        return json({
+          networkVolumes: [{ id: 'vol_1', name: 'evnt-scan-models', dataCenter: 'EU-SE-1' }],
+          pagination: { hasNextPage: false },
+        });
+      }
+      if (method === 'GET' && target.endsWith('/pods')) {
+        return json({
+          pods: [
+            {
+              id: 'pod_old',
+              name: 'evnt-scan',
+              status: 'EXITED',
+              env: { SCAN_MODEL: config.model, SCAN_CONCURRENCY: '3', SCAN_GPU_COUNT: '1' },
+            },
+          ],
+          pagination: { hasNextPage: false },
+        });
+      }
+      if (target.endsWith('/pods/pod_old/action')) return json(null, 204);
+      if (method === 'POST' && target.endsWith('/pods')) {
+        created = JSON.parse(String(init?.body)) as typeof created;
+        return json({ id: 'pod_new', name: 'evnt-scan', status: 'PROVISIONING' });
+      }
+      if (target.endsWith('/pods/pod_new')) return json(runningPod('pod_new'));
+      if (target.includes('/v1/models')) return json({ data: [] });
+      return json({ title: target }, 500);
+    };
+    const chat = createRunpodChat(
+      { ...config, concurrency: 50, gpuCount: 4 },
+      { fetch: fetchImpl, sleep: async () => {} },
+    );
+
+    const ready = await chat.ensureReady();
+
+    expect(ready.concurrency).toBe(50);
+    expect(created.gpu?.count).toBe(4);
+    expect(created.env?.SCAN_CONCURRENCY).toBe('50');
+    expect(created.env?.SCAN_GPU_COUNT).toBe('4');
+    expect(created.args).toContain('--max-num-seqs');
+    expect(created.args).toContain('--tensor-parallel-size');
+    expect(created.args).toContain('--disable-custom-all-reduce');
+    expect(created.args).toContain('4');
+    expect(created.env?.SCAN_ALLREDUCE).toBe('nccl');
+  });
+
+  it('replaces a multi-GPU pod that still uses custom all-reduce', async () => {
+    const actions: string[] = [];
+    let createdArgs = '';
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const target = String(url);
+      const method = init?.method ?? 'GET';
+      if (target.endsWith('/network-volumes')) {
+        return json({
+          networkVolumes: [{ id: 'vol_1', name: 'evnt-scan-models', dataCenter: 'EU-SE-1' }],
+          pagination: { hasNextPage: false },
+        });
+      }
+      if (method === 'GET' && target.endsWith('/pods')) {
+        return json({
+          pods: [
+            {
+              id: 'pod_old',
+              name: 'evnt-scan',
+              status: 'RUNNING',
+              env: { SCAN_MODEL: config.model, SCAN_CONCURRENCY: '50', SCAN_GPU_COUNT: '4' },
+            },
+          ],
+          pagination: { hasNextPage: false },
+        });
+      }
+      if (target.endsWith('/pods/pod_old/action')) {
+        const body = JSON.parse(String(init?.body)) as { action: string };
+        actions.push(body.action);
+        return json(null, 204);
+      }
+      if (method === 'POST' && target.endsWith('/pods')) {
+        const body = JSON.parse(String(init?.body)) as { args?: string };
+        createdArgs = body.args ?? '';
+        return json({ id: 'pod_new', name: 'evnt-scan', status: 'PROVISIONING' });
+      }
+      if (target.endsWith('/pods/pod_new')) return json(runningPod('pod_new'));
+      if (target.includes('/v1/models')) return json({ data: [] });
+      return json({ title: target }, 500);
+    };
+    const chat = createRunpodChat(
+      { ...config, concurrency: 50, gpuCount: 4 },
+      { fetch: fetchImpl, sleep: async () => {} },
+    );
+
+    const ready = await chat.ensureReady();
+
+    expect(actions).toEqual(['terminate']);
+    expect(createdArgs).toContain('--disable-custom-all-reduce');
+    expect(ready.podId).toBe('pod_new');
   });
 
   it('refuses a data center that has no network volumes', async () => {

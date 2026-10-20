@@ -143,10 +143,11 @@ calls) in the same change as every new major feature.**
   existing tags. With no `CHAT_PROVIDER`, that is a local
   [Ollama](https://ollama.com) model (`ollama serve`, default `qwen3:8b`). `CHAT_PROVIDER=chatgpt`
   uses `OPENAI_API_KEY` (default `gpt-4.1-mini`). `CHAT_PROVIDER=claude` uses `ANTHROPIC_API_KEY`
-  (default `claude-sonnet-5-5`). `CHAT_PROVIDER=runpod` starts one GPU pod
+  (default `claude-sonnet-5-5`). `CHAT_PROVIDER=runpod` starts a GPU pod
   (`RUNPOD_API_KEY`, `RUNPOD_CHAT_KEY`), serves `Qwen/Qwen3-32B-AWQ` with thinking turned off,
-  scans three events at a time, drains the queue,
-  and stops the pod. The GPU bills only while that pod is running. The model weights stay on a
+  and scans 50 events at a time on A40s in `CA-MTL-1`. More than one GPU disables vLLM custom all-reduce, and a pod started without that flag is replaced. One A40 holds about 10 full contexts,
+  two hold about 30, and four hold the 50. An H100 or H200 finishes a batch sooner and costs
+  more per finished scan. It drains the queue and then stops the pod. A later scan starts that same pod. A start with no free GPU retries until one is free, and the pod stays. The GPU bills only while that pod is running. The model weights stay on a
   network volume named `evnt-scan-models` in `CA-MTL-1`, and that volume keeps billing until it is deleted.
   `EU-SE-1` has no network volumes, so a volume cannot be created there.
   `http` is only allowed on loopback. A scan replaces tags the event already has.

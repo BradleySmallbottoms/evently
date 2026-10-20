@@ -26,6 +26,7 @@ import {
 } from '../publisher-tools';
 import { eventAddress, type EventAddressRecord } from '@local-events/domain';
 import { lookupPageUrl } from '../page-place';
+import { MAX_SCAN_CONCURRENCY } from '../runpod-chat';
 import { LOCAL_ORGANIZER_SLUGS } from '../sources';
 import { NEARBY_DAYS_AFTER, NEARBY_DAYS_BEFORE, publisherNameMatcher, type IngestStore, type NearbyEventHit, type NearbyPublisherHit, type PublisherCandidate, type PublisherRecord } from '../store';
 import type {
@@ -218,7 +219,7 @@ export function createOllamaWithToolsPromptRunner(
         externalId: tag.externalId,
         name: tag.name,
       }));
-      const concurrency = Math.min(8, Math.max(1, options.concurrency ?? 1));
+      const concurrency = Math.min(MAX_SCAN_CONCURRENCY, Math.max(1, options.concurrency ?? 1));
       return mapPool(batch, concurrency, (event) =>
         scanOneEvent(
           event,
@@ -250,7 +251,6 @@ export function createOllamaWithToolsPromptRunner(
         publisherLookupPrompt(input),
         publisherToolDefinitions(),
         async (call) => {
-          console.log('Running call', call.name);
           return executePublisherTool(call.name, call.arguments, session, {
             fetch: fetchImpl,
             ...(options.resolveHost ? { resolveHost: options.resolveHost } : {}),
@@ -304,7 +304,7 @@ async function scanOneEvent(
   }
 
   const content = (await askModelWithLookups(buildScanPrompt(event), context, config, fetchImpl)) ?? 'unavailable';
-  console.log('content', JSON.stringify(content, null, 2));
+  // console.log('content', JSON.stringify(content, null, 2));
   // throw new Error('test');
 
   if (content === 'unavailable') {
@@ -682,7 +682,6 @@ async function postChat(
             ...openAiSampling(endpoint.model),
           };
   try {
-    console.log('postChat', endpoint.protocol, JSON.stringify(messages, null, 2));
     const response = await fetchImpl(endpoint.url, {
       method: 'POST',
       redirect: 'error',
@@ -691,8 +690,10 @@ async function postChat(
       signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
     });
     const payload: unknown = await response.json();
-    console.log('response', response.status, JSON.stringify(payload, null, 2), response.headers);
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.log('response', endpoint.protocol, response.status);
+      return null;
+    }
     return payload && typeof payload === 'object' ? payload : null;
   } catch {
     return null;
@@ -877,7 +878,6 @@ function readToolArguments(raw: unknown): Record<string, unknown> {
 async function fetchEventPage(context: LookupContext): Promise<ToolResult> {
   const url = lookupPageUrl(context.event.pageLinks, context.event.sourceUrl);
   if (!url || !context.fetch) return { error: 'No page to fetch.' };
-  console.log('Fetching page', url);
   const loaded = await loadPublicHtml(url, {
     fetch: context.fetch,
     ...(context.resolveHost ? { resolveHost: context.resolveHost } : {}),
@@ -888,7 +888,6 @@ async function fetchEventPage(context: LookupContext): Promise<ToolResult> {
 
 async function executeToolCall(call: ParsedToolCall, context: LookupContext): Promise<ToolResult> {
   try {
-    console.log('Running call', call.name);
     if (call.name === 'getAvailableTags') return lookupAvailableTags(context.catalog);
     if (call.name === 'getNearbyEvents') return lookupNearbyEvents(context);
     if (call.name === 'getNearbyPublishers') return lookupNearbyPublishers(context);
