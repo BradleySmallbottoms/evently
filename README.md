@@ -157,7 +157,8 @@ calls) in the same change as every new major feature.**
   in the scan JSON. A scraped point and address are kept. When the event has no point, the
   scraped address is geocoded, and the model address is used only when the import stored none.
   A street, or a postcode with a city, is geocoded, and only a hit in Sweden is kept.
-  The model does not supply coordinates.
+  The model does not supply coordinates. The model returns possible venue names. A venue the
+  import already stored is kept. Otherwise the highest rank over 90 is written.
   The worker publishes the event only when the scan approves it, the publisher status is `published`,
   and the source trust is `auto_publish`. Anything else that finishes goes to `in_review`. A model
   failure leaves the row `pending_scan`. A new temporary publisher is `pending_scan`. The event scan does not look it up.

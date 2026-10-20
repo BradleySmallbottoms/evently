@@ -137,7 +137,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Import scan queue: `pending_scan` rows, batch prompt runner, Ollama model client, EventBridge
       schedule every 5 minutes (`JOB=event-scan`). `CHAT_PROVIDER=runpod` serves that job from one
       GPU pod, three scans at a time, and stops the pod when the run ends. A duplicate ranked over 90 as another showing
-      stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates. A new temporary publisher is `pending_scan`. A separate publisher scan (`JOB=publisher-scan`) looks it up on the web (`BRAVE_API_KEY`), stores the profile on `publishers.meta.lookup`, stores a fetched website as an organizer key, and sets `in_review`. Steps from the description are stored on `events.meta.instructions`.
+      stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates. A new temporary publisher is `pending_scan`. A separate publisher scan (`JOB=publisher-scan`) looks it up on the web (`BRAVE_API_KEY`), stores the profile on `publishers.meta.lookup`, stores a fetched website as an organizer key, and sets `in_review`. Steps from the description are stored on `events.meta.instructions`. Possible venue names come back from the model. A venue the import already stored is kept. Otherwise the highest rank over 90 is written.
 - [x] Raw ingestion payloads to S3 (`raw/<slug>/<runId>`; no-op when `RAW_INGESTION_BUCKET` unset)
 - [x] Fargate task definition + EventBridge Scheduler schedules in CDK
 - [x] First real source: Visit Söderhamn adapter (Citybreak, Evenemang only). Occasions follow the shared collapse rule with Glada Hudik and Destination Hälsingland.

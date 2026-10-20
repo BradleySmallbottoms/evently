@@ -59,6 +59,8 @@ export type ScanOutcome =
       language: string;
       /** Steps from the description. Empty when the model listed none. */
       instructions: string[];
+      /** Venue guesses. Empty when the model listed none. */
+      possibleVenueNames?: { name: string; rank: number }[];
       /** Both set when the model found a range for an undated event. */
       startsAt?: string | null;
       endsAt?: string | null;

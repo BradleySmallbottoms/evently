@@ -762,6 +762,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         event.endsAt = input.endsAt;
       }
       if (input.location) event.location = input.location;
+      if (input.venueName) event.venueName = input.venueName;
       event.scanClaimedUntil = null;
       return true;
     },

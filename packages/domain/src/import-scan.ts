@@ -56,6 +56,33 @@ export function choosePossibleOccasionGroupId(input: {
   return firstGroupId(members, 'occasionGroupId') ?? firstGroupId(members, 'possibleOccasionGroupId') ?? input.newId;
 }
 
+/** A venue guess counts only when its rank is over this. Same cutoff as a publisher match. */
+export const VENUE_NAME_MIN_RANK = 90;
+const VENUE_NAME_LIMIT = 200;
+
+export interface PossibleVenueName {
+  name: string;
+  rank: number;
+}
+
+/**
+ * Venue to write after a scan. An event that already has one keeps it.
+ * Otherwise the highest rank over {@link VENUE_NAME_MIN_RANK} is used.
+ */
+export function venueNameFromScan(
+  existing: string | null | undefined,
+  possible: PossibleVenueName[] | undefined,
+): string | undefined {
+  if (existing?.trim()) return undefined;
+  let best: { name: string; rank: number } | undefined;
+  for (const item of possible ?? []) {
+    const name = item.name.replace(/\s+/g, ' ').trim().slice(0, VENUE_NAME_LIMIT);
+    if (!name || !Number.isFinite(item.rank) || item.rank <= VENUE_NAME_MIN_RANK) continue;
+    if (!best || item.rank > best.rank) best = { name, rank: item.rank };
+  }
+  return best?.name;
+}
+
 function firstGroupId(
   members: OccasionGroupMember[],
   key: 'occasionGroupId' | 'possibleOccasionGroupId',

@@ -344,6 +344,8 @@ export interface IngestStore {
     endsAt?: Date;
     /** Set only when the row had no point and the page lookup found one. */
     location?: { lat: number; lng: number };
+    /** Set only when the row had no venue name and the scan chose one. */
+    venueName?: string;
   }): Promise<boolean>;
 }
 

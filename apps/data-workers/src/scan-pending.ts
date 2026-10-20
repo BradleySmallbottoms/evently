@@ -7,6 +7,7 @@ import {
   OCCASION_GROUP_MIN_RANK,
   shouldEnqueueNotifications,
   statusAfterImportScan,
+  venueNameFromScan,
 } from '@local-events/domain';
 import { geocodeSwedishAddress } from './page-place';
 import { emitDomainEvent, noopDomainEvents, type DomainEventSink } from './domain-events';
@@ -188,6 +189,7 @@ async function applyOutcome(
   }
   const dates = datesFromScan(row, outcome);
   const place = await placeFromScan(row, outcome, fetchImpl);
+  const venueName = venueNameFromScan(row.venueName, outcome.possibleVenueNames);
   if (place.address) meta.address = place.address;
   const saved = await store.finishImportedScan({
     eventId: row.eventId,
@@ -202,6 +204,7 @@ async function applyOutcome(
     claimedUntil: row.claimedUntil,
     ...(dates ?? {}),
     ...(place.location ? { location: place.location } : {}),
+    ...(venueName ? { venueName } : {}),
   });
   if (!saved) return 'skipped';
   const startsAt = dates?.startsAt ?? row.startsAt;

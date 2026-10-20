@@ -150,6 +150,7 @@ Product invariants (enforced in domain, tested)
   geocode. The model returns an address in the scan JSON. The scan keeps a scraped point. When the
   event has none, it geocodes the scraped address, or the model address when the import stored none.
   A street, or a postcode and city, is geocoded, and only a hit in Sweden is kept. The model does not supply coordinates.
+  The model returns possible venue names. A venue the import already stored is kept. Otherwise the highest rank over 90 is written.
   A dense run longer than `data_sources.config.occasionSpanDays` (default 21) that covers at least
   `occasionCoverage` of those days (default 0.6) becomes one span (`externalId` `{productId}:span`,
   `meta.collapsed` true, with every occasion on `meta.occasions`).

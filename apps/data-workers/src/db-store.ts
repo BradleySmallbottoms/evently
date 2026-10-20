@@ -1012,6 +1012,7 @@ export function createDbIngestStore(db: Db): IngestStore {
               ? { startsAt: input.startsAt, endsAt: input.endsAt }
               : {}),
             ...(input.location ? { location: pointEwkt(input.location) } : {}),
+            ...(input.venueName ? { venueName: input.venueName } : {}),
           })
           .where(
             and(

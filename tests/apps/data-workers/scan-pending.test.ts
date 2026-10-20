@@ -978,4 +978,46 @@ describe('scanPendingEvents', () => {
     expect(row.location).toEqual({ lat: 61.8, lng: 16.55 });
     expect(row.meta.address?.location).toEqual({ lat: 61.8, lng: 16.55 });
   });
+
+  it('writes the highest venue guess only when the event has none', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const { venueName: _venue, ...withoutVenue } = event;
+    await saveIncomingEvents(store, source, [
+      withoutVenue,
+      { ...event, externalId: 'cbis:2', title: 'Marknad' },
+    ]);
+    const runner: PromptRunner = {
+      id: 'venue',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          possibleVenueNames: [
+            { name: 'Folkets hus', rank: 91 },
+            { name: 'Svea Bio', rank: 96 },
+          ],
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner);
+
+    const venueOf = (externalId: string) => {
+      const eventId = store.refs.find((item) => item.externalId === externalId)?.eventId;
+      return store.events.find((item) => item.id === eventId)?.venueName;
+    };
+    expect(venueOf('cbis:1')).toBe('Svea Bio');
+    expect(venueOf('cbis:2')).toBe('Helsingehus');
+  });
 });

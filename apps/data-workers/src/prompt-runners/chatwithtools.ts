@@ -182,7 +182,7 @@ function chatToolDefinitions(event: ScanInput): object[] {
       function: {
         name: 'fetchEventPage',
         description:
-          'Fetch the ticket page, or the info page when there is no ticket page. Takes no arguments. Use the page text for tags, instructions, the summary, the address, and a missing start or end. Returns the page title and text.',
+          'Fetch the ticket page, or the info page when there is no ticket page. Takes no arguments. Use the page text for tags, instructions, the summary, the address, a venue name, and a missing start or end. Returns the page title and text.',
         parameters: noArguments,
       },
     });
@@ -335,6 +335,7 @@ async function scanOneEvent(
     summary: content.summary,
     language: content.language,
     instructions: content.instructions,
+    possibleVenueNames: content.possibleVenueNames,
     startsAt: content.startsAt,
     endsAt: content.endsAt,
     ...(content.address ? { address: content.address } : {}),
@@ -418,6 +419,8 @@ function buildScanPrompt(event: ScanInput): string {
           'Use the page for a missing start and end, and for the address.',
         ]
       : []),
+    'List possible venue names from the title, description, and event page. A venue is the place where the event happens, not the city and not the organizer.',
+    'Return possibleVenueNames as objects with name and rank from 0 to 100. Include a name only when the rank is over 50.',
     'Read the description and the event page and extract the street, postcode, and city into address.',
     'Use null when you cannot find one. Do not invent an address or coordinates.',
     'Return both as ISO-8601 datetimes with a numeric offset. When the text names no time zone, use Europe/Stockholm.',
@@ -426,7 +429,7 @@ function buildScanPrompt(event: ScanInput): string {
     'contentVerdict is "spam", "harmful", or "safe". language is the event language, such as "sv" or "en". rank and score are numbers from 0 to 100.',
     'Include a explanation of why tags where chosed and why the publisher and duplicate were chosen etc. in the JSON object.',
     'When you are finished, return only the JSON object. Do not explain it and do not wrap it in markdown:',
-    '{"decision_explanation": "<decision_explanation>", "instructions":["<instruction1>","<instruction2>"],"possiblePublishers":[{"publisherId":"<publisherId>","rank":95}],"possibleDuplicates":[{"eventId":"<eventId>","rank":95,"occasionRank":10}],"contentVerdict":"safe","summary":"<summary>","language":"sv","possibleTags":[{"id":"<id>","score":95}],"startsAt":null,"endsAt":null,"address":{"address":"Köpmangatan 14","zipCode":"82471","city":"Delsbo"}}',
+    '{"decision_explanation": "<decision_explanation>", "instructions":["<instruction1>","<instruction2>"],"possiblePublishers":[{"publisherId":"<publisherId>","rank":95}],"possibleDuplicates":[{"eventId":"<eventId>","rank":95,"occasionRank":10}],"contentVerdict":"safe","summary":"<summary>","language":"sv","possibleTags":[{"id":"<id>","score":95}],"startsAt":null,"endsAt":null,"address":{"address":"Köpmangatan 14","zipCode":"82471","city":"Delsbo"},"possibleVenueNames":[{"name":"Svea Bio","rank":95}]}',
     'Event:',
     `Title: ${event.title}`,
     `Starts: ${event.startsAt || '(missing)'}`,
@@ -874,6 +877,7 @@ function readToolArguments(raw: unknown): Record<string, unknown> {
 async function fetchEventPage(context: LookupContext): Promise<ToolResult> {
   const url = lookupPageUrl(context.event.pageLinks);
   if (!url || !context.fetch) return { error: 'No page to fetch.' };
+  console.log('Fetching page', url);
   const loaded = await loadPublicHtml(url, {
     fetch: context.fetch,
     ...(context.resolveHost ? { resolveHost: context.resolveHost } : {}),
@@ -1012,6 +1016,7 @@ function parseScanJson(content: string): LLMScanResult | null {
     summary: typeof record.summary === 'string' ? record.summary : '',
     language: typeof record.language === 'string' ? record.language : '',
     instructions: readScanInstructions(record.instructions),
+    possibleVenueNames: possibleVenueNames(record.possibleVenueNames),
     ...scanRangeOf(record),
     ...addressFromModel(record.address),
   };
@@ -1216,6 +1221,19 @@ function tagScores(value: unknown): LLMScanResult['possibleTags'] {
     scores.push({ id: String(id), score });
   }
   return scores;
+}
+
+function possibleVenueNames(value: unknown): LLMScanResult['possibleVenueNames'] {
+  if (!Array.isArray(value)) return [];
+  const names: LLMScanResult['possibleVenueNames'] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const name = 'name' in item ? item.name : undefined;
+    const rank = 'rank' in item ? item.rank : undefined;
+    if (typeof name !== 'string' || typeof rank !== 'number') continue;
+    names.push({ name, rank });
+  }
+  return names;
 }
 
 function possiblePublishers(value: unknown): LLMScanResult['possiblePublishers'] {

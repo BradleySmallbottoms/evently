@@ -44,7 +44,8 @@ For each event the Ollama runner:
    A scraped point is kept. When the event has no point, the scraped address is geocoded,
    and the address from that JSON is used only when the import stored none. A street, or a
    postcode with a city, is geocoded, and only a hit in Sweden is kept. The model does not
-   supply coordinates. A later import
+   supply coordinates. The model also returns possible venue names. A venue the import
+   already stored is kept. Otherwise the highest rank over 90 is written. A later import
    keeps that address, and keeps its point when the new address has none.
 
 The worker writes the publisher, tags, and `meta.possibleDuplicate`, then sets the status.

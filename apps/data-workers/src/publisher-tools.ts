@@ -18,7 +18,7 @@ const TITLE_LIMIT = 200;
 const FIELD_LIMIT = 200;
 const DESCRIPTION_LIMIT = 500;
 const EVENT_LIMIT = 5;
-const MAX_REDIRECTS = 3;
+const MAX_REDIRECTS = 5;
 const BRAVE_SEARCH_URL = 'https://api.search.brave.com/res/v1/web/search';
 
 export interface WebHit {
@@ -246,12 +246,14 @@ export async function loadPublicHtml(
     for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect++) {
       const allowed = await assertPublicHost(current.hostname, resolveHost);
       if ('error' in allowed) return allowed;
+      console.log('Fetching', current.toString());
       const response = await deps.fetch(current, {
         method: 'GET',
         redirect: 'manual',
         headers: { accept: 'text/html,application/xhtml+xml' },
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
+      console.log('Response', response.status);
       if (response.status >= 300 && response.status < 400) {
         await response.body?.cancel();
         const location = response.headers.get('location');

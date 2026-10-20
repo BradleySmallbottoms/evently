@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { choosePossibleOccasionGroupId, statusAfterImportScan } from '../../../packages/domain/src/import-scan';
+import {
+  choosePossibleOccasionGroupId,
+  statusAfterImportScan,
+  venueNameFromScan,
+} from '../../../packages/domain/src/import-scan';
 
 describe('statusAfterImportScan', () => {
   const ready = {
@@ -87,5 +91,26 @@ describe('choosePossibleOccasionGroupId', () => {
         newId: fresh,
       }),
     ).toBeNull();
+  });
+});
+
+describe('venueNameFromScan', () => {
+  it('keeps a venue the import already stored', () => {
+    expect(
+      venueNameFromScan('Svea Bio', [
+        { name: 'Kulturhuset', rank: 99 },
+      ]),
+    ).toBeUndefined();
+  });
+
+  it('uses the highest rank over 90 when the event has no venue', () => {
+    expect(
+      venueNameFromScan(null, [
+        { name: 'Folkets hus', rank: 91 },
+        { name: 'Svea Bio', rank: 96 },
+        { name: 'Torget', rank: 90 },
+      ]),
+    ).toBe('Svea Bio');
+    expect(venueNameFromScan('', [{ name: 'Torget', rank: 90 }])).toBeUndefined();
   });
 });
