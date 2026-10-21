@@ -1,5 +1,7 @@
 import type { Tip } from '@local-events/contracts';
 
+import { foundTipClock, foundTipDay } from '@/lib/tip-clock';
+
 import { DateAsk } from './date-ask';
 import { EndAsk } from './end-ask';
 import { LinkAsk } from './link-ask';
@@ -15,6 +17,8 @@ export function AskControl({
   answer,
   locked,
   locale,
+  startsAt,
+  endsAt,
   onSend,
   onEdit,
 }: {
@@ -23,9 +27,15 @@ export function AskControl({
   answer: string | null;
   locked: boolean;
   locale: string;
+  startsAt: string | null;
+  endsAt: string | null;
   onSend: (body: string) => void;
   onEdit: () => void;
 }) {
+  const startDay = foundTipDay(startsAt);
+  const endDay = foundTipDay(endsAt) ?? startDay;
+  const startClock = foundTipClock(startsAt);
+  const endClock = foundTipClock(endsAt) ?? startClock;
   if (askKey === 'link') {
     return (
       <LinkAsk options={options} answer={answer} locked={locked} onSend={onSend} onEdit={onEdit} />
@@ -42,6 +52,7 @@ export function AskControl({
         answer={answer}
         locked={locked}
         locale={locale}
+        seedDay={startDay}
         onSend={onSend}
         onEdit={onEdit}
       />
@@ -55,6 +66,7 @@ export function AskControl({
         answer={answer}
         locked={locked}
         locale={locale}
+        seedDay={endDay}
         onSend={onSend}
         onEdit={onEdit}
       />
@@ -67,6 +79,7 @@ export function AskControl({
         options={options}
         answer={answer}
         locked={locked}
+        seedClock={askKey === 'endTime' ? endClock : startClock}
         onSend={onSend}
         onEdit={onEdit}
       />
@@ -79,6 +92,8 @@ export function AskControl({
         answer={answer}
         locked={locked}
         locale={locale}
+        seedDay={endDay}
+        seedClock={endClock}
         onSend={onSend}
         onEdit={onEdit}
       />

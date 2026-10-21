@@ -232,6 +232,8 @@ export function TipChat({
                     answer={answer}
                     locked={answer != null}
                     locale={locale}
+                    startsAt={tip.card?.startsAt ?? null}
+                    endsAt={tip.card?.endsAt ?? null}
                     onSend={sendBody}
                     onEdit={reveal}
                   />
@@ -416,15 +418,21 @@ function AssistantAvatar() {
   return (
     <View
       style={{
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: colors.accentSoft,
+        width: 48,
+        height: 48,
+        backgroundColor: colors.cardDarker,
+        borderRadius: radius.pill,
+        padding: space.lg,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <MaterialIcons name="smart-toy" size={18} color={colors.ink} />
+      <Image
+        accessible={false}
+        source={require('@/assets/images/robot.png')}
+        style={{ width: 32, height: 32 }}
+        contentFit="contain"
+      />
     </View>
   );
 }

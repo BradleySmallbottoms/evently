@@ -12,12 +12,19 @@ import { Choice } from './choice';
 import { FieldRow } from './field-row';
 import { parseDate, replyMatches } from './tip-answers';
 
+function dayFromKey(value: string | null): DayStamp | null {
+  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return { y: Number(match[1]), m: Number(match[2]), d: Number(match[3]) };
+}
+
 export function DateAsk({
   prefix,
   options,
   answer,
   locked,
   locale,
+  seedDay,
   onSend,
   onEdit,
 }: {
@@ -26,14 +33,16 @@ export function DateAsk({
   answer: string | null;
   locked: boolean;
   locale: string;
+  seedDay: string | null;
   onSend: (body: string) => void;
   onEdit: () => void;
 }) {
   const { t } = useTranslation();
   const parsed = parseDate(answer);
+  const seeded = dayFromKey(seedDay);
   const opensInput = options.some((option) => option.reply == null);
   const [openInput, setOpenInput] = useState(parsed != null);
-  const [date, setDate] = useState<DayStamp>(parsed ?? partsInZone(new Date()));
+  const [date, setDate] = useState<DayStamp>(parsed ?? seeded ?? partsInZone(new Date()));
   const showField = options.length === 0 || !opensInput || openInput;
   const lone = options.length === 1 ? options[0] : null;
 

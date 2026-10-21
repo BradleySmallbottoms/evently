@@ -16,6 +16,7 @@ export function TimeAsk({
   options,
   answer,
   locked,
+  seedClock,
   onSend,
   onEdit,
 }: {
@@ -23,11 +24,12 @@ export function TimeAsk({
   options: Tip['messages'][number]['options'];
   answer: string | null;
   locked: boolean;
+  seedClock: string | null;
   onSend: (body: string) => void;
   onEdit: () => void;
 }) {
   const { t } = useTranslation();
-  const [time, setTime] = useState(() => nearestTipClock(parseClock(answer)));
+  const [time, setTime] = useState(() => nearestTipClock(parseClock(answer) || seedClock));
   const lone = options.length === 1 ? options[0] : null;
 
   useEffect(() => {

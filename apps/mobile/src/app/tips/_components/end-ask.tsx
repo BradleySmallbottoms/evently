@@ -18,6 +18,8 @@ export function EndAsk({
   answer,
   locked,
   locale,
+  seedDay,
+  seedClock,
   onSend,
   onEdit,
 }: {
@@ -25,15 +27,23 @@ export function EndAsk({
   answer: string | null;
   locked: boolean;
   locale: string;
+  seedDay: string | null;
+  seedClock: string | null;
   onSend: (body: string) => void;
   onEdit: () => void;
 }) {
   const { t } = useTranslation();
   const parsed = parseEnd(answer);
+  const seeded = seedDay?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   const opensInput = options.some((option) => option.reply == null);
   const [openInput, setOpenInput] = useState(Boolean(parsed.date || parsed.time));
-  const [date, setDate] = useState<DayStamp>(parsed.date ?? partsInZone(new Date()));
-  const [time, setTime] = useState(nearestTipClock(parsed.time));
+  const [date, setDate] = useState<DayStamp>(
+    parsed.date ??
+      (seeded
+        ? { y: Number(seeded[1]), m: Number(seeded[2]), d: Number(seeded[3]) }
+        : partsInZone(new Date())),
+  );
+  const [time, setTime] = useState(nearestTipClock(parsed.time || seedClock));
   const showField = !opensInput || openInput;
   const lone = options.length === 1 ? options[0] : null;
 
