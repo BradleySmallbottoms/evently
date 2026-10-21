@@ -28,7 +28,7 @@ remain.
 
 ```bash
 corepack enable
-pnpm install
+pnpm install        # also turns on the Prettier pre-commit hook
 cp .env.example .env
 pnpm db:up          # Postgres + PostGIS + Valkey + ElasticMQ (local SQS) + Garage (local S3)
 pnpm db:migrate     # apply packages/db/migrations
@@ -525,7 +525,7 @@ AWS keeps 5432, 6379, 3000, and 3001 inside the VPC.
 | `pnpm test`                            | Vitest in every workspace                                 |
 | `pnpm db:e2e:setup`                    | Create/migrate disposable `events_e2e` DB for Playwright  |
 | `pnpm test:e2e`                        | Playwright smoke against `events_e2e` (ports 13090/13190) |
-| `pnpm format` / `pnpm format:check`    | Prettier                                                  |
+| `pnpm format` / `pnpm format:check`    | Prettier. The editor formats on save, and commit formats staged files |
 | `pnpm db:up` / `pnpm db:down`          | Start/stop local Postgres, Valkey, ElasticMQ, and Garage  |
 | `pnpm db:generate` / `pnpm db:migrate` | Create / apply Drizzle migrations                         |
 | `pnpm api-client:generate`             | Export OpenAPI → `packages/api-client` types              |

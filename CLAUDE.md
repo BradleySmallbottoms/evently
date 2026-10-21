@@ -22,7 +22,7 @@ pnpm db:migrate            # apply migrations (packages/db/migrations)
 pnpm typecheck             # all workspaces
 pnpm test                  # vitest in all workspaces
 pnpm build                 # esbuild bundles for Node apps
-pnpm format                # prettier
+pnpm format                # prettier; staged files are formatted again on commit
 pnpm --filter @local-events/api dev
 pnpm --filter @local-events/data-workers dev -- --source example-fixture
 pnpm api-client:generate   # export OpenAPI → packages/api-client types
