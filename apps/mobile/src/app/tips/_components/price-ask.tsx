@@ -79,7 +79,7 @@ export function PriceAsk({
         </View>
       ) : null}
       <LateReveal open={!confirming || openInput}>
-        <>
+        <View style={{ gap: space.lg }}>
           <View style={{ flexDirection: 'row', gap: space.sm }}>
             <Choice
               label={t('tips.free')}
@@ -131,7 +131,7 @@ export function PriceAsk({
               />
             </>
           </LateReveal>
-        </>
+        </View>
       </LateReveal>
     </View>
   );

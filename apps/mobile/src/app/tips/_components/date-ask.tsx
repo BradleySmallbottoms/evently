@@ -78,7 +78,7 @@ export function DateAsk({
         </View>
       ) : null}
       <LateReveal open={showField}>
-        <>
+        <View style={{ gap: space.lg }}>
           <FieldRow
             option={lone}
             selected={lone?.reply ? replyMatches(lone.reply, answer) : openInput}
@@ -111,7 +111,7 @@ export function DateAsk({
               onPress={() => onSend(`${prefix}: ${stampKey(date)}`)}
             />
           ) : null}
-        </>
+        </View>
       </LateReveal>
       {!showField && lone ? (
         <Choice

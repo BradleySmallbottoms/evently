@@ -77,7 +77,7 @@ export function LinkAsk({
         </View>
       ) : null}
       <LateReveal open={showField}>
-        <>
+        <View style={{ gap: space.lg }}>
           <FieldRow
             option={lone}
             selected={
@@ -117,7 +117,7 @@ export function LinkAsk({
               onSend(`link: ${bare}`);
             }}
           />
-        </>
+        </View>
       </LateReveal>
       {!showField && lone ? (
         <Choice

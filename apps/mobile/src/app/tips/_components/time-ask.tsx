@@ -63,7 +63,7 @@ export function TimeAsk({
         </View>
       ) : null}
       <LateReveal open={showField}>
-        <>
+        <View style={{ gap: space.lg }}>
           <TipTimePicker
             value={time}
             disabled={locked}
@@ -103,7 +103,7 @@ export function TimeAsk({
               onPress={() => onSend(`${prefix}: ${time}`)}
             />
           ) : null}
-        </>
+        </View>
       </LateReveal>
     </View>
   );

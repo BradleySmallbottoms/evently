@@ -50,7 +50,7 @@ export function TextAsk({
   }
 
   return (
-    <View style={{ gap: space.sm, marginTop: space.sm }}>
+    <View style={{ gap: space.lg, marginTop: space.sm }}>
       {confirming ? (
         <View style={{ flexDirection: 'row', gap: space.sm }}>
           {options.map((option, index) => (
@@ -73,7 +73,7 @@ export function TextAsk({
         </View>
       ) : null}
       <LateReveal open={!confirming || openInput}>
-        <>
+        <View style={{ gap: space.lg }}>
           <Composer
             value={value}
             placeholder={t('tips.writePlaceholder')}
@@ -88,7 +88,7 @@ export function TextAsk({
             disabled={locked || value.trim().length === 0}
             onPress={() => send(value)}
           />
-        </>
+        </View>
       </LateReveal>
     </View>
   );

@@ -25,7 +25,14 @@ const FADE_MS = 200;
 const STEP_MS = 160;
 
 /** Grows a gap, then fades each new piece in. Later pieces wait for the one before. */
-export function ChatArrival({ pieces }: { pieces: ReactNode[] }) {
+export function ChatArrival({
+  pieces,
+  reserve = false,
+}: {
+  pieces: ReactNode[];
+  /** Hold the full height in the scroll layout while the clip is still opening. */
+  reserve?: boolean;
+}) {
   const scrollRef = useContext(ChatScroll);
   const latest = useRef(pieces);
   latest.current = pieces;
@@ -43,18 +50,30 @@ export function ChatArrival({ pieces }: { pieces: ReactNode[] }) {
   return (
     <>
       {batches.map(([start, end], index) => (
-        <GrowFade key={index} pieces={pieces.slice(start, end)} scrollRef={scrollRef} />
+        <GrowFade
+          key={index}
+          pieces={pieces.slice(start, end)}
+          scrollRef={scrollRef}
+          reserve={reserve}
+        />
       ))}
     </>
   );
 }
 
-function GrowFade({ pieces, scrollRef }: { pieces: ReactNode[]; scrollRef: ScrollRef | null }) {
+function GrowFade({
+  pieces,
+  scrollRef,
+  reserve,
+}: {
+  pieces: ReactNode[];
+  scrollRef: ScrollRef | null;
+  reserve: boolean;
+}) {
   const reduced = useReducedMotion();
   const [measured, setMeasured] = useState(0);
   const [grown, setGrown] = useState(false);
-  const [released, setReleased] = useState(false);
-  const played = useRef(false);
+  const measuredRef = useRef(0);
   const height = useSharedValue(0);
   const frame = useAnimatedStyle(() => ({ height: height.value }));
 
@@ -67,8 +86,7 @@ function GrowFade({ pieces, scrollRef }: { pieces: ReactNode[]; scrollRef: Scrol
   );
 
   useEffect(() => {
-    if (measured <= 0 || played.current) return;
-    played.current = true;
+    if (measured <= 0 || grown) return;
     height.value = withTiming(
       measured,
       { duration: reduced ? 0 : GROW_MS, easing: EASE },
@@ -76,10 +94,44 @@ function GrowFade({ pieces, scrollRef }: { pieces: ReactNode[]; scrollRef: Scrol
         if (finished) runOnJS(setGrown)(true);
       },
     );
-  }, [height, measured, reduced]);
+  }, [grown, height, measured, reduced]);
 
+  function note(next: number) {
+    if (next <= measuredRef.current) return;
+    measuredRef.current = next;
+    setMeasured(next);
+  }
+
+  const revealed = (
+    <View style={{ gap: space.md, flexShrink: 0 }}>
+      {pieces.map((piece, index) => (
+        <Animated.View
+          key={index}
+          entering={
+            reduced
+              ? FadeIn.duration(80)
+              : FadeIn.duration(FADE_MS)
+                  .delay(index * STEP_MS)
+                  .easing(EASE)
+          }
+        >
+          {piece}
+        </Animated.View>
+      ))}
+    </View>
+  );
+
+  // After the clip opens, drop the animated height. A later "No" adds controls
+  // inside this block; a stuck animated height keeps them out of the scroll range.
   return (
-    <View>
+    <View
+      collapsable={false}
+      style={
+        !grown && reserve && measured > 0
+          ? { height: measured, overflow: 'visible' }
+          : { overflow: 'visible' }
+      }
+    >
       {grown ? null : (
         <View
           collapsable={false}
@@ -87,39 +139,12 @@ function GrowFade({ pieces, scrollRef }: { pieces: ReactNode[]; scrollRef: Scrol
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
           style={{ position: 'absolute', left: 0, right: 0, opacity: 0 }}
-          onLayout={(event) => {
-            const next = Math.ceil(event.nativeEvent.layout.height);
-            if (next > 0 && next !== measured) setMeasured(next);
-          }}
+          onLayout={(event) => note(Math.ceil(event.nativeEvent.layout.height))}
         >
           <View style={{ gap: space.md }}>{pieces}</View>
         </View>
       )}
-      <Animated.View style={released ? undefined : [{ overflow: 'hidden' }, frame]}>
-        {grown ? (
-          <View
-            style={{ gap: space.md }}
-            onLayout={(event) => {
-              if (event.nativeEvent.layout.height > 0) setReleased(true);
-            }}
-          >
-            {pieces.map((piece, index) => (
-              <Animated.View
-                key={index}
-                entering={
-                  reduced
-                    ? FadeIn.duration(80)
-                    : FadeIn.duration(FADE_MS)
-                        .delay(index * STEP_MS)
-                        .easing(EASE)
-                }
-              >
-                {piece}
-              </Animated.View>
-            ))}
-          </View>
-        ) : null}
-      </Animated.View>
+      {grown ? revealed : <Animated.View style={[{ overflow: 'hidden' }, frame]} />}
     </View>
   );
 }
@@ -129,5 +154,5 @@ export function LateReveal({ open, children }: { open: boolean; children: ReactN
   const initial = useRef(open);
   if (!open) return null;
   if (initial.current) return children;
-  return <ChatArrival pieces={[children]} />;
+  return <ChatArrival pieces={[children]} reserve />;
 }

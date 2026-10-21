@@ -3,7 +3,16 @@ import { Image } from 'expo-image';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Dimensions,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  View,
+  type KeyboardEvent,
+} from 'react-native';
 import Animated, { runOnUI, scrollTo, useAnimatedRef } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -41,6 +50,9 @@ export function TipChat({
   const scroll = useAnimatedRef<Animated.ScrollView>();
   const openedCount = useRef(tip.messages.length);
   const placed = useRef(false);
+  const follow = useRef(true);
+  const keyboard = useKeyboardOverlap();
+  const keyboardWas = useRef(0);
   const [text, setText] = useState('');
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -74,12 +86,34 @@ export function TipChat({
   const progress = tip.progress ?? { done: 0, total: 9 };
   const lastAssistant = lastAssistantIndex(tip.messages);
 
+  const scrollToEnd = useCallback(
+    (animated: boolean) => {
+      runOnUI(() => {
+        'worklet';
+        scrollTo(scroll, 0, 1_000_000, animated);
+      })();
+    },
+    [scroll],
+  );
+
   const reveal = useCallback(() => {
-    runOnUI(() => {
-      'worklet';
-      scrollTo(scroll, 0, 1_000_000, true);
-    })();
-  }, [scroll]);
+    follow.current = true;
+    scrollToEnd(true);
+  }, [scrollToEnd]);
+
+  const onContentSizeChange = useCallback(() => {
+    if (!follow.current) return;
+    scrollToEnd(false);
+  }, [scrollToEnd]);
+
+  useEffect(() => {
+    const previous = keyboardWas.current;
+    keyboardWas.current = keyboard;
+    if (!started || keyboard <= previous) return;
+    reveal();
+    const frame = requestAnimationFrame(() => reveal());
+    return () => cancelAnimationFrame(frame);
+  }, [keyboard, reveal, started]);
 
   useEffect(() => {
     if (!started || placed.current) return;
@@ -193,11 +227,9 @@ export function TipChat({
     return pieces;
   }
 
-  return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.canvas }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+  const frame = { flex: 1, backgroundColor: colors.canvas } as const;
+  const column = (
+    <>
       <View
         style={{
           paddingTop: insets.top + space.sm,
@@ -243,9 +275,16 @@ export function TipChat({
             ref={scroll}
             style={{ flex: 1 }}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            onScrollBeginDrag={() => {
+              follow.current = false;
+            }}
+            onContentSizeChange={onContentSizeChange}
             contentContainerStyle={{
               paddingHorizontal: space.xl,
-              paddingBottom: insets.bottom + space.lg,
+              // The list runs under the keyboard. This padding is the scroll range
+              // that brings the send button up above it.
+              paddingBottom: (keyboard > 0 ? keyboard : insets.bottom) + space.lg,
               gap: space.lg,
               width: '100%',
               maxWidth: MaxContentWidth,
@@ -336,8 +375,41 @@ export function TipChat({
           {error ? <AppText style={{ color: colors.danger }}>{error}</AppText> : null}
         </View>
       )}
-    </KeyboardAvoidingView>
+    </>
   );
+
+  if (!started) {
+    return (
+      <KeyboardAvoidingView style={frame} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {column}
+      </KeyboardAvoidingView>
+    );
+  }
+  return <View style={frame}>{column}</View>;
+}
+
+/** Height of the keyboard covering the bottom of the screen. */
+function useKeyboardOverlap(): number {
+  const [overlap, setOverlap] = useState(0);
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'ios') {
+      const sub = Keyboard.addListener('keyboardWillChangeFrame', (event) => {
+        const covered = Dimensions.get('screen').height - event.endCoordinates.screenY;
+        setOverlap(Math.max(0, Math.round(covered)));
+      });
+      return () => sub.remove();
+    }
+    const show = Keyboard.addListener('keyboardDidShow', (event: KeyboardEvent) => {
+      setOverlap(Math.max(0, Math.round(event.endCoordinates.height)));
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setOverlap(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  return overlap;
 }
 
 function AssistantAvatar() {
