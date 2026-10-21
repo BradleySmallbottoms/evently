@@ -117,6 +117,7 @@ async function drainScans(
     totals.published += summary.published;
     totals.review += summary.review;
     totals.unavailable += summary.unavailable;
+    totals.unavailable_timeout += summary.unavailable_timeout;
     totals.skipped += summary.skipped;
     totals.eventIds.push(...summary.eventIds);
     for (const id of summary.eventIds) skip.add(id);
@@ -125,7 +126,7 @@ async function drainScans(
 }
 
 function emptySummary(): ScanSummary {
-  return { claimed: 0, published: 0, review: 0, unavailable: 0, skipped: 0, eventIds: [] };
+  return { claimed: 0, published: 0, review: 0, unavailable: 0, unavailable_timeout: 0, skipped: 0, eventIds: [] };
 }
 
 export interface PodPublisherScanSummary extends PublisherScanSummary {

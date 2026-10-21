@@ -23,6 +23,8 @@ export interface ScanSummary {
   published: number;
   review: number;
   unavailable: number;
+  /** Unavailable rows whose chat request timed out. Already included in `unavailable`. */
+  unavailable_timeout: number;
   skipped: number;
   /** Rows this call claimed, including ones the model could not finish. */
   eventIds: string[];
@@ -88,6 +90,7 @@ export async function scanPendingEvents(
     published: 0,
     review: 0,
     unavailable: 0,
+    unavailable_timeout: 0,
     skipped: 0,
     eventIds: claimed.map((row) => row.eventId),
   };
@@ -108,6 +111,7 @@ export async function scanPendingEvents(
     if (!outcome.ok) {
       await store.releaseScanClaim(row.eventId, row.claimedUntil);
       summary.unavailable += 1;
+      if (outcome.reason === 'timeout') summary.unavailable_timeout += 1;
       continue;
     }
     let applied: 'published' | 'review' | 'skipped';

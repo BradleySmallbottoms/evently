@@ -329,7 +329,13 @@ describe('createRunpodChat', () => {
     let created: {
       gpu?: { count?: number };
       args?: string;
-      env?: { SCAN_CONCURRENCY?: string; SCAN_GPU_COUNT?: string; SCAN_ALLREDUCE?: string };
+      env?: {
+        SCAN_CONCURRENCY?: string;
+        SCAN_GPU_COUNT?: string;
+        SCAN_ALLREDUCE?: string;
+        NCCL_P2P_DISABLE?: string;
+        NCCL_IB_DISABLE?: string;
+      };
     } =
       {};
     const fetchImpl: typeof fetch = async (url, init) => {
@@ -378,12 +384,14 @@ describe('createRunpodChat', () => {
     expect(created.args).toContain('--tensor-parallel-size');
     expect(created.args).toContain('--disable-custom-all-reduce');
     expect(created.args).toContain('4');
-    expect(created.env?.SCAN_ALLREDUCE).toBe('nccl');
+    expect(created.env?.SCAN_ALLREDUCE).toBe('shm');
+    expect(created.env?.NCCL_P2P_DISABLE).toBe('1');
+    expect(created.env?.NCCL_IB_DISABLE).toBe('1');
   });
 
-  it('replaces a multi-GPU pod that still uses custom all-reduce', async () => {
+  it('replaces a multi-GPU pod that still opens a GPU peer link', async () => {
     const actions: string[] = [];
-    let createdArgs = '';
+    let createdEnv: { NCCL_P2P_DISABLE?: string } = {};
     const fetchImpl: typeof fetch = async (url, init) => {
       const target = String(url);
       const method = init?.method ?? 'GET';
@@ -400,7 +408,12 @@ describe('createRunpodChat', () => {
               id: 'pod_old',
               name: 'evnt-scan',
               status: 'RUNNING',
-              env: { SCAN_MODEL: config.model, SCAN_CONCURRENCY: '50', SCAN_GPU_COUNT: '4' },
+              env: {
+                SCAN_MODEL: config.model,
+                SCAN_CONCURRENCY: '50',
+                SCAN_GPU_COUNT: '4',
+                SCAN_ALLREDUCE: 'nccl',
+              },
             },
           ],
           pagination: { hasNextPage: false },
@@ -412,8 +425,8 @@ describe('createRunpodChat', () => {
         return json(null, 204);
       }
       if (method === 'POST' && target.endsWith('/pods')) {
-        const body = JSON.parse(String(init?.body)) as { args?: string };
-        createdArgs = body.args ?? '';
+        const body = JSON.parse(String(init?.body)) as { env?: { NCCL_P2P_DISABLE?: string } };
+        createdEnv = body.env ?? {};
         return json({ id: 'pod_new', name: 'evnt-scan', status: 'PROVISIONING' });
       }
       if (target.endsWith('/pods/pod_new')) return json(runningPod('pod_new'));
@@ -428,7 +441,7 @@ describe('createRunpodChat', () => {
     const ready = await chat.ensureReady();
 
     expect(actions).toEqual(['terminate']);
-    expect(createdArgs).toContain('--disable-custom-all-reduce');
+    expect(createdEnv.NCCL_P2P_DISABLE).toBe('1');
     expect(ready.podId).toBe('pod_new');
   });
 

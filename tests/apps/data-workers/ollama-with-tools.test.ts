@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createMemoryIngestStore } from '../../../apps/data-workers/src/memory-store';
 import { createOllamaWithToolsPromptRunner } from '../../../apps/data-workers/src/prompt-runners/chatwithtools';
 import type { ScanInput } from '../../../apps/data-workers/src/prompt-runners/types';
@@ -456,6 +456,48 @@ describe('createOllamaWithToolsPromptRunner', () => {
     const [outcome] = await runner.scan([scanInput]);
 
     expect(outcome).toEqual({ ok: false, eventId, reason: 'unavailable' });
+  });
+
+  it('logs a chat timeout and leaves the scan unavailable', async () => {
+    const store = createMemoryIngestStore();
+    const logs: unknown[][] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((...args) => {
+      logs.push(args);
+    });
+    const fetchImpl: typeof fetch = async () => {
+      throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+    };
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+
+    try {
+      const [outcome] = await runner.scan([scanInput]);
+
+      expect(outcome).toEqual({ ok: false, eventId, reason: 'timeout' });
+      expect(logs).toContainEqual(['chat timed out', 'ollama']);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('does not call a network failure a timeout', async () => {
+    const store = createMemoryIngestStore();
+    const logs: unknown[][] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((...args) => {
+      logs.push(args);
+    });
+    const fetchImpl: typeof fetch = async () => {
+      throw new Error('connect ECONNREFUSED');
+    };
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+
+    try {
+      const [outcome] = await runner.scan([scanInput]);
+
+      expect(outcome).toEqual({ ok: false, eventId, reason: 'unavailable' });
+      expect(logs.some((line) => line[0] === 'chat timed out')).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('leaves the scan unavailable when the model reply has no text', async () => {

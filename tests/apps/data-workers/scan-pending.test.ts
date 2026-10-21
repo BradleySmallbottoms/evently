@@ -174,12 +174,30 @@ describe('scanPendingEvents', () => {
 
     const summary = await scanPendingEvents(store, runner);
 
-    expect(summary).toMatchObject({ claimed: 2, published: 1, unavailable: 1 });
+    expect(summary).toMatchObject({ claimed: 2, published: 1, unavailable: 1, unavailable_timeout: 0 });
     const pending = store.events.filter((row) => row.status === 'pending_scan');
     const published = store.events.filter((row) => row.status === 'published');
     expect(pending).toHaveLength(1);
     expect(published).toHaveLength(1);
     expect(pending[0]?.publisherId ?? null).toBeNull();
+  });
+
+  it('counts a timed out chat inside unavailable', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    const runner: PromptRunner = {
+      id: 'timeout',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({ ok: false, eventId: item.eventId, reason: 'timeout' }));
+      },
+    };
+
+    const summary = await scanPendingEvents(store, runner);
+
+    expect(summary).toMatchObject({ claimed: 1, unavailable: 1, unavailable_timeout: 1 });
+    expect(store.events[0]?.status).toBe('pending_scan');
   });
 
   it('replaces tags the event already has', async () => {

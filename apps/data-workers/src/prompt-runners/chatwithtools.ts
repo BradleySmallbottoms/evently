@@ -37,8 +37,8 @@ import type {
   ScanOutcome,
 } from './types';
 
-/** How long one Ollama request may run before the scan gives up on it. */
-const CHAT_TIMEOUT_MS = 90_000;
+/** How long one chat request may run before the scan gives up on it. */
+const CHAT_TIMEOUT_MS = 3 * 60 * 1000;
 /** Tool rounds for one event. The last round still has to be a text answer, or the scan is unavailable. */
 const MAX_TOOL_ROUNDS = 8;
 const DESCRIPTION_LIMIT = 1_200;
@@ -261,7 +261,7 @@ export function createOllamaWithToolsPromptRunner(
         fetchImpl,
         PUBLISHER_LOOKUP_ROUNDS,
       );
-      if (!finished) return { ok: false, reason: 'unavailable' };
+      if (finished === 'timeout' || !finished) return { ok: false, reason: 'unavailable' };
       return { ok: true, profile: publisherProfileFromModel(finished.text, session.fetchedUrls) };
     },
   };
@@ -303,12 +303,9 @@ async function scanOneEvent(
     return { ok: false, eventId: event.eventId, reason: 'unavailable' };
   }
 
-  const content = (await askModelWithLookups(buildScanPrompt(event), context, config, fetchImpl)) ?? 'unavailable';
-  // console.log('content', JSON.stringify(content, null, 2));
-  // throw new Error('test');
-
-  if (content === 'unavailable') {
-    return { ok: false, eventId: event.eventId, reason: 'unavailable' };
+  const content = await askModelWithLookups(buildScanPrompt(event), context, config, fetchImpl);
+  if (content === 'timeout' || !content) {
+    return { ok: false, eventId: event.eventId, reason: content === 'timeout' ? 'timeout' : 'unavailable' };
   }
 
   const tags =
@@ -453,7 +450,7 @@ async function askModelWithLookups(
   context: LookupContext,
   config: Record<string, unknown>,
   fetchImpl: typeof fetch,
-): Promise<LLMScanResult & LLMOutput | null> {
+): Promise<(LLMScanResult & LLMOutput) | 'timeout' | null> {
   const finished = await runToolChat(
     prompt,
     chatToolDefinitions(context.event),
@@ -462,6 +459,7 @@ async function askModelWithLookups(
     fetchImpl,
     MAX_TOOL_ROUNDS,
   );
+  if (finished === 'timeout') return 'timeout';
   if (!finished) return null;
   const parsed = parseScanJson(finished.text);
   if (!parsed) return null;
@@ -479,13 +477,14 @@ async function runToolChat(
   config: Record<string, unknown>,
   fetchImpl: typeof fetch,
   maxRounds: number,
-): Promise<{ text: string; output: object } | null> {
+): Promise<{ text: string; output: object } | 'timeout' | null> {
   const endpoint = resolveChatEndpoint(config);
   if (!endpoint) return null;
   if (endpoint.protocol === 'ollama' && ollamaDisabled()) return null;
   const messages: Record<string, unknown>[] = [{ role: 'user', content: prompt }];
   for (let round = 0; round < maxRounds; round++) {
     const payload = await postChat(endpoint, messages, round, fetchImpl, tools);
+    if (payload === 'timeout') return 'timeout';
     if (!payload) return null;
     const turn = readAssistantTurn(endpoint.protocol, payload);
     const calls = turn?.calls.slice(0, MAX_TOOL_CALLS_PER_ROUND) ?? [];
@@ -647,7 +646,7 @@ function anthropicToolDefinitions(tools: object[]): object[] {
 /**
  * One non-streaming chat request. Ollama keeps its `/api/chat` body. OpenAI and ChatGPT
  * use chat completions. Claude uses the Messages API. Current Claude models reject
- * `temperature`, so that field is left off. A non-OK response or a timeout returns null.
+ * `temperature`, so that field is left off. A non-OK response returns null. A timeout returns `timeout`.
  * The auth header is not written to the log.
  */
 async function postChat(
@@ -656,7 +655,7 @@ async function postChat(
   round: number,
   fetchImpl: typeof fetch,
   tools: object[],
-): Promise<object | null> {
+): Promise<object | 'timeout' | null> {
   const body =
     endpoint.protocol === 'ollama'
       ? {
@@ -695,9 +694,17 @@ async function postChat(
       return null;
     }
     return payload && typeof payload === 'object' ? payload : null;
-  } catch {
+  } catch (error) {
+    if (chatTimedOut(error)) {
+      console.log('chat timed out', endpoint.protocol);
+      return 'timeout';
+    }
     return null;
   }
+}
+
+function chatTimedOut(error: unknown): boolean {
+  return !!error && typeof error === 'object' && 'name' in error && error.name === 'TimeoutError';
 }
 
 /**

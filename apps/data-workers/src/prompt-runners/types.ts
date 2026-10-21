@@ -75,7 +75,7 @@ export type ScanOutcome =
         location?: { lat: number; lng: number };
       };
     }
-  | { ok: false; eventId: string; reason: 'unavailable' };
+  | { ok: false; eventId: string; reason: 'unavailable' | 'timeout' };
 
 /** The temporary publisher and the event text the web lookup may use. */
 export interface PublisherLookupInput {

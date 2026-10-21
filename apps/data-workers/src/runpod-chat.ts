@@ -13,17 +13,16 @@ const A40_GPU_ID = 'NVIDIA A40';
 
 /**
  * Upper bound on scans in flight. The default is this same number.
- * One A40 holds about 10 sequences at the 8192 cap (about 18 GB of AWQ
- * weights and 2 GB of KV cache each, inside 43 GB usable). Two A40s hold
- * about 30, because the weights are split. Four hold this cap. An H100 or
- * H200 finishes a batch sooner and costs more per finished scan.
+ * One A40 holds about 10 sequences at the 16384 cap. Two hold up to 24,
+ * because the weights are split. Four hold this cap. An H100 or H200
+ * finishes a batch sooner and costs more per finished scan.
  */
-export const MAX_SCAN_CONCURRENCY = 50;
+export const MAX_SCAN_CONCURRENCY = 25;
 
-/** A40s required so `concurrency` sequences fit at the 8192 cap. */
+/** A40s required so `concurrency` sequences fit at the 16384 cap. */
 export function a40CountForConcurrency(concurrency: number): 1 | 2 | 4 {
   if (concurrency <= 10) return 1;
-  if (concurrency <= 30) return 2;
+  if (concurrency <= 24) return 2;
   return 4;
 }
 
@@ -78,8 +77,8 @@ interface PodRecord {
     SCAN_MODEL?: string;
     SCAN_CONCURRENCY?: string;
     SCAN_GPU_COUNT?: string;
-    /** Set when more than one GPU serves with stock NCCL. */
-    SCAN_ALLREDUCE?: 'nccl';
+    /** Set when more than one GPU serves over shared memory, with GPU peer access off. */
+    SCAN_ALLREDUCE?: 'shm';
   };
 }
 
@@ -114,8 +113,8 @@ export function runpodChatConfigFromEnv(
     gpuId,
     gpuCount: gpuId === A40_GPU_ID ? a40CountForConcurrency(concurrency) : 1,
     dataCenterId: env.RUNPOD_DATA_CENTER?.trim() || 'CA-MTL-1',
-    model: env.RUNPOD_MODEL?.trim() || 'Qwen/Qwen3-32B-AWQ',
-    image: env.RUNPOD_IMAGE?.trim() || 'vllm/vllm-openai:v0.10.2',
+    model: env.RUNPOD_MODEL?.trim() || 'Qwen/Qwen3.5-27B-GPTQ-Int4',
+    image: env.RUNPOD_IMAGE?.trim() || 'vllm/vllm-openai:v0.17.0',
     volumeGb,
     concurrency,
     readyTimeoutMs: READY_TIMEOUT_MS,
@@ -277,7 +276,9 @@ async function createPod(
         SCAN_MODEL: config.model,
         SCAN_CONCURRENCY: String(config.concurrency),
         SCAN_GPU_COUNT: String(config.gpuCount),
-        ...(config.gpuCount > 1 ? { SCAN_ALLREDUCE: 'nccl' } : {}),
+        ...(config.gpuCount > 1
+          ? { SCAN_ALLREDUCE: 'shm', NCCL_P2P_DISABLE: '1', NCCL_IB_DISABLE: '1' }
+          : {}),
         VLLM_API_KEY: config.chatKey,
       },
       args: JSON.stringify({
@@ -419,13 +420,17 @@ function vllmCommand(config: RunpodChatConfig): string[] {
     '0.0.0.0',
     '--port',
     String(CHAT_PORT),
+    '--trust-remote-code',
     '--enable-auto-tool-choice',
     '--tool-call-parser',
-    'hermes',
+    'qwen3_coder',
+    '--reasoning-parser',
+    'qwen3',
+    '--language-model-only',
     '--download-dir',
     '/models',
     '--max-model-len',
-    '8192',
+    '16384',
     '--max-num-seqs',
     String(config.concurrency),
     ...(config.gpuCount > 1
@@ -435,7 +440,7 @@ function vllmCommand(config: RunpodChatConfig): string[] {
 }
 
 function sameShape(pod: PodRecord, config: RunpodChatConfig): boolean {
-  const allReduce = config.gpuCount > 1 ? pod.env?.SCAN_ALLREDUCE === 'nccl' : true;
+  const allReduce = config.gpuCount > 1 ? pod.env?.SCAN_ALLREDUCE === 'shm' : true;
   return (
     allReduce &&
     pod.env?.SCAN_MODEL === config.model &&
@@ -454,7 +459,7 @@ function scanEnv(value: unknown): PodRecord['env'] | undefined {
     SCAN_MODEL: model,
     ...(typeof concurrency === 'string' && concurrency.trim() ? { SCAN_CONCURRENCY: concurrency } : {}),
     ...(typeof gpuCount === 'string' && gpuCount.trim() ? { SCAN_GPU_COUNT: gpuCount } : {}),
-    ...(env?.SCAN_ALLREDUCE === 'nccl' ? { SCAN_ALLREDUCE: 'nccl' as const } : {}),
+    ...(env?.SCAN_ALLREDUCE === 'shm' ? { SCAN_ALLREDUCE: 'shm' as const } : {}),
   };
 }
 

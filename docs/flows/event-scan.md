@@ -20,7 +20,7 @@ in one call. Each row carries the event text and the organizer keys. The runner 
 and duplicate candidates itself. With no `CHAT_PROVIDER` it calls local Ollama, one event at a
 time. `CHAT_PROVIDER=chatgpt` uses `OPENAI_API_KEY`. `CHAT_PROVIDER=claude` uses
 `ANTHROPIC_API_KEY`. `CHAT_PROVIDER=runpod` starts the pod `evnt-scan` in `CA-MTL-1`. A stopped pod with the same model, concurrency, GPU count, and all-reduce setting is started again. A start with no free GPU is retried until one is free, and that pod stays. The job waits until
-vLLM is serving `Qwen/Qwen3-32B-AWQ` with thinking turned off. More than one GPU disables vLLM custom all-reduce, and a pod started without that flag is replaced. The job then drains the queue in claims of 50 with 50 scans at a time. One A40 holds about 10 full contexts, two hold about 30, and four hold the 50. Publisher
+vLLM is serving `Qwen/Qwen3-32B-AWQ` with thinking turned off. More than one GPU disables vLLM custom all-reduce and NCCL peer access, and a pod started without that is replaced. The job then drains the queue in claims of 50 with 50 scans at a time. One A40 holds about 10 full contexts, two hold about 30, and four hold the 50. Publisher
 writes still happen after each batch, in claim order. The pod stops when the queue is empty.
 `RUNPOD_API_KEY` and `RUNPOD_CHAT_KEY` are required. A second task exits while the first holds
 the scan lock. `--event` and `--limit` still scan one batch.
