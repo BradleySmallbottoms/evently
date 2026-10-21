@@ -67,24 +67,11 @@ describe('event tips', () => {
     expect(read.status).toBe(200);
     const asking = await json<Tip>(read);
     expect(asking.phase).toBe('collecting');
-    expect(asking.progress).toEqual({ done: 6, total: 9 });
-    expect(asking.question?.key).toBe('startTime');
-    expect(asking.question?.options).toEqual([{ label: 'Jag vet inte', reply: 'startTime: none' }]);
+    expect(asking.progress).toEqual({ done: 7, total: 9 });
+    expect(asking.question?.key).toBe('endDate');
+    expect(asking.question?.options).toEqual([{ label: 'Jag vet inte', reply: 'endDate: none' }]);
     expect(asking.messages.map((message) => message.role)).toEqual(['user', 'assistant']);
-    expect(asking.messages[1]?.key).toBe('startTime');
-
-    const timed = await api.request(`/v1/me/tips/${tip.id}/text`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ text: 'startTime: 19:00' }),
-    });
-    expect(timed.status).toBe(200);
-    const afterTime = await json<Tip>(timed);
-    expect(afterTime.progress).toEqual({ done: 7, total: 9 });
-    expect(afterTime.question?.key).toBe('endDate');
-    expect(afterTime.question?.options).toEqual([
-      { label: 'Jag vet inte', reply: 'endDate: none' },
-    ]);
+    expect(asking.messages[1]?.key).toBe('endDate');
 
     const ended = await api.request(`/v1/me/tips/${tip.id}/text`, {
       method: 'POST',
@@ -188,13 +175,13 @@ describe('event tips', () => {
     let current = await json<Tip>(uploaded);
     expect(current.phase).toBe('collecting');
     expect(current.messages.some((message) => message.key === 'image')).toBe(true);
-    for (let attempt = 0; attempt < 20 && current.question?.key !== 'startTime'; attempt += 1) {
+    for (let attempt = 0; attempt < 20 && current.question?.key !== 'endDate'; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 5));
       current = await json<Tip>(await api.request(`/v1/me/tips/${created.id}`, { headers }));
     }
     expect(current.imageStatus).toBe('ready');
     expect(current.phase).toBe('collecting');
-    expect(current.question?.key).toBe('startTime');
+    expect(current.question?.key).toBe('endDate');
   });
 
   it('does not record an image when the asset bucket is missing', async () => {

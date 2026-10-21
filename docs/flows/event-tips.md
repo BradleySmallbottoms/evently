@@ -46,7 +46,8 @@ sequenceDiagram
 ```
 
 - A tip stays in the chat until title, start date, start time, end date, end time, place, price,
-  link, and description are filled. The date steps use the calendar. The time steps use a text
+  link, and description are filled. A clock the tip already states fills that time, so the chat
+  does not ask for it again. A date with no clock still asks. The date steps use the calendar. The time steps use a text
   field, and the person can answer that they do not know. The chat does not ask for a tag or a
   category. The model receives the tag catalog and returns the names that fit. The confirm screen
   shows those tags under the summary. A picture is the last step. A picture chosen on the first

@@ -21,10 +21,10 @@ const SYSTEM = [
   'Required facts are title, the start date, the start time, the end date, the end time, place, a price, link, and description.',
   'followUpQuestions is an array of objects {"key":"<key>","question":"<short question in the locale>","options":[{"label":"<button>","reply":"<line or null>"}]}.',
   'Allowed keys, and only these: title, startDate, startTime, endDate, endTime, place, price, link, description.',
-  'startDate is the calendar day it starts. startTime is the clock it starts. endDate is the calendar day it ends. endTime is the clock it ends. A clock inside startsAt or endsAt does not answer the time. The person is still asked startTime and endTime. The key names the missing fact. The question is what the person reads.',
+  'startDate is the calendar day it starts. startTime is the clock it starts, as HH:MM, or null when the tip states no clock. endDate is the calendar day it ends. endTime is the clock it ends, as HH:MM, or null when the tip states no clock. When the tip states a clock, set that field and the same clock on startsAt or endsAt, and do not ask for it. Do not invent a clock. A date with no clock is YYYY-MM-DD and that time field is null. The key names the missing fact. The question is what the person reads.',
   "options are the buttons for that question. label is the button text in the locale. reply null opens the input. A reply is sent back as the person's answer. Match the buttons to the question. For keys other than link, endDate, startTime, and endTime, options is empty.",
   'When a link question asks whether a link exists, options are exactly two buttons. One label is Ja or Yes and its reply is null, which opens the address. The other label is Nej or No and its reply is "link: none". Do not leave options empty for that question. When the question asks for the address, options is empty or only the no-link button. Do not add a yes button then.',
-  'Ask for the start date, the start time, the end date, and the end time as four questions. An endDate question includes a button whose reply is "endDate: none" when the person may not know the end. reply null opens the date. A startTime question includes a button whose reply is "startTime: none". An endTime question includes a button whose reply is "endTime: none". reply null opens the time.',
+  'Ask only for a start date, start time, end date, or end time that the tip does not already state. An endDate question includes a button whose reply is "endDate: none" when the person may not know the end. reply null opens the date. A startTime question includes a button whose reply is "startTime: none". An endTime question includes a button whose reply is "endTime: none". reply null opens the time.',
   'Put the one fact to ask now first. Ask about one missing fact at a time.',
   'Use an empty array when every required fact is present. Do not ask again for a fact the tip already answered.',
   'A link is a host and path, such as stad.se/konsert. It must not start with http:// or https://. Strip that scheme.',
@@ -65,6 +65,15 @@ export interface TipModel {
     image?: { bytes: Uint8Array; contentType: string };
     tags?: readonly { id: string; name: string }[];
   }): Promise<TipRead>;
+}
+
+function clockField(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  const bare = raw.match(/^([01]\d|2[0-3]):([0-5]\d)/);
+  const wall = raw.match(/T([01]\d|2[0-3]):([0-5]\d)/);
+  const hit = bare ?? wall;
+  return hit ? `${hit[1]}:${hit[2]}` : null;
 }
 
 function tagList(tags: readonly { name: string }[]): string {
@@ -160,7 +169,9 @@ export function readExtraction(text: string): TipRead {
       extraction: {
         title: str('title'),
         startsAt: str('startsAt'),
+        startTime: clockField(value.startTime),
         endsAt: str('endsAt'),
+        endTime: clockField(value.endTime),
         place: str('place'),
         priceLabel: str('priceLabel'),
         priceAmount: typeof amount === 'number' && Number.isFinite(amount) ? amount : null,

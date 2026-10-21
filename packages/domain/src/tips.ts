@@ -151,7 +151,24 @@ export function mergeTipExtraction(base: TipExtraction, patch: TipExtraction): T
   if (next.priceAmount == null && next.priceLabel && FREE_PRICE.test(next.priceLabel)) {
     next.priceAmount = 0;
   }
+  rememberClock(next, 'start');
+  rememberClock(next, 'end');
   return next;
+}
+
+/** A clock named on its own is written onto a date that has no clock yet. */
+function rememberClock(next: TipExtraction, which: 'start' | 'end'): void {
+  if (which === 'start') {
+    if (next.startTimeDeclined) return;
+    const clock = clockOf(next.startTime);
+    const day = calendarDay(next.startsAt);
+    if (clock && day && !clockOf(next.startsAt)) next.startsAt = withClock(day, clock);
+    return;
+  }
+  if (next.endDeclined || next.endTimeDeclined) return;
+  const clock = clockOf(next.endTime);
+  const day = calendarDay(next.endsAt);
+  if (clock && day && !clockOf(next.endsAt)) next.endsAt = withClock(day, clock);
 }
 
 /** Facts the chat must collect before the confirm card. */
@@ -259,13 +276,13 @@ function detailFilled(detail: TipDetail, extraction: TipExtraction): boolean {
   if (detail === 'startsAt') return calendarDay(extraction.startsAt) != null;
   if (detail === 'startTime') {
     if (extraction.startTimeDeclined) return true;
-    return clockOf(extraction.startTime) != null;
+    return clockOf(extraction.startTime) != null || clockOf(extraction.startsAt) != null;
   }
   if (detail === 'endsAt')
     return extraction.endDeclined === true || calendarDay(extraction.endsAt) != null;
   if (detail === 'endTime') {
     if (extraction.endDeclined || extraction.endTimeDeclined) return true;
-    return clockOf(extraction.endTime) != null;
+    return clockOf(extraction.endTime) != null || clockOf(extraction.endsAt) != null;
   }
   return Boolean(clean(extraction[detail]));
 }
@@ -546,9 +563,12 @@ export function applyTipAnswers(
     if (end?.[1]) {
       const value = tipEndValue(end[1], next.startsAt);
       if (value) {
-        next.endsAt = value;
+        const clock = next.endTimeDeclined
+          ? null
+          : (clockOf(value) ?? clockOf(next.endTime) ?? clockOf(next.endsAt));
+        const day = calendarDay(value);
+        next.endsAt = clock && day ? withClock(day, clock) : value;
         next.endDeclined = false;
-        const clock = clockOf(value);
         if (clock) {
           next.endTime = clock;
           next.endTimeDeclined = false;
@@ -558,8 +578,11 @@ export function applyTipAnswers(
     }
     const date = line.match(/^(?:date|startDate):\s*(\d{4}-\d{2}-\d{2})$/);
     if (date?.[1] && calendarDay(date[1])) {
-      const clock = next.startTimeDeclined ? null : clockOf(next.startTime);
+      const clock = next.startTimeDeclined
+        ? null
+        : (clockOf(next.startTime) ?? clockOf(next.startsAt));
       next.startsAt = withClock(date[1], clock);
+      if (clock) next.startTime = clock;
     }
   }
   return next;

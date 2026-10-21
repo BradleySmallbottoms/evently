@@ -101,12 +101,16 @@ describe('tip limits and titles', () => {
         endTime: '19:00',
       }).missing,
     ).toEqual([]);
-    expect(tipDetailProgress({ startsAt: '2026-08-24T17:00:00.000Z' }).missing).toContain(
+    expect(tipDetailProgress({ startsAt: '2026-08-24T17:00:00.000Z' }).missing).not.toContain(
       'startTime',
+    );
+    expect(tipDetailProgress({ startsAt: '2026-08-24' }).missing).toContain('startTime');
+    expect(tipDetailProgress({ endsAt: '2026-08-24T19:00:00+02:00' }).missing).not.toContain(
+      'endTime',
     );
     expect(
       applyTipAnswers({ startsAt: '2026-10-24T19:00:00+02:00' }, 'startDate: 2026-10-24').startsAt,
-    ).toBe('2026-10-24');
+    ).toContain('2026-10-24T19:00:00');
     expect(
       tipFollowUpQuestion({
         questions: [

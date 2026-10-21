@@ -44,4 +44,12 @@ describe('tip model date', () => {
     const read = readExtraction('{"possibleTags":["Musik","Sport"],"followUpQuestions":[]}');
     expect(read.extraction.tags).toEqual(['Musik', 'Sport']);
   });
+
+  it('keeps a clock the model found', () => {
+    const read = readExtraction(
+      '{"startsAt":"2026-08-24","startTime":"19:00","endsAt":"2026-08-24T21:00:00+02:00","endTime":"21:00"}',
+    );
+    expect(read.extraction.startTime).toBe('19:00');
+    expect(read.extraction.endTime).toBe('21:00');
+  });
 });

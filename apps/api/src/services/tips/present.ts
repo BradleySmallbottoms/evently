@@ -6,6 +6,7 @@ import {
   tipAskFromBody,
   tipCard,
   tipDetailProgress,
+  tipFollowUpQuestion,
   tipPhase,
   type TipExtraction,
 } from '@local-events/domain';
@@ -107,8 +108,20 @@ export function presentTip(
       if (phase !== 'collecting') return null;
       const last = [...messages].reverse().find((message) => message.role === 'assistant');
       const ask = last ? tipAskFromBody(last.body) : null;
-      return ask
-        ? { key: ask.key, question: ask.question, options: shownTipOptions(ask, tip.locale) }
+      const next = tipFollowUpQuestion({
+        questions: ask ? [ask] : [],
+        missing: progress.missing,
+        locale: tip.locale,
+        image: extraction.imageDeclined
+          ? 'declined'
+          : imageStatus === 'scanning'
+            ? 'scanning'
+            : imageStatus === 'ready'
+              ? 'ready'
+              : 'missing',
+      });
+      return next
+        ? { key: next.key, question: next.question, options: shownTipOptions(next, tip.locale) }
         : null;
     })(),
     createdAt: tip.createdAt.toISOString(),

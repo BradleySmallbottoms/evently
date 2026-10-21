@@ -14,7 +14,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
-import { BackPill } from '@/components/ui/back-pill';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { MaxContentWidth } from '@/constants/theme';
 
@@ -209,14 +208,18 @@ export function TipChat({
             }
             const stored = answerAfter(tip.messages, index);
             const answer = stored ?? (index === lastAssistant ? pending : null);
-            const hint = message.key ? stepHint(message.key, t) : null;
+            const current = index === lastAssistant && answer == null ? tip.question : null;
+            const askKey = current?.key ?? message.key;
+            const askOptions = current?.options ?? message.options;
+            const askBody = current?.question ?? message.body;
+            const hint = askKey ? stepHint(askKey, t) : null;
             return (
               <View key={`${message.createdAt}-${index}`} style={{ gap: space.md }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
                   <AssistantAvatar />
                   <Bubble mine={false}>
                     <AppText variant="body" style={{ fontWeight: '600' }}>
-                      {message.body}
+                      {askBody}
                     </AppText>
                     {hint ? (
                       <AppText variant="caption" style={{ color: colors.inkMuted }}>
@@ -225,10 +228,11 @@ export function TipChat({
                     ) : null}
                   </Bubble>
                 </View>
-                {message.key && message.key !== 'image' ? (
+                {askKey && askKey !== 'image' && (answer != null || current != null) ? (
                   <AskControl
-                    askKey={message.key}
-                    options={message.options}
+                    key={askKey}
+                    askKey={askKey}
+                    options={askOptions}
                     answer={answer}
                     locked={answer != null}
                     locale={locale}
@@ -238,7 +242,7 @@ export function TipChat({
                     onEdit={reveal}
                   />
                 ) : null}
-                {message.key === 'image' && index === lastAssistant && !scanning && !hasImage ? (
+                {askKey === 'image' && index === lastAssistant && !scanning && !hasImage ? (
                   <ImageAsk
                     locked={send.isPending}
                     onSkip={() => sendBody('image: none')}
