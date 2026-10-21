@@ -1,10 +1,6 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { bareTipLink, deviceAssetUrl } from '@local-events/domain';
 import { Image } from 'expo-image';
 import { useMutation } from '@tanstack/react-query';
-import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -23,6 +19,7 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { MaxContentWidth } from '@/constants/theme';
 
 import { AskControl } from './ask-control';
+import { CollectedCard } from './collected-card';
 import { Composer } from './composer';
 import { ImageAsk } from './image-ask';
 import { endLabel } from './tip-answers';
@@ -33,21 +30,7 @@ import { sendTipImage, sendTipText } from '@/lib/tips';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 import type { Tip } from '@local-events/contracts';
-
-type AskKey = NonNullable<Tip['messages'][number]['key']>;
-
-const FACTS = [
-  'title',
-  'startDate',
-  'startTime',
-  'endDate',
-  'endTime',
-  'place',
-  'price',
-  'link',
-  'description',
-] as const;
-type Fact = (typeof FACTS)[number];
+import { router } from 'expo-router';
 
 export function TipChat({
   tip,
@@ -122,22 +105,39 @@ export function TipChat({
         style={{
           paddingTop: insets.top + space.sm,
           paddingHorizontal: space.xl,
-          paddingBottom: space.sm,
+          paddingBottom: space.lg,
+          gap: space.sm,
           width: '100%',
           maxWidth: MaxContentWidth,
           alignSelf: 'center',
         }}
       >
+        {/* <BackPill /> */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.sm }}>
+          <View style={{ minWidth: '15%' }}></View>
+          <AppText variant="caption" style={{ fontWeight: '600' }}>
+            {t('tips.startTitle')}
+          </AppText>
+          <Pressable style={{ minWidth: '15%' }} onPress={() => router.back()}>
+            <AppText variant="caption" style={{ fontWeight: '600', color: colors.danger }}>
+              {t('tips.cancel')}
+            </AppText>
+          </Pressable>
+        </View>
         {started ? (
-          <TipStepBar
+          <CollectedCard
             askKey={tip.question?.key ?? null}
             done={progress.done}
             total={progress.total}
+            title={tip.card?.title ?? null}
+            startsAt={tip.card?.startsAt ?? null}
+            place={tip.card?.place ?? null}
+            priceLabel={tip.card?.priceLabel ?? null}
+            photoUri={photoUri}
+            locale={locale}
             working={pending != null || scanning || photoBusy}
           />
-        ) : (
-          <BackPill />
-        )}
+        ) : null}
       </View>
 
       {started ? (
@@ -313,107 +313,6 @@ export function TipChat({
   );
 }
 
-function TipStepBar({
-  askKey,
-  done,
-  total,
-  working,
-}: {
-  askKey: AskKey | null;
-  done: number;
-  total: number;
-  working: boolean;
-}) {
-  const { t } = useTranslation();
-  const router = useRouter();
-  const steps = stepWindow(askKey, done, total);
-  const count = Math.max(total, 1);
-  const current =
-    steps.current === 'image'
-      ? count - 1
-      : Math.min(FACTS.indexOf(steps.current as Fact), count - 1);
-  return (
-    <View style={{ gap: space.md, paddingBottom: space.md }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.lg }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('events.back')}
-          onPress={() => {
-            if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
-            router.back();
-          }}
-          style={({ pressed }) => ({
-            width: 36,
-            height: 36,
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            opacity: pressed ? 0.7 : 1,
-          })}
-        >
-          {process.env.EXPO_OS === 'ios' ? (
-            <SymbolView name={'chevron.left' as never} size={18} tintColor={colors.ink} />
-          ) : (
-            <MaterialIcons name="chevron-left" size={24} color={colors.ink} />
-          )}
-        </Pressable>
-        <View style={{ flex: 1, flexGrow: 1 }}>
-          <View style={{ flexDirection: 'column', gap: space.xs }}>
-            <AppText
-              numberOfLines={1}
-              variant="caption"
-              style={{ textAlign: 'center', fontSize: 11 }}
-            >
-              {factLabel(steps.current, t)}
-            </AppText>
-            <View style={{ height: 16, justifyContent: 'center', flexGrow: 1 }}>
-              <View
-                style={{
-                  position: 'absolute',
-                  left: 4,
-                  right: 4,
-                  height: 2,
-                  borderRadius: 1,
-                  backgroundColor: colors.line,
-                }}
-              />
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                {Array.from({ length: count }, (_, index) => {
-                  const active = index <= current;
-                  const here = index === current;
-                  return (
-                    <View
-                      key={index}
-                      style={{
-                        width: here ? 12 : 8,
-                        height: here ? 12 : 8,
-                        borderRadius: 6,
-                        backgroundColor: active ? colors.accent : colors.card,
-                        borderWidth: active ? 0 : 1.5,
-                        borderColor: colors.line,
-                      }}
-                    />
-                  );
-                })}
-              </View>
-            </View>
-          </View>
-        </View>
-        <View>
-          <AppText variant="caption" style={{ color: colors.inkMuted }}>
-            {t('tips.progress', { done, total })}
-          </AppText>
-        </View>
-      </View>
-    </View>
-  );
-}
-
 function AssistantAvatar() {
   return (
     <View
@@ -437,35 +336,10 @@ function AssistantAvatar() {
   );
 }
 
-function stepWindow(
-  askKey: AskKey | null,
-  done: number,
-  total: number,
-): { prev: Fact | null; current: Fact | 'image'; next: Fact | null } {
-  if (askKey === 'image' && total > 0 && done >= total) {
-    return { prev: 'description', current: 'image', next: null };
-  }
-  const found =
-    askKey && askKey !== 'image' && (FACTS as readonly string[]).includes(askKey)
-      ? FACTS.indexOf(askKey as Fact)
-      : -1;
-  const index = found >= 0 ? found : Math.min(Math.max(done, 0), FACTS.length - 1);
-  return {
-    prev: index > 0 ? FACTS[index - 1]! : null,
-    current: FACTS[index]!,
-    next: index < FACTS.length - 1 ? FACTS[index + 1]! : null,
-  };
-}
-
 function tipPhotoUri(url: string | null): string | null {
   if (!url) return null;
   if (Platform.OS === 'web') return url;
   return deviceAssetUrl(url, API_URL);
-}
-
-function factLabel(step: Fact | 'image', t: (key: string) => string): string {
-  if (step === 'image') return t('tips.facts.image');
-  return t(`tips.facts.${step}`);
 }
 
 function stepHint(key: string, t: (key: string) => string): string | null {

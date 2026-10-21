@@ -453,6 +453,7 @@
     "finish": "Klart"
   },
   "tips": {
+    "cancel": "Avbryt",
     "missing": "Saknar du ett evenemang?",
     "mine": "Mina tips",
     "empty": "Du har inte tippat om något evenemang ännu.",
@@ -466,6 +467,8 @@
     "writeTitle": "Skriv en beskrivning",
     "writePlaceholder": "Vad händer, när och var?",
     "progress": "{{done}} av {{total}}",
+    "soFar": "Hittills har vi:",
+    "edit": "Redigera",
     "facts": {
       "title": "Namn",
       "date": "Start",
@@ -522,8 +525,8 @@
     "confirmBody": "Stämmer detta, eller ska vi ändra något?",
     "summary": "Sammanfattning",
     "tags": "Taggar",
-    "change": "Nej, ändra",
-    "confirmYes": "Ja, stämmer",
+    "change": "Ändra",
+    "confirmYes": "Bekräfta",
     "followTitle": "Några saknas fortfarande",
     "followBody": "Fyll i det du kan. Du kan också hoppa över och skicka in ändå.",
     "category": "Kategori",
@@ -550,8 +553,8 @@
     "statusTitle": "Tipsets status",
     "stepReviewing": "Under granskning",
     "done": "Klar",
-    "foundTitle": "Vi hittade och la till",
-    "foundBody": "Det här är det vi kunde läsa ut.",
+    "foundTitle": "Vi hittade och lade till",
+    "foundBody": "Här är informationen som vi fick samlat ihop.",
     "name": "Namn",
     "date": "Datum",
     "place": "Plats",

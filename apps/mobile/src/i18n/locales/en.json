@@ -453,6 +453,7 @@
     "finish": "Done"
   },
   "tips": {
+    "cancel": "Cancel",
     "missing": "Missing an event?",
     "mine": "My tips",
     "empty": "You have not tipped an event yet.",
@@ -466,6 +467,8 @@
     "writeTitle": "Write a description",
     "writePlaceholder": "What is happening, when, and where?",
     "progress": "{{done}} of {{total}}",
+    "soFar": "So far we have:",
+    "edit": "Edit",
     "facts": {
       "title": "Name",
       "date": "Start",
@@ -522,8 +525,8 @@
     "confirmBody": "Does this look right?",
     "summary": "Summary",
     "tags": "Tags",
-    "change": "No, change it",
-    "confirmYes": "Yes, that is right",
+    "change": "Change",
+    "confirmYes": "Confirm",
     "followTitle": "A few things are still missing",
     "followBody": "Add what you can. You can also skip and send it anyway.",
     "category": "Category",
@@ -551,7 +554,7 @@
     "stepReviewing": "Under review",
     "done": "Done",
     "foundTitle": "We found and added",
-    "foundBody": "This is what we could read.",
+    "foundBody": "Here is what we gathered from your tip and other sources.",
     "name": "Name",
     "date": "Date",
     "place": "Place",
