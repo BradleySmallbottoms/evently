@@ -32,7 +32,7 @@ const SYSTEM = [
   'A line "link: stad.se/konsert" is the event link.',
   'A line "price: free" means the event is free: set priceAmount to 0.',
   'A line "price: 150" means 150 SEK, not öre.',
-  'A line "confirm: title" (also startsAt, startTime, endsAt, endTime, place, price, link, description) means the person accepted that fact. Keep the value. Do not ask about it again.',
+  'A line "confirm: title" (also startsAt, startTime, endsAt, endTime, place, price, link, description) means the person accepted that fact. Keep the value.',
   'A line "title: ...", "place: ...", or "description: ..." is the person correcting that fact. Use their words.',
   'A line "startDate: YYYY-MM-DD" is the start date: set startsAt from it and keep a start time already known.',
   'A line "startTime: HH:MM" is the start time in Europe/Stockholm. "startTime: none" means the start time is unknown.',

@@ -8,6 +8,7 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { partsInZone, stampKey, type DayStamp } from '@/lib/calendar-range';
 import { space } from '@/theme/tokens';
 
+import { LateReveal } from './chat-arrival';
 import { Choice } from './choice';
 import { FieldRow } from './field-row';
 import { parseDate, replyMatches } from './tip-answers';
@@ -76,7 +77,7 @@ export function DateAsk({
           ))}
         </View>
       ) : null}
-      {showField ? (
+      <LateReveal open={showField}>
         <>
           <FieldRow
             option={lone}
@@ -111,7 +112,8 @@ export function DateAsk({
             />
           ) : null}
         </>
-      ) : lone ? (
+      </LateReveal>
+      {!showField && lone ? (
         <Choice
           label={lone.label}
           selected={lone.reply ? replyMatches(lone.reply, answer) : openInput}

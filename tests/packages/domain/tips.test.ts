@@ -10,6 +10,8 @@ import {
   tipPhase,
   tipScanNotification,
   applyTipAnswers,
+  tipAcceptance,
+  tipLocalReply,
   tipCard,
   tipDetailProgress,
   tipTags,
@@ -211,6 +213,11 @@ describe('tip limits and titles', () => {
     expect(mergeTipExtraction(acceptedTitle, { title: 'Annat', place: 'Torget' }).place).toBe(
       'Torget',
     );
+    expect(tipAcceptance('confirm: title')).toBe('title');
+    expect(tipAcceptance('title: Ny titel')).toBeNull();
+    expect(tipLocalReply('confirm: startsAt')).toBe(true);
+    expect(tipLocalReply('startDate: 2026-08-24')).toBe(true);
+    expect(tipLocalReply('Sommarkonsert i parken')).toBe(false);
     expect(applyTipAnswers({}, 'title: Ny titel').title).toBe('Ny titel');
     expect(applyTipAnswers({}, 'title: Ny titel').accepted).toEqual(['title']);
     expect(tipFollowUpQuestion({ questions: [], missing: ['endsAt'], locale: 'sv' })).toEqual({

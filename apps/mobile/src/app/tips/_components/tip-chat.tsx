@@ -3,14 +3,8 @@ import { Image } from 'expo-image';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  View,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
+import Animated, { runOnUI, scrollTo, useAnimatedRef } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
@@ -18,6 +12,7 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { MaxContentWidth } from '@/constants/theme';
 
 import { AskControl } from './ask-control';
+import { ChatArrival, ChatScroll } from './chat-arrival';
 import { CollectedCard } from './collected-card';
 import { Composer } from './composer';
 import { ImageAsk } from './image-ask';
@@ -43,7 +38,9 @@ export function TipChat({
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useAnimatedRef<Animated.ScrollView>();
+  const openedCount = useRef(tip.messages.length);
+  const placed = useRef(false);
   const [text, setText] = useState('');
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,14 +75,23 @@ export function TipChat({
   const lastAssistant = lastAssistantIndex(tip.messages);
 
   const reveal = useCallback(() => {
-    scroll.current?.scrollToEnd({ animated: false });
-  }, []);
+    runOnUI(() => {
+      'worklet';
+      scrollTo(scroll, 0, 1_000_000, true);
+    })();
+  }, [scroll]);
 
   useEffect(() => {
-    if (!started) return;
-    const frame = requestAnimationFrame(reveal);
+    if (!started || placed.current) return;
+    placed.current = true;
+    const frame = requestAnimationFrame(() => {
+      runOnUI(() => {
+        'worklet';
+        scrollTo(scroll, 0, 1_000_000, false);
+      })();
+    });
     return () => cancelAnimationFrame(frame);
-  }, [started, tip.messages.length, pending]);
+  }, [scroll, started]);
 
   function sendBody(body: string) {
     const next = body.trim();
@@ -93,6 +99,98 @@ export function TipChat({
     setError(null);
     setPending(next);
     send.mutate(next);
+  }
+
+  function messagePieces(message: Tip['messages'][number], index: number): ReactNode[] {
+    if (message.role === 'assistant' && message.key === 'image' && hasImage) return [];
+    if (message.role === 'user') {
+      return [
+        <Bubble key={`${message.createdAt}-user`} mine>
+          {userLabel(message.body, locale, t)}
+        </Bubble>,
+      ];
+    }
+    const stored = answerAfter(tip.messages, index);
+    const answer = stored ?? (index === lastAssistant ? pending : null);
+    const current = index === lastAssistant && answer == null ? tip.question : null;
+    const askKey = current?.key ?? message.key;
+    const askOptions = current?.options ?? message.options;
+    const askBody = current?.question ?? message.body;
+    const confirming = askOptions.some((option) => option.reply?.startsWith('confirm:'));
+    const hint = askKey && !confirming ? stepHint(askKey, t) : null;
+    const pieces: ReactNode[] = [
+      <View
+        key={`${message.createdAt}-bubble`}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
+      >
+        <AssistantAvatar />
+        <Bubble mine={false}>
+          <AppText variant="body" style={{ fontWeight: '600' }}>
+            {askBody}
+          </AppText>
+          {hint ? (
+            <AppText variant="caption" style={{ color: colors.inkMuted }}>
+              {hint}
+            </AppText>
+          ) : null}
+        </Bubble>
+      </View>,
+    ];
+    if (askKey && askKey !== 'image' && (answer != null || current != null)) {
+      pieces.push(
+        <AskControl
+          key={`${message.createdAt}-${askKey}`}
+          askKey={askKey}
+          options={askOptions}
+          answer={answer}
+          locked={answer != null}
+          locale={locale}
+          startsAt={tip.card?.startsAt ?? null}
+          endsAt={tip.card?.endsAt ?? null}
+          title={tip.card?.title ?? null}
+          place={tip.card?.place ?? null}
+          priceLabel={tip.card?.priceLabel ?? null}
+          link={tip.card?.link ?? null}
+          description={tip.found?.description ?? tip.card?.summary ?? null}
+          onSend={sendBody}
+          onEdit={reveal}
+        />,
+      );
+    }
+    if (askKey === 'image' && index === lastAssistant && !scanning && !hasImage) {
+      pieces.push(
+        <ImageAsk
+          key={`${message.createdAt}-image`}
+          locked={send.isPending}
+          onSkip={() => sendBody('image: none')}
+          onUpload={async () => {
+            try {
+              const shot = await chooseTipImage();
+              if (!shot.ok) {
+                if (shot.reason === 'denied') setError(t('tips.cameraDenied'));
+                return;
+              }
+              setPickedUri(shot.uri);
+              setError(null);
+              setPhotoBusy(true);
+              const identity = await ensureIdentity(locale);
+              onDone(await sendTipImage(identity, tip.id, shot));
+            } catch (err) {
+              console.error('tip image failed', err);
+              setPickedUri(initialPhoto ?? null);
+              setError(
+                err instanceof Error && err.message === 'too_large'
+                  ? t('tips.tooLarge')
+                  : t('tips.error'),
+              );
+            } finally {
+              setPhotoBusy(false);
+            }
+          }}
+        />,
+      );
+    }
+    return pieces;
   }
 
   return (
@@ -140,158 +238,77 @@ export function TipChat({
       </View>
 
       {started ? (
-        <ScrollView
-          ref={scroll}
-          style={{ flex: 1 }}
-          keyboardShouldPersistTaps="handled"
-          onContentSizeChange={reveal}
-          contentContainerStyle={{
-            paddingHorizontal: space.xl,
-            paddingBottom: insets.bottom + space.lg,
-            gap: space.lg,
-            width: '100%',
-            maxWidth: MaxContentWidth,
-            alignSelf: 'center',
-          }}
-        >
-          {hasImage ? (
-            <View
-              style={{
-                alignSelf: 'flex-end',
-                width: '85%',
-                height: 220,
-                borderRadius: radius.lg,
-                overflow: 'hidden',
-                backgroundColor: colors.line,
-              }}
-            >
-              {photoUri ? (
-                <Image
-                  source={{ uri: photoUri }}
-                  style={{ width: '100%', height: '100%' }}
-                  contentFit="cover"
-                />
-              ) : null}
-              {scanning ? (
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    right: 0,
-                    bottom: 0,
-                    left: 0,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: space.sm,
-                    padding: space.lg,
-                    backgroundColor: 'rgba(0,0,0,0.28)',
-                  }}
-                >
-                  <ActivityIndicator color={colors.card} />
-                  {reading ? (
-                    <AppText variant="body" style={{ color: colors.card, textAlign: 'center' }}>
-                      {reading}
-                    </AppText>
-                  ) : null}
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-          {tip.messages.map((message, index) => {
-            if (message.role === 'assistant' && message.key === 'image' && hasImage) return null;
-            if (message.role === 'user') {
-              return (
-                <Bubble key={`${message.createdAt}-${index}`} mine>
-                  {userLabel(message.body, locale, t)}
-                </Bubble>
-              );
-            }
-            const stored = answerAfter(tip.messages, index);
-            const answer = stored ?? (index === lastAssistant ? pending : null);
-            const current = index === lastAssistant && answer == null ? tip.question : null;
-            const askKey = current?.key ?? message.key;
-            const askOptions = current?.options ?? message.options;
-            const askBody = current?.question ?? message.body;
-            const confirming = askOptions.some((option) => option.reply?.startsWith('confirm:'));
-            const hint = askKey && !confirming ? stepHint(askKey, t) : null;
-            return (
-              <View key={`${message.createdAt}-${index}`} style={{ gap: space.md }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                  <AssistantAvatar />
-                  <Bubble mine={false}>
-                    <AppText variant="body" style={{ fontWeight: '600' }}>
-                      {askBody}
-                    </AppText>
-                    {hint ? (
-                      <AppText variant="caption" style={{ color: colors.inkMuted }}>
-                        {hint}
+        <ChatScroll.Provider value={scroll}>
+          <Animated.ScrollView
+            ref={scroll}
+            style={{ flex: 1 }}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{
+              paddingHorizontal: space.xl,
+              paddingBottom: insets.bottom + space.lg,
+              gap: space.lg,
+              width: '100%',
+              maxWidth: MaxContentWidth,
+              alignSelf: 'center',
+            }}
+          >
+            {hasImage ? (
+              <View
+                style={{
+                  alignSelf: 'flex-end',
+                  width: '85%',
+                  height: 220,
+                  borderRadius: radius.lg,
+                  overflow: 'hidden',
+                  backgroundColor: colors.line,
+                }}
+              >
+                {photoUri ? (
+                  <Image
+                    source={{ uri: photoUri }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                  />
+                ) : null}
+                {scanning ? (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      right: 0,
+                      bottom: 0,
+                      left: 0,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: space.sm,
+                      padding: space.lg,
+                      backgroundColor: 'rgba(0,0,0,0.28)',
+                    }}
+                  >
+                    <ActivityIndicator color={colors.card} />
+                    {reading ? (
+                      <AppText variant="body" style={{ color: colors.card, textAlign: 'center' }}>
+                        {reading}
                       </AppText>
                     ) : null}
-                  </Bubble>
-                </View>
-                {askKey && askKey !== 'image' && (answer != null || current != null) ? (
-                  <AskControl
-                    key={askKey}
-                    askKey={askKey}
-                    options={askOptions}
-                    answer={answer}
-                    locked={answer != null}
-                    locale={locale}
-                    startsAt={tip.card?.startsAt ?? null}
-                    endsAt={tip.card?.endsAt ?? null}
-                    title={tip.card?.title ?? null}
-                    place={tip.card?.place ?? null}
-                    priceLabel={tip.card?.priceLabel ?? null}
-                    link={tip.card?.link ?? null}
-                    description={tip.found?.description ?? tip.card?.summary ?? null}
-                    onSend={sendBody}
-                    onEdit={reveal}
-                  />
-                ) : null}
-                {askKey === 'image' && index === lastAssistant && !scanning && !hasImage ? (
-                  <ImageAsk
-                    locked={send.isPending}
-                    onSkip={() => sendBody('image: none')}
-                    onUpload={async () => {
-                      try {
-                        const shot = await chooseTipImage();
-                        if (!shot.ok) {
-                          if (shot.reason === 'denied') setError(t('tips.cameraDenied'));
-                          return;
-                        }
-                        setPickedUri(shot.uri);
-                        setError(null);
-                        setPhotoBusy(true);
-                        const identity = await ensureIdentity(locale);
-                        onDone(await sendTipImage(identity, tip.id, shot));
-                      } catch (err) {
-                        console.error('tip image failed', err);
-                        setPickedUri(initialPhoto ?? null);
-                        setError(
-                          err instanceof Error && err.message === 'too_large'
-                            ? t('tips.tooLarge')
-                            : t('tips.error'),
-                        );
-                      } finally {
-                        setPhotoBusy(false);
-                      }
-                    }}
-                  />
+                  </View>
                 ) : null}
               </View>
-            );
-          })}
-          {pending ? <Bubble mine>{userLabel(pending, locale, t)}</Bubble> : null}
-          {pending ? (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.sm }}>
-              <AssistantAvatar />
-              <Bubble mine={false}>
-                <ActivityIndicator accessibilityLabel={t('tips.thinking')} color={colors.ink} />
-              </Bubble>
-            </View>
-          ) : null}
-          {error ? <AppText style={{ color: colors.danger }}>{error}</AppText> : null}
-        </ScrollView>
+            ) : null}
+            {tip.messages.slice(0, openedCount.current).map((message, index) => (
+              <View key={`${message.createdAt}-${index}`} style={{ gap: space.md }}>
+                {messagePieces(message, index)}
+              </View>
+            ))}
+            <ChatArrival
+              key={tip.id}
+              pieces={tip.messages
+                .slice(openedCount.current)
+                .flatMap((message, offset) => messagePieces(message, openedCount.current + offset))}
+            />
+            {error ? <AppText style={{ color: colors.danger }}>{error}</AppText> : null}
+          </Animated.ScrollView>
+        </ChatScroll.Provider>
       ) : (
         <View
           style={{

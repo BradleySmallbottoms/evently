@@ -8,6 +8,7 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { nearestTipClock } from '@/lib/tip-clock';
 import { space } from '@/theme/tokens';
 
+import { LateReveal } from './chat-arrival';
 import { Choice } from './choice';
 import { parseClock, replyMatches } from './tip-answers';
 
@@ -61,47 +62,49 @@ export function TimeAsk({
           ))}
         </View>
       ) : null}
-      {showField ? (
-        <TipTimePicker
-          value={time}
-          disabled={locked}
-          hourLabel={t('tips.hour')}
-          minuteLabel={t('tips.minute')}
-          option={
-            lone
-              ? {
-                  label: lone.label,
-                  selected: lone.reply ? replyMatches(lone.reply, answer) : false,
-                  onPress: () => {
-                    if (lone.reply) onSend(lone.reply);
-                    else {
-                      setOpenInput(true);
-                      onEdit();
-                    }
-                  },
-                }
-              : confirming
+      <LateReveal open={showField}>
+        <>
+          <TipTimePicker
+            value={time}
+            disabled={locked}
+            hourLabel={t('tips.hour')}
+            minuteLabel={t('tips.minute')}
+            option={
+              lone
                 ? {
-                    label: t('tips.unknown'),
-                    selected: replyMatches(`${prefix}: none`, answer),
-                    onPress: () => onSend(`${prefix}: none`),
+                    label: lone.label,
+                    selected: lone.reply ? replyMatches(lone.reply, answer) : false,
+                    onPress: () => {
+                      if (lone.reply) onSend(lone.reply);
+                      else {
+                        setOpenInput(true);
+                        onEdit();
+                      }
+                    },
                   }
-                : null
-          }
-          onChange={(clock) => {
-            setTime(clock);
-            onEdit();
-          }}
-        />
-      ) : null}
-      {showField && !locked ? (
-        <PrimaryButton
-          label={t('tips.send')}
-          arrow
-          disabled={locked}
-          onPress={() => onSend(`${prefix}: ${time}`)}
-        />
-      ) : null}
+                : confirming
+                  ? {
+                      label: t('tips.unknown'),
+                      selected: replyMatches(`${prefix}: none`, answer),
+                      onPress: () => onSend(`${prefix}: none`),
+                    }
+                  : null
+            }
+            onChange={(clock) => {
+              setTime(clock);
+              onEdit();
+            }}
+          />
+          {!locked ? (
+            <PrimaryButton
+              label={t('tips.send')}
+              arrow
+              disabled={locked}
+              onPress={() => onSend(`${prefix}: ${time}`)}
+            />
+          ) : null}
+        </>
+      </LateReveal>
     </View>
   );
 }

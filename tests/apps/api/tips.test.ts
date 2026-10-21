@@ -5,8 +5,11 @@ import { tipImageStoreFromEnv } from '../../../apps/api/src/services/tips/db';
 import type { TipModel } from '../../../apps/api/src/services/tips/anthropic';
 import type { Tip } from '../../../packages/contracts/src/tips';
 
+let extracts = 0;
+
 const model: TipModel = {
   async extract(input) {
+    extracts += 1;
     if (input.image && input.image.bytes.byteLength < 20) {
       return { extraction: {}, followUpQuestions: [] };
     }
@@ -75,6 +78,7 @@ describe('event tips', () => {
       { label: 'Nej', reply: null },
     ]);
     expect(asking.messages.map((message) => message.role)).toEqual(['user', 'assistant']);
+    const readsBeforeAccept = extracts;
 
     let currentTip = asking;
     for (const detail of [
@@ -95,6 +99,7 @@ describe('event tips', () => {
         }),
       );
     }
+    expect(extracts).toBe(readsBeforeAccept);
     expect(currentTip.question?.key).toBe('endDate');
     expect(currentTip.question?.options).toEqual([
       { label: 'Jag vet inte', reply: 'endDate: none' },
@@ -110,6 +115,7 @@ describe('event tips', () => {
     expect(withEnd.phase).toBe('collecting');
     expect(withEnd.progress).toEqual({ done: 9, total: 9 });
     expect(withEnd.question?.key).toBe('image');
+    expect(extracts).toBe(readsBeforeAccept + 1);
 
     const skipped = await api.request(`/v1/me/tips/${tip.id}/text`, {
       method: 'POST',
@@ -118,6 +124,7 @@ describe('event tips', () => {
     });
     expect(skipped.status).toBe(200);
     const ready = await json<Tip>(skipped);
+    expect(extracts).toBe(readsBeforeAccept + 1);
     expect(ready.phase).toBe('confirm');
     expect(ready.question).toBeNull();
     expect(ready.card).toMatchObject({
@@ -126,6 +133,23 @@ describe('event tips', () => {
       priceLabel: 'Gratis',
       tags: ['Musik'],
     });
+
+    const corrected = await api.request(`/v1/me/tips/${tip.id}/text`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ text: 'title: Annan titel' }),
+    });
+    expect(corrected.status).toBe(200);
+    const changed = await json<Tip>(corrected);
+    expect(changed.card?.title).toBe('Annan titel');
+    expect(extracts).toBe(readsBeforeAccept + 2);
+    const kept = await api.request(`/v1/me/tips/${tip.id}/text`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ text: 'confirm: title' }),
+    });
+    expect(kept.status).toBe(200);
+    expect(extracts).toBe(readsBeforeAccept + 2);
 
     const submitted = await api.request(`/v1/me/tips/${tip.id}/confirm`, {
       method: 'POST',

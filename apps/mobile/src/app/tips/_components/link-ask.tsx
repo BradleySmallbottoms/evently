@@ -9,6 +9,7 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
+import { LateReveal } from './chat-arrival';
 import { Choice } from './choice';
 import { Composer } from './composer';
 import { FieldRow } from './field-row';
@@ -75,7 +76,7 @@ export function LinkAsk({
           ))}
         </View>
       ) : null}
-      {showField ? (
+      <LateReveal open={showField}>
         <>
           <FieldRow
             option={lone}
@@ -117,7 +118,8 @@ export function LinkAsk({
             }}
           />
         </>
-      ) : lone ? (
+      </LateReveal>
+      {!showField && lone ? (
         <Choice
           label={lone.label}
           selected={lone.reply ? replyMatches(lone.reply, answer) : openInput}

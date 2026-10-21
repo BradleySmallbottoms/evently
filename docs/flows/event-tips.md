@@ -25,13 +25,17 @@ sequenceDiagram
     Model-->>API: facts and followUpQuestions
   else Text first
     App->>API: POST /v1/me/tips/{id}/text
+    API->>Model: read the first message
+    Model-->>API: facts and followUpQuestions
   end
-  loop Until the facts are filled and the picture step is done
+  loop Until every required fact is filled
     App->>API: POST /v1/me/tips/{id}/text
-    API->>Model: read the concatenated tip
+    API->>DB: store the reply
     API-->>App: progress and the next question
   end
-  API-->>App: confirm card
+  API->>Model: read the transcript once
+  Model-->>API: summary
+  API-->>App: picture step, then the confirm card
   App->>API: POST /v1/me/tips/{id}/confirm
   opt Follow-up still empty
     App->>API: POST confirm with submitFollowUp
@@ -48,14 +52,16 @@ sequenceDiagram
 - A tip stays in the chat until title, start date, start time, end date, end time, place, price,
   link, and description are filled. A value the model found is confirmed first, one fact at a
   time, with yes and no. Yes keeps it. No opens the control for that fact, already filled in.
-  A value the person accepts or replaces is not asked again. A clock the tip already states fills
-  that time. A date with no clock still asks for the time. The date steps use the calendar. The time steps use a text
-  field, and the person can answer that they do not know. The chat does not ask for a tag or a
+  A value the person accepts or replaces is not asked again. Replies stay on the tip. The model is
+  not called again until every required fact is filled, and then the transcript is read once so the
+  summary can be written. A clock the tip already states fills
+  that time. A date with no clock still asks for the time. The date steps use the calendar. The time steps use a
+  wheel, and the person can answer that they do not know. The chat does not ask for a tag or a
   category. The model receives the tag catalog and returns the names that fit. The confirm screen
   shows those tags under the summary. A picture is the last step. A picture chosen on the first
   screen is stored in the public assets bucket (Garage locally, S3 in production) and is read into
   that same chat: the photo shows with a spinner, and a bubble says the details are being read.
-  Each reply is appended and read again. The model names the missing fact and the chat shows that
+  The model names the missing fact on the first read. Later replies are applied on the tip, and the chat shows that
   control. `link: none`, `price: free`, `startTime: none`, `endDate: none`, `endTime: none`, and
   `image: none` count as answered. A link is stored as a host and path, without `http://` or
   `https://`. A question that asks whether a link exists has yes and no. A question that asks

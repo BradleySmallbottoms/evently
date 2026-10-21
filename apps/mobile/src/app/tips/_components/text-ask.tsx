@@ -7,6 +7,7 @@ import { space } from '@/theme/tokens';
 
 import type { Tip } from '@local-events/contracts';
 
+import { LateReveal } from './chat-arrival';
 import { Choice } from './choice';
 import { Composer } from './composer';
 import { replyMatches } from './tip-answers';
@@ -71,7 +72,7 @@ export function TextAsk({
           ))}
         </View>
       ) : null}
-      {!confirming || openInput ? (
+      <LateReveal open={!confirming || openInput}>
         <>
           <Composer
             value={value}
@@ -88,7 +89,7 @@ export function TextAsk({
             onPress={() => send(value)}
           />
         </>
-      ) : null}
+      </LateReveal>
     </View>
   );
 }

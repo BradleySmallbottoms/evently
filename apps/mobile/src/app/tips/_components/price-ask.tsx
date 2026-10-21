@@ -9,6 +9,7 @@ import { space } from '@/theme/tokens';
 
 import type { Tip } from '@local-events/contracts';
 
+import { LateReveal } from './chat-arrival';
 import { Choice } from './choice';
 import { Composer } from './composer';
 import { parsePrice, replyMatches } from './tip-answers';
@@ -51,7 +52,7 @@ export function PriceAsk({
   }, [answer]);
 
   return (
-    <View style={{ gap: space.sm, marginTop: space.sm }}>
+    <View style={{ gap: space.lg, marginTop: space.sm }}>
       {confirming ? (
         <View style={{ flexDirection: 'row', gap: space.sm }}>
           {options.map((option, index) => (
@@ -77,7 +78,7 @@ export function PriceAsk({
           ))}
         </View>
       ) : null}
-      {!confirming || openInput ? (
+      <LateReveal open={!confirming || openInput}>
         <>
           <View style={{ flexDirection: 'row', gap: space.sm }}>
             <Choice
@@ -99,7 +100,7 @@ export function PriceAsk({
               }}
             />
           </View>
-          {choice === 'paid' ? (
+          <LateReveal open={choice === 'paid'}>
             <>
               <Composer
                 value={amount}
@@ -129,9 +130,9 @@ export function PriceAsk({
                 }}
               />
             </>
-          ) : null}
+          </LateReveal>
         </>
-      ) : null}
+      </LateReveal>
     </View>
   );
 }

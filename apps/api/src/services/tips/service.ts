@@ -13,8 +13,11 @@ import {
   mergeTipExtraction,
   needsTipFollowUp,
   applyTipAnswers,
+  tipAcceptance,
   tipAskBody,
   tipDetailProgress,
+  tipLocalReply,
+  tipPendingConfirm,
   tipTags,
   tipFollowUpQuestion,
   tipImageAllowed,
@@ -151,6 +154,9 @@ export function createTipServices(
         mergeTipExtraction(tip.extracted, keepKnownTags(read.extraction, catalog)),
         tip.sourceText,
       );
+      if (tipDetailProgress(merged).missing.length === 0) {
+        merged = { ...merged, summaryRead: true };
+      }
       questions = read.followUpQuestions;
     } catch (err) {
       console.error('tip vision failed', tip.id, err instanceof Error ? err.message : err);
@@ -231,28 +237,46 @@ export function createTipServices(
         throw new TipError('invalid_state');
       }
       const transcript = tipTranscript(tip.sourceText, text);
-      const catalog = await knownTags();
-      const read = await model.extract({ locale: tip.locale, text: transcript, tags: catalog });
-      const extracted = applyTipAnswers(
-        mergeTipExtraction(tip.extracted, keepKnownTags(read.extraction, catalog)),
-        transcript,
-      );
+      const local = tipLocalReply(text);
+      let questions: TipFollowUp[] = [];
+      let extracted = applyTipAnswers(tip.extracted, transcript);
+      if (!local) {
+        const tags = await knownTags();
+        const read = await model.extract({ locale: tip.locale, text: transcript, tags });
+        questions = read.followUpQuestions;
+        extracted = applyTipAnswers(
+          mergeTipExtraction(extracted, keepKnownTags(read.extraction, tags)),
+          transcript,
+        );
+      } else if (tipAcceptance(text) == null && !/^image:\s*none$/i.test(text.trim())) {
+        extracted = { ...extracted, summary: null, summaryRead: false };
+      }
+      const factsReady = tipDetailProgress(extracted).missing.length === 0;
+      const settled = factsReady && !tipPendingConfirm(extracted);
+      if (local && settled && !extracted.summaryRead) {
+        const tags = await knownTags();
+        const read = await model.extract({ locale: tip.locale, text: transcript, tags });
+        questions = read.followUpQuestions;
+        extracted = {
+          ...applyTipAnswers(
+            mergeTipExtraction(extracted, keepKnownTags(read.extraction, tags)),
+            transcript,
+          ),
+          summaryRead: true,
+        };
+      } else if (!local && factsReady) {
+        extracted = { ...extracted, summaryRead: true };
+      }
       const at = now();
       await repo.addMessage(tip.id, 'user', text, at);
-      const found = await load(ownerId, tipId);
-      await askNext(
-        tip,
-        extracted,
-        found.images,
-        read.followUpQuestions,
-        new Date(at.getTime() + 1),
-      );
       await repo.saveExtraction({
         tipId: tip.id,
         extracted,
         sourceText: transcript,
         analyzedAt: at,
       });
+      const found = await load(ownerId, tipId);
+      await askNext(tip, extracted, found.images, questions, new Date(at.getTime() + 1));
       return show(ownerId, tipId);
     },
     async addImage(sessionToken, tipId, input) {

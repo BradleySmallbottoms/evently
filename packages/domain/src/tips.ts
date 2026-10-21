@@ -61,6 +61,8 @@ export interface TipExtraction {
   imageDeclined?: boolean | null;
   /** Facts the person accepted, or replaced. The model does not change these. */
   accepted?: TipDetail[] | null;
+  /** The transcript was read once after every required fact was filled. */
+  summaryRead?: boolean | null;
 }
 
 export interface TipCard {
@@ -113,6 +115,7 @@ export function emptyTipExtraction(): TipExtraction {
     endDeclined: null,
     imageDeclined: null,
     accepted: null,
+    summaryRead: null,
   };
 }
 
@@ -549,6 +552,38 @@ function stockholmDay(
   return { y: y!, m: m!, d: d! };
 }
 
+const LOCAL_REPLY = [
+  /^confirm:\s*(title|startsAt|startTime|endsAt|endTime|place|price|link|description)$/i,
+  /^(?:title|place|description):\s*\S/i,
+  /^link:\s*\S+$/i,
+  /^price:\s*(?:free|\d{1,6}(?:[.,]\d{1,2})?)$/i,
+  /^image:\s*none$/i,
+  /^(?:end|endDate|startTime|endTime):\s*none$/i,
+  /^(?:startTime|endTime|end):\s*(?:[01]\d|2[0-3]):[0-5]\d$/i,
+  /^(?:date|startDate|end|endDate):\s*\d{4}-\d{2}-\d{2}(?:[ T](?:[01]\d|2[0-3]):[0-5]\d)?$/i,
+];
+
+/** A chat reply the app can apply without reading it again. */
+export function tipLocalReply(text: string): boolean {
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  return (
+    lines.length > 0 && lines.every((line) => LOCAL_REPLY.some((pattern) => pattern.test(line)))
+  );
+}
+
+/** `confirm: title` and the other facts. Null when the line is not an acceptance. */
+export function tipAcceptance(text: string): TipDetail | null {
+  const confirmed = text
+    .trim()
+    .match(/^confirm:\s*(title|startsAt|startTime|endsAt|endTime|place|price|link|description)$/i);
+  return (
+    TIP_DETAILS.find((detail) => detail.toLowerCase() === confirmed?.[1]?.toLowerCase()) ?? null
+  );
+}
+
 /** Lines the chat appends (`link: none`, `price: free`, a url, a price, or a date) fill that fact. */
 export function applyTipAnswers(
   base: TipExtraction,
@@ -557,12 +592,7 @@ export function applyTipAnswers(
   const next: TipExtraction = { ...base, accepted: base.accepted ? [...base.accepted] : null };
   for (const raw of (transcript ?? '').split('\n')) {
     const line = raw.trim();
-    const confirmed = line.match(
-      /^confirm:\s*(title|startsAt|startTime|endsAt|endTime|place|price|link|description)$/i,
-    );
-    const confirmedDetail = TIP_DETAILS.find(
-      (detail) => detail.toLowerCase() === confirmed?.[1]?.toLowerCase(),
-    );
+    const confirmedDetail = tipAcceptance(line);
     if (confirmedDetail) {
       accept(next, confirmedDetail);
       continue;
