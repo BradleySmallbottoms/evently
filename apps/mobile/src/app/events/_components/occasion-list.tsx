@@ -57,7 +57,10 @@ export function OccasionList({
               : start;
           const row = (
             <>
-              <DateBox badge={dateBadge(item.startsAt, locale, timeZone)} surface={colors.accentSoft} />
+              <DateBox
+                badge={dateBadge(item.startsAt, locale, timeZone)}
+                surface={colors.accentSoft}
+              />
               <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
                 <AppText variant="subtitle" style={{ fontSize: 16, lineHeight: 21 }}>
                   {when}
@@ -68,7 +71,11 @@ export function OccasionList({
               </View>
               {item.eventId ? (
                 process.env.EXPO_OS === 'ios' ? (
-                  <SymbolView name={'chevron.right' as never} size={14} tintColor={colors.inkMuted} />
+                  <SymbolView
+                    name={'chevron.right' as never}
+                    size={14}
+                    tintColor={colors.inkMuted}
+                  />
                 ) : (
                   <MaterialIcons name="chevron-right" size={20} color={colors.inkMuted} />
                 )

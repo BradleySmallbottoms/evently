@@ -447,7 +447,12 @@ describe('events', () => {
     );
     store.events.set(
       yesterdayId,
-      row(yesterdayId, 'Whole day yesterday', '2026-10-17T07:00:00.000Z', '2026-10-17T07:00:00.000Z'),
+      row(
+        yesterdayId,
+        'Whole day yesterday',
+        '2026-10-17T07:00:00.000Z',
+        '2026-10-17T07:00:00.000Z',
+      ),
     );
 
     const listed = await app.request('/v1/events?lat=61.3037&lng=17.0592&radiusM=50000');

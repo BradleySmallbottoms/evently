@@ -53,7 +53,11 @@ export function choosePossibleOccasionGroupId(input: {
     .sort((a, b) => b.occasionRank - a.occasionRank);
   if (matches.length === 0) return null;
   const members = [input.event, ...matches];
-  return firstGroupId(members, 'occasionGroupId') ?? firstGroupId(members, 'possibleOccasionGroupId') ?? input.newId;
+  return (
+    firstGroupId(members, 'occasionGroupId') ??
+    firstGroupId(members, 'possibleOccasionGroupId') ??
+    input.newId
+  );
 }
 
 /** A venue guess counts only when its rank is over this. Same cutoff as a publisher match. */

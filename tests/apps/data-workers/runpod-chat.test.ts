@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createRunpodChat, runpodChatConfigFromEnv, type RunpodChatConfig } from '../../../apps/data-workers/src/runpod-chat';
+import {
+  createRunpodChat,
+  runpodChatConfigFromEnv,
+  type RunpodChatConfig,
+} from '../../../apps/data-workers/src/runpod-chat';
 
 const config: RunpodChatConfig = {
   apiKey: 'rp-key',
@@ -58,10 +62,18 @@ describe('runpodChatConfigFromEnv', () => {
 
   it('uses one A40 for a small batch and two up to 24', () => {
     expect(
-      runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck', SCAN_CONCURRENCY: '3' }),
+      runpodChatConfigFromEnv({
+        RUNPOD_API_KEY: 'rp',
+        RUNPOD_CHAT_KEY: 'ck',
+        SCAN_CONCURRENCY: '3',
+      }),
     ).toMatchObject({ concurrency: 3, gpuCount: 1 });
     expect(
-      runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck', SCAN_CONCURRENCY: '24' }),
+      runpodChatConfigFromEnv({
+        RUNPOD_API_KEY: 'rp',
+        RUNPOD_CHAT_KEY: 'ck',
+        SCAN_CONCURRENCY: '24',
+      }),
     ).toMatchObject({ concurrency: 24, gpuCount: 2 });
   });
 
@@ -78,7 +90,11 @@ describe('runpodChatConfigFromEnv', () => {
 
   it('rejects concurrency above the cap', () => {
     expect(
-      runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck', SCAN_CONCURRENCY: '26' }),
+      runpodChatConfigFromEnv({
+        RUNPOD_API_KEY: 'rp',
+        RUNPOD_CHAT_KEY: 'ck',
+        SCAN_CONCURRENCY: '26',
+      }),
     ).toEqual({ error: 'SCAN_CONCURRENCY must be a whole number from 1 to 25' });
   });
 });
@@ -131,7 +147,9 @@ describe('createRunpodChat', () => {
 
     expect(ready.chatUrl).toBe('https://pod_1-8000.proxy.runpod.net/v1/chat/completions');
     expect(ready.concurrency).toBe(3);
-    expect(calls.some((call) => call.startsWith('POST') && call.endsWith('/network-volumes'))).toBe(true);
+    expect(calls.some((call) => call.startsWith('POST') && call.endsWith('/network-volumes'))).toBe(
+      true,
+    );
     await chat.stop();
     expect(calls.some((call) => call.includes('/pods/pod_1/action'))).toBe(true);
   });
@@ -217,7 +235,8 @@ describe('createRunpodChat', () => {
         actions.push(body.action);
         return json({ title: 'no GPU' }, 400);
       }
-      if (target.endsWith('/pods/pod_old')) return json({ id: 'pod_old', name: 'evnt-scan', status: 'EXITED' });
+      if (target.endsWith('/pods/pod_old'))
+        return json({ id: 'pod_old', name: 'evnt-scan', status: 'EXITED' });
       return json({ title: target }, 500);
     };
     const chat = createRunpodChat(
@@ -304,7 +323,10 @@ describe('createRunpodChat', () => {
         return json(null, 204);
       }
       if (method === 'POST' && target.endsWith('/pods')) {
-        const body = JSON.parse(String(init?.body)) as { args?: string; env?: { SCAN_MODEL?: string } };
+        const body = JSON.parse(String(init?.body)) as {
+          args?: string;
+          env?: { SCAN_MODEL?: string };
+        };
         createdArgs = body.args ?? '';
         createdModel = body.env?.SCAN_MODEL ?? '';
         return json({ id: 'pod_new', name: 'evnt-scan', status: 'PROVISIONING' });
@@ -337,8 +359,7 @@ describe('createRunpodChat', () => {
         NCCL_P2P_DISABLE?: string;
         NCCL_IB_DISABLE?: string;
       };
-    } =
-      {};
+    } = {};
     const fetchImpl: typeof fetch = async (url, init) => {
       const target = String(url);
       const method = init?.method ?? 'GET';

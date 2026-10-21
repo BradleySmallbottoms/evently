@@ -19,13 +19,13 @@ the saved area (`user_area_tags`).
 
 ## Which audience the message uses
 
-| `push_messages.audience` | Who is selected | Inbox `reason` |
-| --- | --- | --- |
-| `event_match` | Nearby match **or** a follow of the event’s publisher. Nearby wins when both match. | `nearby` or `publisher` |
-| `area` | Saved notify area covers the event, **or** a follow of the publisher. No tag check for the area path. | `nearby` or `publisher` |
-| `area_and_tag` | Covering area has a matching tag, **or** a follow of the publisher. | `nearby` or `publisher` |
-| `everyone` | Every user who is not banned. | `broadcast` |
-| `tag_interest` | Users who are not banned and have `audience_tag_id` on any saved area. | `broadcast` |
+| `push_messages.audience` | Who is selected                                                                                       | Inbox `reason`          |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- | ----------------------- |
+| `event_match`            | Nearby match **or** a follow of the event’s publisher. Nearby wins when both match.                   | `nearby` or `publisher` |
+| `area`                   | Saved notify area covers the event, **or** a follow of the publisher. No tag check for the area path. | `nearby` or `publisher` |
+| `area_and_tag`           | Covering area has a matching tag, **or** a follow of the publisher.                                   | `nearby` or `publisher` |
+| `everyone`               | Every user who is not banned.                                                                         | `broadcast`             |
+| `tag_interest`           | Users who are not banned and have `audience_tag_id` on any saved area.                                | `broadcast`             |
 
 Publisher drafts (“notify on publish”, “Notify again”) use `event_match`. Admin reminders
 and a publisher’s import plan use `area` or `area_and_tag`. Import plans always use

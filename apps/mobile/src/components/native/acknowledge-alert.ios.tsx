@@ -11,13 +11,7 @@ type Props = {
 };
 
 /** Single-action SwiftUI alert. OK is the only button, so SwiftUI does not add Cancel. */
-export function AcknowledgeAlert({
-  title,
-  message,
-  confirmLabel,
-  isPresented,
-  onConfirm,
-}: Props) {
+export function AcknowledgeAlert({ title, message, confirmLabel, isPresented, onConfirm }: Props) {
   return (
     <Host style={{ position: 'absolute', width: 0, height: 0 }}>
       <Alert

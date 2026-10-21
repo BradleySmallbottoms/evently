@@ -15,8 +15,7 @@ function parseOrigin(raw: string): string | null {
 export function webBaseUrl(envUrl = process.env.EXPO_PUBLIC_WEB_URL): string {
   const fromEnv = envUrl ? parseOrigin(envUrl) : null;
   if (fromEnv) return fromEnv;
-  const isDev =
-    typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
+  const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
   if (isDev) return DEFAULT_DEV_WEB_URL;
   throw new Error('EXPO_PUBLIC_WEB_URL is not configured');
 }

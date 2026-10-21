@@ -1,15 +1,7 @@
-import {
-  bucketMutations,
-  type StatMutation,
-  type StatsSourceType,
-} from '@local-events/domain';
+import { bucketMutations, type StatMutation, type StatsSourceType } from '@local-events/domain';
 
 export type StatsWriter = {
-  put(
-    sourceType: StatsSourceType,
-    sourceId: string,
-    mutations: StatMutation[],
-  ): Promise<void>;
+  put(sourceType: StatsSourceType, sourceId: string, mutations: StatMutation[]): Promise<void>;
 };
 
 /** HTTP PUT to the public API (worker bearer token). Stats never write the DB from the worker. */

@@ -153,7 +153,13 @@ export async function reconcileAllStats(
       ratingsCount = Number(ratingRow?.n ?? 0);
       totalRatingValue = Number(ratingRow?.total ?? 0);
     }
-    await setValue(writer, 'publisher', publisherId, 'numPublishedEvents', Number(published?.n ?? 0));
+    await setValue(
+      writer,
+      'publisher',
+      publisherId,
+      'numPublishedEvents',
+      Number(published?.n ?? 0),
+    );
     await setValue(writer, 'publisher', publisherId, 'numCheckins', checkInsCount);
     await setValue(writer, 'publisher', publisherId, 'numRatings', ratingsCount);
     await setValue(writer, 'publisher', publisherId, 'totalRatingValue', totalRatingValue);

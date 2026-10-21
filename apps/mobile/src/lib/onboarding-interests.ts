@@ -19,7 +19,10 @@ export const ONBOARDING_INTERESTS = [
     ],
   },
   { id: 'theatre', slugs: ['film-teater', 'dans', 'show', 'uppvisning'] },
-  { id: 'training', slugs: ['tennis', 'golf', 'bowling', 'skateboard', 'alpint-langdskidor', 'yoga'] },
+  {
+    id: 'training',
+    slugs: ['tennis', 'golf', 'bowling', 'skateboard', 'alpint-langdskidor', 'yoga'],
+  },
   { id: 'museum', slugs: ['utstallning', 'massor-utstallningar', 'visitcenter', 'halsingegard'] },
   { id: 'outdoor', slugs: ['vandringar', 'guidning'] },
   { id: 'food', slugs: ['mat-dryck', 'julbord'] },
@@ -44,7 +47,14 @@ export const ONBOARDING_INTERESTS = [
   },
   {
     id: 'market',
-    slugs: ['auktion-marknad', 'forsaljning', 'forsaljning-amn30220', 'julmarknad', 'ulmarknad', 'massa'],
+    slugs: [
+      'auktion-marknad',
+      'forsaljning',
+      'forsaljning-amn30220',
+      'julmarknad',
+      'ulmarknad',
+      'massa',
+    ],
   },
   { id: 'talks', slugs: ['forelasningar-seminarier', 'naringsliv'] },
   {
@@ -60,7 +70,7 @@ export const ONBOARDING_INTERESTS = [
       'pask',
       'valborg',
       'internationella-hogtider',
-      'halsa'
+      'halsa',
     ],
   },
   { id: 'other', slugs: [] },
@@ -75,7 +85,10 @@ const SLUGS_BY_INTEREST = new Map<OnboardingInterestId, ReadonlySet<string>>(
 const LISTED_SLUGS = new Set<string>(ONBOARDING_INTERESTS.flatMap((interest) => interest.slugs));
 
 /** Tags from the loaded list that belong to this interest, in list order. */
-export function tagsForInterest(tags: readonly HomeTag[], interestId: OnboardingInterestId): HomeTag[] {
+export function tagsForInterest(
+  tags: readonly HomeTag[],
+  interestId: OnboardingInterestId,
+): HomeTag[] {
   if (interestId === 'other') return tags.filter((tag) => !LISTED_SLUGS.has(tag.slug));
   const slugs = SLUGS_BY_INTEREST.get(interestId);
   if (!slugs) return [];

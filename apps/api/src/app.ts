@@ -73,20 +73,15 @@ export function createApp(options: CreateAppOptions = {}) {
   const store = createMemoryStore();
   const defaultEnv = { includeVerificationToken: true, now: () => new Date() };
   const auth = options.auth ?? createMemoryAuthServices(defaultEnv, store);
-  const events =
-    options.events ?? createMemoryEventServices(auth, { now: defaultEnv.now }, store);
+  const events = options.events ?? createMemoryEventServices(auth, { now: defaultEnv.now }, store);
   const preferences =
-    options.preferences ??
-    createMemoryPreferenceServices(auth, { now: defaultEnv.now }, store);
+    options.preferences ?? createMemoryPreferenceServices(auth, { now: defaultEnv.now }, store);
   const regions = options.regions ?? createMemoryRegionServices(store);
-  const subscriptions =
-    options.subscriptions ?? createMemorySubscriptionServices(auth, store);
+  const subscriptions = options.subscriptions ?? createMemorySubscriptionServices(auth, store);
   const library = options.library ?? createMemoryLibraryServices(auth, store);
   const checkIns = options.checkIns ?? createMemoryCheckInServices(auth, {}, store);
-  const notifications =
-    options.notifications ?? createMemoryNotificationServices(auth, store);
-  const eventContent =
-    options.eventContent ?? createMemoryEventContentServices(auth, {}, store);
+  const notifications = options.notifications ?? createMemoryNotificationServices(auth, store);
+  const eventContent = options.eventContent ?? createMemoryEventContentServices(auth, {}, store);
   const ratings = options.ratings ?? createMemoryRatingServices(auth, {}, store);
   const reports = options.reports ?? createMemoryReportServices(auth, store);
   const stats =

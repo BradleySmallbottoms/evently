@@ -57,7 +57,8 @@ export function selectForYouEvents<T extends ForYouCandidate>(input: {
   });
 
   ranked.sort(
-    (a, b) => b.shared - a.shared || Number(b.fromFollowed) - Number(a.fromFollowed) || a.index - b.index,
+    (a, b) =>
+      b.shared - a.shared || Number(b.fromFollowed) - Number(a.fromFollowed) || a.index - b.index,
   );
   return ranked.slice(0, limit).map((row) => row.item);
 }

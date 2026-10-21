@@ -17,12 +17,12 @@ export function createMemoryRegionServices(
       const matches = [...store.regions.values()].filter((r) =>
         covers(r.bbox, query.lat, query.lng),
       );
-      matches.sort((a, b) => (a.kind === 'municipality' ? 0 : 1) - (b.kind === 'municipality' ? 0 : 1));
+      matches.sort(
+        (a, b) => (a.kind === 'municipality' ? 0 : 1) - (b.kind === 'municipality' ? 0 : 1),
+      );
       const best = matches[0];
       return {
-        region: best
-          ? { id: best.id, name: best.name, kind: best.kind, code: best.code }
-          : null,
+        region: best ? { id: best.id, name: best.name, kind: best.kind, code: best.code } : null,
       };
     },
   };

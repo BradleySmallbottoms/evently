@@ -57,9 +57,7 @@ export function createMemorySubscriptionServices(
       assertTarget(input.targetType, input.targetId);
       const existing = subscriptions.find(
         (s) =>
-          s.userId === userId &&
-          s.targetType === input.targetType &&
-          s.targetId === input.targetId,
+          s.userId === userId && s.targetType === input.targetType && s.targetId === input.targetId,
       );
       if (existing) return toSubscription(existing);
       const row = {
@@ -75,8 +73,7 @@ export function createMemorySubscriptionServices(
     async remove(sessionToken, targetType, targetId) {
       const { userId } = await requireUser(sessionToken);
       const idx = subscriptions.findIndex(
-        (s) =>
-          s.userId === userId && s.targetType === targetType && s.targetId === targetId,
+        (s) => s.userId === userId && s.targetType === targetType && s.targetId === targetId,
       );
       if (idx < 0) throw new SubscriptionError('not_found');
       subscriptions.splice(idx, 1);

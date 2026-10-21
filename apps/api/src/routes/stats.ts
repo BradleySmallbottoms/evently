@@ -16,7 +16,9 @@ const SourceParams = z.object({
   sourceId: z.uuid(),
 });
 
-function workerTokenFrom(c: { req: { header: (name: string) => string | undefined } }): string | undefined {
+function workerTokenFrom(c: {
+  req: { header: (name: string) => string | undefined };
+}): string | undefined {
   const auth = c.req.header('authorization');
   if (auth?.startsWith('Bearer ')) return auth.slice('Bearer '.length).trim() || undefined;
   return c.req.header('x-stats-worker-token')?.trim() || undefined;

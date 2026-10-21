@@ -50,10 +50,7 @@ In `app.json`, add both `applinks:` (parent) and `appclips:` (Clip invocation) e
 {
   "expo": {
     "ios": {
-      "associatedDomains": [
-        "applinks:may20.expo.app",
-        "appclips:may20.expo.app"
-      ]
+      "associatedDomains": ["applinks:may20.expo.app", "appclips:may20.expo.app"]
     }
   }
 }
@@ -64,10 +61,10 @@ In `targets/clip/expo-target.config.js`, declare the Clip's entitlement:
 ```js
 /** @type {import('@bacons/apple-targets/app.plugin').ConfigFunction} */
 module.exports = (config) => ({
-  type: "clip",
-  icon: "https://github.com/expo.png",
+  type: 'clip',
+  icon: 'https://github.com/expo.png',
   entitlements: {
-    "com.apple.developer.associated-domains": ["appclips:may20.expo.app"],
+    'com.apple.developer.associated-domains': ['appclips:may20.expo.app'],
   },
 });
 ```
@@ -138,7 +135,7 @@ bunx expo customize src/app/+html.tsx
 Add the meta tag to the `<head>`:
 
 ```tsx
-import { ScrollViewStyleReset } from "expo-router/html";
+import { ScrollViewStyleReset } from 'expo-router/html';
 
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
@@ -282,9 +279,12 @@ See [./references/native-module.md](./references/native-module.md) for the Swift
 - ./references/native-module.md — Local Expo module to detect App Clip context and present the SKOverlay install prompt
 
 ## Submitting Feedback
+
 If you encounter errors, misleading or outdated information in this skill, report it so Expo can improve:
+
 ```bash
 npx --yes submit-expo-feedback@latest --category skills --subject "expo-app-clip" "<actionable feedback>"
 ```
+
 Only submit when you have something specific and actionable to report. Include as much relevant context as possible.
 If an AI agent repeatedly failed or the user had to take over an Expo task, load the expo-skill-feedback skill and follow its eval-candidate flow instead of reusing the command above.

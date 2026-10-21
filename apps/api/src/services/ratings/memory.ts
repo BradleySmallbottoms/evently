@@ -1,9 +1,5 @@
 import type { CreateRatingRequest, Rating } from '@local-events/contracts';
-import {
-  canComment,
-  canRate,
-  RATING_WINDOW_DAYS,
-} from '@local-events/domain';
+import { canComment, canRate, RATING_WINDOW_DAYS } from '@local-events/domain';
 import { randomUUID } from 'node:crypto';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
@@ -32,9 +28,7 @@ export function createMemoryRatingServices(
       if (!event || event.status !== 'published') throw new RatingError('not_found');
       const opensAt = event.endsAtDate;
       const closesAt = new Date(opensAt.getTime() + RATING_WINDOW_DAYS * 86_400_000);
-      const eventScores = store.ratings.filter(
-        (r) => r.eventId === eventId && !r.hiddenAt,
-      );
+      const eventScores = store.ratings.filter((r) => r.eventId === eventId && !r.hiddenAt);
       const agg = aggregate(eventScores.map((r) => r.score));
 
       let hasRated = false;
@@ -80,12 +74,8 @@ export function createMemoryRatingServices(
       }
       const event = store.events.get(eventId);
       if (!event || event.status !== 'published') throw new RatingError('not_found');
-      const hasCheckIn = store.checkIns.some(
-        (c) => c.userId === userId && c.eventId === eventId,
-      );
-      const alreadyRated = store.ratings.some(
-        (r) => r.userId === userId && r.eventId === eventId,
-      );
+      const hasCheckIn = store.checkIns.some((c) => c.userId === userId && c.eventId === eventId);
+      const alreadyRated = store.ratings.some((r) => r.userId === userId && r.eventId === eventId);
       if (
         !canRate({
           hasCheckIn,
@@ -101,10 +91,7 @@ export function createMemoryRatingServices(
       const user = store.users.get(userId);
       let comment: string | null = null;
       if (input.comment != null && input.comment.trim() !== '') {
-        if (
-          !user ||
-          !canComment({ displayName: user.displayName, isPublic: user.isPublic })
-        ) {
+        if (!user || !canComment({ displayName: user.displayName, isPublic: user.isPublic })) {
           throw new RatingError('comment_not_allowed');
         }
         comment = input.comment.trim();

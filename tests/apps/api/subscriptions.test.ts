@@ -17,7 +17,10 @@ async function createUserSession(app: ReturnType<typeof createApp>) {
   return (await created.json()) as { sessionToken: string };
 }
 
-async function registerVerifiedPublisher(app: ReturnType<typeof createApp>, store: ReturnType<typeof createMemoryStore>) {
+async function registerVerifiedPublisher(
+  app: ReturnType<typeof createApp>,
+  store: ReturnType<typeof createMemoryStore>,
+) {
   const registered = await app.request('/v1/publishers/register', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

@@ -3,3 +3,4 @@ dist
 .next
 cdk.out
 .turbo
+.worktrees

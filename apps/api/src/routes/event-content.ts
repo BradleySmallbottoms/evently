@@ -7,20 +7,14 @@ import {
   UpdateEventContentRequest,
 } from '@local-events/contracts';
 import { z } from 'zod';
-import {
-  readPublisherSessionToken,
-  readUserSessionToken,
-} from '../services/auth/cookies';
+import { readPublisherSessionToken, readUserSessionToken } from '../services/auth/cookies';
 import { eventContentErrorResponse } from '../services/event-content/errors';
 import type { EventContentServices } from '../services/event-content/types';
 
 const EventIdParam = z.object({ eventId: z.uuid() });
 const ContentIdParam = z.object({ contentId: z.uuid() });
 
-export function registerEventContentRoutes(
-  app: OpenAPIHono,
-  content: EventContentServices,
-): void {
+export function registerEventContentRoutes(app: OpenAPIHono, content: EventContentServices): void {
   const listPublic = createRoute({
     method: 'get',
     path: '/events/{eventId}/content',
@@ -75,10 +69,7 @@ export function registerEventContentRoutes(
   app.openapi(listManaged, async (c) => {
     try {
       const { eventId } = c.req.valid('param');
-      return c.json(
-        await content.listManaged(readPublisherSessionToken(c), eventId),
-        200,
-      );
+      return c.json(await content.listManaged(readPublisherSessionToken(c), eventId), 200);
     } catch (err) {
       return eventContentErrorResponse(c, err);
     }
@@ -117,10 +108,7 @@ export function registerEventContentRoutes(
     try {
       const { eventId } = c.req.valid('param');
       const body = c.req.valid('json');
-      return c.json(
-        await content.create(readPublisherSessionToken(c), eventId, body),
-        201,
-      );
+      return c.json(await content.create(readPublisherSessionToken(c), eventId, body), 201);
     } catch (err) {
       return eventContentErrorResponse(c, err);
     }
@@ -159,10 +147,7 @@ export function registerEventContentRoutes(
     try {
       const { contentId } = c.req.valid('param');
       const body = c.req.valid('json');
-      return c.json(
-        await content.update(readPublisherSessionToken(c), contentId, body),
-        200,
-      );
+      return c.json(await content.update(readPublisherSessionToken(c), contentId, body), 200);
     } catch (err) {
       return eventContentErrorResponse(c, err);
     }

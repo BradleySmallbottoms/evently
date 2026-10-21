@@ -73,7 +73,11 @@ export default function SearchScreen() {
   const router = useRouter();
   const stacked = usePathname() === '/event-search';
   const insets = useSafeAreaInsets();
-  const { focus, tagId: tagIdParam, tagAt } = useLocalSearchParams<{
+  const {
+    focus,
+    tagId: tagIdParam,
+    tagAt,
+  } = useLocalSearchParams<{
     focus?: string;
     tagId?: string;
     tagAt?: string;
@@ -146,11 +150,7 @@ export default function SearchScreen() {
   ];
   const radiusByPlace = useMemo(
     () =>
-      radiiForPlaces(
-        radiusMap,
-        preferences.data?.areas ?? [],
-        preferences.data?.discoveryRadiusM,
-      ),
+      radiiForPlaces(radiusMap, preferences.data?.areas ?? [], preferences.data?.discoveryRadiusM),
     [preferences.data?.areas, preferences.data?.discoveryRadiusM, radiusMap],
   );
   const locationOptions = [

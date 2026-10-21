@@ -22,7 +22,9 @@ import {
 
 describe('push-messages domain', () => {
   it('auto-approves verified native and mapped auto_publish imports', () => {
-    expect(shouldAutoApprovePushMessage({ publisherStatus: 'published', origin: 'native' })).toBe(true);
+    expect(shouldAutoApprovePushMessage({ publisherStatus: 'published', origin: 'native' })).toBe(
+      true,
+    );
     expect(shouldAutoApprovePushMessage({ publisherStatus: 'in_review', origin: 'native' })).toBe(
       false,
     );

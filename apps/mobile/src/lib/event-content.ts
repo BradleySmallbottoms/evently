@@ -21,12 +21,13 @@ export async function fetchEventContent(identity: StoredIdentity | null, eventId
   const result = throwIfError(
     await api.GET('/events/{eventId}/content', {
       params: { path: { eventId } },
-      ...(identity
-        ? { headers: { Authorization: `Bearer ${identity.sessionToken}` } }
-        : {}),
+      ...(identity ? { headers: { Authorization: `Bearer ${identity.sessionToken}` } } : {}),
     }),
   );
-  if (result.checkedIn && (result.items.length > 0 || result.attendeeText || result.attendeeLinks.length > 0)) {
+  if (
+    result.checkedIn &&
+    (result.items.length > 0 || result.attendeeText || result.attendeeLinks.length > 0)
+  ) {
     const cacheable = {
       items: result.items.map((i) => ({
         id: i.id,

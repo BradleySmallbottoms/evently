@@ -75,61 +75,61 @@ export function EventActionsMenu({
           </RNHostView>
         }
       >
-          {interestedLabel && onInterested ? (
-            <Button
-              systemImage={interestedOn ? 'heart.fill' : 'heart'}
-              onPress={onInterested}
-              label={interestedLabel}
-            />
-          ) : null}
-          {comingLabel && onComing ? (
-            <Button
-              systemImage={comingOn ? 'checkmark.circle.fill' : 'checkmark.circle'}
-              onPress={onComing}
-              label={comingLabel}
-            />
-          ) : null}
+        {interestedLabel && onInterested ? (
           <Button
-            systemImage="square.and.arrow.up"
+            systemImage={interestedOn ? 'heart.fill' : 'heart'}
+            onPress={onInterested}
+            label={interestedLabel}
+          />
+        ) : null}
+        {comingLabel && onComing ? (
+          <Button
+            systemImage={comingOn ? 'checkmark.circle.fill' : 'checkmark.circle'}
+            onPress={onComing}
+            label={comingLabel}
+          />
+        ) : null}
+        <Button
+          systemImage="square.and.arrow.up"
+          onPress={() => {
+            // Let the context menu finish dismissing before the share sheet.
+            setTimeout(onShare, 300);
+          }}
+          label={shareLabel}
+        />
+        {directionsLabel && onDirections ? (
+          <Button
+            systemImage="arrow.triangle.turn.up.right.diamond"
             onPress={() => {
-              // Let the context menu finish dismissing before the share sheet.
-              setTimeout(onShare, 300);
+              setTimeout(onDirections, 300);
             }}
-            label={shareLabel}
+            label={directionsLabel}
           />
-          {directionsLabel && onDirections ? (
-            <Button
-              systemImage="arrow.triangle.turn.up.right.diamond"
-              onPress={() => {
-                setTimeout(onDirections, 300);
-              }}
-              label={directionsLabel}
-            />
-          ) : null}
-          {followLabel && onFollow ? (
-            <Button
-              systemImage={following ? 'person.fill.checkmark' : 'person.badge.plus'}
-              onPress={onFollow}
-              label={followLabel}
-            />
-          ) : null}
-          <Button systemImage="link" onPress={onCopyLink} label={copyLinkLabel} />
-          {remindLabel && onRemind ? (
-            <Button
-              systemImage="bell"
-              onPress={() => {
-                setTimeout(onRemind, 300);
-              }}
-              label={remindLabel}
-            />
-          ) : null}
-          <Divider />
+        ) : null}
+        {followLabel && onFollow ? (
           <Button
-            systemImage="exclamationmark.triangle"
-            role="destructive"
-            onPress={onReport}
-            label={reportLabel}
+            systemImage={following ? 'person.fill.checkmark' : 'person.badge.plus'}
+            onPress={onFollow}
+            label={followLabel}
           />
+        ) : null}
+        <Button systemImage="link" onPress={onCopyLink} label={copyLinkLabel} />
+        {remindLabel && onRemind ? (
+          <Button
+            systemImage="bell"
+            onPress={() => {
+              setTimeout(onRemind, 300);
+            }}
+            label={remindLabel}
+          />
+        ) : null}
+        <Divider />
+        <Button
+          systemImage="exclamationmark.triangle"
+          role="destructive"
+          onPress={onReport}
+          label={reportLabel}
+        />
       </Menu>
     </Host>
   );

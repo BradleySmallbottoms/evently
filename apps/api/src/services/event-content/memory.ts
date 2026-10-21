@@ -7,17 +7,9 @@ import { canViewEventContent } from '@local-events/domain';
 import { randomUUID } from 'node:crypto';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
-import {
-  createMemoryStore,
-  type MemoryEventContent,
-  type MemoryStore,
-} from '../memory-store';
+import { createMemoryStore, type MemoryEventContent, type MemoryStore } from '../memory-store';
 import { createMemoryContentUrlSigner } from './signer';
-import {
-  EventContentError,
-  type EventContentEnv,
-  type EventContentServices,
-} from './types';
+import { EventContentError, type EventContentEnv, type EventContentServices } from './types';
 
 export type { MemoryEventContent };
 

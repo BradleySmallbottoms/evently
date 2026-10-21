@@ -54,11 +54,7 @@ async function finishScan(
   enqueue?: { publish: (event: DomainEvent) => Promise<void> },
 ) {
   if (!store.sources.some((item) => item.id === record.id)) store.sources.push(record);
-  return scanPendingEvents(
-    store,
-    createOllamaPromptRunner(store, { fetch: quietFetch }),
-    enqueue,
-  );
+  return scanPendingEvents(store, createOllamaPromptRunner(store, { fetch: quietFetch }), enqueue);
 }
 
 describe('saveIncomingEvents', () => {
@@ -429,9 +425,7 @@ describe('saveIncomingEvents', () => {
 
   it('reuses a publisher when a later key matches and remembers the stronger key', async () => {
     const store = createMemoryIngestStore();
-    await saveIncomingEvents(store, source, [
-      { ...bandy, organizerKeys: ['brobergsoderhamn.se'] },
-    ]);
+    await saveIncomingEvents(store, source, [{ ...bandy, organizerKeys: ['brobergsoderhamn.se'] }]);
     const later = {
       ...bandy,
       externalId: 'cbis:later',

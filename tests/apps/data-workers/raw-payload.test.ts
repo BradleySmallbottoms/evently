@@ -1,7 +1,4 @@
-import {
-  rawPayloadKey,
-  serializeRawPayload,
-} from '../../../apps/data-workers/src/raw-payload';
+import { rawPayloadKey, serializeRawPayload } from '../../../apps/data-workers/src/raw-payload';
 import { describe, expect, it } from 'vitest';
 
 describe('rawPayloadKey', () => {

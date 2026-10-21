@@ -15,7 +15,10 @@ export function HowItWorks({ steps }: { steps: string[] }) {
       <AppText style={sectionTitle}>{t('events.detail.howTitle')}</AppText>
       <View style={{ gap: space.md }}>
         {items.map((step, index) => (
-          <View key={`${index}-${step}`} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
+          <View
+            key={`${index}-${step}`}
+            style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}
+          >
             <View
               style={{
                 width: 28,
@@ -26,11 +29,16 @@ export function HowItWorks({ steps }: { steps: string[] }) {
                 justifyContent: 'center',
               }}
             >
-              <AppText style={{ fontSize: 13, lineHeight: 16, fontWeight: '700', color: colors.inkMuted }}>
+              <AppText
+                style={{ fontSize: 13, lineHeight: 16, fontWeight: '700', color: colors.inkMuted }}
+              >
                 {index + 1}
               </AppText>
             </View>
-            <AppText variant='subtitle' style={{ flex: 1, paddingTop: 3, fontSize: 14, lineHeight: 22, fontWeight: '400' }}>
+            <AppText
+              variant="subtitle"
+              style={{ flex: 1, paddingTop: 3, fontSize: 14, lineHeight: 22, fontWeight: '400' }}
+            >
               {step}
             </AppText>
           </View>

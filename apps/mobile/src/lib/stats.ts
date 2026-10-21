@@ -33,11 +33,7 @@ export type EventStatsView = {
 };
 
 export async function fetchEventStats(eventId: string): Promise<EventStatsView> {
-  const map = await fetchStats('event', eventId, [
-    'numCheckins',
-    'numRatings',
-    'totalRatingValue',
-  ]);
+  const map = await fetchStats('event', eventId, ['numCheckins', 'numRatings', 'totalRatingValue']);
   const numCheckins = map.numCheckins ?? 0;
   const numRatings = map.numRatings ?? 0;
   const totalRatingValue = map.totalRatingValue ?? 0;
@@ -50,12 +46,9 @@ export async function fetchEventStats(eventId: string): Promise<EventStatsView> 
 }
 
 export async function fetchMyStats(identity: StoredIdentity) {
-  const map = await fetchStats(
-    'user',
-    identity.userId,
-    ['numEventsAttended', 'numEventsRated'],
-    { Authorization: `Bearer ${identity.sessionToken}` },
-  );
+  const map = await fetchStats('user', identity.userId, ['numEventsAttended', 'numEventsRated'], {
+    Authorization: `Bearer ${identity.sessionToken}`,
+  });
   return {
     numEventsAttended: map.numEventsAttended ?? 0,
     numEventsRated: map.numEventsRated ?? 0,

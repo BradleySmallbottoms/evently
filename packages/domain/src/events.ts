@@ -74,8 +74,7 @@ export function eventIsCurrent(input: {
     if (input.from && day < calendarDay(input.from, tz)) return false;
     return Number.isFinite(input.startsAt.getTime());
   }
-  const lower =
-    input.from && input.from.getTime() > input.now.getTime() ? input.from : input.now;
+  const lower = input.from && input.from.getTime() > input.now.getTime() ? input.from : input.now;
   return input.endsAt.getTime() >= lower.getTime();
 }
 

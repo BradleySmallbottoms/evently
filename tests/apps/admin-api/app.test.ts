@@ -1497,10 +1497,7 @@ describe('admin api', () => {
               sourceUrl: null,
               tagIds:
                 title === 'Jazz Night'
-                  ? [
-                      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
-                      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
-                    ]
+                  ? ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2']
                   : [],
               createdAt: '2026-01-01T00:00:00.000Z',
               updatedAt: '2026-01-01T00:00:00.000Z',
@@ -1609,7 +1606,12 @@ describe('admin api', () => {
     });
     expect(page.status).toBe(200);
     const first = (await page.json()) as {
-      items: { title: string; sourceUrl: string | null; contentVerdict: string; tagCount: number }[];
+      items: {
+        title: string;
+        sourceUrl: string | null;
+        contentVerdict: string;
+        tagCount: number;
+      }[];
       total: number;
       nextOffset: number | null;
     };

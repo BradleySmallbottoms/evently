@@ -1,11 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import {
-  reminderIdentifier,
-  selectedReminderSlots,
-  type ReminderSlot,
-} from './reminder-times';
+import { reminderIdentifier, selectedReminderSlots, type ReminderSlot } from './reminder-times';
 
 const ANDROID_CHANNEL = 'reminders';
 

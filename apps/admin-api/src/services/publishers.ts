@@ -98,10 +98,7 @@ export type AdminMemoryStore = {
     offsets: string[];
     status: 'pending' | 'approved';
   }[];
-  aliases?: Map<
-    string,
-    { sourceId: string; externalOrganizerKey: string; publisherId: string }
-  >;
+  aliases?: Map<string, { sourceId: string; externalOrganizerKey: string; publisherId: string }>;
 };
 
 function asPublisherSummary(
@@ -269,7 +266,9 @@ export function createMemoryAdminPublisherServices(
     async complete(publisherId, body) {
       const publisher = store.publishers.get(publisherId);
       if (!publisher?.isTemporary) return null;
-      if ([...store.publishers.values()].some((p) => p.slug === body.slug && p.id !== publisherId)) {
+      if (
+        [...store.publishers.values()].some((p) => p.slug === body.slug && p.id !== publisherId)
+      ) {
         return null;
       }
       publisher.name = body.name;
@@ -296,7 +295,10 @@ export function createMemoryAdminPublisherServices(
     async patch(publisherId, body) {
       const publisher = store.publishers.get(publisherId);
       if (!publisher) return null;
-      if (body.slug && [...store.publishers.values()].some((p) => p.slug === body.slug && p.id !== publisherId)) {
+      if (
+        body.slug &&
+        [...store.publishers.values()].some((p) => p.slug === body.slug && p.id !== publisherId)
+      ) {
         return null;
       }
       if (body.name !== undefined) publisher.name = body.name;
@@ -685,9 +687,7 @@ export function createDbAdminPublisherServices(
       if (savedPlan) {
         await scheduleImportPlanForPublisher(db, publisherId, savedPlan, now());
       }
-      return updated
-        ? { ...updated, createdAt: updated.createdAt.toISOString() }
-        : null;
+      return updated ? { ...updated, createdAt: updated.createdAt.toISOString() } : null;
     },
     async listEvents(publisherId) {
       const [publisher] = await db
@@ -764,7 +764,8 @@ export function createDbAdminPublisherServices(
 }
 
 function isForeignKeyViolation(err: unknown): boolean {
-  const code = (err as { code?: string; cause?: { code?: string } }).code
-    ?? (err as { cause?: { code?: string } }).cause?.code;
+  const code =
+    (err as { code?: string; cause?: { code?: string } }).code ??
+    (err as { cause?: { code?: string } }).cause?.code;
   return code === '23503';
 }

@@ -190,24 +190,26 @@ export function createDbLibraryServices(
     return rows.flatMap((row) => {
       if (!row.startsAt || !row.endsAt) return [];
       const pictures = images.filter((item) => item.eventId === row.id);
-      return [mapRow(
-        row,
-        categories.filter((item) => item.eventId === row.id).map((item) => item.tagId),
-        publicAssetUrl(
-          env.assetsPublicBaseUrl,
-          pictures.find((item) => item.role === 'main')?.s3Key ?? null,
+      return [
+        mapRow(
+          row,
+          categories.filter((item) => item.eventId === row.id).map((item) => item.tagId),
+          publicAssetUrl(
+            env.assetsPublicBaseUrl,
+            pictures.find((item) => item.role === 'main')?.s3Key ?? null,
+          ),
+          publicGalleryUrls(env.assetsPublicBaseUrl, pictures),
+          links
+            .filter((item) => item.eventId === row.id && item.audience !== 'attendees')
+            .map((item) => ({
+              id: item.id,
+              type: item.type,
+              url: item.url,
+              label: item.label,
+              position: item.position,
+            })),
         ),
-        publicGalleryUrls(env.assetsPublicBaseUrl, pictures),
-        links
-          .filter((item) => item.eventId === row.id && item.audience !== 'attendees')
-          .map((item) => ({
-            id: item.id,
-            type: item.type,
-            url: item.url,
-            label: item.label,
-            position: item.position,
-          })),
-      )];
+      ];
     });
   }
 

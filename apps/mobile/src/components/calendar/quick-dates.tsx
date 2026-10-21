@@ -29,11 +29,17 @@ function CalendarIcon({ size, active }: { size: number; active: boolean }) {
   return <MaterialIcons name="calendar-today" size={size} color={color} />;
 }
 
-
 export function QuickDates({ chips, selected, onSelect }: Props) {
   const calendarActive = selected === 'custom';
   return (
-    <View style={{ flexDirection: 'row', gap: space.xs, alignItems: 'center', justifyContent: 'space-between' }}>
+    <View
+      style={{
+        flexDirection: 'row',
+        gap: space.xs,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
         {chips.map((chip) => {
           const active = chip.id === selected;
@@ -81,7 +87,8 @@ export function QuickDates({ chips, selected, onSelect }: Props) {
               ) : null}
             </Pressable>
           );
-        })}</View>
+        })}
+      </View>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ selected: calendarActive }}

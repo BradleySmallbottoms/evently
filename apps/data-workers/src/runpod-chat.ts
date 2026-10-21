@@ -128,7 +128,10 @@ export function createRunpodChat(config: RunpodChatConfig, deps: RunpodDeps = {}
   let podId: string | null = null;
   let touched = false;
 
-  async function api(path: string, init?: { method?: string; body?: unknown }): Promise<{ status: number; body: unknown }> {
+  async function api(
+    path: string,
+    init?: { method?: string; body?: unknown },
+  ): Promise<{ status: number; body: unknown }> {
     const response = await fetchImpl(`${RUNPOD_API}${path}`, {
       method: init?.method ?? 'GET',
       headers: {
@@ -204,7 +207,10 @@ function busyStatus(status: PodStatus): boolean {
 }
 
 async function ensureVolume(
-  api: (path: string, init?: { method?: string; body?: unknown }) => Promise<{ status: number; body: unknown }>,
+  api: (
+    path: string,
+    init?: { method?: string; body?: unknown },
+  ) => Promise<{ status: number; body: unknown }>,
   config: RunpodChatConfig,
 ): Promise<string> {
   const volumes = (await listAll(api, '/network-volumes', 'networkVolumes'))
@@ -243,8 +249,13 @@ async function findPod(
 ): Promise<PodRecord | null> {
   const pods = (await listAll(api, '/pods', 'pods'))
     .map(asPod)
-    .filter((pod): pod is PodRecord => pod !== null && pod.name === name && pod.status !== 'TERMINATED');
-  pods.sort((a, b) => rank(b.status) - rank(a.status) || (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+    .filter(
+      (pod): pod is PodRecord => pod !== null && pod.name === name && pod.status !== 'TERMINATED',
+    );
+  pods.sort(
+    (a, b) =>
+      rank(b.status) - rank(a.status) || (b.createdAt ?? '').localeCompare(a.createdAt ?? ''),
+  );
   return pods[0] ?? null;
 }
 
@@ -256,7 +267,10 @@ function rank(status: PodStatus): number {
 }
 
 async function createPod(
-  api: (path: string, init?: { method?: string; body?: unknown }) => Promise<{ status: number; body: unknown }>,
+  api: (
+    path: string,
+    init?: { method?: string; body?: unknown },
+  ) => Promise<{ status: number; body: unknown }>,
   config: RunpodChatConfig,
   volumeId: string,
 ): Promise<PodRecord> {
@@ -300,7 +314,10 @@ async function createPod(
  * The pod stays either way.
  */
 async function startWhenFree(
-  api: (path: string, init?: { method?: string; body?: unknown }) => Promise<{ status: number; body: unknown }>,
+  api: (
+    path: string,
+    init?: { method?: string; body?: unknown },
+  ) => Promise<{ status: number; body: unknown }>,
   id: string,
   config: RunpodChatConfig,
   now: () => number,
@@ -334,8 +351,12 @@ async function waitUntilReady(
   for (;;) {
     const read = await api(`/pods/${id}`);
     const pod = asPod(read.body);
-    if (pod?.status === 'ERROR') throw new Error(`Runpod pod ${id} entered ERROR before the model was ready`);
-    if (pod?.status === 'RUNNING' && pod.runtime?.ports?.some((port) => port.private === CHAT_PORT)) {
+    if (pod?.status === 'ERROR')
+      throw new Error(`Runpod pod ${id} entered ERROR before the model was ready`);
+    if (
+      pod?.status === 'RUNNING' &&
+      pod.runtime?.ports?.some((port) => port.private === CHAT_PORT)
+    ) {
       const models = await fetchImpl(`https://${id}-${CHAT_PORT}.proxy.runpod.net/v1/models`, {
         headers: { authorization: `Bearer ${config.chatKey}` },
       });
@@ -347,7 +368,10 @@ async function waitUntilReady(
 }
 
 async function stopPod(
-  api: (path: string, init?: { method?: string; body?: unknown }) => Promise<{ status: number; body: unknown }>,
+  api: (
+    path: string,
+    init?: { method?: string; body?: unknown },
+  ) => Promise<{ status: number; body: unknown }>,
   id: string,
 ): Promise<void> {
   const stopped = await api(`/pods/${id}/action`, { method: 'POST', body: { action: 'stop' } });
@@ -382,7 +406,12 @@ async function listAll(
 
 function asPod(value: unknown): PodRecord | null {
   const body = record(value);
-  if (!body || typeof body.id !== 'string' || typeof body.name !== 'string' || typeof body.status !== 'string') {
+  if (
+    !body ||
+    typeof body.id !== 'string' ||
+    typeof body.name !== 'string' ||
+    typeof body.status !== 'string'
+  ) {
     return null;
   }
   const runtime = record(body.runtime);
@@ -407,7 +436,12 @@ function asPod(value: unknown): PodRecord | null {
 
 function asVolume(value: unknown): VolumeRecord | null {
   const body = record(value);
-  if (!body || typeof body.id !== 'string' || typeof body.name !== 'string' || typeof body.dataCenter !== 'string') {
+  if (
+    !body ||
+    typeof body.id !== 'string' ||
+    typeof body.name !== 'string' ||
+    typeof body.dataCenter !== 'string'
+  ) {
     return null;
   }
   return { id: body.id, name: body.name, dataCenter: body.dataCenter };
@@ -457,7 +491,9 @@ function scanEnv(value: unknown): PodRecord['env'] | undefined {
   if (typeof model !== 'string' || !model.trim()) return undefined;
   return {
     SCAN_MODEL: model,
-    ...(typeof concurrency === 'string' && concurrency.trim() ? { SCAN_CONCURRENCY: concurrency } : {}),
+    ...(typeof concurrency === 'string' && concurrency.trim()
+      ? { SCAN_CONCURRENCY: concurrency }
+      : {}),
     ...(typeof gpuCount === 'string' && gpuCount.trim() ? { SCAN_GPU_COUNT: gpuCount } : {}),
     ...(env?.SCAN_ALLREDUCE === 'shm' ? { SCAN_ALLREDUCE: 'shm' as const } : {}),
   };
@@ -471,8 +507,9 @@ function record(value: unknown): Record<string, unknown> | null {
 function volumeTypes(value: unknown): Array<'STANDARD' | 'HIGH_PERFORMANCE'> {
   const types = record(value)?.networkVolumeTypes;
   if (!Array.isArray(types)) return [];
-  return types.filter((type): type is 'STANDARD' | 'HIGH_PERFORMANCE' =>
-    type === 'STANDARD' || type === 'HIGH_PERFORMANCE',
+  return types.filter(
+    (type): type is 'STANDARD' | 'HIGH_PERFORMANCE' =>
+      type === 'STANDARD' || type === 'HIGH_PERFORMANCE',
   );
 }
 

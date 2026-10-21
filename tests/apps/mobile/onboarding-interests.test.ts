@@ -6,7 +6,11 @@ import {
   tagsForInterest,
   visibleInterests,
 } from '../../../apps/mobile/src/lib/onboarding-interests';
-import { HOME_TAG_GROUPS, toggleGroupSelection, type HomeTag } from '../../../apps/mobile/src/lib/tag-groups';
+import {
+  HOME_TAG_GROUPS,
+  toggleGroupSelection,
+  type HomeTag,
+} from '../../../apps/mobile/src/lib/tag-groups';
 
 function tag(slug: string, id = slug): HomeTag {
   return { id, slug, name: slug };

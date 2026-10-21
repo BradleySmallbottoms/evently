@@ -16,6 +16,7 @@ src/app/product-list.tsx                 ← regular Expo Router route, imports 
 ```
 
 `src/app/product-list.tsx`:
+
 ```tsx
 import ProductList from '../components/ProductList';
 export default ProductList;
@@ -26,7 +27,8 @@ Alternatively, keep everything in one regular route file and branch on `Platform
 ```tsx
 // src/app/product-list.tsx
 import { Platform } from 'react-native';
-const ComposeList = Platform.OS === 'android' ? require('../components/ProductList.android').default : null;
+const ComposeList =
+  Platform.OS === 'android' ? require('../components/ProductList.android').default : null;
 ```
 
 ## Instructions
@@ -45,14 +47,14 @@ const ComposeList = Platform.OS === 'android' ? require('../components/ProductLi
 - Every Jetpack Compose tree must be wrapped in `Host`. Use `<Host matchContents>` for intrinsic sizing, or `<Host style={{ flex: 1 }}>` when you need explicit size (e.g. as a parent of `LazyColumn`). Example:
 
 ```jsx
-import { Host } from "@expo/ui";                              // Host always from universal root
-import { Column, Button, Text } from "@expo/ui/jetpack-compose";
-import { fillMaxWidth, paddingAll } from "@expo/ui/jetpack-compose/modifiers";
+import { Host } from '@expo/ui'; // Host always from universal root
+import { Column, Button, Text } from '@expo/ui/jetpack-compose';
+import { fillMaxWidth, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
 
 <Host matchContents>
   <Column verticalArrangement={{ spacedBy: 8 }} modifiers={[fillMaxWidth(), paddingAll(16)]}>
-    <Text style={{ typography: "titleLarge" }}>Hello</Text>
-    <Button onPress={() => alert("Pressed!")}>Press me</Button>
+    <Text style={{ typography: 'titleLarge' }}>Hello</Text>
+    <Button onPress={() => alert('Pressed!')}>Press me</Button>
   </Column>
 </Host>;
 ```

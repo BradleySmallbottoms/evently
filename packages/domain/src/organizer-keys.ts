@@ -64,7 +64,10 @@ function pushUnique(keys: string[], value: string | undefined): void {
 }
 
 function emailKey(value: string | null | undefined): string | undefined {
-  const text = value?.trim().toLowerCase().replace(/^mailto:/, '');
+  const text = value
+    ?.trim()
+    .toLowerCase()
+    .replace(/^mailto:/, '');
   if (!text || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) return undefined;
   return text;
 }
@@ -108,7 +111,9 @@ function nameKey(value: string | null | undefined, town: string | undefined): st
 /** Deduped keys, strongest first. At most eight. */
 export function organizerKeys(input: OrganizerKeyInput): string[] {
   const extra = new Set(
-    [...SHARED_SKIP_HOSTS, ...(input.skipHosts ?? [])].map((host) => bareHost(host)).filter(Boolean),
+    [...SHARED_SKIP_HOSTS, ...(input.skipHosts ?? [])]
+      .map((host) => bareHost(host))
+      .filter(Boolean),
   );
   const town = input.town?.trim() || undefined;
   const keys: string[] = [];

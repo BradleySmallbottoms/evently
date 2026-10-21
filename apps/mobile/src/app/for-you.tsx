@@ -58,7 +58,14 @@ export default function ForYouScreen() {
   });
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center', paddingTop: insets.top }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.canvas,
+        alignItems: 'center',
+        paddingTop: insets.top,
+      }}
+    >
       <FlatList
         style={{ width: '100%', maxWidth: MaxContentWidth }}
         contentInsetAdjustmentBehavior="automatic"

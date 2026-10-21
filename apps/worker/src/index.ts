@@ -1,8 +1,4 @@
-import {
-  DeleteMessageCommand,
-  ReceiveMessageCommand,
-  SQSClient,
-} from '@aws-sdk/client-sqs';
+import { DeleteMessageCommand, ReceiveMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { createDb, resolveDatabaseUrl } from '@local-events/db';
 import { processMessage, type HandlerContext } from './handlers';
 import { handleDuePushMessages } from './notify/handle-due-push';

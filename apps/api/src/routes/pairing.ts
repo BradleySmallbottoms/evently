@@ -24,7 +24,10 @@ export function registerPairingRoutes(app: OpenAPIHono, auth: AuthServices): voi
     method: 'post',
     path: '/pairing/code',
     request: {
-      body: { content: { 'application/json': { schema: CreateWebLoginCodeRequest } }, required: true },
+      body: {
+        content: { 'application/json': { schema: CreateWebLoginCodeRequest } },
+        required: true,
+      },
     },
     responses: {
       200: {
@@ -51,7 +54,10 @@ export function registerPairingRoutes(app: OpenAPIHono, auth: AuthServices): voi
     method: 'post',
     path: '/pairing/login',
     request: {
-      body: { content: { 'application/json': { schema: ExchangeWebLoginCodeRequest } }, required: true },
+      body: {
+        content: { 'application/json': { schema: ExchangeWebLoginCodeRequest } },
+        required: true,
+      },
     },
     responses: {
       200: {

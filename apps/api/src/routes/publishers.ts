@@ -175,10 +175,7 @@ export function registerPublisherRoutes(app: OpenAPIHono, auth: AuthServices): v
   app.openapi(getPublisherProfile, async (c) => {
     try {
       const { publisherId } = c.req.valid('param');
-      const result = await auth.getPublisherProfile(
-        readPublisherSessionToken(c),
-        publisherId,
-      );
+      const result = await auth.getPublisherProfile(readPublisherSessionToken(c), publisherId);
       return c.json(result, 200);
     } catch (err) {
       return authErrorResponse(c, err);
@@ -247,10 +244,7 @@ export function registerPublisherRoutes(app: OpenAPIHono, auth: AuthServices): v
   app.openapi(listPublisherMembers, async (c) => {
     try {
       const { publisherId } = c.req.valid('param');
-      const result = await auth.listPublisherMembers(
-        readPublisherSessionToken(c),
-        publisherId,
-      );
+      const result = await auth.listPublisherMembers(readPublisherSessionToken(c), publisherId);
       return c.json(result, 200);
     } catch (err) {
       return authErrorResponse(c, err);
@@ -279,10 +273,7 @@ export function registerPublisherRoutes(app: OpenAPIHono, auth: AuthServices): v
   app.openapi(listPublisherInvites, async (c) => {
     try {
       const { publisherId } = c.req.valid('param');
-      const result = await auth.listPublisherInvites(
-        readPublisherSessionToken(c),
-        publisherId,
-      );
+      const result = await auth.listPublisherInvites(readPublisherSessionToken(c), publisherId);
       return c.json(result, 200);
     } catch (err) {
       return authErrorResponse(c, err);

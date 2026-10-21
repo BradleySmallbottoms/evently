@@ -67,7 +67,12 @@ export function FilterDropdown({ label, value, options, onChange }: Props) {
         >
           {pill}
         </Pressable>
-        <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Modal
+          visible={open}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setOpen(false)}
+        >
           <View style={{ flex: 1, justifyContent: 'flex-end' }}>
             <Pressable
               accessibilityRole="button"
@@ -111,7 +116,10 @@ export function FilterDropdown({ label, value, options, onChange }: Props) {
                         backgroundColor: chosen ? colors.accentSoft : 'transparent',
                       }}
                     >
-                      <AppText variant="body" style={{ color: colors.ink, fontWeight: chosen ? '600' : '400' }}>
+                      <AppText
+                        variant="body"
+                        style={{ color: colors.ink, fontWeight: chosen ? '600' : '400' }}
+                      >
                         {option.label}
                       </AppText>
                     </Pressable>

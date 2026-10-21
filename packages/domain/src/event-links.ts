@@ -21,7 +21,9 @@ function decodeEntities(value: string): string {
 
 /** Stable http(s) identity: lowercase host, no hash, no trailing slash. */
 export function eventUrlKey(raw: string): string | null {
-  let value = decodeEntities(raw).trim().replace(/[.,;:!?)]+$/, '');
+  let value = decodeEntities(raw)
+    .trim()
+    .replace(/[.,;:!?)]+$/, '');
   if (!value) return null;
   try {
     const url = new URL(value);
@@ -134,7 +136,9 @@ export function mergeImportedLinks(
     if (links.length >= MAX_EVENT_LINKS) break;
     seen.add(key);
     const label = labelFrom(link.label);
-    links.push(label ? { type: link.type, url: link.url, label } : { type: link.type, url: link.url });
+    links.push(
+      label ? { type: link.type, url: link.url, label } : { type: link.type, url: link.url },
+    );
   }
   for (const link of parseLinksFromText(description ?? '')) {
     const key = eventUrlKey(link.url);

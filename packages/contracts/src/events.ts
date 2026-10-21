@@ -87,7 +87,10 @@ export type AttendeeLinkInput = z.infer<typeof AttendeeLinkInput>;
  */
 export const EventAddress = z.object({
   address: z.string().trim().min(1).max(200).optional(),
-  zipCode: z.string().regex(/^\d{5}$/).optional(),
+  zipCode: z
+    .string()
+    .regex(/^\d{5}$/)
+    .optional(),
   city: z.string().trim().min(1).max(80).optional(),
   country: z.literal('Sweden').optional(),
   location: GeoPointSchema.optional(),

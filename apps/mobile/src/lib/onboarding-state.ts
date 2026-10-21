@@ -38,9 +38,10 @@ export function pendingReminderKinds(state: OnboardingState): PermissionKind[] {
  * Pure activation step.
  * At most one reminder per threshold; schedules the next after REMINDER_EVERY_ACTIVATIONS.
  */
-export function applyAppActivation(
-  state: OnboardingState,
-): { state: OnboardingState; reminder: PermissionKind | null } {
+export function applyAppActivation(state: OnboardingState): {
+  state: OnboardingState;
+  reminder: PermissionKind | null;
+} {
   if (!state.completed) {
     return { state, reminder: null };
   }

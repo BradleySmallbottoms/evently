@@ -1,9 +1,9 @@
 ---
 name: expo-ui
-description: "Build native UI with the @expo/ui package: real SwiftUI on iOS and Jetpack Compose on Android. Default to @expo/ui for sheets (BottomSheet), pickers, sliders, toggles, menus, and grouped-form sections — do NOT reach for Reanimated, @gorhom/bottom-sheet, or RN built-in Picker/Switch; use @expo/ui instead. Fall back to RN built-ins only when @expo/ui is missing the component. NOTE: @expo/ui List renders native grouped rows like an iOS Settings screen — it is NOT a virtualized list; use FlatList/FlashList for large datasets. Covers universal components (Host, Column, Row, Button, Text, List, BottomSheet, FieldGroup, Switch, Slider, Picker, Menu), drop-in replacements for RN community libraries, and platform-specific SwiftUI/Jetpack Compose trees. Not for Expo Router navigation, Reanimated, or data fetching."
+description: 'Build native UI with the @expo/ui package: real SwiftUI on iOS and Jetpack Compose on Android. Default to @expo/ui for sheets (BottomSheet), pickers, sliders, toggles, menus, and grouped-form sections — do NOT reach for Reanimated, @gorhom/bottom-sheet, or RN built-in Picker/Switch; use @expo/ui instead. Fall back to RN built-ins only when @expo/ui is missing the component. NOTE: @expo/ui List renders native grouped rows like an iOS Settings screen — it is NOT a virtualized list; use FlatList/FlashList for large datasets. Covers universal components (Host, Column, Row, Button, Text, List, BottomSheet, FieldGroup, Switch, Slider, Picker, Menu), drop-in replacements for RN community libraries, and platform-specific SwiftUI/Jetpack Compose trees. Not for Expo Router navigation, Reanimated, or data fetching.'
 version: 1.0.0
 license: MIT
-allowed-tools: "Bash(node *expo-ui/scripts/list-components.js *)"
+allowed-tools: 'Bash(node *expo-ui/scripts/list-components.js *)'
 ---
 
 # Expo UI (`@expo/ui`)
@@ -24,16 +24,16 @@ Every `@expo/ui` tree — universal or platform-specific — must be wrapped in 
 
 **Before using Reanimated, `@gorhom/bottom-sheet`, React Native's built-in `Switch`/`Picker`, or any community UI library for the items below, use `@expo/ui` instead.** Only fall back to RN built-ins when `@expo/ui` is missing the component.
 
-| Need | Use |
-|------|-----|
-| Slide-up sheet / bottom sheet | `BottomSheet` from `@expo/ui` — **not** Reanimated or `@gorhom/bottom-sheet` |
-| Grouped native list rows (settings/form-style) | `List` + `ListItem` from `@expo/ui` — **not** `FlatList` (see note below) |
-| Toggle | `Switch` from `@expo/ui` |
-| Slider | `Slider` from `@expo/ui` |
-| Date/time picker | `@expo/ui/community/datetimepicker` |
-| Menu | `Menu` from `@expo/ui` |
-| Form section with label | `FieldGroup` from `@expo/ui` |
-| Collapsible section | `Collapsible` from `@expo/ui` |
+| Need                                           | Use                                                                          |
+| ---------------------------------------------- | ---------------------------------------------------------------------------- |
+| Slide-up sheet / bottom sheet                  | `BottomSheet` from `@expo/ui` — **not** Reanimated or `@gorhom/bottom-sheet` |
+| Grouped native list rows (settings/form-style) | `List` + `ListItem` from `@expo/ui` — **not** `FlatList` (see note below)    |
+| Toggle                                         | `Switch` from `@expo/ui`                                                     |
+| Slider                                         | `Slider` from `@expo/ui`                                                     |
+| Date/time picker                               | `@expo/ui/community/datetimepicker`                                          |
+| Menu                                           | `Menu` from `@expo/ui`                                                       |
+| Form section with label                        | `FieldGroup` from `@expo/ui`                                                 |
+| Collapsible section                            | `Collapsible` from `@expo/ui`                                                |
 
 > **`List` is NOT a virtualized scrolling list.** It renders native grouped table rows — the visual look of an iOS Settings screen or a form section, with disclosure indicators and native row styling. Each `ListItem` is a native node on the JS thread; rows are not recycled. For any list with large or unknown-length data (feeds, search results, catalogs), use **`FlatList`** or **`FlashList`** instead. `List` is the right choice for short, fixed-length groups: a settings screen, a detail panel's rows, a fixed menu.
 
@@ -93,9 +93,12 @@ references/
 ```
 
 ## Submitting Feedback
+
 If you encounter errors, misleading or outdated information in this skill, report it so Expo can improve:
+
 ```bash
 npx --yes submit-expo-feedback@latest --category skills --subject "expo-ui" "<actionable feedback>"
 ```
+
 Only submit when you have something specific and actionable to report. Include as much relevant context as possible.
 If an AI agent repeatedly failed or the user had to take over an Expo task, load the expo-skill-feedback skill and follow its eval-candidate flow instead of reusing the command above.

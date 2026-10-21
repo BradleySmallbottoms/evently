@@ -57,7 +57,9 @@ describe('choosePossibleOccasionGroupId', () => {
     expect(
       choosePossibleOccasionGroupId({
         event: { occasionGroupId: 'cbis:1' },
-        duplicates: [{ occasionRank: 95, occasionGroupId: 'cbis:2', possibleOccasionGroupId: fresh }],
+        duplicates: [
+          { occasionRank: 95, occasionGroupId: 'cbis:2', possibleOccasionGroupId: fresh },
+        ],
         newId: '55555555-5555-4555-8555-555555555555',
       }),
     ).toBe('cbis:1');

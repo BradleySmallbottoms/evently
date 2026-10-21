@@ -126,10 +126,7 @@ export function createDbPreferenceServices(
   }
 
   async function areasForUser(userId: string): Promise<UserArea[]> {
-    const rows = await db
-      .select(areaSelect)
-      .from(userAreas)
-      .where(eq(userAreas.userId, userId));
+    const rows = await db.select(areaSelect).from(userAreas).where(eq(userAreas.userId, userId));
     const tagsForAreas = await tagsByArea(rows.map((row) => row.id));
     return rows.map((row) => mapArea({ ...row, tagIds: tagsForAreas.get(row.id) ?? [] }));
   }
@@ -137,16 +134,17 @@ export function createDbPreferenceServices(
   async function knownTagIds(tagIds: readonly string[]): Promise<string[]> {
     const unique = [...new Set(tagIds)];
     if (unique.length === 0) return unique;
-    const found = await db
-      .select({ id: tags.id })
-      .from(tags)
-      .where(inArray(tags.id, unique));
+    const found = await db.select({ id: tags.id }).from(tags).where(inArray(tags.id, unique));
     if (found.length !== unique.length) throw new PreferenceError('unknown_tag');
     return unique;
   }
 
   async function areaById(areaId: string): Promise<UserArea> {
-    const [row] = await db.select(areaSelect).from(userAreas).where(eq(userAreas.id, areaId)).limit(1);
+    const [row] = await db
+      .select(areaSelect)
+      .from(userAreas)
+      .where(eq(userAreas.id, areaId))
+      .limit(1);
     if (!row) throw new PreferenceError('not_found');
     const tagsForAreas = await tagsByArea([areaId]);
     return mapArea({ ...row, tagIds: tagsForAreas.get(areaId) ?? [] });

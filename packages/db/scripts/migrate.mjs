@@ -2,13 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
-import {
-  assertKnownMigrations,
-  migrationHash,
-  pendingMigrations,
-} from './migration-plan.mjs';
+import { assertKnownMigrations, migrationHash, pendingMigrations } from './migration-plan.mjs';
 
-const migrationsFolder = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../migrations');
+const migrationsFolder = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../migrations',
+);
 const journal = JSON.parse(
   fs.readFileSync(path.join(migrationsFolder, 'meta/_journal.json'), 'utf8'),
 );

@@ -51,7 +51,14 @@ function Chip({
   );
 }
 
-export function CalendarFilterSheet({ isPresented, tags, tagIds, price, onDismiss, onApply }: Props) {
+export function CalendarFilterSheet({
+  isPresented,
+  tags,
+  tagIds,
+  price,
+  onDismiss,
+  onApply,
+}: Props) {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const contentWidth = width - space.xl * 2;
@@ -78,7 +85,13 @@ export function CalendarFilterSheet({ isPresented, tags, tagIds, price, onDismis
       >
         <SheetBody fill>
           <View style={{ width: contentWidth, flex: 1, gap: space.lg }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
               <AppText variant="subtitle">{t('events.calendar.filters')}</AppText>
               <Pressable
                 accessibilityRole="button"

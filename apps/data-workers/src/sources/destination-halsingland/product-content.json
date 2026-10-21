@@ -20,29 +20,29 @@
     {
       "name": "Prisinformation",
       "attributes": [
-          {
-              "name": "Från 295 kr barn till 460 kr vuxen",
-              "iconClassName": null
-          }
+        {
+          "name": "Från 295 kr barn till 460 kr vuxen",
+          "iconClassName": null
+        }
       ]
     },
     {
-        "name": "Gatuadress",
-        "attributes": [
-            {
-                "name": "Storgatan 37",
-                "iconClassName": null
-            }
-        ]
+      "name": "Gatuadress",
+      "attributes": [
+        {
+          "name": "Storgatan 37",
+          "iconClassName": null
+        }
+      ]
     },
     {
-        "name": "Postadress",
-        "attributes": [
-            {
-                "name": "824 52 Hudiksvall",
-                "iconClassName": ""
-            }
-        ]
+      "name": "Postadress",
+      "attributes": [
+        {
+          "name": "824 52 Hudiksvall",
+          "iconClassName": ""
+        }
+      ]
     },
     {
       "name": "Telefonnummer",

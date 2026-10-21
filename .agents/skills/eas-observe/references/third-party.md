@@ -86,7 +86,7 @@ export function initObserveIntegration() {
   if (typeof window !== 'undefined' && observeModule) {
     const { Observe } = observeModule;
 
-    Observe.registerIntegration('your-package', config => {
+    Observe.registerIntegration('your-package', (config) => {
       if (config) {
         enableObserveIntegration(config === true ? {} : config);
       }

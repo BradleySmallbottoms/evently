@@ -17,7 +17,9 @@ describe('calendar range', () => {
   });
 
   it('turns a Stockholm day into UTC bounds', () => {
-    expect(zonedDate({ y: 2026, m: 10, d: 18 }, false).toISOString()).toBe('2026-10-17T22:00:00.000Z');
+    expect(zonedDate({ y: 2026, m: 10, d: 18 }, false).toISOString()).toBe(
+      '2026-10-17T22:00:00.000Z',
+    );
     expect(boundsIso({ y: 2026, m: 10, d: 18 }, { y: 2026, m: 10, d: 18 }).to).toBe(
       '2026-10-18T21:59:59.999Z',
     );
@@ -43,9 +45,9 @@ describe('calendar range', () => {
   });
 
   it('shortens a range inside one month', () => {
-    expect(
-      formatRangeShort({ y: 2026, m: 10, d: 24 }, { y: 2026, m: 10, d: 25 }, 'sv'),
-    ).toBe('24–25 okt');
+    expect(formatRangeShort({ y: 2026, m: 10, d: 24 }, { y: 2026, m: 10, d: 25 }, 'sv')).toBe(
+      '24–25 okt',
+    );
     expect(addDays({ y: 2026, m: 10, d: 31 }, 1)).toEqual({ y: 2026, m: 11, d: 1 });
   });
 });

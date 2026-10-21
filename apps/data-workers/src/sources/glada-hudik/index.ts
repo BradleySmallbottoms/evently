@@ -481,7 +481,11 @@ function mapProduct(
       },
     ];
   }
-  const grouped = withOccasionGroup(place ? { address: place } : undefined, product.id, occasions.length);
+  const grouped = withOccasionGroup(
+    place ? { address: place } : undefined,
+    product.id,
+    occasions.length,
+  );
   return occasions.map((occasion) => {
     const externalId = `${product.id}:${occasion.startsAt.slice(0, 19)}:${occasion.endsAt?.slice(0, 19) ?? ''}`;
     return {

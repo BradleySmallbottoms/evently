@@ -1,5 +1,10 @@
 import type { EventMeta } from '@local-events/contracts';
-import { eventAddress, organizerKeys, priceAmountFromText, stockholmWallTime } from '@local-events/domain';
+import {
+  eventAddress,
+  organizerKeys,
+  priceAmountFromText,
+  stockholmWallTime,
+} from '@local-events/domain';
 import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
 import { load, type CheerioAPI } from 'cheerio';
 
@@ -319,7 +324,8 @@ function venueAndAddress(event: BibliotekEvent): {
     .filter((part) => part && part.toLocaleLowerCase('sv') !== cityKey);
   const zipCode = parts.find((part) => /^\d{3}\s?\d{2}$/.test(part));
   const rest = parts.filter((part) => part !== zipCode);
-  if (rest.length === 0) return { ...(city ? { venueName: city } : {}), ...(zipCode ? { zipCode } : {}) };
+  if (rest.length === 0)
+    return { ...(city ? { venueName: city } : {}), ...(zipCode ? { zipCode } : {}) };
   if (rest.length === 1) {
     const venueName = rest[0]!;
     const address = [venueName, zipCode, city].filter(Boolean).join(', ');

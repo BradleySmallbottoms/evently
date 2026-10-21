@@ -27,10 +27,7 @@ export type RatingEnv = {
 };
 
 export type RatingServices = {
-  getStatus: (
-    sessionToken: string | undefined,
-    eventId: string,
-  ) => Promise<RatingStatusResponse>;
+  getStatus: (sessionToken: string | undefined, eventId: string) => Promise<RatingStatusResponse>;
   create: (
     sessionToken: string | undefined,
     eventId: string,

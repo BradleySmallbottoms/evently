@@ -143,15 +143,13 @@ export default function EventDetailScreen() {
       event.data?.meta.occasions,
       new Date(),
       event.data?.timezone,
-    ).map(
-      (occasion, index) => ({
-        key: `${occasion.startsAt}-${index}`,
-        startsAt: occasion.startsAt,
-        endsAt: occasion.endsAt ?? null,
-        venueName: occasion.venueName ?? event.data?.venueName ?? null,
-        publisherName: event.data?.publisherName ?? '',
-      }),
-    );
+    ).map((occasion, index) => ({
+      key: `${occasion.startsAt}-${index}`,
+      startsAt: occasion.startsAt,
+      endsAt: occasion.endsAt ?? null,
+      venueName: occasion.venueName ?? event.data?.venueName ?? null,
+      publisherName: event.data?.publisherName ?? '',
+    }));
     const siblings = (occasions.data?.items ?? [])
       .filter((item) => item.id !== id)
       .map((item) => ({
@@ -421,12 +419,7 @@ export default function EventDetailScreen() {
         ...(event.data?.tagIds[0] ? [related.refetch()] : []),
       ];
       if (identity.isSuccess) {
-        jobs.push(
-          identity.refetch(),
-          saved.refetch(),
-          coming.refetch(),
-          subscriptions.refetch(),
-        );
+        jobs.push(identity.refetch(), saved.refetch(), coming.refetch(), subscriptions.refetch());
       }
       if (event.data?.checkInEnabled) {
         jobs.push(checkInStatus.refetch(), content.refetch());
@@ -560,7 +553,10 @@ export default function EventDetailScreen() {
         where: item.venueName || item.publisherName,
         imageUrl: item.imageUrl,
         tags: namesForTagIds(item.tagIds, tags.data?.items),
-        saved: relatedSaved[item.id] ?? saved.data?.items.some((savedItem) => savedItem.id === item.id) ?? false,
+        saved:
+          relatedSaved[item.id] ??
+          saved.data?.items.some((savedItem) => savedItem.id === item.id) ??
+          false,
       }));
   }, [related.data?.items, id, locale, tags.data?.items, relatedSaved, saved.data?.items]);
 
@@ -697,7 +693,14 @@ export default function EventDetailScreen() {
                   'linear-gradient(to bottom, rgba(20,20,20,0.38) 0%, rgba(20,20,20,0) 100%)',
               }}
             />
-            <View style={{ position: 'absolute', top: insets.top + space.sm, left: space.lg, zIndex: 2 }}>
+            <View
+              style={{
+                position: 'absolute',
+                top: insets.top + space.sm,
+                left: space.lg,
+                zIndex: 2,
+              }}
+            >
               <CircleIconButton
                 sf="chevron.left"
                 md="arrow-back"
@@ -732,10 +735,18 @@ export default function EventDetailScreen() {
                 />
               </View>
             ) : null}
-
           </View>
 
-          <View style={{ marginTop: -space.lg, backgroundColor: colors.canvas, paddingTop: space.lg, gap: space.lg, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}>
+          <View
+            style={{
+              marginTop: -space.lg,
+              backgroundColor: colors.canvas,
+              paddingTop: space.lg,
+              gap: space.lg,
+              borderTopLeftRadius: radius.lg,
+              borderTopRightRadius: radius.lg,
+            }}
+          >
             {event.isPending ? <AppText variant="caption">{t('events.loading')}</AppText> : null}
             {event.isError ? (
               <AppText variant="caption" style={{ color: colors.danger }}>
@@ -745,7 +756,6 @@ export default function EventDetailScreen() {
 
             {event.data ? (
               <View style={{ paddingHorizontal: space.lg, gap: space.lg }}>
-
                 <View
                   style={{
                     flexDirection: 'row',
@@ -753,16 +763,19 @@ export default function EventDetailScreen() {
                   }}
                 >
                   {tagNames.map((tag) => (
-                    <View key={tag} style={{
-                      backgroundColor: colors.secondarySoft,
-                      borderRadius: radius.pill,
-                      boxShadow: shadow.soft,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: space.xs,
-                      paddingHorizontal: space.xs,
-                      paddingVertical: space.xs,
-                    }}>
+                    <View
+                      key={tag}
+                      style={{
+                        backgroundColor: colors.secondarySoft,
+                        borderRadius: radius.pill,
+                        boxShadow: shadow.soft,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: space.xs,
+                        paddingHorizontal: space.xs,
+                        paddingVertical: space.xs,
+                      }}
+                    >
                       <DetailGlyph sf="leaf" md="eco" size={14} color={colors.success as string} />
                       <AppText
                         numberOfLines={1}
@@ -782,21 +795,38 @@ export default function EventDetailScreen() {
                 </View>
 
                 <View style={{ gap: space.sm }}>
-                  <AppText style={{ fontSize: 28, lineHeight: 34, fontWeight: '700', color: colors.ink }}>
+                  <AppText
+                    style={{ fontSize: 28, lineHeight: 34, fontWeight: '700', color: colors.ink }}
+                  >
                     {event.data.title}
                   </AppText>
                   {copy.lead ? (
-                    <AppText style={{ fontSize: 16, lineHeight: 23, color: colors.inkMuted }}>{copy.lead}</AppText>
+                    <AppText style={{ fontSize: 16, lineHeight: 23, color: colors.inkMuted }}>
+                      {copy.lead}
+                    </AppText>
                   ) : null}
                 </View>
 
                 <DetailCard>
                   <View style={{ gap: space.lg }}>
-
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 44 }}>
-                      <DetailGlyph sf="calendar" md="event" size={32} color={colors.accent as string} />
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: space.md,
+                        minHeight: 44,
+                      }}
+                    >
+                      <DetailGlyph
+                        sf="calendar"
+                        md="event"
+                        size={32}
+                        color={colors.accent as string}
+                      />
                       <View style={{ flex: 1, gap: 2 }}>
-                        <AppText style={{ fontSize: 16, lineHeight: 22, fontWeight: '700' }}>{whenTitle}</AppText>
+                        <AppText style={{ fontSize: 16, lineHeight: 22, fontWeight: '700' }}>
+                          {whenTitle}
+                        </AppText>
                         <AppText variant="caption">{whenSubtitle}</AppText>
                       </View>
                     </View>
@@ -805,7 +835,12 @@ export default function EventDetailScreen() {
                       accessibilityRole={mapPoints.length > 0 ? 'button' : undefined}
                       disabled={mapPoints.length === 0}
                       onPress={() => void openDirections(mapPoints[0])}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 44 }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: space.md,
+                        minHeight: 44,
+                      }}
                     >
                       <DetailGlyph
                         sf={event.data.mode === 'physical' ? 'location.fill' : 'link'}
@@ -829,20 +864,30 @@ export default function EventDetailScreen() {
                         </AppText>
                       </View>
                       {mapPoints.length > 0 ? (
-                        <DetailGlyph sf="chevron.right" md="chevron-right" size={18} color={colors.inkMuted as string} />
+                        <DetailGlyph
+                          sf="chevron.right"
+                          md="chevron-right"
+                          size={18}
+                          color={colors.inkMuted as string}
+                        />
                       ) : null}
                     </Pressable>
-
                   </View>
                 </DetailCard>
 
                 {socialLabel ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                    <DetailGlyph sf="person.2" md="people" size={18} color={colors.inkMuted as string} />
-                    <AppText style={{ fontSize: 14, lineHeight: 20, color: colors.ink }}>{socialLabel}</AppText>
+                    <DetailGlyph
+                      sf="person.2"
+                      md="people"
+                      size={18}
+                      color={colors.inkMuted as string}
+                    />
+                    <AppText style={{ fontSize: 14, lineHeight: 20, color: colors.ink }}>
+                      {socialLabel}
+                    </AppText>
                   </View>
                 ) : null}
-
               </View>
             ) : null}
 
@@ -893,8 +938,14 @@ export default function EventDetailScreen() {
             </View> */}
 
             {event.data ? (
-              <View style={{ paddingHorizontal: space.lg, gap: space.lg, backgroundColor: colors.cardDarkest, paddingTop: space.lg }}>
-
+              <View
+                style={{
+                  paddingHorizontal: space.lg,
+                  gap: space.lg,
+                  backgroundColor: colors.cardDarkest,
+                  paddingTop: space.lg,
+                }}
+              >
                 {copy.about ? (
                   <View style={{ gap: space.sm }}>
                     <AppText style={{ fontSize: 20, lineHeight: 26, fontWeight: '700' }}>
@@ -909,8 +960,17 @@ export default function EventDetailScreen() {
                         onPress={() => setAboutOpen((open) => !open)}
                         style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}
                       >
-                        <AppText style={{ color: colors.info, fontSize: 15, lineHeight: 20, fontWeight: '700' }}>
-                          {aboutOpen ? t('events.detail.readLess') : `${t('events.detail.readMore')} ↓`}
+                        <AppText
+                          style={{
+                            color: colors.info,
+                            fontSize: 15,
+                            lineHeight: 20,
+                            fontWeight: '700',
+                          }}
+                        >
+                          {aboutOpen
+                            ? t('events.detail.readLess')
+                            : `${t('events.detail.readMore')} ↓`}
                         </AppText>
                       </Pressable>
                     ) : null}
@@ -947,21 +1007,43 @@ export default function EventDetailScreen() {
                             justifyContent: 'center',
                           }}
                         >
-                          <AppText style={{ fontSize: 20, lineHeight: 24, fontWeight: '700', color: colors.secondary }}>
+                          <AppText
+                            style={{
+                              fontSize: 20,
+                              lineHeight: 24,
+                              fontWeight: '700',
+                              color: colors.secondary,
+                            }}
+                          >
                             {event.data.publisherName.trim().charAt(0).toUpperCase()}
                           </AppText>
                         </View>
-                        <AppText style={{ flex: 1, fontSize: 16, lineHeight: 22, fontWeight: '700' }}>
+                        <AppText
+                          style={{ flex: 1, fontSize: 16, lineHeight: 22, fontWeight: '700' }}
+                        >
                           {event.data.publisherName}
                         </AppText>
                         <Pressable
                           accessibilityRole="button"
                           accessibilityState={{ selected: followingPublisher }}
                           onPress={toggleFollow}
-                          style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: space.sm }}
+                          style={{
+                            minHeight: 44,
+                            justifyContent: 'center',
+                            paddingHorizontal: space.sm,
+                          }}
                         >
-                          <AppText style={{ color: colors.info, fontSize: 15, lineHeight: 20, fontWeight: '700' }}>
-                            {followingPublisher ? t('events.detail.following') : t('events.detail.follow')}
+                          <AppText
+                            style={{
+                              color: colors.info,
+                              fontSize: 15,
+                              lineHeight: 20,
+                              fontWeight: '700',
+                            }}
+                          >
+                            {followingPublisher
+                              ? t('events.detail.following')
+                              : t('events.detail.follow')}
                           </AppText>
                         </Pressable>
                       </View>
@@ -973,7 +1055,9 @@ export default function EventDetailScreen() {
                   <DetailCard>
                     <View style={{ gap: space.md }}>
                       <GoodToKnow title={t('events.detail.knowTitle')} rows={facts} />
-                      {reminderNotice ? <AppText variant="caption">{reminderNotice}</AppText> : null}
+                      {reminderNotice ? (
+                        <AppText variant="caption">{reminderNotice}</AppText>
+                      ) : null}
                     </View>
                   </DetailCard>
                 ) : null}
@@ -985,10 +1069,12 @@ export default function EventDetailScreen() {
                         {t('events.contentTitle')}
                       </AppText>
                       {'fromCache' in (content.data ?? {}) &&
-                        (content.data as { fromCache?: boolean }).fromCache ? (
+                      (content.data as { fromCache?: boolean }).fromCache ? (
                         <AppText variant="caption">{t('events.contentCached')}</AppText>
                       ) : null}
-                      {content.isPending ? <AppText variant="caption">{t('events.loading')}</AppText> : null}
+                      {content.isPending ? (
+                        <AppText variant="caption">{t('events.loading')}</AppText>
+                      ) : null}
                       {content.data && !content.data.checkedIn ? (
                         <AppText variant="caption">{t('events.contentLocked')}</AppText>
                       ) : null}
@@ -997,16 +1083,16 @@ export default function EventDetailScreen() {
                       ) : null}
                       {content.data?.checkedIn
                         ? content.data.attendeeLinks.map((link) => {
-                          const url = safeHttpUrl(link.url);
-                          if (!url) return null;
-                          return (
-                            <PrimaryButton
-                              key={link.id}
-                              label={link.label || t('events.linkInfo')}
-                              onPress={() => void Linking.openURL(url)}
-                            />
-                          );
-                        })
+                            const url = safeHttpUrl(link.url);
+                            if (!url) return null;
+                            return (
+                              <PrimaryButton
+                                key={link.id}
+                                label={link.label || t('events.linkInfo')}
+                                onPress={() => void Linking.openURL(url)}
+                              />
+                            );
+                          })
                         : null}
                       {content.data?.items.map((item) => (
                         <View key={item.id} style={{ gap: 4 }}>
@@ -1024,7 +1110,7 @@ export default function EventDetailScreen() {
                 ) : null}
 
                 {eventStats.data &&
-                  (eventStats.data.numCheckins > 0 || eventStats.data.numRatings > 0) ? (
+                (eventStats.data.numCheckins > 0 || eventStats.data.numRatings > 0) ? (
                   <DetailCard>
                     <View style={{ gap: space.xs }}>
                       {eventStats.data.numCheckins > 0 ? (
@@ -1054,11 +1140,14 @@ export default function EventDetailScreen() {
                 ) : null}
 
                 {ratingStatus.data?.canRate ||
-                  ratingStatus.data?.hasRated ||
-                  event.data.checkInEnabled ? (
+                ratingStatus.data?.hasRated ||
+                event.data.checkInEnabled ? (
                   <DetailCard>
                     {ratingStatus.data?.canRate ? (
-                      <PrimaryButton label={t('events.rateHowWasIt')} onPress={() => setRatingOpen(true)} />
+                      <PrimaryButton
+                        label={t('events.rateHowWasIt')}
+                        onPress={() => setRatingOpen(true)}
+                      />
                     ) : ratingStatus.data?.hasRated ? (
                       <PrimaryButton label={t('events.rateDone')} disabled />
                     ) : !event.data.checkInEnabled ? null : checkInStatus.data?.checkedIn ? (
@@ -1076,7 +1165,9 @@ export default function EventDetailScreen() {
                                   : t('events.checkInClosed')
                           }
                           loading={checkIn.isPending || checkInStatus.isLoading}
-                          disabled={checkInStatus.isError || !checkInStatus.data?.open || !identity.data}
+                          disabled={
+                            checkInStatus.isError || !checkInStatus.data?.open || !identity.data
+                          }
                           onPress={() => checkIn.mutate()}
                         />
                         {checkInStatus.data?.codeActive && checkInStatus.data.open ? (
@@ -1138,10 +1229,10 @@ export default function EventDetailScreen() {
                   onSeeAll={
                     primaryTagId
                       ? () =>
-                        router.push({
-                          pathname: '/event-search',
-                          params: { tagId: primaryTagId, tagAt: String(Date.now()) },
-                        })
+                          router.push({
+                            pathname: '/event-search',
+                            params: { tagId: primaryTagId, tagAt: String(Date.now()) },
+                          })
                       : undefined
                   }
                   items={relatedItems}
@@ -1155,7 +1246,13 @@ export default function EventDetailScreen() {
                   <ShareRow
                     title={t('events.detail.shareSection')}
                     actions={[
-                      { key: 'copy', label: t('events.copyLink'), sf: 'link', md: 'link', onPress: () => void copyLink() },
+                      {
+                        key: 'copy',
+                        label: t('events.copyLink'),
+                        sf: 'link',
+                        md: 'link',
+                        onPress: () => void copyLink(),
+                      },
                       {
                         key: 'facebook',
                         label: t('events.detail.shareFacebook'),
@@ -1192,20 +1289,18 @@ export default function EventDetailScreen() {
           </View>
         </ScrollView>
 
-        {
-          event.data ? (
-            <ParticipateBar
-              title={event.data.title}
-              when={whenTitle}
-              imageUrl={event.data.imageUrl}
-              tags={tagNames}
-              joinLabel={comingOn ? t('events.detail.joined') : t('events.detail.join')}
-              joined={comingOn}
-              onJoin={toggleComing}
-            />
-          ) : null
-        }
-      </View >
+        {event.data ? (
+          <ParticipateBar
+            title={event.data.title}
+            when={whenTitle}
+            imageUrl={event.data.imageUrl}
+            tags={tagNames}
+            joinLabel={comingOn ? t('events.detail.joined') : t('events.detail.join')}
+            joined={comingOn}
+            onJoin={toggleComing}
+          />
+        ) : null}
+      </View>
 
       <ConfirmAction
         title={t('events.reportTitle')}
@@ -1272,7 +1367,7 @@ export default function EventDetailScreen() {
         saving={rate.isPending}
         onSubmit={(score, comment) => rate.mutate({ score, comment: comment || null })}
       />
-    </View >
+    </View>
   );
 }
 

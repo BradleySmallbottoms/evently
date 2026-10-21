@@ -13,10 +13,6 @@ const variantStyle: Record<Variant, object> = {
   label: { fontSize: 13, lineHeight: 18, fontWeight: '600', color: colors.inkMuted },
 };
 
-export function AppText({
-  variant = 'body',
-  style,
-  ...props
-}: TextProps & { variant?: Variant }) {
+export function AppText({ variant = 'body', style, ...props }: TextProps & { variant?: Variant }) {
   return <RNText selectable style={[variantStyle[variant], style]} {...props} />;
 }

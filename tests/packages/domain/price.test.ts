@@ -1,4 +1,8 @@
-import { priceAmountFromText, matchesListPrice, krPriceLabel } from '../../../packages/domain/src/price';
+import {
+  priceAmountFromText,
+  matchesListPrice,
+  krPriceLabel,
+} from '../../../packages/domain/src/price';
 import { describe, expect, it } from 'vitest';
 
 describe('priceAmountFromText', () => {

@@ -38,7 +38,11 @@ export default function AppTabs() {
       >
         <NativeTabs.Trigger.Label>{t('tabs.profile')}</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="person" md="person" />
-        {hasUnread ? <NativeTabs.Trigger.Badge >{numUnread > 99 ? '99+' : numUnread.toString()}</NativeTabs.Trigger.Badge> : null}
+        {hasUnread ? (
+          <NativeTabs.Trigger.Badge>
+            {numUnread > 99 ? '99+' : numUnread.toString()}
+          </NativeTabs.Trigger.Badge>
+        ) : null}
       </NativeTabs.Trigger>
     </NativeTabs>
   );

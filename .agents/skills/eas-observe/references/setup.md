@@ -8,11 +8,11 @@ EAS Observe collects app-startup performance metrics (cold launch, warm launch, 
 
 The library exports differ between SDK versions. Pick the right one for the project's SDK before copying any snippet below.
 
-| Concern | SDK 55 | SDK 56 and later |
-|---|---|---|
-| Root layout HOC | `AppMetricsRoot.wrap(...)` | `ObserveRoot.wrap(...)` |
+| Concern                 | SDK 55                                 | SDK 56 and later                                 |
+| ----------------------- | -------------------------------------- | ------------------------------------------------ |
+| Root layout HOC         | `AppMetricsRoot.wrap(...)`             | `ObserveRoot.wrap(...)`                          |
 | `markInteractive()` API | Global: `AppMetrics.markInteractive()` | Hook: `const { markInteractive } = useObserve()` |
-| Import source | `expo-observe` | `expo-observe` (same package) |
+| Import source           | `expo-observe`                         | `expo-observe` (same package)                    |
 
 Everything else — package name, build process, dashboard, debug-mode behavior — is the same across versions.
 
@@ -311,13 +311,13 @@ In both integrations, `useObserve()` is safe to leave in place even when the int
 
 Navigation events carry these params in addition to any custom ones passed to `markInteractive`:
 
-| Param | Type | Notes |
-|---|---|---|
-| `routeName` | string | Route pattern (`/(tabs)/sessions/[sessionId]`) with Expo Router, route-name path (`/Tabs/Sessions`) with React Navigation. Never contains param values. |
-| `url` | string | Resolved pathname. Expo Router only. |
-| `routeParams` | object | Resolved route params, e.g. `{ sessionId: 'abc' }`. |
-| `isAppLaunch` | boolean | `cold_ttr` only. `true` when measured from process start rather than from a navigation action. |
-| `urlHidden` | boolean | Present as `true` when a filtered param caused `url` to be omitted. See below. |
+| Param         | Type    | Notes                                                                                                                                                   |
+| ------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `routeName`   | string  | Route pattern (`/(tabs)/sessions/[sessionId]`) with Expo Router, route-name path (`/Tabs/Sessions`) with React Navigation. Never contains param values. |
+| `url`         | string  | Resolved pathname. Expo Router only.                                                                                                                    |
+| `routeParams` | object  | Resolved route params, e.g. `{ sessionId: 'abc' }`.                                                                                                     |
+| `isAppLaunch` | boolean | `cold_ttr` only. `true` when measured from process start rather than from a navigation action.                                                          |
+| `urlHidden`   | boolean | Present as `true` when a filtered param caused `url` to be omitted. See below.                                                                          |
 
 ### Filter sensitive params (SDK 57+)
 
@@ -359,13 +359,13 @@ function handleOnboardingComplete() {
 
 ### Parameters
 
-| Parameter | Type | Required | Notes |
-|---|---|---|---|
-| `name` | `string` | yes | Stable, dot-separated identifier, e.g. `'report.exported'`. |
-| `options.attributes` | `Record<string, string \| number \| boolean \| array \| nested object>` | no | Structured context attached to the event. Other JS values (`Date`, `undefined`, functions) are dropped. |
-| `options.body` | `string` | no | Free-form message complementing the structured attributes. |
-| `options.severity` | `'trace' \| 'debug' \| 'info' \| 'warn' \| 'error' \| 'fatal'` | no | Defaults to `'info'`. |
-| `options.displayName` | `string` | no | Human-friendly label, e.g. `'Onboarding completed'`. Used **only** in the dashboard's session timeline view; grouping still keys off `name`. |
+| Parameter             | Type                                                                    | Required | Notes                                                                                                                                        |
+| --------------------- | ----------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                | `string`                                                                | yes      | Stable, dot-separated identifier, e.g. `'report.exported'`.                                                                                  |
+| `options.attributes`  | `Record<string, string \| number \| boolean \| array \| nested object>` | no       | Structured context attached to the event. Other JS values (`Date`, `undefined`, functions) are dropped.                                      |
+| `options.body`        | `string`                                                                | no       | Free-form message complementing the structured attributes.                                                                                   |
+| `options.severity`    | `'trace' \| 'debug' \| 'info' \| 'warn' \| 'error' \| 'fatal'`          | no       | Defaults to `'info'`.                                                                                                                        |
+| `options.displayName` | `string`                                                                | no       | Human-friendly label, e.g. `'Onboarding completed'`. Used **only** in the dashboard's session timeline view; grouping still keys off `name`. |
 
 **Attributes** are the primary way to make an event queryable — attach the identifiers and measurements you'll want to filter or break down by:
 
@@ -417,7 +417,8 @@ User-defined events appear under the **Events** tab in the Observe dashboard, an
 import { ObserveErrorBoundary } from 'expo-observe';
 
 <ObserveErrorBoundary
-  fallback={({ error, resetError }) => <ErrorScreen error={error} onRetry={resetError} />}>
+  fallback={({ error, resetError }) => <ErrorScreen error={error} onRetry={resetError} />}
+>
   <Feed />
 </ObserveErrorBoundary>;
 ```
@@ -440,14 +441,14 @@ The value is normalized before it is sent: an `Error` contributes `name`, `messa
 
 `Observe.configure()` controls collection and dispatch. Call it at module scope, before mount. Integration flags in particular cannot be toggled at runtime.
 
-| Option | Type | Default | What it does |
-|---|---|---|---|
-| `environment` | string | `process.env.NODE_ENV`, falling back to `'production'` | Metadata tag used to group metrics; filterable in the dashboard. Does not gate dispatch. |
-| `dispatchingEnabled` | boolean | `true` | Master switch. While `false`, pending metrics are dropped, not queued. |
-| `dispatchInDebug` | boolean | `false` | Dispatch metrics collected from debug builds. No effect on release builds. |
-| `sampleRate` | number | `undefined` (all installations) | Fraction of installations that dispatch, in `[0, 1]`. |
-| `errorHandlingEnabled` | boolean | `true` | Record unhandled JS errors as `exception` events. |
-| `integrations` | object | `undefined` | Opt in to `expo-router`, `react-navigation`, or a third-party integration. |
+| Option                 | Type    | Default                                                | What it does                                                                             |
+| ---------------------- | ------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `environment`          | string  | `process.env.NODE_ENV`, falling back to `'production'` | Metadata tag used to group metrics; filterable in the dashboard. Does not gate dispatch. |
+| `dispatchingEnabled`   | boolean | `true`                                                 | Master switch. While `false`, pending metrics are dropped, not queued.                   |
+| `dispatchInDebug`      | boolean | `false`                                                | Dispatch metrics collected from debug builds. No effect on release builds.               |
+| `sampleRate`           | number  | `undefined` (all installations)                        | Fraction of installations that dispatch, in `[0, 1]`.                                    |
+| `errorHandlingEnabled` | boolean | `true`                                                 | Record unhandled JS errors as `exception` events.                                        |
+| `integrations`         | object  | `undefined`                                            | Opt in to `expo-router`, `react-navigation`, or a third-party integration.               |
 
 **Network request monitoring is automatic and has no off switch.** `expo-observe` observes `URLSession` traffic on iOS and `OkHttpClient` traffic on Android from launch, and attaches a rollup of the launch window to the TTI event — including the **host** of the slowest request (see [`./metrics.md`](./metrics.md)). Observe's own uploads are excluded. No `configure()` option disables it as of `expo-observe` 57.0.9, so treat request hosts as data that leaves the device.
 

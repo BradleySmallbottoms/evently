@@ -5,9 +5,7 @@ export async function fetchRatingStatus(identity: StoredIdentity | null, eventId
   return throwIfError(
     await api.GET('/events/{eventId}/rating', {
       params: { path: { eventId } },
-      ...(identity
-        ? { headers: { Authorization: `Bearer ${identity.sessionToken}` } }
-        : {}),
+      ...(identity ? { headers: { Authorization: `Bearer ${identity.sessionToken}` } } : {}),
     }),
   );
 }

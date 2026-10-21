@@ -3,18 +3,12 @@
     {
       "Id": 30084,
       "Name": "Visit Söderhamn (Söderhamn Turistbyrå)",
-      "Path": [
-        30084
-      ]
+      "Path": [30084]
     },
     {
       "Id": 30172,
       "Name": "Evenemang",
-      "Path": [
-        30084,
-        30099,
-        30172
-      ]
+      "Path": [30084, 30099, 30172]
     }
   ],
   "products": [

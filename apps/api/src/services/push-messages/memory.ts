@@ -51,8 +51,7 @@ export function createMemoryPublisherPushMessageServices(
       const messages = store.pushMessages ?? new Map();
       return [...messages.values()]
         .filter(
-          (row) =>
-            row.eventId === eventId && (row.status === 'sent' || row.status === 'sending'),
+          (row) => row.eventId === eventId && (row.status === 'sent' || row.status === 'sending'),
         )
         .map((row) => sentFromRow(row, store))
         .sort(compareSentDesc);
@@ -110,10 +109,7 @@ export function createMemoryPublisherPushMessageServices(
   };
 }
 
-function sentFromRow(
-  row: PushMessageRow,
-  store: MemoryStore,
-): SentEventNotification {
+function sentFromRow(row: PushMessageRow, store: MemoryStore): SentEventNotification {
   const users = new Set(
     [...store.notifications.values()]
       .filter((notification) => notification.pushMessageId === row.id)

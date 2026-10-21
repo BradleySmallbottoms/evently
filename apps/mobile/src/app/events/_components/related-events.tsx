@@ -39,8 +39,17 @@ export function RelatedEvents({
   if (items.length === 0) return null;
   return (
     <View style={{ gap: space.md }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md }}>
-        <AppText style={{ fontSize: 20, lineHeight: 26, fontWeight: '700', color: colors.ink, flex: 1 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: space.md,
+        }}
+      >
+        <AppText
+          style={{ fontSize: 20, lineHeight: 26, fontWeight: '700', color: colors.ink, flex: 1 }}
+        >
           {title}
         </AppText>
         {onSeeAll ? (
@@ -50,7 +59,9 @@ export function RelatedEvents({
             onPress={onSeeAll}
             style={{ minHeight: 44, justifyContent: 'center' }}
           >
-            <AppText style={{ color: colors.info, fontSize: 15, lineHeight: 20, fontWeight: '600' }}>
+            <AppText
+              style={{ color: colors.info, fontSize: 15, lineHeight: 20, fontWeight: '600' }}
+            >
               {seeAllLabel}
             </AppText>
           </Pressable>
@@ -90,7 +101,10 @@ export function RelatedEvents({
                 <EventImage imageUrl={item.imageUrl} tags={item.tags} />
               </View>
               <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
-                <AppText numberOfLines={2} style={{ fontSize: 16, lineHeight: 21, fontWeight: '700' }}>
+                <AppText
+                  numberOfLines={2}
+                  style={{ fontSize: 16, lineHeight: 21, fontWeight: '700' }}
+                >
                   {item.title}
                 </AppText>
                 <AppText variant="caption" numberOfLines={2}>

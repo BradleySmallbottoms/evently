@@ -21,7 +21,12 @@ export const TAG_GROUP_STYLE: Record<HomeTagGroupId, Icon & { fill: string; icon
   music: { sf: 'music.note', md: 'music-note', fill: '#F8E6D8', icon: '#8A5A3A' },
   sport: { sf: 'figure.run', md: 'directions-run', fill: '#E4EFEA', icon: '#3E6B58' },
   culture: { sf: 'building.columns', md: 'museum', fill: '#E3EBF3', icon: '#3E5F78' },
-  family: { sf: 'figure.and.child.holdinghands', md: 'child-care', fill: '#F6E4E2', icon: '#8A4E48' },
+  family: {
+    sf: 'figure.and.child.holdinghands',
+    md: 'child-care',
+    fill: '#F6E4E2',
+    icon: '#8A4E48',
+  },
   holiday: { sf: 'gift', md: 'card-giftcard', fill: '#F3EBD4', icon: '#7A6840' },
   other: { sf: 'tag', md: 'label', fill: '#E7E4F2', icon: '#5C5278' },
 };
@@ -61,8 +66,14 @@ export function TagGroupList({ title, tags, selectedIds, onChange, showHeading =
   return (
     <View style={{ gap: space.sm }}>
       {showHeading || selectedIds.length > 0 ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          {showHeading ? <AppText variant="subtitle">{t('events.tagGroupsTitle')}</AppText> : <View />}
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          {showHeading ? (
+            <AppText variant="subtitle">{t('events.tagGroupsTitle')}</AppText>
+          ) : (
+            <View />
+          )}
           {selectedIds.length > 0 ? (
             <Pressable
               accessibilityRole="button"
@@ -120,7 +131,9 @@ export function TagGroupList({ title, tags, selectedIds, onChange, showHeading =
                 <AppText style={{ fontSize: 16, lineHeight: 20, fontWeight: '700' }}>
                   {t(`events.tagGroup.${group.id}`)}
                 </AppText>
-                <AppText variant="caption">{t('events.tagGroupCount', { count: group.tags.length })}</AppText>
+                <AppText variant="caption">
+                  {t('events.tagGroupCount', { count: group.tags.length })}
+                </AppText>
               </View>
               {chosen > 0 ? (
                 <View
@@ -183,7 +196,9 @@ export function TagGroupList({ title, tags, selectedIds, onChange, showHeading =
                           <MaterialIcons name="check" size={16} color={style.icon} />
                         )
                       ) : null}
-                      <AppText style={{ fontSize: 14, lineHeight: 18, fontWeight: '600' }}>{tag.name}</AppText>
+                      <AppText style={{ fontSize: 14, lineHeight: 18, fontWeight: '600' }}>
+                        {tag.name}
+                      </AppText>
                     </Pressable>
                   );
                 })}

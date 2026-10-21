@@ -86,10 +86,7 @@ export async function upsertEventPushDraft(
 }
 
 /** New draft after a previous send (fails if an open draft already exists). */
-export async function createEventPushDraft(
-  db: Db,
-  input: DraftPushInput,
-): Promise<PushMessageRow> {
+export async function createEventPushDraft(db: Db, input: DraftPushInput): Promise<PushMessageRow> {
   const open = await findOpenPushMessage(db, input.eventId);
   if (open) throw new Error('push_draft_exists');
   const created = await upsertEventPushDraft(db, input);

@@ -6,8 +6,7 @@ export function normalizeDisplayName(raw: string): string {
 }
 
 export type ProfileChoice =
-  | { choice: 'named'; displayName: string; isPublic?: boolean }
-  | { choice: 'anonymous' };
+  { choice: 'named'; displayName: string; isPublic?: boolean } | { choice: 'anonymous' };
 
 export type ProfileChoiceResult =
   | { ok: true; displayName: string | null; isPublic: boolean }

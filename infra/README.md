@@ -10,13 +10,13 @@ pnpm --filter @local-events/infra deploy -c env=dev -c imageTag=$(git rev-parse 
 
 ## Stacks
 
-| Stack          | Contents                                                                          |
-| -------------- | --------------------------------------------------------------------------------- |
-| `network`      | VPC (public / private / isolated), NAT                                           |
-| `data`         | RDS PostgreSQL 16 (PostGIS extension), Valkey, S3, SQS + DLQ, secrets            |
-| `services`     | ECR, ECS cluster, Fargate (api / admin-api / worker), public + admin ALB         |
+| Stack          | Contents                                                                           |
+| -------------- | ---------------------------------------------------------------------------------- |
+| `network`      | VPC (public / private / isolated), NAT                                             |
+| `data`         | RDS PostgreSQL 16 (PostGIS extension), Valkey, S3, SQS + DLQ, secrets              |
+| `services`     | ECR, ECS cluster, Fargate (api / admin-api / worker), public + admin ALB           |
 | `data-workers` | ECR, Fargate task definition (256 CPU / 512 MiB), EventBridge Scheduler per source |
-| `edge`         | CloudFront (origin access control) in front of the public assets bucket          |
+| `edge`         | CloudFront (origin access control) in front of the public assets bucket            |
 
 Still planned: WAF on the public distribution, and an IP allowlist in front of admin.
 Local object storage is Garage (`pnpm db:up`). Dev keys in Compose are local-only. See `.env.example`.

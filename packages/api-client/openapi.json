@@ -20,24 +20,15 @@
                 "properties": {
                   "platform": {
                     "type": "string",
-                    "enum": [
-                      "ios",
-                      "android",
-                      "web"
-                    ]
+                    "enum": ["ios", "android", "web"]
                   },
                   "locale": {
                     "type": "string",
-                    "enum": [
-                      "sv",
-                      "en"
-                    ],
+                    "enum": ["sv", "en"],
                     "default": "sv"
                   }
                 },
-                "required": [
-                  "platform"
-                ]
+                "required": ["platform"]
               }
             }
           }
@@ -99,15 +90,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -129,9 +115,7 @@
                     "minLength": 1
                   }
                 },
-                "required": [
-                  "deviceCredential"
-                ]
+                "required": ["deviceCredential"]
               }
             }
           }
@@ -157,11 +141,7 @@
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "userId",
-                    "sessionToken",
-                    "expiresAt"
-                  ]
+                  "required": ["userId", "sessionToken", "expiresAt"]
                 }
               }
             }
@@ -183,15 +163,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -213,9 +188,7 @@
                     "minLength": 1
                   }
                 },
-                "required": [
-                  "deviceCredential"
-                ]
+                "required": ["deviceCredential"]
               }
             }
           }
@@ -237,10 +210,7 @@
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "code",
-                    "expiresAt"
-                  ]
+                  "required": ["code", "expiresAt"]
                 }
               }
             }
@@ -262,15 +232,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -292,9 +257,7 @@
                     "minLength": 4
                   }
                 },
-                "required": [
-                  "code"
-                ]
+                "required": ["code"]
               }
             }
           }
@@ -316,10 +279,7 @@
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "userId",
-                    "expiresAt"
-                  ]
+                  "required": ["userId", "expiresAt"]
                 }
               }
             }
@@ -341,15 +301,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -372,9 +327,7 @@
                       "format": "uuid"
                     }
                   },
-                  "required": [
-                    "userId"
-                  ]
+                  "required": ["userId"]
                 }
               }
             }
@@ -396,15 +349,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -435,9 +383,7 @@
                     "minLength": 1
                   }
                 },
-                "required": [
-                  "deviceCredential"
-                ]
+                "required": ["deviceCredential"]
               }
             }
           }
@@ -459,10 +405,7 @@
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "code",
-                    "expiresAt"
-                  ]
+                  "required": ["code", "expiresAt"]
                 }
               }
             }
@@ -484,15 +427,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -518,10 +456,7 @@
                     "minLength": 4
                   }
                 },
-                "required": [
-                  "deviceCredential",
-                  "code"
-                ]
+                "required": ["deviceCredential", "code"]
               }
             }
           }
@@ -539,9 +474,7 @@
                       "format": "uuid"
                     }
                   },
-                  "required": [
-                    "userId"
-                  ]
+                  "required": ["userId"]
                 }
               }
             }
@@ -563,15 +496,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -593,15 +521,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -634,10 +557,7 @@
                   },
                   "type": {
                     "type": "string",
-                    "enum": [
-                      "org",
-                      "person"
-                    ]
+                    "enum": ["org", "person"]
                   },
                   "slug": {
                     "type": "string",
@@ -646,12 +566,7 @@
                     "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
                   }
                 },
-                "required": [
-                  "email",
-                  "password",
-                  "name",
-                  "type"
-                ]
+                "required": ["email", "password", "name", "type"]
               }
             }
           }
@@ -680,11 +595,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "publisherAccountId",
-                    "publisherId",
-                    "email"
-                  ]
+                  "required": ["publisherAccountId", "publisherId", "email"]
                 }
               }
             }
@@ -706,15 +617,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -736,9 +642,7 @@
                     "minLength": 1
                   }
                 },
-                "required": [
-                  "token"
-                ]
+                "required": ["token"]
               }
             }
           }
@@ -753,14 +657,10 @@
                   "properties": {
                     "ok": {
                       "type": "boolean",
-                      "enum": [
-                        true
-                      ]
+                      "enum": [true]
                     }
                   },
-                  "required": [
-                    "ok"
-                  ]
+                  "required": ["ok"]
                 }
               }
             }
@@ -782,15 +682,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -817,10 +712,7 @@
                     "maxLength": 200
                   }
                 },
-                "required": [
-                  "email",
-                  "password"
-                ]
+                "required": ["email", "password"]
               }
             }
           }
@@ -858,43 +750,22 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "org",
-                              "person"
-                            ]
+                            "enum": ["org", "person"]
                           },
                           "status": {
                             "type": "string",
-                            "enum": [
-                              "pending_scan",
-                              "in_review",
-                              "published"
-                            ]
+                            "enum": ["pending_scan", "in_review", "published"]
                           },
                           "role": {
                             "type": "string",
-                            "enum": [
-                              "owner",
-                              "editor"
-                            ]
+                            "enum": ["owner", "editor"]
                           }
                         },
-                        "required": [
-                          "id",
-                          "name",
-                          "slug",
-                          "type",
-                          "status",
-                          "role"
-                        ]
+                        "required": ["id", "name", "slug", "type", "status", "role"]
                       }
                     }
                   },
-                  "required": [
-                    "publisherAccountId",
-                    "email",
-                    "publishers"
-                  ]
+                  "required": ["publisherAccountId", "email", "publishers"]
                 }
               }
             }
@@ -916,15 +787,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -946,15 +812,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1006,43 +867,22 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "org",
-                              "person"
-                            ]
+                            "enum": ["org", "person"]
                           },
                           "status": {
                             "type": "string",
-                            "enum": [
-                              "pending_scan",
-                              "in_review",
-                              "published"
-                            ]
+                            "enum": ["pending_scan", "in_review", "published"]
                           },
                           "role": {
                             "type": "string",
-                            "enum": [
-                              "owner",
-                              "editor"
-                            ]
+                            "enum": ["owner", "editor"]
                           }
                         },
-                        "required": [
-                          "id",
-                          "name",
-                          "slug",
-                          "type",
-                          "status",
-                          "role"
-                        ]
+                        "required": ["id", "name", "slug", "type", "status", "role"]
                       }
                     }
                   },
-                  "required": [
-                    "publisherAccountId",
-                    "email",
-                    "publishers"
-                  ]
+                  "required": ["publisherAccountId", "email", "publishers"]
                 }
               }
             }
@@ -1064,15 +904,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1113,42 +948,22 @@
                     },
                     "type": {
                       "type": "string",
-                      "enum": [
-                        "org",
-                        "person"
-                      ]
+                      "enum": ["org", "person"]
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "pending_scan",
-                        "in_review",
-                        "published"
-                      ]
+                      "enum": ["pending_scan", "in_review", "published"]
                     },
                     "origin": {
                       "type": "string",
-                      "enum": [
-                        "native",
-                        "imported"
-                      ]
+                      "enum": ["native", "imported"]
                     },
                     "role": {
                       "type": "string",
-                      "enum": [
-                        "owner",
-                        "editor"
-                      ]
+                      "enum": ["owner", "editor"]
                     }
                   },
-                  "required": [
-                    "id",
-                    "name",
-                    "slug",
-                    "type",
-                    "status",
-                    "origin"
-                  ]
+                  "required": ["id", "name", "slug", "type", "status", "origin"]
                 }
               }
             }
@@ -1170,15 +985,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1217,10 +1027,7 @@
                   },
                   "type": {
                     "type": "string",
-                    "enum": [
-                      "org",
-                      "person"
-                    ]
+                    "enum": ["org", "person"]
                   }
                 }
               }
@@ -1247,42 +1054,22 @@
                     },
                     "type": {
                       "type": "string",
-                      "enum": [
-                        "org",
-                        "person"
-                      ]
+                      "enum": ["org", "person"]
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "pending_scan",
-                        "in_review",
-                        "published"
-                      ]
+                      "enum": ["pending_scan", "in_review", "published"]
                     },
                     "origin": {
                       "type": "string",
-                      "enum": [
-                        "native",
-                        "imported"
-                      ]
+                      "enum": ["native", "imported"]
                     },
                     "role": {
                       "type": "string",
-                      "enum": [
-                        "owner",
-                        "editor"
-                      ]
+                      "enum": ["owner", "editor"]
                     }
                   },
-                  "required": [
-                    "id",
-                    "name",
-                    "slug",
-                    "type",
-                    "status",
-                    "origin"
-                  ]
+                  "required": ["id", "name", "slug", "type", "status", "origin"]
                 }
               }
             }
@@ -1304,15 +1091,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1334,15 +1116,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1364,15 +1141,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1416,28 +1188,18 @@
                           },
                           "role": {
                             "type": "string",
-                            "enum": [
-                              "owner",
-                              "editor"
-                            ]
+                            "enum": ["owner", "editor"]
                           },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
                           }
                         },
-                        "required": [
-                          "publisherAccountId",
-                          "email",
-                          "role",
-                          "createdAt"
-                        ]
+                        "required": ["publisherAccountId", "email", "role", "createdAt"]
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -1459,15 +1221,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1511,10 +1268,7 @@
                           },
                           "role": {
                             "type": "string",
-                            "enum": [
-                              "owner",
-                              "editor"
-                            ]
+                            "enum": ["owner", "editor"]
                           },
                           "expiresAt": {
                             "type": "string",
@@ -1525,19 +1279,11 @@
                             "format": "date-time"
                           }
                         },
-                        "required": [
-                          "id",
-                          "email",
-                          "role",
-                          "expiresAt",
-                          "createdAt"
-                        ]
+                        "required": ["id", "email", "role", "expiresAt", "createdAt"]
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -1559,15 +1305,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1589,15 +1330,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1629,16 +1365,10 @@
                   },
                   "role": {
                     "type": "string",
-                    "enum": [
-                      "owner",
-                      "editor"
-                    ]
+                    "enum": ["owner", "editor"]
                   }
                 },
-                "required": [
-                  "email",
-                  "role"
-                ]
+                "required": ["email", "role"]
               }
             }
           }
@@ -1661,10 +1391,7 @@
                     },
                     "role": {
                       "type": "string",
-                      "enum": [
-                        "owner",
-                        "editor"
-                      ]
+                      "enum": ["owner", "editor"]
                     },
                     "expiresAt": {
                       "type": "string",
@@ -1674,12 +1401,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "id",
-                    "email",
-                    "role",
-                    "expiresAt"
-                  ]
+                  "required": ["id", "email", "role", "expiresAt"]
                 }
               }
             }
@@ -1701,15 +1423,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1731,15 +1448,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1761,15 +1473,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1791,9 +1498,7 @@
                     "minLength": 1
                   }
                 },
-                "required": [
-                  "token"
-                ]
+                "required": ["token"]
               }
             }
           }
@@ -1812,16 +1517,10 @@
                     },
                     "role": {
                       "type": "string",
-                      "enum": [
-                        "owner",
-                        "editor"
-                      ]
+                      "enum": ["owner", "editor"]
                     }
                   },
-                  "required": [
-                    "publisherId",
-                    "role"
-                  ]
+                  "required": ["publisherId", "role"]
                 }
               }
             }
@@ -1843,15 +1542,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1873,15 +1567,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1903,15 +1592,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1933,15 +1617,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -1973,17 +1652,11 @@
                           },
                           "kind": {
                             "type": "string",
-                            "enum": [
-                              "manual",
-                              "region"
-                            ]
+                            "enum": ["manual", "region"]
                           },
                           "origin": {
                             "type": "string",
-                            "enum": [
-                              "manual",
-                              "suggested"
-                            ]
+                            "enum": ["manual", "suggested"]
                           },
                           "regionId": {
                             "type": "string",
@@ -2005,10 +1678,7 @@
                                 "maximum": 180
                               }
                             },
-                            "required": [
-                              "lat",
-                              "lng"
-                            ]
+                            "required": ["lat", "lng"]
                           },
                           "radiusM": {
                             "type": "integer",
@@ -2035,10 +1705,7 @@
                                   "maximum": 180
                                 }
                               },
-                              "required": [
-                                "lat",
-                                "lng"
-                              ]
+                              "required": ["lat", "lng"]
                             }
                           },
                           "notify": {
@@ -2096,12 +1763,7 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "enabled",
-                        "startMin",
-                        "endMin",
-                        "timezone"
-                      ]
+                      "required": ["enabled", "startMin", "endMin", "timezone"]
                     },
                     "travelDistanceM": {
                       "type": "integer",
@@ -2113,12 +1775,7 @@
                       "nullable": true
                     }
                   },
-                  "required": [
-                    "areas",
-                    "quietHours",
-                    "travelDistanceM",
-                    "discoveryRadiusM"
-                  ]
+                  "required": ["areas", "quietHours", "travelDistanceM", "discoveryRadiusM"]
                 }
               }
             }
@@ -2140,15 +1797,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -2180,17 +1832,11 @@
                           },
                           "kind": {
                             "type": "string",
-                            "enum": [
-                              "manual",
-                              "region"
-                            ]
+                            "enum": ["manual", "region"]
                           },
                           "origin": {
                             "type": "string",
-                            "enum": [
-                              "manual",
-                              "suggested"
-                            ]
+                            "enum": ["manual", "suggested"]
                           },
                           "regionId": {
                             "type": "string",
@@ -2212,10 +1858,7 @@
                                 "maximum": 180
                               }
                             },
-                            "required": [
-                              "lat",
-                              "lng"
-                            ]
+                            "required": ["lat", "lng"]
                           },
                           "radiusM": {
                             "type": "integer",
@@ -2242,10 +1885,7 @@
                                   "maximum": 180
                                 }
                               },
-                              "required": [
-                                "lat",
-                                "lng"
-                              ]
+                              "required": ["lat", "lng"]
                             }
                           },
                           "notify": {
@@ -2284,9 +1924,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -2308,15 +1946,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -2344,10 +1977,7 @@
                   },
                   "origin": {
                     "type": "string",
-                    "enum": [
-                      "manual",
-                      "suggested"
-                    ]
+                    "enum": ["manual", "suggested"]
                   },
                   "center": {
                     "type": "object",
@@ -2363,10 +1993,7 @@
                         "maximum": 180
                       }
                     },
-                    "required": [
-                      "lat",
-                      "lng"
-                    ]
+                    "required": ["lat", "lng"]
                   },
                   "radiusM": {
                     "type": "integer",
@@ -2389,10 +2016,7 @@
                           "maximum": 180
                         }
                       },
-                      "required": [
-                        "lat",
-                        "lng"
-                      ]
+                      "required": ["lat", "lng"]
                     },
                     "minItems": 3,
                     "maxItems": 100
@@ -2410,9 +2034,7 @@
                     "maxItems": 100
                   }
                 },
-                "required": [
-                  "name"
-                ]
+                "required": ["name"]
               }
             }
           }
@@ -2434,17 +2056,11 @@
                     },
                     "kind": {
                       "type": "string",
-                      "enum": [
-                        "manual",
-                        "region"
-                      ]
+                      "enum": ["manual", "region"]
                     },
                     "origin": {
                       "type": "string",
-                      "enum": [
-                        "manual",
-                        "suggested"
-                      ]
+                      "enum": ["manual", "suggested"]
                     },
                     "regionId": {
                       "type": "string",
@@ -2466,10 +2082,7 @@
                           "maximum": 180
                         }
                       },
-                      "required": [
-                        "lat",
-                        "lng"
-                      ]
+                      "required": ["lat", "lng"]
                     },
                     "radiusM": {
                       "type": "integer",
@@ -2496,10 +2109,7 @@
                             "maximum": 180
                           }
                         },
-                        "required": [
-                          "lat",
-                          "lng"
-                        ]
+                        "required": ["lat", "lng"]
                       }
                     },
                     "notify": {
@@ -2556,15 +2166,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -2586,15 +2191,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -2616,15 +2216,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -2677,10 +2272,7 @@
                         "maximum": 180
                       }
                     },
-                    "required": [
-                      "lat",
-                      "lng"
-                    ]
+                    "required": ["lat", "lng"]
                   },
                   "radiusM": {
                     "type": "integer",
@@ -2703,10 +2295,7 @@
                           "maximum": 180
                         }
                       },
-                      "required": [
-                        "lat",
-                        "lng"
-                      ]
+                      "required": ["lat", "lng"]
                     },
                     "minItems": 3,
                     "maxItems": 100
@@ -2746,17 +2335,11 @@
                     },
                     "kind": {
                       "type": "string",
-                      "enum": [
-                        "manual",
-                        "region"
-                      ]
+                      "enum": ["manual", "region"]
                     },
                     "origin": {
                       "type": "string",
-                      "enum": [
-                        "manual",
-                        "suggested"
-                      ]
+                      "enum": ["manual", "suggested"]
                     },
                     "regionId": {
                       "type": "string",
@@ -2778,10 +2361,7 @@
                           "maximum": 180
                         }
                       },
-                      "required": [
-                        "lat",
-                        "lng"
-                      ]
+                      "required": ["lat", "lng"]
                     },
                     "radiusM": {
                       "type": "integer",
@@ -2808,10 +2388,7 @@
                             "maximum": 180
                           }
                         },
-                        "required": [
-                          "lat",
-                          "lng"
-                        ]
+                        "required": ["lat", "lng"]
                       }
                     },
                     "notify": {
@@ -2868,15 +2445,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -2898,15 +2470,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -2928,15 +2495,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -2976,15 +2538,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3006,15 +2563,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3043,10 +2595,7 @@
                     "pattern": "^(ExponentPushToken|ExpoPushToken)\\[[^\\]]+\\]$"
                   }
                 },
-                "required": [
-                  "deviceCredential",
-                  "expoPushToken"
-                ]
+                "required": ["deviceCredential", "expoPushToken"]
               }
             }
           }
@@ -3061,14 +2610,10 @@
                   "properties": {
                     "ok": {
                       "type": "boolean",
-                      "enum": [
-                        true
-                      ]
+                      "enum": [true]
                     }
                   },
-                  "required": [
-                    "ok"
-                  ]
+                  "required": ["ok"]
                 }
               }
             }
@@ -3090,15 +2635,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3135,20 +2675,11 @@
                           },
                           "reason": {
                             "type": "string",
-                            "enum": [
-                              "nearby",
-                              "publisher",
-                              "event",
-                              "broadcast"
-                            ]
+                            "enum": ["nearby", "publisher", "event", "broadcast"]
                           },
                           "pushState": {
                             "type": "string",
-                            "enum": [
-                              "pending",
-                              "sent",
-                              "aggregated"
-                            ]
+                            "enum": ["pending", "sent", "aggregated"]
                           },
                           "createdAt": {
                             "type": "string",
@@ -3182,10 +2713,7 @@
                       "minimum": 0
                     }
                   },
-                  "required": [
-                    "items",
-                    "unreadCount"
-                  ]
+                  "required": ["items", "unreadCount"]
                 }
               }
             }
@@ -3207,15 +2735,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3246,11 +2769,7 @@
                     "maximum": 1439
                   }
                 },
-                "required": [
-                  "enabled",
-                  "startMin",
-                  "endMin"
-                ]
+                "required": ["enabled", "startMin", "endMin"]
               }
             }
           }
@@ -3282,12 +2801,7 @@
                       "maxLength": 64
                     }
                   },
-                  "required": [
-                    "enabled",
-                    "startMin",
-                    "endMin",
-                    "timezone"
-                  ]
+                  "required": ["enabled", "startMin", "endMin", "timezone"]
                 }
               }
             }
@@ -3309,15 +2823,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3340,9 +2849,7 @@
                     "maximum": 100000
                   }
                 },
-                "required": [
-                  "distanceM"
-                ]
+                "required": ["distanceM"]
               }
             }
           }
@@ -3361,9 +2868,7 @@
                       "maximum": 100000
                     }
                   },
-                  "required": [
-                    "distanceM"
-                  ]
+                  "required": ["distanceM"]
                 }
               }
             }
@@ -3385,15 +2890,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3416,9 +2916,7 @@
                     "maximum": 100000
                   }
                 },
-                "required": [
-                  "radiusM"
-                ]
+                "required": ["radiusM"]
               }
             }
           }
@@ -3437,9 +2935,7 @@
                       "maximum": 100000
                     }
                   },
-                  "required": [
-                    "radiusM"
-                  ]
+                  "required": ["radiusM"]
                 }
               }
             }
@@ -3461,15 +2957,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3534,15 +3025,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3559,10 +3045,7 @@
                 "properties": {
                   "choice": {
                     "type": "string",
-                    "enum": [
-                      "named",
-                      "anonymous"
-                    ]
+                    "enum": ["named", "anonymous"]
                   },
                   "displayName": {
                     "type": "string"
@@ -3576,9 +3059,7 @@
                     "format": "email"
                   }
                 },
-                "required": [
-                  "choice"
-                ]
+                "required": ["choice"]
               }
             }
           }
@@ -3638,15 +3119,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3668,15 +3144,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3701,10 +3172,7 @@
                         "properties": {
                           "targetType": {
                             "type": "string",
-                            "enum": [
-                              "publisher",
-                              "event"
-                            ]
+                            "enum": ["publisher", "event"]
                           },
                           "targetId": {
                             "type": "string",
@@ -3715,17 +3183,11 @@
                             "format": "date-time"
                           }
                         },
-                        "required": [
-                          "targetType",
-                          "targetId",
-                          "createdAt"
-                        ]
+                        "required": ["targetType", "targetId", "createdAt"]
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -3747,15 +3209,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3772,20 +3229,14 @@
                 "properties": {
                   "targetType": {
                     "type": "string",
-                    "enum": [
-                      "publisher",
-                      "event"
-                    ]
+                    "enum": ["publisher", "event"]
                   },
                   "targetId": {
                     "type": "string",
                     "format": "uuid"
                   }
                 },
-                "required": [
-                  "targetType",
-                  "targetId"
-                ]
+                "required": ["targetType", "targetId"]
               }
             }
           }
@@ -3800,10 +3251,7 @@
                   "properties": {
                     "targetType": {
                       "type": "string",
-                      "enum": [
-                        "publisher",
-                        "event"
-                      ]
+                      "enum": ["publisher", "event"]
                     },
                     "targetId": {
                       "type": "string",
@@ -3814,11 +3262,7 @@
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "targetType",
-                    "targetId",
-                    "createdAt"
-                  ]
+                  "required": ["targetType", "targetId", "createdAt"]
                 }
               }
             }
@@ -3840,15 +3284,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3870,15 +3309,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3892,10 +3326,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "publisher",
-                "event"
-              ]
+              "enum": ["publisher", "event"]
             },
             "required": true,
             "name": "targetType",
@@ -3932,15 +3363,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -3962,15 +3388,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -4014,10 +3435,7 @@
                           },
                           "mode": {
                             "type": "string",
-                            "enum": [
-                              "physical",
-                              "digital"
-                            ]
+                            "enum": ["physical", "digital"]
                           },
                           "status": {
                             "type": "string",
@@ -4033,10 +3451,7 @@
                           },
                           "origin": {
                             "type": "string",
-                            "enum": [
-                              "native",
-                              "imported"
-                            ]
+                            "enum": ["native", "imported"]
                           },
                           "startsAt": {
                             "type": "string",
@@ -4068,10 +3483,7 @@
                                 "maximum": 180
                               }
                             },
-                            "required": [
-                              "lat",
-                              "lng"
-                            ]
+                            "required": ["lat", "lng"]
                           },
                           "geofenceRadiusM": {
                             "type": "integer",
@@ -4112,9 +3524,7 @@
                                   },
                                   "country": {
                                     "type": "string",
-                                    "enum": [
-                                      "Sweden"
-                                    ]
+                                    "enum": ["Sweden"]
                                   },
                                   "location": {
                                     "type": "object",
@@ -4130,10 +3540,7 @@
                                         "maximum": 180
                                       }
                                     },
-                                    "required": [
-                                      "lat",
-                                      "lng"
-                                    ]
+                                    "required": ["lat", "lng"]
                                   }
                                 }
                               },
@@ -4215,15 +3622,10 @@
                                           "maximum": 180
                                         }
                                       },
-                                      "required": [
-                                        "lat",
-                                        "lng"
-                                      ]
+                                      "required": ["lat", "lng"]
                                     }
                                   },
-                                  "required": [
-                                    "startsAt"
-                                  ]
+                                  "required": ["startsAt"]
                                 },
                                 "maxItems": 2000
                               },
@@ -4273,13 +3675,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "id",
-                                "type",
-                                "url",
-                                "label",
-                                "position"
-                              ]
+                              "required": ["id", "type", "url", "label", "position"]
                             }
                           },
                           "imageUrl": {
@@ -4358,9 +3754,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -4382,15 +3776,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -4432,15 +3821,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -4462,15 +3846,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -4510,15 +3889,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -4540,15 +3914,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -4592,10 +3961,7 @@
                           },
                           "mode": {
                             "type": "string",
-                            "enum": [
-                              "physical",
-                              "digital"
-                            ]
+                            "enum": ["physical", "digital"]
                           },
                           "status": {
                             "type": "string",
@@ -4611,10 +3977,7 @@
                           },
                           "origin": {
                             "type": "string",
-                            "enum": [
-                              "native",
-                              "imported"
-                            ]
+                            "enum": ["native", "imported"]
                           },
                           "startsAt": {
                             "type": "string",
@@ -4646,10 +4009,7 @@
                                 "maximum": 180
                               }
                             },
-                            "required": [
-                              "lat",
-                              "lng"
-                            ]
+                            "required": ["lat", "lng"]
                           },
                           "geofenceRadiusM": {
                             "type": "integer",
@@ -4690,9 +4050,7 @@
                                   },
                                   "country": {
                                     "type": "string",
-                                    "enum": [
-                                      "Sweden"
-                                    ]
+                                    "enum": ["Sweden"]
                                   },
                                   "location": {
                                     "type": "object",
@@ -4708,10 +4066,7 @@
                                         "maximum": 180
                                       }
                                     },
-                                    "required": [
-                                      "lat",
-                                      "lng"
-                                    ]
+                                    "required": ["lat", "lng"]
                                   }
                                 }
                               },
@@ -4793,15 +4148,10 @@
                                           "maximum": 180
                                         }
                                       },
-                                      "required": [
-                                        "lat",
-                                        "lng"
-                                      ]
+                                      "required": ["lat", "lng"]
                                     }
                                   },
-                                  "required": [
-                                    "startsAt"
-                                  ]
+                                  "required": ["startsAt"]
                                 },
                                 "maxItems": 2000
                               },
@@ -4851,13 +4201,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "id",
-                                "type",
-                                "url",
-                                "label",
-                                "position"
-                              ]
+                              "required": ["id", "type", "url", "label", "position"]
                             }
                           },
                           "imageUrl": {
@@ -4936,9 +4280,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -4960,15 +4302,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -5010,15 +4347,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -5040,15 +4372,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -5088,15 +4415,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -5118,15 +4440,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -5186,10 +4503,7 @@
                                 },
                                 "mode": {
                                   "type": "string",
-                                  "enum": [
-                                    "physical",
-                                    "digital"
-                                  ]
+                                  "enum": ["physical", "digital"]
                                 },
                                 "status": {
                                   "type": "string",
@@ -5205,10 +4519,7 @@
                                 },
                                 "origin": {
                                   "type": "string",
-                                  "enum": [
-                                    "native",
-                                    "imported"
-                                  ]
+                                  "enum": ["native", "imported"]
                                 },
                                 "startsAt": {
                                   "type": "string",
@@ -5240,10 +4551,7 @@
                                       "maximum": 180
                                     }
                                   },
-                                  "required": [
-                                    "lat",
-                                    "lng"
-                                  ]
+                                  "required": ["lat", "lng"]
                                 },
                                 "geofenceRadiusM": {
                                   "type": "integer",
@@ -5284,9 +4592,7 @@
                                         },
                                         "country": {
                                           "type": "string",
-                                          "enum": [
-                                            "Sweden"
-                                          ]
+                                          "enum": ["Sweden"]
                                         },
                                         "location": {
                                           "type": "object",
@@ -5302,10 +4608,7 @@
                                               "maximum": 180
                                             }
                                           },
-                                          "required": [
-                                            "lat",
-                                            "lng"
-                                          ]
+                                          "required": ["lat", "lng"]
                                         }
                                       }
                                     },
@@ -5387,15 +4690,10 @@
                                                 "maximum": 180
                                               }
                                             },
-                                            "required": [
-                                              "lat",
-                                              "lng"
-                                            ]
+                                            "required": ["lat", "lng"]
                                           }
                                         },
-                                        "required": [
-                                          "startsAt"
-                                        ]
+                                        "required": ["startsAt"]
                                       },
                                       "maxItems": 2000
                                     },
@@ -5445,13 +4743,7 @@
                                         "minimum": 0
                                       }
                                     },
-                                    "required": [
-                                      "id",
-                                      "type",
-                                      "url",
-                                      "label",
-                                      "position"
-                                    ]
+                                    "required": ["id", "type", "url", "label", "position"]
                                   }
                                 },
                                 "imageUrl": {
@@ -5530,18 +4822,11 @@
                             }
                           }
                         },
-                        "required": [
-                          "id",
-                          "name",
-                          "createdAt",
-                          "events"
-                        ]
+                        "required": ["id", "name", "createdAt", "events"]
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -5563,15 +4848,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -5592,9 +4872,7 @@
                     "maxLength": 80
                   }
                 },
-                "required": [
-                  "name"
-                ]
+                "required": ["name"]
               }
             }
           }
@@ -5644,10 +4922,7 @@
                           },
                           "mode": {
                             "type": "string",
-                            "enum": [
-                              "physical",
-                              "digital"
-                            ]
+                            "enum": ["physical", "digital"]
                           },
                           "status": {
                             "type": "string",
@@ -5663,10 +4938,7 @@
                           },
                           "origin": {
                             "type": "string",
-                            "enum": [
-                              "native",
-                              "imported"
-                            ]
+                            "enum": ["native", "imported"]
                           },
                           "startsAt": {
                             "type": "string",
@@ -5698,10 +4970,7 @@
                                 "maximum": 180
                               }
                             },
-                            "required": [
-                              "lat",
-                              "lng"
-                            ]
+                            "required": ["lat", "lng"]
                           },
                           "geofenceRadiusM": {
                             "type": "integer",
@@ -5742,9 +5011,7 @@
                                   },
                                   "country": {
                                     "type": "string",
-                                    "enum": [
-                                      "Sweden"
-                                    ]
+                                    "enum": ["Sweden"]
                                   },
                                   "location": {
                                     "type": "object",
@@ -5760,10 +5027,7 @@
                                         "maximum": 180
                                       }
                                     },
-                                    "required": [
-                                      "lat",
-                                      "lng"
-                                    ]
+                                    "required": ["lat", "lng"]
                                   }
                                 }
                               },
@@ -5845,15 +5109,10 @@
                                           "maximum": 180
                                         }
                                       },
-                                      "required": [
-                                        "lat",
-                                        "lng"
-                                      ]
+                                      "required": ["lat", "lng"]
                                     }
                                   },
-                                  "required": [
-                                    "startsAt"
-                                  ]
+                                  "required": ["startsAt"]
                                 },
                                 "maxItems": 2000
                               },
@@ -5903,13 +5162,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "id",
-                                "type",
-                                "url",
-                                "label",
-                                "position"
-                              ]
+                              "required": ["id", "type", "url", "label", "position"]
                             }
                           },
                           "imageUrl": {
@@ -5988,12 +5241,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "id",
-                    "name",
-                    "createdAt",
-                    "events"
-                  ]
+                  "required": ["id", "name", "createdAt", "events"]
                 }
               }
             }
@@ -6015,15 +5263,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -6045,15 +5288,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -6087,9 +5325,7 @@
                     "maxLength": 80
                   }
                 },
-                "required": [
-                  "name"
-                ]
+                "required": ["name"]
               }
             }
           }
@@ -6139,10 +5375,7 @@
                           },
                           "mode": {
                             "type": "string",
-                            "enum": [
-                              "physical",
-                              "digital"
-                            ]
+                            "enum": ["physical", "digital"]
                           },
                           "status": {
                             "type": "string",
@@ -6158,10 +5391,7 @@
                           },
                           "origin": {
                             "type": "string",
-                            "enum": [
-                              "native",
-                              "imported"
-                            ]
+                            "enum": ["native", "imported"]
                           },
                           "startsAt": {
                             "type": "string",
@@ -6193,10 +5423,7 @@
                                 "maximum": 180
                               }
                             },
-                            "required": [
-                              "lat",
-                              "lng"
-                            ]
+                            "required": ["lat", "lng"]
                           },
                           "geofenceRadiusM": {
                             "type": "integer",
@@ -6237,9 +5464,7 @@
                                   },
                                   "country": {
                                     "type": "string",
-                                    "enum": [
-                                      "Sweden"
-                                    ]
+                                    "enum": ["Sweden"]
                                   },
                                   "location": {
                                     "type": "object",
@@ -6255,10 +5480,7 @@
                                         "maximum": 180
                                       }
                                     },
-                                    "required": [
-                                      "lat",
-                                      "lng"
-                                    ]
+                                    "required": ["lat", "lng"]
                                   }
                                 }
                               },
@@ -6340,15 +5562,10 @@
                                           "maximum": 180
                                         }
                                       },
-                                      "required": [
-                                        "lat",
-                                        "lng"
-                                      ]
+                                      "required": ["lat", "lng"]
                                     }
                                   },
-                                  "required": [
-                                    "startsAt"
-                                  ]
+                                  "required": ["startsAt"]
                                 },
                                 "maxItems": 2000
                               },
@@ -6398,13 +5615,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "id",
-                                "type",
-                                "url",
-                                "label",
-                                "position"
-                              ]
+                              "required": ["id", "type", "url", "label", "position"]
                             }
                           },
                           "imageUrl": {
@@ -6483,12 +5694,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "id",
-                    "name",
-                    "createdAt",
-                    "events"
-                  ]
+                  "required": ["id", "name", "createdAt", "events"]
                 }
               }
             }
@@ -6510,15 +5716,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -6540,15 +5741,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -6588,15 +5784,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -6618,15 +5809,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -6677,15 +5863,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -6707,15 +5888,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -6737,15 +5913,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -6794,15 +5965,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -6824,15 +5990,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -6887,26 +6048,16 @@
                         },
                         "kind": {
                           "type": "string",
-                          "enum": [
-                            "municipality",
-                            "county"
-                          ]
+                          "enum": ["municipality", "county"]
                         },
                         "code": {
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "id",
-                        "name",
-                        "kind",
-                        "code"
-                      ]
+                      "required": ["id", "name", "kind", "code"]
                     }
                   },
-                  "required": [
-                    "region"
-                  ]
+                  "required": ["region"]
                 }
               }
             }
@@ -6920,10 +6071,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
+              "enum": ["true", "false"]
             },
             "required": false,
             "name": "upcoming",
@@ -6954,17 +6102,11 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "id",
-                          "slug",
-                          "name"
-                        ]
+                        "required": ["id", "slug", "name"]
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -7019,10 +6161,7 @@
                           },
                           "mode": {
                             "type": "string",
-                            "enum": [
-                              "physical",
-                              "digital"
-                            ]
+                            "enum": ["physical", "digital"]
                           },
                           "status": {
                             "type": "string",
@@ -7038,10 +6177,7 @@
                           },
                           "origin": {
                             "type": "string",
-                            "enum": [
-                              "native",
-                              "imported"
-                            ]
+                            "enum": ["native", "imported"]
                           },
                           "startsAt": {
                             "type": "string",
@@ -7073,10 +6209,7 @@
                                 "maximum": 180
                               }
                             },
-                            "required": [
-                              "lat",
-                              "lng"
-                            ]
+                            "required": ["lat", "lng"]
                           },
                           "geofenceRadiusM": {
                             "type": "integer",
@@ -7117,9 +6250,7 @@
                                   },
                                   "country": {
                                     "type": "string",
-                                    "enum": [
-                                      "Sweden"
-                                    ]
+                                    "enum": ["Sweden"]
                                   },
                                   "location": {
                                     "type": "object",
@@ -7135,10 +6266,7 @@
                                         "maximum": 180
                                       }
                                     },
-                                    "required": [
-                                      "lat",
-                                      "lng"
-                                    ]
+                                    "required": ["lat", "lng"]
                                   }
                                 }
                               },
@@ -7220,15 +6348,10 @@
                                           "maximum": 180
                                         }
                                       },
-                                      "required": [
-                                        "lat",
-                                        "lng"
-                                      ]
+                                      "required": ["lat", "lng"]
                                     }
                                   },
-                                  "required": [
-                                    "startsAt"
-                                  ]
+                                  "required": ["startsAt"]
                                 },
                                 "maxItems": 2000
                               },
@@ -7278,13 +6401,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "id",
-                                "type",
-                                "url",
-                                "label",
-                                "position"
-                              ]
+                              "required": ["id", "type", "url", "label", "position"]
                             }
                           },
                           "imageUrl": {
@@ -7363,9 +6480,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -7387,15 +6502,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -7432,10 +6542,7 @@
                   },
                   "mode": {
                     "type": "string",
-                    "enum": [
-                      "physical",
-                      "digital"
-                    ]
+                    "enum": ["physical", "digital"]
                   },
                   "startsAt": {
                     "type": "string",
@@ -7469,10 +6576,7 @@
                         "maximum": 180
                       }
                     },
-                    "required": [
-                      "lat",
-                      "lng"
-                    ]
+                    "required": ["lat", "lng"]
                   },
                   "geofenceRadiusM": {
                     "type": "integer",
@@ -7502,13 +6606,7 @@
                       "properties": {
                         "type": {
                           "type": "string",
-                          "enum": [
-                            "tickets",
-                            "registration",
-                            "info",
-                            "facebook",
-                            "instagram"
-                          ]
+                          "enum": ["tickets", "registration", "info", "facebook", "instagram"]
                         },
                         "url": {
                           "type": "string",
@@ -7520,10 +6618,7 @@
                           "maxLength": 80
                         }
                       },
-                      "required": [
-                        "type",
-                        "url"
-                      ]
+                      "required": ["type", "url"]
                     },
                     "maxItems": 10,
                     "default": []
@@ -7538,12 +6633,7 @@
                     "default": []
                   }
                 },
-                "required": [
-                  "title",
-                  "mode",
-                  "startsAt",
-                  "endsAt"
-                ]
+                "required": ["title", "mode", "startsAt", "endsAt"]
               }
             }
           }
@@ -7577,10 +6667,7 @@
                     },
                     "mode": {
                       "type": "string",
-                      "enum": [
-                        "physical",
-                        "digital"
-                      ]
+                      "enum": ["physical", "digital"]
                     },
                     "status": {
                       "type": "string",
@@ -7596,10 +6683,7 @@
                     },
                     "origin": {
                       "type": "string",
-                      "enum": [
-                        "native",
-                        "imported"
-                      ]
+                      "enum": ["native", "imported"]
                     },
                     "startsAt": {
                       "type": "string",
@@ -7631,10 +6715,7 @@
                           "maximum": 180
                         }
                       },
-                      "required": [
-                        "lat",
-                        "lng"
-                      ]
+                      "required": ["lat", "lng"]
                     },
                     "geofenceRadiusM": {
                       "type": "integer",
@@ -7675,9 +6756,7 @@
                             },
                             "country": {
                               "type": "string",
-                              "enum": [
-                                "Sweden"
-                              ]
+                              "enum": ["Sweden"]
                             },
                             "location": {
                               "type": "object",
@@ -7693,10 +6772,7 @@
                                   "maximum": 180
                                 }
                               },
-                              "required": [
-                                "lat",
-                                "lng"
-                              ]
+                              "required": ["lat", "lng"]
                             }
                           }
                         },
@@ -7778,15 +6854,10 @@
                                     "maximum": 180
                                   }
                                 },
-                                "required": [
-                                  "lat",
-                                  "lng"
-                                ]
+                                "required": ["lat", "lng"]
                               }
                             },
-                            "required": [
-                              "startsAt"
-                            ]
+                            "required": ["startsAt"]
                           },
                           "maxItems": 2000
                         },
@@ -7815,13 +6886,7 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "tickets",
-                              "registration",
-                              "info",
-                              "facebook",
-                              "instagram"
-                            ]
+                            "enum": ["tickets", "registration", "info", "facebook", "instagram"]
                           },
                           "url": {
                             "type": "string",
@@ -7836,13 +6901,7 @@
                             "minimum": 0
                           }
                         },
-                        "required": [
-                          "id",
-                          "type",
-                          "url",
-                          "label",
-                          "position"
-                        ]
+                        "required": ["id", "type", "url", "label", "position"]
                       }
                     },
                     "imageUrl": {
@@ -7939,15 +6998,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -7969,15 +7023,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -8069,11 +7118,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "soonest",
-                "distance",
-                "popular"
-              ],
+              "enum": ["soonest", "distance", "popular"],
               "default": "soonest"
             },
             "required": false,
@@ -8083,10 +7128,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "free",
-                "paid"
-              ]
+              "enum": ["free", "paid"]
             },
             "required": false,
             "name": "price",
@@ -8150,10 +7192,7 @@
                           },
                           "mode": {
                             "type": "string",
-                            "enum": [
-                              "physical",
-                              "digital"
-                            ]
+                            "enum": ["physical", "digital"]
                           },
                           "status": {
                             "type": "string",
@@ -8169,10 +7208,7 @@
                           },
                           "origin": {
                             "type": "string",
-                            "enum": [
-                              "native",
-                              "imported"
-                            ]
+                            "enum": ["native", "imported"]
                           },
                           "startsAt": {
                             "type": "string",
@@ -8204,10 +7240,7 @@
                                 "maximum": 180
                               }
                             },
-                            "required": [
-                              "lat",
-                              "lng"
-                            ]
+                            "required": ["lat", "lng"]
                           },
                           "geofenceRadiusM": {
                             "type": "integer",
@@ -8248,9 +7281,7 @@
                                   },
                                   "country": {
                                     "type": "string",
-                                    "enum": [
-                                      "Sweden"
-                                    ]
+                                    "enum": ["Sweden"]
                                   },
                                   "location": {
                                     "type": "object",
@@ -8266,10 +7297,7 @@
                                         "maximum": 180
                                       }
                                     },
-                                    "required": [
-                                      "lat",
-                                      "lng"
-                                    ]
+                                    "required": ["lat", "lng"]
                                   }
                                 }
                               },
@@ -8351,15 +7379,10 @@
                                           "maximum": 180
                                         }
                                       },
-                                      "required": [
-                                        "lat",
-                                        "lng"
-                                      ]
+                                      "required": ["lat", "lng"]
                                     }
                                   },
-                                  "required": [
-                                    "startsAt"
-                                  ]
+                                  "required": ["startsAt"]
                                 },
                                 "maxItems": 2000
                               },
@@ -8409,13 +7432,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "id",
-                                "type",
-                                "url",
-                                "label",
-                                "position"
-                              ]
+                              "required": ["id", "type", "url", "label", "position"]
                             }
                           },
                           "imageUrl": {
@@ -8499,10 +7516,7 @@
                       "minimum": 0
                     }
                   },
-                  "required": [
-                    "items",
-                    "nextOffset"
-                  ]
+                  "required": ["items", "nextOffset"]
                 }
               }
             }
@@ -8558,10 +7572,7 @@
                           },
                           "mode": {
                             "type": "string",
-                            "enum": [
-                              "physical",
-                              "digital"
-                            ]
+                            "enum": ["physical", "digital"]
                           },
                           "status": {
                             "type": "string",
@@ -8577,10 +7588,7 @@
                           },
                           "origin": {
                             "type": "string",
-                            "enum": [
-                              "native",
-                              "imported"
-                            ]
+                            "enum": ["native", "imported"]
                           },
                           "startsAt": {
                             "type": "string",
@@ -8612,10 +7620,7 @@
                                 "maximum": 180
                               }
                             },
-                            "required": [
-                              "lat",
-                              "lng"
-                            ]
+                            "required": ["lat", "lng"]
                           },
                           "geofenceRadiusM": {
                             "type": "integer",
@@ -8656,9 +7661,7 @@
                                   },
                                   "country": {
                                     "type": "string",
-                                    "enum": [
-                                      "Sweden"
-                                    ]
+                                    "enum": ["Sweden"]
                                   },
                                   "location": {
                                     "type": "object",
@@ -8674,10 +7677,7 @@
                                         "maximum": 180
                                       }
                                     },
-                                    "required": [
-                                      "lat",
-                                      "lng"
-                                    ]
+                                    "required": ["lat", "lng"]
                                   }
                                 }
                               },
@@ -8759,15 +7759,10 @@
                                           "maximum": 180
                                         }
                                       },
-                                      "required": [
-                                        "lat",
-                                        "lng"
-                                      ]
+                                      "required": ["lat", "lng"]
                                     }
                                   },
-                                  "required": [
-                                    "startsAt"
-                                  ]
+                                  "required": ["startsAt"]
                                 },
                                 "maxItems": 2000
                               },
@@ -8817,13 +7812,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "id",
-                                "type",
-                                "url",
-                                "label",
-                                "position"
-                              ]
+                              "required": ["id", "type", "url", "label", "position"]
                             }
                           },
                           "imageUrl": {
@@ -8902,9 +7891,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -8954,10 +7941,7 @@
                     },
                     "mode": {
                       "type": "string",
-                      "enum": [
-                        "physical",
-                        "digital"
-                      ]
+                      "enum": ["physical", "digital"]
                     },
                     "status": {
                       "type": "string",
@@ -8973,10 +7957,7 @@
                     },
                     "origin": {
                       "type": "string",
-                      "enum": [
-                        "native",
-                        "imported"
-                      ]
+                      "enum": ["native", "imported"]
                     },
                     "startsAt": {
                       "type": "string",
@@ -9008,10 +7989,7 @@
                           "maximum": 180
                         }
                       },
-                      "required": [
-                        "lat",
-                        "lng"
-                      ]
+                      "required": ["lat", "lng"]
                     },
                     "geofenceRadiusM": {
                       "type": "integer",
@@ -9052,9 +8030,7 @@
                             },
                             "country": {
                               "type": "string",
-                              "enum": [
-                                "Sweden"
-                              ]
+                              "enum": ["Sweden"]
                             },
                             "location": {
                               "type": "object",
@@ -9070,10 +8046,7 @@
                                   "maximum": 180
                                 }
                               },
-                              "required": [
-                                "lat",
-                                "lng"
-                              ]
+                              "required": ["lat", "lng"]
                             }
                           }
                         },
@@ -9155,15 +8128,10 @@
                                     "maximum": 180
                                   }
                                 },
-                                "required": [
-                                  "lat",
-                                  "lng"
-                                ]
+                                "required": ["lat", "lng"]
                               }
                             },
-                            "required": [
-                              "startsAt"
-                            ]
+                            "required": ["startsAt"]
                           },
                           "maxItems": 2000
                         },
@@ -9192,13 +8160,7 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "tickets",
-                              "registration",
-                              "info",
-                              "facebook",
-                              "instagram"
-                            ]
+                            "enum": ["tickets", "registration", "info", "facebook", "instagram"]
                           },
                           "url": {
                             "type": "string",
@@ -9213,13 +8175,7 @@
                             "minimum": 0
                           }
                         },
-                        "required": [
-                          "id",
-                          "type",
-                          "url",
-                          "label",
-                          "position"
-                        ]
+                        "required": ["id", "type", "url", "label", "position"]
                       }
                     },
                     "imageUrl": {
@@ -9316,15 +8272,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -9374,10 +8325,7 @@
                     },
                     "mode": {
                       "type": "string",
-                      "enum": [
-                        "physical",
-                        "digital"
-                      ]
+                      "enum": ["physical", "digital"]
                     },
                     "status": {
                       "type": "string",
@@ -9393,10 +8341,7 @@
                     },
                     "origin": {
                       "type": "string",
-                      "enum": [
-                        "native",
-                        "imported"
-                      ]
+                      "enum": ["native", "imported"]
                     },
                     "startsAt": {
                       "type": "string",
@@ -9428,10 +8373,7 @@
                           "maximum": 180
                         }
                       },
-                      "required": [
-                        "lat",
-                        "lng"
-                      ]
+                      "required": ["lat", "lng"]
                     },
                     "geofenceRadiusM": {
                       "type": "integer",
@@ -9472,9 +8414,7 @@
                             },
                             "country": {
                               "type": "string",
-                              "enum": [
-                                "Sweden"
-                              ]
+                              "enum": ["Sweden"]
                             },
                             "location": {
                               "type": "object",
@@ -9490,10 +8430,7 @@
                                   "maximum": 180
                                 }
                               },
-                              "required": [
-                                "lat",
-                                "lng"
-                              ]
+                              "required": ["lat", "lng"]
                             }
                           }
                         },
@@ -9575,15 +8512,10 @@
                                     "maximum": 180
                                   }
                                 },
-                                "required": [
-                                  "lat",
-                                  "lng"
-                                ]
+                                "required": ["lat", "lng"]
                               }
                             },
-                            "required": [
-                              "startsAt"
-                            ]
+                            "required": ["startsAt"]
                           },
                           "maxItems": 2000
                         },
@@ -9612,13 +8544,7 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "tickets",
-                              "registration",
-                              "info",
-                              "facebook",
-                              "instagram"
-                            ]
+                            "enum": ["tickets", "registration", "info", "facebook", "instagram"]
                           },
                           "url": {
                             "type": "string",
@@ -9633,13 +8559,7 @@
                             "minimum": 0
                           }
                         },
-                        "required": [
-                          "id",
-                          "type",
-                          "url",
-                          "label",
-                          "position"
-                        ]
+                        "required": ["id", "type", "url", "label", "position"]
                       }
                     },
                     "imageUrl": {
@@ -9705,11 +8625,7 @@
                             "nullable": true
                           }
                         },
-                        "required": [
-                          "id",
-                          "url",
-                          "label"
-                        ]
+                        "required": ["id", "url", "label"]
                       }
                     }
                   },
@@ -9767,15 +8683,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -9797,15 +8708,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -9843,10 +8749,7 @@
                   },
                   "mode": {
                     "type": "string",
-                    "enum": [
-                      "physical",
-                      "digital"
-                    ]
+                    "enum": ["physical", "digital"]
                   },
                   "startsAt": {
                     "type": "string",
@@ -9881,10 +8784,7 @@
                         "maximum": 180
                       }
                     },
-                    "required": [
-                      "lat",
-                      "lng"
-                    ]
+                    "required": ["lat", "lng"]
                   },
                   "geofenceRadiusM": {
                     "type": "integer",
@@ -9915,13 +8815,7 @@
                       "properties": {
                         "type": {
                           "type": "string",
-                          "enum": [
-                            "tickets",
-                            "registration",
-                            "info",
-                            "facebook",
-                            "instagram"
-                          ]
+                          "enum": ["tickets", "registration", "info", "facebook", "instagram"]
                         },
                         "url": {
                           "type": "string",
@@ -9933,10 +8827,7 @@
                           "maxLength": 80
                         }
                       },
-                      "required": [
-                        "type",
-                        "url"
-                      ]
+                      "required": ["type", "url"]
                     },
                     "maxItems": 10
                   },
@@ -9968,9 +8859,7 @@
                           "maxLength": 80
                         }
                       },
-                      "required": [
-                        "url"
-                      ]
+                      "required": ["url"]
                     },
                     "maxItems": 10
                   }
@@ -10008,10 +8897,7 @@
                     },
                     "mode": {
                       "type": "string",
-                      "enum": [
-                        "physical",
-                        "digital"
-                      ]
+                      "enum": ["physical", "digital"]
                     },
                     "status": {
                       "type": "string",
@@ -10027,10 +8913,7 @@
                     },
                     "origin": {
                       "type": "string",
-                      "enum": [
-                        "native",
-                        "imported"
-                      ]
+                      "enum": ["native", "imported"]
                     },
                     "startsAt": {
                       "type": "string",
@@ -10062,10 +8945,7 @@
                           "maximum": 180
                         }
                       },
-                      "required": [
-                        "lat",
-                        "lng"
-                      ]
+                      "required": ["lat", "lng"]
                     },
                     "geofenceRadiusM": {
                       "type": "integer",
@@ -10106,9 +8986,7 @@
                             },
                             "country": {
                               "type": "string",
-                              "enum": [
-                                "Sweden"
-                              ]
+                              "enum": ["Sweden"]
                             },
                             "location": {
                               "type": "object",
@@ -10124,10 +9002,7 @@
                                   "maximum": 180
                                 }
                               },
-                              "required": [
-                                "lat",
-                                "lng"
-                              ]
+                              "required": ["lat", "lng"]
                             }
                           }
                         },
@@ -10209,15 +9084,10 @@
                                     "maximum": 180
                                   }
                                 },
-                                "required": [
-                                  "lat",
-                                  "lng"
-                                ]
+                                "required": ["lat", "lng"]
                               }
                             },
-                            "required": [
-                              "startsAt"
-                            ]
+                            "required": ["startsAt"]
                           },
                           "maxItems": 2000
                         },
@@ -10246,13 +9116,7 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "tickets",
-                              "registration",
-                              "info",
-                              "facebook",
-                              "instagram"
-                            ]
+                            "enum": ["tickets", "registration", "info", "facebook", "instagram"]
                           },
                           "url": {
                             "type": "string",
@@ -10267,13 +9131,7 @@
                             "minimum": 0
                           }
                         },
-                        "required": [
-                          "id",
-                          "type",
-                          "url",
-                          "label",
-                          "position"
-                        ]
+                        "required": ["id", "type", "url", "label", "position"]
                       }
                     },
                     "imageUrl": {
@@ -10339,11 +9197,7 @@
                             "nullable": true
                           }
                         },
-                        "required": [
-                          "id",
-                          "url",
-                          "label"
-                        ]
+                        "required": ["id", "url", "label"]
                       }
                     }
                   },
@@ -10401,15 +9255,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -10431,15 +9280,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -10489,10 +9333,7 @@
                     },
                     "mode": {
                       "type": "string",
-                      "enum": [
-                        "physical",
-                        "digital"
-                      ]
+                      "enum": ["physical", "digital"]
                     },
                     "status": {
                       "type": "string",
@@ -10508,10 +9349,7 @@
                     },
                     "origin": {
                       "type": "string",
-                      "enum": [
-                        "native",
-                        "imported"
-                      ]
+                      "enum": ["native", "imported"]
                     },
                     "startsAt": {
                       "type": "string",
@@ -10543,10 +9381,7 @@
                           "maximum": 180
                         }
                       },
-                      "required": [
-                        "lat",
-                        "lng"
-                      ]
+                      "required": ["lat", "lng"]
                     },
                     "geofenceRadiusM": {
                       "type": "integer",
@@ -10587,9 +9422,7 @@
                             },
                             "country": {
                               "type": "string",
-                              "enum": [
-                                "Sweden"
-                              ]
+                              "enum": ["Sweden"]
                             },
                             "location": {
                               "type": "object",
@@ -10605,10 +9438,7 @@
                                   "maximum": 180
                                 }
                               },
-                              "required": [
-                                "lat",
-                                "lng"
-                              ]
+                              "required": ["lat", "lng"]
                             }
                           }
                         },
@@ -10690,15 +9520,10 @@
                                     "maximum": 180
                                   }
                                 },
-                                "required": [
-                                  "lat",
-                                  "lng"
-                                ]
+                                "required": ["lat", "lng"]
                               }
                             },
-                            "required": [
-                              "startsAt"
-                            ]
+                            "required": ["startsAt"]
                           },
                           "maxItems": 2000
                         },
@@ -10727,13 +9552,7 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "tickets",
-                              "registration",
-                              "info",
-                              "facebook",
-                              "instagram"
-                            ]
+                            "enum": ["tickets", "registration", "info", "facebook", "instagram"]
                           },
                           "url": {
                             "type": "string",
@@ -10748,13 +9567,7 @@
                             "minimum": 0
                           }
                         },
-                        "required": [
-                          "id",
-                          "type",
-                          "url",
-                          "label",
-                          "position"
-                        ]
+                        "required": ["id", "type", "url", "label", "position"]
                       }
                     },
                     "imageUrl": {
@@ -10851,15 +9664,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -10881,15 +9689,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -10939,10 +9742,7 @@
                     },
                     "mode": {
                       "type": "string",
-                      "enum": [
-                        "physical",
-                        "digital"
-                      ]
+                      "enum": ["physical", "digital"]
                     },
                     "status": {
                       "type": "string",
@@ -10958,10 +9758,7 @@
                     },
                     "origin": {
                       "type": "string",
-                      "enum": [
-                        "native",
-                        "imported"
-                      ]
+                      "enum": ["native", "imported"]
                     },
                     "startsAt": {
                       "type": "string",
@@ -10993,10 +9790,7 @@
                           "maximum": 180
                         }
                       },
-                      "required": [
-                        "lat",
-                        "lng"
-                      ]
+                      "required": ["lat", "lng"]
                     },
                     "geofenceRadiusM": {
                       "type": "integer",
@@ -11037,9 +9831,7 @@
                             },
                             "country": {
                               "type": "string",
-                              "enum": [
-                                "Sweden"
-                              ]
+                              "enum": ["Sweden"]
                             },
                             "location": {
                               "type": "object",
@@ -11055,10 +9847,7 @@
                                   "maximum": 180
                                 }
                               },
-                              "required": [
-                                "lat",
-                                "lng"
-                              ]
+                              "required": ["lat", "lng"]
                             }
                           }
                         },
@@ -11140,15 +9929,10 @@
                                     "maximum": 180
                                   }
                                 },
-                                "required": [
-                                  "lat",
-                                  "lng"
-                                ]
+                                "required": ["lat", "lng"]
                               }
                             },
-                            "required": [
-                              "startsAt"
-                            ]
+                            "required": ["startsAt"]
                           },
                           "maxItems": 2000
                         },
@@ -11177,13 +9961,7 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "tickets",
-                              "registration",
-                              "info",
-                              "facebook",
-                              "instagram"
-                            ]
+                            "enum": ["tickets", "registration", "info", "facebook", "instagram"]
                           },
                           "url": {
                             "type": "string",
@@ -11198,13 +9976,7 @@
                             "minimum": 0
                           }
                         },
-                        "required": [
-                          "id",
-                          "type",
-                          "url",
-                          "label",
-                          "position"
-                        ]
+                        "required": ["id", "type", "url", "label", "position"]
                       }
                     },
                     "imageUrl": {
@@ -11301,15 +10073,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -11331,15 +10098,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -11435,9 +10197,7 @@
                       ]
                     }
                   },
-                  "required": [
-                    "pushMessage"
-                  ]
+                  "required": ["pushMessage"]
                 }
               }
             }
@@ -11459,15 +10219,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -11541,14 +10296,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "pending",
-                        "approved",
-                        "sending",
-                        "sent",
-                        "rejected",
-                        "cancelled"
-                      ]
+                      "enum": ["pending", "approved", "sending", "sent", "rejected", "cancelled"]
                     },
                     "titleSv": {
                       "type": "string"
@@ -11613,15 +10361,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -11643,15 +10386,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -11691,10 +10429,7 @@
                           },
                           "status": {
                             "type": "string",
-                            "enum": [
-                              "sending",
-                              "sent"
-                            ]
+                            "enum": ["sending", "sent"]
                           },
                           "audience": {
                             "type": "string",
@@ -11758,9 +10493,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -11782,15 +10515,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -11812,15 +10540,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -11863,18 +10586,11 @@
                             "format": "date-time"
                           }
                         },
-                        "required": [
-                          "eventId",
-                          "publisherId",
-                          "tagIds",
-                          "createdAt"
-                        ]
+                        "required": ["eventId", "publisherId", "tagIds", "createdAt"]
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -11896,15 +10612,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -11951,13 +10662,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": [
-                    "checkedIn",
-                    "open",
-                    "opensAt",
-                    "closesAt",
-                    "codeActive"
-                  ]
+                  "required": ["checkedIn", "open", "opensAt", "closesAt", "codeActive"]
                 }
               }
             }
@@ -11979,15 +10684,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12009,15 +10709,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12059,10 +10754,7 @@
                         "maximum": 180
                       }
                     },
-                    "required": [
-                      "lat",
-                      "lng"
-                    ]
+                    "required": ["lat", "lng"]
                   },
                   "accuracyM": {
                     "type": "number",
@@ -12070,10 +10762,7 @@
                     "maximum": 10000
                   }
                 },
-                "required": [
-                  "location",
-                  "accuracyM"
-                ]
+                "required": ["location", "accuracyM"]
               }
             }
           }
@@ -12100,23 +10789,14 @@
                     },
                     "method": {
                       "type": "string",
-                      "enum": [
-                        "geo",
-                        "code"
-                      ]
+                      "enum": ["geo", "code"]
                     },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "id",
-                    "eventId",
-                    "userId",
-                    "method",
-                    "createdAt"
-                  ]
+                  "required": ["id", "eventId", "userId", "method", "createdAt"]
                 }
               }
             }
@@ -12138,15 +10818,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12168,15 +10843,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12198,15 +10868,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12228,15 +10893,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12270,9 +10930,7 @@
                     "maxLength": 16
                   }
                 },
-                "required": [
-                  "code"
-                ]
+                "required": ["code"]
               }
             }
           }
@@ -12299,23 +10957,14 @@
                     },
                     "method": {
                       "type": "string",
-                      "enum": [
-                        "geo",
-                        "code"
-                      ]
+                      "enum": ["geo", "code"]
                     },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "id",
-                    "eventId",
-                    "userId",
-                    "method",
-                    "createdAt"
-                  ]
+                  "required": ["id", "eventId", "userId", "method", "createdAt"]
                 }
               }
             }
@@ -12337,15 +10986,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12367,15 +11011,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12397,15 +11036,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12427,15 +11061,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12517,15 +11146,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12547,15 +11171,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12577,15 +11196,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12667,15 +11281,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12697,15 +11306,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12727,15 +11331,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12779,12 +11378,7 @@
                           },
                           "kind": {
                             "type": "string",
-                            "enum": [
-                              "map",
-                              "schedule",
-                              "info",
-                              "file"
-                            ]
+                            "enum": ["map", "schedule", "info", "file"]
                           },
                           "title": {
                             "type": "string"
@@ -12795,10 +11389,7 @@
                           },
                           "visibility": {
                             "type": "string",
-                            "enum": [
-                              "public",
-                              "attendees"
-                            ]
+                            "enum": ["public", "attendees"]
                           },
                           "url": {
                             "type": "string",
@@ -12853,20 +11444,11 @@
                             "nullable": true
                           }
                         },
-                        "required": [
-                          "id",
-                          "url",
-                          "label"
-                        ]
+                        "required": ["id", "url", "label"]
                       }
                     }
                   },
-                  "required": [
-                    "items",
-                    "checkedIn",
-                    "attendeeText",
-                    "attendeeLinks"
-                  ]
+                  "required": ["items", "checkedIn", "attendeeText", "attendeeLinks"]
                 }
               }
             }
@@ -12888,15 +11470,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -12940,12 +11517,7 @@
                           },
                           "kind": {
                             "type": "string",
-                            "enum": [
-                              "map",
-                              "schedule",
-                              "info",
-                              "file"
-                            ]
+                            "enum": ["map", "schedule", "info", "file"]
                           },
                           "title": {
                             "type": "string"
@@ -12956,10 +11528,7 @@
                           },
                           "visibility": {
                             "type": "string",
-                            "enum": [
-                              "public",
-                              "attendees"
-                            ]
+                            "enum": ["public", "attendees"]
                           },
                           "url": {
                             "type": "string",
@@ -12990,9 +11559,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -13014,15 +11581,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13044,15 +11606,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13074,15 +11631,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13110,12 +11662,7 @@
                 "properties": {
                   "kind": {
                     "type": "string",
-                    "enum": [
-                      "map",
-                      "schedule",
-                      "info",
-                      "file"
-                    ]
+                    "enum": ["map", "schedule", "info", "file"]
                   },
                   "title": {
                     "type": "string",
@@ -13135,16 +11682,10 @@
                   },
                   "visibility": {
                     "type": "string",
-                    "enum": [
-                      "public",
-                      "attendees"
-                    ]
+                    "enum": ["public", "attendees"]
                   }
                 },
-                "required": [
-                  "kind",
-                  "title"
-                ]
+                "required": ["kind", "title"]
               }
             }
           }
@@ -13167,12 +11708,7 @@
                     },
                     "kind": {
                       "type": "string",
-                      "enum": [
-                        "map",
-                        "schedule",
-                        "info",
-                        "file"
-                      ]
+                      "enum": ["map", "schedule", "info", "file"]
                     },
                     "title": {
                       "type": "string"
@@ -13183,10 +11719,7 @@
                     },
                     "visibility": {
                       "type": "string",
-                      "enum": [
-                        "public",
-                        "attendees"
-                      ]
+                      "enum": ["public", "attendees"]
                     },
                     "url": {
                       "type": "string",
@@ -13235,15 +11768,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13265,15 +11793,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13295,15 +11818,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13333,12 +11851,7 @@
                 "properties": {
                   "kind": {
                     "type": "string",
-                    "enum": [
-                      "map",
-                      "schedule",
-                      "info",
-                      "file"
-                    ]
+                    "enum": ["map", "schedule", "info", "file"]
                   },
                   "title": {
                     "type": "string",
@@ -13358,10 +11871,7 @@
                   },
                   "visibility": {
                     "type": "string",
-                    "enum": [
-                      "public",
-                      "attendees"
-                    ]
+                    "enum": ["public", "attendees"]
                   }
                 }
               }
@@ -13386,12 +11896,7 @@
                     },
                     "kind": {
                       "type": "string",
-                      "enum": [
-                        "map",
-                        "schedule",
-                        "info",
-                        "file"
-                      ]
+                      "enum": ["map", "schedule", "info", "file"]
                     },
                     "title": {
                       "type": "string"
@@ -13402,10 +11907,7 @@
                     },
                     "visibility": {
                       "type": "string",
-                      "enum": [
-                        "public",
-                        "attendees"
-                      ]
+                      "enum": ["public", "attendees"]
                     },
                     "url": {
                       "type": "string",
@@ -13454,15 +11956,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13484,15 +11981,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13514,15 +12006,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13562,15 +12049,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13592,15 +12074,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13622,15 +12099,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13691,20 +12163,10 @@
                           "minimum": 0
                         }
                       },
-                      "required": [
-                        "average",
-                        "count"
-                      ]
+                      "required": ["average", "count"]
                     }
                   },
-                  "required": [
-                    "canRate",
-                    "hasRated",
-                    "opensAt",
-                    "closesAt",
-                    "myScore",
-                    "aggregate"
-                  ]
+                  "required": ["canRate", "hasRated", "opensAt", "closesAt", "myScore", "aggregate"]
                 }
               }
             }
@@ -13726,15 +12188,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13773,9 +12230,7 @@
                     "maxLength": 2000
                   }
                 },
-                "required": [
-                  "score"
-                ]
+                "required": ["score"]
               }
             }
           }
@@ -13814,14 +12269,7 @@
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "id",
-                    "eventId",
-                    "userId",
-                    "score",
-                    "comment",
-                    "createdAt"
-                  ]
+                  "required": ["id", "eventId", "userId", "score", "comment", "createdAt"]
                 }
               }
             }
@@ -13843,15 +12291,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13873,15 +12316,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13903,15 +12341,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -13933,15 +12366,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -14028,16 +12456,10 @@
                           "minimum": 0
                         }
                       },
-                      "required": [
-                        "average",
-                        "count"
-                      ]
+                      "required": ["average", "count"]
                     }
                   },
-                  "required": [
-                    "items",
-                    "aggregate"
-                  ]
+                  "required": ["items", "aggregate"]
                 }
               }
             }
@@ -14059,15 +12481,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -14089,15 +12506,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -14119,15 +12531,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -14169,11 +12576,7 @@
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "id",
-                    "eventId",
-                    "createdAt"
-                  ]
+                  "required": ["id", "eventId", "createdAt"]
                 }
               }
             }
@@ -14198,11 +12601,7 @@
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "id",
-                    "eventId",
-                    "createdAt"
-                  ]
+                  "required": ["id", "eventId", "createdAt"]
                 }
               }
             }
@@ -14224,15 +12623,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -14254,15 +12648,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -14284,15 +12673,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -14306,11 +12690,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "user",
-                "event",
-                "publisher"
-              ]
+              "enum": ["user", "event", "publisher"]
             },
             "required": true,
             "name": "sourceType",
@@ -14365,11 +12745,7 @@
                         "properties": {
                           "sourceType": {
                             "type": "string",
-                            "enum": [
-                              "user",
-                              "event",
-                              "publisher"
-                            ]
+                            "enum": ["user", "event", "publisher"]
                           },
                           "sourceId": {
                             "type": "string",
@@ -14401,9 +12777,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -14425,15 +12799,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -14455,15 +12824,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -14485,15 +12849,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -14515,15 +12874,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -14535,11 +12889,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "user",
-                "event",
-                "publisher"
-              ]
+              "enum": ["user", "event", "publisher"]
             },
             "required": true,
             "name": "sourceType",
@@ -14579,9 +12929,7 @@
                       "type": "number"
                     }
                   },
-                  "required": [
-                    "key"
-                  ]
+                  "required": ["key"]
                 },
                 "minItems": 1,
                 "maxItems": 200
@@ -14604,11 +12952,7 @@
                         "properties": {
                           "sourceType": {
                             "type": "string",
-                            "enum": [
-                              "user",
-                              "event",
-                              "publisher"
-                            ]
+                            "enum": ["user", "event", "publisher"]
                           },
                           "sourceId": {
                             "type": "string",
@@ -14640,9 +12984,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "items"
-                  ]
+                  "required": ["items"]
                 }
               }
             }
@@ -14664,15 +13006,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }
@@ -14694,15 +13031,10 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "required": ["code", "message"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ]
+                  "required": ["error"]
                 }
               }
             }

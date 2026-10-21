@@ -174,7 +174,12 @@ describe('scanPendingEvents', () => {
 
     const summary = await scanPendingEvents(store, runner);
 
-    expect(summary).toMatchObject({ claimed: 2, published: 1, unavailable: 1, unavailable_timeout: 0 });
+    expect(summary).toMatchObject({
+      claimed: 2,
+      published: 1,
+      unavailable: 1,
+      unavailable_timeout: 0,
+    });
     const pending = store.events.filter((row) => row.status === 'pending_scan');
     const published = store.events.filter((row) => row.status === 'published');
     expect(pending).toHaveLength(1);
@@ -190,7 +195,11 @@ describe('scanPendingEvents', () => {
       id: 'timeout',
       lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
-        return batch.map((item): ScanOutcome => ({ ok: false, eventId: item.eventId, reason: 'timeout' }));
+        return batch.map((item): ScanOutcome => ({
+          ok: false,
+          eventId: item.eventId,
+          reason: 'timeout',
+        }));
       },
     };
 
@@ -479,11 +488,14 @@ describe('scanPendingEvents', () => {
 
     await scanPendingEvents(store, runner);
 
-    const groupId = store.events.find((row) => row.title === 'Konsert')?.meta.possibleOccasionGroupId;
+    const groupId = store.events.find((row) => row.title === 'Konsert')?.meta
+      .possibleOccasionGroupId;
     expect(groupId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
-    expect(store.events.find((row) => row.id === siblingId)?.meta.possibleOccasionGroupId).toBe(groupId);
+    expect(store.events.find((row) => row.id === siblingId)?.meta.possibleOccasionGroupId).toBe(
+      groupId,
+    );
   });
 
   it('keeps the occasion group when the matched event is scanned later in the batch', async () => {
@@ -587,21 +599,19 @@ describe('scanPendingEvents', () => {
       id: 'shared-key',
       lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
-        return batch.map(
-          (item): ScanOutcome => ({
-            ok: true,
-            eventId: item.eventId,
-            publisher: {
-              kind: 'temporary',
-              name: 'Second',
-              organizerKeys: item.organizer.keys,
-            },
-            duplicate: null,
-            approved: true,
-            tags: [],
-            ...scanned,
-          }),
-        );
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Second',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
       },
     });
 

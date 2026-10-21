@@ -27,9 +27,7 @@ export {
  * Prefer DATABASE_URL. In ECS we inject discrete DB_* fields from the RDS secret
  * and assemble a URL here (passwords may contain characters that need encoding).
  */
-export function resolveDatabaseUrl(
-  env: NodeJS.ProcessEnv = process.env,
-): string | undefined {
+export function resolveDatabaseUrl(env: NodeJS.ProcessEnv = process.env): string | undefined {
   if (env.DATABASE_URL) return env.DATABASE_URL;
   const host = env.DB_HOST;
   const user = env.DB_USER;

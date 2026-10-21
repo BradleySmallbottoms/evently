@@ -11,8 +11,20 @@
       "address": "Bjuråkers bibliotek, 824 95 Bjuråker",
       "links": [],
       "occasions": [
-        { "day": 20, "month": 10, "start": "18:00", "end": "19:30", "venue": "Bjuråkers bibliotek" },
-        { "day": 17, "month": 11, "start": "18:00", "end": "19:30", "venue": "Bjuråkers bibliotek" },
+        {
+          "day": 20,
+          "month": 10,
+          "start": "18:00",
+          "end": "19:30",
+          "venue": "Bjuråkers bibliotek"
+        },
+        {
+          "day": 17,
+          "month": 11,
+          "start": "18:00",
+          "end": "19:30",
+          "venue": "Bjuråkers bibliotek"
+        },
         { "day": 15, "month": 12, "start": "18:00", "end": "19:30", "venue": "Bjuråkers bibliotek" }
       ]
     }

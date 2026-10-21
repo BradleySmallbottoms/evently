@@ -1,4 +1,9 @@
-import type { DuplicateSignal, MarketingPushPlanId, PublisherStatus, SourceTrust } from '@local-events/domain';
+import type {
+  DuplicateSignal,
+  MarketingPushPlanId,
+  PublisherStatus,
+  SourceTrust,
+} from '@local-events/domain';
 import type { TagChoice } from '@local-events/ingest';
 
 /** Event text plus the organizer keys saved at import. The runner loads everything else. */
@@ -107,8 +112,7 @@ export interface PublisherLookup {
  * `unavailable` means the model or the web search could not run, so the publisher stays `pending_scan`.
  */
 export type PublisherLookupOutcome =
-  | { ok: true; profile: PublisherLookup | null }
-  | { ok: false; reason: 'unavailable' };
+  { ok: true; profile: PublisherLookup | null } | { ok: false; reason: 'unavailable' };
 
 /**
  * Scans a batch. Each client decides how to look up publishers and duplicates,

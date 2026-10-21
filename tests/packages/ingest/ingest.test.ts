@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { contentHash, IncomingEvent, isLikelySameEvent, titleSimilarity } from '../../../packages/ingest/src/index';
+import {
+  contentHash,
+  IncomingEvent,
+  isLikelySameEvent,
+  titleSimilarity,
+} from '../../../packages/ingest/src/index';
 
 const raw = {
   externalId: 'abc-1',

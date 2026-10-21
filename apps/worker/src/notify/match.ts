@@ -221,9 +221,7 @@ export async function countUnreadNotifications(db: NotifyDb, userId: string): Pr
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(schema.notifications)
-    .where(
-      and(eq(schema.notifications.userId, userId), isNull(schema.notifications.readAt)),
-    );
+    .where(and(eq(schema.notifications.userId, userId), isNull(schema.notifications.readAt)));
   return Number(row?.count ?? 0);
 }
 

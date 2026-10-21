@@ -1,11 +1,7 @@
 import type { CreateRatingRequest, Rating } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
-import {
-  canComment,
-  canRate,
-  RATING_WINDOW_DAYS,
-} from '@local-events/domain';
+import { canComment, canRate, RATING_WINDOW_DAYS } from '@local-events/domain';
 import { and, avg, count, eq, isNull } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
@@ -67,18 +63,14 @@ export function createDbRatingServices(
           const [mine] = await db
             .select({ score: schema.ratings.score })
             .from(schema.ratings)
-            .where(
-              and(eq(schema.ratings.userId, userId), eq(schema.ratings.eventId, eventId)),
-            )
+            .where(and(eq(schema.ratings.userId, userId), eq(schema.ratings.eventId, eventId)))
             .limit(1);
           hasRated = Boolean(mine);
           myScore = mine?.score ?? null;
           const [checkIn] = await db
             .select({ id: schema.checkIns.id })
             .from(schema.checkIns)
-            .where(
-              and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)),
-            )
+            .where(and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)))
             .limit(1);
           can = canRate({
             hasCheckIn: Boolean(checkIn),
@@ -113,16 +105,12 @@ export function createDbRatingServices(
       const [checkIn] = await db
         .select({ id: schema.checkIns.id })
         .from(schema.checkIns)
-        .where(
-          and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)),
-        )
+        .where(and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)))
         .limit(1);
       const [existing] = await db
         .select({ id: schema.ratings.id })
         .from(schema.ratings)
-        .where(
-          and(eq(schema.ratings.userId, userId), eq(schema.ratings.eventId, eventId)),
-        )
+        .where(and(eq(schema.ratings.userId, userId), eq(schema.ratings.eventId, eventId)))
         .limit(1);
       if (
         !canRate({
@@ -151,13 +139,15 @@ export function createDbRatingServices(
       }
 
       const createdAt = now();
-      let inserted: {
-        id: string;
-        userId: string;
-        eventId: string;
-        score: number;
-        createdAt: Date;
-      } | undefined;
+      let inserted:
+        | {
+            id: string;
+            userId: string;
+            eventId: string;
+            score: number;
+            createdAt: Date;
+          }
+        | undefined;
       try {
         const rows = await db
           .insert(schema.ratings)

@@ -98,7 +98,7 @@ async function persistWholeRun(
   const saved = await saveIncomingEvents(
     store,
     source,
-      await namedEvents(run.events, config),
+    await namedEvents(run.events, config),
     enqueue,
     images,
   );

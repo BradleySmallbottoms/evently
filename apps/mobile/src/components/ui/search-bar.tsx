@@ -31,7 +31,14 @@ const barStyle = {
   paddingVertical: space.md,
 };
 
-export function SearchBar({ value, onChangeText, placeholder, autoFocus, inputRef, onPress }: Props) {
+export function SearchBar({
+  value,
+  onChangeText,
+  placeholder,
+  autoFocus,
+  inputRef,
+  onPress,
+}: Props) {
   const { t } = useTranslation();
   if (onPress) {
     return (

@@ -34,14 +34,21 @@ describe('searchWeb', () => {
       });
     };
 
-    const result = await executePublisherTool('searchWeb', { query: 'Föreningen Söderhamn' }, session(), deps(fetchImpl));
+    const result = await executePublisherTool(
+      'searchWeb',
+      { query: 'Föreningen Söderhamn' },
+      session(),
+      deps(fetchImpl),
+    );
 
     const url = new URL(requested);
     expect(url.searchParams.get('country')).toBe('SE');
     expect(url.searchParams.get('search_lang')).toBe('sv');
     expect(url.searchParams.get('count')).toBe('5');
     expect(result).toEqual({
-      results: [{ title: 'Föreningen', url: 'https://foreningen.se/om', description: 'Officiell sida' }],
+      results: [
+        { title: 'Föreningen', url: 'https://foreningen.se/om', description: 'Officiell sida' },
+      ],
     });
   });
 
@@ -98,11 +105,23 @@ describe('fetchPage', () => {
       return new Response('no');
     };
     const options = deps(fetchImpl);
-    expect(await executePublisherTool('fetchPage', { url: 'https://127.0.0.1/secret' }, session(), options)).toEqual({
+    expect(
+      await executePublisherTool(
+        'fetchPage',
+        { url: 'https://127.0.0.1/secret' },
+        session(),
+        options,
+      ),
+    ).toEqual({
       error: 'That address is not allowed.',
     });
     expect(
-      await executePublisherTool('fetchPage', { url: 'https://10.1.2.3/secret' }, session(), options),
+      await executePublisherTool(
+        'fetchPage',
+        { url: 'https://10.1.2.3/secret' },
+        session(),
+        options,
+      ),
     ).toEqual({ error: 'That address is not allowed.' });
     const resolved = await executePublisherTool(
       'fetchPage',
@@ -153,7 +172,10 @@ describe('fetchPage', () => {
       { url: 'https://foreningen.se/om', cookie: null },
       { url: 'https://foreningen.se/in', cookie: 'sid=abc' },
     ]);
-    expect(loaded).toMatchObject({ url: 'https://foreningen.se/in', html: expect.stringContaining('Hej') });
+    expect(loaded).toMatchObject({
+      url: 'https://foreningen.se/in',
+      html: expect.stringContaining('Hej'),
+    });
   });
 
   it('keeps a host cookie off a redirect to another site', async () => {

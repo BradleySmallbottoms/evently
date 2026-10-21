@@ -67,11 +67,7 @@ export async function handleEventPublished(
   const nearby = event.hasLocation
     ? await findNearbyMatchedUsers(deps.db, eventId, MATCH_LIMIT)
     : [];
-  const publisherSubs = await findPublisherSubscriberUsers(
-    deps.db,
-    event.publisherId,
-    MATCH_LIMIT,
-  );
+  const publisherSubs = await findPublisherSubscriberUsers(deps.db, event.publisherId, MATCH_LIMIT);
   if (nearby.length >= MATCH_LIMIT || publisherSubs.length >= MATCH_LIMIT) {
     console.warn(
       JSON.stringify({

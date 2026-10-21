@@ -42,7 +42,9 @@ export function TravelDistanceSetting({ value, disabled, onChange }: Props) {
 
   return (
     <View style={{ gap: space.sm }}>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+      <View
+        style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}
+      >
         <AppText variant="subtitle">{t('preferences.travelDistanceTitle')}</AppText>
         <AppText variant="label" style={{ color: colors.ink, fontWeight: '600' }}>
           {t('preferences.radiusKm', { km: STOPS_KM[index] })}

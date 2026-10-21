@@ -32,7 +32,6 @@ function monthOrder(value: Month) {
   return value.y * 12 + value.m;
 }
 
-
 export function formatMonthChip(
   year: number,
   month: number,
@@ -48,21 +47,20 @@ export function formatMonthChip(
     <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }}>
       <AppText
         variant="label"
-        style={{ color: selected ? colors.accentDeep : colors.ink, fontSize: 14 }
-        }
+        style={{ color: selected ? colors.accentDeep : colors.ink, fontSize: 14 }}
       >
         {label}
       </AppText>
-      {year !== selectedYear && (<AppText
-        variant="caption"
-        style={{ color: selected ? colors.ink : colors.inkMuted, fontSize: 10 }
-        }
-      >
-        {year}
-      </AppText>
+      {year !== selectedYear && (
+        <AppText
+          variant="caption"
+          style={{ color: selected ? colors.ink : colors.inkMuted, fontSize: 10 }}
+        >
+          {year}
+        </AppText>
       )}
     </View>
-  )
+  );
 }
 
 export function MonthStrip({ year, month, earliest, locale, yearLabel, onYear, onMonth }: Props) {
@@ -86,7 +84,13 @@ export function MonthStrip({ year, month, earliest, locale, yearLabel, onYear, o
         <View
           accessibilityRole="button"
           accessibilityLabel={`${yearLabel}, ${year}`}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 2, paddingVertical: space.lg, paddingHorizontal: space.md }}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 2,
+            paddingVertical: space.lg,
+            paddingHorizontal: space.md,
+          }}
         >
           <AppText variant="subtitle" style={{ fontSize: 16 }}>
             {year}

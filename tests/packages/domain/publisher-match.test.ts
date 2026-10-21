@@ -46,7 +46,12 @@ describe('choosePublisher', () => {
   it('reuses an email from another source and prefers a verified publisher', () => {
     const chosen = choosePublisher('this-source', ['kansli@example.com'], slugs, [
       row({ publisherId: 'older', key: 'kansli@example.com', createdAt: 1 }),
-      row({ publisherId: 'verified', key: 'kansli@example.com', status: 'published', createdAt: 9 }),
+      row({
+        publisherId: 'verified',
+        key: 'kansli@example.com',
+        status: 'published',
+        createdAt: 9,
+      }),
     ]);
     expect(chosen?.publisherId).toBe('verified');
   });

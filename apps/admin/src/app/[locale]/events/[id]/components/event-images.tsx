@@ -22,23 +22,23 @@ export function EventImages({ imageUrl, imageUrls }: Props) {
         <CardTitle>{t('images')}</CardTitle>
       </CardHeader>
       <CardContent>
-      {images.length === 0 ? (
-        <EmptyState icon={ImageIcon} title={t('imagesEmpty')} />
-      ) : (
-        <div className="flex flex-wrap gap-4">
-          {images.map((url, index) => (
-            <EventImage
-              key={url}
-              url={url}
-              label={
-                index === 0 && imageUrl
-                  ? t('imageHero')
-                  : t('imageGallery', { n: imageUrl ? index : index + 1 })
-              }
-            />
-          ))}
-        </div>
-      )}
+        {images.length === 0 ? (
+          <EmptyState icon={ImageIcon} title={t('imagesEmpty')} />
+        ) : (
+          <div className="flex flex-wrap gap-4">
+            {images.map((url, index) => (
+              <EventImage
+                key={url}
+                url={url}
+                label={
+                  index === 0 && imageUrl
+                    ? t('imageHero')
+                    : t('imageGallery', { n: imageUrl ? index : index + 1 })
+                }
+              />
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

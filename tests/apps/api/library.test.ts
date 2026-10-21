@@ -19,7 +19,10 @@ async function createUserSession(app: ReturnType<typeof createApp>) {
   return (await created.json()) as { sessionToken: string };
 }
 
-async function publishEvent(app: ReturnType<typeof createApp>, store: ReturnType<typeof createMemoryStore>) {
+async function publishEvent(
+  app: ReturnType<typeof createApp>,
+  store: ReturnType<typeof createMemoryStore>,
+) {
   const registered = await app.request('/v1/publishers/register', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -109,7 +112,10 @@ describe('saved events and lists', () => {
 
   it('saves a published event and rejects an unknown one', async () => {
     const store = createMemoryStore();
-    const auth = createMemoryAuthServices({ includeVerificationToken: true, now: () => new Date() }, store);
+    const auth = createMemoryAuthServices(
+      { includeVerificationToken: true, now: () => new Date() },
+      store,
+    );
     const events = createMemoryEventServices(auth, { now: () => new Date() }, store);
     const library = createMemoryLibraryServices(auth, store);
     const app = createApp({ auth, events, library });
@@ -127,13 +133,16 @@ describe('saved events and lists', () => {
     expect(body.items.map((item) => item.id)).toEqual([eventId]);
     expect(body.items[0]?.priceAmount).toBe(0);
 
-    const missing = await app.request(
-      '/v1/me/saved-events/11111111-1111-4111-8111-111111111199',
-      { method: 'PUT', headers },
-    );
+    const missing = await app.request('/v1/me/saved-events/11111111-1111-4111-8111-111111111199', {
+      method: 'PUT',
+      headers,
+    });
     expect(missing.status).toBe(404);
 
-    const removed = await app.request(`/v1/me/saved-events/${eventId}`, { method: 'DELETE', headers });
+    const removed = await app.request(`/v1/me/saved-events/${eventId}`, {
+      method: 'DELETE',
+      headers,
+    });
     expect(removed.status).toBe(204);
     const empty = await app.request('/v1/me/saved-events', { headers });
     expect(((await empty.json()) as { items: unknown[] }).items).toHaveLength(0);
@@ -143,7 +152,10 @@ describe('saved events and lists', () => {
 
   it('marks coming once and emits a stats event only when the row changes', async () => {
     const store = createMemoryStore();
-    const auth = createMemoryAuthServices({ includeVerificationToken: true, now: () => new Date() }, store);
+    const auth = createMemoryAuthServices(
+      { includeVerificationToken: true, now: () => new Date() },
+      store,
+    );
     const events = createMemoryEventServices(auth, { now: () => new Date() }, store);
     const domainEvents = createMemoryDomainEventPublisher();
     const library = createMemoryLibraryServices(auth, store, { domainEvents });
@@ -159,9 +171,9 @@ describe('saved events and lists', () => {
     expect(domainEvents.events.filter((event) => event.type === 'event.coming')).toHaveLength(1);
 
     const list = await app.request('/v1/me/coming-events', { headers });
-    expect(((await list.json()) as { items: { id: string }[] }).items.map((item) => item.id)).toEqual([
-      eventId,
-    ]);
+    expect(
+      ((await list.json()) as { items: { id: string }[] }).items.map((item) => item.id),
+    ).toEqual([eventId]);
 
     const removed = await app.request(`/v1/me/coming-events/${eventId}`, {
       method: 'DELETE',
@@ -175,7 +187,10 @@ describe('saved events and lists', () => {
 
   it('emits a save event only for a new bookmark', async () => {
     const store = createMemoryStore();
-    const auth = createMemoryAuthServices({ includeVerificationToken: true, now: () => new Date() }, store);
+    const auth = createMemoryAuthServices(
+      { includeVerificationToken: true, now: () => new Date() },
+      store,
+    );
     const events = createMemoryEventServices(auth, { now: () => new Date() }, store);
     const domainEvents = createMemoryDomainEventPublisher();
     const library = createMemoryLibraryServices(auth, store, { domainEvents });
@@ -193,7 +208,10 @@ describe('saved events and lists', () => {
 
   it('creates a list, adds the event, and enforces the list cap', async () => {
     const store = createMemoryStore();
-    const auth = createMemoryAuthServices({ includeVerificationToken: true, now: () => new Date() }, store);
+    const auth = createMemoryAuthServices(
+      { includeVerificationToken: true, now: () => new Date() },
+      store,
+    );
     const events = createMemoryEventServices(auth, { now: () => new Date() }, store);
     const library = createMemoryLibraryServices(auth, store);
     const app = createApp({ auth, events, library });
@@ -238,7 +256,10 @@ describe('saved events and lists', () => {
 
   it('hides one user’s lists and saves from another user', async () => {
     const store = createMemoryStore();
-    const auth = createMemoryAuthServices({ includeVerificationToken: true, now: () => new Date() }, store);
+    const auth = createMemoryAuthServices(
+      { includeVerificationToken: true, now: () => new Date() },
+      store,
+    );
     const events = createMemoryEventServices(auth, { now: () => new Date() }, store);
     const library = createMemoryLibraryServices(auth, store);
     const app = createApp({ auth, events, library });
@@ -295,7 +316,9 @@ describe('saved events and lists', () => {
     expect(removed.status).toBe(404);
 
     const stillThere = await app.request('/v1/me/lists', { headers: ownerHeaders });
-    const ownerLists = (await stillThere.json()) as { items: { id: string; name: string; events: { id: string }[] }[] };
+    const ownerLists = (await stillThere.json()) as {
+      items: { id: string; name: string; events: { id: string }[] }[];
+    };
     expect(ownerLists.items).toEqual([
       expect.objectContaining({
         id: list.id,
@@ -307,7 +330,10 @@ describe('saved events and lists', () => {
 
   it('filters the public list by price and text', async () => {
     const store = createMemoryStore();
-    const auth = createMemoryAuthServices({ includeVerificationToken: true, now: () => new Date() }, store);
+    const auth = createMemoryAuthServices(
+      { includeVerificationToken: true, now: () => new Date() },
+      store,
+    );
     const events = createMemoryEventServices(auth, { now: () => new Date() }, store);
     const app = createApp({ auth, events });
     await publishEvent(app, store);

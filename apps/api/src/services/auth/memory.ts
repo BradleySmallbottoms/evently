@@ -451,9 +451,7 @@ export function createMemoryAuthServices(
     async registerPushToken(sessionToken, input) {
       const { userId } = await this.requireUserSession(sessionToken);
       const device = [...devices.values()].find(
-        (d) =>
-          d.credentialHash === hashToken(input.deviceCredential) &&
-          !d.revokedAt,
+        (d) => d.credentialHash === hashToken(input.deviceCredential) && !d.revokedAt,
       );
       if (!device || device.userId !== userId) throw new AuthError('invalid_credentials');
       device.expoPushToken = input.expoPushToken;
@@ -516,10 +514,7 @@ export function createMemoryAuthServices(
       return {
         items: invites
           .filter(
-            (i) =>
-              i.publisherId === publisherId &&
-              i.acceptedAt === null &&
-              i.expiresAt > now,
+            (i) => i.publisherId === publisherId && i.acceptedAt === null && i.expiresAt > now,
           )
           .map((i) => ({
             id: i.id,
@@ -539,22 +534,16 @@ export function createMemoryAuthServices(
       const now = env.now();
       const memberCount = members.filter((m) => m.publisherId === publisherId).length;
       const pendingCount = invites.filter(
-        (i) =>
-          i.publisherId === publisherId &&
-          i.acceptedAt === null &&
-          i.expiresAt > now,
+        (i) => i.publisherId === publisherId && i.acceptedAt === null && i.expiresAt > now,
       ).length;
       if (!canInviteAnotherMember(entitlementsFor(publisherId), memberCount + pendingCount)) {
         throw new AuthError('member_limit');
       }
 
-      const existingAccount = [...accounts.values()].find(
-        (a) => normalizeEmail(a.email) === email,
-      );
+      const existingAccount = [...accounts.values()].find((a) => normalizeEmail(a.email) === email);
       if (existingAccount) {
         const existingMember = members.find(
-          (m) =>
-            m.publisherId === publisherId && m.publisherAccountId === existingAccount.id,
+          (m) => m.publisherId === publisherId && m.publisherAccountId === existingAccount.id,
         );
         if (existingMember) throw new AuthError('already_member');
       }
@@ -596,10 +585,7 @@ export function createMemoryAuthServices(
       const account = await resolvePublisherSession(sessionToken);
       const now = env.now();
       const invite = invites.find(
-        (i) =>
-          i.tokenHash === hashToken(input.token) &&
-          i.acceptedAt === null &&
-          i.expiresAt > now,
+        (i) => i.tokenHash === hashToken(input.token) && i.acceptedAt === null && i.expiresAt > now,
       );
       if (!invite) throw new AuthError('invalid_token');
       if (normalizeEmail(account.email) !== normalizeEmail(invite.email)) {
@@ -607,8 +593,7 @@ export function createMemoryAuthServices(
       }
 
       const existing = members.find(
-        (m) =>
-          m.publisherId === invite.publisherId && m.publisherAccountId === account.id,
+        (m) => m.publisherId === invite.publisherId && m.publisherAccountId === account.id,
       );
       if (existing) throw new AuthError('already_member');
 

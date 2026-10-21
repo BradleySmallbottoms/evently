@@ -77,17 +77,17 @@ export const handlers: {
   },
   'event.unsaved': async (e, ctx) => {
     if (!ctx.stats) throw new Error('stats_unavailable');
-    await applyEngagementStats(ctx.stats, 'numSaved', 'remove', e.eventId, ctx.now?.() ?? new Date());
-  },
-  'event.coming': async (e, ctx) => {
-    if (!ctx.stats) throw new Error('stats_unavailable');
     await applyEngagementStats(
       ctx.stats,
-      'numComing',
-      'add',
+      'numSaved',
+      'remove',
       e.eventId,
       ctx.now?.() ?? new Date(),
     );
+  },
+  'event.coming': async (e, ctx) => {
+    if (!ctx.stats) throw new Error('stats_unavailable');
+    await applyEngagementStats(ctx.stats, 'numComing', 'add', e.eventId, ctx.now?.() ?? new Date());
   },
   'event.coming_cleared': async (e, ctx) => {
     if (!ctx.stats) throw new Error('stats_unavailable');

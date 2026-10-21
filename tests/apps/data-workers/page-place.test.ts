@@ -10,7 +10,9 @@ describe('lookupPageUrl', () => {
       { type: 'tickets', url: 'https://tickets.example/a' },
       { type: 'facebook', url: 'https://www.facebook.com/example' },
     ];
-    expect(lookupPageUrl(links, 'https://source.example/event')).toBe('https://source.example/event');
+    expect(lookupPageUrl(links, 'https://source.example/event')).toBe(
+      'https://source.example/event',
+    );
     expect(lookupPageUrl(links, 'http://source.example/event')).toBe('https://tickets.example/a');
     expect(
       lookupPageUrl([
@@ -26,7 +28,9 @@ describe('lookupPageUrl', () => {
         { type: 'facebook', url: 'https://facebook.com/other' },
       ]),
     ).toBe('https://www.facebook.com/example');
-    expect(lookupPageUrl([{ type: 'registration', url: 'https://signup.example/a' }])).toBeUndefined();
+    expect(
+      lookupPageUrl([{ type: 'registration', url: 'https://signup.example/a' }]),
+    ).toBeUndefined();
   });
 });
 
@@ -50,7 +54,9 @@ describe('geocodeSwedishAddress', () => {
     const onlyCity = await geocodeSwedishAddress({ city: 'Järvsö' }, async (input) => {
       calls.push(new URL(String(input)).searchParams.get('q') ?? '');
       return Response.json({
-        features: [{ geometry: { coordinates: [16.17, 61.72] }, properties: { countrycode: 'SE' } }],
+        features: [
+          { geometry: { coordinates: [16.17, 61.72] }, properties: { countrycode: 'SE' } },
+        ],
       });
     });
     expect(onlyCity).toEqual({ lat: 61.72, lng: 16.17 });
@@ -64,7 +70,9 @@ describe('geocodeSwedishAddress', () => {
         fallbackCalls.push(query);
         if (query.startsWith('Köpmangatan')) return Response.json({ features: [] });
         return Response.json({
-          features: [{ geometry: { coordinates: [16.55, 61.8] }, properties: { countrycode: 'SE' } }],
+          features: [
+            { geometry: { coordinates: [16.55, 61.8] }, properties: { countrycode: 'SE' } },
+          ],
         });
       },
     );

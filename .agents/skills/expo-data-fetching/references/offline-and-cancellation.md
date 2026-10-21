@@ -7,7 +7,7 @@ Companion reference for `expo-data-fetching`.
 **Check network status**:
 
 ```tsx
-import NetInfo from "@react-native-community/netinfo";
+import NetInfo from '@react-native-community/netinfo';
 
 // Hook for network status
 function useNetworkStatus() {
@@ -26,8 +26,8 @@ function useNetworkStatus() {
 **Offline-first with React Query**:
 
 ```tsx
-import { onlineManager } from "@tanstack/react-query";
-import NetInfo from "@react-native-community/netinfo";
+import { onlineManager } from '@tanstack/react-query';
+import NetInfo from '@react-native-community/netinfo';
 
 // Sync React Query with network status
 onlineManager.setEventListener((setOnline) => {
@@ -51,7 +51,7 @@ useEffect(() => {
     .then((response) => response.json())
     .then(setData)
     .catch((error) => {
-      if (error.name !== "AbortError") {
+      if (error.name !== 'AbortError') {
         setError(error);
       }
     });

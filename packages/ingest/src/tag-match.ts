@@ -190,7 +190,7 @@ export type LLMScanResult = {
     city?: string;
     country?: 'Sweden';
   };
-}
+};
 
 const INSTRUCTION_LIMIT = 20;
 const INSTRUCTION_LENGTH = 500;
@@ -250,4 +250,4 @@ export function readScanRange(value: unknown): { startsAt: string; endsAt: strin
 
 export type LLMOutput = LLMScanResult & {
   output: object;
-}
+};

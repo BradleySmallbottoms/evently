@@ -30,7 +30,12 @@ import type {
   ScanPublisherCandidate,
   SourceRecord,
 } from './store';
-import { NEARBY_RADIUS_M, NEARBY_RESULT_LIMIT, PUBLISHER_NAME_SEARCH_RADIUS_M, publisherNameMatcher } from './store';
+import {
+  NEARBY_RADIUS_M,
+  NEARBY_RESULT_LIMIT,
+  PUBLISHER_NAME_SEARCH_RADIUS_M,
+  publisherNameMatcher,
+} from './store';
 import type { PublisherLookup } from './prompt-runners/types';
 
 type StoredTag = { id: string; slug: string; name: string; externalId: string };
@@ -379,7 +384,13 @@ export function createMemoryIngestStore(): MemoryIngestStore {
     },
     async listDuplicateCandidates(input) {
       return events.flatMap((event) => {
-        if (event.status === 'cancelled' || event.status === 'ended' || !event.location || !event.startsAt) return [];
+        if (
+          event.status === 'cancelled' ||
+          event.status === 'ended' ||
+          !event.location ||
+          !event.startsAt
+        )
+          return [];
         if (!withinDuplicateWindow(input.startsAt, event.startsAt)) return [];
         const distanceM = distanceMeters(input.location, event.location);
         if (distanceM > DUPLICATE_RADIUS_M) return [];
@@ -586,9 +597,9 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           links: (event.links ?? []).map((link) => link.url),
           pageLinks: (event.links ?? []).flatMap((link) =>
             link.type === 'tickets' ||
-              link.type === 'registration' ||
-              link.type === 'info' ||
-              link.type === 'facebook'
+            link.type === 'registration' ||
+            link.type === 'info' ||
+            link.type === 'facebook'
               ? [{ type: link.type, url: link.url }]
               : [],
           ),
@@ -638,7 +649,8 @@ export function createMemoryIngestStore(): MemoryIngestStore {
     async nearbyPublishers(point, window, excludeEventId) {
       const closest = new Map<string, NearbyPublisherHit>();
       for (const event of events) {
-        if (!event.publisherId || event.id === excludeEventId || !event.location || !event.startsAt) continue;
+        if (!event.publisherId || event.id === excludeEventId || !event.location || !event.startsAt)
+          continue;
         if (event.status === 'cancelled' || event.status === 'ended') continue;
         const starts = event.startsAt.getTime();
         if (starts < window.from.getTime() || starts > window.to.getTime()) continue;
@@ -660,7 +672,9 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         const current = closest.get(publisher.id);
         if (!current || hit.distanceM < current.distanceM) closest.set(publisher.id, hit);
       }
-      return [...closest.values()].sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
+      return [...closest.values()]
+        .sort((a, b) => a.distanceM - b.distanceM)
+        .slice(0, NEARBY_RESULT_LIMIT);
     },
     /**
      * Publishers whose name matches `*` and `?` and that have a non-cancelled event
@@ -691,7 +705,9 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         const current = closest.get(publisher.id);
         if (!current || hit.distanceM < current.distanceM) closest.set(publisher.id, hit);
       }
-      return [...closest.values()].sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
+      return [...closest.values()]
+        .sort((a, b) => a.distanceM - b.distanceM)
+        .slice(0, NEARBY_RESULT_LIMIT);
     },
     /** Publisher row plus the organizer keys stored as aliases. */
     async getPublisher(publisherId): Promise<PublisherRecord | null> {

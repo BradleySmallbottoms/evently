@@ -57,9 +57,9 @@ describe('publicGalleryUrls', () => {
   });
 
   it('returns nothing when the public origin is unset', () => {
-    expect(publicGalleryUrls(undefined, [{ role: 'gallery-1', s3Key: 'events/abc/gallery-1' }])).toEqual(
-      [],
-    );
+    expect(
+      publicGalleryUrls(undefined, [{ role: 'gallery-1', s3Key: 'events/abc/gallery-1' }]),
+    ).toEqual([]);
   });
 });
 

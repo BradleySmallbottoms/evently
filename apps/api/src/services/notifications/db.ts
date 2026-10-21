@@ -4,10 +4,7 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import type { NotificationServices } from './types';
 
-export function createDbNotificationServices(
-  db: Db,
-  auth: AuthServices,
-): NotificationServices {
+export function createDbNotificationServices(db: Db, auth: AuthServices): NotificationServices {
   const { notifications, events, pushMessages } = schema;
 
   return {

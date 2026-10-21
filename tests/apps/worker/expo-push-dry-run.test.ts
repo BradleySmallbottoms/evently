@@ -26,9 +26,7 @@ describe('createExpoPushClient dry run', () => {
       called = true;
       throw new Error('expo should not be called');
     });
-    const tickets = await client.send([
-      { to: 'ExponentPushToken[abc]', data: { kind: 'inbox' } },
-    ]);
+    const tickets = await client.send([{ to: 'ExponentPushToken[abc]', data: { kind: 'inbox' } }]);
     expect(called).toBe(false);
     expect(tickets).toEqual([
       { status: 'error', message: 'dry_run', details: { error: 'DryRun' } },

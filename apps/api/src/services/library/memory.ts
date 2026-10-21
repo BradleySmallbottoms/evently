@@ -103,7 +103,9 @@ export function createMemoryLibraryServices(
 
     async unsaveEvent(sessionToken, eventId) {
       const { userId } = await requireUser(sessionToken);
-      const index = savedEvents.findIndex((row) => row.userId === userId && row.eventId === eventId);
+      const index = savedEvents.findIndex(
+        (row) => row.userId === userId && row.eventId === eventId,
+      );
       if (index < 0) throw new LibraryError('not_found');
       savedEvents.splice(index, 1);
       await emit('event.unsaved', eventId, userId);

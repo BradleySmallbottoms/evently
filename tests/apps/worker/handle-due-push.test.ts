@@ -139,13 +139,7 @@ describe('PUSH_DRY_RUN', () => {
   it('writes dry_run deliveries and does not call Expo', async () => {
     process.env.PUSH_DRY_RUN = '1';
     const sent: unknown[] = [];
-    const { db, inserts, updates } = duePushDb([
-      [],
-      [],
-      [],
-      [],
-      [deviceRow],
-    ]);
+    const { db, inserts, updates } = duePushDb([[], [], [], [], [deviceRow]]);
     const result = await handleDuePushMessages({
       db,
       expo: {

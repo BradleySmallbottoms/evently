@@ -54,9 +54,7 @@ export function digitalCheckInQrPayload(eventId: string, code: string): string {
   return `localevents://check-in/${eventId}?c=${normalizeDigitalCode(code)}`;
 }
 
-export function parseDigitalCheckInQr(
-  payload: string,
-): { eventId: string; code: string } | null {
+export function parseDigitalCheckInQr(payload: string): { eventId: string; code: string } | null {
   try {
     const url = new URL(payload);
     if (url.protocol !== 'localevents:') return null;

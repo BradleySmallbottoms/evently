@@ -25,10 +25,7 @@ describe('placeLabelFromGeocode', () => {
 });
 
 describe('matchingPlace', () => {
-  const places = [
-    { name: 'Bollnäs' },
-    { name: 'Söderhamn' },
-  ];
+  const places = [{ name: 'Bollnäs' }, { name: 'Söderhamn' }];
 
   it('matches only the whole suggestion name', () => {
     expect(matchingPlace('Boll', places)).toBeNull();

@@ -293,9 +293,7 @@ export function createMemoryEventServices(
       const q = query.q?.toLowerCase();
       const matched = [...events.values()]
         .filter((e) => e.status === 'published')
-        .filter((e) =>
-          isPubliclyListedEvent({ hasLocation: e.location != null }),
-        )
+        .filter((e) => isPubliclyListedEvent({ hasLocation: e.location != null }))
         .filter((e) => e.location != null && haversineM(center, e.location) <= query.radiusM)
         .filter((e) =>
           eventIsCurrent({

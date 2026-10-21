@@ -15,7 +15,9 @@ type Props = {
 
 function Sliders() {
   if (process.env.EXPO_OS === 'ios') {
-    return <SymbolView name={'slider.horizontal.3' as never} size={16} tintColor={colors.primary} />;
+    return (
+      <SymbolView name={'slider.horizontal.3' as never} size={16} tintColor={colors.primary} />
+    );
   }
   return <MaterialIcons name="tune" size={18} color={colors.primary} />;
 }

@@ -6,10 +6,7 @@ import type {
 } from '@local-events/contracts';
 
 export type EventContentErrorCode =
-  | 'unauthorized'
-  | 'forbidden'
-  | 'not_found'
-  | 'check_in_required';
+  'unauthorized' | 'forbidden' | 'not_found' | 'check_in_required';
 
 export class EventContentError extends Error {
   constructor(readonly code: EventContentErrorCode) {

@@ -48,7 +48,9 @@ function weekdayLabels(locale: string): string[] {
   return WEEKDAYS.map((offset) => {
     const day = new Date(monday);
     day.setUTCDate(5 + offset);
-    const label = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(day);
+    const label = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(
+      day,
+    );
     const clean = label.replace('.', '');
     return clean.charAt(0).toUpperCase() + clean.slice(1, 3);
   });
@@ -114,7 +116,8 @@ export function CalendarDateSheet({
   const cells = monthGrid(cursor.y, cursor.m);
   const cellSize = Math.floor(contentWidth / 7);
   const ready = mode === 'day' ? from != null : from != null && to != null;
-  const applied = !ready || from == null ? null : { from, to: mode === 'day' || to == null ? from : to };
+  const applied =
+    !ready || from == null ? null : { from, to: mode === 'day' || to == null ? from : to };
   const showLabel =
     applied == null
       ? t('events.calendar.pickTitle')
@@ -170,7 +173,13 @@ export function CalendarDateSheet({
       >
         <SheetBody fill>
           <View style={{ width: contentWidth, flex: 1, gap: space.md }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
               <Pressable accessibilityRole="button" onPress={onDismiss} hitSlop={8}>
                 <AppText variant="label" style={{ color: colors.inkMuted }}>
                   {t('events.calendar.cancel')}
@@ -218,7 +227,10 @@ export function CalendarDateSheet({
                       backgroundColor: selected ? colors.accent : 'transparent',
                     }}
                   >
-                    <AppText variant="label" style={{ color: selected ? colors.primary : colors.ink }}>
+                    <AppText
+                      variant="label"
+                      style={{ color: selected ? colors.primary : colors.ink }}
+                    >
                       {value === 'day' ? t('events.calendar.oneDay') : t('events.calendar.range')}
                     </AppText>
                   </Pressable>
@@ -243,12 +255,28 @@ export function CalendarDateSheet({
               </View>
             ) : null}
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Previous month" onPress={() => shiftMonth(-1)} hitSlop={8}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Previous month"
+                onPress={() => shiftMonth(-1)}
+                hitSlop={8}
+              >
                 <AppText variant="subtitle">‹</AppText>
               </Pressable>
               <AppText variant="subtitle">{formatMonthYear(cursor.y, cursor.m, locale)}</AppText>
-              <Pressable accessibilityRole="button" accessibilityLabel="Next month" onPress={() => shiftMonth(1)} hitSlop={8}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Next month"
+                onPress={() => shiftMonth(1)}
+                hitSlop={8}
+              >
                 <AppText variant="subtitle">›</AppText>
               </Pressable>
             </View>
@@ -375,7 +403,12 @@ function DateField({
         <AppText variant="label" style={{ color: colors.ink }}>
           {value}
         </AppText>
-        <Pressable accessibilityRole="button" accessibilityLabel={clearLabel} onPress={onClear} hitSlop={8}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={clearLabel}
+          onPress={onClear}
+          hitSlop={8}
+        >
           <AppText variant="caption">×</AppText>
         </Pressable>
       </View>

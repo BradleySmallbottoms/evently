@@ -1,25 +1,16 @@
 import { serve } from '@hono/node-server';
 import { createDb, resolveDatabaseUrl } from '@local-events/db';
 import { createApp } from './app';
-import {
-  createDbAdminAuditServices,
-  createMemoryAdminAuditServices,
-} from './services/audit';
+import { createDbAdminAuditServices, createMemoryAdminAuditServices } from './services/audit';
 import { createDbAdminAuthServices } from './services/auth/db';
-import {
-  createAdminMemoryAuthStore,
-  createMemoryAdminAuthServices,
-} from './services/auth/memory';
+import { createAdminMemoryAuthStore, createMemoryAdminAuthServices } from './services/auth/memory';
 import { createMemoryDomainEventPublisher } from './services/domain-events/memory';
 import { createSqsDomainEventPublisher } from './services/domain-events/sqs';
 import {
   createDbAdminDataSourceServices,
   createMemoryAdminDataSourceServices,
 } from './services/data-sources';
-import {
-  createDbAdminEventServices,
-  createMemoryAdminEventServices,
-} from './services/events';
+import { createDbAdminEventServices, createMemoryAdminEventServices } from './services/events';
 import {
   createDbAdminModerationServices,
   createMemoryAdminModerationServices,
@@ -43,8 +34,7 @@ const domainEvents = queueUrl
   ? createSqsDomainEventPublisher({ queueUrl })
   : createMemoryDomainEventPublisher();
 
-const DEFAULT_DEV_CORS =
-  'http://localhost:13200,http://127.0.0.1:13200';
+const DEFAULT_DEV_CORS = 'http://localhost:13200,http://127.0.0.1:13200';
 const corsOriginList = (process.env.ADMIN_CORS_ORIGINS ?? DEFAULT_DEV_CORS)
   .split(',')
   .map((o) => o.trim())
@@ -107,8 +97,9 @@ if (!queueUrl) {
 const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase();
 const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
 if (bootstrapEmail && bootstrapPassword && auth.ensureBootstrapAdmin) {
-  void auth.ensureBootstrapAdmin({ email: bootstrapEmail, password: bootstrapPassword }).then(
-    (r) => {
+  void auth
+    .ensureBootstrapAdmin({ email: bootstrapEmail, password: bootstrapPassword })
+    .then((r) => {
       if (r.created) {
         console.log(
           JSON.stringify({
@@ -118,8 +109,7 @@ if (bootstrapEmail && bootstrapPassword && auth.ensureBootstrapAdmin) {
           }),
         );
       }
-    },
-  );
+    });
 }
 
 serve(

@@ -18,7 +18,8 @@ export function PreferencesForm() {
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [radiusM, setRadiusM] = useState<(typeof AREA_RADIUS_PRESETS_M)[number]>(DEFAULT_AREA_RADIUS_M);
+  const [radiusM, setRadiusM] =
+    useState<(typeof AREA_RADIUS_PRESETS_M)[number]>(DEFAULT_AREA_RADIUS_M);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
@@ -36,7 +37,10 @@ export function PreferencesForm() {
   useEffect(() => {
     if (!preferences.data || hydrated) return;
     const circle = preferences.data.areas.find((a) => a.radiusM != null);
-    if (circle?.radiusM && AREA_RADIUS_PRESETS_M.includes(circle.radiusM as (typeof AREA_RADIUS_PRESETS_M)[number])) {
+    if (
+      circle?.radiusM &&
+      AREA_RADIUS_PRESETS_M.includes(circle.radiusM as (typeof AREA_RADIUS_PRESETS_M)[number])
+    ) {
       setRadiusM(circle.radiusM as (typeof AREA_RADIUS_PRESETS_M)[number]);
     }
     setHydrated(true);
@@ -73,7 +77,9 @@ export function PreferencesForm() {
   });
 
   return (
-    <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.xl, paddingBottom: space.xxxl }}>
+    <ScrollView
+      contentContainerStyle={{ padding: space.xl, gap: space.xl, paddingBottom: space.xxxl }}
+    >
       <View style={{ gap: space.sm }}>
         <AppText variant="hero">{t('preferences.title')}</AppText>
         <AppText variant="caption">{t('preferences.subtitle')}</AppText>
@@ -99,10 +105,7 @@ export function PreferencesForm() {
                   borderColor: colors.line,
                 }}
               >
-                <AppText
-                  variant="label"
-                  style={{ color: colors.ink, fontWeight: '600' }}
-                >
+                <AppText variant="label" style={{ color: colors.ink, fontWeight: '600' }}>
                   {t('preferences.radiusKm', { km: r / 1000 })}
                 </AppText>
               </Pressable>

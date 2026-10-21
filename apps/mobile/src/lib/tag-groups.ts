@@ -74,7 +74,14 @@ export const HOME_TAG_GROUPS = [
   },
   {
     id: 'other',
-    slugs: ['halsa', 'mat-dryck', 'julbord', 'forsaljning', 'forsaljning-amn30220', 'auktion-marknad'],
+    slugs: [
+      'halsa',
+      'mat-dryck',
+      'julbord',
+      'forsaljning',
+      'forsaljning-amn30220',
+      'auktion-marknad',
+    ],
   },
 ] as const;
 
@@ -90,7 +97,9 @@ export type HomeTagGroup = { id: HomeTagGroupId; tags: HomeTag[] };
 
 /** Bucket tags into the home groups. A slug that is not listed lands in Övrigt. Empty groups are omitted. */
 export function groupHomeTags(tags: readonly HomeTag[]): HomeTagGroup[] {
-  const buckets = new Map<HomeTagGroupId, HomeTag[]>(HOME_TAG_GROUPS.map((group) => [group.id, []]));
+  const buckets = new Map<HomeTagGroupId, HomeTag[]>(
+    HOME_TAG_GROUPS.map((group) => [group.id, []]),
+  );
   for (const tag of tags) {
     const groupId = SLUG_GROUP.get(tag.slug) ?? 'other';
     buckets.get(groupId)?.push(tag);
@@ -112,7 +121,10 @@ export function homeGroupForTags(
 }
 
 /** Select every tag in the group, or clear the group when all of them are already selected. */
-export function toggleGroupSelection(selected: readonly string[], groupTagIds: readonly string[]): string[] {
+export function toggleGroupSelection(
+  selected: readonly string[],
+  groupTagIds: readonly string[],
+): string[] {
   const next = new Set(selected);
   const allOn = groupTagIds.length > 0 && groupTagIds.every((id) => next.has(id));
   if (allOn) {

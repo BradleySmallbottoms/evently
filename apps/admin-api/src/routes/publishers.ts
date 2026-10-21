@@ -104,7 +104,10 @@ export function registerPublisherRoutes(
     path: '/publishers/{id}/map',
     request: {
       params: z.object({ id: z.uuid() }),
-      body: { content: { 'application/json': { schema: AdminMapPublisherRequest } }, required: true },
+      body: {
+        content: { 'application/json': { schema: AdminMapPublisherRequest } },
+        required: true,
+      },
     },
     responses: {
       200: {

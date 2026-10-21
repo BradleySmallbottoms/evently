@@ -10,13 +10,7 @@ type Props = {
 };
 
 /** System alert on Android and web. iOS uses the SwiftUI alert instead. */
-export function AcknowledgeAlert({
-  title,
-  message,
-  confirmLabel,
-  isPresented,
-  onConfirm,
-}: Props) {
+export function AcknowledgeAlert({ title, message, confirmLabel, isPresented, onConfirm }: Props) {
   const openRef = useRef(false);
 
   useEffect(() => {

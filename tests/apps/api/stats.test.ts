@@ -145,10 +145,9 @@ describe('stats', () => {
       body: JSON.stringify([{ key: 'numEventsAttended', add: 1 }]),
     });
 
-    const me = await app.request(
-      `/v1/stats/user/${session.userId}?key=numEventsAttended`,
-      { headers: { authorization: `Bearer ${session.sessionToken}` } },
-    );
+    const me = await app.request(`/v1/stats/user/${session.userId}?key=numEventsAttended`, {
+      headers: { authorization: `Bearer ${session.sessionToken}` },
+    });
     expect(me.status).toBe(200);
     expect(await me.json()).toMatchObject({
       items: [expect.objectContaining({ key: 'numEventsAttended', value: 1 })],

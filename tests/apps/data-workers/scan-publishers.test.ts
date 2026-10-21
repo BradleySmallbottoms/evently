@@ -46,21 +46,19 @@ function temporaryRunner(): PromptRunner {
     id: 'temporary',
     lookupPublisher: async () => ({ ok: true, profile: null }),
     async scan(batch) {
-      return batch.map(
-        (item): ScanOutcome => ({
-          ok: true,
-          eventId: item.eventId,
-          publisher: {
-            kind: 'temporary',
-            name: 'Föreningen',
-            organizerKeys: item.organizer.keys,
-          },
-          duplicate: null,
-          approved: true,
-          tags: [],
-          ...scanned,
-        }),
-      );
+      return batch.map((item): ScanOutcome => ({
+        ok: true,
+        eventId: item.eventId,
+        publisher: {
+          kind: 'temporary',
+          name: 'Föreningen',
+          organizerKeys: item.organizer.keys,
+        },
+        duplicate: null,
+        approved: true,
+        tags: [],
+        ...scanned,
+      }));
     },
   };
 }

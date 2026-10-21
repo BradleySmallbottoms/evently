@@ -61,11 +61,11 @@ scanned event and on each of those duplicates. An `occasionGroupId` already on o
 reused. Otherwise an existing `possibleOccasionGroupId` is reused, and a new id is created only
 when none is set. Public responses omit the field.
 
-| Result | Status |
-| --- | --- |
-| Possible duplicate | `in_review` |
-| Content scan does not approve | `in_review` |
-| Temporary publisher, publisher that is not `published`, or source trust `review` | `in_review` |
+| Result                                                                             | Status      |
+| ---------------------------------------------------------------------------------- | ----------- |
+| Possible duplicate                                                                 | `in_review` |
+| Content scan does not approve                                                      | `in_review` |
+| Temporary publisher, publisher that is not `published`, or source trust `review`   | `in_review` |
 | Approved, publisher status `published`, not temporary, source trust `auto_publish` | `published` |
 
 `published` enqueues `event.published` and schedules the publisher's import reminders as approved.

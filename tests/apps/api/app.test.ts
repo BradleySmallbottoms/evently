@@ -77,9 +77,7 @@ describe('public api', () => {
     });
     expect(res.status).toBe(404);
     const requestId = res.headers.get('x-request-id');
-    expect(requestId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-    );
+    expect(requestId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
     expect(lines[0]).toMatch(
       new RegExp(
         `^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z - GET - /missing - ${requestId} - 192\\.0\\.2\\.10$`,

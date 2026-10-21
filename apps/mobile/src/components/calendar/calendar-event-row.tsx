@@ -93,7 +93,9 @@ export function CalendarEventRow({
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={endLabel ? `${title}, ${startLabel}–${endLabel}` : `${title}, ${startLabel}`}
+          accessibilityLabel={
+            endLabel ? `${title}, ${startLabel}–${endLabel}` : `${title}, ${startLabel}`
+          }
           onPress={onPress}
           style={{ flex: 1, flexDirection: 'row', gap: space.md, minWidth: 0 }}
         >
@@ -126,32 +128,30 @@ export function CalendarEventRow({
             <TagPills tags={chips} size="sm" />
           </View>
         </Pressable>
-        {
-          onSavePress ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={saveLabel}
-              onPress={onSavePress}
-              hitSlop={8}
-              style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
-            >
-              {process.env.EXPO_OS === 'ios' ? (
-                <SymbolView
-                  name={(saved ? 'heart.fill' : 'heart') as never}
-                  size={18}
-                  tintColor={saved ? colors.accent : colors.inkMuted}
-                />
-              ) : (
-                <MaterialIcons
-                  name={saved ? 'favorite' : 'favorite-border'}
-                  size={20}
-                  color={saved ? colors.accent : colors.inkMuted}
-                />
-              )}
-            </Pressable>
-          ) : null
-        }
-      </View >
-    </View >
+        {onSavePress ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={saveLabel}
+            onPress={onSavePress}
+            hitSlop={8}
+            style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+          >
+            {process.env.EXPO_OS === 'ios' ? (
+              <SymbolView
+                name={(saved ? 'heart.fill' : 'heart') as never}
+                size={18}
+                tintColor={saved ? colors.accent : colors.inkMuted}
+              />
+            ) : (
+              <MaterialIcons
+                name={saved ? 'favorite' : 'favorite-border'}
+                size={20}
+                color={saved ? colors.accent : colors.inkMuted}
+              />
+            )}
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
   );
 }

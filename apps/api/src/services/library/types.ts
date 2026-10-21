@@ -1,4 +1,9 @@
-import type { CreateEventListRequest, Event, UpdateEventListRequest, UserEventList } from '@local-events/contracts';
+import type {
+  CreateEventListRequest,
+  Event,
+  UpdateEventListRequest,
+  UserEventList,
+} from '@local-events/contracts';
 
 export type LibraryErrorCode = 'unauthorized' | 'not_found' | 'limit_reached' | 'invalid_event';
 
@@ -27,7 +32,11 @@ export type LibraryServices = {
     body: UpdateEventListRequest,
   ) => Promise<UserEventList>;
   deleteList: (sessionToken: string | undefined, listId: string) => Promise<void>;
-  addListEvent: (sessionToken: string | undefined, listId: string, eventId: string) => Promise<void>;
+  addListEvent: (
+    sessionToken: string | undefined,
+    listId: string,
+    eventId: string,
+  ) => Promise<void>;
   removeListEvent: (
     sessionToken: string | undefined,
     listId: string,

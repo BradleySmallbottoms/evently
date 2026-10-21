@@ -6,9 +6,7 @@ function auth(identity: StoredIdentity) {
 }
 
 export async function listSavedEvents(identity: StoredIdentity) {
-  return throwIfError(
-    await api.GET('/me/saved-events', { headers: auth(identity) }),
-  );
+  return throwIfError(await api.GET('/me/saved-events', { headers: auth(identity) }));
 }
 
 export async function saveEvent(identity: StoredIdentity, eventId: string) {
@@ -30,9 +28,7 @@ export async function unsaveEvent(identity: StoredIdentity, eventId: string) {
 }
 
 export async function listComingEvents(identity: StoredIdentity) {
-  return throwIfError(
-    await api.GET('/me/coming-events', { headers: auth(identity) }),
-  );
+  return throwIfError(await api.GET('/me/coming-events', { headers: auth(identity) }));
 }
 
 export async function markComing(identity: StoredIdentity, eventId: string) {

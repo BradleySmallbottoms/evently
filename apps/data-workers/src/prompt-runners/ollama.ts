@@ -23,7 +23,13 @@ import {
 } from '@local-events/ingest';
 import { LOCAL_ORGANIZER_SLUGS } from '../sources';
 import type { DuplicateCandidate, IngestStore } from '../store';
-import type { ChosenPublisher, PossibleDuplicateMatch, PromptRunner, ScanInput, ScanOutcome } from './types';
+import type {
+  ChosenPublisher,
+  PossibleDuplicateMatch,
+  PromptRunner,
+  ScanInput,
+  ScanOutcome,
+} from './types';
 
 const TAG_TIMEOUT_MS = 90_000;
 
@@ -33,11 +39,13 @@ export interface OllamaPromptRunnerOptions {
   fetch?: typeof fetch;
 }
 
-function messageContent(payload: unknown): LLMScanResult & LLMOutput | null {
+function messageContent(payload: unknown): (LLMScanResult & LLMOutput) | null {
   if (!payload || typeof payload !== 'object' || !('message' in payload)) return null;
   const message = payload.message;
   if (!message || typeof message !== 'object' || !('content' in message)) return null;
-  return typeof message.content === 'string' ? { ...parseResponse(message.content), output: payload as object } : null;
+  return typeof message.content === 'string'
+    ? { ...parseResponse(message.content), output: payload as object }
+    : null;
 }
 
 function parseResponse(content: string): LLMScanResult {
@@ -105,20 +113,24 @@ async function askOllama(
       signal: AbortSignal.timeout(TAG_TIMEOUT_MS),
     });
     if (!response.ok) return null;
-    const ollameResponse = await response.json()
+    const ollameResponse = await response.json();
     return messageContent(ollameResponse);
   } catch {
     return null;
   }
 }
 
-function bestDuplicate(event: ScanInput, candidates: DuplicateCandidate[]): PossibleDuplicateMatch | null {
+function bestDuplicate(
+  event: ScanInput,
+  candidates: DuplicateCandidate[],
+): PossibleDuplicateMatch | null {
   const startsAt = new Date(event.startsAt);
   const incomingIds = [event.externalId];
   const incomingUrls = [event.sourceUrl, ...event.links];
   let best: { candidate: DuplicateCandidate; signal: DuplicateSignal } | null = null;
   for (const candidate of candidates) {
-    const sameRowOrWorkerId = candidate.eventId === event.eventId || candidate.workerId === event.workerId;
+    const sameRowOrWorkerId =
+      candidate.eventId === event.eventId || candidate.workerId === event.workerId;
     if (sameRowOrWorkerId) continue;
     const candidateUrls = [candidate.sourceUrl, ...candidate.links];
     const signal = duplicateSignal({
@@ -210,25 +222,34 @@ export function createOllamaPromptRunner(
         }
 
         const localSlugs = [...new Set([event.source.slug, ...LOCAL_ORGANIZER_SLUGS])];
-        const publishers = await store.listPublisherCandidates(event.source.id, event.organizer.keys, {
-          ...(event.location ? { location: event.location } : {}),
+        const publishers = await store.listPublisherCandidates(
+          event.source.id,
+          event.organizer.keys,
+          {
+            ...(event.location ? { location: event.location } : {}),
+            localSlugs,
+          },
+        );
+        const chosen = choosePublisher(
+          event.source.id,
+          event.organizer.keys,
           localSlugs,
-        });
-        const chosen = choosePublisher(event.source.id, event.organizer.keys, localSlugs, publishers);
+          publishers,
+        );
         const match = publishers.find((row) => row.publisherId === chosen?.publisherId);
         const publisher: ChosenPublisher = match
           ? {
-            kind: 'existing',
-            publisherId: match.publisherId,
-            isTemporary: match.isTemporary,
-            status: match.status,
-            importNotificationPlan: match.importNotificationPlan,
-          }
+              kind: 'existing',
+              publisherId: match.publisherId,
+              isTemporary: match.isTemporary,
+              status: match.status,
+              importNotificationPlan: match.importNotificationPlan,
+            }
           : {
-            kind: 'temporary',
-            name: event.organizer.name?.trim() || event.organizer.keys[0] || event.title,
-            organizerKeys: event.organizer.keys,
-          };
+              kind: 'temporary',
+              name: event.organizer.name?.trim() || event.organizer.keys[0] || event.title,
+              organizerKeys: event.organizer.keys,
+            };
 
         const startsAt = new Date(event.startsAt);
         const nearby =

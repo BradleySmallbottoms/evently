@@ -17,9 +17,7 @@ describe('stats domain event handlers', () => {
       select: vi.fn(() => ({
         from: vi.fn(() => ({
           where: vi.fn(() => ({
-            limit: vi.fn(async () => [
-              { publisherId: '33333333-3333-4333-8333-333333333333' },
-            ]),
+            limit: vi.fn(async () => [{ publisherId: '33333333-3333-4333-8333-333333333333' }]),
           })),
         })),
       })),
@@ -98,16 +96,21 @@ describe('stats domain event handlers', () => {
 
     await processMessage(JSON.stringify({ type: 'event.saved', eventId, userId }), { stats, now });
     const saved = put.mock.calls.find((call) => call[0] === 'event');
-    expect(saved?.[2]?.some((m: { key: string; add?: number }) => m.key === 'numSaved' && m.add === 1)).toBe(
-      true,
-    );
+    expect(
+      saved?.[2]?.some((m: { key: string; add?: number }) => m.key === 'numSaved' && m.add === 1),
+    ).toBe(true);
     expect(saved?.[2]?.some((m: { key: string }) => m.key.startsWith('numSaved-w'))).toBe(true);
 
     put.mockClear();
-    await processMessage(JSON.stringify({ type: 'event.unsaved', eventId, userId }), { stats, now });
+    await processMessage(JSON.stringify({ type: 'event.unsaved', eventId, userId }), {
+      stats,
+      now,
+    });
     const unsaved = put.mock.calls.find((call) => call[0] === 'event');
     expect(
-      unsaved?.[2]?.some((m: { key: string; remove?: number }) => m.key === 'numSaved' && m.remove === 1),
+      unsaved?.[2]?.some(
+        (m: { key: string; remove?: number }) => m.key === 'numSaved' && m.remove === 1,
+      ),
     ).toBe(true);
 
     put.mockClear();

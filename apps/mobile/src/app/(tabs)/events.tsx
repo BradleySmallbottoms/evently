@@ -150,7 +150,11 @@ export default function EventsScreen() {
 
   const weekend = weekendStamps(today);
   const quickChips = [
-    { id: 'today' as const, title: t('events.calendar.today'), detail: formatDayShort(today, locale) },
+    {
+      id: 'today' as const,
+      title: t('events.calendar.today'),
+      detail: formatDayShort(today, locale),
+    },
     {
       id: 'tomorrow' as const,
       title: t('events.calendar.tomorrow'),
@@ -160,7 +164,7 @@ export default function EventsScreen() {
       id: 'weekend' as const,
       title: t('events.calendar.weekend'),
       detail: formatRangeShort(weekend.from, weekend.to, locale),
-    }
+    },
   ];
 
   const savedPlaces = (preferences.data?.areas ?? []).flatMap((area) => {

@@ -48,7 +48,9 @@ describe('inboxPushFieldsFromTaskPayload', () => {
         notification: { request: { content: { data: inbox } } },
       }),
     ).toBeNull();
-    expect(inboxPushFieldsFromTaskPayload({ data: { kind: 'reminder', eventId: 'e1' } })).toBeNull();
+    expect(
+      inboxPushFieldsFromTaskPayload({ data: { kind: 'reminder', eventId: 'e1' } }),
+    ).toBeNull();
     expect(readInboxPushFields({ kind: 'local_inbox', title: 'Gig' })).toBeNull();
   });
 });

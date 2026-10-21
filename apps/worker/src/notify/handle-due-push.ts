@@ -57,10 +57,7 @@ type DueMessage = {
   sendAt: Date | null;
 };
 
-function mergeUsers(
-  nearby: MatchedUser[],
-  publisher: MatchedUser[],
-): Map<string, NotifyReason> {
+function mergeUsers(nearby: MatchedUser[], publisher: MatchedUser[]): Map<string, NotifyReason> {
   const merged = new Map<string, NotifyReason>();
   for (const u of nearby) merged.set(u.userId, 'nearby');
   for (const u of publisher) {
@@ -129,20 +126,11 @@ async function claimDueMessages(db: Db, now: Date): Promise<DueMessage[]> {
   }));
 }
 
-async function audienceForEvent(
-  db: Db,
-  eventId: string,
-): Promise<Map<string, NotifyReason>> {
+async function audienceForEvent(db: Db, eventId: string): Promise<Map<string, NotifyReason>> {
   const event = await loadPublishedEvent(db, eventId);
   if (!event || event.status !== 'published') return new Map();
-  const nearby = event.hasLocation
-    ? await findNearbyMatchedUsers(db, eventId, MATCH_LIMIT)
-    : [];
-  const publisherSubs = await findPublisherSubscriberUsers(
-    db,
-    event.publisherId,
-    MATCH_LIMIT,
-  );
+  const nearby = event.hasLocation ? await findNearbyMatchedUsers(db, eventId, MATCH_LIMIT) : [];
+  const publisherSubs = await findPublisherSubscriberUsers(db, event.publisherId, MATCH_LIMIT);
   return mergeUsers(nearby, publisherSubs);
 }
 
@@ -198,10 +186,7 @@ async function audienceForAdminEvent(
   return mergeUsers(matched, publisherSubs);
 }
 
-async function audienceForMessage(
-  db: Db,
-  message: DueMessage,
-): Promise<Map<string, NotifyReason>> {
+async function audienceForMessage(db: Db, message: DueMessage): Promise<Map<string, NotifyReason>> {
   if (message.kind === 'broadcast') return audienceForBroadcast(db, message);
   if (!message.eventId) return new Map();
   if (message.audience === 'area' || message.audience === 'area_and_tag') {
@@ -210,11 +195,7 @@ async function audienceForMessage(
   return audienceForEvent(db, message.eventId);
 }
 
-async function loadWindowCandidates(
-  db: Db,
-  now: Date,
-  excludeId: string,
-): Promise<DueMessage[]> {
+async function loadWindowCandidates(db: Db, now: Date, excludeId: string): Promise<DueMessage[]> {
   const windowEnd = new Date(now.getTime() + PUSH_AGGREGATION_WINDOW_MS);
   const rows = await db
     .select({
@@ -282,10 +263,7 @@ async function upsertDelivery(
       sentAt: input.sentAt ?? null,
     })
     .onConflictDoUpdate({
-      target: [
-        schema.pushMessageDeliveries.pushMessageId,
-        schema.pushMessageDeliveries.userId,
-      ],
+      target: [schema.pushMessageDeliveries.pushMessageId, schema.pushMessageDeliveries.userId],
       set: {
         status: input.status,
         deferredUntilMessageId: input.deferredUntilMessageId ?? null,

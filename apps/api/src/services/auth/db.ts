@@ -43,7 +43,12 @@ function addSeconds(date: Date, seconds: number): Date {
 function uniqueViolationConstraint(err: unknown): string | undefined {
   let current: unknown = err;
   for (let i = 0; i < 4 && current && typeof current === 'object'; i++) {
-    const obj = current as { code?: string; constraint_name?: string; constraint?: string; cause?: unknown };
+    const obj = current as {
+      code?: string;
+      constraint_name?: string;
+      constraint?: string;
+      cause?: unknown;
+    };
     if (obj.code === '23505') {
       return obj.constraint_name ?? obj.constraint;
     }
@@ -406,10 +411,7 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
       const sessionToken = generateSessionToken();
       const expiresAt = addSeconds(now, APP_SESSION_TTL_SECONDS);
       await db.transaction(async (tx) => {
-        await tx
-          .update(webLoginCodes)
-          .set({ status: 'used' })
-          .where(eq(webLoginCodes.id, row.id));
+        await tx.update(webLoginCodes).set({ status: 'used' }).where(eq(webLoginCodes.id, row.id));
         await tx.insert(sessions).values({
           subjectType: 'user',
           subjectId: row.userId!,
@@ -418,7 +420,11 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
           expiresAt,
         });
       });
-      return { body: { userId: row.userId, expiresAt: expiresAt.toISOString() }, sessionToken, expiresAt };
+      return {
+        body: { userId: row.userId, expiresAt: expiresAt.toISOString() },
+        sessionToken,
+        expiresAt,
+      };
     },
 
     async getWebUserMe(sessionToken: string | undefined) {
@@ -635,10 +641,7 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
           createdAt: publisherMembers.createdAt,
         })
         .from(publisherMembers)
-        .innerJoin(
-          publisherAccounts,
-          eq(publisherAccounts.id, publisherMembers.publisherAccountId),
-        )
+        .innerJoin(publisherAccounts, eq(publisherAccounts.id, publisherMembers.publisherAccountId))
         .where(eq(publisherMembers.publisherId, publisherId));
       return {
         items: rows.map((r) => ({
@@ -812,9 +815,7 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
         const consumed = await tx
           .update(publisherInvites)
           .set({ acceptedAt: now })
-          .where(
-            and(eq(publisherInvites.id, invite.id), isNull(publisherInvites.acceptedAt)),
-          )
+          .where(and(eq(publisherInvites.id, invite.id), isNull(publisherInvites.acceptedAt)))
           .returning({ id: publisherInvites.id });
         if (consumed.length === 0) throw new AuthError('invalid_token');
         await tx.insert(publisherMembers).values({

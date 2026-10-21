@@ -55,9 +55,7 @@
         "admin_users_email_unique": {
           "name": "admin_users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -270,12 +268,8 @@
           "name": "check_ins_user_id_users_id_fk",
           "tableFrom": "check_ins",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -283,12 +277,8 @@
           "name": "check_ins_event_id_events_id_fk",
           "tableFrom": "check_ins",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -360,12 +350,8 @@
           "name": "coming_events_user_id_users_id_fk",
           "tableFrom": "coming_events",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -373,12 +359,8 @@
           "name": "coming_events_event_id_events_id_fk",
           "tableFrom": "coming_events",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -386,10 +368,7 @@
       "compositePrimaryKeys": {
         "coming_events_user_id_event_id_pk": {
           "name": "coming_events_user_id_event_id_pk",
-          "columns": [
-            "user_id",
-            "event_id"
-          ]
+          "columns": ["user_id", "event_id"]
         }
       },
       "uniqueConstraints": {},
@@ -464,9 +443,7 @@
         "data_sources_slug_unique": {
           "name": "data_sources_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -557,12 +534,8 @@
           "name": "devices_user_id_users_id_fk",
           "tableFrom": "devices",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -616,12 +589,8 @@
           "name": "digital_codes_event_id_events_id_fk",
           "tableFrom": "digital_codes",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -785,12 +754,8 @@
           "name": "event_content_event_id_events_id_fk",
           "tableFrom": "event_content",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -879,12 +844,8 @@
           "name": "event_images_event_id_events_id_fk",
           "tableFrom": "event_images",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -982,12 +943,8 @@
           "name": "event_links_event_id_events_id_fk",
           "tableFrom": "event_links",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1044,12 +1001,8 @@
           "name": "event_list_items_list_id_event_lists_id_fk",
           "tableFrom": "event_list_items",
           "tableTo": "event_lists",
-          "columnsFrom": [
-            "list_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["list_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1057,12 +1010,8 @@
           "name": "event_list_items_event_id_events_id_fk",
           "tableFrom": "event_list_items",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1070,10 +1019,7 @@
       "compositePrimaryKeys": {
         "event_list_items_list_id_event_id_pk": {
           "name": "event_list_items_list_id_event_id_pk",
-          "columns": [
-            "list_id",
-            "event_id"
-          ]
+          "columns": ["list_id", "event_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1134,12 +1080,8 @@
           "name": "event_lists_user_id_users_id_fk",
           "tableFrom": "event_lists",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1239,12 +1181,8 @@
           "name": "event_reports_user_id_users_id_fk",
           "tableFrom": "event_reports",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1252,12 +1190,8 @@
           "name": "event_reports_event_id_events_id_fk",
           "tableFrom": "event_reports",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1307,12 +1241,8 @@
           "name": "event_tags_event_id_events_id_fk",
           "tableFrom": "event_tags",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1320,12 +1250,8 @@
           "name": "event_tags_tag_id_tags_id_fk",
           "tableFrom": "event_tags",
           "tableTo": "tags",
-          "columnsFrom": [
-            "tag_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tag_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1333,10 +1259,7 @@
       "compositePrimaryKeys": {
         "event_tags_event_id_tag_id_pk": {
           "name": "event_tags_event_id_tag_id_pk",
-          "columns": [
-            "event_id",
-            "tag_id"
-          ]
+          "columns": ["event_id", "tag_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1583,12 +1506,8 @@
           "name": "events_publisher_id_publishers_id_fk",
           "tableFrom": "events",
           "tableTo": "publishers",
-          "columnsFrom": [
-            "publisher_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["publisher_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1641,12 +1560,8 @@
           "name": "external_refs_source_id_data_sources_id_fk",
           "tableFrom": "external_refs",
           "tableTo": "data_sources",
-          "columnsFrom": [
-            "source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1654,12 +1569,8 @@
           "name": "external_refs_event_id_events_id_fk",
           "tableFrom": "external_refs",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1667,10 +1578,7 @@
       "compositePrimaryKeys": {
         "external_refs_source_id_external_id_pk": {
           "name": "external_refs_source_id_external_id_pk",
-          "columns": [
-            "source_id",
-            "external_id"
-          ]
+          "columns": ["source_id", "external_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1708,12 +1616,8 @@
           "name": "import_suppressions_source_id_data_sources_id_fk",
           "tableFrom": "import_suppressions",
           "tableTo": "data_sources",
-          "columnsFrom": [
-            "source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1721,10 +1625,7 @@
       "compositePrimaryKeys": {
         "import_suppressions_source_id_external_id_pk": {
           "name": "import_suppressions_source_id_external_id_pk",
-          "columns": [
-            "source_id",
-            "external_id"
-          ]
+          "columns": ["source_id", "external_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1810,12 +1711,8 @@
           "name": "ingestion_runs_source_id_data_sources_id_fk",
           "tableFrom": "ingestion_runs",
           "tableTo": "data_sources",
-          "columnsFrom": [
-            "source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1981,12 +1878,8 @@
           "name": "notifications_user_id_users_id_fk",
           "tableFrom": "notifications",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1994,12 +1887,8 @@
           "name": "notifications_event_id_events_id_fk",
           "tableFrom": "notifications",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2007,12 +1896,8 @@
           "name": "notifications_push_message_id_push_messages_id_fk",
           "tableFrom": "notifications",
           "tableTo": "push_messages",
-          "columnsFrom": [
-            "push_message_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["push_message_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2125,12 +2010,8 @@
           "name": "publisher_aliases_source_id_data_sources_id_fk",
           "tableFrom": "publisher_aliases",
           "tableTo": "data_sources",
-          "columnsFrom": [
-            "source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2138,12 +2019,8 @@
           "name": "publisher_aliases_publisher_id_publishers_id_fk",
           "tableFrom": "publisher_aliases",
           "tableTo": "publishers",
-          "columnsFrom": [
-            "publisher_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["publisher_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2151,10 +2028,7 @@
       "compositePrimaryKeys": {
         "publisher_aliases_source_id_external_organizer_key_pk": {
           "name": "publisher_aliases_source_id_external_organizer_key_pk",
-          "columns": [
-            "source_id",
-            "external_organizer_key"
-          ]
+          "columns": ["source_id", "external_organizer_key"]
         }
       },
       "uniqueConstraints": {},
@@ -2261,12 +2135,8 @@
           "name": "publisher_invites_publisher_id_publishers_id_fk",
           "tableFrom": "publisher_invites",
           "tableTo": "publishers",
-          "columnsFrom": [
-            "publisher_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["publisher_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2274,12 +2144,8 @@
           "name": "publisher_invites_invited_by_account_id_publisher_accounts_id_fk",
           "tableFrom": "publisher_invites",
           "tableTo": "publisher_accounts",
-          "columnsFrom": [
-            "invited_by_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["invited_by_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2327,12 +2193,8 @@
           "name": "publisher_members_publisher_id_publishers_id_fk",
           "tableFrom": "publisher_members",
           "tableTo": "publishers",
-          "columnsFrom": [
-            "publisher_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["publisher_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2340,12 +2202,8 @@
           "name": "publisher_members_publisher_account_id_publisher_accounts_id_fk",
           "tableFrom": "publisher_members",
           "tableTo": "publisher_accounts",
-          "columnsFrom": [
-            "publisher_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["publisher_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2353,10 +2211,7 @@
       "compositePrimaryKeys": {
         "publisher_members_publisher_id_publisher_account_id_pk": {
           "name": "publisher_members_publisher_id_publisher_account_id_pk",
-          "columns": [
-            "publisher_id",
-            "publisher_account_id"
-          ]
+          "columns": ["publisher_id", "publisher_account_id"]
         }
       },
       "uniqueConstraints": {},
@@ -2548,12 +2403,8 @@
           "name": "push_message_deliveries_push_message_id_push_messages_id_fk",
           "tableFrom": "push_message_deliveries",
           "tableTo": "push_messages",
-          "columnsFrom": [
-            "push_message_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["push_message_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2561,12 +2412,8 @@
           "name": "push_message_deliveries_user_id_users_id_fk",
           "tableFrom": "push_message_deliveries",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2574,12 +2421,8 @@
           "name": "push_message_deliveries_deferred_until_message_id_push_messages_id_fk",
           "tableFrom": "push_message_deliveries",
           "tableTo": "push_messages",
-          "columnsFrom": [
-            "deferred_until_message_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["deferred_until_message_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2587,10 +2430,7 @@
       "compositePrimaryKeys": {
         "push_message_deliveries_push_message_id_user_id_pk": {
           "name": "push_message_deliveries_push_message_id_user_id_pk",
-          "columns": [
-            "push_message_id",
-            "user_id"
-          ]
+          "columns": ["push_message_id", "user_id"]
         }
       },
       "uniqueConstraints": {},
@@ -2773,12 +2613,8 @@
           "name": "push_messages_event_id_events_id_fk",
           "tableFrom": "push_messages",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2786,12 +2622,8 @@
           "name": "push_messages_audience_tag_id_tags_id_fk",
           "tableFrom": "push_messages",
           "tableTo": "tags",
-          "columnsFrom": [
-            "audience_tag_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["audience_tag_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -2799,12 +2631,8 @@
           "name": "push_messages_approved_by_admin_id_admin_users_id_fk",
           "tableFrom": "push_messages",
           "tableTo": "admin_users",
-          "columnsFrom": [
-            "approved_by_admin_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["approved_by_admin_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2907,12 +2735,8 @@
           "name": "ratings_user_id_users_id_fk",
           "tableFrom": "ratings",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2920,12 +2744,8 @@
           "name": "ratings_event_id_events_id_fk",
           "tableFrom": "ratings",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3065,12 +2885,8 @@
           "name": "saved_events_user_id_users_id_fk",
           "tableFrom": "saved_events",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3078,12 +2894,8 @@
           "name": "saved_events_event_id_events_id_fk",
           "tableFrom": "saved_events",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3091,10 +2903,7 @@
       "compositePrimaryKeys": {
         "saved_events_user_id_event_id_pk": {
           "name": "saved_events_user_id_event_id_pk",
-          "columns": [
-            "user_id",
-            "event_id"
-          ]
+          "columns": ["user_id", "event_id"]
         }
       },
       "uniqueConstraints": {},
@@ -3253,11 +3062,7 @@
       "compositePrimaryKeys": {
         "stats_source_type_source_id_key_pk": {
           "name": "stats_source_type_source_id_key_pk",
-          "columns": [
-            "source_type",
-            "source_id",
-            "key"
-          ]
+          "columns": ["source_type", "source_id", "key"]
         }
       },
       "uniqueConstraints": {},
@@ -3339,12 +3144,8 @@
           "name": "subscriptions_user_id_users_id_fk",
           "tableFrom": "subscriptions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3352,11 +3153,7 @@
       "compositePrimaryKeys": {
         "subscriptions_user_id_target_type_target_id_pk": {
           "name": "subscriptions_user_id_target_type_target_id_pk",
-          "columns": [
-            "user_id",
-            "target_type",
-            "target_id"
-          ]
+          "columns": ["user_id", "target_type", "target_id"]
         }
       },
       "uniqueConstraints": {},
@@ -3401,16 +3198,12 @@
         "tags_slug_unique": {
           "name": "tags_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         },
         "tags_external_id_unique": {
           "name": "tags_external_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "external_id"
-          ]
+          "columns": ["external_id"]
         }
       },
       "policies": {},
@@ -3478,12 +3271,8 @@
           "name": "user_area_tags_area_id_user_areas_id_fk",
           "tableFrom": "user_area_tags",
           "tableTo": "user_areas",
-          "columnsFrom": [
-            "area_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["area_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3491,12 +3280,8 @@
           "name": "user_area_tags_tag_id_tags_id_fk",
           "tableFrom": "user_area_tags",
           "tableTo": "tags",
-          "columnsFrom": [
-            "tag_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tag_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3504,10 +3289,7 @@
       "compositePrimaryKeys": {
         "user_area_tags_area_id_tag_id_pk": {
           "name": "user_area_tags_area_id_tag_id_pk",
-          "columns": [
-            "area_id",
-            "tag_id"
-          ]
+          "columns": ["area_id", "tag_id"]
         }
       },
       "uniqueConstraints": {},
@@ -3658,12 +3440,8 @@
           "name": "user_areas_user_id_users_id_fk",
           "tableFrom": "user_areas",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3671,12 +3449,8 @@
           "name": "user_areas_region_id_regions_id_fk",
           "tableFrom": "user_areas",
           "tableTo": "regions",
-          "columnsFrom": [
-            "region_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["region_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -3873,12 +3647,8 @@
           "name": "web_login_codes_user_id_users_id_fk",
           "tableFrom": "web_login_codes",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3886,12 +3656,8 @@
           "name": "web_login_codes_device_id_devices_id_fk",
           "tableFrom": "web_login_codes",
           "tableTo": "devices",
-          "columnsFrom": [
-            "device_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["device_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3907,226 +3673,127 @@
     "public.check_in_method": {
       "name": "check_in_method",
       "schema": "public",
-      "values": [
-        "geo",
-        "code"
-      ]
+      "values": ["geo", "code"]
     },
     "public.event_content_kind": {
       "name": "event_content_kind",
       "schema": "public",
-      "values": [
-        "map",
-        "schedule",
-        "info",
-        "file"
-      ]
+      "values": ["map", "schedule", "info", "file"]
     },
     "public.event_content_visibility": {
       "name": "event_content_visibility",
       "schema": "public",
-      "values": [
-        "public",
-        "attendees"
-      ]
+      "values": ["public", "attendees"]
     },
     "public.event_link_audience": {
       "name": "event_link_audience",
       "schema": "public",
-      "values": [
-        "public",
-        "attendees"
-      ]
+      "values": ["public", "attendees"]
     },
     "public.event_link_type": {
       "name": "event_link_type",
       "schema": "public",
-      "values": [
-        "tickets",
-        "registration",
-        "info"
-      ]
+      "values": ["tickets", "registration", "info"]
     },
     "public.event_mode": {
       "name": "event_mode",
       "schema": "public",
-      "values": [
-        "physical",
-        "digital"
-      ]
+      "values": ["physical", "digital"]
     },
     "public.event_status": {
       "name": "event_status",
       "schema": "public",
-      "values": [
-        "draft",
-        "awaiting_verification",
-        "in_review",
-        "published",
-        "cancelled",
-        "ended"
-      ]
+      "values": ["draft", "awaiting_verification", "in_review", "published", "cancelled", "ended"]
     },
     "public.import_notification_plan": {
       "name": "import_notification_plan",
       "schema": "public",
-      "values": [
-        "single",
-        "standard",
-        "countdown",
-        "full"
-      ]
+      "values": ["single", "standard", "countdown", "full"]
     },
     "public.member_role": {
       "name": "member_role",
       "schema": "public",
-      "values": [
-        "owner",
-        "editor"
-      ]
+      "values": ["owner", "editor"]
     },
     "public.notification_push_state": {
       "name": "notification_push_state",
       "schema": "public",
-      "values": [
-        "pending",
-        "sent",
-        "aggregated"
-      ]
+      "values": ["pending", "sent", "aggregated"]
     },
     "public.notification_reason": {
       "name": "notification_reason",
       "schema": "public",
-      "values": [
-        "nearby",
-        "publisher",
-        "event",
-        "broadcast"
-      ]
+      "values": ["nearby", "publisher", "event", "broadcast"]
     },
     "public.origin": {
       "name": "origin",
       "schema": "public",
-      "values": [
-        "native",
-        "imported"
-      ]
+      "values": ["native", "imported"]
     },
     "public.publisher_type": {
       "name": "publisher_type",
       "schema": "public",
-      "values": [
-        "org",
-        "person"
-      ]
+      "values": ["org", "person"]
     },
     "public.push_audience": {
       "name": "push_audience",
       "schema": "public",
-      "values": [
-        "event_match",
-        "everyone",
-        "tag_interest",
-        "area",
-        "area_and_tag"
-      ]
+      "values": ["event_match", "everyone", "tag_interest", "area", "area_and_tag"]
     },
     "public.push_delivery_status": {
       "name": "push_delivery_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "deferred",
-        "sent",
-        "dry_run"
-      ]
+      "values": ["pending", "deferred", "sent", "dry_run"]
     },
     "public.push_message_kind": {
       "name": "push_message_kind",
       "schema": "public",
-      "values": [
-        "event",
-        "broadcast"
-      ]
+      "values": ["event", "broadcast"]
     },
     "public.push_message_status": {
       "name": "push_message_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "approved",
-        "sending",
-        "sent",
-        "rejected",
-        "cancelled"
-      ]
+      "values": ["pending", "approved", "sending", "sent", "rejected", "cancelled"]
     },
     "public.region_kind": {
       "name": "region_kind",
       "schema": "public",
-      "values": [
-        "municipality",
-        "county"
-      ]
+      "values": ["municipality", "county"]
     },
     "public.session_subject": {
       "name": "session_subject",
       "schema": "public",
-      "values": [
-        "user",
-        "publisher_account",
-        "admin"
-      ]
+      "values": ["user", "publisher_account", "admin"]
     },
     "public.source_kind": {
       "name": "source_kind",
       "schema": "public",
-      "values": [
-        "api",
-        "feed",
-        "scraper"
-      ]
+      "values": ["api", "feed", "scraper"]
     },
     "public.source_trust": {
       "name": "source_trust",
       "schema": "public",
-      "values": [
-        "auto_publish",
-        "review"
-      ]
+      "values": ["auto_publish", "review"]
     },
     "public.stats_source_type": {
       "name": "stats_source_type",
       "schema": "public",
-      "values": [
-        "user",
-        "event",
-        "publisher"
-      ]
+      "values": ["user", "event", "publisher"]
     },
     "public.subscription_target": {
       "name": "subscription_target",
       "schema": "public",
-      "values": [
-        "publisher",
-        "event"
-      ]
+      "values": ["publisher", "event"]
     },
     "public.user_area_kind": {
       "name": "user_area_kind",
       "schema": "public",
-      "values": [
-        "manual",
-        "region"
-      ]
+      "values": ["manual", "region"]
     },
     "public.user_area_origin": {
       "name": "user_area_origin",
       "schema": "public",
-      "values": [
-        "manual",
-        "suggested"
-      ]
+      "values": ["manual", "suggested"]
     }
   },
   "schemas": {},

@@ -21,14 +21,14 @@ import { Host, Column, Button, Text } from '@expo/ui';
 
 ## Components
 
-| Category | Components |
-|----------|------------|
-| Container | `Host` (required root wrapper) |
-| Layout | `Column`, `Row`, `Spacer`, `ScrollView` |
-| Display | `Text`, `Icon` |
-| Controls | `Button`, `Switch`, `Checkbox`, `Slider`, `TextInput`, `Picker` |
-| Disclosure & presentation | `BottomSheet`, `Collapsible` |
-| Collections & forms | `List` (with `ListItem`), `FieldGroup` |
+| Category                  | Components                                                      |
+| ------------------------- | --------------------------------------------------------------- |
+| Container                 | `Host` (required root wrapper)                                  |
+| Layout                    | `Column`, `Row`, `Spacer`, `ScrollView`                         |
+| Display                   | `Text`, `Icon`                                                  |
+| Controls                  | `Button`, `Switch`, `Checkbox`, `Slider`, `TextInput`, `Picker` |
+| Disclosure & presentation | `BottomSheet`, `Collapsible`                                    |
+| Collections & forms       | `List` (with `ListItem`), `FieldGroup`                          |
 
 > **`List` is not suitable for large lists.** Each `ListItem` is a JSX node processed on the JS thread — for large datasets this causes noticeable slowdowns.
 
@@ -45,11 +45,14 @@ import { useCallback } from 'react';
 export default function MyInput() {
   const text = useNativeState('');
 
-  const handleChangeText = useCallback((value: string) => {
-    'worklet';
-    // transform synchronously on the UI thread — no React re-render
-    text.value = value === 'Hello' ? 'World' : value;
-  }, [text]);
+  const handleChangeText = useCallback(
+    (value: string) => {
+      'worklet';
+      // transform synchronously on the UI thread — no React re-render
+      text.value = value === 'Hello' ? 'World' : value;
+    },
+    [text],
+  );
 
   return (
     <Host matchContents>

@@ -1,7 +1,9 @@
 /** True for loopback and `*.localhost`, which a phone cannot open. */
 export function isLocalAssetHost(hostname: string): boolean {
   const host = hostname.replace(/^\[|\]$/g, '').toLowerCase();
-  return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host.endsWith('.localhost');
+  return (
+    host === 'localhost' || host === '127.0.0.1' || host === '::1' || host.endsWith('.localhost')
+  );
 }
 
 /**

@@ -116,10 +116,7 @@ describe('duplicate keys', () => {
     expect(anyLinksMatch(shop, ['http://brobergsoderhamn.ticketco.events/se/sv/'])).toBe(true);
     expect(duplicateLinksMatch(shop, shop)).toBe(false);
     expect(
-      anyLinksMatch(
-        ['https://www.soderhamn.se/aquarena'],
-        ['https://www.soderhamn.se/badhuset'],
-      ),
+      anyLinksMatch(['https://www.soderhamn.se/aquarena'], ['https://www.soderhamn.se/badhuset']),
     ).toBe(false);
   });
 });

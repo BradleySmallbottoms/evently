@@ -371,12 +371,12 @@ export const AdminEventDetail = AdminEventListItem.extend({
   priceAmount: z.number().int().nonnegative().nullable(),
   currency: z.string(),
   meta: EventMeta,
-    sourceUrl: z.string().nullable(),
-    /** Source event id. Null on a native event. */
-    refId: z.string().nullable(),
-    /** Data-worker slug. Null on a native event. */
-    workerId: z.string().nullable(),
-    tagIds: z.array(Id),
+  sourceUrl: z.string().nullable(),
+  /** Source event id. Null on a native event. */
+  refId: z.string().nullable(),
+  /** Data-worker slug. Null on a native event. */
+  workerId: z.string().nullable(),
+  tagIds: z.array(Id),
   links: z.array(EventLink),
   /** Hero image. Null when the event has none or the public asset host is unset. */
   imageUrl: z.url().nullable(),

@@ -151,7 +151,8 @@ export function preferDuplicate(
   next: { signal: DuplicateSignal; distanceM: number },
 ): boolean {
   if (!current) return true;
-  const rank = (signal: DuplicateSignal) => (signal === 'id' ? 0 : signal === 'event-link' ? 1 : signal === 'link' ? 2 : 3);
+  const rank = (signal: DuplicateSignal) =>
+    signal === 'id' ? 0 : signal === 'event-link' ? 1 : signal === 'link' ? 2 : 3;
   const nextRank = rank(next.signal);
   const currentRank = rank(current.signal);
   return nextRank < currentRank || (nextRank === currentRank && next.distanceM < current.distanceM);

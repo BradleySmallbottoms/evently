@@ -1,15 +1,7 @@
 import { tryHoldAdvisoryLock } from '@local-events/db';
 import { createOllamaWithToolsPromptRunner } from './prompt-runners/chatwithtools';
-import {
-  createRunpodChat,
-  runpodChatConfigFromEnv,
-  type RunpodChat,
-} from './runpod-chat';
-import {
-  SCAN_BATCH_LIMIT,
-  scanPendingEvents,
-  type ScanSummary,
-} from './scan-pending';
+import { createRunpodChat, runpodChatConfigFromEnv, type RunpodChat } from './runpod-chat';
+import { SCAN_BATCH_LIMIT, scanPendingEvents, type ScanSummary } from './scan-pending';
 import {
   PUBLISHER_SCAN_BATCH_LIMIT,
   scanPendingPublishers,
@@ -126,7 +118,15 @@ async function drainScans(
 }
 
 function emptySummary(): ScanSummary {
-  return { claimed: 0, published: 0, review: 0, unavailable: 0, unavailable_timeout: 0, skipped: 0, eventIds: [] };
+  return {
+    claimed: 0,
+    published: 0,
+    review: 0,
+    unavailable: 0,
+    unavailable_timeout: 0,
+    skipped: 0,
+    eventIds: [],
+  };
 }
 
 export interface PodPublisherScanSummary extends PublisherScanSummary {
@@ -180,7 +180,13 @@ export async function scanPublishersWithChatPod(input: {
           chatAuth: ready.auth,
         },
       });
-      const drained = await drainPublisherScans(input.store, runner, input.selection, env, ready.concurrency);
+      const drained = await drainPublisherScans(
+        input.store,
+        runner,
+        input.selection,
+        env,
+        ready.concurrency,
+      );
       summary = { ...drained, pod: 'ran' };
     }
   } catch (err) {

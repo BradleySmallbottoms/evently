@@ -41,10 +41,7 @@ describe('selectForYouEvents', () => {
       signals: [],
       followedPublisherIds: ['pub-followed'],
       selectedTagIds: [],
-      candidates: [
-        event('theirs', ['sport'], 'pub-followed'),
-        event('other', ['sport'], 'pub-b'),
-      ],
+      candidates: [event('theirs', ['sport'], 'pub-followed'), event('other', ['sport'], 'pub-b')],
     });
     expect(picked.map((item) => item.id)).toEqual(['theirs']);
   });

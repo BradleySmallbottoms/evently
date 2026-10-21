@@ -48,12 +48,25 @@ export function OccasionPeriod({
   const badgeColor =
     badgeTone === 'now' ? colors.success : badgeTone === 'soon' ? colors.info : colors.inkMuted;
   const badgeBackground =
-    badgeTone === 'now' ? colors.secondarySoft : badgeTone === 'soon' ? colors.infoSoft : colors.canvas;
+    badgeTone === 'now'
+      ? colors.secondarySoft
+      : badgeTone === 'soon'
+        ? colors.infoSoft
+        : colors.canvas;
 
   return (
     <View style={{ gap: space.md }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md }}>
-        <AppText style={{ fontSize: 20, lineHeight: 26, fontWeight: '700', color: colors.ink, flex: 1 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: space.md,
+        }}
+      >
+        <AppText
+          style={{ fontSize: 20, lineHeight: 26, fontWeight: '700', color: colors.ink, flex: 1 }}
+        >
           {title}
         </AppText>
         {badgeLabel ? (
@@ -70,13 +83,19 @@ export function OccasionPeriod({
             </AppText>
           </View>
         ) : null}
-
       </View>
       <View style={{ gap: space.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
           <IconTile sf="calendar" md="event" size={32} color={colors.accent as string} />
           <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: space.sm,
+              }}
+            >
               <AppText style={{ fontSize: 16, lineHeight: 22, fontWeight: '700' }}>
                 {rangeLabel}
               </AppText>
@@ -105,7 +124,12 @@ export function OccasionPeriod({
               />
             </Pressable>
             {open ? (
-              <OccasionList items={items} locale={locale} timeZone={timeZone} missingVenue={missingVenue} />
+              <OccasionList
+                items={items}
+                locale={locale}
+                timeZone={timeZone}
+                missingVenue={missingVenue}
+              />
             ) : null}
           </>
         ) : null}

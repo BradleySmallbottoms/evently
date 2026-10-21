@@ -14,8 +14,39 @@ import {
   slugifyPublisherName,
   tagSlug,
 } from '@local-events/domain';
-import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, sql } from 'drizzle-orm';
-import { type EventRecord, type PublisherRecord, NEARBY_RADIUS_M, PUBLISHER_NAME_SEARCH_RADIUS_M, publisherNameMatcher, type ImportedEventWrite, type IngestStore, type PendingPublisherRow, type PendingScanRow, type ScanPublisherCandidate, type NearbyPublisherHit, type NearbyEventHit, NEARBY_RESULT_LIMIT, type PublisherLink } from './store';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  ne,
+  notInArray,
+  or,
+  sql,
+} from 'drizzle-orm';
+import {
+  type EventRecord,
+  type PublisherRecord,
+  NEARBY_RADIUS_M,
+  PUBLISHER_NAME_SEARCH_RADIUS_M,
+  publisherNameMatcher,
+  type ImportedEventWrite,
+  type IngestStore,
+  type PendingPublisherRow,
+  type PendingScanRow,
+  type ScanPublisherCandidate,
+  type NearbyPublisherHit,
+  type NearbyEventHit,
+  NEARBY_RESULT_LIMIT,
+  type PublisherLink,
+} from './store';
 import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
 
 function eventValues(input: ImportedEventWrite) {
@@ -140,9 +171,7 @@ export function createDbIngestStore(db: Db): IngestStore {
       const nameKeys = organizerKeys.filter(
         (key) => sharedOrganizerKeyKind(key, localSlugs) === 'name',
       );
-      const slugKeys = [
-        ...new Set(nameKeys.flatMap((key) => [key, slugifyPublisherName(key)])),
-      ];
+      const slugKeys = [...new Set(nameKeys.flatMap((key) => [key, slugifyPublisherName(key)]))];
       const aliasRows = await db
         .select({
           organizerKey: publisherAliases.externalOrganizerKey,
@@ -161,23 +190,23 @@ export function createDbIngestStore(db: Db): IngestStore {
         nameKeys.length === 0
           ? []
           : await db
-            .select({
-              publisherId: publishers.id,
-              name: publishers.name,
-              slug: publishers.slug,
-              isTemporary: publishers.isTemporary,
-              status: publishers.status,
-              importNotificationPlan: publishers.importNotificationPlan,
-              createdAt: publishers.createdAt,
-              publisherName: publishers.name,
-            })
-            .from(publishers)
-            .where(
-              or(
-                inArray(sql`lower(${publishers.name})`, nameKeys),
-                inArray(publishers.slug, slugKeys),
-              ),
-            );
+              .select({
+                publisherId: publishers.id,
+                name: publishers.name,
+                slug: publishers.slug,
+                isTemporary: publishers.isTemporary,
+                status: publishers.status,
+                importNotificationPlan: publishers.importNotificationPlan,
+                createdAt: publishers.createdAt,
+                publisherName: publishers.name,
+              })
+              .from(publishers)
+              .where(
+                or(
+                  inArray(sql`lower(${publishers.name})`, nameKeys),
+                  inArray(publishers.slug, slugKeys),
+                ),
+              );
       const nearIds = new Map<string, number>();
       if (near?.location) {
         const ids = [
@@ -189,7 +218,10 @@ export function createDbIngestStore(db: Db): IngestStore {
         if (ids.length > 0) {
           const point = pointEwkt(near.location);
           const nearby = await db
-            .select({ publisherId: events.publisherId, distance: sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${point}))` })
+            .select({
+              publisherId: events.publisherId,
+              distance: sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${point}))`,
+            })
             .from(events)
             .where(
               and(
@@ -200,7 +232,11 @@ export function createDbIngestStore(db: Db): IngestStore {
               ),
             );
           for (const row of nearby) {
-            if (row.publisherId) nearIds.set(row.publisherId, Math.min(row.distance, nearIds.get(row.publisherId) ?? Infinity));
+            if (row.publisherId)
+              nearIds.set(
+                row.publisherId,
+                Math.min(row.distance, nearIds.get(row.publisherId) ?? Infinity),
+              );
           }
         }
       }
@@ -210,7 +246,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         key: row.organizerKey,
         status: row.status,
         createdAt: row.createdAt.getTime(),
-        distanceMeters: nearIds.has(row.publisherId) ? nearIds.get(row.publisherId) ?? -1 : -1,
+        distanceMeters: nearIds.has(row.publisherId) ? (nearIds.get(row.publisherId) ?? -1) : -1,
         isTemporary: row.isTemporary,
         importNotificationPlan: row.importNotificationPlan,
         organizerKeys: [],
@@ -230,7 +266,9 @@ export function createDbIngestStore(db: Db): IngestStore {
           key: nameKey,
           status: publisher.status,
           createdAt: publisher.createdAt.getTime(),
-          distanceMeters: nearIds.has(publisher.publisherId) ? nearIds.get(publisher.publisherId) ?? -1 : -1,
+          distanceMeters: nearIds.has(publisher.publisherId)
+            ? (nearIds.get(publisher.publisherId) ?? -1)
+            : -1,
           isTemporary: publisher.isTemporary,
           importNotificationPlan: publisher.importNotificationPlan,
           organizerKeys: [],
@@ -242,7 +280,10 @@ export function createDbIngestStore(db: Db): IngestStore {
       for (const candidateId of uniquePublishers) {
         const candidate = candidates.find((candidate) => candidate.publisherId === candidateId);
         if (!candidate) continue;
-        const aliases = await db.select({ key: publisherAliases.externalOrganizerKey }).from(publisherAliases).where(eq(publisherAliases.publisherId, candidate.publisherId));
+        const aliases = await db
+          .select({ key: publisherAliases.externalOrganizerKey })
+          .from(publisherAliases)
+          .where(eq(publisherAliases.publisherId, candidate.publisherId));
         result.push({ ...candidate, organizerKeys: aliases.map((alias) => alias.key) });
       }
       return result;
@@ -742,9 +783,9 @@ export function createDbIngestStore(db: Db): IngestStore {
               .filter((link) => link.eventId === id)
               .flatMap((link) =>
                 link.type === 'tickets' ||
-                  link.type === 'registration' ||
-                  link.type === 'info' ||
-                  link.type === 'facebook'
+                link.type === 'registration' ||
+                link.type === 'info' ||
+                link.type === 'facebook'
                   ? [{ type: link.type, url: link.url }]
                   : [],
               ),
@@ -764,7 +805,10 @@ export function createDbIngestStore(db: Db): IngestStore {
         const returned = new Set(pending.map((row) => row.eventId));
         const missing = idList.filter((id) => !returned.has(id));
         if (missing.length > 0) {
-          await tx.update(events).set({ scanClaimedUntil: null }).where(inArray(events.id, missing));
+          await tx
+            .update(events)
+            .set({ scanClaimedUntil: null })
+            .where(inArray(events.id, missing));
         }
         return pending;
       });
@@ -857,13 +901,20 @@ export function createDbIngestStore(db: Db): IngestStore {
     },
     async getPublisher(publisherId: string): Promise<PublisherRecord | null> {
       const { publishers, publisherAliases } = schema;
-      const rows = await db.select().from(publishers).where(eq(publishers.id, publisherId)).limit(1);
+      const rows = await db
+        .select()
+        .from(publishers)
+        .where(eq(publishers.id, publisherId))
+        .limit(1);
       if (rows.length === 0) return null;
       const row = rows[0];
       if (!row) return null;
-      const aliases = await db.select({
-        key: publisherAliases.externalOrganizerKey,
-      }).from(publisherAliases).where(eq(publisherAliases.publisherId, publisherId));
+      const aliases = await db
+        .select({
+          key: publisherAliases.externalOrganizerKey,
+        })
+        .from(publisherAliases)
+        .where(eq(publisherAliases.publisherId, publisherId));
       return {
         id: row.id,
         status: row.status,
@@ -916,9 +967,12 @@ export function createDbIngestStore(db: Db): IngestStore {
         .orderBy(publishers.id, distance);
       const closest = new Map<string, NearbyPublisherHit>();
       for (const row of rows) {
-        const aliases = await db.select({
-          key: publisherAliases.externalOrganizerKey,
-        }).from(publisherAliases).where(eq(publisherAliases.publisherId, row.id));
+        const aliases = await db
+          .select({
+            key: publisherAliases.externalOrganizerKey,
+          })
+          .from(publisherAliases)
+          .where(eq(publisherAliases.publisherId, row.id));
         const hit: NearbyPublisherHit = {
           id: row.id,
           name: row.name,
@@ -931,7 +985,9 @@ export function createDbIngestStore(db: Db): IngestStore {
         const current = closest.get(hit.id);
         if (!current || hit.distanceM < current.distanceM) closest.set(hit.id, hit);
       }
-      return [...closest.values()].sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
+      return [...closest.values()]
+        .sort((a, b) => a.distanceM - b.distanceM)
+        .slice(0, NEARBY_RESULT_LIMIT);
     },
     /**
      * Publishers whose name matches the wildcard and that have a non-cancelled event
@@ -983,7 +1039,9 @@ export function createDbIngestStore(db: Db): IngestStore {
         const current = closest.get(hit.id);
         if (!current || hit.distanceM < current.distanceM) closest.set(hit.id, hit);
       }
-      return [...closest.values()].sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
+      return [...closest.values()]
+        .sort((a, b) => a.distanceM - b.distanceM)
+        .slice(0, NEARBY_RESULT_LIMIT);
     },
     async releaseScanClaim(eventId, claimedUntil) {
       await db
@@ -1065,7 +1123,10 @@ export function createDbIngestStore(db: Db): IngestStore {
           .for('update', { skipLocked: true });
         if (ids.length === 0) return [];
         const idList = ids.map((row) => row.id);
-        await tx.update(publishers).set({ scanClaimedUntil: until }).where(inArray(publishers.id, idList));
+        await tx
+          .update(publishers)
+          .set({ scanClaimedUntil: until })
+          .where(inArray(publishers.id, idList));
         const rows = await tx
           .select({
             id: publishers.id,
@@ -1104,7 +1165,9 @@ export function createDbIngestStore(db: Db): IngestStore {
           pending.push({
             publisherId: row.id,
             name: row.name,
-            organizerKeys: aliasRows.filter((alias) => alias.publisherId === id).map((alias) => alias.key),
+            organizerKeys: aliasRows
+              .filter((alias) => alias.publisherId === id)
+              .map((alias) => alias.key),
             claimedUntil: until,
             sourceId: event?.sourceId ?? null,
             sourceSlug: event?.sourceSlug ?? null,

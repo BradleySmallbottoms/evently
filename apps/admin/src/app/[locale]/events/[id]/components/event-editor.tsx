@@ -624,92 +624,92 @@ export function EventEditor({ eventId }: { eventId: string }) {
                 <CardTitle>{t('links')}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
-              {form.links.map((link, index) => (
-                <div key={index} className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                  <Field className="w-full min-w-40 sm:w-40">
-                    <FieldLabel htmlFor={`link-type-${index}`}>{t('linkType')}</FieldLabel>
-                    <Select
-                      items={linkTypeItems}
-                      value={link.type}
-                      onValueChange={(next) => {
-                        if (next == null || !LINK_TYPES.includes(next as LinkType)) return;
-                        const type = next as LinkType;
+                {form.links.map((link, index) => (
+                  <div key={index} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <Field className="w-full min-w-40 sm:w-40">
+                      <FieldLabel htmlFor={`link-type-${index}`}>{t('linkType')}</FieldLabel>
+                      <Select
+                        items={linkTypeItems}
+                        value={link.type}
+                        onValueChange={(next) => {
+                          if (next == null || !LINK_TYPES.includes(next as LinkType)) return;
+                          const type = next as LinkType;
+                          update(
+                            'links',
+                            form.links.map((item, i) => (i === index ? { ...item, type } : item)),
+                          );
+                        }}
+                      >
+                        <SelectTrigger id={`link-type-${index}`} className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {LINK_TYPES.map((type) => (
+                              <SelectItem key={type} value={type}>
+                                {linkTypeLabel(type)}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field className="min-w-0 flex-1">
+                      <FieldLabel htmlFor={`link-url-${index}`}>{t('linkUrl')}</FieldLabel>
+                      <Input
+                        id={`link-url-${index}`}
+                        value={link.url}
+                        onChange={(e) =>
+                          update(
+                            'links',
+                            form.links.map((item, i) =>
+                              i === index ? { ...item, url: e.target.value } : item,
+                            ),
+                          )
+                        }
+                      />
+                    </Field>
+                    <Field className="sm:w-48">
+                      <FieldLabel htmlFor={`link-label-${index}`}>{t('linkLabel')}</FieldLabel>
+                      <Input
+                        id={`link-label-${index}`}
+                        value={link.label}
+                        onChange={(e) =>
+                          update(
+                            'links',
+                            form.links.map((item, i) =>
+                              i === index ? { ...item, label: e.target.value } : item,
+                            ),
+                          )
+                        }
+                      />
+                    </Field>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t('removeLink')}
+                      onClick={() =>
                         update(
                           'links',
-                          form.links.map((item, i) => (i === index ? { ...item, type } : item)),
-                        );
-                      }}
+                          form.links.filter((_, i) => i !== index),
+                        )
+                      }
                     >
-                      <SelectTrigger id={`link-type-${index}`} className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {LINK_TYPES.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {linkTypeLabel(type)}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field className="min-w-0 flex-1">
-                    <FieldLabel htmlFor={`link-url-${index}`}>{t('linkUrl')}</FieldLabel>
-                    <Input
-                      id={`link-url-${index}`}
-                      value={link.url}
-                      onChange={(e) =>
-                        update(
-                          'links',
-                          form.links.map((item, i) =>
-                            i === index ? { ...item, url: e.target.value } : item,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <Field className="sm:w-48">
-                    <FieldLabel htmlFor={`link-label-${index}`}>{t('linkLabel')}</FieldLabel>
-                    <Input
-                      id={`link-label-${index}`}
-                      value={link.label}
-                      onChange={(e) =>
-                        update(
-                          'links',
-                          form.links.map((item, i) =>
-                            i === index ? { ...item, label: e.target.value } : item,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={t('removeLink')}
-                    onClick={() =>
-                      update(
-                        'links',
-                        form.links.filter((_, i) => i !== index),
-                      )
-                    }
-                  >
-                    <XIcon />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="ghost"
-                className="self-start"
-                onClick={() =>
-                  update('links', [...form.links, { type: 'info', url: '', label: '' }])
-                }
-              >
-                {t('addLink')}
-              </Button>
+                      <XIcon />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="self-start"
+                  onClick={() =>
+                    update('links', [...form.links, { type: 'info', url: '', label: '' }])
+                  }
+                >
+                  {t('addLink')}
+                </Button>
               </CardContent>
             </Card>
             {renderSaveButton()}
@@ -724,49 +724,49 @@ export function EventEditor({ eventId }: { eventId: string }) {
                   <CardTitle>{t('physicalDetails')}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
-                <EventLocationMap
-                  lat={form.lat}
-                  lng={form.lng}
-                  radiusM={form.geofenceRadiusM}
-                  onPlace={(lat, lng) => setDraft({ ...form, lat, lng })}
-                />
-                <Field>
-                  <FieldLabel htmlFor="event-venue">{t('venueName')}</FieldLabel>
-                  <Input
-                    id="event-venue"
-                    value={form.venueName}
-                    onChange={(e) => update('venueName', e.target.value)}
+                  <EventLocationMap
+                    lat={form.lat}
+                    lng={form.lng}
+                    radiusM={form.geofenceRadiusM}
+                    onPlace={(lat, lng) => setDraft({ ...form, lat, lng })}
                   />
-                </Field>
-                <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
-                    <FieldLabel htmlFor="event-lat">{t('latitude')}</FieldLabel>
+                    <FieldLabel htmlFor="event-venue">{t('venueName')}</FieldLabel>
                     <Input
-                      id="event-lat"
-                      inputMode="decimal"
-                      value={form.lat}
-                      onChange={(e) => update('lat', e.target.value)}
+                      id="event-venue"
+                      value={form.venueName}
+                      onChange={(e) => update('venueName', e.target.value)}
                     />
                   </Field>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel htmlFor="event-lat">{t('latitude')}</FieldLabel>
+                      <Input
+                        id="event-lat"
+                        inputMode="decimal"
+                        value={form.lat}
+                        onChange={(e) => update('lat', e.target.value)}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="event-lng">{t('longitude')}</FieldLabel>
+                      <Input
+                        id="event-lng"
+                        inputMode="decimal"
+                        value={form.lng}
+                        onChange={(e) => update('lng', e.target.value)}
+                      />
+                    </Field>
+                  </div>
                   <Field>
-                    <FieldLabel htmlFor="event-lng">{t('longitude')}</FieldLabel>
+                    <FieldLabel htmlFor="event-radius">{t('geofenceRadiusM')}</FieldLabel>
                     <Input
-                      id="event-lng"
-                      inputMode="decimal"
-                      value={form.lng}
-                      onChange={(e) => update('lng', e.target.value)}
+                      id="event-radius"
+                      inputMode="numeric"
+                      value={form.geofenceRadiusM}
+                      onChange={(e) => update('geofenceRadiusM', e.target.value)}
                     />
                   </Field>
-                </div>
-                <Field>
-                  <FieldLabel htmlFor="event-radius">{t('geofenceRadiusM')}</FieldLabel>
-                  <Input
-                    id="event-radius"
-                    inputMode="numeric"
-                    value={form.geofenceRadiusM}
-                    onChange={(e) => update('geofenceRadiusM', e.target.value)}
-                  />
-                </Field>
                 </CardContent>
               </Card>
             ) : (

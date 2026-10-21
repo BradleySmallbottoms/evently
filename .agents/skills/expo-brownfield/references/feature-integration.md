@@ -28,8 +28,14 @@ import { useEffect, useState } from 'react';
 import { Button, Text, View } from 'react-native';
 import * as Brownfield from 'expo-brownfield';
 
-export default function Feature({ requestId, userId, greeting: initialGreeting }: {
-  requestId: string; userId: string; greeting: string;
+export default function Feature({
+  requestId,
+  userId,
+  greeting: initialGreeting,
+}: {
+  requestId: string;
+  userId: string;
+  greeting: string;
 }) {
   const [greeting, setGreeting] = useState(initialGreeting);
 
@@ -44,16 +50,37 @@ export default function Feature({ requestId, userId, greeting: initialGreeting }
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
-      <Text>{greeting}: {userId}</Text>
-      <Button title="Refresh greeting" onPress={() => Brownfield.sendMessage({
-        type: 'feature.request-context', requestId,
-      })} />
-      <Button title="Done" onPress={() => Brownfield.sendMessage({
-        type: 'feature.completed', requestId, selectedId: 'item-42',
-      })} />
-      <Button title="Cancel" onPress={() => Brownfield.sendMessage({
-        type: 'feature.cancelled', requestId,
-      })} />
+      <Text>
+        {greeting}: {userId}
+      </Text>
+      <Button
+        title="Refresh greeting"
+        onPress={() =>
+          Brownfield.sendMessage({
+            type: 'feature.request-context',
+            requestId,
+          })
+        }
+      />
+      <Button
+        title="Done"
+        onPress={() =>
+          Brownfield.sendMessage({
+            type: 'feature.completed',
+            requestId,
+            selectedId: 'item-42',
+          })
+        }
+      />
+      <Button
+        title="Cancel"
+        onPress={() =>
+          Brownfield.sendMessage({
+            type: 'feature.cancelled',
+            requestId,
+          })
+        }
+      />
     </View>
   );
 }

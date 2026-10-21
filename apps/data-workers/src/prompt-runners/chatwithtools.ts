@@ -1,4 +1,3 @@
-
 import { Id } from '@local-events/contracts';
 import { type NearbyWindow } from '@local-events/geo';
 import {
@@ -28,7 +27,16 @@ import { eventAddress, type EventAddressRecord } from '@local-events/domain';
 import { lookupPageUrl } from '../page-place';
 import { MAX_SCAN_CONCURRENCY } from '../runpod-chat';
 import { LOCAL_ORGANIZER_SLUGS } from '../sources';
-import { NEARBY_DAYS_AFTER, NEARBY_DAYS_BEFORE, publisherNameMatcher, type IngestStore, type NearbyEventHit, type NearbyPublisherHit, type PublisherCandidate, type PublisherRecord } from '../store';
+import {
+  NEARBY_DAYS_AFTER,
+  NEARBY_DAYS_BEFORE,
+  publisherNameMatcher,
+  type IngestStore,
+  type NearbyEventHit,
+  type NearbyPublisherHit,
+  type PublisherCandidate,
+  type PublisherRecord,
+} from '../store';
 import type {
   ChosenPublisher,
   PossibleDuplicateMatch,
@@ -153,7 +161,8 @@ function chatToolDefinitions(event: ScanInput): object[] {
           properties: {
             name: {
               type: 'string',
-              description: 'Publisher name. Use * for any text and ? for one character, for example Hälsing*.',
+              description:
+                'Publisher name. Use * for any text and ? for one character, for example Hälsing*.',
             },
           },
           required: ['name'],
@@ -164,7 +173,8 @@ function chatToolDefinitions(event: ScanInput): object[] {
       type: 'function',
       function: {
         name: 'getPossiblePublishers',
-        description: 'Publishers that match the organizer keys of the event being scanned. Distance in meters to the closest event from the scanned event is included. Takes no arguments.',
+        description:
+          'Publishers that match the organizer keys of the event being scanned. Distance in meters to the closest event from the scanned event is included. Takes no arguments.',
         parameters: noArguments,
       },
     },
@@ -172,7 +182,8 @@ function chatToolDefinitions(event: ScanInput): object[] {
       type: 'function',
       function: {
         name: 'getAvailableTags',
-        description: 'The tag catalog. Call this before choosing tags. Only ids from this list may be used. Takes no arguments.',
+        description:
+          'The tag catalog. Call this before choosing tags. Only ids from this list may be used. Takes no arguments.',
         parameters: noArguments,
       },
     },
@@ -233,7 +244,11 @@ export function createOllamaWithToolsPromptRunner(
           config,
           fetchImpl,
         ).catch((error: unknown) => {
-          console.error('scan failed', event.eventId, error instanceof Error ? error.message : error);
+          console.error(
+            'scan failed',
+            event.eventId,
+            error instanceof Error ? error.message : error,
+          );
           return { ok: false as const, eventId: event.eventId, reason: 'unavailable' as const };
         }),
       );
@@ -244,7 +259,10 @@ export function createOllamaWithToolsPromptRunner(
      * with no facts returns a null profile.
      */
     async lookupPublisher(input) {
-      const braveApiKey = options.braveApiKey !== undefined ? options.braveApiKey.trim() : (process.env.BRAVE_API_KEY?.trim() ?? '');
+      const braveApiKey =
+        options.braveApiKey !== undefined
+          ? options.braveApiKey.trim()
+          : (process.env.BRAVE_API_KEY?.trim() ?? '');
       if (!braveApiKey) return { ok: false, reason: 'unavailable' };
       const session = createPublisherToolSession();
       const finished = await runToolChat(
@@ -271,7 +289,11 @@ export function createOllamaWithToolsPromptRunner(
  * Runs `fn` on up to `limit` items at once. The index increment happens before the
  * first await, so two workers cannot take the same item. Results keep input order.
  */
-async function mapPool<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+async function mapPool<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
   const results = new Array<R>(items.length);
   let next = 0;
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
@@ -305,7 +327,11 @@ async function scanOneEvent(
 
   const content = await askModelWithLookups(buildScanPrompt(event), context, config, fetchImpl);
   if (content === 'timeout' || !content) {
-    return { ok: false, eventId: event.eventId, reason: content === 'timeout' ? 'timeout' : 'unavailable' };
+    return {
+      ok: false,
+      eventId: event.eventId,
+      reason: content === 'timeout' ? 'timeout' : 'unavailable',
+    };
   }
 
   const tags =
@@ -313,7 +339,9 @@ async function scanOneEvent(
   const publisher = await bestPublisher(content, context);
   const duplicate = await bestDuplicate(content, context);
   const occasionMatches = content.possibleDuplicates.flatMap((item) =>
-    typeof item.occasionRank === 'number' ? [{ eventId: item.eventId, occasionRank: item.occasionRank }] : [],
+    typeof item.occasionRank === 'number'
+      ? [{ eventId: item.eventId, occasionRank: item.occasionRank }]
+      : [],
   );
 
   return {
@@ -340,7 +368,10 @@ async function scanOneEvent(
   };
 }
 
-async function bestPublisher(content: LLMScanResult & LLMOutput, context: LookupContext): Promise<ChosenPublisher | null> {
+async function bestPublisher(
+  content: LLMScanResult & LLMOutput,
+  context: LookupContext,
+): Promise<ChosenPublisher | null> {
   if (content.possiblePublishers.length === 0) return null;
   // by rank
   const bestMatch = content.possiblePublishers.sort((a, b) => a.rank - b.rank)[0];
@@ -354,10 +385,13 @@ async function bestPublisher(content: LLMScanResult & LLMOutput, context: Lookup
     isTemporary: publisher.isTemporary,
     status: publisher.status,
     importNotificationPlan: publisher.importNotificationPlan,
-  }
+  };
 }
 
-async function bestDuplicate(content: LLMScanResult & LLMOutput, context: LookupContext): Promise<PossibleDuplicateMatch | null> {
+async function bestDuplicate(
+  content: LLMScanResult & LLMOutput,
+  context: LookupContext,
+): Promise<PossibleDuplicateMatch | null> {
   if (content.possibleDuplicates.length === 0) return null;
   // by rank
   const bestMatch = content.possibleDuplicates.sort((a, b) => a.rank - b.rank)[0];
@@ -397,7 +431,7 @@ function buildScanPrompt(event: ScanInput): string {
     namePattern
       ? `3. If that list has no reasonable match, call getPublishersByName with name "${namePattern}". * matches any text and ? matches one character.`
       : '',
-      //'3. If that list has no reasonable match, call getPublishersByName with the publisher name below and * after its first word.',
+    //'3. If that list has no reasonable match, call getPublishersByName with the publisher name below and * after its first word.',
     '4. If the name list also has no reasonable match, call getNearbyPublishers().',
     '5. If the nearby list also has no reasonable match, possiblePublishers is []. That is allowed. A made-up publisher is not.',
     'Stop the publisher search at the first list that has a reasonable match. Include a publisher only when its rank is over 90. A empty list is allowed.',
@@ -560,7 +594,9 @@ function resolveChatEndpoint(config: Record<string, unknown>): ChatEndpoint | nu
 
   const protocol = chatProtocol(url);
   const configuredModel = configString(config, 'chatModel', 'CHAT_MODEL');
-  const providerModel = provider ? configString(config, provider.modelConfig, provider.modelEnv) : '';
+  const providerModel = provider
+    ? configString(config, provider.modelConfig, provider.modelEnv)
+    : '';
   let model = configuredModel || providerModel || provider?.defaultModel || '';
   if (!model) {
     try {
@@ -588,7 +624,9 @@ function resolveChatEndpoint(config: Record<string, unknown>): ChatEndpoint | nu
  * `ollama` keeps the local server. An empty value means no named provider. Anything else
  * is invalid, so the scan does not guess.
  */
-function namedChatProvider(config: Record<string, unknown>): NamedChatProvider | 'ollama' | 'unset' | 'invalid' {
+function namedChatProvider(
+  config: Record<string, unknown>,
+): NamedChatProvider | 'ollama' | 'unset' | 'invalid' {
   const raw = configString(config, 'chatProvider', 'CHAT_PROVIDER').toLowerCase();
   if (!raw) return 'unset';
   if (raw === 'openai' || raw === 'chatgpt') return 'openai';
@@ -617,7 +655,8 @@ function isLoopback(hostname: string): boolean {
 function chatProtocol(url: URL): ChatProtocol {
   const path = url.pathname.replace(/\/$/, '');
   if (path.endsWith('/api/chat')) return 'ollama';
-  if (url.hostname.toLowerCase() === 'api.anthropic.com' || path.endsWith('/messages')) return 'anthropic';
+  if (url.hostname.toLowerCase() === 'api.anthropic.com' || path.endsWith('/messages'))
+    return 'anthropic';
   return 'openai';
 }
 
@@ -635,7 +674,8 @@ function anthropicToolDefinitions(tools: object[]): object[] {
     const fn = tool.function;
     if (!fn || typeof fn !== 'object') continue;
     const name = 'name' in fn && typeof fn.name === 'string' ? fn.name : '';
-    const description = 'description' in fn && typeof fn.description === 'string' ? fn.description : '';
+    const description =
+      'description' in fn && typeof fn.description === 'string' ? fn.description : '';
     const parameters = 'parameters' in fn ? fn.parameters : { type: 'object', properties: {} };
     if (!name) continue;
     defined.push({ name, description, input_schema: parameters });
@@ -748,12 +788,20 @@ function readAnthropicTurn(payload: object): AssistantTurn | null {
   const calls: ParsedToolCall[] = [];
   for (const block of payload.content) {
     if (!block || typeof block !== 'object') continue;
-    if ('type' in block && block.type === 'text' && 'text' in block && typeof block.text === 'string') {
+    if (
+      'type' in block &&
+      block.type === 'text' &&
+      'text' in block &&
+      typeof block.text === 'string'
+    ) {
       texts.push(block.text);
     }
     if ('type' in block && block.type !== 'tool_use') continue;
     if (!('name' in block) || typeof block.name !== 'string' || !block.name.trim()) continue;
-    const id = 'id' in block && typeof block.id === 'string' && block.id.trim() ? block.id.trim() : `toolu-${calls.length}`;
+    const id =
+      'id' in block && typeof block.id === 'string' && block.id.trim()
+        ? block.id.trim()
+        : `toolu-${calls.length}`;
     const input = 'input' in block ? block.input : undefined;
     calls.push({ id, name: block.name.trim(), arguments: readToolArguments(input) });
   }
@@ -770,7 +818,8 @@ function messageText(content: unknown): string | null {
   if (!Array.isArray(content)) return null;
   const parts: string[] = [];
   for (const part of content) {
-    if (!part || typeof part !== 'object' || !('text' in part) || typeof part.text !== 'string') continue;
+    if (!part || typeof part !== 'object' || !('text' in part) || typeof part.text !== 'string')
+      continue;
     parts.push(part.text);
   }
   return parts.length > 0 ? parts.join('\n') : null;
@@ -821,7 +870,8 @@ function anthropicToolResults(
   const content = Array.isArray(wire.content) ? wire.content : [];
   const blocks: object[] = [];
   for (const block of content) {
-    if (!block || typeof block !== 'object' || !('type' in block) || block.type !== 'tool_use') continue;
+    if (!block || typeof block !== 'object' || !('type' in block) || block.type !== 'tool_use')
+      continue;
     const id = 'id' in block && typeof block.id === 'string' ? block.id : '';
     if (!id) continue;
     const ran = byId.has(id);
@@ -852,11 +902,16 @@ function readToolCalls(message: Record<string, unknown> | null): ParsedToolCall[
   for (const call of message.tool_calls) {
     if (!call || typeof call !== 'object') continue;
     const fn =
-      'function' in call && call.function && typeof call.function === 'object' ? call.function : call;
+      'function' in call && call.function && typeof call.function === 'object'
+        ? call.function
+        : call;
     if (!fn || typeof fn !== 'object' || !('name' in fn) || typeof fn.name !== 'string') continue;
     const name = fn.name.trim();
     if (!name) continue;
-    const id = 'id' in call && typeof call.id === 'string' && call.id.trim() ? call.id.trim() : `call-${calls.length}`;
+    const id =
+      'id' in call && typeof call.id === 'string' && call.id.trim()
+        ? call.id.trim()
+        : `call-${calls.length}`;
     const args = 'arguments' in fn ? fn.arguments : undefined;
     calls.push({ id, name, arguments: readToolArguments(args) });
   }
@@ -869,7 +924,8 @@ function readToolArguments(raw: unknown): Record<string, unknown> {
   if (typeof raw !== 'string') return {};
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, unknown>;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+      return parsed as Record<string, unknown>;
   } catch {
     return {};
   }
@@ -947,16 +1003,18 @@ async function lookupNearbyEvents(context: LookupContext): Promise<ToolResult> {
 }
 
 /** Possible publisher candidates based on the event organizer keys and the event location. */
-async function lookupPossiblePublishers(
-  context: LookupContext,
-): Promise<ToolResult> {
+async function lookupPossiblePublishers(context: LookupContext): Promise<ToolResult> {
   const event = context.event;
   const localSlugs = [...new Set([event.source.slug, ...LOCAL_ORGANIZER_SLUGS])];
-  const publishers = await context.store.listPublisherCandidates(event.source.id, event.organizer.keys, {
-    ...(event.location ? { location: event.location } : {}),
-    localSlugs,
-  })
-//).filter((publisher) => publisher.distanceMeters <= 500);
+  const publishers = await context.store.listPublisherCandidates(
+    event.source.id,
+    event.organizer.keys,
+    {
+      ...(event.location ? { location: event.location } : {}),
+      localSlugs,
+    },
+  );
+  //).filter((publisher) => publisher.distanceMeters <= 500);
   const possiblePublishers = publishers.map((publisher) => ({
     publisherId: publisher.publisherId,
     sourceId: publisher.sourceId,
@@ -1006,7 +1064,10 @@ async function lookupPublishersByName(
  * reply are ignored. Prose or a broken object is a failed scan. A parsed object
  * with no verdict stays `unknown`.
  */
-function scanRangeOf(record: Record<string, unknown>): { startsAt: string | null; endsAt: string | null } {
+function scanRangeOf(record: Record<string, unknown>): {
+  startsAt: string | null;
+  endsAt: string | null;
+} {
   const range = readScanRange(record);
   return range ?? { startsAt: null, endsAt: null };
 }
@@ -1053,7 +1114,9 @@ function extractScanRecord(content: string): Record<string, unknown> | null {
 }
 
 /** Last object that carries the scan fields. Tag snippets earlier in the text are skipped. */
-function lastScanRecord(objects: readonly Record<string, unknown>[]): Record<string, unknown> | null {
+function lastScanRecord(
+  objects: readonly Record<string, unknown>[],
+): Record<string, unknown> | null {
   for (let index = objects.length - 1; index >= 0; index -= 1) {
     const record = objects[index];
     if (record && isScanRecord(record)) return record;
@@ -1211,7 +1274,8 @@ function readContentVerdict(
   value: unknown,
   fallback: LLMScanResult['contentVerdict'],
 ): LLMScanResult['contentVerdict'] {
-  if (value === 'spam' || value === 'harmful' || value === 'safe' || value === 'unknown') return value;
+  if (value === 'spam' || value === 'harmful' || value === 'safe' || value === 'unknown')
+    return value;
   return fallback;
 }
 
@@ -1249,7 +1313,11 @@ function possiblePublishers(value: unknown): LLMScanResult['possiblePublishers']
     if (!item || typeof item !== 'object') continue;
     const publisherId = 'publisherId' in item ? item.publisherId : undefined;
     const rank = 'rank' in item ? item.rank : undefined;
-    if ((typeof publisherId !== 'string' && typeof publisherId !== 'number') || typeof rank !== 'number') continue;
+    if (
+      (typeof publisherId !== 'string' && typeof publisherId !== 'number') ||
+      typeof rank !== 'number'
+    )
+      continue;
     publishers.push({ publisherId: String(publisherId), rank });
   }
   return publishers;
@@ -1263,7 +1331,8 @@ function possibleDuplicates(value: unknown): LLMScanResult['possibleDuplicates']
     const eventId = 'eventId' in item ? item.eventId : undefined;
     const rank = 'rank' in item ? item.rank : undefined;
     const occasionRank = 'occasionRank' in item ? item.occasionRank : undefined;
-    if ((typeof eventId !== 'string' && typeof eventId !== 'number') || typeof rank !== 'number') continue;
+    if ((typeof eventId !== 'string' && typeof eventId !== 'number') || typeof rank !== 'number')
+      continue;
     duplicates.push({ eventId: String(eventId), rank, occasionRank });
   }
   return duplicates;
@@ -1275,5 +1344,7 @@ function possibleDuplicates(value: unknown): LLMScanResult['possibleDuplicates']
  */
 function scanCacheKey(event: TagMatchInput & Pick<ScanInput, 'startsAt' | 'location'>): string {
   const point = event.location ? `${event.location.lat},${event.location.lng}` : '';
-  return [event.title, event.description ?? '', event.venue ?? '', event.startsAt, point].join('\n');
+  return [event.title, event.description ?? '', event.venue ?? '', event.startsAt, point].join(
+    '\n',
+  );
 }

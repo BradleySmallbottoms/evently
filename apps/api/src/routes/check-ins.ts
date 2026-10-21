@@ -9,10 +9,7 @@ import {
   ErrorResponse,
 } from '@local-events/contracts';
 import { z } from 'zod';
-import {
-  readPublisherSessionToken,
-  readUserSessionToken,
-} from '../services/auth/cookies';
+import { readPublisherSessionToken, readUserSessionToken } from '../services/auth/cookies';
 import { checkInErrorResponse } from '../services/check-ins/errors';
 import type { CheckInServices } from '../services/check-ins/types';
 
@@ -181,10 +178,7 @@ export function registerCheckInRoutes(app: OpenAPIHono, checkIns: CheckInService
   app.openapi(startDigitalCode, async (c) => {
     try {
       const { eventId } = c.req.valid('param');
-      return c.json(
-        await checkIns.startDigitalCode(readPublisherSessionToken(c), eventId),
-        200,
-      );
+      return c.json(await checkIns.startDigitalCode(readPublisherSessionToken(c), eventId), 200);
     } catch (err) {
       return checkInErrorResponse(c, err);
     }

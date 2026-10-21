@@ -6,10 +6,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  MapEventSheet,
-  type MapEventSelection,
-} from '@/components/native/map-event-sheet';
+import { MapEventSheet, type MapEventSelection } from '@/components/native/map-event-sheet';
 import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
 import { listPublicEvents } from '@/lib/events';

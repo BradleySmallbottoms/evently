@@ -85,7 +85,7 @@ Set the page title with `Stack.Title`:
 Add long press context menus to Link components:
 
 ```tsx
-import { Link } from "expo-router";
+import { Link } from 'expo-router';
 
 <Link href="/settings" asChild>
   <Link.Trigger>
@@ -94,25 +94,11 @@ import { Link } from "expo-router";
     </Pressable>
   </Link.Trigger>
   <Link.Menu>
-    <Link.MenuAction
-      title="Share"
-      icon="square.and.arrow.up"
-      onPress={handleSharePress}
-    />
-    <Link.MenuAction
-      title="Block"
-      icon="nosign"
-      destructive
-      onPress={handleBlockPress}
-    />
+    <Link.MenuAction title="Share" icon="square.and.arrow.up" onPress={handleSharePress} />
+    <Link.MenuAction title="Block" icon="nosign" destructive onPress={handleBlockPress} />
     <Link.Menu title="More" icon="ellipsis">
       <Link.MenuAction title="Copy" icon="doc.on.doc" onPress={() => {}} />
-      <Link.MenuAction
-        title="Delete"
-        icon="trash"
-        destructive
-        onPress={() => {}}
-      />
+      <Link.MenuAction title="Delete" icon="trash" destructive onPress={() => {}} />
     </Link.Menu>
   </Link.Menu>
 </Link>;
@@ -140,7 +126,7 @@ Link preview can be used with context menus.
 Present a screen as a modal:
 
 ```tsx
-<Stack.Screen name="modal" options={{ presentation: "modal" }} />
+<Stack.Screen name="modal" options={{ presentation: 'modal' }} />
 ```
 
 Prefer this to building a custom modal component.
@@ -153,10 +139,10 @@ Present a screen as a dynamic form sheet:
 <Stack.Screen
   name="sheet"
   options={{
-    presentation: "formSheet",
+    presentation: 'formSheet',
     sheetGrabberVisible: true,
     sheetAllowedDetents: [0.5, 1.0],
-    contentStyle: { backgroundColor: "transparent" },
+    contentStyle: { backgroundColor: 'transparent' },
   }}
 />
 ```
@@ -178,14 +164,14 @@ app/
 
 ```tsx
 // app/_layout.tsx
-import { NativeTabs } from "expo-router/unstable-native-tabs";
-import { ThemeProvider, DarkTheme, DefaultTheme } from "expo-router/react-navigation";
-import { useColorScheme } from "react-native";
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { ThemeProvider, DarkTheme, DefaultTheme } from 'expo-router/react-navigation';
+import { useColorScheme } from 'react-native';
 
 export default function Layout() {
   const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <NativeTabs>
         <NativeTabs.Trigger name="(index)">
           <NativeTabs.Trigger.Icon sf="list.dash" md="list" />
@@ -202,12 +188,12 @@ Create a shared group route so both tabs can push common screens:
 
 ```tsx
 // app/(index,search)/_layout.tsx
-import { Stack } from "expo-router/stack";
-import { colors } from "@/theme/colors";
+import { Stack } from 'expo-router/stack';
+import { colors } from '@/theme/colors';
 
 export default function Layout({ segment }) {
   const screen = segment.match(/\((.*)\)/)?.[1]!;
-  const titles: Record<string, string> = { index: "Items", search: "Search" };
+  const titles: Record<string, string> = { index: 'Items', search: 'Search' };
 
   return (
     <Stack
@@ -215,11 +201,11 @@ export default function Layout({ segment }) {
         headerTransparent: true,
         headerShadowVisible: false,
         headerLargeTitleShadowVisible: false,
-        headerLargeStyle: { backgroundColor: "transparent" },
+        headerLargeStyle: { backgroundColor: 'transparent' },
         headerTitleStyle: { color: colors.label },
         headerLargeTitleEnabled: true,
-        headerBlurEffect: "none",
-        headerBackButtonDisplayMode: "minimal",
+        headerBlurEffect: 'none',
+        headerBackButtonDisplayMode: 'minimal',
       }}
     >
       <Stack.Screen name={screen} options={{ title: titles[screen] }} />
@@ -232,9 +218,12 @@ export default function Layout({ segment }) {
 `headerLargeTitleEnabled` is the SDK 56+ option name; older SDKs use `headerLargeTitle`, which is deprecated upstream.
 
 ## Submitting Feedback
+
 If you encounter errors, misleading or outdated information in this skill, report it so Expo can improve:
+
 ```bash
 npx --yes submit-expo-feedback@latest --category skills --subject "expo-router" "<actionable feedback>"
 ```
+
 Only submit when you have something specific and actionable to report. Include as much relevant context as possible.
 If an AI agent repeatedly failed or the user had to take over an Expo task, load the expo-skill-feedback skill and follow its eval-candidate flow instead of reusing the command above.

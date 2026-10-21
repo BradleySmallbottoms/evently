@@ -96,29 +96,25 @@ test('publisher event flow is visible in web workspace', async ({ page, request,
   const tagId = tags.items[0]?.id;
   expect(tagId).toBeTruthy();
 
-  const createRes = await request.post(
-    `${API}/v1/publishers/${registered.publisherId}/events`,
-    {
-      headers: { cookie: sessionPair },
-      data: {
-        title: 'E2E Test Event',
-        description: 'Created in E2E',
-        mode: 'physical',
-        startsAt: `${tsPlusMinutes(60)}:00.000Z`,
-        endsAt: `${tsPlusMinutes(120)}:00.000Z`,
-        venueName: 'Soderhamn Centrum',
-        location: { lat: 61.3037, lng: 17.0592 },
-        tagIds: [tagId],
-      },
+  const createRes = await request.post(`${API}/v1/publishers/${registered.publisherId}/events`, {
+    headers: { cookie: sessionPair },
+    data: {
+      title: 'E2E Test Event',
+      description: 'Created in E2E',
+      mode: 'physical',
+      startsAt: `${tsPlusMinutes(60)}:00.000Z`,
+      endsAt: `${tsPlusMinutes(120)}:00.000Z`,
+      venueName: 'Soderhamn Centrum',
+      location: { lat: 61.3037, lng: 17.0592 },
+      tagIds: [tagId],
     },
-  );
+  });
   expect(createRes.ok()).toBeTruthy();
   const created = (await createRes.json()) as { id: string };
 
-  const publishRes = await request.post(
-    `${API}/v1/manage/events/${created.id}/publish`,
-    { headers: { cookie: sessionPair } },
-  );
+  const publishRes = await request.post(`${API}/v1/manage/events/${created.id}/publish`, {
+    headers: { cookie: sessionPair },
+  });
   expect(publishRes.ok()).toBeTruthy();
 
   await page.goto(`/publisher/${registered.publisherId}/events`);

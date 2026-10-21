@@ -97,11 +97,7 @@ describe('geo check-in', () => {
     );
     const domainEvents = createMemoryDomainEventPublisher();
     const events = createMemoryEventServices(auth, { now: () => now }, store);
-    const checkIns = createMemoryCheckInServices(
-      auth,
-      { now: () => now, domainEvents },
-      store,
-    );
+    const checkIns = createMemoryCheckInServices(auth, { now: () => now, domainEvents }, store);
     const app = createApp({ auth, events, checkIns });
 
     const { eventId } = await publishPhysicalEvent(
@@ -186,9 +182,7 @@ describe('geo check-in', () => {
       }),
     });
     expect(far.status).toBe(400);
-    expect(((await far.json()) as { error: { code: string } }).error.code).toBe(
-      'outside_geofence',
-    );
+    expect(((await far.json()) as { error: { code: string } }).error.code).toBe('outside_geofence');
 
     const poor = await app.request(`/v1/events/${eventId}/check-ins`, {
       method: 'POST',
@@ -199,9 +193,7 @@ describe('geo check-in', () => {
       }),
     });
     expect(poor.status).toBe(400);
-    expect(((await poor.json()) as { error: { code: string } }).error.code).toBe(
-      'poor_accuracy',
-    );
+    expect(((await poor.json()) as { error: { code: string } }).error.code).toBe('poor_accuracy');
   });
 });
 
@@ -215,11 +207,7 @@ describe('digital code check-in', () => {
     );
     const domainEvents = createMemoryDomainEventPublisher();
     const events = createMemoryEventServices(auth, { now: () => now }, store);
-    const checkIns = createMemoryCheckInServices(
-      auth,
-      { now: () => now, domainEvents },
-      store,
-    );
+    const checkIns = createMemoryCheckInServices(auth, { now: () => now, domainEvents }, store);
     const app = createApp({ auth, events, checkIns });
 
     const { eventId, cookie } = await publishPhysicalEvent(
@@ -241,9 +229,7 @@ describe('digital code check-in', () => {
       body: JSON.stringify({ code: 'ABCDEF' }),
     });
     expect(before.status).toBe(400);
-    expect(((await before.json()) as { error: { code: string } }).error.code).toBe(
-      'not_revealed',
-    );
+    expect(((await before.json()) as { error: { code: string } }).error.code).toBe('not_revealed');
 
     const started = await app.request(`/v1/manage/events/${eventId}/digital-code/start`, {
       method: 'POST',

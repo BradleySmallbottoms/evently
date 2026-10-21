@@ -10,7 +10,10 @@ export function lookupPageUrl(
 ): string | undefined {
   if (sourceUrl?.startsWith('https://') && !isFacebookUrl(sourceUrl)) return sourceUrl;
   const pages = links ?? [];
-  const ticket = pages.find((link) => link.type === 'tickets' && link.url.startsWith('https://') && !isFacebookUrl(link.url));
+  const ticket = pages.find(
+    (link) =>
+      link.type === 'tickets' && link.url.startsWith('https://') && !isFacebookUrl(link.url),
+  );
   if (ticket) return ticket.url;
   const info = pages.find(
     (link) => link.type === 'info' && link.url.startsWith('https://') && !isFacebookUrl(link.url),
@@ -26,7 +29,12 @@ function isFacebookPage(link: { type: string; url: string }): boolean {
 function isFacebookUrl(url: string): boolean {
   try {
     const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
-    return host === 'facebook.com' || host.endsWith('.facebook.com') || host === 'fb.com' || host.endsWith('.fb.com');
+    return (
+      host === 'facebook.com' ||
+      host.endsWith('.facebook.com') ||
+      host === 'fb.com' ||
+      host.endsWith('.fb.com')
+    );
   } catch {
     return false;
   }
@@ -68,7 +76,10 @@ async function photonPoint(
   url.searchParams.set('q', query);
   url.searchParams.set('limit', '5');
   try {
-    const response = await fetchImpl(url, { redirect: 'error', signal: AbortSignal.timeout(8_000) });
+    const response = await fetchImpl(url, {
+      redirect: 'error',
+      signal: AbortSignal.timeout(8_000),
+    });
     if (!response.ok) return undefined;
     return swedishPoint(await response.json());
   } catch {
@@ -86,7 +97,8 @@ function swedishPoint(body: unknown): { lat: number; lng: number } | undefined {
       geometry?: { coordinates?: unknown };
       properties?: { countrycode?: unknown };
     };
-    const country = typeof record.properties?.countrycode === 'string' ? record.properties.countrycode : '';
+    const country =
+      typeof record.properties?.countrycode === 'string' ? record.properties.countrycode : '';
     if (country.toUpperCase() !== 'SE') continue;
     const coordinates = record.geometry?.coordinates;
     if (!Array.isArray(coordinates)) continue;

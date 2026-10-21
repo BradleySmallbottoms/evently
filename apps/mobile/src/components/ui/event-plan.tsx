@@ -125,16 +125,18 @@ export function EventPlan({
   onComingPress,
 }: Props) {
   return (
-    <View style={{
-      gap: space.md,
-      borderTopColor: colors.separator,
-      borderTopWidth: 1,
-      borderBottomColor: colors.separator,
-      borderBottomWidth: 1,
-      paddingVertical: space.md,
-      paddingHorizontal: space.lg,
-      backgroundColor: colors.accentSoft,
-    }}>
+    <View
+      style={{
+        gap: space.md,
+        borderTopColor: colors.separator,
+        borderTopWidth: 1,
+        borderBottomColor: colors.separator,
+        borderBottomWidth: 1,
+        paddingVertical: space.md,
+        paddingHorizontal: space.lg,
+        backgroundColor: colors.accentSoft,
+      }}
+    >
       {title ? <AppText variant="subtitle">{title}</AppText> : null}
       <View style={{ flexDirection: 'row', gap: space.sm }}>
         <PlanCount count={interestedCount} label={interestedCountLabel} />

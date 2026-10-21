@@ -107,20 +107,22 @@ export function PlaceSearchField({ onPick, editable = true, autoFocus = false }:
           {t('onboarding.areaSearchEmpty')}
         </AppText>
       ) : null}
-      <View style={{
-        borderBottomLeftRadius: radius.xl,
-        borderBottomRightRadius: radius.xl,
-        backgroundColor: colors.card,
-        borderLeftWidth: 1,
-        borderRightWidth: 1,
-        borderBottomWidth: 1,
-        borderColor: colors.line,
-        position: 'absolute',
-        top: '98%',
-        left: 8, 
-        right: 8,
-        zIndex: 1000,
-      }}>
+      <View
+        style={{
+          borderBottomLeftRadius: radius.xl,
+          borderBottomRightRadius: radius.xl,
+          backgroundColor: colors.card,
+          borderLeftWidth: 1,
+          borderRightWidth: 1,
+          borderBottomWidth: 1,
+          borderColor: colors.line,
+          position: 'absolute',
+          top: '98%',
+          left: 8,
+          right: 8,
+          zIndex: 1000,
+        }}
+      >
         {results.map((result) => (
           <Pressable
             key={`${result.lat}:${result.lng}:${result.name}`}

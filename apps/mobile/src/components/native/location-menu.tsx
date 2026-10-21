@@ -11,10 +11,7 @@ import { Dimensions, Pressable, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import { PlaceSearchField } from '@/components/ui/place-search-field';
 import type { NamedPlace } from '@/lib/place-lookup';
-import {
-  DISCOVERY_RADIUS_STOPS_M,
-  resolveDiscoveryRadiusM,
-} from '@/lib/discovery-radius';
+import { DISCOVERY_RADIUS_STOPS_M, resolveDiscoveryRadiusM } from '@/lib/discovery-radius';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
@@ -119,7 +116,8 @@ export function LocationMenu({
     if (open && !wasOpen.current) {
       const nearbyId = options[0]?.id ?? '';
       const saved = options.slice(1);
-      const current = selectedId && options.some((option) => option.id === selectedId) ? selectedId : nearbyId;
+      const current =
+        selectedId && options.some((option) => option.id === selectedId) ? selectedId : nearbyId;
       setDraftId(current);
       setSavedId(saved.some((option) => option.id === current) ? current : (saved[0]?.id ?? ''));
       setRadiusIndex(indexForMeters(radiusByPlace?.[current] ?? radiusM));
@@ -193,7 +191,10 @@ export function LocationMenu({
 
   return (
     <>
-      <Pressable onPress={() => setOpen(true)} style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%' }}>
+      <Pressable
+        onPress={() => setOpen(true)}
+        style={{ flexShrink: 1, minWidth: 0, maxWidth: '100%' }}
+      >
         <View style={{ gap: eyebrow ? 2 : 0, maxWidth: '100%' }}>
           {eyebrow ? (
             <AppText variant="caption" numberOfLines={1}>
@@ -255,7 +256,13 @@ export function LocationMenu({
                     backgroundColor: nearbySelected ? colors.accent : colors.accentSoft,
                   }}
                 >
-                  <Glyph sf="location.north.line.fill" md="near-me" color={nearbySelected ? colors.accentSoft as string : colors.accent as string} />
+                  <Glyph
+                    sf="location.north.line.fill"
+                    md="near-me"
+                    color={
+                      nearbySelected ? (colors.accentSoft as string) : (colors.accent as string)
+                    }
+                  />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <AppText variant="subtitle">{t('events.locationNearMe')}</AppText>
@@ -317,7 +324,15 @@ export function LocationMenu({
                       backgroundColor: nearbySelected ? colors.secondarySoft : colors.secondary,
                     }}
                   >
-                    <Glyph sf="mappin" md="place" color={nearbySelected ? colors.secondary as string : colors.secondarySoft as string} />
+                    <Glyph
+                      sf="mappin"
+                      md="place"
+                      color={
+                        nearbySelected
+                          ? (colors.secondary as string)
+                          : (colors.secondarySoft as string)
+                      }
+                    />
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
                     <AppText variant="subtitle">{t('events.savedPlaces')}</AppText>
@@ -335,8 +350,16 @@ export function LocationMenu({
                         paddingVertical: 4,
                       }}
                     >
-                      <Glyph sf="checkmark" md="check" color={colors.secondary as string} size={12} />
-                      <AppText variant="label" style={{ color: colors.secondary, fontWeight: '700' }}>
+                      <Glyph
+                        sf="checkmark"
+                        md="check"
+                        color={colors.secondary as string}
+                        size={12}
+                      />
+                      <AppText
+                        variant="label"
+                        style={{ color: colors.secondary, fontWeight: '700' }}
+                      >
                         {t('events.locationCurrent')}
                       </AppText>
                     </View>
@@ -385,7 +408,10 @@ export function LocationMenu({
                       savedField
                     )}
                     {createError ? (
-                      <AppText variant="caption" style={{ color: colors.danger, marginTop: space.xs }}>
+                      <AppText
+                        variant="caption"
+                        style={{ color: colors.danger, marginTop: space.xs }}
+                      >
                         {createError}
                       </AppText>
                     ) : null}
@@ -393,7 +419,9 @@ export function LocationMenu({
                   {onCreatePlace ? (
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={adding ? t('events.cancelAddPlace') : t('events.addSavedPlace')}
+                      accessibilityLabel={
+                        adding ? t('events.cancelAddPlace') : t('events.addSavedPlace')
+                      }
                       disabled={creating || (!canAdd && !adding)}
                       onPress={() => {
                         setCreateError(null);
@@ -412,7 +440,11 @@ export function LocationMenu({
                       <Glyph
                         sf={adding ? 'xmark' : 'plus'}
                         md={adding ? 'close' : 'add'}
-                        color={nearbySelected ? colors.accent as string : colors.secondarySoft as string}
+                        color={
+                          nearbySelected
+                            ? (colors.accent as string)
+                            : (colors.secondarySoft as string)
+                        }
                       />
                     </Pressable>
                   ) : null}
@@ -430,7 +462,13 @@ export function LocationMenu({
                   backgroundColor: colors.card,
                 }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'baseline',
+                    justifyContent: 'space-between',
+                  }}
+                >
                   <AppText variant="subtitle">{t('events.searchRadius')}</AppText>
                   <AppText variant="subtitle" style={{ fontWeight: '700' }}>
                     {t('preferences.radiusKm', { km: STOPS_KM[radiusIndex] })}
@@ -476,7 +514,11 @@ export function LocationMenu({
                 )}
               </Pressable>
 
-              <Pressable accessibilityRole="button" onPress={managePlaces} style={{ alignItems: 'center' }}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={managePlaces}
+                style={{ alignItems: 'center' }}
+              >
                 <AppText
                   variant="caption"
                   style={{ color: colors.inkMuted, textDecorationLine: 'underline' }}

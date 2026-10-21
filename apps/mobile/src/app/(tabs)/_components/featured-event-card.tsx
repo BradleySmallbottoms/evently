@@ -95,13 +95,17 @@ export function FeaturedEventCard({
             </AppText>
           ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, flexShrink: 1 }}>
+            <View
+              style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, flexShrink: 1 }}
+            >
               <Glyph sf="calendar" md="event" />
               <AppText variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>
                 {period}
               </AppText>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, flexShrink: 1 }}>
+            <View
+              style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, flexShrink: 1 }}
+            >
               <Glyph sf="mappin" md="location-on" />
               <AppText variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>
                 {where}

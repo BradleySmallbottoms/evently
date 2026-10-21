@@ -47,65 +47,68 @@ Render all UI text as real text.
 Use these exact base tokens unless a documented accessibility or
 platform constraint requires a small adjustment.
 
-  -----------------------------------------------------------------------
-  Token                   Hex                     Primary use
-  ----------------------- ----------------------- -----------------------
-  `primary`               `#252D35`               Primary buttons,
-                                                  navigation emphasis,
-                                                  dark panels
+---
 
-  `accent`                `#EAA16F`               Primary CTA highlights,
-                                                  selected emphasis,
-                                                  event accents
+Token Hex Primary use
 
-  `secondary`             `#729A8B`               Activity/category
-                                                  accents, secondary
-                                                  states
+---
 
-  `info`                  `#7095B5`               Informational accents,
-                                                  links, culture or
-                                                  general information
+`primary` `#252D35` Primary buttons,
+navigation emphasis,
+dark panels
 
-  `background`            `#F6F1E8`               Main app background
+`accent` `#EAA16F` Primary CTA highlights,
+selected emphasis,
+event accents
 
-  `surface`               `#FFFFFF`               Cards, sheets, dialogs,
-                                                  elevated surfaces
+`secondary` `#729A8B` Activity/category
+accents, secondary
+states
 
-  `text`                  `#283533`               Main text on light
-                                                  backgrounds
+`info` `#7095B5` Informational accents,
+links, culture or
+general information
 
-  `textSecondary`         `#64736C`               Supporting text and
-                                                  metadata
+`background` `#F6F1E8` Main app background
 
-  `border`                `#E5E0D8`               Subtle dividers, card
-                                                  outlines, input borders
+`surface` `#FFFFFF` Cards, sheets, dialogs,
+elevated surfaces
 
-  `overlay`               `#111820`               Image overlays and dark
-                                                  gradients
+`text` `#283533` Main text on light
+backgrounds
 
-  `success`               `#477B65`               Success states,
-                                                  confirmation
+`textSecondary` `#64736C` Supporting text and
+metadata
 
-  `error`                 `#B84C43`               Errors and destructive
-                                                  actions
-  -----------------------------------------------------------------------
+`border` `#E5E0D8` Subtle dividers, card
+outlines, input borders
+
+`overlay` `#111820` Image overlays and dark
+gradients
+
+`success` `#477B65` Success states,
+confirmation
+
+`error` `#B84C43` Errors and destructive
+actions
+-----------------------------------------------------------------------
 
 ### Color rules
 
--   The overall interface should be **neutral first**. Use `primary`,
-    `background`, and `surface` for most of the UI.
--   Use `accent` intentionally for the most important action on a
-    screen; do not turn every icon or label orange.
--   Use `secondary` and `info` as accents, not as large competing brand
-    colors.
--   Category chips may use lightly tinted backgrounds derived from the
-    category color with dark readable text.
--   Use `primary` or `text` for text on the accent color. Never assume
-    white text on `accent` will have sufficient contrast.
--   Do not use `textSecondary` for small text if contrast is
-    insufficient; use `text` or a darker variant.
--   Dark image overlays may use a vertical gradient from transparent to
-    `overlay` to support white text.
+- The overall interface should be **neutral first**. Use `primary`,
+  `background`, and `surface` for most of the UI.
+- Use `accent` intentionally for the most important action on a
+  screen; do not turn every icon or label orange.
+- Use `secondary` and `info` as accents, not as large competing brand
+  colors.
+- Category chips may use lightly tinted backgrounds derived from the
+  category color with dark readable text.
+- Use `primary` or `text` for text on the accent color. Never assume
+  white text on `accent` will have sufficient contrast.
+- Do not use `textSecondary` for small text if contrast is
+  insufficient; use `text` or a darker variant.
+- Dark image overlays may use a vertical gradient from transparent to
+  `overlay` to support white text.
 
 ## 4. Typography
 
@@ -131,42 +134,42 @@ locations, and price should have a clear visual hierarchy.
 Use a consistent 4 px spacing system. Prefer values from this scale:
 `4, 8, 12, 16, 20, 24, 32, 40, 48`.
 
--   Screen horizontal padding: 20 px on standard mobile screens; 16 px
-    is acceptable on compact devices.
--   Space between major sections: 24--32 px.
--   Space inside cards: 12--16 px.
--   Space between related controls: 8--12 px.
--   Minimum touch target: 44 × 44 px.
--   Card corner radius: 16--20 px.
--   Buttons and search fields: 12--16 px radius.
--   Chips: fully rounded / pill-shaped.
--   Use subtle borders and restrained shadows. Avoid heavy shadows,
-    thick outlines, and excessive glassmorphism.
--   Respect safe areas and keep important controls clear of device
-    edges.
--   The layout must adapt to different screen sizes, dynamic text sizes,
-    and accessibility settings.
+- Screen horizontal padding: 20 px on standard mobile screens; 16 px
+  is acceptable on compact devices.
+- Space between major sections: 24--32 px.
+- Space inside cards: 12--16 px.
+- Space between related controls: 8--12 px.
+- Minimum touch target: 44 × 44 px.
+- Card corner radius: 16--20 px.
+- Buttons and search fields: 12--16 px radius.
+- Chips: fully rounded / pill-shaped.
+- Use subtle borders and restrained shadows. Avoid heavy shadows,
+  thick outlines, and excessive glassmorphism.
+- Respect safe areas and keep important controls clear of device
+  edges.
+- The layout must adapt to different screen sizes, dynamic text sizes,
+  and accessibility settings.
 
 ## 6. Photography and Image Treatment
 
 Photography is a core part of the product identity.
 
--   Prefer authentic, location-oriented imagery with natural light and a
-    cinematic golden-hour feel.
--   Favor warm sunset highlights balanced by cool blue-grey shadows and
-    natural greens.
--   Use large images for onboarding and event detail headers; use
-    cropped thumbnails for list cards.
--   Keep subjects and important details away from areas where text or
-    buttons will sit.
--   Add a dark gradient behind white text on image-led cards or headers.
--   Use a consistent image aspect ratio within each component type.
--   Crop images intentionally with `cover`; do not stretch them.
--   Provide loading placeholders and graceful fallbacks for missing
-    images.
--   Do not rely on image color alone to communicate category or event
-    status.
--   Avoid placing small, dense text directly over busy photography.
+- Prefer authentic, location-oriented imagery with natural light and a
+  cinematic golden-hour feel.
+- Favor warm sunset highlights balanced by cool blue-grey shadows and
+  natural greens.
+- Use large images for onboarding and event detail headers; use
+  cropped thumbnails for list cards.
+- Keep subjects and important details away from areas where text or
+  buttons will sit.
+- Add a dark gradient behind white text on image-led cards or headers.
+- Use a consistent image aspect ratio within each component type.
+- Crop images intentionally with `cover`; do not stretch them.
+- Provide loading placeholders and graceful fallbacks for missing
+  images.
+- Do not rely on image color alone to communicate category or event
+  status.
+- Avoid placing small, dense text directly over busy photography.
 
 ## 7. Navigation and Information Architecture
 
@@ -321,13 +324,11 @@ toggles the save. The heart in the header is the same save. Both can be
 on at once, and each tap updates the count immediately. Pull down to
 reload. 6. "About" with the rest of the description and "Read more" when
 it is long. 7. "How it works" lists `meta.instructions` when the scan stored
-steps. The section is omitted when that list is empty. 8. Map preview when the event has a point.
-9. Organizer name, with follow. 10. "Good to know": type, place, cost
+steps. The section is omitted when that list is empty. 8. Map preview when the event has a point. 9. Organizer name, with follow. 10. "Good to know": type, place, cost
 when the price is known, more-information link, and a reminder when one
 can still be set. Omit a row when the data is missing. 11. "All dates"
 when the event spans days or has other occasions. The period card can
-expand to the individual dates. 12. Similar events that share a tag.
-13. Share: copy link, Facebook, Instagram, and the system share sheet.
+expand to the individual dates. 12. Similar events that share a tag. 13. Share: copy link, Facebook, Instagram, and the system share sheet.
 A sticky bar repeats the title, the period, and "I want to join".
 
 The page background is the canvas. The title block (through About), How it
@@ -407,17 +408,17 @@ readable text label.
 
 ## 11. Accessibility
 
--   Aim for WCAG AA contrast for text and controls.
--   Ensure touch targets are at least 44 × 44 px.
--   Support dynamic text sizes and screen readers.
--   Give meaningful accessibility labels to icon-only buttons and images
-    when informative.
--   Mark decorative images as decorative for assistive technology.
--   Do not communicate state using color alone.
--   Avoid text over high-detail image regions without a gradient or
-    solid backing.
--   Respect reduced-motion settings.
--   Make focus and selection states visible.
+- Aim for WCAG AA contrast for text and controls.
+- Ensure touch targets are at least 44 × 44 px.
+- Support dynamic text sizes and screen readers.
+- Give meaningful accessibility labels to icon-only buttons and images
+  when informative.
+- Mark decorative images as decorative for assistive technology.
+- Do not communicate state using color alone.
+- Avoid text over high-detail image regions without a gradient or
+  solid backing.
+- Respect reduced-motion settings.
+- Make focus and selection states visible.
 
 ## 12. Motion and Interaction
 
@@ -433,25 +434,25 @@ dependent on animation.
 The initial UI language may be Swedish, but all interface strings should
 be centralized for localization.
 
--   Use concise, friendly language.
--   Prefer sentence case.
--   Display dates and times in the user's locale.
--   Keep event metadata consistent across cards and detail pages.
--   Avoid hardcoding strings directly into reusable components.
--   Use realistic sample content during prototyping, but clearly
-    separate mock data from production data.
+- Use concise, friendly language.
+- Prefer sentence case.
+- Display dates and times in the user's locale.
+- Keep event metadata consistent across cards and detail pages.
+- Avoid hardcoding strings directly into reusable components.
+- Use realistic sample content during prototyping, but clearly
+  separate mock data from production data.
 
 ## 14. Responsive Behavior and Platform Conventions
 
--   Design mobile-first, with particular care for iOS safe areas and
-    bottom navigation.
--   Respect native status bars, keyboard behavior, and platform
-    navigation expectations.
--   Ensure search fields remain usable when the keyboard is open.
--   On larger screens, use wider content layouts without stretching
-    cards excessively.
--   Keep touch controls comfortably spaced.
--   Do not make core information dependent on hover.
+- Design mobile-first, with particular care for iOS safe areas and
+  bottom navigation.
+- Respect native status bars, keyboard behavior, and platform
+  navigation expectations.
+- Ensure search fields remain usable when the keyboard is open.
+- On larger screens, use wider content layouts without stretching
+  cards excessively.
+- Keep touch controls comfortably spaced.
+- Do not make core information dependent on hover.
 
 ## 15. Engineering Guidance for Claude
 
@@ -467,8 +468,7 @@ real text rather than text embedded in images. 7. Use mock data only
 where APIs or backend data are not available, and keep it easy to
 replace. 8. Ensure all visible controls have meaningful behavior, or
 clearly mark them as placeholders during prototyping. 9. Check loading,
-empty, error, selected, and disabled states---not only the happy path.
-10. Verify the layout on small and large mobile screens and check
+empty, error, selected, and disabled states---not only the happy path. 10. Verify the layout on small and large mobile screens and check
 contrast before considering a screen complete.
 
 ## 16. Definition of Done

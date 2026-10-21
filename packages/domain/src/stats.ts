@@ -52,7 +52,10 @@ export function calendarParts(
     day: '2-digit',
   });
   const parts = Object.fromEntries(
-    fmt.formatToParts(at).filter((p) => p.type !== 'literal').map((p) => [p.type, p.value]),
+    fmt
+      .formatToParts(at)
+      .filter((p) => p.type !== 'literal')
+      .map((p) => [p.type, p.value]),
   ) as { year: string; month: string; day: string };
   const year = Number(parts.year);
   const month = Number(parts.month);

@@ -84,7 +84,12 @@ export async function scanPendingEvents(
 ): Promise<ScanSummary> {
   const limit = options.limit ?? SCAN_BATCH_LIMIT;
   const leaseMs = options.leaseMs ?? SCAN_LEASE_MS;
-  const claimed = await store.claimPendingScans(limit, leaseMs, options.eventId, options.skipEventIds);
+  const claimed = await store.claimPendingScans(
+    limit,
+    leaseMs,
+    options.eventId,
+    options.skipEventIds,
+  );
   const summary: ScanSummary = {
     claimed: claimed.length,
     published: 0,
@@ -283,9 +288,14 @@ async function occasionGroupFor(
   row: PendingScanRow,
   matches: { eventId: string; occasionRank: number }[],
 ): Promise<{ groupId: string; memberIds: string[] } | null> {
-  const known = matches.filter((match) => EVENT_ID.test(match.eventId) && match.eventId !== row.eventId);
+  const known = matches.filter(
+    (match) => EVENT_ID.test(match.eventId) && match.eventId !== row.eventId,
+  );
   if (known.length === 0) return null;
-  const stored = await store.listOccasionGroups([row.eventId, ...known.map((match) => match.eventId)]);
+  const stored = await store.listOccasionGroups([
+    row.eventId,
+    ...known.map((match) => match.eventId),
+  ]);
   const byId = new Map(stored.map((item) => [item.eventId, item]));
   const self = byId.get(row.eventId);
   const occasionGroupId = self?.occasionGroupId ?? row.meta.occasionGroupId;

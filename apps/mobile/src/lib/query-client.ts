@@ -25,10 +25,7 @@ export function createAppQueryClient() {
 }
 
 type AppStateLike = {
-  addEventListener: (
-    type: 'change',
-    listener: (status: string) => void,
-  ) => { remove: () => void };
+  addEventListener: (type: 'change', listener: (status: string) => void) => { remove: () => void };
 };
 
 /**

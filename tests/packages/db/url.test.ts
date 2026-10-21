@@ -20,9 +20,7 @@ describe('resolveDatabaseUrl', () => {
         DB_PASSWORD: 'p@ss:word/x',
         DB_NAME: 'events',
       }),
-    ).toBe(
-      'postgres://events:p%40ss%3Aword%2Fx@db.example:5432/events?sslmode=require',
-    );
+    ).toBe('postgres://events:p%40ss%3Aword%2Fx@db.example:5432/events?sslmode=require');
   });
 
   it('returns undefined when incomplete', () => {

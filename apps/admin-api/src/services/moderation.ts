@@ -165,9 +165,7 @@ export function createMemoryAdminModerationServices(
     },
     async listSuspiciousCheckIns() {
       return [...store.checkIns.values()].filter(
-        (c) =>
-          (c.accuracyM != null && c.accuracyM > 200) ||
-          Object.keys(c.deviceFlags).length > 0,
+        (c) => (c.accuracyM != null && c.accuracyM > 200) || Object.keys(c.deviceFlags).length > 0,
       );
     },
     async listEventReports() {
@@ -297,10 +295,7 @@ export function createDbAdminModerationServices(
         .limit(1);
       if (!existing) return null;
       const at = now();
-      await db
-        .update(schema.ratings)
-        .set({ hiddenAt: at })
-        .where(eq(schema.ratings.id, ratingId));
+      await db.update(schema.ratings).set({ hiddenAt: at }).where(eq(schema.ratings.id, ratingId));
       await audit.write({
         actor,
         action: 'rating.hide',

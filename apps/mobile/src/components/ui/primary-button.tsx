@@ -169,11 +169,11 @@ export function PrimaryButton({
             {icon ? <ButtonGlyph icon={icon} color={textColor} /> : null}
             {pending ? (
               <ActivityIndicator color={textColor} />
-            ) : (!confirmed && !rejected ? (
+            ) : !confirmed && !rejected ? (
               <AppText variant="subtitle" style={{ color: textColor, fontWeight: '700' }}>
                 {label}
               </AppText>
-            ) : null)}
+            ) : null}
             {arrow && !pending ? (
               process.env.EXPO_OS === 'ios' ? (
                 <SymbolView name="arrow.right" size={18} tintColor={textColor} weight="semibold" />

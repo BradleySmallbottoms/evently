@@ -7,10 +7,7 @@ import {
   RatingStatusResponse,
 } from '@local-events/contracts';
 import { z } from 'zod';
-import {
-  readPublisherSessionToken,
-  readUserSessionToken,
-} from '../services/auth/cookies';
+import { readPublisherSessionToken, readUserSessionToken } from '../services/auth/cookies';
 import { ratingErrorResponse } from '../services/ratings/errors';
 import type { RatingServices } from '../services/ratings/types';
 
@@ -110,10 +107,7 @@ export function registerRatingRoutes(app: OpenAPIHono, ratings: RatingServices):
   app.openapi(listManaged, async (c) => {
     try {
       const { eventId } = c.req.valid('param');
-      return c.json(
-        await ratings.listManaged(readPublisherSessionToken(c), eventId),
-        200,
-      );
+      return c.json(await ratings.listManaged(readPublisherSessionToken(c), eventId), 200);
     } catch (err) {
       return ratingErrorResponse(c, err);
     }

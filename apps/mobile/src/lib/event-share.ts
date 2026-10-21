@@ -3,7 +3,12 @@ import { Platform, Share } from 'react-native';
 
 import { buildEventWebUrl, eventShareContent } from './event-share-url';
 
-export { buildEventWebUrl, eventShareContent, eventShareMessage, webBaseUrl } from './event-share-url';
+export {
+  buildEventWebUrl,
+  eventShareContent,
+  eventShareMessage,
+  webBaseUrl,
+} from './event-share-url';
 
 export type ShareEventResult = 'shared' | 'copied' | 'dismissed';
 

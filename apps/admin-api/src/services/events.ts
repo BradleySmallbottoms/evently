@@ -677,7 +677,11 @@ export function createMemoryAdminEventServices(
         before: { occasionGroupId: hostMeta.occasionGroupId },
         after: { startsAt: span.startsAt, endsAt: span.endsAt, cancelledEventIds: unique },
       });
-      return asDetail(host, store.publishers.get(host.publisherId)?.name ?? 'Unknown', env.assetsPublicBaseUrl);
+      return asDetail(
+        host,
+        store.publishers.get(host.publisherId)?.name ?? 'Unknown',
+        env.assetsPublicBaseUrl,
+      );
     },
     async patch(eventId, body, actor) {
       const row = store.events.get(eventId);
@@ -792,9 +796,9 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         createdAt: schema.events.createdAt,
         updatedAt: schema.events.updatedAt,
       })
-        .from(schema.events)
-        .leftJoin(schema.publishers, eq(schema.events.publisherId, schema.publishers.id))
-        .where(eq(schema.events.id, eventId))
+      .from(schema.events)
+      .leftJoin(schema.publishers, eq(schema.events.publisherId, schema.publishers.id))
+      .where(eq(schema.events.id, eventId))
       .limit(1);
     if (!row) return null;
     const lat = row.lat == null ? null : Number(row.lat);
@@ -1385,9 +1389,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           description: body.description !== undefined ? body.description : existing.description,
           mode,
           status: nextStatus,
-          ...(startsAt && endsAt
-            ? { startsAt: new Date(startsAt), endsAt: new Date(endsAt) }
-            : {}),
+          ...(startsAt && endsAt ? { startsAt: new Date(startsAt), endsAt: new Date(endsAt) } : {}),
           timezone: body.timezone ?? existing.timezone,
           venueName: body.venueName !== undefined ? body.venueName : existing.venueName,
           location: location ? pointEwkt(location) : null,

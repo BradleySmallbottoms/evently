@@ -39,17 +39,9 @@ describe('ratings', () => {
     );
     const domainEvents = createMemoryDomainEventPublisher();
     const events = createMemoryEventServices(auth, { now: () => now }, store);
-    const checkIns = createMemoryCheckInServices(
-      auth,
-      { now: () => now, domainEvents },
-      store,
-    );
+    const checkIns = createMemoryCheckInServices(auth, { now: () => now, domainEvents }, store);
     const preferences = createMemoryPreferenceServices(auth, { now: () => now }, store);
-    const ratings = createMemoryRatingServices(
-      auth,
-      { now: () => now, domainEvents },
-      store,
-    );
+    const ratings = createMemoryRatingServices(auth, { now: () => now, domainEvents }, store);
     const app = createApp({ auth, events, checkIns, preferences, ratings });
 
     const email = `rate-${now.getTime()}@example.com`;

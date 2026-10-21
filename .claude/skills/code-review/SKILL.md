@@ -57,7 +57,7 @@ Then, if `--fix` was given, apply the confirmed findings with minimal targeted e
 Finish every review with one markdown table that lists only the files that need a change: one row per finding, most severe first, then by path. Files with no findings do not appear. Columns:
 
 | File | Severity | Change needed |
-|---|---|---|
+| ---- | -------- | ------------- |
 
 - `File`: repo-relative path with the line, as a clickable reference (`path/to/file.ts:42`).
 - `Severity`: `blocker`, `major`, or `minor`, matching the finding.

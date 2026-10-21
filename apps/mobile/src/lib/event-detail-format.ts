@@ -26,12 +26,7 @@ function clean(value: string): string {
   return value.replace(/\./g, '').replace(/\s+/g, ' ').trim();
 }
 
-function dayMonth(
-  iso: string,
-  locale: string,
-  timeZone: string,
-  withYear: boolean,
-): string {
+function dayMonth(iso: string, locale: string, timeZone: string, withYear: boolean): string {
   return clean(
     new Intl.DateTimeFormat(locale, {
       timeZone,
@@ -43,11 +38,7 @@ function dayMonth(
 }
 
 /** True when the start and end fall on different calendar days. */
-export function isMultiDay(
-  startsAt: string,
-  endsAt: string,
-  timeZone?: string | null,
-): boolean {
+export function isMultiDay(startsAt: string, endsAt: string, timeZone?: string | null): boolean {
   const tz = zone(timeZone);
   return calendarDay(new Date(startsAt), tz) !== calendarDay(new Date(endsAt), tz);
 }
@@ -58,11 +49,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * A span the visitor can join on any day.
  * Crossing midnight for a few hours is still one showing, not a period.
  */
-export function isOpenPeriod(
-  startsAt: string,
-  endsAt: string,
-  timeZone?: string | null,
-): boolean {
+export function isOpenPeriod(startsAt: string, endsAt: string, timeZone?: string | null): boolean {
   if (!isMultiDay(startsAt, endsAt, timeZone)) return false;
   const ms = new Date(endsAt).getTime() - new Date(startsAt).getTime();
   return Number.isFinite(ms) && ms >= DAY_MS;

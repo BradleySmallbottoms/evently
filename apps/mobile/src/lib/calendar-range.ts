@@ -98,7 +98,10 @@ export function weekdayIndex(stamp: DayStamp, timeZone = ZONE): number {
 }
 
 export function monthStamps(year: number, month: number): { from: DayStamp; to: DayStamp } {
-  return { from: { y: year, m: month, d: 1 }, to: { y: year, m: month, d: daysInMonth(year, month) } };
+  return {
+    from: { y: year, m: month, d: 1 },
+    to: { y: year, m: month, d: daysInMonth(year, month) },
+  };
 }
 
 /** The Saturday–Sunday that contains `today`, or the coming weekend. */
@@ -109,7 +112,11 @@ export function weekendStamps(today: DayStamp): { from: DayStamp; to: DayStamp }
   return { from: saturday, to: addDays(saturday, 1) };
 }
 
-export function boundsIso(from: DayStamp, to: DayStamp, timeZone = ZONE): { from: string; to: string } {
+export function boundsIso(
+  from: DayStamp,
+  to: DayStamp,
+  timeZone = ZONE,
+): { from: string; to: string } {
   const start = compareStamps(from, to) <= 0 ? from : to;
   const end = compareStamps(from, to) <= 0 ? to : from;
   return {

@@ -45,7 +45,11 @@ function toolCall(name: string, args: Record<string, unknown>) {
 }
 
 function scriptedFetch(replies: object[]) {
-  const bodies: { tools?: { function: { name: string } }[]; format?: unknown; messages: { role: string; content: string }[] }[] = [];
+  const bodies: {
+    tools?: { function: { name: string } }[];
+    format?: unknown;
+    messages: { role: string; content: string }[];
+  }[] = [];
   const fetchImpl: typeof fetch = async (_url, init) => {
     bodies.push(JSON.parse(String(init?.body)));
     const next = replies.shift();
@@ -59,7 +63,7 @@ function scriptedFetch(replies: object[]) {
 
 function storeWithNearbyRows() {
   const store = createMemoryIngestStore();
-    store.publishers.push(
+  store.publishers.push(
     {
       id: '33333333-3333-4333-8333-333333333404',
       name: 'Kilometerns förening',
@@ -200,10 +204,7 @@ const finalAnswer = answer(
 describe('createOllamaWithToolsPromptRunner', () => {
   it('sends tool definitions and returns nearby events the model asked for', async () => {
     const store = storeWithNearbyRows();
-    const { fetchImpl, bodies } = scriptedFetch([
-      toolCall('getNearbyEvents', {}),
-      finalAnswer,
-    ]);
+    const { fetchImpl, bodies } = scriptedFetch([toolCall('getNearbyEvents', {}), finalAnswer]);
     const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
 
     const [outcome] = await runner.scan([scanInput]);
@@ -216,9 +217,9 @@ describe('createOllamaWithToolsPromptRunner', () => {
       'getPossiblePublishers',
       'getAvailableTags',
     ]);
-    expect(bodies[0]?.tools?.find((tool) => tool.function.name === 'getNearbyEvents')?.function).not.toHaveProperty(
-      'parameters.required',
-    );
+    expect(
+      bodies[0]?.tools?.find((tool) => tool.function.name === 'getNearbyEvents')?.function,
+    ).not.toHaveProperty('parameters.required');
     expect(bodies[0]?.messages[0]?.content).toContain('getNearbyEvents');
     const toolMessage = bodies[1]?.messages.find((message) => message.role === 'tool');
     expect(toolMessage?.content).toContain('Marknad på torget');
@@ -356,10 +357,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
 
   it('returns publishers that have an event near the point', async () => {
     const store = storeWithNearbyRows();
-    const { fetchImpl, bodies } = scriptedFetch([
-      toolCall('getNearbyPublishers', {}),
-      finalAnswer,
-    ]);
+    const { fetchImpl, bodies } = scriptedFetch([toolCall('getNearbyPublishers', {}), finalAnswer]);
     const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
 
     await runner.scan([scanInput]);
@@ -524,7 +522,11 @@ describe('createOllamaWithToolsPromptRunner', () => {
 
   it('calls ChatGPT with a bearer token and sends the tool result back by id', async () => {
     const store = createMemoryIngestStore();
-    const seen: { url: string; authorization?: string; body: { model?: string; messages: { role: string; tool_call_id?: string }[] } }[] = [];
+    const seen: {
+      url: string;
+      authorization?: string;
+      body: { model?: string; messages: { role: string; tool_call_id?: string }[] };
+    }[] = [];
     const replies = [
       {
         choices: [
@@ -533,7 +535,11 @@ describe('createOllamaWithToolsPromptRunner', () => {
               role: 'assistant',
               content: null,
               tool_calls: [
-                { id: 'call_tags', type: 'function', function: { name: 'getAvailableTags', arguments: '{}' } },
+                {
+                  id: 'call_tags',
+                  type: 'function',
+                  function: { name: 'getAvailableTags', arguments: '{}' },
+                },
               ],
             },
           },
@@ -563,7 +569,10 @@ describe('createOllamaWithToolsPromptRunner', () => {
         body: JSON.parse(String(init?.body)),
       });
       const next = replies.shift();
-      return new Response(JSON.stringify(next), { status: 200, headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify(next), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
     };
     const runner = createOllamaWithToolsPromptRunner(store, {
       fetch: fetchImpl,
@@ -579,7 +588,11 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(seen[0]?.url).toBe('https://api.openai.com/v1/chat/completions');
     expect(seen[0]?.authorization).toBe('Bearer test-key');
     expect(seen[0]?.body.model).toBe('gpt-4.1-mini');
-    expect(seen[1]?.body.messages.some((message) => message.role === 'tool' && message.tool_call_id === 'call_tags')).toBe(true);
+    expect(
+      seen[1]?.body.messages.some(
+        (message) => message.role === 'tool' && message.tool_call_id === 'call_tags',
+      ),
+    ).toBe(true);
     expect(outcome).toMatchObject({
       ok: true,
       summary: 'Musik i Helsingehus',
@@ -589,7 +602,12 @@ describe('createOllamaWithToolsPromptRunner', () => {
 
   it('turns thinking off when the model is Qwen3', async () => {
     const store = createMemoryIngestStore();
-    let body: { temperature?: number; top_p?: number; top_k?: number; chat_template_kwargs?: { enable_thinking?: boolean } } = {};
+    let body: {
+      temperature?: number;
+      top_p?: number;
+      top_k?: number;
+      chat_template_kwargs?: { enable_thinking?: boolean };
+    } = {};
     const fetchImpl: typeof fetch = async (_url, init) => {
       body = JSON.parse(String(init?.body));
       return new Response(
@@ -630,7 +648,15 @@ describe('createOllamaWithToolsPromptRunner', () => {
 
   it('calls Claude with an API key and sends tool results as tool_result blocks', async () => {
     const store = createMemoryIngestStore();
-    const seen: { url: string; apiKey?: string; version?: string; body: { tools?: { name: string; input_schema?: object }[]; messages: { role: string; content?: unknown }[] } }[] = [];
+    const seen: {
+      url: string;
+      apiKey?: string;
+      version?: string;
+      body: {
+        tools?: { name: string; input_schema?: object }[];
+        messages: { role: string; content?: unknown }[];
+      };
+    }[] = [];
     const replies = [
       {
         content: [{ type: 'tool_use', id: 'toolu_tags', name: 'getAvailableTags', input: {} }],
@@ -658,7 +684,10 @@ describe('createOllamaWithToolsPromptRunner', () => {
         body: JSON.parse(String(init?.body)),
       });
       const next = replies.shift();
-      return new Response(JSON.stringify(next), { status: 200, headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify(next), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
     };
     const runner = createOllamaWithToolsPromptRunner(store, {
       fetch: fetchImpl,
@@ -674,9 +703,13 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(seen[0]?.url).toBe('https://api.anthropic.com/v1/messages');
     expect(seen[0]?.apiKey).toBe('test-key');
     expect(seen[0]?.version).toBe('2023-06-01');
-    expect(seen[0]?.body.tools?.some((tool) => tool.name === 'getAvailableTags' && tool.input_schema)).toBe(true);
+    expect(
+      seen[0]?.body.tools?.some((tool) => tool.name === 'getAvailableTags' && tool.input_schema),
+    ).toBe(true);
     expect(seen[0]?.body).not.toHaveProperty('temperature');
-    const results = seen[1]?.body.messages.find((message) => message.role === 'user' && Array.isArray(message.content));
+    const results = seen[1]?.body.messages.find(
+      (message) => message.role === 'user' && Array.isArray(message.content),
+    );
     expect(JSON.stringify(results?.content)).toContain('toolu_tags');
     expect(outcome).toMatchObject({ ok: true, language: 'en', summary: 'Musik i Helsingehus' });
   });
@@ -703,18 +736,30 @@ describe('createOllamaWithToolsPromptRunner', () => {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({ contentVerdict: 'safe', summary: 'Musik', language: 'sv', possibleTags: [] }),
+            text: JSON.stringify({
+              contentVerdict: 'safe',
+              summary: 'Musik',
+              language: 'sv',
+              possibleTags: [],
+            }),
           },
         ],
       },
     ];
     let followUp = '';
     const fetchImpl: typeof fetch = async (_url, init) => {
-      const body = JSON.parse(String(init?.body)) as { messages: { role: string; content?: unknown }[] };
-      const results = body.messages.find((message) => message.role === 'user' && Array.isArray(message.content));
+      const body = JSON.parse(String(init?.body)) as {
+        messages: { role: string; content?: unknown }[];
+      };
+      const results = body.messages.find(
+        (message) => message.role === 'user' && Array.isArray(message.content),
+      );
       if (results) followUp = JSON.stringify(results.content);
       const next = replies.shift();
-      return new Response(JSON.stringify(next), { status: 200, headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify(next), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
     };
     const runner = createOllamaWithToolsPromptRunner(store, {
       fetch: fetchImpl,
@@ -765,14 +810,23 @@ describe('createOllamaWithToolsPromptRunner', () => {
     let seen: { url: string; authorization: string | null; model: string } | null = null;
     const fetchImpl: typeof fetch = async (url, init) => {
       const body = JSON.parse(String(init?.body)) as { model: string };
-      seen = { url: String(url), authorization: new Headers(init?.headers).get('authorization'), model: body.model };
+      seen = {
+        url: String(url),
+        authorization: new Headers(init?.headers).get('authorization'),
+        model: body.model,
+      };
       return new Response(
         JSON.stringify({
           choices: [
             {
               message: {
                 role: 'assistant',
-                content: JSON.stringify({ contentVerdict: 'safe', summary: 'Musik', language: 'sv', possibleTags: [] }),
+                content: JSON.stringify({
+                  contentVerdict: 'safe',
+                  summary: 'Musik',
+                  language: 'sv',
+                  possibleTags: [],
+                }),
               },
             },
           ],
@@ -813,13 +867,22 @@ describe('createOllamaWithToolsPromptRunner', () => {
     let seen: { url: string; apiKey: string | null; model: string } | null = null;
     const fetchImpl: typeof fetch = async (url, init) => {
       const body = JSON.parse(String(init?.body)) as { model: string };
-      seen = { url: String(url), apiKey: new Headers(init?.headers).get('x-api-key'), model: body.model };
+      seen = {
+        url: String(url),
+        apiKey: new Headers(init?.headers).get('x-api-key'),
+        model: body.model,
+      };
       return new Response(
         JSON.stringify({
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ contentVerdict: 'safe', summary: 'Musik', language: 'en', possibleTags: [] }),
+              text: JSON.stringify({
+                contentVerdict: 'safe',
+                summary: 'Musik',
+                language: 'en',
+                possibleTags: [],
+              }),
             },
           ],
         }),
@@ -924,20 +987,34 @@ describe('createOllamaWithToolsPromptRunner', () => {
 
   it('looks up a publisher with the web tools and keeps a website from a fetched page', async () => {
     const store = createMemoryIngestStore();
-    const chats: { tools?: { function: { name: string } }[]; messages: { role: string; content: string }[] }[] = [];
+    const chats: {
+      tools?: { function: { name: string } }[];
+      messages: { role: string; content: string }[];
+    }[] = [];
     let chat = 0;
     const fetchImpl: typeof fetch = async (url, init) => {
       const href = String(url);
       if (href.includes('api.search.brave.com')) {
         return Response.json({
-          web: { results: [{ title: 'Föreningen', url: 'https://foreningen.se/om', description: 'Officiell sida' }] },
+          web: {
+            results: [
+              {
+                title: 'Föreningen',
+                url: 'https://foreningen.se/om',
+                description: 'Officiell sida',
+              },
+            ],
+          },
         });
       }
       if (href.startsWith('https://foreningen.se')) {
-        return new Response('<html><head><title>Föreningen</title></head><body><p>Storgatan 1</p></body></html>', {
-          status: 200,
-          headers: { 'content-type': 'text/html' },
-        });
+        return new Response(
+          '<html><head><title>Föreningen</title></head><body><p>Storgatan 1</p></body></html>',
+          {
+            status: 200,
+            headers: { 'content-type': 'text/html' },
+          },
+        );
       }
       chats.push(JSON.parse(String(init?.body)));
       chat += 1;
@@ -974,8 +1051,12 @@ describe('createOllamaWithToolsPromptRunner', () => {
     });
 
     expect(chats[0]?.tools?.map((tool) => tool.function.name)).toEqual(['searchWeb', 'fetchPage']);
-    expect(chats[1]?.messages.some((message) => message.content.includes('Officiell sida'))).toBe(true);
-    expect(chats[2]?.messages.some((message) => message.content.includes('Storgatan 1'))).toBe(true);
+    expect(chats[1]?.messages.some((message) => message.content.includes('Officiell sida'))).toBe(
+      true,
+    );
+    expect(chats[2]?.messages.some((message) => message.content.includes('Storgatan 1'))).toBe(
+      true,
+    );
     expect(profile).toMatchObject({
       ok: true,
       profile: {

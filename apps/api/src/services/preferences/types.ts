@@ -48,10 +48,7 @@ export type PreferenceServices = {
     input: UpdateUserProfileRequest,
   ) => Promise<UserProfile>;
   listAreas: (sessionToken: string | undefined) => Promise<{ items: UserArea[] }>;
-  createArea: (
-    sessionToken: string | undefined,
-    input: CreateUserAreaRequest,
-  ) => Promise<UserArea>;
+  createArea: (sessionToken: string | undefined, input: CreateUserAreaRequest) => Promise<UserArea>;
   updateArea: (
     sessionToken: string | undefined,
     areaId: string,

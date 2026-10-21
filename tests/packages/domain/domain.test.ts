@@ -57,17 +57,18 @@ describe('ratings', () => {
 
 describe('profile', () => {
   it('resolves named and anonymous choices', async () => {
-    const { resolveProfileChoice, normalizeRecoveryEmail } = await import(
-      '../../../packages/domain/src/profile'
-    );
+    const { resolveProfileChoice, normalizeRecoveryEmail } =
+      await import('../../../packages/domain/src/profile');
     expect(resolveProfileChoice({ choice: 'anonymous' })).toEqual({
       ok: true,
       displayName: null,
       isPublic: false,
     });
-    expect(
-      resolveProfileChoice({ choice: 'named', displayName: '  Mia  Sund  ' }),
-    ).toEqual({ ok: true, displayName: 'Mia Sund', isPublic: true });
+    expect(resolveProfileChoice({ choice: 'named', displayName: '  Mia  Sund  ' })).toEqual({
+      ok: true,
+      displayName: 'Mia Sund',
+      isPublic: true,
+    });
     expect(resolveProfileChoice({ choice: 'named', displayName: 'x' }).ok).toBe(false);
     expect(normalizeRecoveryEmail('  Mia@Example.com ')).toBe('mia@example.com');
     expect(normalizeRecoveryEmail('')).toBe(null);
@@ -76,9 +77,7 @@ describe('profile', () => {
 
 describe('event content', () => {
   it('gates attendee visibility on check-in', async () => {
-    const { canViewEventContent } = await import(
-      '../../../packages/domain/src/event-content'
-    );
+    const { canViewEventContent } = await import('../../../packages/domain/src/event-content');
     expect(canViewEventContent('public', false)).toBe(true);
     expect(canViewEventContent('attendees', false)).toBe(false);
     expect(canViewEventContent('attendees', true)).toBe(true);
@@ -87,9 +86,8 @@ describe('event content', () => {
 
 describe('stats', () => {
   it('averages scores to one decimal', async () => {
-    const { averageFromScores, roundRatingAverage, ratingAverage } = await import(
-      '../../../packages/domain/src/stats'
-    );
+    const { averageFromScores, roundRatingAverage, ratingAverage } =
+      await import('../../../packages/domain/src/stats');
     expect(averageFromScores([])).toBe(null);
     expect(averageFromScores([5, 4])).toBe(4.5);
     expect(roundRatingAverage(4.66)).toBe(4.7);
@@ -97,9 +95,7 @@ describe('stats', () => {
   });
 
   it('builds calendar bucket keys', async () => {
-    const { bucketKeys, applyStatMutation } = await import(
-      '../../../packages/domain/src/stats'
-    );
+    const { bucketKeys, applyStatMutation } = await import('../../../packages/domain/src/stats');
     const keys = bucketKeys('numCheckins', new Date('2026-01-07T12:00:00.000Z'), 'UTC');
     expect(keys).toEqual([
       'numCheckins',

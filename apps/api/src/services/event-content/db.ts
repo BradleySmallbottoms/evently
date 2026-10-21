@@ -11,11 +11,7 @@ import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { requirePublisherId } from '../publisher-id';
 import { createMemoryContentUrlSigner } from './signer';
-import {
-  EventContentError,
-  type EventContentEnv,
-  type EventContentServices,
-} from './types';
+import { EventContentError, type EventContentEnv, type EventContentServices } from './types';
 
 export function createDbEventContentServices(
   db: Db,
@@ -99,9 +95,7 @@ export function createDbEventContentServices(
           const [existing] = await db
             .select({ id: schema.checkIns.id })
             .from(schema.checkIns)
-            .where(
-              and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)),
-            )
+            .where(and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)))
             .limit(1);
           checkedIn = Boolean(existing);
         } catch (err) {

@@ -8,7 +8,12 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { CategoryFiltersSheet } from '@/components/native/category-filters-sheet';
 import { AppText } from '@/components/ui/app-text';
 import { TAG_GROUP_STYLE, TagGroupIcon, TagGroupList } from '@/components/ui/tag-group-list';
-import { groupHomeTags, toggleGroupSelection, type HomeTag, type HomeTagGroup } from '@/lib/tag-groups';
+import {
+  groupHomeTags,
+  toggleGroupSelection,
+  type HomeTag,
+  type HomeTagGroup,
+} from '@/lib/tag-groups';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
@@ -133,11 +138,7 @@ function ToggleCircle({
             tintColor={colors.ink}
           />
         ) : (
-          <MaterialIcons
-            name={expanded ? 'close' : 'more-horiz'}
-            size={22}
-            color={colors.ink}
-          />
+          <MaterialIcons name={expanded ? 'close' : 'more-horiz'} size={22} color={colors.ink} />
         )}
       </View>
       <AppText
@@ -186,9 +187,9 @@ export function TagFilters({ tags, selectedIds, onChange }: Props) {
               onChange={onChange}
             />
           ))}
-        <View style={{ paddingRight: space.md }}>
-          <ToggleCircle label={t('events.categoriesMore')} expanded={false} onPress={openSheet} />
-        </View>
+          <View style={{ paddingRight: space.md }}>
+            <ToggleCircle label={t('events.categoriesMore')} expanded={false} onPress={openSheet} />
+          </View>
         </ScrollView>
       </View>
       <CategoryFiltersSheet isPresented={open} onDismiss={() => setOpen(false)}>

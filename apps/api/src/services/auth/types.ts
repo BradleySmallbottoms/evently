@@ -81,9 +81,7 @@ export type AuthServices = {
   logoutPublisher: (sessionToken: string | undefined) => Promise<void>;
   getPublisherMe: (sessionToken: string | undefined) => Promise<PublisherMeResponse>;
   createWebLoginCode: (input: CreateWebLoginCodeRequest) => Promise<CreateWebLoginCodeResponse>;
-  exchangeWebLoginCode: (
-    input: ExchangeWebLoginCodeRequest,
-  ) => Promise<{
+  exchangeWebLoginCode: (input: ExchangeWebLoginCodeRequest) => Promise<{
     body: ExchangeWebLoginCodeResponse;
     sessionToken: string;
     expiresAt: Date;

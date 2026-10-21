@@ -42,11 +42,17 @@ export function ShareRow({ title, actions }: { title: string; actions: Action[] 
               }}
             >
               {action.letter ? (
-                <AppText style={{ fontSize: 22, lineHeight: 26, fontWeight: '700', color: colors.ink }}>
+                <AppText
+                  style={{ fontSize: 22, lineHeight: 26, fontWeight: '700', color: colors.ink }}
+                >
                   {action.letter}
                 </AppText>
               ) : (
-                <DetailGlyph sf={action.sf ?? 'square.and.arrow.up'} md={action.md ?? 'share'} size={22} />
+                <DetailGlyph
+                  sf={action.sf ?? 'square.and.arrow.up'}
+                  md={action.md ?? 'share'}
+                  size={22}
+                />
               )}
             </View>
             <AppText variant="caption" numberOfLines={1} style={{ textAlign: 'center' }}>

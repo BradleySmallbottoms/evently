@@ -328,7 +328,10 @@ function goodToKnowText(content: ContentBody | undefined, label: string): string
     if (!('attributes' in group) || !Array.isArray(group.attributes)) continue;
     for (const attribute of group.attributes) {
       if (!attribute || typeof attribute !== 'object' || !('name' in attribute)) continue;
-      const text = textOf(attribute.name).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      const text = textOf(attribute.name)
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
       if (text) return text;
     }
   }
@@ -376,11 +379,16 @@ const POSTAL_IN_TEXT =
  * A missing label is read from the description, the introduction, and the other
  * goodToKnow text.
  */
-function addressPartsOf(content: ContentBody | undefined): { street?: string; postalLine?: string } {
+function addressPartsOf(content: ContentBody | undefined): {
+  street?: string;
+  postalLine?: string;
+} {
   const labeledStreet = goodToKnowText(content, 'gatuadress');
   const labeledPostal = goodToKnowText(content, 'postadress');
   if (labeledStreet && labeledPostal) return { street: labeledStreet, postalLine: labeledPostal };
-  const text = contentHtml(content).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const text = contentHtml(content)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ');
   const street = labeledStreet ?? streetFromText(text);
   const postalLine = labeledPostal ?? postalLineFromText(text);
   return {

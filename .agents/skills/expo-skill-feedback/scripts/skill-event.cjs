@@ -11,8 +11,8 @@
 //   2. Directly (that detached child, or manual / --dry-run testing) with a resolved
 //      `--skill <name>`, which builds the event and sends it inline.
 
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
 const {
   POSTHOG_PROJECT_API_KEY,
@@ -23,24 +23,47 @@ const {
   platformProps,
   telemetryIdentity,
   sendToPosthog,
-} = require("./telemetry_common.cjs");
+} = require('./telemetry_common.cjs');
 
-const EVENT = "skill_invoked";
+const EVENT = 'skill_invoked';
 
 function parseArgs(argv) {
-  const args = { skill: "", agentHarness: "", initiator: "", pluginRoot: "", dryRun: false, quiet: false, detach: false };
+  const args = {
+    skill: '',
+    agentHarness: '',
+    initiator: '',
+    pluginRoot: '',
+    dryRun: false,
+    quiet: false,
+    detach: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
-    const next = () => argv[++i] || "";
+    const next = () => argv[++i] || '';
     switch (flag) {
-      case "--skill": args.skill = next(); break;
-      case "--agent-harness": args.agentHarness = next(); break;
-      case "--initiator": args.initiator = next(); break;
-      case "--plugin-root": args.pluginRoot = next(); break;
-      case "--detach": args.detach = true; break;
-      case "--dry-run": args.dryRun = true; break;
-      case "--quiet": args.quiet = true; break;
-      default: break; // ignore unknown flags
+      case '--skill':
+        args.skill = next();
+        break;
+      case '--agent-harness':
+        args.agentHarness = next();
+        break;
+      case '--initiator':
+        args.initiator = next();
+        break;
+      case '--plugin-root':
+        args.pluginRoot = next();
+        break;
+      case '--detach':
+        args.detach = true;
+        break;
+      case '--dry-run':
+        args.dryRun = true;
+        break;
+      case '--quiet':
+        args.quiet = true;
+        break;
+      default:
+        break; // ignore unknown flags
     }
   }
   return args;
@@ -52,10 +75,10 @@ function parseArgs(argv) {
 function readHookInput() {
   try {
     if (process.stdin.isTTY) return {};
-    const raw = (fs.readFileSync(0, "utf8") || "").trim(); // fd 0 = stdin
+    const raw = (fs.readFileSync(0, 'utf8') || '').trim(); // fd 0 = stdin
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
   } catch {
     return {};
   }
@@ -71,18 +94,28 @@ function readHookInput() {
 // skillBelongsToPlugin() can't tell name collisions apart. Bare names stay permissive
 // and are scoped by skillBelongsToPlugin() downstream.
 function skillFromHook(hookInput) {
-  const ti = hookInput && typeof hookInput.tool_input === "object" && hookInput.tool_input ? hookInput.tool_input : {};
+  const ti =
+    hookInput && typeof hookInput.tool_input === 'object' && hookInput.tool_input
+      ? hookInput.tool_input
+      : {};
   const raw = String(
-    ti.skill || ti.skill_name || hookInput.command_name || hookInput.skill || hookInput.skill_name || ""
-  ).trim().replace(/^\//, ""); // tolerate a leading "/" from slash-command payloads
-  if (!raw.includes(":")) return raw;
-  const sep = raw.lastIndexOf(":");
-  return raw.slice(0, sep) === "expo" ? raw.slice(sep + 1) : "";
+    ti.skill ||
+      ti.skill_name ||
+      hookInput.command_name ||
+      hookInput.skill ||
+      hookInput.skill_name ||
+      '',
+  )
+    .trim()
+    .replace(/^\//, ''); // tolerate a leading "/" from slash-command payloads
+  if (!raw.includes(':')) return raw;
+  const sep = raw.lastIndexOf(':');
+  return raw.slice(0, sep) === 'expo' ? raw.slice(sep + 1) : '';
 }
 
 function pluginRootFor(args) {
   // Self-derive from this script's location: <root>/skills/expo-skill-feedback/scripts.
-  return args.pluginRoot || path.resolve(__dirname, "..", "..", "..");
+  return args.pluginRoot || path.resolve(__dirname, '..', '..', '..');
 }
 
 // Only emit for skills that belong to THIS plugin (so we never track other plugins'
@@ -92,15 +125,20 @@ function pluginRootFor(args) {
 function skillBelongsToPlugin(skill, pluginRoot) {
   if (!skill || !pluginRoot) return false;
   if (!/^[a-z0-9][a-z0-9-]*$/.test(skill)) return false;
-  try { return fs.existsSync(path.join(pluginRoot, "skills", skill, "SKILL.md")); }
-  catch { return false; }
+  try {
+    return fs.existsSync(path.join(pluginRoot, 'skills', skill, 'SKILL.md'));
+  } catch {
+    return false;
+  }
 }
 
 function eventPayload(skill, args) {
   const agentHarness = args.agentHarness.trim() || detectHarness();
   const initiator = args.initiator.trim();
   const timestamp = new Date().toISOString();
-  const [distinctId, identityProperties] = telemetryIdentity(agentHarness, { createInstallation: !args.dryRun });
+  const [distinctId, identityProperties] = telemetryIdentity(agentHarness, {
+    createInstallation: !args.dryRun,
+  });
 
   const properties = {
     $process_person_profile: false,
@@ -112,7 +150,13 @@ function eventPayload(skill, args) {
     ...identityProperties,
   };
 
-  return { api_key: POSTHOG_PROJECT_API_KEY, event: EVENT, distinct_id: distinctId, timestamp, properties };
+  return {
+    api_key: POSTHOG_PROJECT_API_KEY,
+    event: EVENT,
+    distinct_id: distinctId,
+    timestamp,
+    properties,
+  };
 }
 
 // Re-launch this script DETACHED to perform the network POST off the agent's critical
@@ -123,11 +167,15 @@ function eventPayload(skill, args) {
 // windowsHide avoids a console-window flash on Windows; failures are ignored (best-effort).
 function spawnDetachedSend(skill, args) {
   try {
-    const { spawn } = require("child_process");
-    const childArgs = [__filename, "--skill", skill, "--quiet"];
-    if (args.initiator.trim()) childArgs.push("--initiator", args.initiator.trim());
-    if (args.agentHarness.trim()) childArgs.push("--agent-harness", args.agentHarness.trim());
-    const child = spawn(process.execPath, childArgs, { detached: true, stdio: "ignore", windowsHide: true });
+    const { spawn } = require('child_process');
+    const childArgs = [__filename, '--skill', skill, '--quiet'];
+    if (args.initiator.trim()) childArgs.push('--initiator', args.initiator.trim());
+    if (args.agentHarness.trim()) childArgs.push('--agent-harness', args.agentHarness.trim());
+    const child = spawn(process.execPath, childArgs, {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
     child.unref();
   } catch {
     // best-effort: if the child can't be spawned, skip the send rather than block
@@ -141,13 +189,13 @@ async function main(argv) {
   // stdin" — which must happen HERE, in the foreground hook process, because a detached
   // child's stdin is /dev/null.
   let skill = args.skill.trim();
-  if (skill === "auto") skill = skillFromHook(readHookInput());
+  if (skill === 'auto') skill = skillFromHook(readHookInput());
 
   // Cheap, local, no-network gates: decide up front whether anything will be sent, so the
   // common "not an Expo skill / opted out" cases cost nothing and never spawn a child.
-  if (!skill) return 0;                                            // not a skill invocation
-  if (!args.dryRun && !telemetryActive()) return 0;                // opt-in: off until enabled (dry-run inspects regardless)
-  if (!telemetryConfigured() && !args.dryRun) return 0;            // no key in this build (e.g. a fork) -> inert
+  if (!skill) return 0; // not a skill invocation
+  if (!args.dryRun && !telemetryActive()) return 0; // opt-in: off until enabled (dry-run inspects regardless)
+  if (!telemetryConfigured() && !args.dryRun) return 0; // no key in this build (e.g. a fork) -> inert
   if (!skillBelongsToPlugin(skill, pluginRootFor(args))) return 0; // not one of ours
 
   // Hook path: hand the network POST to a detached copy of ourselves so the turn never
@@ -160,18 +208,21 @@ async function main(argv) {
   const payload = eventPayload(skill, args);
 
   if (args.dryRun) {
-    console.log(JSON.stringify({ ...payload, api_key: "phc_..." }, null, 2));
+    console.log(JSON.stringify({ ...payload, api_key: 'phc_...' }, null, 2));
     return 0;
   }
 
   try {
-    await sendToPosthog(payload, { userAgent: "expo-skills/skill-event", timeoutMs: 3000 });
+    await sendToPosthog(payload, { userAgent: 'expo-skills/skill-event', timeoutMs: 3000 });
   } catch (err) {
     if (!args.quiet) console.error(`skill-event: ${err.message}`);
     return args.quiet ? 0 : 1;
   }
 
-  if (!args.quiet) console.log(`sent ${EVENT}: ${payload.properties.skill} (${payload.properties.initiator || "?"})`);
+  if (!args.quiet)
+    console.log(
+      `sent ${EVENT}: ${payload.properties.skill} (${payload.properties.initiator || '?'})`,
+    );
   return 0;
 }
 

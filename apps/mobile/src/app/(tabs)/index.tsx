@@ -285,15 +285,15 @@ export default function HomeScreen() {
       const body =
         pairingTab === 'link'
           ? throwIfError(
-            await api.POST('/pairing/device-link/code', {
-              body: { deviceCredential: stored.deviceCredential },
-            }),
-          )
+              await api.POST('/pairing/device-link/code', {
+                body: { deviceCredential: stored.deviceCredential },
+              }),
+            )
           : throwIfError(
-            await api.POST('/pairing/code', {
-              body: { deviceCredential: stored.deviceCredential },
-            }),
-          );
+              await api.POST('/pairing/code', {
+                body: { deviceCredential: stored.deviceCredential },
+              }),
+            );
       setPairingCode(body.code);
     } catch (err) {
       setPairingError(err instanceof Error ? err.message : t('events.pairingGenerateError'));
@@ -463,11 +463,7 @@ export default function HomeScreen() {
             </View>
 
             <View style={{ paddingHorizontal: space.xl }}>
-              <SearchBar
-                value={q}
-                onChangeText={setQ}
-                placeholder={t('home.searchPlaceholder')}
-              />
+              <SearchBar value={q} onChangeText={setQ} placeholder={t('home.searchPlaceholder')} />
             </View>
 
             <TagFilters
@@ -565,9 +561,7 @@ export default function HomeScreen() {
                             : (item.onlineUrl ?? t('events.missingUrl'))
                         }
                         categoryId={categoryId}
-                        categoryLabel={
-                          categoryId ? t(`events.tagGroup.${categoryId}`) : undefined
-                        }
+                        categoryLabel={categoryId ? t(`events.tagGroup.${categoryId}`) : undefined}
                         tags={namesForTagIds(item.tagIds, tags.data?.items)}
                         imageUrl={item.imageUrl}
                         dateBadge={dateBadge(shown.startsAt, locale, item.timezone)}
@@ -619,7 +613,6 @@ export default function HomeScreen() {
                 {t('events.loadError')}
               </AppText>
             )}
-            
           </View>
         }
         extraData={savedIdKey}
@@ -635,7 +628,9 @@ export default function HomeScreen() {
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <ActivityIndicator accessibilityLabel={t('events.loading')} color={colors.ink} />
             </View>
-          ) : events.isSuccess && !events.isPlaceholderData && (searching ? matches.length === 0 : featured.length === 0) ? (
+          ) : events.isSuccess &&
+            !events.isPlaceholderData &&
+            (searching ? matches.length === 0 : featured.length === 0) ? (
             <AppText variant="body" style={{ paddingHorizontal: space.xl }}>
               {searching ? t('events.searchEmpty') : t('events.empty')}
             </AppText>

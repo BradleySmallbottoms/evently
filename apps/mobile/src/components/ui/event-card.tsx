@@ -126,15 +126,16 @@ export function EventCard({
                 {title}
               </AppText>
               {priceLabel ? (
-                <View
-                  pointerEvents="none"
-                  style={{ position: 'absolute', top: 2, right: 0 }}
-                >
+                <View pointerEvents="none" style={{ position: 'absolute', top: 2, right: 0 }}>
                   <PricePill label={priceLabel} />
                 </View>
               ) : null}
             </View>
-            <AppText variant="caption" numberOfLines={1} style={{ color: 'rgba(255,255,255,0.92)' }}>
+            <AppText
+              variant="caption"
+              numberOfLines={1}
+              style={{ color: 'rgba(255,255,255,0.92)' }}
+            >
               {where}
             </AppText>
           </View>

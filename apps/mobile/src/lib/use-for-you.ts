@@ -104,7 +104,8 @@ export function useForYouEvents({
     return ids;
   }, [signals]);
 
-  const queryTagIds = selectedTagIds.length > 0 ? [...selectedTagIds].slice(0, TAG_QUERY_LIMIT) : tasteTagIds;
+  const queryTagIds =
+    selectedTagIds.length > 0 ? [...selectedTagIds].slice(0, TAG_QUERY_LIMIT) : tasteTagIds;
   const queryTagKey = [...queryTagIds].sort().join('\n');
   const followedKey = [...followedPublisherIds].sort().join('\n');
   const interactionsSettled =
@@ -114,7 +115,15 @@ export function useForYouEvents({
     followedPublisherIds.length > 0 && selectedTagIds.length === 0 && tasteTagIds.length > 0;
 
   const candidates = useQuery({
-    queryKey: ['for-you', point?.lat, point?.lng, point?.radiusM, queryTagKey, followedKey, scanPublishers],
+    queryKey: [
+      'for-you',
+      point?.lat,
+      point?.lng,
+      point?.radiusM,
+      queryTagKey,
+      followedKey,
+      scanPublishers,
+    ],
     ...eventListFreshness,
     enabled:
       point != null &&
@@ -132,10 +141,14 @@ export function useForYouEvents({
           }),
         );
       } else {
-        lists.push(await listPublicEvents(point!, { limit: FOR_YOU_CANDIDATE_LIMIT, sort: 'soonest' }));
+        lists.push(
+          await listPublicEvents(point!, { limit: FOR_YOU_CANDIDATE_LIMIT, sort: 'soonest' }),
+        );
       }
       if (scanPublishers) {
-        lists.push(await listPublicEvents(point!, { limit: FOR_YOU_CANDIDATE_LIMIT, sort: 'soonest' }));
+        lists.push(
+          await listPublicEvents(point!, { limit: FOR_YOU_CANDIDATE_LIMIT, sort: 'soonest' }),
+        );
       }
       const byId = new Map<string, (typeof lists)[number]['items'][number]>();
       for (const list of lists) {
@@ -156,7 +169,15 @@ export function useForYouEvents({
         excludeIds,
         limit,
       }),
-    [candidates.data, signals, followedPublisherIds, selectedTagIds, featuredIds, excludeIds, limit],
+    [
+      candidates.data,
+      signals,
+      followedPublisherIds,
+      selectedTagIds,
+      featuredIds,
+      excludeIds,
+      limit,
+    ],
   );
 
   const isLoading =

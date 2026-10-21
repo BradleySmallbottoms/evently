@@ -73,9 +73,11 @@ export function PairingSheet({
         contentPadding={{ top: space.xxxl, bottom: space.md, left: space.xl, right: space.xl }}
       >
         <SheetBody>
-          <View style={{ width: contentWidth, gap: space.lg, }}>
+          <View style={{ width: contentWidth, gap: space.lg }}>
             <View style={{ gap: space.lg }}>
-              <AppText variant="title" style={{ fontSize: 20, fontWeight: '700' }}>{title}</AppText>
+              <AppText variant="title" style={{ fontSize: 20, fontWeight: '700' }}>
+                {title}
+              </AppText>
               <View style={{ flexDirection: 'row', gap: space.sm }}>
                 <PrimaryButton
                   label={webTabLabel}

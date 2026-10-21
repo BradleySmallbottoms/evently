@@ -1,12 +1,5 @@
-import type {
-  CreateEventPushMessageRequest,
-  SentEventNotification,
-} from '@local-events/contracts';
-import {
-  findOpenPushMessage,
-  type Db,
-  type PushMessageRow,
-} from '@local-events/db';
+import type { CreateEventPushMessageRequest, SentEventNotification } from '@local-events/contracts';
+import { findOpenPushMessage, type Db, type PushMessageRow } from '@local-events/db';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { EventError } from '../events/types';
@@ -151,7 +144,8 @@ export function createDbPublisherPushMessageServices(
                   bodyEn: body.bodyEn,
                 }
               : undefined,
-          sendAt: body.sendAt === undefined ? undefined : body.sendAt ? new Date(body.sendAt) : null,
+          sendAt:
+            body.sendAt === undefined ? undefined : body.sendAt ? new Date(body.sendAt) : null,
         });
       } catch (err) {
         if (err instanceof Error && err.message === 'push_draft_exists') {

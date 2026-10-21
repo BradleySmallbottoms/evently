@@ -18,11 +18,7 @@ import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
 import { enqueueDomainEvent } from '../domain-events/types';
-import {
-  createMemoryStore,
-  type MemoryCheckIn,
-  type MemoryStore,
-} from '../memory-store';
+import { createMemoryStore, type MemoryCheckIn, type MemoryStore } from '../memory-store';
 import { deriveDigitalCode, generateDigitalCodeSecret, validCodesForNow } from './codes';
 import { CheckInError, type CheckInEnv, type CheckInServices } from './types';
 

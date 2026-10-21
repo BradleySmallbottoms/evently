@@ -39,11 +39,7 @@ export async function performGeoCheckIn(identity: StoredIdentity, eventId: strin
 }
 
 /** Venue QR / digital rotating code check-in. */
-export async function performCodeCheckIn(
-  identity: StoredIdentity,
-  eventId: string,
-  code: string,
-) {
+export async function performCodeCheckIn(identity: StoredIdentity, eventId: string, code: string) {
   return throwIfError(
     await api.POST('/events/{eventId}/check-ins/code', {
       params: { path: { eventId } },

@@ -35,13 +35,48 @@ import { adminFetch } from '@/lib/api';
 type Me = { adminId: string; email: string; role: string; expiresAt: string };
 
 const NAV = [
-  { href: '/review', key: 'navEvents', icon: ClipboardCheckIcon, match: (path: string) => path.startsWith('/review') },
-  { href: '/events/manage', key: 'navEventCatalog', icon: CalendarIcon, match: (path: string) => path.startsWith('/events') },
-  { href: '/publishers', key: 'navPublishers', icon: StoreIcon, match: (path: string) => path.startsWith('/publishers') },
-  { href: '/push-messages', key: 'navPushMessages', icon: BellIcon, match: (path: string) => path.startsWith('/push-messages') },
-  { href: '/moderation', key: 'navModeration', icon: ShieldIcon, match: (path: string) => path.startsWith('/moderation') },
-  { href: '/data-sources', key: 'navDataSources', icon: DatabaseIcon, match: (path: string) => path.startsWith('/data-sources') },
-  { href: '/audit-log', key: 'navAuditLog', icon: ScrollTextIcon, match: (path: string) => path.startsWith('/audit-log') },
+  {
+    href: '/review',
+    key: 'navEvents',
+    icon: ClipboardCheckIcon,
+    match: (path: string) => path.startsWith('/review'),
+  },
+  {
+    href: '/events/manage',
+    key: 'navEventCatalog',
+    icon: CalendarIcon,
+    match: (path: string) => path.startsWith('/events'),
+  },
+  {
+    href: '/publishers',
+    key: 'navPublishers',
+    icon: StoreIcon,
+    match: (path: string) => path.startsWith('/publishers'),
+  },
+  {
+    href: '/push-messages',
+    key: 'navPushMessages',
+    icon: BellIcon,
+    match: (path: string) => path.startsWith('/push-messages'),
+  },
+  {
+    href: '/moderation',
+    key: 'navModeration',
+    icon: ShieldIcon,
+    match: (path: string) => path.startsWith('/moderation'),
+  },
+  {
+    href: '/data-sources',
+    key: 'navDataSources',
+    icon: DatabaseIcon,
+    match: (path: string) => path.startsWith('/data-sources'),
+  },
+  {
+    href: '/audit-log',
+    key: 'navAuditLog',
+    icon: ScrollTextIcon,
+    match: (path: string) => path.startsWith('/audit-log'),
+  },
 ] as const;
 
 export function AdminShell({ children }: { children: ReactNode }) {
@@ -111,7 +146,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
                   const Icon = item.icon;
                   return (
                     <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton render={<Link href={item.href} />} isActive={item.match(pathname)}>
+                      <SidebarMenuButton
+                        render={<Link href={item.href} />}
+                        isActive={item.match(pathname)}
+                      >
                         <Icon />
                         <span>{t(item.key)}</span>
                       </SidebarMenuButton>
@@ -125,7 +163,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
-              <span className="truncate px-2 text-xs text-sidebar-foreground/70">{me.data.email}</span>
+              <span className="truncate px-2 text-xs text-sidebar-foreground/70">
+                {me.data.email}
+              </span>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton onClick={() => void logout()}>

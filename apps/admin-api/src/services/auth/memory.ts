@@ -136,7 +136,10 @@ export function createMemoryAdminAuthServices(
       if (!admin) throw new AdminAuthError('invalid_credentials');
 
       if (challenge.kind === 'setup') {
-        if (!challenge.pendingSecret || !verifyTotpCode(challenge.pendingSecret, input.code, at.getTime())) {
+        if (
+          !challenge.pendingSecret ||
+          !verifyTotpCode(challenge.pendingSecret, input.code, at.getTime())
+        ) {
           throw new AdminAuthError('invalid_totp');
         }
         admin.totpSecret = challenge.pendingSecret;

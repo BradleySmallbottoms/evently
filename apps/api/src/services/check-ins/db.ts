@@ -200,9 +200,7 @@ export function createDbCheckInServices(
       const [existing] = await db
         .select({ id: schema.checkIns.id })
         .from(schema.checkIns)
-        .where(
-          and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)),
-        )
+        .where(and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)))
         .limit(1);
       const [codeRow] = await db
         .select({ revealedAt: schema.digitalCodes.revealedAt })
@@ -227,9 +225,7 @@ export function createDbCheckInServices(
       const [existing] = await db
         .select({ id: schema.checkIns.id })
         .from(schema.checkIns)
-        .where(
-          and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)),
-        )
+        .where(and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)))
         .limit(1);
 
       const result = validateGeoCheckIn({
@@ -247,13 +243,15 @@ export function createDbCheckInServices(
       if (!result.ok) throw new CheckInError(result.reason);
 
       const createdAt = now();
-      let inserted: {
-        id: string;
-        userId: string;
-        eventId: string;
-        method: 'geo' | 'code';
-        createdAt: Date;
-      } | undefined;
+      let inserted:
+        | {
+            id: string;
+            userId: string;
+            eventId: string;
+            method: 'geo' | 'code';
+            createdAt: Date;
+          }
+        | undefined;
       try {
         const rows = await db
           .insert(schema.checkIns)
@@ -302,9 +300,7 @@ export function createDbCheckInServices(
       const [existing] = await db
         .select({ id: schema.checkIns.id })
         .from(schema.checkIns)
-        .where(
-          and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)),
-        )
+        .where(and(eq(schema.checkIns.userId, userId), eq(schema.checkIns.eventId, eventId)))
         .limit(1);
       const [codeRow] = await db
         .select()

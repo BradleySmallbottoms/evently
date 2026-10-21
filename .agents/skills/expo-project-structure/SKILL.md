@@ -66,7 +66,7 @@ Generic, reused UI (button, card, table) with one named export each. Name files 
 Because `app/` files must be routes, complex screen UI that isn't reused has no home there. Once a screen grows big enough to need breaking out to separate components, put it in `screens/` and let each route just render its screen:
 
 ```tsx
-import { Home } from "@/screens/home";
+import { Home } from '@/screens/home';
 
 export default function HomeScreen() {
   // route-specific concerns only — e.g. read url params here
@@ -106,9 +106,12 @@ Agent instructions live at the repo root — `AGENTS.md` / `CLAUDE.md`, with pro
 Based on [Expo app folder structure best practices](https://expo.dev/blog/expo-app-folder-structure-best-practices) by Kadi Kraman. For `src/` precedence and alias mechanics, see the [Expo docs](https://docs.expo.dev/router/reference/src-directory/).
 
 ## Submitting Feedback
+
 If you encounter errors, misleading or outdated information in this skill, report it so Expo can improve:
+
 ```bash
 npx --yes submit-expo-feedback@latest --category skills --subject "expo-project-structure" "<actionable feedback>"
 ```
+
 Only submit when you have something specific and actionable to report. Include as much relevant context as possible.
 If an AI agent repeatedly failed or the user had to take over an Expo task, load the expo-skill-feedback skill and follow its eval-candidate flow instead of reusing the command above.

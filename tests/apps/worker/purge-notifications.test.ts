@@ -25,7 +25,12 @@ describe('purgeExpiredNotifications', () => {
     });
     const db = { select, delete: del } as never;
 
-    const deleted = await purgeExpiredNotifications(db, new Date('2026-06-15T12:00:00.000Z'), 90, 2);
+    const deleted = await purgeExpiredNotifications(
+      db,
+      new Date('2026-06-15T12:00:00.000Z'),
+      90,
+      2,
+    );
     expect(deleted).toBe(2);
     expect(del).toHaveBeenCalledOnce();
   });

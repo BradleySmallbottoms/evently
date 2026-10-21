@@ -40,7 +40,19 @@ export default function AppTabs() {
               accessibilityLabel={hasUnread ? t('tabs.profileUnread') : t('tabs.profile')}
             >
               {t('tabs.profile')}
-              {hasUnread ? <View style={{ position: 'absolute', top: 0, right: -6, width: 4, height: 4, borderRadius: radius.pill, backgroundColor: brand.error }} /> : null}
+              {hasUnread ? (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: -6,
+                    width: 4,
+                    height: 4,
+                    borderRadius: radius.pill,
+                    backgroundColor: brand.error,
+                  }}
+                />
+              ) : null}
             </TabButton>
           </TabTrigger>
         </CustomTabList>

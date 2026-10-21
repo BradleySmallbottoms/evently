@@ -1,5 +1,11 @@
 import { createHash } from 'node:crypto';
-import { EventLinkType, EventMeta, EventMode, GeoPointSchema, HttpUrl } from '@local-events/contracts';
+import {
+  EventLinkType,
+  EventMeta,
+  EventMode,
+  GeoPointSchema,
+  HttpUrl,
+} from '@local-events/contracts';
 import { z } from 'zod';
 
 /** The shape every source adapter maps raw data into. `ingest` takes it from here. */

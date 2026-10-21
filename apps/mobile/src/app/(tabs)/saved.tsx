@@ -46,7 +46,11 @@ export default function SavedScreen() {
   const events = saved.data?.items ?? [];
   const listRows =
     lists.data?.items.flatMap((list) =>
-      list.events.map((event) => ({ ...event, listName: list.name, key: `${list.id}:${event.id}` })),
+      list.events.map((event) => ({
+        ...event,
+        listName: list.name,
+        key: `${list.id}:${event.id}`,
+      })),
     ) ?? [];
 
   return (

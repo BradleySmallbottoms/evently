@@ -13,49 +13,41 @@ const tz = 'Europe/Stockholm';
 
 describe('formatPeriod', () => {
   it('joins two days in the same year', () => {
-    expect(
-      formatPeriod('2026-09-19T00:00:00+02:00', '2026-11-15T00:00:00+01:00', 'sv', tz),
-    ).toBe('19 sep – 15 nov 2026');
+    expect(formatPeriod('2026-09-19T00:00:00+02:00', '2026-11-15T00:00:00+01:00', 'sv', tz)).toBe(
+      '19 sep – 15 nov 2026',
+    );
   });
 
   it('keeps a single calendar day as one date', () => {
-    expect(
-      formatPeriod('2026-09-19T08:00:00+02:00', '2026-09-19T16:00:00+02:00', 'sv', tz),
-    ).toBe('19 sep 2026');
+    expect(formatPeriod('2026-09-19T08:00:00+02:00', '2026-09-19T16:00:00+02:00', 'sv', tz)).toBe(
+      '19 sep 2026',
+    );
   });
 
   it('includes both years when the span crosses a year', () => {
-    expect(
-      formatPeriod('2026-12-19T00:00:00+01:00', '2027-01-02T00:00:00+01:00', 'sv', tz),
-    ).toBe('19 dec 2026 – 2 jan 2027');
+    expect(formatPeriod('2026-12-19T00:00:00+01:00', '2027-01-02T00:00:00+01:00', 'sv', tz)).toBe(
+      '19 dec 2026 – 2 jan 2027',
+    );
   });
 });
 
 describe('isMultiDay', () => {
   it('is false for one calendar day', () => {
-    expect(isMultiDay('2026-09-19T08:00:00+02:00', '2026-09-19T16:00:00+02:00', tz)).toBe(
-      false,
-    );
+    expect(isMultiDay('2026-09-19T08:00:00+02:00', '2026-09-19T16:00:00+02:00', tz)).toBe(false);
   });
 
   it('is true when the end is another day', () => {
-    expect(isMultiDay('2026-09-19T00:00:00+02:00', '2026-11-15T00:00:00+01:00', tz)).toBe(
-      true,
-    );
+    expect(isMultiDay('2026-09-19T00:00:00+02:00', '2026-11-15T00:00:00+01:00', tz)).toBe(true);
   });
 });
 
 describe('isOpenPeriod', () => {
   it('stays one showing when the event only crosses midnight', () => {
-    expect(isOpenPeriod('2026-10-18T22:00:00+02:00', '2026-10-19T01:00:00+02:00', tz)).toBe(
-      false,
-    );
+    expect(isOpenPeriod('2026-10-18T22:00:00+02:00', '2026-10-19T01:00:00+02:00', tz)).toBe(false);
   });
 
   it('is a period when it lasts at least a day across calendar days', () => {
-    expect(isOpenPeriod('2026-09-19T00:00:00+02:00', '2026-11-15T00:00:00+01:00', tz)).toBe(
-      true,
-    );
+    expect(isOpenPeriod('2026-09-19T00:00:00+02:00', '2026-11-15T00:00:00+01:00', tz)).toBe(true);
   });
 });
 

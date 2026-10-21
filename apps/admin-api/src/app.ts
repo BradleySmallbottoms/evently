@@ -75,20 +75,17 @@ export function createApp(options: CreateAdminAppOptions = {}) {
   const auth = options.auth ?? createMemoryAdminAuthServices(authStore);
   const audit =
     options.audit ?? createMemoryAdminAuditServices(options.auditStore ?? { entries: [] });
-  const publishers =
-    options.publishers ?? createMemoryAdminPublisherServices(publisherStore);
+  const publishers = options.publishers ?? createMemoryAdminPublisherServices(publisherStore);
   const eventStore = options.eventStore ?? {
     publishers: new Map(),
     events: new Map(),
   };
-  const events =
-    options.events ?? createMemoryAdminEventServices(eventStore, { audit });
+  const events = options.events ?? createMemoryAdminEventServices(eventStore, { audit });
   const dataSourceStore = options.dataSourceStore ?? {
     sources: new Map(),
     runs: new Map(),
   };
-  const dataSources =
-    options.dataSources ?? createMemoryAdminDataSourceServices(dataSourceStore);
+  const dataSources = options.dataSources ?? createMemoryAdminDataSourceServices(dataSourceStore);
   const moderation =
     options.moderation ??
     createMemoryAdminModerationServices(
@@ -106,10 +103,7 @@ export function createApp(options: CreateAdminAppOptions = {}) {
   app.use(
     '*',
     cors({
-      origin: options.corsOrigin ?? [
-        'http://localhost:13200',
-        'http://127.0.0.1:13200',
-      ],
+      origin: options.corsOrigin ?? ['http://localhost:13200', 'http://127.0.0.1:13200'],
       credentials: true,
       allowHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
       exposeHeaders: ['X-Request-Id'],

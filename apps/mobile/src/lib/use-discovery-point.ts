@@ -107,7 +107,11 @@ export function useDiscoveryPlaceId() {
 }
 
 export function useDiscoveryRadiusMap() {
-  return useSyncExternalStore(subscribeDiscoveryRadius, getDiscoveryRadiusMap, getDiscoveryRadiusMap);
+  return useSyncExternalStore(
+    subscribeDiscoveryRadius,
+    getDiscoveryRadiusMap,
+    getDiscoveryRadiusMap,
+  );
 }
 
 function pointFromFix(fix: { lat: number; lng: number }, radiusM: number): EventQueryPoint {
@@ -169,7 +173,12 @@ export function useDiscoveryPoint() {
     queryClient.setQueryData<EventQueryPoint>(
       ['event-query-point', NEARBY_PLACE_ID, radiusM],
       (prev) => {
-        if (prev && prev.lat === next.lat && prev.lng === next.lng && prev.radiusM === next.radiusM) {
+        if (
+          prev &&
+          prev.lat === next.lat &&
+          prev.lng === next.lng &&
+          prev.radiusM === next.radiusM
+        ) {
           return prev;
         }
         return next;

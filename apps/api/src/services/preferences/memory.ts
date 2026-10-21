@@ -66,7 +66,10 @@ function toUserArea(row: {
   };
 }
 
-function uniqueTagIds(tagIds: readonly string[] | undefined, known: { has: (id: string) => boolean }): string[] {
+function uniqueTagIds(
+  tagIds: readonly string[] | undefined,
+  known: { has: (id: string) => boolean },
+): string[] {
   const unique = [...new Set(tagIds ?? [])];
   for (const id of unique) {
     if (!known.has(id)) throw new PreferenceError('unknown_tag');
@@ -86,9 +89,7 @@ export function createMemoryPreferenceServices(
       const { userId } = await auth.requireUserSession(sessionToken);
       const user = store.users.get(userId);
       if (!user) throw new PreferenceError('unauthorized');
-      const areas = [...userAreas.values()]
-        .filter((a) => a.userId === userId)
-        .map(toUserArea);
+      const areas = [...userAreas.values()].filter((a) => a.userId === userId).map(toUserArea);
       return {
         areas,
         quietHours: {

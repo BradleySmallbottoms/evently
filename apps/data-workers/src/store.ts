@@ -1,6 +1,11 @@
 import type { EventMeta } from '@local-events/contracts';
 import type { PublisherLookup } from './prompt-runners/types';
-import type { EventStatus, MarketingPushPlanId, PublisherStatus, SourceTrust } from '@local-events/domain';
+import type {
+  EventStatus,
+  MarketingPushPlanId,
+  PublisherStatus,
+  SourceTrust,
+} from '@local-events/domain';
 import type { IncomingEvent, TagChoice } from '@local-events/ingest';
 import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
 
@@ -184,13 +189,25 @@ export interface IngestStore {
       error: string | null;
     },
   ): Promise<void>;
-  nearbyEvents(point: GeoPoint, window: NearbyWindow, excludeEventId: string): Promise<NearbyEventHit[]>
-  nearbyPublishers(point: GeoPoint, window: NearbyWindow, excludeEventId: string): Promise<NearbyPublisherHit[]>;
+  nearbyEvents(
+    point: GeoPoint,
+    window: NearbyWindow,
+    excludeEventId: string,
+  ): Promise<NearbyEventHit[]>;
+  nearbyPublishers(
+    point: GeoPoint,
+    window: NearbyWindow,
+    excludeEventId: string,
+  ): Promise<NearbyPublisherHit[]>;
   /**
    * Publishers whose name matches `name` (`*` any text, `?` one character) and that
    * have an event within {@link PUBLISHER_NAME_SEARCH_RADIUS_M} of `point`.
    */
-  publishersByName(point: GeoPoint, name: string, excludeEventId: string): Promise<NearbyPublisherHit[]>;
+  publishersByName(
+    point: GeoPoint,
+    name: string,
+    excludeEventId: string,
+  ): Promise<NearbyPublisherHit[]>;
   /**
    * This source's alias wins. Otherwise an email or website from any source.
    * A name or slug matches only when that publisher has an event near `location`.

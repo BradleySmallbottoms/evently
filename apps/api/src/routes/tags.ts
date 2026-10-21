@@ -9,7 +9,8 @@ export function registerTagRoutes(app: OpenAPIHono, events: EventServices): void
     request: { query: TagListQuery },
     responses: {
       200: {
-        description: 'Event tags. Pass upcoming=true to keep tags that have a published event still to come.',
+        description:
+          'Event tags. Pass upcoming=true to keep tags that have a published event still to come.',
         content: { 'application/json': { schema: TagListResponse } },
       },
     },
