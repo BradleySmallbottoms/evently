@@ -20,6 +20,7 @@ type LocRow = {
   id: string;
   publisherId: string | null;
   title: string;
+  summary: string | null;
   description: string | null;
   mode: Event['mode'];
   status: Event['status'];
@@ -56,6 +57,7 @@ function mapRow(
     id: row.id,
     publisherId: requirePublisherId(row.publisherId),
     title: row.title,
+    summary: row.summary,
     description: row.description,
     mode: row.mode,
     status: row.status,
@@ -141,6 +143,7 @@ export function createDbLibraryServices(
     id: events.id,
     publisherId: events.publisherId,
     title: events.title,
+    summary: events.summary,
     description: events.description,
     mode: events.mode,
     status: events.status,

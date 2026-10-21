@@ -10,6 +10,7 @@ import {
   venueNameFromScan,
 } from '@local-events/domain';
 import { geocodeSwedishAddress } from './page-place';
+import { failFinishedScan, type ScanProgress } from './scan-progress';
 import { emitDomainEvent, noopDomainEvents, type DomainEventSink } from './domain-events';
 import type { PromptRunner, ScanInput, ScanOutcome } from './prompt-runners';
 import type { IngestStore, PendingScanRow, PublisherLink } from './store';
@@ -80,6 +81,8 @@ export async function scanPendingEvents(
     eventId?: string;
     skipEventIds?: readonly string[];
     fetch?: typeof fetch;
+    /** RunPod passes this so a save failure moves that event from done to failed. */
+    progress?: ScanProgress;
   } = {},
 ): Promise<ScanSummary> {
   const limit = options.limit ?? SCAN_BATCH_LIMIT;
@@ -117,6 +120,7 @@ export async function scanPendingEvents(
       await store.releaseScanClaim(row.eventId, row.claimedUntil);
       summary.unavailable += 1;
       if (outcome.reason === 'timeout') summary.unavailable_timeout += 1;
+      else await notifyTipScan(store, enqueue, row.eventId, 'failed');
       continue;
     }
     let applied: 'published' | 'review' | 'skipped';
@@ -130,13 +134,41 @@ export async function scanPendingEvents(
       );
       await store.releaseScanClaim(row.eventId, row.claimedUntil);
       summary.unavailable += 1;
+      if (options.progress) failFinishedScan(options.progress);
       continue;
     }
     if (applied === 'published') summary.published += 1;
     else if (applied === 'review') summary.review += 1;
-    else summary.skipped += 1;
+    else {
+      summary.skipped += 1;
+      if (options.progress) failFinishedScan(options.progress);
+    }
+    if (applied !== 'skipped') {
+      await notifyTipScan(
+        store,
+        enqueue,
+        row.eventId,
+        applied === 'published' ? 'published' : 'in_review',
+      );
+    }
   }
   return summary;
+}
+
+async function notifyTipScan(
+  store: IngestStore,
+  enqueue: DomainEventSink,
+  eventId: string,
+  status: 'published' | 'in_review' | 'failed',
+): Promise<void> {
+  const marked = await store.markTipScanned({ eventId, status, now: new Date() });
+  if (!marked) return;
+  await emitDomainEvent(enqueue, {
+    type: 'tip.scanned',
+    tipId: marked.tipId,
+    eventId,
+    status,
+  });
 }
 
 function scanInputFor(row: PendingScanRow): ScanInput {

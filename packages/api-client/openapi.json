@@ -2675,7 +2675,7 @@
                           },
                           "reason": {
                             "type": "string",
-                            "enum": ["nearby", "publisher", "event", "broadcast"]
+                            "enum": ["nearby", "publisher", "event", "broadcast", "tip"]
                           },
                           "pushState": {
                             "type": "string",
@@ -3637,6 +3637,9 @@
                                   "maxLength": 500
                                 },
                                 "maxItems": 20
+                              },
+                              "fromUserTip": {
+                                "type": "boolean"
                               }
                             }
                           },
@@ -4163,6 +4166,9 @@
                                   "maxLength": 500
                                 },
                                 "maxItems": 20
+                              },
+                              "fromUserTip": {
+                                "type": "boolean"
                               }
                             }
                           },
@@ -4705,6 +4711,9 @@
                                         "maxLength": 500
                                       },
                                       "maxItems": 20
+                                    },
+                                    "fromUserTip": {
+                                      "type": "boolean"
                                     }
                                   }
                                 },
@@ -5124,6 +5133,9 @@
                                   "maxLength": 500
                                 },
                                 "maxItems": 20
+                              },
+                              "fromUserTip": {
+                                "type": "boolean"
                               }
                             }
                           },
@@ -5577,6 +5589,9 @@
                                   "maxLength": 500
                                 },
                                 "maxItems": 20
+                              },
+                              "fromUserTip": {
+                                "type": "boolean"
                               }
                             }
                           },
@@ -6363,6 +6378,9 @@
                                   "maxLength": 500
                                 },
                                 "maxItems": 20
+                              },
+                              "fromUserTip": {
+                                "type": "boolean"
                               }
                             }
                           },
@@ -6869,6 +6887,9 @@
                             "maxLength": 500
                           },
                           "maxItems": 20
+                        },
+                        "fromUserTip": {
+                          "type": "boolean"
                         }
                       }
                     },
@@ -7394,6 +7415,9 @@
                                   "maxLength": 500
                                 },
                                 "maxItems": 20
+                              },
+                              "fromUserTip": {
+                                "type": "boolean"
                               }
                             }
                           },
@@ -7774,6 +7798,9 @@
                                   "maxLength": 500
                                 },
                                 "maxItems": 20
+                              },
+                              "fromUserTip": {
+                                "type": "boolean"
                               }
                             }
                           },
@@ -8143,6 +8170,9 @@
                             "maxLength": 500
                           },
                           "maxItems": 20
+                        },
+                        "fromUserTip": {
+                          "type": "boolean"
                         }
                       }
                     },
@@ -8527,6 +8557,9 @@
                             "maxLength": 500
                           },
                           "maxItems": 20
+                        },
+                        "fromUserTip": {
+                          "type": "boolean"
                         }
                       }
                     },
@@ -9099,6 +9132,9 @@
                             "maxLength": 500
                           },
                           "maxItems": 20
+                        },
+                        "fromUserTip": {
+                          "type": "boolean"
                         }
                       }
                     },
@@ -9535,6 +9571,9 @@
                             "maxLength": 500
                           },
                           "maxItems": 20
+                        },
+                        "fromUserTip": {
+                          "type": "boolean"
                         }
                       }
                     },
@@ -9944,6 +9983,9 @@
                             "maxLength": 500
                           },
                           "maxItems": 20
+                        },
+                        "fromUserTip": {
+                          "type": "boolean"
                         }
                       }
                     },
@@ -13016,6 +13058,1724 @@
           },
           "401": {
             "description": "Missing or invalid worker token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/tips": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "enum": ["photo", "text"]
+                  },
+                  "locale": {
+                    "type": "string",
+                    "enum": ["sv", "en"]
+                  }
+                },
+                "required": ["path"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tip started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "path": {
+                      "type": "string",
+                      "enum": ["photo", "text"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["collecting", "needs_input", "submitted", "scanned", "failed"]
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "collecting",
+                        "scanning",
+                        "confirm",
+                        "follow_up",
+                        "receipt",
+                        "published",
+                        "review",
+                        "failed"
+                      ]
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": ["sv", "en"]
+                    },
+                    "card": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 200
+                        },
+                        "startsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "place": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 200
+                        },
+                        "priceLabel": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "link": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 500
+                        }
+                      },
+                      "required": ["title", "startsAt", "place", "priceLabel", "link"]
+                    },
+                    "followUp": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "category": {
+                          "type": "boolean"
+                        },
+                        "image": {
+                          "type": "boolean"
+                        },
+                        "description": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["category", "image", "description"]
+                    },
+                    "eventId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "scanStatus": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "imageStatus": {
+                      "type": "string",
+                      "enum": ["none", "scanning", "ready", "failed"]
+                    },
+                    "timeline": {
+                      "type": "object",
+                      "properties": {
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "analyzedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "completedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "reviewedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        }
+                      },
+                      "required": ["submittedAt", "analyzedAt", "completedAt", "reviewedAt"]
+                    },
+                    "found": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "startsAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "place": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "priceLabel": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "category": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "title",
+                        "startsAt",
+                        "place",
+                        "priceLabel",
+                        "category",
+                        "description"
+                      ]
+                    },
+                    "previewImageUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "path",
+                    "status",
+                    "phase",
+                    "locale",
+                    "card",
+                    "followUp",
+                    "eventId",
+                    "scanStatus",
+                    "imageStatus",
+                    "timeline",
+                    "found",
+                    "previewImageUrl",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Tips sent by the current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "path": {
+                            "type": "string",
+                            "enum": ["photo", "text"]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["collecting", "needs_input", "submitted", "scanned", "failed"]
+                          },
+                          "phase": {
+                            "type": "string",
+                            "enum": [
+                              "collecting",
+                              "scanning",
+                              "confirm",
+                              "follow_up",
+                              "receipt",
+                              "published",
+                              "review",
+                              "failed"
+                            ]
+                          },
+                          "locale": {
+                            "type": "string",
+                            "enum": ["sv", "en"]
+                          },
+                          "card": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "title": {
+                                "type": "string",
+                                "nullable": true,
+                                "maxLength": 200
+                              },
+                              "startsAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "maxLength": 40
+                              },
+                              "place": {
+                                "type": "string",
+                                "nullable": true,
+                                "maxLength": 200
+                              },
+                              "priceLabel": {
+                                "type": "string",
+                                "nullable": true,
+                                "maxLength": 40
+                              },
+                              "link": {
+                                "type": "string",
+                                "nullable": true,
+                                "maxLength": 500
+                              }
+                            },
+                            "required": ["title", "startsAt", "place", "priceLabel", "link"]
+                          },
+                          "followUp": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "category": {
+                                "type": "boolean"
+                              },
+                              "image": {
+                                "type": "boolean"
+                              },
+                              "description": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": ["category", "image", "description"]
+                          },
+                          "eventId": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uuid"
+                          },
+                          "scanStatus": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "imageStatus": {
+                            "type": "string",
+                            "enum": ["none", "scanning", "ready", "failed"]
+                          },
+                          "timeline": {
+                            "type": "object",
+                            "properties": {
+                              "submittedAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "analyzedAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "completedAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "reviewedAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              }
+                            },
+                            "required": ["submittedAt", "analyzedAt", "completedAt", "reviewedAt"]
+                          },
+                          "found": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "title": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "startsAt": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "place": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "priceLabel": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "category": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "description": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "title",
+                              "startsAt",
+                              "place",
+                              "priceLabel",
+                              "category",
+                              "description"
+                            ]
+                          },
+                          "previewImageUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "path",
+                          "status",
+                          "phase",
+                          "locale",
+                          "card",
+                          "followUp",
+                          "eventId",
+                          "scanStatus",
+                          "imageStatus",
+                          "timeline",
+                          "found",
+                          "previewImageUrl",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["items"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/tips/{tipId}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "tipId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One tip",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "path": {
+                      "type": "string",
+                      "enum": ["photo", "text"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["collecting", "needs_input", "submitted", "scanned", "failed"]
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "collecting",
+                        "scanning",
+                        "confirm",
+                        "follow_up",
+                        "receipt",
+                        "published",
+                        "review",
+                        "failed"
+                      ]
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": ["sv", "en"]
+                    },
+                    "card": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 200
+                        },
+                        "startsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "place": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 200
+                        },
+                        "priceLabel": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "link": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 500
+                        }
+                      },
+                      "required": ["title", "startsAt", "place", "priceLabel", "link"]
+                    },
+                    "followUp": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "category": {
+                          "type": "boolean"
+                        },
+                        "image": {
+                          "type": "boolean"
+                        },
+                        "description": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["category", "image", "description"]
+                    },
+                    "eventId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "scanStatus": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "imageStatus": {
+                      "type": "string",
+                      "enum": ["none", "scanning", "ready", "failed"]
+                    },
+                    "timeline": {
+                      "type": "object",
+                      "properties": {
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "analyzedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "completedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "reviewedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        }
+                      },
+                      "required": ["submittedAt", "analyzedAt", "completedAt", "reviewedAt"]
+                    },
+                    "found": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "startsAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "place": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "priceLabel": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "category": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "title",
+                        "startsAt",
+                        "place",
+                        "priceLabel",
+                        "category",
+                        "description"
+                      ]
+                    },
+                    "previewImageUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "path",
+                    "status",
+                    "phase",
+                    "locale",
+                    "card",
+                    "followUp",
+                    "eventId",
+                    "scanStatus",
+                    "imageStatus",
+                    "timeline",
+                    "found",
+                    "previewImageUrl",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tip not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/tips/{tipId}/text": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "tipId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": ["text"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Description read into a card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "path": {
+                      "type": "string",
+                      "enum": ["photo", "text"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["collecting", "needs_input", "submitted", "scanned", "failed"]
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "collecting",
+                        "scanning",
+                        "confirm",
+                        "follow_up",
+                        "receipt",
+                        "published",
+                        "review",
+                        "failed"
+                      ]
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": ["sv", "en"]
+                    },
+                    "card": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 200
+                        },
+                        "startsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "place": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 200
+                        },
+                        "priceLabel": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "link": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 500
+                        }
+                      },
+                      "required": ["title", "startsAt", "place", "priceLabel", "link"]
+                    },
+                    "followUp": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "category": {
+                          "type": "boolean"
+                        },
+                        "image": {
+                          "type": "boolean"
+                        },
+                        "description": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["category", "image", "description"]
+                    },
+                    "eventId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "scanStatus": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "imageStatus": {
+                      "type": "string",
+                      "enum": ["none", "scanning", "ready", "failed"]
+                    },
+                    "timeline": {
+                      "type": "object",
+                      "properties": {
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "analyzedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "completedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "reviewedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        }
+                      },
+                      "required": ["submittedAt", "analyzedAt", "completedAt", "reviewedAt"]
+                    },
+                    "found": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "startsAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "place": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "priceLabel": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "category": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "title",
+                        "startsAt",
+                        "place",
+                        "priceLabel",
+                        "category",
+                        "description"
+                      ]
+                    },
+                    "previewImageUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "path",
+                    "status",
+                    "phase",
+                    "locale",
+                    "card",
+                    "followUp",
+                    "eventId",
+                    "scanStatus",
+                    "imageStatus",
+                    "timeline",
+                    "found",
+                    "previewImageUrl",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Description is empty or longer than 500 characters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tip not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Tip is already submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/tips/{tipId}/images": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "tipId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contentType": {
+                    "type": "string",
+                    "enum": ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]
+                  },
+                  "dataBase64": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 11184812
+                  }
+                },
+                "required": ["contentType", "dataBase64"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Image stored. Vision keeps running.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "path": {
+                      "type": "string",
+                      "enum": ["photo", "text"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["collecting", "needs_input", "submitted", "scanned", "failed"]
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "collecting",
+                        "scanning",
+                        "confirm",
+                        "follow_up",
+                        "receipt",
+                        "published",
+                        "review",
+                        "failed"
+                      ]
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": ["sv", "en"]
+                    },
+                    "card": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 200
+                        },
+                        "startsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "place": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 200
+                        },
+                        "priceLabel": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "link": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 500
+                        }
+                      },
+                      "required": ["title", "startsAt", "place", "priceLabel", "link"]
+                    },
+                    "followUp": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "category": {
+                          "type": "boolean"
+                        },
+                        "image": {
+                          "type": "boolean"
+                        },
+                        "description": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["category", "image", "description"]
+                    },
+                    "eventId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "scanStatus": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "imageStatus": {
+                      "type": "string",
+                      "enum": ["none", "scanning", "ready", "failed"]
+                    },
+                    "timeline": {
+                      "type": "object",
+                      "properties": {
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "analyzedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "completedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "reviewedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        }
+                      },
+                      "required": ["submittedAt", "analyzedAt", "completedAt", "reviewedAt"]
+                    },
+                    "found": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "startsAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "place": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "priceLabel": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "category": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "title",
+                        "startsAt",
+                        "place",
+                        "priceLabel",
+                        "category",
+                        "description"
+                      ]
+                    },
+                    "previewImageUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "path",
+                    "status",
+                    "phase",
+                    "locale",
+                    "card",
+                    "followUp",
+                    "eventId",
+                    "scanStatus",
+                    "imageStatus",
+                    "timeline",
+                    "found",
+                    "previewImageUrl",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Image is too large or an unsupported type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tip not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Too many images, or the tip is already submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/tips/{tipId}/confirm": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "tipId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "card": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 200
+                      },
+                      "startsAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 40
+                      },
+                      "place": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 200
+                      },
+                      "priceLabel": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 40
+                      },
+                      "link": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 500
+                      }
+                    }
+                  },
+                  "categoryHint": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "submitFollowUp": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Card accepted, follow-up requested, or the event submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "path": {
+                      "type": "string",
+                      "enum": ["photo", "text"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["collecting", "needs_input", "submitted", "scanned", "failed"]
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "collecting",
+                        "scanning",
+                        "confirm",
+                        "follow_up",
+                        "receipt",
+                        "published",
+                        "review",
+                        "failed"
+                      ]
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": ["sv", "en"]
+                    },
+                    "card": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 200
+                        },
+                        "startsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "place": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 200
+                        },
+                        "priceLabel": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "link": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 500
+                        }
+                      },
+                      "required": ["title", "startsAt", "place", "priceLabel", "link"]
+                    },
+                    "followUp": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "category": {
+                          "type": "boolean"
+                        },
+                        "image": {
+                          "type": "boolean"
+                        },
+                        "description": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["category", "image", "description"]
+                    },
+                    "eventId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "scanStatus": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "imageStatus": {
+                      "type": "string",
+                      "enum": ["none", "scanning", "ready", "failed"]
+                    },
+                    "timeline": {
+                      "type": "object",
+                      "properties": {
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "analyzedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "completedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "reviewedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        }
+                      },
+                      "required": ["submittedAt", "analyzedAt", "completedAt", "reviewedAt"]
+                    },
+                    "found": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "startsAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "place": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "priceLabel": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "category": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "title",
+                        "startsAt",
+                        "place",
+                        "priceLabel",
+                        "category",
+                        "description"
+                      ]
+                    },
+                    "previewImageUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "path",
+                    "status",
+                    "phase",
+                    "locale",
+                    "card",
+                    "followUp",
+                    "eventId",
+                    "scanStatus",
+                    "imageStatus",
+                    "timeline",
+                    "found",
+                    "previewImageUrl",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tip not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Daily limit, or the tip cannot be confirmed",
             "content": {
               "application/json": {
                 "schema": {

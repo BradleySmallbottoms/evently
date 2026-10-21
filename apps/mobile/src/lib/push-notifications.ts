@@ -3,7 +3,7 @@ import { isRunningInExpoGo } from 'expo';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import { api, throwIfError } from './api';
 import type { StoredIdentity } from './identity';
@@ -45,10 +45,12 @@ async function writeLastToken(token: string): Promise<void> {
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const data = notification.request.content.data ?? {};
+    const tipWhileOpen = data.kind === 'tip_scan' && AppState.currentState === 'active';
     const show =
-      data.kind === 'reminder' ||
-      data.kind === 'local_inbox' ||
-      Boolean(notification.request.content.title);
+      !tipWhileOpen &&
+      (data.kind === 'reminder' ||
+        data.kind === 'local_inbox' ||
+        Boolean(notification.request.content.title));
     pushDebug('received', {
       kind: typeof data.kind === 'string' ? data.kind : null,
       title:

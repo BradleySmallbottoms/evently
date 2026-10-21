@@ -30,6 +30,9 @@ import { createMemorySubscriptionServices } from './services/subscriptions/memor
 import { createMemoryPublisherPushMessageServices } from './services/push-messages/memory';
 import { createDbPublisherPushMessageServices } from './services/push-messages/publisher';
 import { createMemoryStore } from './services/memory-store';
+import { createAnthropicTipModel } from './services/tips/anthropic';
+import { createDbTipServices } from './services/tips/db';
+import { createMemoryTipServices } from './services/tips/memory';
 import { initSentry } from './sentry';
 
 initSentry('api');
@@ -86,6 +89,7 @@ const {
   reports,
   stats,
   pushMessages,
+  tips,
 } = (() => {
   if (databaseUrl) {
     const db = createDb(databaseUrl);
@@ -106,6 +110,10 @@ const {
         workerToken: process.env.STATS_WORKER_TOKEN?.trim(),
       }),
       pushMessages: createDbPublisherPushMessageServices(db, authServices),
+      tips: createDbTipServices(db, authServices, createAnthropicTipModel(), {
+        domainEvents,
+        assetsPublicBaseUrl: eventEnv.assetsPublicBaseUrl,
+      }),
     };
   }
   const store = createMemoryStore();
@@ -125,6 +133,10 @@ const {
     reports: createMemoryReportServices(authServices, store),
     stats: createMemoryStatsServices(authServices, store, { workerToken: statsWorkerToken }),
     pushMessages: createMemoryPublisherPushMessageServices(authServices, store),
+    tips: createMemoryTipServices(authServices, createAnthropicTipModel(), {
+      domainEvents,
+      assetsPublicBaseUrl: eventEnv.assetsPublicBaseUrl,
+    }),
   };
 })();
 
@@ -152,6 +164,7 @@ serve(
       reports,
       stats,
       pushMessages,
+      tips,
       corsOrigin,
       assetsPublicBaseUrl: eventEnv.assetsPublicBaseUrl,
     }).fetch,

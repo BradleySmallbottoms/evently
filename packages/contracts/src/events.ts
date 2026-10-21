@@ -157,6 +157,11 @@ export const EventMeta = z.object({
    */
   instructions: z.array(z.string().trim().min(1).max(500)).max(20).optional(),
   /**
+   * True when a person tipped this event from the app. Public responses keep it.
+   * The submitter is not named.
+   */
+  fromUserTip: z.boolean().optional(),
+  /**
    * Organizer identity and the imported place name. The scan job reads them
    * before a publisher and a venue are chosen. Public responses omit this block.
    */

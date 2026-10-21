@@ -149,6 +149,7 @@ export function createMemoryEventServices(
         id,
         publisherId,
         title: body.title,
+        summary: null,
         description: body.description ?? null,
         mode: body.mode,
         status: 'draft',

@@ -53,7 +53,14 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Används för att skanna incheckningskoder."
+          "cameraPermission": "Används för att skanna incheckningskoder och fotografera en affisch."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Används för att välja en affisch eller skärmbild av ett evenemang.",
+          "cameraPermission": "Används för att fotografera en affisch eller skärmbild av ett evenemang."
         }
       ],
       [

@@ -12,6 +12,7 @@ import type { StatsServices } from '../services/stats/types';
 import type { LibraryServices } from '../services/library/types';
 import type { SubscriptionServices } from '../services/subscriptions/types';
 import type { PublisherPushMessageServices } from '../services/push-messages/publisher';
+import type { TipServices } from '../services/tips/service';
 import { registerAssetRoutes } from './assets';
 import { registerTagRoutes } from './tags';
 import { registerCheckInRoutes } from './check-ins';
@@ -29,6 +30,7 @@ import { registerRegionRoutes } from './regions';
 import { registerSessionRoutes } from './sessions';
 import { registerStatsRoutes } from './stats';
 import { registerSubscriptionRoutes } from './subscriptions';
+import { registerTipRoutes } from './tips';
 
 export type ApiRouteServices = {
   auth: AuthServices;
@@ -44,6 +46,7 @@ export type ApiRouteServices = {
   reports: ReportServices;
   stats: StatsServices;
   pushMessages: PublisherPushMessageServices;
+  tips: TipServices;
 };
 
 /**
@@ -72,4 +75,5 @@ export function registerRoutes(
   registerRatingRoutes(app, services.ratings);
   registerReportRoutes(app, services.reports);
   registerStatsRoutes(app, services.stats);
+  registerTipRoutes(app, services.tips);
 }

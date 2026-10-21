@@ -33,6 +33,9 @@ import {
   createMemoryPublisherPushMessageServices,
 } from './services/push-messages/memory';
 import type { PublisherPushMessageServices } from './services/push-messages/publisher';
+import { createMemoryTipServices } from './services/tips/memory';
+import type { TipServices } from './services/tips/service';
+import type { TipModel } from './services/tips/anthropic';
 import { createMemoryStore } from './services/memory-store';
 import { Sentry } from './sentry';
 
@@ -50,6 +53,8 @@ export type CreateAppOptions = {
   reports?: ReportServices;
   stats?: StatsServices;
   pushMessages?: PublisherPushMessageServices;
+  tips?: TipServices;
+  tipModel?: TipModel;
   /**
    * Origins allowed for credentialed CORS (web publisher login).
    * Pass a string list, or a function that returns the reflected Origin (never bare `*`).
@@ -92,6 +97,16 @@ export function createApp(options: CreateAppOptions = {}) {
     (options.auth
       ? createEmptyPublisherPushMessageServices()
       : createMemoryPublisherPushMessageServices(auth, store));
+  const tips =
+    options.tips ??
+    createMemoryTipServices(
+      auth,
+      options.tipModel ?? {
+        async extract() {
+          return {};
+        },
+      },
+    );
   const app = new OpenAPIHono();
 
   app.onError((err, c) => {
@@ -139,6 +154,7 @@ export function createApp(options: CreateAppOptions = {}) {
       reports,
       stats,
       pushMessages,
+      tips,
     },
     { assetsPublicBaseUrl: options.assetsPublicBaseUrl },
   );

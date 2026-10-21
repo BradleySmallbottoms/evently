@@ -27,5 +27,6 @@ export * from './price';
 export * from './profile';
 export * from './regions';
 export * from './stats';
+export * from './tips';
 export type { EventMode, EventStatus, PublisherStatus } from './types';
 export { publisherIsPublished } from './types';

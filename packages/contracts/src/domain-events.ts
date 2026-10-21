@@ -21,5 +21,16 @@ export const DomainEvent = z.discriminatedUnion('type', [
     userId: Id,
     score: z.number().int().min(1).max(5),
   }),
+  z.object({
+    type: z.literal('tip.scanned'),
+    tipId: Id,
+    eventId: Id,
+    status: z.enum(['published', 'in_review', 'failed']),
+  }),
+  z.object({
+    type: z.literal('tip.needs_input'),
+    tipId: Id,
+    userId: Id,
+  }),
 ]);
 export type DomainEvent = z.infer<typeof DomainEvent>;

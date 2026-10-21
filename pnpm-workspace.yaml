@@ -14,6 +14,9 @@ allowBuilds:
   '@parcel/watcher': true
   argon2: true
   '@sentry/cli': true
+  # eas-cli optional natives. The CLI runs without their install scripts.
+  dtrace-provider: false
+  protobufjs: false
 
 minimumReleaseAgeExclude:
   - expo-dev-client@57.0.20

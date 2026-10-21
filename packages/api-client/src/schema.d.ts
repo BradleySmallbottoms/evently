@@ -1793,7 +1793,7 @@ export interface paths {
                 eventId: string | null;
                 eventTitle: string;
                 /** @enum {string} */
-                reason: 'nearby' | 'publisher' | 'event' | 'broadcast';
+                reason: 'nearby' | 'publisher' | 'event' | 'broadcast' | 'tip';
                 /** @enum {string} */
                 pushState: 'pending' | 'sent' | 'aggregated';
                 /** Format: date-time */
@@ -2410,6 +2410,7 @@ export interface paths {
                     };
                   }[];
                   instructions?: string[];
+                  fromUserTip?: boolean;
                 };
                 publisherName: string;
                 links: {
@@ -2669,6 +2670,7 @@ export interface paths {
                     };
                   }[];
                   instructions?: string[];
+                  fromUserTip?: boolean;
                 };
                 publisherName: string;
                 links: {
@@ -2934,6 +2936,7 @@ export interface paths {
                       };
                     }[];
                     instructions?: string[];
+                    fromUserTip?: boolean;
                   };
                   publisherName: string;
                   links: {
@@ -3081,6 +3084,7 @@ export interface paths {
                     };
                   }[];
                   instructions?: string[];
+                  fromUserTip?: boolean;
                 };
                 publisherName: string;
                 links: {
@@ -3308,6 +3312,7 @@ export interface paths {
                     };
                   }[];
                   instructions?: string[];
+                  fromUserTip?: boolean;
                 };
                 publisherName: string;
                 links: {
@@ -3684,6 +3689,7 @@ export interface paths {
                     };
                   }[];
                   instructions?: string[];
+                  fromUserTip?: boolean;
                 };
                 publisherName: string;
                 links: {
@@ -3856,6 +3862,7 @@ export interface paths {
                   };
                 }[];
                 instructions?: string[];
+                fromUserTip?: boolean;
               };
               publisherName: string;
               links: {
@@ -4029,6 +4036,7 @@ export interface paths {
                     };
                   }[];
                   instructions?: string[];
+                  fromUserTip?: boolean;
                 };
                 publisherName: string;
                 links: {
@@ -4167,6 +4175,7 @@ export interface paths {
                     };
                   }[];
                   instructions?: string[];
+                  fromUserTip?: boolean;
                 };
                 publisherName: string;
                 links: {
@@ -4303,6 +4312,7 @@ export interface paths {
                   };
                 }[];
                 instructions?: string[];
+                fromUserTip?: boolean;
               };
               publisherName: string;
               links: {
@@ -4452,6 +4462,7 @@ export interface paths {
                   };
                 }[];
                 instructions?: string[];
+                fromUserTip?: boolean;
               };
               publisherName: string;
               links: {
@@ -4651,6 +4662,7 @@ export interface paths {
                   };
                 }[];
                 instructions?: string[];
+                fromUserTip?: boolean;
               };
               publisherName: string;
               links: {
@@ -4818,6 +4830,7 @@ export interface paths {
                   };
                 }[];
                 instructions?: string[];
+                fromUserTip?: boolean;
               };
               publisherName: string;
               links: {
@@ -4981,6 +4994,7 @@ export interface paths {
                   };
                 }[];
                 instructions?: string[];
+                fromUserTip?: boolean;
               };
               publisherName: string;
               links: {
@@ -6797,6 +6811,806 @@ export interface paths {
       };
     };
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/me/tips': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Tips sent by the current user */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                path: 'photo' | 'text';
+                /** @enum {string} */
+                status: 'collecting' | 'needs_input' | 'submitted' | 'scanned' | 'failed';
+                /** @enum {string} */
+                phase:
+                  | 'collecting'
+                  | 'scanning'
+                  | 'confirm'
+                  | 'follow_up'
+                  | 'receipt'
+                  | 'published'
+                  | 'review'
+                  | 'failed';
+                /** @enum {string} */
+                locale: 'sv' | 'en';
+                card: {
+                  title: string | null;
+                  startsAt: string | null;
+                  place: string | null;
+                  priceLabel: string | null;
+                  link: string | null;
+                } | null;
+                followUp: {
+                  category: boolean;
+                  image: boolean;
+                  description: boolean;
+                } | null;
+                /** Format: uuid */
+                eventId: string | null;
+                scanStatus: string | null;
+                /** @enum {string} */
+                imageStatus: 'none' | 'scanning' | 'ready' | 'failed';
+                timeline: {
+                  /** Format: date-time */
+                  submittedAt: string | null;
+                  /** Format: date-time */
+                  analyzedAt: string | null;
+                  /** Format: date-time */
+                  completedAt: string | null;
+                  /** Format: date-time */
+                  reviewedAt: string | null;
+                };
+                found: {
+                  title: string | null;
+                  startsAt: string | null;
+                  place: string | null;
+                  priceLabel: string | null;
+                  category: string | null;
+                  description: string | null;
+                } | null;
+                /** Format: uri */
+                previewImageUrl: string | null;
+                /** Format: date-time */
+                createdAt: string;
+              }[];
+            };
+          };
+        };
+        /** @description Missing or invalid user session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            /** @enum {string} */
+            path: 'photo' | 'text';
+            /** @enum {string} */
+            locale?: 'sv' | 'en';
+          };
+        };
+      };
+      responses: {
+        /** @description Tip started */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** Format: uuid */
+              id: string;
+              /** @enum {string} */
+              path: 'photo' | 'text';
+              /** @enum {string} */
+              status: 'collecting' | 'needs_input' | 'submitted' | 'scanned' | 'failed';
+              /** @enum {string} */
+              phase:
+                | 'collecting'
+                | 'scanning'
+                | 'confirm'
+                | 'follow_up'
+                | 'receipt'
+                | 'published'
+                | 'review'
+                | 'failed';
+              /** @enum {string} */
+              locale: 'sv' | 'en';
+              card: {
+                title: string | null;
+                startsAt: string | null;
+                place: string | null;
+                priceLabel: string | null;
+                link: string | null;
+              } | null;
+              followUp: {
+                category: boolean;
+                image: boolean;
+                description: boolean;
+              } | null;
+              /** Format: uuid */
+              eventId: string | null;
+              scanStatus: string | null;
+              /** @enum {string} */
+              imageStatus: 'none' | 'scanning' | 'ready' | 'failed';
+              timeline: {
+                /** Format: date-time */
+                submittedAt: string | null;
+                /** Format: date-time */
+                analyzedAt: string | null;
+                /** Format: date-time */
+                completedAt: string | null;
+                /** Format: date-time */
+                reviewedAt: string | null;
+              };
+              found: {
+                title: string | null;
+                startsAt: string | null;
+                place: string | null;
+                priceLabel: string | null;
+                category: string | null;
+                description: string | null;
+              } | null;
+              /** Format: uri */
+              previewImageUrl: string | null;
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Missing or invalid user session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/me/tips/{tipId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          tipId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description One tip */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** Format: uuid */
+              id: string;
+              /** @enum {string} */
+              path: 'photo' | 'text';
+              /** @enum {string} */
+              status: 'collecting' | 'needs_input' | 'submitted' | 'scanned' | 'failed';
+              /** @enum {string} */
+              phase:
+                | 'collecting'
+                | 'scanning'
+                | 'confirm'
+                | 'follow_up'
+                | 'receipt'
+                | 'published'
+                | 'review'
+                | 'failed';
+              /** @enum {string} */
+              locale: 'sv' | 'en';
+              card: {
+                title: string | null;
+                startsAt: string | null;
+                place: string | null;
+                priceLabel: string | null;
+                link: string | null;
+              } | null;
+              followUp: {
+                category: boolean;
+                image: boolean;
+                description: boolean;
+              } | null;
+              /** Format: uuid */
+              eventId: string | null;
+              scanStatus: string | null;
+              /** @enum {string} */
+              imageStatus: 'none' | 'scanning' | 'ready' | 'failed';
+              timeline: {
+                /** Format: date-time */
+                submittedAt: string | null;
+                /** Format: date-time */
+                analyzedAt: string | null;
+                /** Format: date-time */
+                completedAt: string | null;
+                /** Format: date-time */
+                reviewedAt: string | null;
+              };
+              found: {
+                title: string | null;
+                startsAt: string | null;
+                place: string | null;
+                priceLabel: string | null;
+                category: string | null;
+                description: string | null;
+              } | null;
+              /** Format: uri */
+              previewImageUrl: string | null;
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Missing or invalid user session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+        /** @description Tip not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/me/tips/{tipId}/text': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          tipId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            text: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Description read into a card */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** Format: uuid */
+              id: string;
+              /** @enum {string} */
+              path: 'photo' | 'text';
+              /** @enum {string} */
+              status: 'collecting' | 'needs_input' | 'submitted' | 'scanned' | 'failed';
+              /** @enum {string} */
+              phase:
+                | 'collecting'
+                | 'scanning'
+                | 'confirm'
+                | 'follow_up'
+                | 'receipt'
+                | 'published'
+                | 'review'
+                | 'failed';
+              /** @enum {string} */
+              locale: 'sv' | 'en';
+              card: {
+                title: string | null;
+                startsAt: string | null;
+                place: string | null;
+                priceLabel: string | null;
+                link: string | null;
+              } | null;
+              followUp: {
+                category: boolean;
+                image: boolean;
+                description: boolean;
+              } | null;
+              /** Format: uuid */
+              eventId: string | null;
+              scanStatus: string | null;
+              /** @enum {string} */
+              imageStatus: 'none' | 'scanning' | 'ready' | 'failed';
+              timeline: {
+                /** Format: date-time */
+                submittedAt: string | null;
+                /** Format: date-time */
+                analyzedAt: string | null;
+                /** Format: date-time */
+                completedAt: string | null;
+                /** Format: date-time */
+                reviewedAt: string | null;
+              };
+              found: {
+                title: string | null;
+                startsAt: string | null;
+                place: string | null;
+                priceLabel: string | null;
+                category: string | null;
+                description: string | null;
+              } | null;
+              /** Format: uri */
+              previewImageUrl: string | null;
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Description is empty or longer than 500 characters */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+        /** @description Missing or invalid user session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+        /** @description Tip not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+        /** @description Tip is already submitted */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/me/tips/{tipId}/images': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          tipId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            /** @enum {string} */
+            contentType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/heic' | 'image/heif';
+            dataBase64: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Image stored. Vision keeps running. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** Format: uuid */
+              id: string;
+              /** @enum {string} */
+              path: 'photo' | 'text';
+              /** @enum {string} */
+              status: 'collecting' | 'needs_input' | 'submitted' | 'scanned' | 'failed';
+              /** @enum {string} */
+              phase:
+                | 'collecting'
+                | 'scanning'
+                | 'confirm'
+                | 'follow_up'
+                | 'receipt'
+                | 'published'
+                | 'review'
+                | 'failed';
+              /** @enum {string} */
+              locale: 'sv' | 'en';
+              card: {
+                title: string | null;
+                startsAt: string | null;
+                place: string | null;
+                priceLabel: string | null;
+                link: string | null;
+              } | null;
+              followUp: {
+                category: boolean;
+                image: boolean;
+                description: boolean;
+              } | null;
+              /** Format: uuid */
+              eventId: string | null;
+              scanStatus: string | null;
+              /** @enum {string} */
+              imageStatus: 'none' | 'scanning' | 'ready' | 'failed';
+              timeline: {
+                /** Format: date-time */
+                submittedAt: string | null;
+                /** Format: date-time */
+                analyzedAt: string | null;
+                /** Format: date-time */
+                completedAt: string | null;
+                /** Format: date-time */
+                reviewedAt: string | null;
+              };
+              found: {
+                title: string | null;
+                startsAt: string | null;
+                place: string | null;
+                priceLabel: string | null;
+                category: string | null;
+                description: string | null;
+              } | null;
+              /** Format: uri */
+              previewImageUrl: string | null;
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Image is too large or an unsupported type */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+        /** @description Missing or invalid user session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+        /** @description Tip not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+        /** @description Too many images, or the tip is already submitted */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/me/tips/{tipId}/confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          tipId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            card?: {
+              title?: string | null;
+              startsAt?: string | null;
+              place?: string | null;
+              priceLabel?: string | null;
+              link?: string | null;
+            };
+            categoryHint?: string;
+            description?: string;
+            submitFollowUp?: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description Card accepted, follow-up requested, or the event submitted */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** Format: uuid */
+              id: string;
+              /** @enum {string} */
+              path: 'photo' | 'text';
+              /** @enum {string} */
+              status: 'collecting' | 'needs_input' | 'submitted' | 'scanned' | 'failed';
+              /** @enum {string} */
+              phase:
+                | 'collecting'
+                | 'scanning'
+                | 'confirm'
+                | 'follow_up'
+                | 'receipt'
+                | 'published'
+                | 'review'
+                | 'failed';
+              /** @enum {string} */
+              locale: 'sv' | 'en';
+              card: {
+                title: string | null;
+                startsAt: string | null;
+                place: string | null;
+                priceLabel: string | null;
+                link: string | null;
+              } | null;
+              followUp: {
+                category: boolean;
+                image: boolean;
+                description: boolean;
+              } | null;
+              /** Format: uuid */
+              eventId: string | null;
+              scanStatus: string | null;
+              /** @enum {string} */
+              imageStatus: 'none' | 'scanning' | 'ready' | 'failed';
+              timeline: {
+                /** Format: date-time */
+                submittedAt: string | null;
+                /** Format: date-time */
+                analyzedAt: string | null;
+                /** Format: date-time */
+                completedAt: string | null;
+                /** Format: date-time */
+                reviewedAt: string | null;
+              };
+              found: {
+                title: string | null;
+                startsAt: string | null;
+                place: string | null;
+                priceLabel: string | null;
+                category: string | null;
+                description: string | null;
+              } | null;
+              /** Format: uri */
+              previewImageUrl: string | null;
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Missing or invalid user session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+        /** @description Tip not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+        /** @description Daily limit, or the tip cannot be confirmed */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
     delete?: never;
     options?: never;
     head?: never;

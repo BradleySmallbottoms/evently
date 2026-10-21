@@ -238,6 +238,11 @@ Product invariants (enforced in domain, tested)
   A new circle starts with that search radius equal to its notification radius.
 - v1 has no subscription/paid plan UI anywhere. Plan limits go through `entitlementsFor()`, which
   returns the all-unlocked launch plan.
+- A user tip is read by Anthropic, then saved as an imported `pending_scan` event on the disabled
+  `user-tips` source. Trust stays `review`, so the scan leaves it `in_review` until an admin
+  publishes it. `meta.fromUserTip` is public and does not name the submitter. The tip push is
+  visible, ignores quiet hours and the daily cap, and says the event was added only when it is
+  published. Tip text and photos cascade with the user. The event stays.
 
 Code conventions
 

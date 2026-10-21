@@ -1,7 +1,13 @@
+import type { DomainEvent } from '../../../packages/contracts/src/domain-events';
 import { describe, expect, it } from 'vitest';
 import { createMemoryIngestStore } from '../../../apps/data-workers/src/memory-store';
 import { saveIncomingEvents } from '../../../apps/data-workers/src/persist';
 import { parseScanSelection, scanPendingEvents } from '../../../apps/data-workers/src/scan-pending';
+import {
+  beginScanProgress,
+  createScanProgress,
+  finishScanProgress,
+} from '../../../apps/data-workers/src/scan-progress';
 import type { SourceRecord } from '../../../apps/data-workers/src/store';
 import {
   createOllamaPromptRunner,
@@ -60,6 +66,46 @@ describe('parseScanSelection', () => {
 });
 
 describe('scanPendingEvents', () => {
+  it('enqueues tip.scanned for an event a person tipped', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    const eventId = store.events[0]!.id;
+    const tipId = '11111111-1111-4111-8111-111111111111';
+    store.tipLinks.set(eventId, tipId);
+    const published: DomainEvent[] = [];
+    const runner: PromptRunner = {
+      id: 'tip',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
+      },
+    };
+    await scanPendingEvents(store, runner, {
+      async publish(entry) {
+        published.push(entry);
+      },
+    });
+    expect(published).toContainEqual({
+      type: 'tip.scanned',
+      tipId,
+      eventId,
+      status: 'in_review',
+    });
+  });
+
   it('passes the claimed batch to the runner in one call', async () => {
     const store = createMemoryIngestStore();
     store.sources.push(source);
@@ -209,6 +255,28 @@ describe('scanPendingEvents', () => {
     expect(store.events[0]?.status).toBe('pending_scan');
   });
 
+  it('counts a model failure once in the scan progress', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    const progress = createScanProgress();
+    const runner: PromptRunner = {
+      id: 'timeout-progress',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => {
+          beginScanProgress(progress);
+          finishScanProgress(progress, false);
+          return { ok: false, eventId: item.eventId, reason: 'timeout' };
+        });
+      },
+    };
+
+    await scanPendingEvents(store, runner, undefined, { progress });
+
+    expect(progress).toEqual({ scanning: 0, done: 0, failed: 1 });
+  });
+
   it('replaces tags the event already has', async () => {
     const store = createMemoryIngestStore();
     store.sources.push({ ...source, trust: 'review' });
@@ -264,29 +332,35 @@ describe('scanPendingEvents', () => {
       if (input.eventId === failingId) throw new Error('invalid input syntax for type uuid');
       return finish(input);
     };
+    const progress = createScanProgress();
     const runner: PromptRunner = {
       id: 'throws',
       lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
-        return batch.map((item): ScanOutcome => ({
-          ok: true,
-          eventId: item.eventId,
-          publisher: {
-            kind: 'temporary',
-            name: 'Föreningen',
-            organizerKeys: item.organizer.keys,
-          },
-          duplicate: null,
-          approved: true,
-          tags: [],
-          ...scanned,
-        }));
+        return batch.map((item): ScanOutcome => {
+          beginScanProgress(progress);
+          finishScanProgress(progress, true);
+          return {
+            ok: true,
+            eventId: item.eventId,
+            publisher: {
+              kind: 'temporary',
+              name: 'Föreningen',
+              organizerKeys: item.organizer.keys,
+            },
+            duplicate: null,
+            approved: true,
+            tags: [],
+            ...scanned,
+          };
+        });
       },
     };
 
-    const summary = await scanPendingEvents(store, runner);
+    const summary = await scanPendingEvents(store, runner, undefined, { progress });
 
     expect(summary).toMatchObject({ claimed: 2, review: 1, unavailable: 1 });
+    expect(progress).toEqual({ scanning: 0, done: 1, failed: 1 });
     expect(store.events.find((row) => row.id === failingId)).toMatchObject({
       status: 'pending_scan',
       scanClaimedUntil: null,

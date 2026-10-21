@@ -62,3 +62,4 @@ export * from './reports';
 export * from './regions';
 export * from './stats';
 export * from './subscriptions';
+export * from './tips';

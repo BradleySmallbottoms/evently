@@ -364,6 +364,15 @@ export interface IngestStore {
     /** Set only when the row had no venue name and the scan chose one. */
     venueName?: string;
   }): Promise<boolean>;
+  /**
+   * Records the scan result on the tip that created this event.
+   * Returns null when the event was not tipped.
+   */
+  markTipScanned(input: {
+    eventId: string;
+    status: 'published' | 'in_review' | 'failed';
+    now: Date;
+  }): Promise<{ tipId: string } | null>;
 }
 
 export interface PendingScanRow {

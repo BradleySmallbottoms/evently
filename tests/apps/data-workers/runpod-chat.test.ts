@@ -49,10 +49,10 @@ describe('runpodChatConfigFromEnv', () => {
     });
   });
 
-  it('serves Qwen3.5 on four A40s unless the model or the concurrency is set', () => {
+  it('serves Qwen3 on four A40s unless the model or the concurrency is set', () => {
     const resolved = runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck' });
     expect(resolved).toMatchObject({
-      model: 'Qwen/Qwen3.5-27B-GPTQ-Int4',
+      model: 'Qwen/Qwen3-32B-AWQ',
       image: 'vllm/vllm-openai:v0.17.0',
       concurrency: 25,
       gpuId: 'NVIDIA A40',
@@ -405,9 +405,9 @@ describe('createRunpodChat', () => {
     expect(created.args).toContain('--max-num-seqs');
     expect(created.args).toContain('--tensor-parallel-size');
     expect(created.args).toContain('--disable-custom-all-reduce');
-    expect(created.args).toContain('qwen3_coder');
-    expect(created.args).toContain('--language-model-only');
-    expect(created.args).toContain('--reasoning-parser');
+    expect(created.args).toContain('hermes');
+    expect(created.args).not.toContain('qwen3_coder');
+    expect(created.args).not.toContain('--language-model-only');
     expect(created.args).toContain('4');
     expect(created.env?.SCAN_ALLREDUCE).toBe('shm');
     expect(created.env?.NCCL_P2P_DISABLE).toBe('1');

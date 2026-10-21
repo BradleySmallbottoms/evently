@@ -120,6 +120,8 @@ export interface MemoryIngestStore extends IngestStore {
     status: 'pending' | 'approved';
   }[];
   /** Pre-map an organizer onto an existing publisher (for example a verified one). */
+  /** event id → tip id, so a scan can notify the person who sent it. */
+  tipLinks: Map<string, string>;
   linkPublisher(input: {
     sourceId: string;
     organizerKey: string;
@@ -172,6 +174,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
   };
   const images: StoredImage[] = [];
   const scheduledNotifications: MemoryIngestStore['scheduledNotifications'] = [];
+  const tipLinks = new Map<string, string>();
 
   function uniqueSlug(name: string): string {
     const base = slugifyPublisherName(name);
@@ -192,6 +195,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
     runs,
     images,
     scheduledNotifications,
+    tipLinks,
     async getSource(slug) {
       return sources.find((source) => source.slug === slug) ?? null;
     },
@@ -849,6 +853,11 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       publisher.status = 'in_review';
       publisher.scanClaimedUntil = null;
       return true;
+    },
+    async markTipScanned(input) {
+      const tipId = tipLinks.get(input.eventId);
+      if (!tipId) return null;
+      return { tipId };
     },
     async deleteEventImages(eventId, roles) {
       const drop = new Set(roles.filter((role) => role.startsWith('gallery-')));

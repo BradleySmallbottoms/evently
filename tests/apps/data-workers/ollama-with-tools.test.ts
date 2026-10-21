@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createMemoryIngestStore } from '../../../apps/data-workers/src/memory-store';
 import { createOllamaWithToolsPromptRunner } from '../../../apps/data-workers/src/prompt-runners/chatwithtools';
+import { createScanProgress } from '../../../apps/data-workers/src/scan-progress';
 import type { ScanInput } from '../../../apps/data-workers/src/prompt-runners/types';
 
 const eventId = '33333333-3333-4333-8333-333333333301';
@@ -1086,6 +1087,55 @@ describe('createOllamaWithToolsPromptRunner', () => {
 
     expect(profile).toEqual({ ok: false, reason: 'unavailable' });
     expect(called).toBe(false);
+  });
+
+  it('counts events that are scanning, done, and failed', async () => {
+    const store = createMemoryIngestStore();
+    const progress = createScanProgress();
+    const secondId = '33333333-3333-4333-8333-333333333311';
+    let calls = 0;
+    let releaseFirst: () => void = () => {};
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const okBody = JSON.stringify({
+      message: answer(
+        JSON.stringify({
+          contentVerdict: 'safe',
+          summary: 'Musik',
+          language: 'sv',
+          possibleTags: [],
+        }),
+      ),
+    });
+    const fetchImpl: typeof fetch = async () => {
+      calls += 1;
+      if (calls === 1) await firstGate;
+      if (calls === 2) return new Response('nope', { status: 500 });
+      return new Response(okBody, {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    };
+    const runner = createOllamaWithToolsPromptRunner(store, {
+      fetch: fetchImpl,
+      concurrency: 1,
+      progress,
+    });
+
+    const pending = runner.scan([
+      scanInput,
+      { ...scanInput, eventId: secondId, externalId: 'cbis:2' },
+    ]);
+
+    await vi.waitFor(() => expect(progress.scanning).toBe(1));
+    expect(progress.done).toBe(0);
+    expect(progress.failed).toBe(0);
+    releaseFirst();
+    const outcomes = await pending;
+
+    expect(progress).toEqual({ scanning: 0, done: 1, failed: 1 });
+    expect(outcomes.map((outcome) => outcome.ok)).toEqual([true, false]);
   });
 });
 

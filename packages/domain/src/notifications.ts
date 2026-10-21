@@ -26,7 +26,7 @@ export type QuietHoursPrefs = {
   endMin: number;
 };
 
-export type NotificationReason = 'nearby' | 'publisher' | 'event' | 'broadcast';
+export type NotificationReason = 'nearby' | 'publisher' | 'event' | 'broadcast' | 'tip';
 
 /**
  * Empty tag lists do not overlap. Nearby push uses this rule on the covering

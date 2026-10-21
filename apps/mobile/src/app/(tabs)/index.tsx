@@ -449,17 +449,26 @@ export default function HomeScreen() {
                   }}
                 />
               </View>
-              <CircleIconButton
-                plain
-                sf="scope"
-                md="gps-fixed"
-                accessibilityLabel={t('events.currentLocation')}
-                tintColor={colors.ink}
-                onPress={() => {
-                  void setDiscoveryPlaceId(NEARBY_PLACE_ID);
-                  void refreshDeviceLocation();
-                }}
-              />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                <CircleIconButton
+                  plain
+                  sf="scope"
+                  md="gps-fixed"
+                  accessibilityLabel={t('events.currentLocation')}
+                  tintColor={colors.ink}
+                  onPress={() => {
+                    void setDiscoveryPlaceId(NEARBY_PLACE_ID);
+                    void refreshDeviceLocation();
+                  }}
+                />
+                <CircleIconButton
+                  sf="plus"
+                  md="add"
+                  accessibilityLabel={t('tips.missing')}
+                  tintColor={colors.ink}
+                  onPress={() => router.push('/tips')}
+                />
+              </View>
             </View>
 
             <View style={{ paddingHorizontal: space.xl }}>
@@ -617,11 +626,25 @@ export default function HomeScreen() {
         }
         extraData={savedIdKey}
         ListFooterComponent={
-          events.isFetchingNextPage ? (
-            <AppText variant="caption" style={{ paddingHorizontal: space.xl, textAlign: 'center' }}>
-              {t('events.loadingMore')}
-            </AppText>
-          ) : null
+          <View style={{ gap: space.md, paddingBottom: space.lg }}>
+            {events.isFetchingNextPage ? (
+              <AppText
+                variant="caption"
+                style={{ paddingHorizontal: space.xl, textAlign: 'center' }}
+              >
+                {t('events.loadingMore')}
+              </AppText>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/tips')}
+              style={{ paddingHorizontal: space.xl, paddingVertical: space.md }}
+            >
+              <AppText variant="label" style={{ textAlign: 'center' }}>
+                {t('tips.missing')}
+              </AppText>
+            </Pressable>
+          </View>
         }
         ListEmptyComponent={
           events.isPending && !events.data ? (
@@ -631,9 +654,20 @@ export default function HomeScreen() {
           ) : events.isSuccess &&
             !events.isPlaceholderData &&
             (searching ? matches.length === 0 : featured.length === 0) ? (
-            <AppText variant="body" style={{ paddingHorizontal: space.xl }}>
-              {searching ? t('events.searchEmpty') : t('events.empty')}
-            </AppText>
+            <View style={{ gap: space.md }}>
+              <AppText variant="body" style={{ paddingHorizontal: space.xl }}>
+                {searching ? t('events.searchEmpty') : t('events.empty')}
+              </AppText>
+              {searching ? null : (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push('/tips')}
+                  style={{ paddingHorizontal: space.xl }}
+                >
+                  <AppText variant="label">{t('tips.missing')}</AppText>
+                </Pressable>
+              )}
+            </View>
           ) : null
         }
         renderItem={({ item }) => (

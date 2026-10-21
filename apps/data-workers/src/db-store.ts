@@ -1043,6 +1043,24 @@ export function createDbIngestStore(db: Db): IngestStore {
         .sort((a, b) => a.distanceM - b.distanceM)
         .slice(0, NEARBY_RESULT_LIMIT);
     },
+    async markTipScanned(input) {
+      const [tip] = await db
+        .select({ id: schema.eventTips.id })
+        .from(schema.eventTips)
+        .where(eq(schema.eventTips.eventId, input.eventId))
+        .limit(1);
+      if (!tip) return null;
+      await db
+        .update(schema.eventTips)
+        .set({
+          status: input.status === 'failed' ? 'failed' : 'scanned',
+          scanStatus: input.status,
+          reviewedAt: input.now,
+          updatedAt: input.now,
+        })
+        .where(eq(schema.eventTips.id, tip.id));
+      return { tipId: tip.id };
+    },
     async releaseScanClaim(eventId, claimedUntil) {
       await db
         .update(events)

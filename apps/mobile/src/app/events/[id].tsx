@@ -795,6 +795,22 @@ export default function EventDetailScreen() {
                 </View>
 
                 <View style={{ gap: space.sm }}>
+                  {event.data.meta.fromUserTip ? (
+                    <AppText
+                      variant="caption"
+                      style={{
+                        alignSelf: 'flex-start',
+                        color: colors.ink,
+                        backgroundColor: colors.accentSoft,
+                        borderRadius: radius.pill,
+                        overflow: 'hidden',
+                        paddingHorizontal: space.sm,
+                        paddingVertical: 4,
+                      }}
+                    >
+                      {t('tips.fromUser')}
+                    </AppText>
+                  ) : null}
                   <AppText
                     style={{ fontSize: 28, lineHeight: 34, fontWeight: '700', color: colors.ink }}
                   >

@@ -16,6 +16,7 @@ import { api, throwIfError } from '@/lib/api';
 import { clearLocalAppData, clearStoredPromptState } from '@/lib/clear-local-data';
 import { ensureIdentity, loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
+import { listTips } from '@/lib/tips';
 import { useHasUnreadNotifications } from '@/lib/use-unread-notifications';
 import { getPreferences, updateTravelDistance } from '@/lib/preferences';
 import { fetchProfile } from '@/lib/profile';
@@ -67,6 +68,11 @@ export default function ProfileScreen() {
     queryKey: ['notifications', identity.data?.userId],
     enabled: identity.isSuccess,
     queryFn: () => listNotifications(identity.data!),
+  });
+  const tips = useQuery({
+    queryKey: ['tips', identity.data?.userId],
+    enabled: identity.isSuccess,
+    queryFn: () => listTips(identity.data!),
   });
   const travelDistance = useMutation({
     mutationFn: async (distanceM: number) => {
@@ -202,6 +208,14 @@ export default function ProfileScreen() {
       href: '/profile/areas' as const,
       sf: 'mappin.and.ellipse',
       md: 'place' as const,
+      alert: false,
+    },
+    {
+      label: t('tips.mine'),
+      count: tips.data?.items.length ?? 0,
+      href: '/profile/tips' as const,
+      sf: 'paperplane',
+      md: 'campaign' as const,
       alert: false,
     },
     {

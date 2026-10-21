@@ -44,6 +44,7 @@ pnpm --filter @local-events/api dev
 pnpm --filter @local-events/admin-api dev
 pnpm --filter @local-events/web dev
 pnpm --filter @local-events/mobile dev
+pnpm --filter @local-events/mobile build:development:simulator
 pnpm --filter @local-events/data-workers dev -- --source example-fixture
 pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn --limit 5
 pnpm --filter @local-events/data-workers dev -- --job event-scan
@@ -52,6 +53,21 @@ pnpm api-client:generate   # after public API OpenAPI changes
 ```
 
 ## Need to know
+
+### Event tips
+
+- Home “Saknar du ett evenemang?” and profile “Mina tips” let a person send a photo or a short
+  description. The public API reads it with Anthropic (`ANTHROPIC_API_KEY`; `ANTHROPIC_MODEL`
+  defaults to `claude-sonnet-5-5`). This path does not use the Runpod chat. A finished tip becomes
+  an imported `pending_scan` event on the seeded `user-tips` source, which stays disabled at trust
+  `review`, so the regular scan leaves it `in_review` until an admin publishes it.
+- The user gets a visible push (`kind` `tip_scan`) that ignores quiet hours and the daily cap.
+  The wording says the event was added only when the scan published it. An open app hides the
+  banner and opens the tip. A tap does the same. Public event pages show “Från användartips” from
+  `meta.fromUserTip` and do not name who sent it.
+- Apply `pnpm db:migrate` so `event_tips` and the `user-tips` source exist. Tip text and photos
+  are deleted with the user; the event row stays.
+  Flow: [docs/flows/event-tips.md](docs/flows/event-tips.md).
 
 ### Publisher import notifications
 
@@ -144,8 +160,8 @@ calls) in the same change as every new major feature.**
   [Ollama](https://ollama.com) model (`ollama serve`, default `qwen3:8b`). `CHAT_PROVIDER=chatgpt`
   uses `OPENAI_API_KEY` (default `gpt-4.1-mini`). `CHAT_PROVIDER=claude` uses `ANTHROPIC_API_KEY`
   (default `claude-sonnet-5-5`). `CHAT_PROVIDER=runpod` starts a GPU pod
-  (`RUNPOD_API_KEY`, `RUNPOD_CHAT_KEY`), serves `Qwen/Qwen3.5-27B-GPTQ-Int4` with thinking turned off,
-  and scans 25 events at a time on A40s in `CA-MTL-1`. More than one GPU disables vLLM custom all-reduce and NCCL peer access, and a pod started without that is replaced. One A40 holds about 10 full contexts,
+  (`RUNPOD_API_KEY`, `RUNPOD_CHAT_KEY`), serves `Qwen/Qwen3-32B-AWQ` with thinking turned off,
+  and scans 25 events at a time on A40s in `CA-MTL-1`. While events are scanning, the job prints once a second how many are in progress, how many are done, and how many have failed. More than one GPU disables vLLM custom all-reduce and NCCL peer access, and a pod started without that is replaced. One A40 holds about 10 full contexts,
   two hold up to 24, and four hold the 25. An H100 or H200 finishes a batch sooner and costs
   more per finished scan. It drains the queue and then stops the pod. A later scan starts that same pod. A start with no free GPU retries until one is free, and the pod stays. The GPU bills only while that pod is running. The model weights stay on a
   network volume named `evnt-scan-models` in `CA-MTL-1`, and that volume keeps billing until it is deleted.

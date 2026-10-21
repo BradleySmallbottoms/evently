@@ -47,3 +47,4 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Collapse occasions from the admin event page           | [admin-collapse-occasions.md](./admin-collapse-occasions.md)             |
 | Delete or wipe an import from review                   | [import-review-delete.md](./import-review-delete.md)                     |
 | Publisher import notification plan                     | [publisher-import-notifications.md](./publisher-import-notifications.md) |
+| Event tips                                             | [event-tips.md](./event-tips.md)                                         |

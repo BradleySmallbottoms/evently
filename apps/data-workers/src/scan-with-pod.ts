@@ -2,6 +2,7 @@ import { tryHoldAdvisoryLock } from '@local-events/db';
 import { createOllamaWithToolsPromptRunner } from './prompt-runners/chatwithtools';
 import { createRunpodChat, runpodChatConfigFromEnv, type RunpodChat } from './runpod-chat';
 import { SCAN_BATCH_LIMIT, scanPendingEvents, type ScanSummary } from './scan-pending';
+import { createScanProgress, startScanProgressLog, type ScanProgress } from './scan-progress';
 import {
   PUBLISHER_SCAN_BATCH_LIMIT,
   scanPendingPublishers,
@@ -29,6 +30,10 @@ export async function scanWithChatPod(input: {
   now?: () => number;
   holdLock?: typeof tryHoldAdvisoryLock;
   chat?: RunpodChat;
+  /** Receives the once-a-second progress line. Tests pass this. */
+  log?: (line: string) => void;
+  /** Tests pass a short interval. The RunPod scan prints once a second. */
+  progressIntervalMs?: number;
 }): Promise<PodScanSummary> {
   const env = input.env ?? process.env;
   let chat = input.chat;
@@ -54,24 +59,32 @@ export async function scanWithChatPod(input: {
       summary = { ...emptySummary(), pod: 'idle' };
     } else {
       const ready = await chat.ensureReady();
-      const runner = createOllamaWithToolsPromptRunner(input.store, {
-        concurrency: ready.concurrency,
-        ...(input.fetch ? { fetch: input.fetch } : {}),
-        config: {
-          chatProvider: 'openai',
-          chatUrl: ready.chatUrl,
-          chatModel: ready.model,
-          chatAuth: ready.auth,
-        },
-      });
-      const drained = await drainScans(
-        input.store,
-        runner,
-        input.enqueue ?? noopDomainEvents,
-        input.selection,
-        ready.concurrency,
-      );
-      summary = { ...drained, pod: 'ran' };
+      const progress = createScanProgress();
+      const stopLog = startScanProgressLog(progress, input.log, input.progressIntervalMs);
+      try {
+        const runner = createOllamaWithToolsPromptRunner(input.store, {
+          concurrency: ready.concurrency,
+          progress,
+          ...(input.fetch ? { fetch: input.fetch } : {}),
+          config: {
+            chatProvider: 'openai',
+            chatUrl: ready.chatUrl,
+            chatModel: ready.model,
+            chatAuth: ready.auth,
+          },
+        });
+        const drained = await drainScans(
+          input.store,
+          runner,
+          input.enqueue ?? noopDomainEvents,
+          input.selection,
+          ready.concurrency,
+          progress,
+        );
+        summary = { ...drained, pod: 'ran' };
+      } finally {
+        stopLog();
+      }
     }
   } catch (err) {
     failure = err;
@@ -94,6 +107,7 @@ async function drainScans(
   enqueue: DomainEventSink,
   selection: { eventId?: string; limit?: number } = {},
   batchLimit = SCAN_BATCH_LIMIT,
+  progress?: ScanProgress,
 ): Promise<ScanSummary> {
   const totals = emptySummary();
   const skip = new Set<string>();
@@ -104,6 +118,7 @@ async function drainScans(
       limit: selection.limit ?? batchLimit,
       ...(selection.eventId ? { eventId: selection.eventId } : {}),
       skipEventIds: [...skip],
+      ...(progress ? { progress } : {}),
     });
     totals.claimed += summary.claimed;
     totals.published += summary.published;

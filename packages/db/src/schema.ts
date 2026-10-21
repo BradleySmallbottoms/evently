@@ -85,7 +85,18 @@ export const notificationReason = pgEnum('notification_reason', [
   'publisher',
   'event',
   'broadcast',
+  'tip',
 ]);
+/** A person's tip about a missing event, before and after the import scan. */
+export const tipStatus = pgEnum('tip_status', [
+  'collecting',
+  'needs_input',
+  'submitted',
+  'scanned',
+  'failed',
+]);
+export const tipPath = pgEnum('tip_path', ['photo', 'text']);
+export const tipImageStatus = pgEnum('tip_image_status', ['scanning', 'ready', 'failed']);
 /**
  * Silent Expo delivery state for an inbox row.
  * `aggregated` is legacy (server quiet-hours digest); new writes use pending → sent.
@@ -737,6 +748,74 @@ export const eventImages = pgTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('event_images_event_role_idx').on(t.eventId, t.role)],
+);
+
+/**
+ * A missing event someone sent from the app. The row is personal: the text, the
+ * photos, and the link to the user. Cascade on user delete. The created event
+ * stays if the user is deleted (`event_id` is set null).
+ */
+export const eventTips = pgTable(
+  'event_tips',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    path: tipPath('path').notNull(),
+    status: tipStatus('status').notNull().default('collecting'),
+    locale: eventLanguage('locale').notNull().default('sv'),
+    /** Model extraction plus any correction the person confirmed. */
+    extracted: jsonb('extracted').notNull().default({}),
+    sourceText: text('source_text'),
+    eventId: uuid('event_id').references(() => events.id, { onDelete: 'set null' }),
+    /** Event status after the scan, or `failed` when the scan could not finish. */
+    scanStatus: text('scan_status'),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }),
+    analyzedAt: timestamp('analyzed_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('event_tips_user_id_idx').on(t.userId),
+    index('event_tips_event_id_idx').on(t.eventId),
+    index('event_tips_user_submitted_idx').on(t.userId, t.submittedAt),
+  ],
+);
+
+/** The description the person wrote, and a short note of what the model read. */
+export const tipMessages = pgTable(
+  'tip_messages',
+  {
+    id: id(),
+    tipId: uuid('tip_id')
+      .notNull()
+      .references(() => eventTips.id, { onDelete: 'cascade' }),
+    role: text('role').notNull(),
+    body: text('body').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('tip_messages_tip_id_idx').on(t.tipId)],
+);
+
+/** Poster or screenshot attached to a tip. Bytes live in the public assets bucket. */
+export const tipImages = pgTable(
+  'tip_images',
+  {
+    id: id(),
+    tipId: uuid('tip_id')
+      .notNull()
+      .references(() => eventTips.id, { onDelete: 'cascade' }),
+    s3Key: text('s3_key').notNull(),
+    contentType: text('content_type').notNull(),
+    status: tipImageStatus('status').notNull().default('scanning'),
+    extracted: jsonb('extracted').notNull().default({}),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('tip_images_tip_id_idx').on(t.tipId)],
 );
 
 /** Maps, schedules, info and files — attendee visibility gated by check-in. */

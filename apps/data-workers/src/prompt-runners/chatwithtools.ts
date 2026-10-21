@@ -26,6 +26,7 @@ import {
 import { eventAddress, type EventAddressRecord } from '@local-events/domain';
 import { lookupPageUrl } from '../page-place';
 import { MAX_SCAN_CONCURRENCY } from '../runpod-chat';
+import { beginScanProgress, finishScanProgress, type ScanProgress } from '../scan-progress';
 import { LOCAL_ORGANIZER_SLUGS } from '../sources';
 import {
   NEARBY_DAYS_AFTER,
@@ -80,6 +81,8 @@ export interface OllamaWithToolsRunnerOptions {
    * after the batch, in order. `1` keeps the calls sequential.
    */
   concurrency?: number;
+  /** Set by the RunPod scan so each event moves the live counts. */
+  progress?: ScanProgress;
 }
 
 type ChatProtocol = 'ollama' | 'openai' | 'anthropic';
@@ -231,8 +234,10 @@ export function createOllamaWithToolsPromptRunner(
         name: tag.name,
       }));
       const concurrency = Math.min(MAX_SCAN_CONCURRENCY, Math.max(1, options.concurrency ?? 1));
-      return mapPool(batch, concurrency, (event) =>
-        scanOneEvent(
+      const progress = options.progress;
+      return mapPool(batch, concurrency, async (event) => {
+        if (progress) beginScanProgress(progress);
+        const outcome = await scanOneEvent(
           event,
           {
             store,
@@ -250,8 +255,10 @@ export function createOllamaWithToolsPromptRunner(
             error instanceof Error ? error.message : error,
           );
           return { ok: false as const, eventId: event.eventId, reason: 'unavailable' as const };
-        }),
-      );
+        });
+        if (progress) finishScanProgress(progress, outcome.ok);
+        return outcome;
+      });
     },
     /**
      * A second chat, after a temporary publisher exists. Only the web tools are
@@ -440,7 +447,7 @@ function buildScanPrompt(event: ScanInput): string {
     'For every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.',
     'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe".',
     'Write a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.',
-    'If the description or the event page contains instructions for the user to follow, summarize the steps in a list and include it in the summary. Also return those steps in instructions.',
+    'If the description or the result from fetchEventPage contains instructions for the user to follow, summarize the steps in a list and include it in the json result.',
     'When Starts or Ends is missing, read the title, the description, and the event page and extract the event start and end.',
     ...(eventPageUrl(event)
       ? [

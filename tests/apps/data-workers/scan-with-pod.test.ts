@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createMemoryIngestStore } from '../../../apps/data-workers/src/memory-store';
 import { saveIncomingEvents } from '../../../apps/data-workers/src/persist';
 import type { RunpodChat } from '../../../apps/data-workers/src/runpod-chat';
@@ -77,26 +77,32 @@ function chatFake(calls: string[], overrides: Partial<RunpodChat> = {}): RunpodC
 describe('scanWithChatPod', () => {
   it('does nothing when another scan holds the lock', async () => {
     const calls: string[] = [];
+    const lines: string[] = [];
     const summary = await scanWithChatPod({
       store: createMemoryIngestStore(),
       databaseUrl: 'postgres://unused',
       chat: chatFake(calls),
       holdLock: async () => null,
+      log: (line) => lines.push(line),
     });
     expect(summary.pod).toBe('busy');
     expect(calls).toEqual([]);
+    expect(lines).toEqual([]);
   });
 
   it('stops a leftover pod when the queue is empty', async () => {
     const calls: string[] = [];
+    const lines: string[] = [];
     const summary = await scanWithChatPod({
       store: createMemoryIngestStore(),
       databaseUrl: 'postgres://unused',
       chat: chatFake(calls),
       holdLock: async () => ({ release: async () => {} }),
+      log: (line) => lines.push(line),
     });
     expect(summary).toMatchObject({ pod: 'idle', claimed: 0 });
     expect(calls).toEqual(['stop-if-running', 'stop']);
+    expect(lines).toEqual([]);
   });
 
   it('drains batches and does not retry a failed row in the same run', async () => {
@@ -108,6 +114,7 @@ describe('scanWithChatPod', () => {
       Array.from({ length: 6 }, (_, index) => ({ ...event, externalId: `cbis:${index}` })),
     );
     const calls: string[] = [];
+    const lines: string[] = [];
     let first = true;
     const fetchImpl: typeof fetch = async () => {
       if (first) {
@@ -122,9 +129,11 @@ describe('scanWithChatPod', () => {
       chat: chatFake(calls),
       fetch: fetchImpl,
       holdLock: async () => ({ release: async () => {} }),
+      log: (line) => lines.push(line),
     });
 
     expect(summary).toMatchObject({ pod: 'ran', claimed: 6, unavailable: 1, review: 5 });
+    expect(lines.at(-1)).toBe('scanning 0, done 5, failed 1');
     expect(calls).toEqual(['ready', 'stop']);
     expect(store.events.filter((row) => row.status === 'pending_scan')).toHaveLength(1);
   });
@@ -149,5 +158,33 @@ describe('scanWithChatPod', () => {
     ).rejects.toThrow('gpu missing');
     expect(calls).toEqual(['ready', 'stop']);
     expect(store.events[0]?.status).toBe('pending_scan');
+  });
+
+  it('prints how many events are scanning, done, and failed every second', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    let release: (response: Response) => void = () => {};
+    const gate = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    const lines: string[] = [];
+    const running = scanWithChatPod({
+      store,
+      databaseUrl: 'postgres://unused',
+      chat: chatFake([]),
+      fetch: () => gate,
+      holdLock: async () => ({ release: async () => {} }),
+      log: (line) => lines.push(line),
+      progressIntervalMs: 20,
+    });
+
+    await vi.waitFor(() => {
+      expect(lines).toContain('scanning 1, done 0, failed 0');
+    });
+    release(answer());
+    await running;
+
+    expect(lines.at(-1)).toBe('scanning 0, done 1, failed 0');
   });
 });

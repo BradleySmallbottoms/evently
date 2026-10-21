@@ -60,6 +60,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Geo matching; silent Expo after inbox insert; client-side quiet hours + 5/day OS-notification cap; 90-day inbox retention. Events without a point stay off the map, out of the public list, and do not match nearby push. Direct lookup by id still returns them. The public list also leaves out an event that has ended; a whole day stays through that calendar day
 - [x] Publisher and event subscriptions (follow API + publisher merge on publish; event.updated debounce later)
 - [x] Notification inbox: persist every matched notification; `GET /me/notifications`; mobile notifications window lists inbox rows
+- [x] Event tips: home “Saknar du ett evenemang?” and profile “Mina tips”. Photo or text, Anthropic extraction, then the regular import scan on source `user-tips`. A visible push opens the tip screen. The event stays `in_review` until an admin publishes it. `meta.fromUserTip` shows “Från användartips” and names no submitter
 - [x] Quiet hours deferral: during the window store only (no immediate Expo); after the window ends, one aggregate Expo push; preferences UI to enable/disable (defaults 22:00–08:00)
 - [x] Push message drafts: create on submit, update on edit before send, new draft after send; admin approve / trusted auto-approve; optional `send_at`; worker sends due approved messages; inbox only at send
 - [x] Per-user push aggregation within 10 minutes (defer + “And N more…”)

@@ -5,7 +5,7 @@ const Id = z.uuid();
 export const NotificationPushState = z.enum(['pending', 'sent', 'aggregated']);
 export type NotificationPushState = z.infer<typeof NotificationPushState>;
 
-export const NotificationReason = z.enum(['nearby', 'publisher', 'event', 'broadcast']);
+export const NotificationReason = z.enum(['nearby', 'publisher', 'event', 'broadcast', 'tip']);
 export type NotificationReason = z.infer<typeof NotificationReason>;
 
 export const NotificationItem = z.object({

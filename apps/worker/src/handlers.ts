@@ -3,6 +3,7 @@ import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import { eq } from 'drizzle-orm';
 import type { HandleDuePushDeps } from './notify/handle-due-push';
+import { handleTipNeedsInput, handleTipScanned } from './notify/handle-tip';
 import {
   applyCheckInStats,
   applyEngagementStats,
@@ -98,6 +99,14 @@ export const handlers: {
       e.eventId,
       ctx.now?.() ?? new Date(),
     );
+  },
+  'tip.scanned': async (e, ctx) => {
+    if (!ctx.notify) return;
+    await handleTipScanned(e, ctx.notify);
+  },
+  'tip.needs_input': async (e, ctx) => {
+    if (!ctx.notify) return;
+    await handleTipNeedsInput(e, ctx.notify);
   },
   'rating.created': async (e, ctx) => {
     if (!ctx.stats || !ctx.db) throw new Error('stats_unavailable');
