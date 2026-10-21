@@ -6,19 +6,26 @@ import type {
   TipImageRequest,
 } from '@local-events/contracts';
 import type { DomainEventPublisher } from '../domain-events/types';
-import { enqueueDomainEvent } from '../domain-events/types';
 import type { AuthServices } from '../auth/types';
 import {
   emptyTipExtraction,
   fallbackTipTitle,
-  hasUsableTitle,
   mergeTipExtraction,
   needsTipFollowUp,
+  applyTipAnswers,
+  tipAskBody,
+  tipDetailProgress,
+  tipTags,
+  tipFollowUpQuestion,
   tipImageAllowed,
+  tipImageReading,
   tipOpenAllowed,
   tipSubmissionAllowed,
+  tipTranscript,
   visionIsStale,
   type TipExtraction,
+  type TipFollowUp,
+  type TipImageState,
   type TipLocale,
 } from '@local-events/domain';
 import type { TipModel } from './anthropic';
@@ -27,6 +34,20 @@ import { imageStatusOf, presentTip } from './present';
 import type { TipImageRecord, TipImageStore, TipRecord, TipRepository } from './repo';
 
 const noopImages: TipImageStore = { async put() {} };
+
+function tipImageKey(tipId: string, imageId: string, contentType: string): string {
+  const ext =
+    contentType === 'image/png'
+      ? 'png'
+      : contentType === 'image/webp'
+        ? 'webp'
+        : contentType === 'image/heic'
+          ? 'heic'
+          : contentType === 'image/heif'
+            ? 'heif'
+            : 'jpg';
+  return `tips/${tipId}/${imageId}.${ext}`;
+}
 
 export interface TipServices {
   create(sessionToken: string | undefined, input: CreateTipRequest): Promise<Tip>;
@@ -46,6 +67,7 @@ export function createTipServices(
     images?: TipImageStore;
     assetsPublicBaseUrl?: string;
     domainEvents?: DomainEventPublisher;
+    tags?: () => Promise<{ id: string; name: string }[]>;
   } = {},
 ): TipServices {
   const now = options.now ?? (() => new Date());
@@ -69,7 +91,7 @@ export function createTipServices(
     const found = await load(ownerId, tipId);
     await resumeStale(found.tip, found.images);
     const again = await load(ownerId, tipId);
-    return presentTip(again.tip, again.images, baseUrl);
+    return presentTip(again.tip, again.images, baseUrl, again.messages);
   }
 
   function scheduleVision(tip: TipRecord, image: TipImageRecord, bytes: Uint8Array) {
@@ -79,53 +101,65 @@ export function createTipServices(
     void readImage(tip, image, bytes).finally(() => inflight.delete(image.id));
   }
 
+  function imageState(extracted: TipExtraction, rows: TipImageRecord[]): TipImageState {
+    if (extracted.imageDeclined) return 'declined';
+    if (rows.some((image) => image.status === 'scanning')) return 'scanning';
+    if (rows.length > 0) return 'ready';
+    return 'missing';
+  }
+
+  async function askNext(
+    tip: TipRecord,
+    extracted: TipExtraction,
+    rows: TipImageRecord[],
+    questions: TipFollowUp[],
+    at: Date,
+  ) {
+    const question = tipFollowUpQuestion({
+      questions,
+      missing: tipDetailProgress(extracted).missing,
+      locale: tip.locale,
+      image: imageState(extracted, rows),
+    });
+    if (question) await repo.addMessage(tip.id, 'assistant', tipAskBody(question), at);
+  }
+
+  async function knownTags() {
+    return options.tags?.() ?? [];
+  }
+
+  function keepKnownTags(extraction: TipExtraction, catalog: { id: string; name: string }[]) {
+    if (!Array.isArray(extraction.tags)) return extraction;
+    return { ...extraction, tags: tipTags(extraction.tags, catalog) };
+  }
+
   async function readImage(tip: TipRecord, image: TipImageRecord, bytes: Uint8Array) {
     const at = now();
-    let merged: TipExtraction;
+    let merged = tip.extracted;
+    let questions: TipFollowUp[] = [];
+    let status: 'ready' | 'failed' = 'ready';
     try {
-      merged = mergeTipExtraction(
-        tip.extracted,
-        await model.extract({
-          locale: tip.locale,
-          text: tip.sourceText ?? undefined,
-          image: { bytes, contentType: image.contentType },
-        }),
+      const catalog = await knownTags();
+      const read = await model.extract({
+        locale: tip.locale,
+        text: tip.sourceText ?? undefined,
+        image: { bytes, contentType: image.contentType },
+        tags: catalog,
+      });
+      merged = applyTipAnswers(
+        mergeTipExtraction(tip.extracted, keepKnownTags(read.extraction, catalog)),
+        tip.sourceText,
       );
+      questions = read.followUpQuestions;
     } catch (err) {
       console.error('tip vision failed', tip.id, err instanceof Error ? err.message : err);
-      await repo.markImage(image.id, 'failed', {}, at);
-      if (tip.path === 'photo') {
-        await repo.saveExtraction({
-          tipId: tip.id,
-          extracted: tip.extracted,
-          analyzedAt: at,
-          status: 'needs_input',
-        });
-      }
-      return;
+      status = 'failed';
     }
-    await repo.markImage(image.id, 'ready', merged, at);
+    await repo.markImage(image.id, status, merged, at);
     await repo.saveExtraction({ tipId: tip.id, extracted: merged, analyzedAt: at });
-    await repo.addMessage(tip.id, 'assistant', JSON.stringify(merged), at);
     const current = await repo.find(tip.userId, tip.id);
-    if (!current || current.tip.status !== 'collecting' || tip.path !== 'photo') return;
-    if (hasUsableTitle(merged)) {
-      await submit(current.tip, current.images, merged);
-      return;
-    }
-    await repo.saveExtraction({
-      tipId: tip.id,
-      extracted: merged,
-      analyzedAt: at,
-      status: 'needs_input',
-    });
-    if (options.domainEvents) {
-      await enqueueDomainEvent(options.domainEvents, {
-        type: 'tip.needs_input',
-        tipId: tip.id,
-        userId: tip.userId,
-      });
-    }
+    if (!current || current.tip.status !== 'collecting') return;
+    await askNext(current.tip, merged, current.images, questions, new Date(at.getTime() + 1));
   }
 
   async function resumeStale(tip: TipRecord, rows: TipImageRecord[]) {
@@ -133,14 +167,17 @@ export function createTipServices(
       if (image.status !== 'scanning' || !visionIsStale(image.updatedAt, now())) continue;
       const cached = held.get(image.id);
       if (!cached) {
-        await repo.markImage(image.id, 'failed', {}, now());
-        if (tip.path === 'photo' && tip.status === 'collecting') {
-          await repo.saveExtraction({
-            tipId: tip.id,
-            extracted: tip.extracted,
-            analyzedAt: now(),
-            status: 'needs_input',
-          });
+        const at = now();
+        await repo.markImage(image.id, 'failed', tip.extracted, at);
+        const current = await repo.find(tip.userId, tip.id);
+        if (current?.tip.status === 'collecting') {
+          await askNext(
+            current.tip,
+            current.tip.extracted,
+            current.images,
+            [],
+            new Date(at.getTime() + 1),
+          );
         }
         continue;
       }
@@ -192,18 +229,27 @@ export function createTipServices(
       if (tip.status !== 'collecting' && tip.status !== 'needs_input') {
         throw new TipError('invalid_state');
       }
+      const transcript = tipTranscript(tip.sourceText, text);
+      const catalog = await knownTags();
+      const read = await model.extract({ locale: tip.locale, text: transcript, tags: catalog });
+      const extracted = applyTipAnswers(
+        mergeTipExtraction(tip.extracted, keepKnownTags(read.extraction, catalog)),
+        transcript,
+      );
       const at = now();
       await repo.addMessage(tip.id, 'user', text, at);
-      const extracted = mergeTipExtraction(
-        tip.extracted,
-        await model.extract({ locale: tip.locale, text }),
+      const found = await load(ownerId, tipId);
+      await askNext(
+        tip,
+        extracted,
+        found.images,
+        read.followUpQuestions,
+        new Date(at.getTime() + 1),
       );
-      console.log('extracted', extracted);
-      if (!extracted.description) extracted.description = text;
       await repo.saveExtraction({
         tipId: tip.id,
         extracted,
-        sourceText: text,
+        sourceText: transcript,
         analyzedAt: at,
       });
       return show(ownerId, tipId);
@@ -222,7 +268,7 @@ export function createTipServices(
       });
       if (!check.ok) throw new TipError(check.reason);
       const imageId = randomUUID();
-      const key = `tips/${tipId}/${imageId}`;
+      const key = tipImageKey(tipId, imageId, input.contentType);
       await images.put(key, bytes, input.contentType);
       const image = await repo.insertImage({
         id: imageId,
@@ -231,9 +277,15 @@ export function createTipServices(
         contentType: input.contentType,
         now: now(),
       });
+      await repo.addMessage(
+        tipId,
+        'assistant',
+        tipAskBody(tipImageReading(found.tip.locale)),
+        now(),
+      );
       scheduleVision(found.tip, image, bytes);
       const again = await load(ownerId, tipId);
-      return presentTip(again.tip, again.images, baseUrl);
+      return presentTip(again.tip, again.images, baseUrl, again.messages);
     },
     async confirm(sessionToken, tipId, input) {
       const ownerId = await userId(sessionToken);
@@ -242,6 +294,7 @@ export function createTipServices(
       if (tip.status !== 'collecting' && tip.status !== 'needs_input') {
         throw new TipError('invalid_state');
       }
+      if (imageStatusOf(found.images) === 'scanning') throw new TipError('invalid_state');
       if (tip.path === 'text' && imageStatusOf(found.images) !== 'scanning' && !tip.analyzedAt) {
         throw new TipError('invalid_state');
       }
@@ -251,9 +304,11 @@ export function createTipServices(
           ...extracted,
           ...(input.card.title !== undefined ? { title: input.card.title } : {}),
           ...(input.card.startsAt !== undefined ? { startsAt: input.card.startsAt } : {}),
+          ...(input.card.endsAt !== undefined ? { endsAt: input.card.endsAt } : {}),
           ...(input.card.place !== undefined ? { place: input.card.place } : {}),
           ...(input.card.priceLabel !== undefined ? { priceLabel: input.card.priceLabel } : {}),
           ...(input.card.link !== undefined ? { link: input.card.link } : {}),
+          ...(input.card.summary !== undefined ? { summary: input.card.summary } : {}),
         };
       }
       if (input.categoryHint) extracted.categoryHint = input.categoryHint;

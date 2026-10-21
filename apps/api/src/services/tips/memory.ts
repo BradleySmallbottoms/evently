@@ -3,7 +3,7 @@ import { emptyTipExtraction, TIP_LIST_LIMIT } from '@local-events/domain';
 import type { AuthServices } from '../auth/types';
 import type { DomainEventPublisher } from '../domain-events/types';
 import type { TipModel } from './anthropic';
-import type { TipImageRecord, TipRecord, TipRepository } from './repo';
+import type { TipImageRecord, TipMessageRecord, TipRecord, TipRepository } from './repo';
 import { createTipServices, type TipServices } from './service';
 
 export function createMemoryTipServices(
@@ -13,10 +13,12 @@ export function createMemoryTipServices(
     now?: () => Date;
     domainEvents?: DomainEventPublisher;
     assetsPublicBaseUrl?: string;
+    tags?: () => Promise<{ id: string; name: string }[]>;
   } = {},
 ): TipServices {
   const tips = new Map<string, TipRecord>();
   const images = new Map<string, TipImageRecord[]>();
+  const messages = new Map<string, TipMessageRecord[]>();
   const repo: TipRepository = {
     async insert(input) {
       const tip: TipRecord = {
@@ -47,7 +49,7 @@ export function createMemoryTipServices(
     async find(userId, tipId) {
       const tip = tips.get(tipId);
       if (!tip || tip.userId !== userId) return null;
-      return { tip, images: images.get(tipId) ?? [] };
+      return { tip, images: images.get(tipId) ?? [], messages: messages.get(tipId) ?? [] };
     },
     async list(userId) {
       return [...tips.values()]
@@ -110,7 +112,11 @@ export function createMemoryTipServices(
       tip.completedAt = at;
       if (!tip.analyzedAt) tip.analyzedAt = at;
     },
-    async addMessage() {},
+    async addMessage(tipId, role, body, at) {
+      const rows = messages.get(tipId) ?? [];
+      rows.push({ role, body, createdAt: at });
+      messages.set(tipId, rows);
+    },
     async createPendingEvent() {
       return randomUUID();
     },

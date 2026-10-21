@@ -13171,9 +13171,36 @@
                           "type": "string",
                           "nullable": true,
                           "maxLength": 500
+                        },
+                        "endsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "summary": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 500
+                        },
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 80
+                          },
+                          "maxItems": 8
                         }
                       },
-                      "required": ["title", "startsAt", "place", "priceLabel", "link"]
+                      "required": [
+                        "title",
+                        "startsAt",
+                        "place",
+                        "priceLabel",
+                        "link",
+                        "endsAt",
+                        "summary",
+                        "tags"
+                      ]
                     },
                     "followUp": {
                       "type": "object",
@@ -13273,6 +13300,119 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "progress": {
+                      "type": "object",
+                      "properties": {
+                        "done": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        }
+                      },
+                      "required": ["done", "total"]
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string",
+                            "enum": ["user", "assistant"]
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "title",
+                              "startDate",
+                              "startTime",
+                              "endDate",
+                              "endTime",
+                              "date",
+                              "end",
+                              "place",
+                              "price",
+                              "link",
+                              "description",
+                              "image",
+                              null
+                            ]
+                          },
+                          "options": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "label": {
+                                  "type": "string"
+                                },
+                                "reply": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": ["label", "reply"]
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": ["role", "body", "key", "options", "createdAt"]
+                      }
+                    },
+                    "question": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "startDate",
+                            "startTime",
+                            "endDate",
+                            "endTime",
+                            "date",
+                            "end",
+                            "place",
+                            "price",
+                            "link",
+                            "description",
+                            "image"
+                          ]
+                        },
+                        "question": {
+                          "type": "string"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "type": "string"
+                              },
+                              "reply": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": ["label", "reply"]
+                          }
+                        }
+                      },
+                      "required": ["key", "question", "options"]
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -13292,6 +13432,9 @@
                     "timeline",
                     "found",
                     "previewImageUrl",
+                    "progress",
+                    "messages",
+                    "question",
                     "createdAt"
                   ]
                 }
@@ -13396,9 +13539,36 @@
                                 "type": "string",
                                 "nullable": true,
                                 "maxLength": 500
+                              },
+                              "endsAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "maxLength": 40
+                              },
+                              "summary": {
+                                "type": "string",
+                                "nullable": true,
+                                "maxLength": 500
+                              },
+                              "tags": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "maxLength": 80
+                                },
+                                "maxItems": 8
                               }
                             },
-                            "required": ["title", "startsAt", "place", "priceLabel", "link"]
+                            "required": [
+                              "title",
+                              "startsAt",
+                              "place",
+                              "priceLabel",
+                              "link",
+                              "endsAt",
+                              "summary",
+                              "tags"
+                            ]
                           },
                           "followUp": {
                             "type": "object",
@@ -13498,6 +13668,119 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "progress": {
+                            "type": "object",
+                            "properties": {
+                              "done": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "total": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "exclusiveMinimum": true
+                              }
+                            },
+                            "required": ["done", "total"]
+                          },
+                          "messages": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "role": {
+                                  "type": "string",
+                                  "enum": ["user", "assistant"]
+                                },
+                                "body": {
+                                  "type": "string"
+                                },
+                                "key": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "enum": [
+                                    "title",
+                                    "startDate",
+                                    "startTime",
+                                    "endDate",
+                                    "endTime",
+                                    "date",
+                                    "end",
+                                    "place",
+                                    "price",
+                                    "link",
+                                    "description",
+                                    "image",
+                                    null
+                                  ]
+                                },
+                                "options": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "reply": {
+                                        "type": "string",
+                                        "nullable": true
+                                      }
+                                    },
+                                    "required": ["label", "reply"]
+                                  }
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": ["role", "body", "key", "options", "createdAt"]
+                            }
+                          },
+                          "question": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "key": {
+                                "type": "string",
+                                "enum": [
+                                  "title",
+                                  "startDate",
+                                  "startTime",
+                                  "endDate",
+                                  "endTime",
+                                  "date",
+                                  "end",
+                                  "place",
+                                  "price",
+                                  "link",
+                                  "description",
+                                  "image"
+                                ]
+                              },
+                              "question": {
+                                "type": "string"
+                              },
+                              "options": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "label": {
+                                      "type": "string"
+                                    },
+                                    "reply": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  },
+                                  "required": ["label", "reply"]
+                                }
+                              }
+                            },
+                            "required": ["key", "question", "options"]
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -13517,6 +13800,9 @@
                           "timeline",
                           "found",
                           "previewImageUrl",
+                          "progress",
+                          "messages",
+                          "question",
                           "createdAt"
                         ]
                       }
@@ -13633,9 +13919,36 @@
                           "type": "string",
                           "nullable": true,
                           "maxLength": 500
+                        },
+                        "endsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "summary": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 500
+                        },
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 80
+                          },
+                          "maxItems": 8
                         }
                       },
-                      "required": ["title", "startsAt", "place", "priceLabel", "link"]
+                      "required": [
+                        "title",
+                        "startsAt",
+                        "place",
+                        "priceLabel",
+                        "link",
+                        "endsAt",
+                        "summary",
+                        "tags"
+                      ]
                     },
                     "followUp": {
                       "type": "object",
@@ -13735,6 +14048,119 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "progress": {
+                      "type": "object",
+                      "properties": {
+                        "done": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        }
+                      },
+                      "required": ["done", "total"]
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string",
+                            "enum": ["user", "assistant"]
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "title",
+                              "startDate",
+                              "startTime",
+                              "endDate",
+                              "endTime",
+                              "date",
+                              "end",
+                              "place",
+                              "price",
+                              "link",
+                              "description",
+                              "image",
+                              null
+                            ]
+                          },
+                          "options": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "label": {
+                                  "type": "string"
+                                },
+                                "reply": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": ["label", "reply"]
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": ["role", "body", "key", "options", "createdAt"]
+                      }
+                    },
+                    "question": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "startDate",
+                            "startTime",
+                            "endDate",
+                            "endTime",
+                            "date",
+                            "end",
+                            "place",
+                            "price",
+                            "link",
+                            "description",
+                            "image"
+                          ]
+                        },
+                        "question": {
+                          "type": "string"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "type": "string"
+                              },
+                              "reply": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": ["label", "reply"]
+                          }
+                        }
+                      },
+                      "required": ["key", "question", "options"]
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -13754,6 +14180,9 @@
                     "timeline",
                     "found",
                     "previewImageUrl",
+                    "progress",
+                    "messages",
+                    "question",
                     "createdAt"
                   ]
                 }
@@ -13908,9 +14337,36 @@
                           "type": "string",
                           "nullable": true,
                           "maxLength": 500
+                        },
+                        "endsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "summary": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 500
+                        },
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 80
+                          },
+                          "maxItems": 8
                         }
                       },
-                      "required": ["title", "startsAt", "place", "priceLabel", "link"]
+                      "required": [
+                        "title",
+                        "startsAt",
+                        "place",
+                        "priceLabel",
+                        "link",
+                        "endsAt",
+                        "summary",
+                        "tags"
+                      ]
                     },
                     "followUp": {
                       "type": "object",
@@ -14010,6 +14466,119 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "progress": {
+                      "type": "object",
+                      "properties": {
+                        "done": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        }
+                      },
+                      "required": ["done", "total"]
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string",
+                            "enum": ["user", "assistant"]
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "title",
+                              "startDate",
+                              "startTime",
+                              "endDate",
+                              "endTime",
+                              "date",
+                              "end",
+                              "place",
+                              "price",
+                              "link",
+                              "description",
+                              "image",
+                              null
+                            ]
+                          },
+                          "options": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "label": {
+                                  "type": "string"
+                                },
+                                "reply": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": ["label", "reply"]
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": ["role", "body", "key", "options", "createdAt"]
+                      }
+                    },
+                    "question": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "startDate",
+                            "startTime",
+                            "endDate",
+                            "endTime",
+                            "date",
+                            "end",
+                            "place",
+                            "price",
+                            "link",
+                            "description",
+                            "image"
+                          ]
+                        },
+                        "question": {
+                          "type": "string"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "type": "string"
+                              },
+                              "reply": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": ["label", "reply"]
+                          }
+                        }
+                      },
+                      "required": ["key", "question", "options"]
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -14029,6 +14598,9 @@
                     "timeline",
                     "found",
                     "previewImageUrl",
+                    "progress",
+                    "messages",
+                    "question",
                     "createdAt"
                   ]
                 }
@@ -14237,9 +14809,36 @@
                           "type": "string",
                           "nullable": true,
                           "maxLength": 500
+                        },
+                        "endsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "summary": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 500
+                        },
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 80
+                          },
+                          "maxItems": 8
                         }
                       },
-                      "required": ["title", "startsAt", "place", "priceLabel", "link"]
+                      "required": [
+                        "title",
+                        "startsAt",
+                        "place",
+                        "priceLabel",
+                        "link",
+                        "endsAt",
+                        "summary",
+                        "tags"
+                      ]
                     },
                     "followUp": {
                       "type": "object",
@@ -14339,6 +14938,119 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "progress": {
+                      "type": "object",
+                      "properties": {
+                        "done": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        }
+                      },
+                      "required": ["done", "total"]
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string",
+                            "enum": ["user", "assistant"]
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "title",
+                              "startDate",
+                              "startTime",
+                              "endDate",
+                              "endTime",
+                              "date",
+                              "end",
+                              "place",
+                              "price",
+                              "link",
+                              "description",
+                              "image",
+                              null
+                            ]
+                          },
+                          "options": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "label": {
+                                  "type": "string"
+                                },
+                                "reply": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": ["label", "reply"]
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": ["role", "body", "key", "options", "createdAt"]
+                      }
+                    },
+                    "question": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "startDate",
+                            "startTime",
+                            "endDate",
+                            "endTime",
+                            "date",
+                            "end",
+                            "place",
+                            "price",
+                            "link",
+                            "description",
+                            "image"
+                          ]
+                        },
+                        "question": {
+                          "type": "string"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "type": "string"
+                              },
+                              "reply": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": ["label", "reply"]
+                          }
+                        }
+                      },
+                      "required": ["key", "question", "options"]
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -14358,6 +15070,9 @@
                     "timeline",
                     "found",
                     "previewImageUrl",
+                    "progress",
+                    "messages",
+                    "question",
                     "createdAt"
                   ]
                 }
@@ -14513,6 +15228,24 @@
                         "type": "string",
                         "nullable": true,
                         "maxLength": 500
+                      },
+                      "endsAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 40
+                      },
+                      "summary": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 500
+                      },
+                      "tags": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 80
+                        },
+                        "maxItems": 8
                       }
                     }
                   },
@@ -14597,9 +15330,36 @@
                           "type": "string",
                           "nullable": true,
                           "maxLength": 500
+                        },
+                        "endsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "summary": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 500
+                        },
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 80
+                          },
+                          "maxItems": 8
                         }
                       },
-                      "required": ["title", "startsAt", "place", "priceLabel", "link"]
+                      "required": [
+                        "title",
+                        "startsAt",
+                        "place",
+                        "priceLabel",
+                        "link",
+                        "endsAt",
+                        "summary",
+                        "tags"
+                      ]
                     },
                     "followUp": {
                       "type": "object",
@@ -14699,6 +15459,119 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "progress": {
+                      "type": "object",
+                      "properties": {
+                        "done": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        }
+                      },
+                      "required": ["done", "total"]
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string",
+                            "enum": ["user", "assistant"]
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "title",
+                              "startDate",
+                              "startTime",
+                              "endDate",
+                              "endTime",
+                              "date",
+                              "end",
+                              "place",
+                              "price",
+                              "link",
+                              "description",
+                              "image",
+                              null
+                            ]
+                          },
+                          "options": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "label": {
+                                  "type": "string"
+                                },
+                                "reply": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": ["label", "reply"]
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": ["role", "body", "key", "options", "createdAt"]
+                      }
+                    },
+                    "question": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "startDate",
+                            "startTime",
+                            "endDate",
+                            "endTime",
+                            "date",
+                            "end",
+                            "place",
+                            "price",
+                            "link",
+                            "description",
+                            "image"
+                          ]
+                        },
+                        "question": {
+                          "type": "string"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "type": "string"
+                              },
+                              "reply": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": ["label", "reply"]
+                          }
+                        }
+                      },
+                      "required": ["key", "question", "options"]
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -14718,6 +15591,9 @@
                     "timeline",
                     "found",
                     "previewImageUrl",
+                    "progress",
+                    "messages",
+                    "question",
                     "createdAt"
                   ]
                 }

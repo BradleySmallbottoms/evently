@@ -6865,6 +6865,9 @@ export interface paths {
                   place: string | null;
                   priceLabel: string | null;
                   link: string | null;
+                  endsAt: string | null;
+                  summary: string | null;
+                  tags: string[];
                 } | null;
                 followUp: {
                   category: boolean;
@@ -6896,6 +6899,57 @@ export interface paths {
                 } | null;
                 /** Format: uri */
                 previewImageUrl: string | null;
+                progress: {
+                  done: number;
+                  total: number;
+                };
+                messages: {
+                  /** @enum {string} */
+                  role: 'user' | 'assistant';
+                  body: string;
+                  /** @enum {string|null} */
+                  key:
+                    | 'title'
+                    | 'startDate'
+                    | 'startTime'
+                    | 'endDate'
+                    | 'endTime'
+                    | 'date'
+                    | 'end'
+                    | 'place'
+                    | 'price'
+                    | 'link'
+                    | 'description'
+                    | 'image'
+                    | null;
+                  options: {
+                    label: string;
+                    reply: string | null;
+                  }[];
+                  /** Format: date-time */
+                  createdAt: string;
+                }[];
+                question: {
+                  /** @enum {string} */
+                  key:
+                    | 'title'
+                    | 'startDate'
+                    | 'startTime'
+                    | 'endDate'
+                    | 'endTime'
+                    | 'date'
+                    | 'end'
+                    | 'place'
+                    | 'price'
+                    | 'link'
+                    | 'description'
+                    | 'image';
+                  question: string;
+                  options: {
+                    label: string;
+                    reply: string | null;
+                  }[];
+                } | null;
                 /** Format: date-time */
                 createdAt: string;
               }[];
@@ -6968,6 +7022,9 @@ export interface paths {
                 place: string | null;
                 priceLabel: string | null;
                 link: string | null;
+                endsAt: string | null;
+                summary: string | null;
+                tags: string[];
               } | null;
               followUp: {
                 category: boolean;
@@ -6999,6 +7056,57 @@ export interface paths {
               } | null;
               /** Format: uri */
               previewImageUrl: string | null;
+              progress: {
+                done: number;
+                total: number;
+              };
+              messages: {
+                /** @enum {string} */
+                role: 'user' | 'assistant';
+                body: string;
+                /** @enum {string|null} */
+                key:
+                  | 'title'
+                  | 'startDate'
+                  | 'startTime'
+                  | 'endDate'
+                  | 'endTime'
+                  | 'date'
+                  | 'end'
+                  | 'place'
+                  | 'price'
+                  | 'link'
+                  | 'description'
+                  | 'image'
+                  | null;
+                options: {
+                  label: string;
+                  reply: string | null;
+                }[];
+                /** Format: date-time */
+                createdAt: string;
+              }[];
+              question: {
+                /** @enum {string} */
+                key:
+                  | 'title'
+                  | 'startDate'
+                  | 'startTime'
+                  | 'endDate'
+                  | 'endTime'
+                  | 'date'
+                  | 'end'
+                  | 'place'
+                  | 'price'
+                  | 'link'
+                  | 'description'
+                  | 'image';
+                question: string;
+                options: {
+                  label: string;
+                  reply: string | null;
+                }[];
+              } | null;
               /** Format: date-time */
               createdAt: string;
             };
@@ -7075,6 +7183,9 @@ export interface paths {
                 place: string | null;
                 priceLabel: string | null;
                 link: string | null;
+                endsAt: string | null;
+                summary: string | null;
+                tags: string[];
               } | null;
               followUp: {
                 category: boolean;
@@ -7106,6 +7217,57 @@ export interface paths {
               } | null;
               /** Format: uri */
               previewImageUrl: string | null;
+              progress: {
+                done: number;
+                total: number;
+              };
+              messages: {
+                /** @enum {string} */
+                role: 'user' | 'assistant';
+                body: string;
+                /** @enum {string|null} */
+                key:
+                  | 'title'
+                  | 'startDate'
+                  | 'startTime'
+                  | 'endDate'
+                  | 'endTime'
+                  | 'date'
+                  | 'end'
+                  | 'place'
+                  | 'price'
+                  | 'link'
+                  | 'description'
+                  | 'image'
+                  | null;
+                options: {
+                  label: string;
+                  reply: string | null;
+                }[];
+                /** Format: date-time */
+                createdAt: string;
+              }[];
+              question: {
+                /** @enum {string} */
+                key:
+                  | 'title'
+                  | 'startDate'
+                  | 'startTime'
+                  | 'endDate'
+                  | 'endTime'
+                  | 'date'
+                  | 'end'
+                  | 'place'
+                  | 'price'
+                  | 'link'
+                  | 'description'
+                  | 'image';
+                question: string;
+                options: {
+                  label: string;
+                  reply: string | null;
+                }[];
+              } | null;
               /** Format: date-time */
               createdAt: string;
             };
@@ -7206,6 +7368,9 @@ export interface paths {
                 place: string | null;
                 priceLabel: string | null;
                 link: string | null;
+                endsAt: string | null;
+                summary: string | null;
+                tags: string[];
               } | null;
               followUp: {
                 category: boolean;
@@ -7237,6 +7402,57 @@ export interface paths {
               } | null;
               /** Format: uri */
               previewImageUrl: string | null;
+              progress: {
+                done: number;
+                total: number;
+              };
+              messages: {
+                /** @enum {string} */
+                role: 'user' | 'assistant';
+                body: string;
+                /** @enum {string|null} */
+                key:
+                  | 'title'
+                  | 'startDate'
+                  | 'startTime'
+                  | 'endDate'
+                  | 'endTime'
+                  | 'date'
+                  | 'end'
+                  | 'place'
+                  | 'price'
+                  | 'link'
+                  | 'description'
+                  | 'image'
+                  | null;
+                options: {
+                  label: string;
+                  reply: string | null;
+                }[];
+                /** Format: date-time */
+                createdAt: string;
+              }[];
+              question: {
+                /** @enum {string} */
+                key:
+                  | 'title'
+                  | 'startDate'
+                  | 'startTime'
+                  | 'endDate'
+                  | 'endTime'
+                  | 'date'
+                  | 'end'
+                  | 'place'
+                  | 'price'
+                  | 'link'
+                  | 'description'
+                  | 'image';
+                question: string;
+                options: {
+                  label: string;
+                  reply: string | null;
+                }[];
+              } | null;
               /** Format: date-time */
               createdAt: string;
             };
@@ -7365,6 +7581,9 @@ export interface paths {
                 place: string | null;
                 priceLabel: string | null;
                 link: string | null;
+                endsAt: string | null;
+                summary: string | null;
+                tags: string[];
               } | null;
               followUp: {
                 category: boolean;
@@ -7396,6 +7615,57 @@ export interface paths {
               } | null;
               /** Format: uri */
               previewImageUrl: string | null;
+              progress: {
+                done: number;
+                total: number;
+              };
+              messages: {
+                /** @enum {string} */
+                role: 'user' | 'assistant';
+                body: string;
+                /** @enum {string|null} */
+                key:
+                  | 'title'
+                  | 'startDate'
+                  | 'startTime'
+                  | 'endDate'
+                  | 'endTime'
+                  | 'date'
+                  | 'end'
+                  | 'place'
+                  | 'price'
+                  | 'link'
+                  | 'description'
+                  | 'image'
+                  | null;
+                options: {
+                  label: string;
+                  reply: string | null;
+                }[];
+                /** Format: date-time */
+                createdAt: string;
+              }[];
+              question: {
+                /** @enum {string} */
+                key:
+                  | 'title'
+                  | 'startDate'
+                  | 'startTime'
+                  | 'endDate'
+                  | 'endTime'
+                  | 'date'
+                  | 'end'
+                  | 'place'
+                  | 'price'
+                  | 'link'
+                  | 'description'
+                  | 'image';
+                question: string;
+                options: {
+                  label: string;
+                  reply: string | null;
+                }[];
+              } | null;
               /** Format: date-time */
               createdAt: string;
             };
@@ -7492,6 +7762,9 @@ export interface paths {
               place?: string | null;
               priceLabel?: string | null;
               link?: string | null;
+              endsAt?: string | null;
+              summary?: string | null;
+              tags?: string[];
             };
             categoryHint?: string;
             description?: string;
@@ -7531,6 +7804,9 @@ export interface paths {
                 place: string | null;
                 priceLabel: string | null;
                 link: string | null;
+                endsAt: string | null;
+                summary: string | null;
+                tags: string[];
               } | null;
               followUp: {
                 category: boolean;
@@ -7562,6 +7838,57 @@ export interface paths {
               } | null;
               /** Format: uri */
               previewImageUrl: string | null;
+              progress: {
+                done: number;
+                total: number;
+              };
+              messages: {
+                /** @enum {string} */
+                role: 'user' | 'assistant';
+                body: string;
+                /** @enum {string|null} */
+                key:
+                  | 'title'
+                  | 'startDate'
+                  | 'startTime'
+                  | 'endDate'
+                  | 'endTime'
+                  | 'date'
+                  | 'end'
+                  | 'place'
+                  | 'price'
+                  | 'link'
+                  | 'description'
+                  | 'image'
+                  | null;
+                options: {
+                  label: string;
+                  reply: string | null;
+                }[];
+                /** Format: date-time */
+                createdAt: string;
+              }[];
+              question: {
+                /** @enum {string} */
+                key:
+                  | 'title'
+                  | 'startDate'
+                  | 'startTime'
+                  | 'endDate'
+                  | 'endTime'
+                  | 'date'
+                  | 'end'
+                  | 'place'
+                  | 'price'
+                  | 'link'
+                  | 'description'
+                  | 'image';
+                question: string;
+                options: {
+                  label: string;
+                  reply: string | null;
+                }[];
+              } | null;
               /** Format: date-time */
               createdAt: string;
             };

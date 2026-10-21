@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,14 +7,14 @@ import { ActivityIndicator, Pressable, TextInput, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ensureIdentity } from '@/lib/identity';
-import { listTags } from '@/lib/events';
 import { shareEventLink } from '@/lib/event-share';
-import { confirmTip, getTip, sendTipImage, sendTipText, tipImageContentType } from '@/lib/tips';
+import { confirmTip, getTip } from '@/lib/tips';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 import type { Tip, TipCard } from '@local-events/contracts';
 
 import { TipChrome } from '@/components/ui/tip-chrome';
+import { TipChat } from './_components/tip-chat';
 
 function whenLabel(value: string | null, locale: string): string {
   if (!value) return '';
@@ -32,12 +31,11 @@ function whenLabel(value: string | null, locale: string): string {
 }
 
 export default function TipScreen() {
-  const { id, view } = useLocalSearchParams<{ id: string; view?: string }>();
+  const { id, view, photo } = useLocalSearchParams<{ id: string; view?: string; photo?: string }>();
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
-  const [leftScan, setLeftScan] = useState(false);
   const identity = useQuery({
     queryKey: ['identity', locale],
     queryFn: () => ensureIdentity(locale),
@@ -46,7 +44,7 @@ export default function TipScreen() {
     queryKey: ['tip', id],
     enabled: identity.isSuccess && Boolean(id),
     queryFn: () => getTip(identity.data!, id!),
-    refetchInterval: (query) => (query.state.data?.phase === 'scanning' ? 2000 : false),
+    refetchInterval: (query) => (query.state.data?.imageStatus === 'scanning' ? 2000 : false),
   });
 
   if (!tip.data) {
@@ -79,28 +77,14 @@ export default function TipScreen() {
     return <Published tip={data} onStatus={() => router.setParams({ view: 'status' })} />;
   }
   if (data.phase === 'review' || data.phase === 'failed') return <Status tip={data} />;
-  if (data.phase === 'receipt' || (data.phase === 'scanning' && leftScan)) {
+  if (data.phase === 'receipt') {
     return (
       <Receipt
-        title={data.phase === 'receipt' ? t('tips.receiptReadyTitle') : t('tips.receiptScanTitle')}
-        body={data.phase === 'receipt' ? t('tips.receiptReadyBody') : t('tips.receiptScanBody')}
+        title={t('tips.receiptReadyTitle')}
+        body={t('tips.receiptReadyBody')}
         onAnother={() => router.replace('/tips')}
         onHome={() => router.replace('/')}
       />
-    );
-  }
-  if (data.phase === 'scanning') {
-    return (
-      <TipChrome title={t('tips.scanningTitle')}>
-        <AppText variant="body" style={{ textAlign: 'center', color: colors.inkMuted }}>
-          {t('tips.scanningBody')}
-        </AppText>
-        <ActivityIndicator color={colors.accent} />
-        <AppText variant="caption" style={{ textAlign: 'center', color: colors.inkMuted }}>
-          {t('tips.scanningNote')}
-        </AppText>
-        <PrimaryButton label={t('tips.scanningOk')} onPress={() => setLeftScan(true)} />
-      </TipChrome>
     );
   }
   if (data.phase === 'confirm' && data.card) {
@@ -113,59 +97,11 @@ export default function TipScreen() {
     );
   }
   return (
-    <WriteText tipId={data.id} onDone={(next) => queryClient.setQueryData(['tip', id], next)} />
-  );
-}
-
-function WriteText({ tipId, onDone }: { tipId: string; onDone: (tip: Tip) => void }) {
-  const { t, i18n } = useTranslation();
-  const locale = i18n.language === 'en' ? 'en' : 'sv';
-  const [text, setText] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const send = useMutation({
-    mutationFn: async () => {
-      const identity = await ensureIdentity(locale);
-      return sendTipText(identity, tipId, text.trim());
-    },
-    onSuccess: onDone,
-    onError: () => setError(t('tips.error')),
-  });
-  return (
-    <TipChrome
-      title={t('tips.writeTitle')}
-      footer={
-        <PrimaryButton
-          label={t('tips.send')}
-          loading={send.isPending}
-          disabled={text.trim().length === 0}
-          onPress={() => send.mutate()}
-        />
-      }
-    >
-      <TextInput
-        value={text}
-        onChangeText={setText}
-        multiline
-        maxLength={500}
-        placeholder={t('tips.writePlaceholder')}
-        placeholderTextColor={colors.inkMuted}
-        style={{
-          minHeight: 180,
-          backgroundColor: colors.card,
-          borderRadius: radius.lg,
-          borderWidth: 1,
-          borderColor: colors.line,
-          padding: space.lg,
-          color: colors.ink,
-          fontSize: 16,
-          textAlignVertical: 'top',
-        }}
-      />
-      <AppText variant="caption" style={{ textAlign: 'right', color: colors.inkMuted }}>
-        {text.length}/500
-      </AppText>
-      {error ? <AppText style={{ color: colors.danger }}>{error}</AppText> : null}
-    </TipChrome>
+    <TipChat
+      tip={data}
+      initialPhoto={typeof photo === 'string' ? photo : undefined}
+      onDone={(next) => queryClient.setQueryData(['tip', id], next)}
+    />
   );
 }
 
@@ -185,7 +121,8 @@ function Confirm({ tip, card, onDone }: { tip: Tip; card: TipCard; onDone: (tip:
   });
   const rows = [
     ['title', t('tips.name')],
-    ['startsAt', t('tips.date')],
+    ['startsAt', t('tips.facts.startDate')],
+    ['endsAt', t('tips.facts.endDate')],
     ['place', t('tips.place')],
     ['priceLabel', t('tips.price')],
     ['link', t('tips.link')],
@@ -226,9 +163,59 @@ function Confirm({ tip, card, onDone }: { tip: Tip; card: TipCard; onDone: (tip:
           gap: space.md,
         }}
       >
+        <View style={{ gap: 4 }}>
+          <AppText variant="caption" style={{ color: colors.inkMuted }}>
+            {t('tips.summary')}
+          </AppText>
+          {editing ? (
+            <TextInput
+              value={draft.summary ?? ''}
+              onChangeText={(next) =>
+                setDraft((current) => ({ ...current, summary: next || null }))
+              }
+              multiline
+              placeholder={t('tips.summary')}
+              placeholderTextColor={colors.inkMuted}
+              style={{
+                borderBottomWidth: 1,
+                borderBottomColor: colors.line,
+                color: colors.ink,
+                fontSize: 16,
+                paddingVertical: 4,
+              }}
+            />
+          ) : (
+            <AppText variant="body">{draft.summary || '—'}</AppText>
+          )}
+        </View>
+        <View style={{ gap: 4 }}>
+          <AppText variant="caption" style={{ color: colors.inkMuted }}>
+            {t('tips.tags')}
+          </AppText>
+          {(draft.tags ?? []).length > 0 ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+              {(draft.tags ?? []).map((tag) => (
+                <View
+                  key={tag}
+                  style={{
+                    backgroundColor: colors.accentSoft,
+                    borderRadius: radius.pill,
+                    paddingHorizontal: space.md,
+                    paddingVertical: space.xs,
+                  }}
+                >
+                  <AppText variant="caption">{tag}</AppText>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <AppText variant="body">—</AppText>
+          )}
+        </View>
         {rows.map(([key, label]) => {
           const raw = draft[key];
-          const shown = key === 'startsAt' ? whenLabel(raw, locale) || raw : raw;
+          const shown =
+            key === 'startsAt' || key === 'endsAt' ? whenLabel(raw, locale) || raw : raw;
           return (
             <View key={key} style={{ gap: 4 }}>
               <AppText variant="caption" style={{ color: colors.inkMuted }}>
@@ -238,7 +225,10 @@ function Confirm({ tip, card, onDone }: { tip: Tip; card: TipCard; onDone: (tip:
                 <TextInput
                   value={raw ?? ''}
                   onChangeText={(next) =>
-                    setDraft((current) => ({ ...current, [key]: next || null }))
+                    setDraft((current) => ({
+                      ...current,
+                      [key]: (key === 'link' ? next.replace(/^https?:\/\//i, '') : next) || null,
+                    }))
                   }
                   style={{
                     borderBottomWidth: 1,
@@ -263,39 +253,17 @@ function Confirm({ tip, card, onDone }: { tip: Tip; card: TipCard; onDone: (tip:
 function FollowUp({ tip, onDone }: { tip: Tip; onDone: (tip: Tip) => Promise<void> }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
-  const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
-  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const tags = useQuery({
-    queryKey: ['tags', 'all'],
-    queryFn: () => listTags({ upcoming: false }),
-  });
   const send = useMutation({
     mutationFn: async () => {
       const identity = await ensureIdentity(locale);
       return confirmTip(identity, tip.id, {
-        categoryHint: category || undefined,
         description: description || undefined,
         submitFollowUp: true,
       });
     },
     onSuccess: (next) => void onDone(next),
-    onError: () => setError(t('tips.error')),
-  });
-  const upload = useMutation({
-    mutationFn: async () => {
-      const shot = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.7 });
-      if (shot.canceled || !shot.assets[0]?.base64) return null;
-      const identity = await ensureIdentity(locale);
-      return sendTipImage(identity, tip.id, {
-        contentType: tipImageContentType(shot.assets[0].mimeType),
-        dataBase64: shot.assets[0].base64,
-      });
-    },
-    onSuccess: (next) => {
-      if (next) void onDone(next);
-    },
     onError: () => setError(t('tips.error')),
   });
   return (
@@ -310,45 +278,6 @@ function FollowUp({ tip, onDone }: { tip: Tip; onDone: (tip: Tip) => Promise<voi
       }
     >
       <AppText variant="body">{t('tips.followBody')}</AppText>
-      {tip.followUp?.category ? (
-        <View style={{ gap: space.sm }}>
-          <AppText variant="label">{t('tips.category')}</AppText>
-          <Pressable
-            onPress={() => setOpen((value) => !value)}
-            style={{
-              backgroundColor: colors.card,
-              borderRadius: radius.md,
-              borderWidth: 1,
-              borderColor: colors.line,
-              padding: space.md,
-            }}
-          >
-            <AppText>{category || t('tips.pickCategory')}</AppText>
-          </Pressable>
-          {open
-            ? (tags.data?.items ?? []).slice(0, 40).map((tag) => (
-                <Pressable
-                  key={tag.id}
-                  onPress={() => {
-                    setCategory(tag.name);
-                    setOpen(false);
-                  }}
-                >
-                  <AppText>{tag.name}</AppText>
-                </Pressable>
-              ))
-            : null}
-        </View>
-      ) : null}
-      {tip.followUp?.image ? (
-        <PrimaryButton
-          label={t('tips.uploadOptional')}
-          color={colors.card}
-          labelColor={colors.ink}
-          loading={upload.isPending}
-          onPress={() => upload.mutate()}
-        />
-      ) : null}
       {tip.followUp?.description ? (
         <TextInput
           value={description}
@@ -518,7 +447,7 @@ function Status({ tip }: { tip: Tip }) {
           <Fact label={t('tips.date')} value={whenLabel(tip.found.startsAt, locale)} />
           <Fact label={t('tips.place')} value={tip.found.place} />
           <Fact label={t('tips.price')} value={tip.found.priceLabel} />
-          <Fact label={t('tips.category')} value={tip.found.category} />
+          <Fact label={t('tips.tags')} value={tip.card?.tags.join(', ') || null} />
           <Fact label={t('tips.description')} value={tip.found.description} />
         </View>
       ) : null}

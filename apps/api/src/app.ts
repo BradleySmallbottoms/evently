@@ -55,6 +55,7 @@ export type CreateAppOptions = {
   pushMessages?: PublisherPushMessageServices;
   tips?: TipServices;
   tipModel?: TipModel;
+  tipTags?: () => Promise<{ id: string; name: string }[]>;
   /**
    * Origins allowed for credentialed CORS (web publisher login).
    * Pass a string list, or a function that returns the reflected Origin (never bare `*`).
@@ -103,9 +104,10 @@ export function createApp(options: CreateAppOptions = {}) {
       auth,
       options.tipModel ?? {
         async extract() {
-          return {};
+          return { extraction: {}, followUpQuestions: [] };
         },
       },
+      { tags: options.tipTags },
     );
   const app = new OpenAPIHono();
 

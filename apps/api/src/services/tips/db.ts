@@ -4,18 +4,25 @@ import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import {
   emptyTipExtraction,
+  bareTipLink,
   fallbackTipTitle,
   TIP_LIST_LIMIT,
   tipInstant,
   tipOrganizerKeys,
   type TipExtraction,
 } from '@local-events/domain';
-import { and, count, desc, eq, gte, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import type { DomainEventPublisher } from '../domain-events/types';
 import type { TipModel } from './anthropic';
 import { TipError } from './errors';
-import type { TipImageRecord, TipImageStore, TipRecord, TipRepository } from './repo';
+import type {
+  TipImageRecord,
+  TipImageStore,
+  TipMessageRecord,
+  TipRecord,
+  TipRepository,
+} from './repo';
 import { createTipServices, type TipServices } from './service';
 
 const USER_TIPS_SLUG = 'user-tips';
@@ -51,7 +58,13 @@ function blankEvent(row: typeof schema.eventTips.$inferSelect): TipRecord {
 
 export function tipImageStoreFromEnv(env: NodeJS.ProcessEnv = process.env): TipImageStore {
   const bucket = env.PUBLIC_ASSETS_BUCKET?.trim();
-  if (!bucket) return { async put() {} };
+  if (!bucket) {
+    return {
+      async put() {
+        throw new Error('tip_image_bucket_missing');
+      },
+    };
+  }
   const endpoint = env.S3_ENDPOINT?.trim();
   const client = new S3Client({
     region: env.S3_REGION?.trim() || env.AWS_REGION?.trim() || 'eu-north-1',
@@ -171,7 +184,24 @@ export function createDbTipServices(
       if (!row) return null;
       const grouped = await imagesFor([row.id]);
       const [tip] = await attachEvents([row]);
-      return { tip: tip!, images: grouped.get(row.id) ?? [] };
+      const messages = await db
+        .select({
+          role: schema.tipMessages.role,
+          body: schema.tipMessages.body,
+          createdAt: schema.tipMessages.createdAt,
+        })
+        .from(schema.tipMessages)
+        .where(eq(schema.tipMessages.tipId, row.id))
+        .orderBy(asc(schema.tipMessages.createdAt));
+      return {
+        tip: tip!,
+        images: grouped.get(row.id) ?? [],
+        messages: messages.flatMap((message): TipMessageRecord[] =>
+          message.role === 'user' || message.role === 'assistant'
+            ? [{ role: message.role, body: message.body, createdAt: message.createdAt }]
+            : [],
+        ),
+      };
     },
     async list(userId) {
       const rows = await db
@@ -280,8 +310,8 @@ export function createDbTipServices(
       });
       const startsAt = tipInstant(extraction.startsAt);
       const endsAt = tipInstant(extraction.endsAt);
-      const rawLink = extraction.link?.trim().slice(0, 500) ?? '';
-      const link = /^https?:\/\//i.test(rawLink) ? rawLink : null;
+      const bare = bareTipLink(extraction.link);
+      const link = bare ? `https://${bare}` : null;
       const place = extraction.place?.trim().slice(0, 200) || null;
       const city = place?.includes(',') ? place.split(',').pop()?.trim() || null : null;
       const description = [extraction.description?.trim(), tip.sourceText?.trim()]
@@ -292,11 +322,12 @@ export function createDbTipServices(
         : description;
       const boundedDescription = withCategory.slice(0, 4000) || null;
       const eventId = randomUUID();
-      const ready = images.find((image) => image.status === 'ready');
+      const ready = images.find((image) => image.status === 'ready') ?? images[0];
       await db.transaction(async (tx) => {
         await tx.insert(schema.events).values({
           id: eventId,
           title,
+          summary: extraction.summary?.trim().slice(0, 500) || null,
           description: boundedDescription,
           language: tip.locale,
           mode: 'physical',
@@ -354,5 +385,10 @@ export function createDbTipServices(
   return createTipServices(auth, repo, model, {
     ...options,
     images: options.images ?? tipImageStoreFromEnv(),
+    tags: async () =>
+      db
+        .select({ id: schema.tags.id, name: schema.tags.name })
+        .from(schema.tags)
+        .orderBy(asc(schema.tags.name)),
   });
 }

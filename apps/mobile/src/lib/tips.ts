@@ -6,6 +6,8 @@ import type {
   TipListResponse,
 } from '@local-events/contracts';
 
+import { TIP_IMAGE_BASE64_MAX } from '@local-events/domain';
+
 import { API_URL } from './api';
 import type { StoredIdentity } from './identity';
 
@@ -61,6 +63,7 @@ export function sendTipImage(
   tipId: string,
   body: TipImageRequest,
 ): Promise<Tip> {
+  if (body.dataBase64.length > TIP_IMAGE_BASE64_MAX) throw new Error('too_large');
   return tipFetch(identity, `/me/tips/${tipId}/images`, { method: 'POST', body });
 }
 

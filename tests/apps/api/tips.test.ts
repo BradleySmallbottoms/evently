@@ -1,25 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import { TIP_IMAGE_MAX_BYTES } from '../../../packages/domain/src/tips';
 import { createApp } from '../../../apps/api/src/app';
+import { tipImageStoreFromEnv } from '../../../apps/api/src/services/tips/db';
 import type { TipModel } from '../../../apps/api/src/services/tips/anthropic';
 import type { Tip } from '../../../packages/contracts/src/tips';
 
 const model: TipModel = {
   async extract(input) {
-    if (input.image && input.image.byteLength < 20) return {};
-    return {
+    if (input.image && input.image.bytes.byteLength < 20) {
+      return { extraction: {}, followUpQuestions: [] };
+    }
+    const extraction = {
       title: 'Sommarkonsert',
       startsAt: '2026-08-24T17:00:00.000Z',
       place: 'Stadsparken, Söderhamn',
       priceLabel: 'Gratis',
       link: 'https://stad.se/sommarkonsert',
       description: 'En kväll med The River Band.',
+      tags: [...(input.tags ?? []).map((tag) => tag.name), 'Nope'],
     };
+    return { extraction, followUpQuestions: [] };
   },
 };
 
 function app() {
-  return createApp({ tipModel: model });
+  return createApp({
+    tipModel: model,
+    tipTags: async () => [{ id: 'musik', name: 'Musik' }],
+  });
 }
 
 async function session(api: ReturnType<typeof createApp>) {
@@ -57,32 +65,64 @@ describe('event tips', () => {
       }),
     });
     expect(read.status).toBe(200);
-    const card = await json<Tip>(read);
-    expect(card.phase).toBe('confirm');
-    expect(card.card).toMatchObject({
+    const asking = await json<Tip>(read);
+    expect(asking.phase).toBe('collecting');
+    expect(asking.progress).toEqual({ done: 6, total: 9 });
+    expect(asking.question?.key).toBe('startTime');
+    expect(asking.question?.options).toEqual([{ label: 'Jag vet inte', reply: 'startTime: none' }]);
+    expect(asking.messages.map((message) => message.role)).toEqual(['user', 'assistant']);
+    expect(asking.messages[1]?.key).toBe('startTime');
+
+    const timed = await api.request(`/v1/me/tips/${tip.id}/text`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ text: 'startTime: 19:00' }),
+    });
+    expect(timed.status).toBe(200);
+    const afterTime = await json<Tip>(timed);
+    expect(afterTime.progress).toEqual({ done: 7, total: 9 });
+    expect(afterTime.question?.key).toBe('endDate');
+    expect(afterTime.question?.options).toEqual([
+      { label: 'Jag vet inte', reply: 'endDate: none' },
+    ]);
+
+    const ended = await api.request(`/v1/me/tips/${tip.id}/text`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ text: 'endDate: none' }),
+    });
+    expect(ended.status).toBe(200);
+    const withEnd = await json<Tip>(ended);
+    expect(withEnd.phase).toBe('collecting');
+    expect(withEnd.progress).toEqual({ done: 9, total: 9 });
+    expect(withEnd.question?.key).toBe('image');
+
+    const skipped = await api.request(`/v1/me/tips/${tip.id}/text`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ text: 'image: none' }),
+    });
+    expect(skipped.status).toBe(200);
+    const ready = await json<Tip>(skipped);
+    expect(ready.phase).toBe('confirm');
+    expect(ready.question).toBeNull();
+    expect(ready.card).toMatchObject({
       title: 'Sommarkonsert',
       place: 'Stadsparken, Söderhamn',
       priceLabel: 'Gratis',
+      tags: ['Musik'],
     });
-
-    const follow = await api.request(`/v1/me/tips/${tip.id}/confirm`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ card: card.card }),
-    });
-    expect(follow.status).toBe(200);
-    expect((await json<Tip>(follow)).phase).toBe('follow_up');
 
     const submitted = await api.request(`/v1/me/tips/${tip.id}/confirm`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ categoryHint: 'Musik', submitFollowUp: true }),
+      body: JSON.stringify({ card: ready.card }),
     });
     expect(submitted.status).toBe(200);
     const done = await json<Tip>(submitted);
     expect(done.phase).toBe('receipt');
     expect(done.eventId).toMatch(/^[0-9a-f-]{36}$/);
-    expect(done.found?.category).toBe('Musik');
+    expect(done.found?.category).toBeNull();
 
     const other = await session(api);
     const hidden = await api.request(`/v1/me/tips/${tip.id}`, { headers: other });
@@ -126,7 +166,7 @@ describe('event tips', () => {
     expect(body.error.code).toBe('too_large');
   });
 
-  it('submits a photo once the title is read', async () => {
+  it('reads a photo into the chat instead of submitting it', async () => {
     const api = app();
     const headers = { ...(await session(api)), 'content-type': 'application/json' };
     const created = await json<Tip>(
@@ -145,12 +185,22 @@ describe('event tips', () => {
       }),
     });
     expect(uploaded.status).toBe(200);
-    let phase = '';
-    for (let attempt = 0; attempt < 20 && phase !== 'receipt'; attempt += 1) {
-      const current = await json<Tip>(await api.request(`/v1/me/tips/${created.id}`, { headers }));
-      phase = current.phase;
-      if (phase !== 'receipt') await new Promise((resolve) => setTimeout(resolve, 5));
+    let current = await json<Tip>(uploaded);
+    expect(current.phase).toBe('collecting');
+    expect(current.messages.some((message) => message.key === 'image')).toBe(true);
+    for (let attempt = 0; attempt < 20 && current.question?.key !== 'startTime'; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      current = await json<Tip>(await api.request(`/v1/me/tips/${created.id}`, { headers }));
     }
-    expect(phase).toBe('receipt');
+    expect(current.imageStatus).toBe('ready');
+    expect(current.phase).toBe('collecting');
+    expect(current.question?.key).toBe('startTime');
+  });
+
+  it('does not record an image when the asset bucket is missing', async () => {
+    const store = tipImageStoreFromEnv({});
+    await expect(store.put('tips/a/b.jpg', new Uint8Array([1]), 'image/jpeg')).rejects.toThrow(
+      'tip_image_bucket_missing',
+    );
   });
 });

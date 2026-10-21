@@ -1,5 +1,4 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState, type ReactNode } from 'react';
@@ -8,7 +7,8 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { ensureIdentity } from '@/lib/identity';
-import { createTip, sendTipImage, tipImageContentType } from '@/lib/tips';
+import { chooseTipImage } from '@/lib/tip-photo';
+import { createTip, sendTipImage } from '@/lib/tips';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
@@ -48,25 +48,18 @@ export default function TipStartScreen() {
     setPending('photo');
     setError(null);
     try {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      const library = permission.granted
-        ? permission
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!library.granted && !permission.granted) {
-        setError(t('tips.cameraDenied'));
+      const shot = await chooseTipImage();
+      if (!shot.ok) {
+        if (shot.reason === 'denied') setError(t('tips.cameraDenied'));
         return;
       }
-      const shot = permission.granted
-        ? await ImagePicker.launchCameraAsync({ base64: true, quality: 0.7 })
-        : await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.7 });
-      if (shot.canceled || !shot.assets[0]?.base64) return;
       const identity = await ensureIdentity(locale);
       const tip = await createTip(identity, { path: 'photo', locale });
       await sendTipImage(identity, tip.id, {
-        contentType: tipImageContentType(shot.assets[0].mimeType),
-        dataBase64: shot.assets[0].base64,
+        contentType: shot.contentType,
+        dataBase64: shot.dataBase64,
       });
-      router.push(`/tips/${tip.id}`);
+      router.push({ pathname: '/tips/[id]', params: { id: tip.id, photo: shot.uri } });
     } catch (err) {
       setError(
         err instanceof Error && err.message === 'too_large' ? t('tips.tooLarge') : t('tips.error'),

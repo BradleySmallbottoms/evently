@@ -2,11 +2,14 @@ import type { Tip, TipFound } from '@local-events/contracts';
 import {
   emptyTipExtraction,
   publicAssetUrl,
+  shownTipOptions,
+  tipAskFromBody,
   tipCard,
+  tipDetailProgress,
   tipPhase,
   type TipExtraction,
 } from '@local-events/domain';
-import type { TipImageRecord, TipRecord } from './repo';
+import type { TipImageRecord, TipMessageRecord, TipRecord } from './repo';
 
 function clean(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
@@ -46,18 +49,23 @@ export function presentTip(
   tip: TipRecord,
   images: TipImageRecord[],
   assetsPublicBaseUrl?: string,
+  messages: TipMessageRecord[] = [],
 ): Tip {
   const extraction = { ...emptyTipExtraction(), ...tip.extracted };
   const imageStatus = imageStatusOf(images);
   const hasExtraction = Object.values(extraction).some((value) => value != null && value !== '');
+  const progress = tipDetailProgress(extraction);
+  const imageSettled =
+    Boolean(extraction.imageDeclined) || (images.length > 0 && imageStatus !== 'scanning');
   const phase = tipPhase({
     path: tip.path,
     status: tip.status,
     scanStatus: tip.scanStatus,
     imageStatus,
     hasExtraction,
+    detailsComplete: progress.missing.length === 0 && imageSettled,
   });
-  const ready = images.find((image) => image.status === 'ready');
+  const photo = images.find((image) => image.status !== 'failed') ?? images[0];
   return {
     id: tip.id,
     path: tip.path,
@@ -68,8 +76,8 @@ export function presentTip(
     followUp:
       phase === 'follow_up'
         ? {
-            category: !clean(extraction.categoryHint),
-            image: !ready,
+            category: false,
+            image: false,
             description: !clean(extraction.description),
           }
         : null,
@@ -83,7 +91,26 @@ export function presentTip(
       reviewedAt: iso(tip.reviewedAt),
     },
     found: foundFor(tip, extraction),
-    previewImageUrl: publicAssetUrl(assetsPublicBaseUrl, ready?.s3Key),
+    previewImageUrl: publicAssetUrl(assetsPublicBaseUrl, photo?.s3Key),
+    progress: { done: progress.done, total: progress.total },
+    messages: messages.map((message) => {
+      const ask = message.role === 'assistant' ? tipAskFromBody(message.body) : null;
+      return {
+        role: message.role,
+        body: ask?.question ?? message.body,
+        key: ask?.key ?? null,
+        options: ask ? shownTipOptions(ask, tip.locale) : [],
+        createdAt: message.createdAt.toISOString(),
+      };
+    }),
+    question: (() => {
+      if (phase !== 'collecting') return null;
+      const last = [...messages].reverse().find((message) => message.role === 'assistant');
+      const ask = last ? tipAskFromBody(last.body) : null;
+      return ask
+        ? { key: ask.key, question: ask.question, options: shownTipOptions(ask, tip.locale) }
+        : null;
+    })(),
     createdAt: tip.createdAt.toISOString(),
   };
 }

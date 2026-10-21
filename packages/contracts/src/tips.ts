@@ -29,6 +29,12 @@ export const TipImageContentType = z.enum([
   'image/heif',
 ]);
 
+export const TipAskOption = z.object({
+  label: z.string(),
+  reply: z.string().nullable(),
+});
+export type TipAskOption = z.infer<typeof TipAskOption>;
+
 export const TipCard = z.object({
   title: z.string().max(200).nullable(),
   startsAt: z.string().max(40).nullable(),
@@ -37,8 +43,11 @@ export const TipCard = z.object({
   link: z
     .string()
     .max(500)
-    .refine((value) => value.length === 0 || /^https?:\/\//i.test(value))
+    .refine((value) => value.length === 0 || !/^https?:\/\//i.test(value))
     .nullable(),
+  endsAt: z.string().max(40).nullable(),
+  summary: z.string().max(500).nullable(),
+  tags: z.array(z.string().max(80)).max(8),
 });
 export type TipCard = z.infer<typeof TipCard>;
 
@@ -81,6 +90,57 @@ export const Tip = z.object({
   timeline: TipTimeline,
   found: TipFound.nullable(),
   previewImageUrl: z.url().nullable(),
+  /** Required facts filled so far. The chat bar reads this as “a of b done”. */
+  progress: z.object({
+    done: z.number().int().nonnegative(),
+    total: z.number().int().positive(),
+  }),
+  messages: z.array(
+    z.object({
+      role: z.enum(['user', 'assistant']),
+      body: z.string(),
+      /** Which fact this bot line is asking for. Null on a person's message. */
+      key: z
+        .enum([
+          'title',
+          'startDate',
+          'startTime',
+          'endDate',
+          'endTime',
+          'date',
+          'end',
+          'place',
+          'price',
+          'link',
+          'description',
+          'image',
+        ])
+        .nullable(),
+      options: z.array(TipAskOption),
+      createdAt: z.iso.datetime(),
+    }),
+  ),
+  /** The question the bot is asking now. Null when the chat is not waiting. */
+  question: z
+    .object({
+      key: z.enum([
+        'title',
+        'startDate',
+        'startTime',
+        'endDate',
+        'endTime',
+        'date',
+        'end',
+        'place',
+        'price',
+        'link',
+        'description',
+        'image',
+      ]),
+      question: z.string(),
+      options: z.array(TipAskOption),
+    })
+    .nullable(),
   createdAt: z.iso.datetime(),
 });
 export type Tip = z.infer<typeof Tip>;

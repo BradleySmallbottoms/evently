@@ -9,8 +9,14 @@ import {
   tipOrganizerKeys,
   tipPhase,
   tipScanNotification,
+  applyTipAnswers,
+  tipCard,
+  tipDetailProgress,
+  tipTags,
+  tipFollowUpQuestion,
   tipOpenAllowed,
   tipSubmissionAllowed,
+  tipTranscript,
   TIP_DAILY_LIMIT,
   TIP_IMAGE_MAX_BYTES,
 } from '../../../packages/domain/src/tips';
@@ -29,32 +35,45 @@ describe('tip extraction', () => {
     expect(mergeTipExtraction({}, { priceLabel: 'Gratis' }).priceAmount).toBe(0);
   });
 
-  it('asks a text tip for the follow-up when the category is missing', () => {
+  it('does not ask for a category when the description is present', () => {
     expect(
       needsTipFollowUp({
         path: 'text',
         extraction: { title: 'Konsert', description: 'En kväll' },
         hasImage: true,
       }),
-    ).toBe(true);
-    expect(
-      needsTipFollowUp({
-        path: 'text',
-        extraction: { title: 'Konsert', description: 'En kväll', categoryHint: 'Musik' },
-        hasImage: true,
-      }),
     ).toBe(false);
   });
 
-  it('lets a photo with a title skip the follow-up', () => {
+  it('asks for a description when the chat has not collected one', () => {
     expect(
       needsTipFollowUp({
         path: 'photo',
         extraction: { title: 'Sommarkonsert' },
         hasImage: true,
       }),
+    ).toBe(true);
+    expect(
+      needsTipFollowUp({
+        path: 'photo',
+        extraction: { title: 'Sommarkonsert', description: 'En kväll', categoryHint: 'Musik' },
+        hasImage: true,
+      }),
     ).toBe(false);
-    expect(needsTipFollowUp({ path: 'photo', extraction: {}, hasImage: true })).toBe(true);
+  });
+});
+
+describe('tip tags', () => {
+  const catalog = [
+    { id: 'musik', name: 'Musik' },
+    { id: 'sport', name: 'Sport' },
+  ];
+
+  it('keeps catalog names and ids and drops anything else', () => {
+    expect(tipTags(['musik', 'sport', 'Påhittad', 'Musik'], catalog)).toEqual(['Musik', 'Sport']);
+    expect(mergeTipExtraction({ tags: ['Musik'] }, { title: 'A' }).tags).toEqual(['Musik']);
+    expect(mergeTipExtraction({ tags: ['Musik'] }, { tags: ['Sport'] }).tags).toEqual(['Sport']);
+    expect(tipCard({ title: 'Konsert', tags: ['Musik'] }).tags).toEqual(['Musik']);
   });
 });
 
@@ -63,6 +82,112 @@ describe('tip limits and titles', () => {
     expect(tipSubmissionAllowed(TIP_DAILY_LIMIT - 1)).toEqual({ ok: true });
     expect(tipSubmissionAllowed(TIP_DAILY_LIMIT)).toEqual({ ok: false, reason: 'daily_limit' });
     expect(tipOpenAllowed(TIP_DAILY_LIMIT)).toEqual({ ok: false, reason: 'open_limit' });
+    expect(tipDetailProgress({ title: 'Konsert', place: 'Parken' })).toMatchObject({
+      done: 2,
+      total: 9,
+      missing: ['startsAt', 'startTime', 'endsAt', 'endTime', 'price', 'link', 'description'],
+    });
+    expect(
+      tipDetailProgress({
+        title: 'Konsert',
+        startsAt: '2026-08-24T17:00:00.000Z',
+        startTime: '17:00',
+        place: 'Parken',
+        priceLabel: 'Gratis',
+        link: 'https://stad.se',
+        description: 'En kväll.',
+        categoryHint: 'Musik',
+        endsAt: '2026-08-24T19:00:00+02:00',
+        endTime: '19:00',
+      }).missing,
+    ).toEqual([]);
+    expect(tipDetailProgress({ startsAt: '2026-08-24T17:00:00.000Z' }).missing).toContain(
+      'startTime',
+    );
+    expect(
+      applyTipAnswers({ startsAt: '2026-10-24T19:00:00+02:00' }, 'startDate: 2026-10-24').startsAt,
+    ).toBe('2026-10-24');
+    expect(
+      tipFollowUpQuestion({
+        questions: [
+          { key: 'link', question: 'Finns det en länk?' },
+          { key: 'place', question: 'Var?' },
+        ],
+        missing: ['link'],
+        locale: 'sv',
+      }),
+    ).toEqual({
+      key: 'link',
+      question: 'Finns det en länk?',
+      options: [
+        { label: 'Ja', reply: null },
+        { label: 'Nej', reply: 'link: none' },
+      ],
+    });
+    expect(
+      tipFollowUpQuestion({
+        questions: [{ key: 'date', question: 'När?' }],
+        missing: ['place'],
+        locale: 'en',
+      }),
+    ).toEqual({ key: 'place', question: 'Where is the event?', options: [] });
+    expect(tipFollowUpQuestion({ questions: [], missing: [], locale: 'sv' })).toBeNull();
+    expect(
+      tipCard({
+        title: 'Konsert',
+        summary: '  En kväll med musik i parken.  ',
+      }),
+    ).toMatchObject({ title: 'Konsert', summary: 'En kväll med musik i parken.' });
+    expect(
+      tipFollowUpQuestion({ questions: [], missing: [], locale: 'sv', image: 'missing' }),
+    ).toEqual({
+      key: 'image',
+      question: 'Vill du lägga till en bild?',
+      options: [],
+    });
+    expect(applyTipAnswers({}, 'image: none').imageDeclined).toBe(true);
+    const unknownEnd = applyTipAnswers({}, 'end: none');
+    expect(unknownEnd.endDeclined).toBe(true);
+    expect(unknownEnd.endsAt).toBeNull();
+    expect(tipDetailProgress(unknownEnd).missing).not.toContain('endsAt');
+    expect(tipDetailProgress(unknownEnd).missing).not.toContain('endTime');
+    expect(applyTipAnswers({}, 'endDate: 2026-08-24').endsAt).toBe('2026-08-24');
+    expect(applyTipAnswers({ endsAt: '2026-08-24' }, 'endTime: 18:00').endsAt).toContain(
+      '2026-08-24T18:00:00',
+    );
+    expect(applyTipAnswers({}, 'startDate: 2026-08-24\nstartTime: 18:00').startsAt).toContain(
+      '2026-08-24T18:00:00',
+    );
+    expect(tipDetailProgress(applyTipAnswers({}, 'startTime: none')).missing).not.toContain(
+      'startTime',
+    );
+    expect(tipFollowUpQuestion({ questions: [], missing: ['endsAt'], locale: 'sv' })).toEqual({
+      key: 'endDate',
+      question: 'Vilket datum slutar evenemanget?',
+      options: [{ label: 'Jag vet inte', reply: 'endDate: none' }],
+    });
+    const declined = applyTipAnswers({ link: 'none' }, 'link: none');
+    expect(declined.link).toBeNull();
+    expect(declined.linkDeclined).toBe(true);
+    expect(tipDetailProgress(declined).missing).not.toContain('link');
+    expect(tipDetailProgress(applyTipAnswers({}, 'price: free')).missing).not.toContain('price');
+    expect(applyTipAnswers({}, 'price: 150').priceAmount).toBe(15000);
+    expect(applyTipAnswers({}, 'date: 2026-08-24').startsAt).toBe('2026-08-24');
+    expect(applyTipAnswers({ linkDeclined: true }, 'link: https://stad.se').link).toBe('stad.se');
+    expect(
+      tipFollowUpQuestion({
+        questions: [
+          {
+            key: 'link',
+            question: 'Vilken är länken?',
+            options: [{ label: 'Ingen länk', reply: 'link: none' }],
+          },
+        ],
+        missing: ['link'],
+        locale: 'sv',
+      })?.options,
+    ).toEqual([{ label: 'Ingen länk', reply: 'link: none' }]);
+    expect(tipTranscript('Första raden', 'Musik')).toBe('Första raden\nMusik');
   });
 
   it('rejects an oversized or unknown image', () => {
@@ -127,6 +252,26 @@ describe('tip phase and notification copy', () => {
         hasExtraction: true,
       }),
     ).toBe('review');
+    expect(
+      tipPhase({
+        path: 'text',
+        status: 'collecting',
+        scanStatus: null,
+        imageStatus: 'none',
+        hasExtraction: true,
+        detailsComplete: false,
+      }),
+    ).toBe('collecting');
+    expect(
+      tipPhase({
+        path: 'text',
+        status: 'collecting',
+        scanStatus: null,
+        imageStatus: 'none',
+        hasExtraction: true,
+        detailsComplete: true,
+      }),
+    ).toBe('confirm');
   });
 
   it('says the event was added only when it is published', () => {

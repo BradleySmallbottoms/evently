@@ -58,7 +58,14 @@ pnpm api-client:generate   # after public API OpenAPI changes
 
 - Home “Saknar du ett evenemang?” and profile “Mina tips” let a person send a photo or a short
   description. The public API reads it with Anthropic (`ANTHROPIC_API_KEY`; `ANTHROPIC_MODEL`
-  defaults to `claude-sonnet-5-5`). This path does not use the Runpod chat. A finished tip becomes
+  defaults to `claude-sonnet-5-5`). This path does not use the Runpod chat. A text tip stays in the
+  chat until title, start date, start time, end date, end time, place, price, link, and description
+  are filled. Each reply is appended and read again. The model names the missing fact, and the
+  chat shows that control. The chat does not ask for a tag or a category. The model picks tags
+  from the catalog, and the confirm screen shows them. A picture is the last question. A picture
+  from the first screen is stored in the public assets bucket (Garage locally) and read into the
+  same chat. When the facts are complete, the model writes a short summary for the confirm screen.
+  A finished tip becomes
   an imported `pending_scan` event on the seeded `user-tips` source, which stays disabled at trust
   `review`, so the regular scan leaves it `in_review` until an admin publishes it.
 - The user gets a visible push (`kind` `tip_scan`) that ignores quiet hours and the daily cap.

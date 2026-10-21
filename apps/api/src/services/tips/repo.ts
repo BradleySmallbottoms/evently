@@ -33,6 +33,12 @@ export interface TipRecord {
   eventDescription: string | null;
 }
 
+export interface TipMessageRecord {
+  role: 'user' | 'assistant';
+  body: string;
+  createdAt: Date;
+}
+
 export interface TipRepository {
   insert(input: {
     userId: string;
@@ -40,7 +46,10 @@ export interface TipRepository {
     locale: TipLocale;
     now: Date;
   }): Promise<TipRecord>;
-  find(userId: string, tipId: string): Promise<{ tip: TipRecord; images: TipImageRecord[] } | null>;
+  find(
+    userId: string,
+    tipId: string,
+  ): Promise<{ tip: TipRecord; images: TipImageRecord[]; messages: TipMessageRecord[] } | null>;
   list(userId: string): Promise<{ tip: TipRecord; images: TipImageRecord[] }[]>;
   countOpen(userId: string): Promise<number>;
   countSubmittedSince(userId: string, since: Date): Promise<number>;
