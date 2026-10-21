@@ -7,6 +7,7 @@ import {
   tipCard,
   tipDetailProgress,
   tipFollowUpQuestion,
+  tipPendingConfirm,
   tipPhase,
   type TipExtraction,
 } from '@local-events/domain';
@@ -64,7 +65,8 @@ export function presentTip(
     scanStatus: tip.scanStatus,
     imageStatus,
     hasExtraction,
-    detailsComplete: progress.missing.length === 0 && imageSettled,
+    detailsComplete:
+      progress.missing.length === 0 && imageSettled && !tipPendingConfirm(extraction),
   });
   const photo = images.find((image) => image.status !== 'failed') ?? images[0];
   return {
@@ -112,6 +114,7 @@ export function presentTip(
         questions: ask ? [ask] : [],
         missing: progress.missing,
         locale: tip.locale,
+        extraction,
         image: extraction.imageDeclined
           ? 'declined'
           : imageStatus === 'scanning'

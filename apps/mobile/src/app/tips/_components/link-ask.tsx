@@ -16,12 +16,14 @@ import { parseLink, replyMatches } from './tip-answers';
 
 export function LinkAsk({
   options,
+  seed,
   answer,
   locked,
   onSend,
   onEdit,
 }: {
   options: Tip['messages'][number]['options'];
+  seed: string | null;
   answer: string | null;
   locked: boolean;
   onSend: (body: string) => void;
@@ -31,7 +33,7 @@ export function LinkAsk({
   const parsed = parseLink(answer);
   const opensInput = options.some((option) => option.reply == null);
   const [openInput, setOpenInput] = useState(parsed.url.length > 0);
-  const [url, setUrl] = useState(parsed.url);
+  const [url, setUrl] = useState(parsed.url || seed || '');
   const [invalid, setInvalid] = useState(false);
   const showField = !opensInput || openInput;
   const lone = options.length === 1 ? options[0] : null;
@@ -50,6 +52,7 @@ export function LinkAsk({
     }
     setOpenInput(true);
     setInvalid(false);
+    if (!url && seed) setUrl(seed);
     onEdit();
   }
 

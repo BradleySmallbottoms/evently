@@ -165,6 +165,54 @@ describe('tip limits and titles', () => {
     expect(tipDetailProgress(applyTipAnswers({}, 'startTime: none')).missing).not.toContain(
       'startTime',
     );
+    expect(
+      tipFollowUpQuestion({
+        questions: [],
+        missing: ['endsAt', 'endTime'],
+        locale: 'sv',
+        extraction: {
+          title: 'Konsert',
+          startsAt: '2026-08-24T17:00:00.000Z',
+          place: 'Parken',
+        },
+      }),
+    ).toMatchObject({
+      key: 'title',
+      question: 'Vi har valt titeln: Konsert. Blir det bra?',
+      options: [
+        { label: 'Ja', reply: 'confirm: title' },
+        { label: 'Nej', reply: null },
+      ],
+    });
+    const acceptedTitle = applyTipAnswers(
+      { title: 'Konsert', startsAt: '2026-08-24T17:00:00.000Z', place: 'Parken' },
+      'confirm: title',
+    );
+    expect(acceptedTitle.accepted).toEqual(['title']);
+    expect(
+      tipFollowUpQuestion({
+        questions: [],
+        missing: ['endsAt', 'endTime'],
+        locale: 'sv',
+        extraction: acceptedTitle,
+      })?.key,
+    ).toBe('startDate');
+    expect(
+      tipFollowUpQuestion({
+        questions: [],
+        missing: ['endsAt', 'endTime'],
+        locale: 'sv',
+        extraction: acceptedTitle,
+      })?.question,
+    ).toBe('Stämmer det att det börjar 24 augusti 2026?');
+    expect(mergeTipExtraction(acceptedTitle, { title: 'Annat', place: 'Torget' }).title).toBe(
+      'Konsert',
+    );
+    expect(mergeTipExtraction(acceptedTitle, { title: 'Annat', place: 'Torget' }).place).toBe(
+      'Torget',
+    );
+    expect(applyTipAnswers({}, 'title: Ny titel').title).toBe('Ny titel');
+    expect(applyTipAnswers({}, 'title: Ny titel').accepted).toEqual(['title']);
     expect(tipFollowUpQuestion({ questions: [], missing: ['endsAt'], locale: 'sv' })).toEqual({
       key: 'endDate',
       question: 'Vilket datum slutar evenemanget?',

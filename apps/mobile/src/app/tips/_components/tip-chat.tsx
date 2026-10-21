@@ -212,7 +212,8 @@ export function TipChat({
             const askKey = current?.key ?? message.key;
             const askOptions = current?.options ?? message.options;
             const askBody = current?.question ?? message.body;
-            const hint = askKey ? stepHint(askKey, t) : null;
+            const confirming = askOptions.some((option) => option.reply?.startsWith('confirm:'));
+            const hint = askKey && !confirming ? stepHint(askKey, t) : null;
             return (
               <View key={`${message.createdAt}-${index}`} style={{ gap: space.md }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
@@ -238,6 +239,11 @@ export function TipChat({
                     locale={locale}
                     startsAt={tip.card?.startsAt ?? null}
                     endsAt={tip.card?.endsAt ?? null}
+                    title={tip.card?.title ?? null}
+                    place={tip.card?.place ?? null}
+                    priceLabel={tip.card?.priceLabel ?? null}
+                    link={tip.card?.link ?? null}
+                    description={tip.found?.description ?? tip.card?.summary ?? null}
                     onSend={sendBody}
                     onEdit={reveal}
                   />
@@ -411,6 +417,9 @@ function answerAfter(messages: Tip['messages'], index: number): string | null {
 
 function userLabel(body: string, locale: string, t: (key: string) => string): string {
   const line = body.trim();
+  if (/^confirm:\s*/i.test(line)) return t('tips.yes');
+  const corrected = line.match(/^(?:title|place|description):\s*(.+)$/i);
+  if (corrected?.[1]) return corrected[1];
   if (/^link:\s*none$/i.test(line)) return t('tips.noLink');
   if (/^(?:end|endDate|startTime|endTime):\s*none$/i.test(line)) return t('tips.unknown');
   if (/^image:\s*none$/i.test(line)) return t('tips.noPicture');

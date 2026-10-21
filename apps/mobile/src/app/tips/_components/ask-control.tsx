@@ -19,6 +19,11 @@ export function AskControl({
   locale,
   startsAt,
   endsAt,
+  title,
+  place,
+  priceLabel,
+  link,
+  description,
   onSend,
   onEdit,
 }: {
@@ -29,6 +34,11 @@ export function AskControl({
   locale: string;
   startsAt: string | null;
   endsAt: string | null;
+  title: string | null;
+  place: string | null;
+  priceLabel: string | null;
+  link: string | null;
+  description: string | null;
   onSend: (body: string) => void;
   onEdit: () => void;
 }) {
@@ -38,17 +48,33 @@ export function AskControl({
   const endClock = foundTipClock(endsAt) ?? startClock;
   if (askKey === 'link') {
     return (
-      <LinkAsk options={options} answer={answer} locked={locked} onSend={onSend} onEdit={onEdit} />
+      <LinkAsk
+        options={options}
+        seed={link}
+        answer={answer}
+        locked={locked}
+        onSend={onSend}
+        onEdit={onEdit}
+      />
     );
   }
   if (askKey === 'price') {
-    return <PriceAsk answer={answer} locked={locked} onSend={onSend} onEdit={onEdit} />;
+    return (
+      <PriceAsk
+        options={options}
+        seed={priceLabel}
+        answer={answer}
+        locked={locked}
+        onSend={onSend}
+        onEdit={onEdit}
+      />
+    );
   }
   if (askKey === 'startDate' || askKey === 'date') {
     return (
       <DateAsk
         prefix={askKey === 'date' ? 'date' : 'startDate'}
-        options={[]}
+        options={options}
         answer={answer}
         locked={locked}
         locale={locale}
@@ -101,7 +127,12 @@ export function AskControl({
   }
   return (
     <TextAsk
+      prefix={
+        askKey === 'title' || askKey === 'place' || askKey === 'description' ? askKey : undefined
+      }
       icon={askKey === 'place' ? 'place' : undefined}
+      options={options}
+      seed={askKey === 'title' ? title : askKey === 'place' ? place : description}
       answer={answer}
       locked={locked}
       onSend={onSend}

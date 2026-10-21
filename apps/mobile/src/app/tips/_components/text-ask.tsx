@@ -5,44 +5,90 @@ import { View } from 'react-native';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { space } from '@/theme/tokens';
 
+import type { Tip } from '@local-events/contracts';
+
+import { Choice } from './choice';
 import { Composer } from './composer';
+import { replyMatches } from './tip-answers';
 
 export function TextAsk({
+  prefix,
   icon,
+  options,
+  seed,
   answer,
   locked,
   onSend,
   onEdit,
 }: {
+  prefix?: 'title' | 'place' | 'description';
   icon?: 'place';
+  options: Tip['messages'][number]['options'];
+  seed: string | null;
   answer: string | null;
   locked: boolean;
   onSend: (body: string) => void;
   onEdit: () => void;
 }) {
   const { t } = useTranslation();
-  const [value, setValue] = useState(answer ?? '');
+  const parsed = answer?.match(/^(?:title|place|description):\s*(.+)$/i)?.[1] ?? null;
+  const confirming = options.some((option) => option.reply?.startsWith('confirm:'));
+  const [openInput, setOpenInput] = useState(parsed != null);
+  const [value, setValue] = useState(parsed ?? '');
 
   useEffect(() => {
-    if (answer != null) setValue(answer);
-  }, [answer]);
+    if (parsed == null) return;
+    setValue(parsed);
+    setOpenInput(true);
+  }, [parsed]);
+
+  function send(text: string) {
+    const next = text.trim().replace(/\s+/g, ' ');
+    if (!next) return;
+    onSend(prefix ? `${prefix}: ${next}` : next);
+  }
 
   return (
     <View style={{ gap: space.sm, marginTop: space.sm }}>
-      <Composer
-        value={value}
-        placeholder={t('tips.writePlaceholder')}
-        editable={!locked}
-        icon={icon}
-        onChange={setValue}
-        onFocus={onEdit}
-      />
-      <PrimaryButton
-        label={t('tips.send')}
-        arrow
-        disabled={locked || value.trim().length === 0}
-        onPress={() => onSend(value)}
-      />
+      {confirming ? (
+        <View style={{ flexDirection: 'row', gap: space.sm }}>
+          {options.map((option, index) => (
+            <Choice
+              key={`${option.label}-${index}`}
+              label={option.label}
+              selected={option.reply ? replyMatches(option.reply, answer) : openInput}
+              disabled={locked}
+              onPress={() => {
+                if (option.reply) {
+                  onSend(option.reply);
+                  return;
+                }
+                setOpenInput(true);
+                if (!value && seed) setValue(seed);
+                onEdit();
+              }}
+            />
+          ))}
+        </View>
+      ) : null}
+      {!confirming || openInput ? (
+        <>
+          <Composer
+            value={value}
+            placeholder={t('tips.writePlaceholder')}
+            editable={!locked}
+            icon={icon}
+            onChange={setValue}
+            onFocus={onEdit}
+          />
+          <PrimaryButton
+            label={t('tips.send')}
+            arrow
+            disabled={locked || value.trim().length === 0}
+            onPress={() => send(value)}
+          />
+        </>
+      ) : null}
     </View>
   );
 }

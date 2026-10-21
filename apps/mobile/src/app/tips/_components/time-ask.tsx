@@ -30,7 +30,10 @@ export function TimeAsk({
 }) {
   const { t } = useTranslation();
   const [time, setTime] = useState(() => nearestTipClock(parseClock(answer) || seedClock));
+  const confirming = options.some((option) => option.reply?.startsWith('confirm:'));
+  const [openInput, setOpenInput] = useState(parseClock(answer).length > 0);
   const lone = options.length === 1 ? options[0] : null;
+  const showField = !confirming || openInput;
 
   useEffect(() => {
     if (answer && parseClock(answer)) setTime(nearestTipClock(parseClock(answer)));
@@ -44,37 +47,54 @@ export function TimeAsk({
             <Choice
               key={`${option.label}-${index}`}
               label={option.label}
-              selected={option.reply ? replyMatches(option.reply, answer) : false}
+              selected={option.reply ? replyMatches(option.reply, answer) : openInput}
               disabled={locked}
               onPress={() => {
-                if (option.reply) onSend(option.reply);
+                if (option.reply) {
+                  onSend(option.reply);
+                  return;
+                }
+                setOpenInput(true);
+                onEdit();
               }}
             />
           ))}
         </View>
       ) : null}
-      <TipTimePicker
-        value={time}
-        disabled={locked}
-        hourLabel={t('tips.hour')}
-        minuteLabel={t('tips.minute')}
-        option={
-          lone
-            ? {
-                label: lone.label,
-                selected: lone.reply ? replyMatches(lone.reply, answer) : false,
-                onPress: () => {
-                  if (lone.reply) onSend(lone.reply);
-                },
-              }
-            : null
-        }
-        onChange={(clock) => {
-          setTime(clock);
-          onEdit();
-        }}
-      />
-      {!locked ? (
+      {showField ? (
+        <TipTimePicker
+          value={time}
+          disabled={locked}
+          hourLabel={t('tips.hour')}
+          minuteLabel={t('tips.minute')}
+          option={
+            lone
+              ? {
+                  label: lone.label,
+                  selected: lone.reply ? replyMatches(lone.reply, answer) : false,
+                  onPress: () => {
+                    if (lone.reply) onSend(lone.reply);
+                    else {
+                      setOpenInput(true);
+                      onEdit();
+                    }
+                  },
+                }
+              : confirming
+                ? {
+                    label: t('tips.unknown'),
+                    selected: replyMatches(`${prefix}: none`, answer),
+                    onPress: () => onSend(`${prefix}: none`),
+                  }
+                : null
+          }
+          onChange={(clock) => {
+            setTime(clock);
+            onEdit();
+          }}
+        />
+      ) : null}
+      {showField && !locked ? (
         <PrimaryButton
           label={t('tips.send')}
           arrow

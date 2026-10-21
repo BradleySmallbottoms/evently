@@ -120,6 +120,7 @@ export function createTipServices(
       missing: tipDetailProgress(extracted).missing,
       locale: tip.locale,
       image: imageState(extracted, rows),
+      extraction: extracted,
     });
     if (question) await repo.addMessage(tip.id, 'assistant', tipAskBody(question), at);
   }

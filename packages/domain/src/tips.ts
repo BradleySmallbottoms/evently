@@ -59,6 +59,8 @@ export interface TipExtraction {
   endDeclined?: boolean | null;
   /** The person said there is no picture. */
   imageDeclined?: boolean | null;
+  /** Facts the person accepted, or replaced. The model does not change these. */
+  accepted?: TipDetail[] | null;
 }
 
 export interface TipCard {
@@ -110,6 +112,7 @@ export function emptyTipExtraction(): TipExtraction {
     endTimeDeclined: null,
     endDeclined: null,
     imageDeclined: null,
+    accepted: null,
   };
 }
 
@@ -153,6 +156,7 @@ export function mergeTipExtraction(base: TipExtraction, patch: TipExtraction): T
   }
   rememberClock(next, 'start');
   rememberClock(next, 'end');
+  freezeAccepted(base, next);
   return next;
 }
 
@@ -169,6 +173,66 @@ function rememberClock(next: TipExtraction, which: 'start' | 'end'): void {
   const clock = clockOf(next.endTime);
   const day = calendarDay(next.endsAt);
   if (clock && day && !clockOf(next.endsAt)) next.endsAt = withClock(day, clock);
+}
+
+/** A fact the person already accepted stays as they left it. */
+function freezeAccepted(base: TipExtraction, next: TipExtraction): void {
+  const accepted = new Set(base.accepted ?? []);
+  next.accepted = base.accepted ?? null;
+  if (accepted.has('title')) next.title = base.title ?? null;
+  if (accepted.has('place')) next.place = base.place ?? null;
+  if (accepted.has('description')) next.description = base.description ?? null;
+  if (accepted.has('price')) {
+    next.priceLabel = base.priceLabel ?? null;
+    next.priceAmount = base.priceAmount ?? null;
+  }
+  if (accepted.has('link')) {
+    next.link = base.link ?? null;
+    next.linkDeclined = base.linkDeclined ?? null;
+  }
+  if (accepted.has('startTime')) {
+    next.startTime = base.startTime ?? null;
+    next.startTimeDeclined = base.startTimeDeclined ?? null;
+  }
+  if (accepted.has('startsAt') && accepted.has('startTime')) {
+    next.startsAt = base.startsAt ?? null;
+  } else if (accepted.has('startsAt')) {
+    const day = calendarDay(base.startsAt);
+    const clock = next.startTimeDeclined
+      ? null
+      : (clockOf(next.startTime) ?? clockOf(next.startsAt));
+    next.startsAt = day ? withClock(day, clock) : (base.startsAt ?? null);
+  } else if (accepted.has('startTime')) {
+    const day = calendarDay(next.startsAt);
+    const clock = next.startTimeDeclined ? null : clockOf(base.startTime);
+    if (day) next.startsAt = withClock(day, clock);
+  }
+  if (accepted.has('endTime')) {
+    next.endTime = base.endTime ?? null;
+    next.endTimeDeclined = base.endTimeDeclined ?? null;
+  }
+  if (accepted.has('endsAt')) next.endDeclined = base.endDeclined ?? null;
+  if (accepted.has('endsAt') && base.endDeclined) {
+    next.endsAt = null;
+    next.endTime = null;
+    next.endTimeDeclined = true;
+  } else if (accepted.has('endsAt') && (accepted.has('endTime') || base.endTimeDeclined)) {
+    next.endsAt = base.endsAt ?? null;
+  } else if (accepted.has('endsAt')) {
+    const day = calendarDay(base.endsAt);
+    const clock = next.endTimeDeclined ? null : (clockOf(next.endTime) ?? clockOf(next.endsAt));
+    next.endsAt = day ? withClock(day, clock) : (base.endsAt ?? null);
+  } else if (accepted.has('endTime')) {
+    const day = calendarDay(next.endsAt);
+    const clock = next.endTimeDeclined ? null : clockOf(base.endTime);
+    if (day) next.endsAt = withClock(day, clock);
+  }
+}
+
+function accept(next: TipExtraction, ...details: TipDetail[]): void {
+  const current = new Set(next.accepted ?? []);
+  for (const detail of details) current.add(detail);
+  next.accepted = [...current];
 }
 
 /** Facts the chat must collect before the confirm card. */
@@ -339,6 +403,8 @@ export function tipAskOptions(key: TipAskKey, raw: unknown): TipAskOption[] {
 function tipAskReply(key: TipAskKey, raw: string | null): string | null {
   const line = raw?.trim() ?? '';
   if (!line) return null;
+  const detail = detailForAsk(key);
+  if (detail && new RegExp(`^confirm:\\s*${detail}$`, 'i').test(line)) return `confirm: ${detail}`;
   if (key === 'link') {
     if (/^link:\s*none$/i.test(line)) return 'link: none';
     const rest = line.match(/^link:\s*(\S+)$/i)?.[1];
@@ -488,24 +554,47 @@ export function applyTipAnswers(
   base: TipExtraction,
   transcript: string | null | undefined,
 ): TipExtraction {
-  const next: TipExtraction = { ...base };
+  const next: TipExtraction = { ...base, accepted: base.accepted ? [...base.accepted] : null };
   for (const raw of (transcript ?? '').split('\n')) {
     const line = raw.trim();
+    const confirmed = line.match(
+      /^confirm:\s*(title|startsAt|startTime|endsAt|endTime|place|price|link|description)$/i,
+    );
+    const confirmedDetail = TIP_DETAILS.find(
+      (detail) => detail.toLowerCase() === confirmed?.[1]?.toLowerCase(),
+    );
+    if (confirmedDetail) {
+      accept(next, confirmedDetail);
+      continue;
+    }
+    const titled = line.match(/^(title|place|description):\s*(.+)$/i);
+    if (titled?.[1] && titled[2]?.trim()) {
+      const kind = titled[1].toLowerCase() as 'title' | 'place' | 'description';
+      const text = titled[2].trim().replace(/\s+/g, ' ');
+      if (kind === 'title' && text.length >= 2) next.title = text.slice(0, 200);
+      if (kind === 'place') next.place = text.slice(0, 200);
+      if (kind === 'description') next.description = text.slice(0, 500);
+      if (kind !== 'title' || text.length >= 2) accept(next, kind);
+      continue;
+    }
     const url = line.match(/^link:\s*(\S+)$/i);
     if (/^link:\s*none$/i.test(line)) {
       next.link = null;
       next.linkDeclined = true;
+      accept(next, 'link');
       continue;
     }
     const bare = url?.[1] ? bareTipLink(url[1]) : null;
     if (bare) {
       next.link = bare;
       next.linkDeclined = false;
+      accept(next, 'link');
       continue;
     }
     if (/^price:\s*free$/i.test(line)) {
       next.priceAmount = 0;
       next.priceLabel = 'Gratis';
+      accept(next, 'price');
       continue;
     }
     const price = line.match(/^price:\s*(\d{1,6}(?:[.,]\d{1,2})?)$/i);
@@ -513,6 +602,7 @@ export function applyTipAnswers(
     if (price?.[1] && minor != null) {
       next.priceAmount = minor;
       next.priceLabel = `${price[1].replace('.', ',')} kr`;
+      accept(next, 'price');
       continue;
     }
     if (/^image:\s*none$/i.test(line)) {
@@ -524,6 +614,7 @@ export function applyTipAnswers(
       next.endTime = null;
       next.endDeclined = true;
       next.endTimeDeclined = true;
+      accept(next, 'endsAt', 'endTime');
       continue;
     }
     if (/^startTime:\s*none$/i.test(line)) {
@@ -531,6 +622,7 @@ export function applyTipAnswers(
       next.startTimeDeclined = true;
       const day = calendarDay(next.startsAt);
       if (day) next.startsAt = day;
+      accept(next, 'startTime');
       continue;
     }
     if (/^endTime:\s*none$/i.test(line)) {
@@ -538,6 +630,7 @@ export function applyTipAnswers(
       next.endTimeDeclined = true;
       const day = calendarDay(next.endsAt);
       if (day) next.endsAt = day;
+      accept(next, 'endTime');
       continue;
     }
     const startClock = line.match(/^startTime:\s*(.+)$/i);
@@ -547,6 +640,7 @@ export function applyTipAnswers(
       next.startTimeDeclined = false;
       const day = calendarDay(next.startsAt);
       if (day) next.startsAt = withClock(day, clock);
+      accept(next, 'startTime');
       continue;
     }
     const endClock = line.match(/^endTime:\s*(.+)$/i);
@@ -557,6 +651,7 @@ export function applyTipAnswers(
       next.endDeclined = false;
       const day = calendarDay(next.endsAt);
       if (day) next.endsAt = withClock(day, clock);
+      accept(next, 'endTime');
       continue;
     }
     const end = line.match(/^(?:end|endDate):\s*(.+)$/i);
@@ -572,7 +667,9 @@ export function applyTipAnswers(
         if (clock) {
           next.endTime = clock;
           next.endTimeDeclined = false;
+          accept(next, 'endTime');
         }
+        accept(next, 'endsAt');
         continue;
       }
     }
@@ -583,6 +680,7 @@ export function applyTipAnswers(
         : (clockOf(next.startTime) ?? clockOf(next.startsAt));
       next.startsAt = withClock(date[1], clock);
       if (clock) next.startTime = clock;
+      accept(next, 'startsAt');
     }
   }
   return next;
@@ -664,15 +762,128 @@ function withUnknownOption(
   return options;
 }
 
-/** The next bot line. Facts come first. A picture is the last step. */
+const CONFIRM_YES: Record<TipLocale, string> = { sv: 'Ja', en: 'Yes' };
+const CONFIRM_NO: Record<TipLocale, string> = { sv: 'Nej', en: 'No' };
+
+/** The next found fact the person has not accepted yet. */
+export function tipPendingConfirm(extraction: TipExtraction): TipDetail | null {
+  const accepted = new Set(extraction.accepted ?? []);
+  for (const detail of TIP_DETAILS) {
+    if (accepted.has(detail)) continue;
+    if (confirmValue(detail, extraction)) return detail;
+  }
+  return null;
+}
+
+function confirmValue(detail: TipDetail, extraction: TipExtraction): string | null {
+  if (detail === 'title') return hasUsableTitle(extraction) ? clean(extraction.title) : null;
+  if (detail === 'startsAt') return calendarDay(extraction.startsAt);
+  if (detail === 'startTime') {
+    if (extraction.startTimeDeclined) return null;
+    return displayClock(extraction.startTime, extraction.startsAt);
+  }
+  if (detail === 'endsAt') {
+    if (extraction.endDeclined) return null;
+    return calendarDay(extraction.endsAt);
+  }
+  if (detail === 'endTime') {
+    if (extraction.endDeclined || extraction.endTimeDeclined) return null;
+    return displayClock(extraction.endTime, extraction.endsAt);
+  }
+  if (detail === 'place') return clean(extraction.place);
+  if (detail === 'price') {
+    if (extraction.priceAmount === 0) return clean(extraction.priceLabel) ?? 'Gratis';
+    return clean(extraction.priceLabel);
+  }
+  if (detail === 'link') {
+    if (extraction.linkDeclined) return null;
+    return bareTipLink(extraction.link);
+  }
+  const description = clean(extraction.description);
+  if (!description) return null;
+  return description.length > 160 ? `${description.slice(0, 157)}...` : description;
+}
+
+function longDay(day: string, locale: TipLocale): string {
+  const [year, month, date] = day.split('-').map(Number);
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(year!, month! - 1, date));
+}
+
+function displayClock(
+  explicit: string | null | undefined,
+  instant: string | null | undefined,
+): string | null {
+  const named = clockOf(explicit);
+  if (named) return named;
+  const zone = clean(instant);
+  if (zone && /T/.test(zone) && /(?:Z|[+-]\d{2}:\d{2})$/i.test(zone)) {
+    const date = new Date(zone);
+    if (!Number.isNaN(date.getTime())) {
+      return new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/Stockholm',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).format(date);
+    }
+  }
+  return clockOf(instant);
+}
+
+function confirmQuestion(detail: TipDetail, shown: string, locale: TipLocale): string {
+  if (locale === 'en') {
+    if (detail === 'title') return `We chose the title: ${shown}. Does that work?`;
+    if (detail === 'startsAt') return `Does it start on ${shown}?`;
+    if (detail === 'startTime') return `Does the event start at ${shown}?`;
+    if (detail === 'endsAt') return `Does it end on ${shown}?`;
+    if (detail === 'endTime') return `Does the event end at ${shown}?`;
+    if (detail === 'place') return `Is it at ${shown}?`;
+    if (detail === 'price') return `Does it cost ${shown}?`;
+    if (detail === 'link') return `Is the link ${shown}?`;
+    return `Is this description right: ${shown}?`;
+  }
+  if (detail === 'title') return `Vi har valt titeln: ${shown}. Blir det bra?`;
+  if (detail === 'startsAt') return `Stämmer det att det börjar ${shown}?`;
+  if (detail === 'startTime') return `Stämmer det att evenemanget börjar ${shown}?`;
+  if (detail === 'endsAt') return `Stämmer det att det slutar ${shown}?`;
+  if (detail === 'endTime') return `Stämmer det att evenemanget slutar ${shown}?`;
+  if (detail === 'place') return `Stämmer det att det är på ${shown}?`;
+  if (detail === 'price') return `Stämmer det att det kostar ${shown}?`;
+  if (detail === 'link') return `Stämmer det att länken är ${shown}?`;
+  return `Stämmer den här beskrivningen: ${shown}?`;
+}
+
+function confirmAsk(detail: TipDetail, extraction: TipExtraction, locale: TipLocale): TipFollowUp {
+  const value = confirmValue(detail, extraction) ?? '';
+  const shown = detail === 'startsAt' || detail === 'endsAt' ? longDay(value, locale) : value;
+  return {
+    key: DETAIL_KEY[detail],
+    question: confirmQuestion(detail, shown, locale).slice(0, 240),
+    options: [
+      { label: CONFIRM_YES[locale], reply: `confirm: ${detail}` },
+      { label: CONFIRM_NO[locale], reply: null },
+    ],
+  };
+}
+
+/** The next bot line. Found values are confirmed before a missing fact is asked. */
 export function tipFollowUpQuestion(input: {
   questions: TipFollowUp[];
   missing: TipDetail[];
   locale: TipLocale;
   image?: TipImageState;
+  extraction?: TipExtraction;
 }): TipFollowUp | null {
   const image = input.image ?? 'ready';
   if (image === 'scanning') return null;
+  if (input.extraction) {
+    const pending = tipPendingConfirm(input.extraction);
+    if (pending) return confirmAsk(pending, input.extraction, input.locale);
+  }
   if (input.missing.length > 0) {
     const detail = input.missing[0]!;
     const asked = input.questions.find(
