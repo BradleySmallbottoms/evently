@@ -615,7 +615,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
       fetch: fetchImpl,
       config: {
         chatUrl: 'https://pod.example/v1/chat/completions',
-        chatModel: 'Qwen/Qwen3-32B-AWQ',
+        chatModel: 'Qwen/Qwen3.5-27B-GPTQ-Int4',
         chatAuth: 'test-key',
       },
     });

@@ -45,23 +45,24 @@ describe('runpodChatConfigFromEnv', () => {
     });
   });
 
-  it('serves Qwen3 on four A40s unless the model or the concurrency is set', () => {
+  it('serves Qwen3.5 on four A40s unless the model or the concurrency is set', () => {
     const resolved = runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck' });
     expect(resolved).toMatchObject({
-      model: 'Qwen/Qwen3-32B-AWQ',
-      concurrency: 50,
+      model: 'Qwen/Qwen3.5-27B-GPTQ-Int4',
+      image: 'vllm/vllm-openai:v0.17.0',
+      concurrency: 25,
       gpuId: 'NVIDIA A40',
       gpuCount: 4,
     });
   });
 
-  it('uses one A40 for a small batch and two up to 30', () => {
+  it('uses one A40 for a small batch and two up to 24', () => {
     expect(
       runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck', SCAN_CONCURRENCY: '3' }),
     ).toMatchObject({ concurrency: 3, gpuCount: 1 });
     expect(
-      runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck', SCAN_CONCURRENCY: '20' }),
-    ).toMatchObject({ concurrency: 20, gpuCount: 2 });
+      runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck', SCAN_CONCURRENCY: '24' }),
+    ).toMatchObject({ concurrency: 24, gpuCount: 2 });
   });
 
   it('keeps a custom GPU as one card', () => {
@@ -70,15 +71,15 @@ describe('runpodChatConfigFromEnv', () => {
         RUNPOD_API_KEY: 'rp',
         RUNPOD_CHAT_KEY: 'ck',
         RUNPOD_GPU: 'NVIDIA H100 80GB HBM3',
-        SCAN_CONCURRENCY: '50',
+        SCAN_CONCURRENCY: '25',
       }),
-    ).toMatchObject({ gpuId: 'NVIDIA H100 80GB HBM3', gpuCount: 1, concurrency: 50 });
+    ).toMatchObject({ gpuId: 'NVIDIA H100 80GB HBM3', gpuCount: 1, concurrency: 25 });
   });
 
-  it('rejects concurrency above 50', () => {
+  it('rejects concurrency above the cap', () => {
     expect(
-      runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck', SCAN_CONCURRENCY: '51' }),
-    ).toEqual({ error: 'SCAN_CONCURRENCY must be a whole number from 1 to 50' });
+      runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck', SCAN_CONCURRENCY: '26' }),
+    ).toEqual({ error: 'SCAN_CONCURRENCY must be a whole number from 1 to 25' });
   });
 });
 
@@ -383,6 +384,9 @@ describe('createRunpodChat', () => {
     expect(created.args).toContain('--max-num-seqs');
     expect(created.args).toContain('--tensor-parallel-size');
     expect(created.args).toContain('--disable-custom-all-reduce');
+    expect(created.args).toContain('qwen3_coder');
+    expect(created.args).toContain('--language-model-only');
+    expect(created.args).toContain('--reasoning-parser');
     expect(created.args).toContain('4');
     expect(created.env?.SCAN_ALLREDUCE).toBe('shm');
     expect(created.env?.NCCL_P2P_DISABLE).toBe('1');
