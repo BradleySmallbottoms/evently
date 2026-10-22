@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createAnthropicTipModel,
   readExtraction,
+  readReview,
   tipTodayLine,
 } from '../../../apps/api/src/services/tips/anthropic';
 
@@ -51,5 +52,25 @@ describe('tip model date', () => {
     );
     expect(read.extraction.startTime).toBe('19:00');
     expect(read.extraction.endTime).toBe('21:00');
+  });
+
+  it('reads a warning when the text is not an event', () => {
+    const read = readExtraction('{"warning":"Berätta om ett evenemang.","title":null}');
+    expect(read.warning).toBe('Berätta om ett evenemang.');
+    expect(read.extraction.title).toBeNull();
+  });
+
+  it('keeps a typed answer when the review cannot be reached', async () => {
+    const model = createAnthropicTipModel({ ANTHROPIC_API_KEY: 'test' }, async () => {
+      return new Response('no', { status: 500 });
+    });
+    await expect(
+      model.review({ locale: 'sv', key: 'title', question: 'Vad heter det?', text: 'Jazzkväll' }),
+    ).resolves.toEqual({ ok: true, warning: null });
+    expect(readReview('{"ok":false,"warning":"Skriv ett namn."}')).toEqual({
+      ok: false,
+      warning: 'Skriv ett namn.',
+    });
+    expect(readReview('not json')).toEqual({ ok: true, warning: null });
   });
 });

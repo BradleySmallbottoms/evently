@@ -13416,6 +13416,11 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "warning": {
+                      "type": "string",
+                      "nullable": true,
+                      "maxLength": 240
                     }
                   },
                   "required": [
@@ -13435,7 +13440,8 @@
                     "progress",
                     "messages",
                     "question",
-                    "createdAt"
+                    "createdAt",
+                    "warning"
                   ]
                 }
               }
@@ -13784,6 +13790,11 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "warning": {
+                            "type": "string",
+                            "nullable": true,
+                            "maxLength": 240
                           }
                         },
                         "required": [
@@ -13803,7 +13814,8 @@
                           "progress",
                           "messages",
                           "question",
-                          "createdAt"
+                          "createdAt",
+                          "warning"
                         ]
                       }
                     }
@@ -14164,6 +14176,11 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "warning": {
+                      "type": "string",
+                      "nullable": true,
+                      "maxLength": 240
                     }
                   },
                   "required": [
@@ -14183,7 +14200,8 @@
                     "progress",
                     "messages",
                     "question",
-                    "createdAt"
+                    "createdAt",
+                    "warning"
                   ]
                 }
               }
@@ -14582,6 +14600,11 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "warning": {
+                      "type": "string",
+                      "nullable": true,
+                      "maxLength": 240
                     }
                   },
                   "required": [
@@ -14601,7 +14624,8 @@
                     "progress",
                     "messages",
                     "question",
-                    "createdAt"
+                    "createdAt",
+                    "warning"
                   ]
                 }
               }
@@ -15054,6 +15078,11 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "warning": {
+                      "type": "string",
+                      "nullable": true,
+                      "maxLength": 240
                     }
                   },
                   "required": [
@@ -15073,7 +15102,8 @@
                     "progress",
                     "messages",
                     "question",
-                    "createdAt"
+                    "createdAt",
+                    "warning"
                   ]
                 }
               }
@@ -15575,6 +15605,11 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "warning": {
+                      "type": "string",
+                      "nullable": true,
+                      "maxLength": 240
                     }
                   },
                   "required": [
@@ -15594,7 +15629,8 @@
                     "progress",
                     "messages",
                     "question",
-                    "createdAt"
+                    "createdAt",
+                    "warning"
                   ]
                 }
               }

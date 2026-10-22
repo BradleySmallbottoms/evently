@@ -1,7 +1,16 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import type { Tip } from '@local-events/contracts';
 
 import { AppText } from '@/components/ui/app-text';
@@ -9,6 +18,7 @@ import { foundTipClock, foundTipDay } from '@/lib/tip-clock';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 
 type AskKey = NonNullable<Tip['messages'][number]['key']>;
 
@@ -50,6 +60,7 @@ export function CollectedCard({
 }) {
   const { t } = useTranslation();
   const when = formatWhen(startsAt, locale);
+  const firstLoad = !title?.trim() && !when && !place?.trim() && !priceLabel?.trim();
   return (
     <View style={{ position: 'relative' }}>
       <View
@@ -62,6 +73,19 @@ export function CollectedCard({
           zIndex: 1,
         }}
       >
+        <Pressable
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}
+          onPress={() => router.back()}
+        >
+          {process.env.EXPO_OS === 'ios' ? (
+            <SymbolView name={'chevron.left' as never} size={16} tintColor={colors.ink} />
+          ) : (
+            <MaterialIcons name="chevron-left" size={20} color={colors.ink} />
+          )}
+          <AppText style={{ color: colors.ink, fontWeight: '600', fontSize: 14 }}>
+            {t('events.back')}
+          </AppText>
+        </Pressable>
         <View style={{ flexDirection: 'row', gap: space.md }}>
           <View
             style={{
@@ -80,6 +104,8 @@ export function CollectedCard({
                 style={{ width: '100%', height: '100%' }}
                 contentFit="cover"
               />
+            ) : firstLoad ? (
+              <SkeletonBlock width={72} height={72} radius={16} />
             ) : (
               <MaterialIcons name="image" size={22} color={colors.inkMuted} />
             )}
@@ -104,7 +130,7 @@ export function CollectedCard({
                   style={{ width: 14, height: 14 }}
                 />
               ) : null}
-              {/* <View
+              <View
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -121,18 +147,25 @@ export function CollectedCard({
                 <AppText variant="caption" style={{ color: colors.ink, fontSize: 11 }}>
                   {t('tips.edit')}
                 </AppText>
-              </View> */}
+              </View>
             </View>
-            <AppText
-              numberOfLines={2}
-              style={{ fontSize: 17, lineHeight: 22, fontWeight: '700', color: colors.ink }}
-            >
-              {title?.trim() || '—'}
-            </AppText>
-            {/* <FactChip icon="calendar-today" label={when ?? '—'} /> */}
-            <AppText variant="caption" style={{ color: colors.inkMuted, fontSize: 11 }}>
-              {when ?? '—'}
-            </AppText>
+            {firstLoad ? (
+              <SkeletonBlock width="78%" height={18} />
+            ) : (
+              <AppText
+                numberOfLines={2}
+                style={{ fontSize: 17, lineHeight: 22, fontWeight: '700', color: colors.ink }}
+              >
+                {title?.trim() || '—'}
+              </AppText>
+            )}
+            {firstLoad ? (
+              <SkeletonBlock width="46%" height={12} />
+            ) : (
+              <AppText variant="caption" style={{ color: colors.inkMuted, fontSize: 11 }}>
+                {when ?? '—'}
+              </AppText>
+            )}
           </View>
         </View>
         <View
@@ -143,8 +176,16 @@ export function CollectedCard({
             gap: space.sm,
           }}
         >
-          <FactChip icon="place" label={place?.trim() || '—'} />
-          <FactChip icon="confirmation-number" label={priceLabel?.trim() || '—'} />
+          {firstLoad ? (
+            <SkeletonBlock width="48%" height={26} radius={radius.xs} />
+          ) : (
+            <FactChip icon="place" label={place?.trim() || '—'} />
+          )}
+          {firstLoad ? (
+            <SkeletonBlock width="48%" height={26} radius={radius.xs} />
+          ) : (
+            <FactChip icon="confirmation-number" label={priceLabel?.trim() || '—'} />
+          )}
         </View>
         <CardProgress askKey={askKey} done={done} total={total} />
       </View>
@@ -154,6 +195,37 @@ export function CollectedCard({
         </View>
       </View> */}
     </View>
+  );
+}
+
+function SkeletonBlock({
+  width,
+  height,
+  radius: corner = radius.pill,
+}: {
+  width: number | `${number}%`;
+  height: number;
+  radius?: number;
+}) {
+  const reduced = useReducedMotion();
+  const opacity = useSharedValue(0.45);
+  useEffect(() => {
+    if (reduced) {
+      opacity.value = 1;
+      return;
+    }
+    opacity.value = withRepeat(
+      withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
+    );
+  }, [opacity, reduced]);
+  const pulse = useAnimatedStyle(() => ({ opacity: reduced ? 1 : opacity.value }));
+  return (
+    <Animated.View
+      accessibilityElementsHidden
+      style={[{ width, height, borderRadius: corner, backgroundColor: colors.line }, pulse]}
+    />
   );
 }
 

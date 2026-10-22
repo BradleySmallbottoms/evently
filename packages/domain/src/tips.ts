@@ -563,6 +563,23 @@ const LOCAL_REPLY = [
   /^(?:date|startDate|end|endDate):\s*\d{4}-\d{2}-\d{2}(?:[ T](?:[01]\d|2[0-3]):[0-5]\d)?$/i,
 ];
 
+/** A title, place, or description the person typed. Null for a button reply. */
+export function tipTypedFact(
+  text: string,
+): { key: 'title' | 'place' | 'description'; value: string } | null {
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  const match =
+    lines.length === 1 ? lines[0]?.match(/^(title|place|description):\s*(\S.*)$/i) : null;
+  if (!match?.[1] || !match[2]) return null;
+  const key = match[1].toLowerCase() as 'title' | 'place' | 'description';
+  const value = match[2].trim().replace(/\s+/g, ' ');
+  if (key === 'title' && value.length < 2) return null;
+  return { key, value: value.slice(0, key === 'description' ? 500 : 200) };
+}
+
 /** A chat reply the app can apply without reading it again. */
 export function tipLocalReply(text: string): boolean {
   const lines = text

@@ -33,10 +33,12 @@ export function TipSummary({
   tip,
   photo,
   onDone,
+  onRevise,
 }: {
   tip: Tip;
   photo?: string;
   onDone: (tip: Tip) => void;
+  onRevise: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
@@ -44,7 +46,7 @@ export function TipSummary({
   const reduced = useReducedMotion();
   const alreadySent = useRef(tip.phase !== 'confirm').current;
   const [sending, setSending] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const editing = false;
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<TipCard>(tip.card ?? emptyCard());
   const [description, setDescription] = useState(tip.found?.description ?? tip.card?.summary ?? '');
@@ -283,7 +285,7 @@ export function TipSummary({
               label={t('tips.change')}
               color={colors.card}
               labelColor={colors.ink}
-              onPress={() => setEditing(true)}
+              onPress={onRevise}
               style={{ borderWidth: 1, borderColor: colors.line }}
             />
           </View>

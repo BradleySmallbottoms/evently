@@ -6,12 +6,13 @@ import type { TipModel } from '../../../apps/api/src/services/tips/anthropic';
 import type { Tip } from '../../../packages/contracts/src/tips';
 
 let extracts = 0;
+let reviews = 0;
 
 const model: TipModel = {
   async extract(input) {
     extracts += 1;
     if (input.image && input.image.bytes.byteLength < 20) {
-      return { extraction: {}, followUpQuestions: [] };
+      return { extraction: {}, followUpQuestions: [], warning: null };
     }
     const extraction = {
       title: 'Sommarkonsert',
@@ -22,7 +23,14 @@ const model: TipModel = {
       description: 'En kväll med The River Band.',
       tags: [...(input.tags ?? []).map((tag) => tag.name), 'Nope'],
     };
-    return { extraction, followUpQuestions: [] };
+    return { extraction, followUpQuestions: [], warning: null };
+  },
+  async review(input) {
+    reviews += 1;
+    if (input.text.trim().toLowerCase() === 'asdf') {
+      return { ok: false, warning: 'Skriv vad evenemanget heter.' };
+    }
+    return { ok: true, warning: null };
   },
 };
 
@@ -100,6 +108,7 @@ describe('event tips', () => {
       );
     }
     expect(extracts).toBe(readsBeforeAccept);
+    expect(reviews).toBe(0);
     expect(currentTip.question?.key).toBe('endDate');
     expect(currentTip.question?.options).toEqual([
       { label: 'Jag vet inte', reply: 'endDate: none' },
@@ -234,6 +243,141 @@ describe('event tips', () => {
     expect(current.phase).toBe('collecting');
     expect(current.question?.key).toBe('title');
     expect(current.question?.options?.[0]?.reply).toBe('confirm: title');
+  });
+
+  it('warns on a typed title and still saves a real place', async () => {
+    const api = app();
+    const headers = { ...(await session(api)), 'content-type': 'application/json' };
+    const created = await json<Tip>(
+      await api.request('/v1/me/tips', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ path: 'text' }),
+      }),
+    );
+    const before = extracts;
+    const reviewsBefore = reviews;
+    await api.request(`/v1/me/tips/${created.id}/text`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ text: 'Sommarkonsert i Stadsparken den 24 augusti. Gratis.' }),
+    });
+
+    const refused = await json<Tip>(
+      await api.request(`/v1/me/tips/${created.id}/text`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text: 'title: asdf' }),
+      }),
+    );
+    expect(refused.warning).toBe('Skriv vad evenemanget heter.');
+    expect(refused.card?.title).toBe('Sommarkonsert');
+    expect(refused.question?.key).toBe('title');
+    expect(refused.messages).toHaveLength(2);
+    expect(extracts).toBe(before + 1);
+    expect(reviews).toBe(reviewsBefore + 1);
+    const reread = await json<Tip>(await api.request(`/v1/me/tips/${created.id}`, { headers }));
+    expect(reread.warning).toBeNull();
+
+    const kept = await json<Tip>(
+      await api.request(`/v1/me/tips/${created.id}/text`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text: 'place: Torget' }),
+      }),
+    );
+    expect(kept.warning).toBeNull();
+    expect(kept.card?.place).toBe('Torget');
+    expect(reviews).toBe(reviewsBefore + 2);
+    expect(extracts).toBe(before + 1);
+
+    await api.request(`/v1/me/tips/${created.id}/text`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ text: 'confirm: title' }),
+    });
+    expect(reviews).toBe(reviewsBefore + 2);
+    expect(extracts).toBe(before + 1);
+  });
+
+  it('saves a title when the review cannot be reached', async () => {
+    const api = createApp({
+      tipModel: {
+        async extract() {
+          return {
+            extraction: {
+              title: 'Sommarkonsert',
+              startsAt: '2026-08-24T17:00:00.000Z',
+              place: 'Stadsparken',
+            },
+            followUpQuestions: [],
+            warning: null,
+          };
+        },
+        async review() {
+          throw new Error('down');
+        },
+      },
+      tipTags: async () => [],
+    });
+    const headers = { ...(await session(api)), 'content-type': 'application/json' };
+    const created = await json<Tip>(
+      await api.request('/v1/me/tips', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ path: 'text' }),
+      }),
+    );
+    await api.request(`/v1/me/tips/${created.id}/text`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ text: 'Sommarkonsert i parken' }),
+    });
+    const saved = await json<Tip>(
+      await api.request(`/v1/me/tips/${created.id}/text`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text: 'title: Jazzkväll' }),
+      }),
+    );
+    expect(saved.warning).toBeNull();
+    expect(saved.card?.title).toBe('Jazzkväll');
+  });
+
+  it('stays on the composer when the first text is not an event', async () => {
+    const api = createApp({
+      tipModel: {
+        async extract() {
+          return {
+            extraction: {},
+            followUpQuestions: [],
+            warning: 'Berätta om ett evenemang.',
+          };
+        },
+        async review() {
+          return { ok: true, warning: null };
+        },
+      },
+      tipTags: async () => [],
+    });
+    const headers = { ...(await session(api)), 'content-type': 'application/json' };
+    const created = await json<Tip>(
+      await api.request('/v1/me/tips', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ path: 'text' }),
+      }),
+    );
+    const refused = await json<Tip>(
+      await api.request(`/v1/me/tips/${created.id}/text`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text: 'asdfasdf' }),
+      }),
+    );
+    expect(refused.warning).toBe('Berätta om ett evenemang.');
+    expect(refused.messages).toHaveLength(0);
+    expect(refused.card).toBeNull();
   });
 
   it('does not record an image when the asset bucket is missing', async () => {

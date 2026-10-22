@@ -54,11 +54,15 @@ sequenceDiagram
   time, with yes and no. Yes keeps it. No opens the control for that fact, already filled in.
   A value the person accepts or replaces is not asked again. Replies stay on the tip. The model is
   not called again until every required fact is filled, and then the transcript is read once so the
-  summary can be written. A clock the tip already states fills
+  summary can be written. A title, place, or description the person types is checked when they
+  continue. Text that is not an event stays unsent, and the chat shows a warning. The first message
+  is refused the same way. Yes, a picked date, and a picked time are not checked that way. A clock the tip already states fills
   that time. A date with no clock still asks for the time. The date steps use the calendar. The time steps use a
   wheel, and the person can answer that they do not know. The chat does not ask for a tag or a
   category. The model receives the tag catalog and returns the names that fit. The confirm screen
-  shows those tags under the summary. A picture is the last step. A picture chosen on the first
+  shows those tags under the summary. The chat says it is verifying, then opens that screen.
+  Change returns to the chat, asks which fact to replace, and opens that control. Sending the new
+  value returns to the summary. A picture is the last step. A picture chosen on the first
   screen is stored in the public assets bucket (Garage locally, S3 in production) and is read into
   that same chat: the photo shows with a spinner, and a bubble says the details are being read.
   The model names the missing fact on the first read. Later replies are applied on the tip, and the chat shows that

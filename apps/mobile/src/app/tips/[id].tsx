@@ -31,6 +31,7 @@ export default function TipScreen() {
     queryFn: () => getTip(identity.data!, id!),
     refetchInterval: (query) => (query.state.data?.imageStatus === 'scanning' ? 2000 : false),
   });
+  const [revising, setRevising] = useState(false);
 
   if (!tip.data) {
     return (
@@ -64,11 +65,25 @@ export default function TipScreen() {
     data.phase === 'published' ||
     data.phase === 'failed'
   ) {
+    if (revising && data.phase === 'confirm') {
+      return (
+        <TipChat
+          tip={data}
+          revising
+          initialPhoto={typeof photo === 'string' ? photo : undefined}
+          onDone={(next) => {
+            queryClient.setQueryData(['tip', id], next);
+            setRevising(false);
+          }}
+        />
+      );
+    }
     return (
       <TipSummary
         tip={data}
         photo={typeof photo === 'string' ? photo : undefined}
         onDone={(next) => queryClient.setQueryData(['tip', id], next)}
+        onRevise={() => setRevising(true)}
       />
     );
   }

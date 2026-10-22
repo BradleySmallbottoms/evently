@@ -128,5 +128,6 @@ export function presentTip(
         : null;
     })(),
     createdAt: tip.createdAt.toISOString(),
+    warning: null,
   };
 }

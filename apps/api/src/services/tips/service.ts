@@ -25,6 +25,7 @@ import {
   tipOpenAllowed,
   tipSubmissionAllowed,
   tipTranscript,
+  tipTypedFact,
   visionIsStale,
   type TipExtraction,
   type TipFollowUp,
@@ -236,6 +237,25 @@ export function createTipServices(
       if (tip.status !== 'collecting' && tip.status !== 'needs_input') {
         throw new TipError('invalid_state');
       }
+      const typed = tipTypedFact(text);
+      if (typed) {
+        const current = await show(ownerId, tipId);
+        let verdict: { ok: boolean; warning: string | null } = { ok: true, warning: null };
+        try {
+          verdict = await model.review({
+            locale: tip.locale,
+            key: typed.key,
+            question: current.question?.question ?? '',
+            text: typed.value,
+          });
+        } catch (err) {
+          console.error('tip review failed', err instanceof Error ? err.message : 'error');
+        }
+        if (!verdict.ok && verdict.warning) {
+          const fresh = await show(ownerId, tipId);
+          return { ...fresh, warning: verdict.warning };
+        }
+      }
       const transcript = tipTranscript(tip.sourceText, text);
       const local = tipLocalReply(text);
       let questions: TipFollowUp[] = [];
@@ -243,6 +263,10 @@ export function createTipServices(
       if (!local) {
         const tags = await knownTags();
         const read = await model.extract({ locale: tip.locale, text: transcript, tags });
+        if (!tip.sourceText && read.warning) {
+          const fresh = await show(ownerId, tipId);
+          return { ...fresh, warning: read.warning };
+        }
         questions = read.followUpQuestions;
         extracted = applyTipAnswers(
           mergeTipExtraction(extracted, keepKnownTags(read.extraction, tags)),

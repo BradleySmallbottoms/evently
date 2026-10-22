@@ -21,6 +21,8 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { MaxContentWidth } from '@/constants/theme';
 
 import { AskControl } from './ask-control';
+import { ChangeAsk } from './change-ask';
+import { ContentWarning } from './content-warning';
 import { ChatArrival, ChatScroll } from './chat-arrival';
 import { CollectedCard } from './collected-card';
 import { Composer } from './composer';
@@ -34,14 +36,19 @@ import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 import type { Tip } from '@local-events/contracts';
 import { router } from 'expo-router';
+import { BackPill } from '@/components/ui/back-pill';
+
+const VERIFY_HOLD_MS = 900;
 
 export function TipChat({
   tip,
   initialPhoto,
+  revising = false,
   onDone,
 }: {
   tip: Tip;
   initialPhoto?: string;
+  revising?: boolean;
   onDone: (tip: Tip) => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -56,20 +63,66 @@ export function TipChat({
   const [text, setText] = useState('');
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const verifyingSince = useRef<number | null>(null);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pickedUri, setPickedUri] = useState<string | null>(initialPhoto ?? null);
   const [photoBusy, setPhotoBusy] = useState(false);
+  useEffect(
+    () => () => {
+      if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    },
+    [],
+  );
+
+  function beginVerify() {
+    if (verifyingSince.current == null) verifyingSince.current = Date.now();
+    setVerifying(true);
+  }
+
+  function stopVerify() {
+    verifyingSince.current = null;
+    setVerifying(false);
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+  }
+
+  function handoff(next: Tip) {
+    setPending(null);
+    if (next.warning) {
+      stopVerify();
+      setWarning(next.warning);
+      if (!revising) onDone({ ...next, warning: null });
+      return;
+    }
+    if (next.imageStatus === 'scanning') {
+      beginVerify();
+      onDone(next);
+      return;
+    }
+    const leaving = next.phase === 'confirm' && (revising || tip.phase !== 'confirm');
+    if (!leaving) {
+      stopVerify();
+      setWarning(null);
+      setText('');
+      onDone(next);
+      return;
+    }
+    beginVerify();
+    const elapsed = Date.now() - (verifyingSince.current ?? Date.now());
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    leaveTimer.current = setTimeout(() => onDone(next), Math.max(0, VERIFY_HOLD_MS - elapsed));
+  }
+
   const send = useMutation({
     mutationFn: async (body: string) => {
       const identity = await ensureIdentity(locale);
       return sendTipText(identity, tip.id, body);
     },
-    onSuccess: (next) => {
-      setPending(null);
-      setText('');
-      onDone(next);
-    },
+    onSuccess: (next) => handoff(next),
     onError: (err) => {
       setPending(null);
+      stopVerify();
       console.error('tip text failed', err);
       setError(t('tips.error'));
     },
@@ -78,7 +131,7 @@ export function TipChat({
   const remotePhoto = tipPhotoUri(tip.previewImageUrl);
   const photoUri = pickedUri ?? remotePhoto;
   const hasImage = Boolean(photoUri) || tip.imageStatus !== 'none';
-  const started = tip.messages.length > 0 || pending != null || hasImage;
+  const started = tip.messages.length > 0 || hasImage;
   const scanning = tip.imageStatus === 'scanning';
   const reading = [...tip.messages]
     .reverse()
@@ -127,11 +180,22 @@ export function TipChat({
     return () => cancelAnimationFrame(frame);
   }, [scroll, started]);
 
+  function completesNow(): boolean {
+    if (revising) return true;
+    if (tip.question?.key === 'image') return true;
+    const confirming = tip.question?.options.some((option) => option.reply?.startsWith('confirm:'));
+    return (
+      tip.imageStatus === 'ready' && tip.progress.done === tip.progress.total - 1 && !confirming
+    );
+  }
+
   function sendBody(body: string) {
     const next = body.trim();
-    if (!next || send.isPending) return;
+    if (!next || send.isPending || verifying) return;
     setError(null);
+    setWarning(null);
     setPending(next);
+    if (completesNow()) beginVerify();
     send.mutate(next);
   }
 
@@ -177,7 +241,7 @@ export function TipChat({
           askKey={askKey}
           options={askOptions}
           answer={answer}
-          locked={answer != null}
+          locked={answer != null || verifying}
           locale={locale}
           startsAt={tip.card?.startsAt ?? null}
           endsAt={tip.card?.endsAt ?? null}
@@ -188,14 +252,16 @@ export function TipChat({
           description={tip.found?.description ?? tip.card?.summary ?? null}
           onSend={sendBody}
           onEdit={reveal}
+          warning={current ? warning : null}
+          onDismissWarning={() => setWarning(null)}
         />,
       );
     }
-    if (askKey === 'image' && index === lastAssistant && !scanning && !hasImage) {
+    if (!revising && askKey === 'image' && index === lastAssistant && !scanning && !hasImage) {
       pieces.push(
         <ImageAsk
           key={`${message.createdAt}-image`}
-          locked={send.isPending}
+          locked={send.isPending || verifying}
           onSkip={() => sendBody('image: none')}
           onUpload={async () => {
             try {
@@ -207,9 +273,11 @@ export function TipChat({
               setPickedUri(shot.uri);
               setError(null);
               setPhotoBusy(true);
+              beginVerify();
               const identity = await ensureIdentity(locale);
-              onDone(await sendTipImage(identity, tip.id, shot));
+              handoff(await sendTipImage(identity, tip.id, shot));
             } catch (err) {
+              stopVerify();
               console.error('tip image failed', err);
               setPickedUri(initialPhoto ?? null);
               setError(
@@ -242,7 +310,7 @@ export function TipChat({
         }}
       >
         {/* <BackPill /> */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.sm }}>
+        {/* <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.sm }}>
           <View style={{ minWidth: '15%' }}></View>
           <AppText variant="caption" style={{ fontWeight: '600' }}>
             {t('tips.startTitle')}
@@ -252,7 +320,7 @@ export function TipChat({
               {t('tips.cancel')}
             </AppText>
           </Pressable>
-        </View>
+        </View> */}
         {started ? (
           <CollectedCard
             askKey={tip.question?.key ?? null}
@@ -345,6 +413,51 @@ export function TipChat({
                 .slice(openedCount.current)
                 .flatMap((message, offset) => messagePieces(message, openedCount.current + offset))}
             />
+            {revising ? (
+              <ChangeAsk
+                tip={tip}
+                locale={locale}
+                locked={send.isPending || verifying}
+                warning={warning}
+                onSend={sendBody}
+                onEdit={reveal}
+                onDismissWarning={() => setWarning(null)}
+                question={
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                    <AssistantAvatar />
+                    <Bubble mine={false}>
+                      <AppText variant="body" style={{ fontWeight: '600' }}>
+                        {t('tips.changeAsk')}
+                      </AppText>
+                    </Bubble>
+                  </View>
+                }
+              />
+            ) : null}
+            {verifying ? (
+              <ChatArrival
+                pieces={[
+                  <View
+                    key="verifying"
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
+                  >
+                    <AssistantAvatar />
+                    <Bubble mine={false}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                        <ActivityIndicator
+                          accessibilityLabel={t('tips.verifying')}
+                          size="small"
+                          color={colors.ink}
+                        />
+                        <AppText variant="body" style={{ fontWeight: '600' }}>
+                          {t('tips.verifying')}
+                        </AppText>
+                      </View>
+                    </Bubble>
+                  </View>,
+                ]}
+              />
+            ) : null}
             {error ? <AppText style={{ color: colors.danger }}>{error}</AppText> : null}
           </Animated.ScrollView>
         </ChatScroll.Provider>
@@ -353,25 +466,41 @@ export function TipChat({
           style={{
             paddingHorizontal: space.xl,
             paddingTop: space.sm,
-            gap: space.sm,
+            gap: space.lg,
             width: '100%',
             maxWidth: MaxContentWidth,
             alignSelf: 'center',
           }}
         >
+          <View
+            style={{
+              backgroundColor: colors.cardDarkest,
+              borderWidth: 1,
+              borderColor: colors.line,
+              padding: space.lg,
+              borderRadius: radius.lg,
+            }}
+          >
+            <AppText variant="caption">{t('tips.askForDetails')}</AppText>
+          </View>
           <Composer
             value={text}
             tall
             placeholder={t('tips.writePlaceholder')}
             editable={!send.isPending}
-            onChange={setText}
+            onChange={(value) => {
+              setText(value);
+              if (warning) setWarning(null);
+            }}
           />
           <PrimaryButton
             label={t('tips.send')}
             arrow
+            loading={send.isPending}
             disabled={text.trim().length === 0 || send.isPending}
             onPress={() => sendBody(text)}
           />
+          {warning ? <ContentWarning key={warning} text={warning} /> : null}
           {error ? <AppText style={{ color: colors.danger }}>{error}</AppText> : null}
         </View>
       )}

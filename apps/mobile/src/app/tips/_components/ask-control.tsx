@@ -26,6 +26,8 @@ export function AskControl({
   description,
   onSend,
   onEdit,
+  warning,
+  onDismissWarning,
 }: {
   askKey: AskKey;
   options: Tip['messages'][number]['options'];
@@ -41,6 +43,8 @@ export function AskControl({
   description: string | null;
   onSend: (body: string) => void;
   onEdit: () => void;
+  warning: string | null;
+  onDismissWarning: () => void;
 }) {
   const startDay = foundTipDay(startsAt);
   const endDay = foundTipDay(endsAt) ?? startDay;
@@ -137,6 +141,8 @@ export function AskControl({
       locked={locked}
       onSend={onSend}
       onEdit={onEdit}
+      warning={warning}
+      onDismissWarning={onDismissWarning}
     />
   );
 }

@@ -187,10 +187,10 @@ export function TagFilters({ tags, selectedIds, onChange }: Props) {
               onChange={onChange}
             />
           ))}
-          <View style={{ paddingRight: space.md }}>
-            <ToggleCircle label={t('events.categoriesMore')} expanded={false} onPress={openSheet} />
-          </View>
         </ScrollView>
+        <View style={{ paddingRight: space.md }}>
+          <ToggleCircle label={t('events.categoriesMore')} expanded={false} onPress={openSheet} />
+        </View>
       </View>
       <CategoryFiltersSheet isPresented={open} onDismiss={() => setOpen(false)}>
         <TagGroupList tags={tags} selectedIds={selectedIds} onChange={onChange} />

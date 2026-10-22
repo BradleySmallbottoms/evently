@@ -12,6 +12,7 @@ import {
   applyTipAnswers,
   tipAcceptance,
   tipLocalReply,
+  tipTypedFact,
   tipCard,
   tipDetailProgress,
   tipTags,
@@ -218,6 +219,9 @@ describe('tip limits and titles', () => {
     expect(tipLocalReply('confirm: startsAt')).toBe(true);
     expect(tipLocalReply('startDate: 2026-08-24')).toBe(true);
     expect(tipLocalReply('Sommarkonsert i parken')).toBe(false);
+    expect(tipTypedFact('title: Jazzkväll')).toEqual({ key: 'title', value: 'Jazzkväll' });
+    expect(tipTypedFact('confirm: title')).toBeNull();
+    expect(tipTypedFact('place: Torget')).toEqual({ key: 'place', value: 'Torget' });
     expect(applyTipAnswers({}, 'title: Ny titel').title).toBe('Ny titel');
     expect(applyTipAnswers({}, 'title: Ny titel').accepted).toEqual(['title']);
     expect(tipFollowUpQuestion({ questions: [], missing: ['endsAt'], locale: 'sv' })).toEqual({

@@ -6952,6 +6952,8 @@ export interface paths {
                 } | null;
                 /** Format: date-time */
                 createdAt: string;
+                /** @description Set on the reply that refused a typed text. A later read is null. */
+                warning: string | null;
               }[];
             };
           };
@@ -7109,6 +7111,8 @@ export interface paths {
               } | null;
               /** Format: date-time */
               createdAt: string;
+              /** @description Set on the reply that refused a typed text. A later read is null. */
+              warning: string | null;
             };
           };
         };
@@ -7270,6 +7274,8 @@ export interface paths {
               } | null;
               /** Format: date-time */
               createdAt: string;
+              /** @description Set on the reply that refused a typed text. A later read is null. */
+              warning: string | null;
             };
           };
         };
@@ -7455,6 +7461,8 @@ export interface paths {
               } | null;
               /** Format: date-time */
               createdAt: string;
+              /** @description Set on the reply that refused a typed text. A later read is null. */
+              warning: string | null;
             };
           };
         };
@@ -7668,6 +7676,8 @@ export interface paths {
               } | null;
               /** Format: date-time */
               createdAt: string;
+              /** @description Set on the reply that refused a typed text. A later read is null. */
+              warning: string | null;
             };
           };
         };
@@ -7891,6 +7901,8 @@ export interface paths {
               } | null;
               /** Format: date-time */
               createdAt: string;
+              /** @description Set on the reply that refused a typed text. A later read is null. */
+              warning: string | null;
             };
           };
         };

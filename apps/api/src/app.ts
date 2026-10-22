@@ -104,7 +104,10 @@ export function createApp(options: CreateAppOptions = {}) {
       auth,
       options.tipModel ?? {
         async extract() {
-          return { extraction: {}, followUpQuestions: [] };
+          return { extraction: {}, followUpQuestions: [], warning: null };
+        },
+        async review() {
+          return { ok: true, warning: null };
         },
       },
       { tags: options.tipTags },

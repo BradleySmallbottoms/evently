@@ -526,6 +526,8 @@
     "summary": "Summary",
     "tags": "Tags",
     "change": "Change",
+    "changeAsk": "What do you want to change?",
+    "verifying": "Verifying...",
     "confirmYes": "Confirm",
     "followTitle": "A few things are still missing",
     "followBody": "Add what you can. You can also skip and send it anyway.",

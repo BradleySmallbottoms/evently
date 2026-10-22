@@ -9,6 +9,7 @@ import type { Tip } from '@local-events/contracts';
 
 import { LateReveal } from './chat-arrival';
 import { Choice } from './choice';
+import { ContentWarning } from './content-warning';
 import { Composer } from './composer';
 import { replyMatches } from './tip-answers';
 
@@ -21,6 +22,8 @@ export function TextAsk({
   locked,
   onSend,
   onEdit,
+  warning,
+  onDismissWarning,
 }: {
   prefix?: 'title' | 'place' | 'description';
   icon?: 'place';
@@ -30,6 +33,8 @@ export function TextAsk({
   locked: boolean;
   onSend: (body: string) => void;
   onEdit: () => void;
+  warning: string | null;
+  onDismissWarning: () => void;
 }) {
   const { t } = useTranslation();
   const parsed = answer?.match(/^(?:title|place|description):\s*(.+)$/i)?.[1] ?? null;
@@ -79,9 +84,13 @@ export function TextAsk({
             placeholder={t('tips.writePlaceholder')}
             editable={!locked}
             icon={icon}
-            onChange={setValue}
+            onChange={(next) => {
+              setValue(next);
+              if (warning) onDismissWarning();
+            }}
             onFocus={onEdit}
           />
+          {warning ? <ContentWarning key={warning} text={warning} /> : null}
           <PrimaryButton
             label={t('tips.send')}
             arrow

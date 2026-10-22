@@ -142,6 +142,8 @@ export const Tip = z.object({
     })
     .nullable(),
   createdAt: z.iso.datetime(),
+  /** Set on the reply that refused a typed text. A later read is null. */
+  warning: z.string().max(240).nullable(),
 });
 export type Tip = z.infer<typeof Tip>;
 

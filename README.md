@@ -60,7 +60,9 @@ pnpm api-client:generate   # after public API OpenAPI changes
   description. The public API reads it with Anthropic (`ANTHROPIC_API_KEY`; `ANTHROPIC_MODEL`
   defaults to `claude-sonnet-5-5`). This path does not use the Runpod chat. A text tip stays in the
   chat until title, start date, start time, end date, end time, place, price, link, and description
-  are filled. Each reply is appended and read again. The model names the missing fact, and the
+  are filled. Replies stay on the tip until every required fact is filled, and then the transcript
+  is read once. A title, place, or description the person types is checked first. Text that is not
+  an event is not saved, and the chat shows a warning. The model names the missing fact, and the
   chat shows that control. The chat does not ask for a tag or a category. The model picks tags
   from the catalog, and the confirm screen shows them. A picture is the last question. A picture
   from the first screen is stored in the public assets bucket (Garage locally) and read into the
