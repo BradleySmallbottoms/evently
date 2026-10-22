@@ -25,18 +25,23 @@ export function TipChrome({
           paddingTop: insets.top + space.sm,
           paddingHorizontal: space.xl,
           paddingBottom: space.xl,
-          gap: space.lg,
+          gap: space.md,
           width: '100%',
           maxWidth: MaxContentWidth,
           alignSelf: 'center',
         }}
       >
-        <BackPill />
-        {title ? (
-          <AppText variant="title" style={{ textAlign: 'center' }}>
-            {title}
-          </AppText>
-        ) : null}
+        <View
+          style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+        >
+          <BackPill />
+          {title ? (
+            <AppText variant="title" style={{ textAlign: 'center' }}>
+              {title}
+            </AppText>
+          ) : null}
+          <View style={{ width: '25%' }}></View>
+        </View>
         {children}
       </ScrollView>
       {footer ? (

@@ -566,6 +566,9 @@
     "fromUser": "From a user tip",
     "cameraDenied": "The camera or photo library is needed to send a picture.",
     "tooLarge": "The picture is too large.",
+    "openLimit": "You already have {{count}} unfinished tips. Finish one before starting another.",
+    "errorTitle": "Couldn't start",
+    "ok": "OK",
     "error": "Something went wrong. Try again.",
     "step": {
       "received": "Received",

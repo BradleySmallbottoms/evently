@@ -9,7 +9,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   View,
   type KeyboardEvent,
 } from 'react-native';
@@ -35,8 +34,6 @@ import { sendTipImage, sendTipText } from '@/lib/tips';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 import type { Tip } from '@local-events/contracts';
-import { router } from 'expo-router';
-import { BackPill } from '@/components/ui/back-pill';
 
 const VERIFY_HOLD_MS = 900;
 
@@ -481,7 +478,7 @@ export function TipChat({
               borderRadius: radius.lg,
             }}
           >
-            <AppText variant="caption">{t('tips.askForDetails')}</AppText>
+            <AppText variant="caption">{t('tips.startFoot')}</AppText>
           </View>
           <Composer
             value={text}

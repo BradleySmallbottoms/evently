@@ -162,6 +162,7 @@ export function createDbTipServices(
 
   const repo: TipRepository = {
     async insert(input) {
+      console.log('insert', input);
       const [row] = await db
         .insert(schema.eventTips)
         .values({

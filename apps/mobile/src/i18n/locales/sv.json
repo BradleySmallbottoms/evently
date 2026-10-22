@@ -567,6 +567,9 @@
     "fromUser": "Från användartips",
     "cameraDenied": "Kameran eller bildbiblioteket behövs för att skicka en bild.",
     "tooLarge": "Bilden är för stor.",
+    "openLimit": "Du har redan {{count}} påbörjade tips. Avsluta ett innan du startar ett nytt.",
+    "errorTitle": "Kunde inte starta",
+    "ok": "OK",
     "error": "Något gick fel. Försök igen.",
     "step": {
       "received": "Mottaget",
