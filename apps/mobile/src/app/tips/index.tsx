@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { AcknowledgeAlert } from '@/components/native/acknowledge-alert';
+import { TipChatSheet } from '@/components/native/tip-chat-sheet';
 import { AppText } from '@/components/ui/app-text';
 import { ensureIdentity } from '@/lib/identity';
 import { chooseTipImage } from '@/lib/tip-photo';
@@ -23,6 +24,7 @@ export default function TipStartScreen() {
   const [pending, setPending] = useState<'photo' | 'text' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
+  const [sheet, setSheet] = useState<{ id: string; photo?: string } | null>(null);
   const dismissError = useCallback(() => setError(null), []);
   const identity = useQuery({
     queryKey: ['identity', locale],
@@ -57,7 +59,7 @@ export default function TipStartScreen() {
     try {
       const identity = await ensureIdentity(locale);
       const tip = await createTip(identity, { path: 'text', locale });
-      router.push(`/tips/${tip.id}`);
+      setSheet({ id: tip.id });
     } catch (err) {
       if (err instanceof Error && err.message === 'open_limit') {
         setBlocked(true);
@@ -84,7 +86,7 @@ export default function TipStartScreen() {
         contentType: shot.contentType,
         dataBase64: shot.dataBase64,
       });
-      router.push({ pathname: '/tips/[id]', params: { id: tip.id, photo: shot.uri } });
+      setSheet({ id: tip.id, photo: shot.uri });
     } catch (err) {
       if (err instanceof Error && err.message === 'open_limit') {
         setBlocked(true);
@@ -97,81 +99,91 @@ export default function TipStartScreen() {
   }
 
   return (
-    <TipChrome title={t('tips.startTitle')}>
-      <AppText variant="body" style={{ textAlign: 'center', color: colors.inkMuted }}>
-        {t('tips.startBody')}
-      </AppText>
-      <View style={{ alignItems: 'center' }}>
-        <Image
-          accessible={false}
-          source={require('@/assets/images/megafon.png')}
-          style={{ width: 200, height: 200 }}
-          contentFit="contain"
-        />
-      </View>
-      {checking ? (
-        <ActivityIndicator color={colors.ink} />
-      ) : atLimit ? (
-        <View
-          style={{
-            backgroundColor: colors.accentSoft,
-            borderRadius: radius.lg,
-            padding: space.lg,
-            gap: space.sm,
-          }}
-        >
-          <AppText variant="body" style={{ textAlign: 'center' }}>
-            {t('tips.openLimit', { count: TIP_DAILY_LIMIT })}
-          </AppText>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/profile/tips')}>
-            <AppText variant="label" style={{ textAlign: 'center' }}>
-              {t('tips.seeYours')}
-            </AppText>
-          </Pressable>
+    <>
+      <TipChrome title={t('tips.startTitle')}>
+        <AppText variant="body" style={{ textAlign: 'center', color: colors.inkMuted }}>
+          {t('tips.startBody')}
+        </AppText>
+        <View style={{ alignItems: 'center' }}>
+          <Image
+            accessible={false}
+            source={require('@/assets/images/megafon.png')}
+            style={{ width: 200, height: 200 }}
+            contentFit="contain"
+          />
         </View>
-      ) : (
-        <>
-          <Choice
-            title={t('tips.takePhoto')}
-            body={t('tips.takePhotoBody')}
-            icon={
-              <Image
-                accessible={false}
-                source={require('@/assets/images/kamera.png')}
-                style={{ width: 48, height: 48 }}
-                contentFit="contain"
-              />
-            }
-            pending={pending === 'photo'}
-            onPress={() => void startPhoto()}
-          />
-          <Choice
-            title={t('tips.write')}
-            body={t('tips.writeBody')}
-            icon={
-              <Image
-                accessible={false}
-                source={require('@/assets/images/beskrivning.png')}
-                style={{ width: 48, height: 48 }}
-                contentFit="contain"
-              />
-            }
-            pending={pending === 'text'}
-            onPress={() => void startText()}
-          />
-          <AppText variant="caption" style={{ color: colors.inkMuted }}>
-            {t('tips.startFoot')}
-          </AppText>
-        </>
-      )}
-      <AcknowledgeAlert
-        title={t('tips.errorTitle')}
-        message={error ?? undefined}
-        confirmLabel={t('tips.ok')}
-        isPresented={error != null}
-        onConfirm={dismissError}
+        {checking ? (
+          <ActivityIndicator color={colors.ink} />
+        ) : atLimit ? (
+          <View
+            style={{
+              backgroundColor: colors.accentSoft,
+              borderRadius: radius.lg,
+              padding: space.lg,
+              gap: space.sm,
+            }}
+          >
+            <AppText variant="body" style={{ textAlign: 'center' }}>
+              {t('tips.openLimit', { count: TIP_DAILY_LIMIT })}
+            </AppText>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/profile/tips')}>
+              <AppText variant="label" style={{ textAlign: 'center' }}>
+                {t('tips.seeYours')}
+              </AppText>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <Choice
+              title={t('tips.takePhoto')}
+              body={t('tips.takePhotoBody')}
+              icon={
+                <Image
+                  accessible={false}
+                  source={require('@/assets/images/kamera.png')}
+                  style={{ width: 48, height: 48 }}
+                  contentFit="contain"
+                />
+              }
+              pending={pending === 'photo'}
+              onPress={() => void startPhoto()}
+            />
+            <Choice
+              title={t('tips.write')}
+              body={t('tips.writeBody')}
+              icon={
+                <Image
+                  accessible={false}
+                  source={require('@/assets/images/beskrivning.png')}
+                  style={{ width: 48, height: 48 }}
+                  contentFit="contain"
+                />
+              }
+              pending={pending === 'text'}
+              onPress={() => void startText()}
+            />
+            <AppText variant="caption" style={{ color: colors.inkMuted }}>
+              {t('tips.startFoot')}
+            </AppText>
+          </>
+        )}
+        <AcknowledgeAlert
+          title={t('tips.errorTitle')}
+          message={error ?? undefined}
+          confirmLabel={t('tips.ok')}
+          isPresented={error != null}
+          onConfirm={dismissError}
+        />
+      </TipChrome>
+      <TipChatSheet
+        tipId={sheet?.id ?? null}
+        photo={sheet?.photo}
+        onDismiss={() => {
+          setSheet(null);
+          void tips.refetch();
+        }}
       />
-    </TipChrome>
+    </>
   );
 }
 

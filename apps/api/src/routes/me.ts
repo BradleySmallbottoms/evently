@@ -26,6 +26,7 @@ import { preferenceErrorResponse } from '../services/preferences/errors';
 import type { PreferenceServices } from '../services/preferences/types';
 
 const AreaIdParam = z.object({ id: z.uuid() });
+const NotificationIdParam = z.object({ id: z.uuid() });
 
 export function registerMeRoutes(
   app: OpenAPIHono,
@@ -231,6 +232,31 @@ export function registerMeRoutes(
     try {
       const result = await notifications.listNotifications(readUserSessionToken(c));
       return c.json(result, 200);
+    } catch (err) {
+      return notificationErrorResponse(c, err);
+    }
+  });
+
+  const deleteNotification = createRoute({
+    method: 'delete',
+    path: '/me/notifications/{id}',
+    request: { params: NotificationIdParam },
+    responses: {
+      204: { description: 'Notification removed from the inbox' },
+      401: {
+        description: 'Missing or invalid user session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Notification not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(deleteNotification, async (c) => {
+    try {
+      await notifications.deleteNotification(readUserSessionToken(c), c.req.valid('param').id);
+      return c.body(null, 204);
     } catch (err) {
       return notificationErrorResponse(c, err);
     }

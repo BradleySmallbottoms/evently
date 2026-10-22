@@ -209,4 +209,29 @@ export function registerTipRoutes(app: OpenAPIHono, tips: TipServices): void {
       return fail(c, err);
     }
   });
+
+  const remove = createRoute({
+    method: 'delete',
+    path: '/me/tips/{tipId}',
+    request: { params: TipIdParam },
+    responses: {
+      204: { description: 'Tip deleted. The event created from it stays.' },
+      401: {
+        description: 'Missing or invalid user session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Tip not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(remove, async (c) => {
+    try {
+      await tips.remove(readUserSessionToken(c), c.req.valid('param').tipId);
+      return c.body(null, 204);
+    } catch (err) {
+      return fail(c, err);
+    }
+  });
 }

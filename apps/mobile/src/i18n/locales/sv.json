@@ -62,6 +62,7 @@
     "notificationsNew": "Aviseringar, {{count}} nya",
     "notificationsEmpty": "Inga aviseringar ännu. När evenemang nära dig matchar dina intressen visas de här.",
     "notificationsLoading": "Laddar aviseringar…",
+    "notificationDeleteError": "Kunde inte ta bort aviseringen.",
     "notificationReasonNearby": "Evenemang nära dig",
     "notificationReasonPublisher": "Följd arrangör",
     "notificationReasonEvent": "Uppdatering av sparat evenemang",
@@ -452,13 +453,17 @@
     "reminderLocationBody": "Du hoppade över detta tidigare. Aktivera plats för att se evenemang i närheten och checka in på platsen.",
     "finish": "Klart"
   },
+  "lists": {
+    "edit": "Redigera",
+    "delete": "Ta bort"
+  },
   "tips": {
     "cancel": "Avbryt",
     "missing": "Saknar du ett evenemang?",
     "mine": "Mina tips",
     "empty": "Du har inte tippat om något evenemang ännu.",
     "askForDetails": "Berätta så mycket du kan om evenemanget så vi kan lägga till det snabbt. Vi behöver ett namn, datum, plats och pris, eventuella länkar och en kort beskrivning.",
-    "startTitle": "Tipsa om ett event",
+    "startTitle": "Tipsa oss!",
     "startBody": "Ta en bild av en affisch eller beskriv evenemanget med egna ord.",
     "startFoot": "Ju mer du kan berätta, desto snabbare kan vi lägga till det.",
     "takePhoto": "Ta en bild",
@@ -470,6 +475,7 @@
     "progress": "{{done}} av {{total}}",
     "soFar": "Hittills har vi:",
     "edit": "Redigera",
+    "removeError": "Kunde inte ta bort tipset.",
     "facts": {
       "title": "Namn",
       "date": "Start",

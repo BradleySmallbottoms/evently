@@ -32,13 +32,17 @@ import { BackPill } from '@/components/ui/back-pill';
 export function TipSummary({
   tip,
   photo,
+  embedded = false,
   onDone,
   onRevise,
+  onClose,
 }: {
   tip: Tip;
   photo?: string;
+  embedded?: boolean;
   onDone: (tip: Tip) => void;
   onRevise: () => void;
+  onClose?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
@@ -103,7 +107,7 @@ export function TipSummary({
     <View style={{ flex: 1, backgroundColor: colors.canvas }}>
       <ScrollView
         contentContainerStyle={{
-          paddingTop: insets.top + space.sm,
+          paddingTop: (embedded ? space.md : insets.top) + space.sm,
           paddingHorizontal: space.xl,
           paddingBottom: space.xl,
           gap: space.lg,
@@ -113,7 +117,7 @@ export function TipSummary({
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 44 }}>
-          <BackPill />
+          <BackPill onPress={onClose} />
           <AppText
             style={{
               flex: 1,

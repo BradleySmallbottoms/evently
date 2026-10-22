@@ -380,6 +380,39 @@ describe('event tips', () => {
     expect(refused.card).toBeNull();
   });
 
+  it('deletes the owner tip and hides it from everyone else', async () => {
+    const api = app();
+    const owner = { ...(await session(api)), 'content-type': 'application/json' };
+    const created = await api.request('/v1/me/tips', {
+      method: 'POST',
+      headers: owner,
+      body: JSON.stringify({ path: 'text', locale: 'sv' }),
+    });
+    expect(created.status).toBe(201);
+    const tip = await json<Tip>(created);
+    const stranger = await session(api);
+
+    const hidden = await api.request(`/v1/me/tips/${tip.id}`, {
+      method: 'DELETE',
+      headers: stranger,
+    });
+    expect(hidden.status).toBe(404);
+    const stillThere = await api.request(`/v1/me/tips/${tip.id}`, { headers: owner });
+    expect(stillThere.status).toBe(200);
+
+    const removed = await api.request(`/v1/me/tips/${tip.id}`, {
+      method: 'DELETE',
+      headers: owner,
+    });
+    expect(removed.status).toBe(204);
+    const missing = await api.request(`/v1/me/tips/${tip.id}`, { headers: owner });
+    expect(missing.status).toBe(404);
+    const listed = await json<{ items: Tip[] }>(
+      await api.request('/v1/me/tips', { headers: owner }),
+    );
+    expect(listed.items.some((item) => item.id === tip.id)).toBe(false);
+  });
+
   it('does not record an image when the asset bucket is missing', async () => {
     const store = tipImageStoreFromEnv({});
     await expect(store.put('tips/a/b.jpg', new Uint8Array([1]), 'image/jpeg')).rejects.toThrow(

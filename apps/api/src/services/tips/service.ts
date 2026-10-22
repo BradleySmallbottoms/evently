@@ -60,6 +60,8 @@ export interface TipServices {
   addText(sessionToken: string | undefined, tipId: string, text: string): Promise<Tip>;
   addImage(sessionToken: string | undefined, tipId: string, input: TipImageRequest): Promise<Tip>;
   confirm(sessionToken: string | undefined, tipId: string, input: ConfirmTipRequest): Promise<Tip>;
+  /** Removes the tip for its owner. The event created from it stays. */
+  remove(sessionToken: string | undefined, tipId: string): Promise<void>;
 }
 
 export function createTipServices(
@@ -382,6 +384,11 @@ export function createTipServices(
       const fresh = await load(ownerId, tipId);
       await submit(fresh.tip, fresh.images, extracted);
       return show(ownerId, tipId);
+    },
+    async remove(sessionToken, tipId) {
+      const ownerId = await userId(sessionToken);
+      const removed = await repo.remove(ownerId, tipId);
+      if (!removed) throw new TipError('not_found');
     },
   };
 }

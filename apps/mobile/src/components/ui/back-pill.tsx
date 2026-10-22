@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
-import { Pressable, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { colors } from '@/theme/colors';
@@ -12,10 +12,11 @@ import { radius, shadow, space } from '@/theme/tokens';
 type Props = {
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
+  showLabel?: boolean;
 };
 
 /** White pill with a chevron and “Back”, matching the event detail overlay. */
-export function BackPill({ onPress, style }: Props) {
+export function BackPill({ onPress, style, showLabel = true }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
 
@@ -38,9 +39,10 @@ export function BackPill({ onPress, style }: Props) {
           paddingLeft: space.sm,
           paddingRight: space.md,
           borderRadius: radius.pill,
-          backgroundColor: colors.card,
+          backgroundColor: showLabel ? colors.card : 'transparent',
           opacity: pressed ? 0.88 : 1,
           boxShadow: shadow.soft,
+          width: '25%',
         },
         style,
       ]}
@@ -50,9 +52,11 @@ export function BackPill({ onPress, style }: Props) {
       ) : (
         <MaterialIcons name="chevron-left" size={20} color={colors.ink} />
       )}
-      <AppText style={{ fontSize: 15, fontWeight: '600', color: colors.ink }}>
-        {t('events.back')}
-      </AppText>
+      {showLabel ? (
+        <AppText style={{ fontSize: 15, fontWeight: '600', color: colors.ink }}>
+          {t('events.back')}
+        </AppText>
+      ) : null}
     </Pressable>
   );
 }

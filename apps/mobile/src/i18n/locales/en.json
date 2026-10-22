@@ -62,6 +62,7 @@
     "notificationsNew": "Notifications, {{count}} new",
     "notificationsEmpty": "No notifications yet. When nearby events match your interests, they’ll show up here.",
     "notificationsLoading": "Loading notifications…",
+    "notificationDeleteError": "Could not delete the notification.",
     "notificationReasonNearby": "Nearby event",
     "notificationReasonPublisher": "Followed publisher",
     "notificationReasonEvent": "Saved event update",
@@ -452,6 +453,10 @@
     "reminderLocationBody": "You skipped this earlier. Activate location to see nearby events and check in at venues.",
     "finish": "Done"
   },
+  "lists": {
+    "edit": "Edit",
+    "delete": "Delete"
+  },
   "tips": {
     "cancel": "Cancel",
     "missing": "Missing an event?",
@@ -469,6 +474,7 @@
     "progress": "{{done}} of {{total}}",
     "soFar": "So far we have:",
     "edit": "Edit",
+    "removeError": "Could not delete the tip.",
     "facts": {
       "title": "Name",
       "date": "Start",

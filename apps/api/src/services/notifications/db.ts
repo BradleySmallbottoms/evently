@@ -2,7 +2,7 @@ import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
-import type { NotificationServices } from './types';
+import { NotificationError, type NotificationServices } from './types';
 
 export function createDbNotificationServices(db: Db, auth: AuthServices): NotificationServices {
   const { notifications, events, pushMessages } = schema;
@@ -48,6 +48,14 @@ export function createDbNotificationServices(db: Db, auth: AuthServices): Notifi
         })),
         unreadCount: Number(unread?.count ?? 0),
       };
+    },
+    async deleteNotification(sessionToken, notificationId) {
+      const { userId } = await auth.requireUserSession(sessionToken);
+      const removed = await db
+        .delete(notifications)
+        .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)))
+        .returning({ id: notifications.id });
+      if (removed.length === 0) throw new NotificationError('not_found');
     },
   };
 }

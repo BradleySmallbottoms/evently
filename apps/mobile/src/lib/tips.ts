@@ -54,6 +54,10 @@ export function getTip(identity: StoredIdentity, tipId: string): Promise<Tip> {
   return tipFetch(identity, `/me/tips/${tipId}`);
 }
 
+export function deleteTip(identity: StoredIdentity, tipId: string): Promise<void> {
+  return tipFetch(identity, `/me/tips/${tipId}`, { method: 'DELETE' });
+}
+
 export function sendTipText(identity: StoredIdentity, tipId: string, text: string): Promise<Tip> {
   return tipFetch(identity, `/me/tips/${tipId}/text`, { method: 'POST', body: { text } });
 }

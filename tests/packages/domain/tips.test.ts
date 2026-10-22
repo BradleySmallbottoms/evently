@@ -7,6 +7,7 @@ import {
   tipImageAllowed,
   tipInstant,
   tipOrganizerKeys,
+  tipEditable,
   tipPhase,
   tipScanNotification,
   applyTipAnswers,
@@ -335,6 +336,17 @@ describe('tip phase and notification copy', () => {
         detailsComplete: true,
       }),
     ).toBe('confirm');
+  });
+
+  it('lets a person edit a tip only while they can still change it', () => {
+    expect(tipEditable('collecting')).toBe(true);
+    expect(tipEditable('confirm')).toBe(true);
+    expect(tipEditable('follow_up')).toBe(true);
+    expect(tipEditable('failed')).toBe(true);
+    expect(tipEditable('scanning')).toBe(false);
+    expect(tipEditable('receipt')).toBe(false);
+    expect(tipEditable('review')).toBe(false);
+    expect(tipEditable('published')).toBe(false);
   });
 
   it('says the event was added only when it is published', () => {

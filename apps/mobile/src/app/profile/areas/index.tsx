@@ -1,18 +1,23 @@
 import { areaNotificationsEnabled } from '@local-events/domain';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ActionList } from '@/components/ui/action-list';
 import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
 import { ensureIdentity } from '@/lib/identity';
-import { getPreferences } from '@/lib/preferences';
+import { deleteArea, getPreferences } from '@/lib/preferences';
+import {
+  getDiscoveryPlaceId,
+  NEARBY_PLACE_ID,
+  setDiscoveryPlaceId,
+} from '@/lib/use-discovery-point';
 import { colors } from '@/theme/colors';
-import { radius, space } from '@/theme/tokens';
+import { space } from '@/theme/tokens';
 
 function areaDetail(
   area: { searchRadiusM: number | null; notify: boolean; tagIds: readonly string[] },
@@ -29,18 +34,13 @@ function areaDetail(
   return t('profile.areaListDetail', { radius: radiusLabel, notifications });
 }
 
-function Chevron() {
-  if (process.env.EXPO_OS === 'ios') {
-    return <SymbolView name={'chevron.right' as never} size={14} tintColor={colors.inkFaint} />;
-  }
-  return <MaterialIcons name="chevron-right" size={20} color={colors.inkFaint} />;
-}
-
 export default function SavedAreasScreen() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   const identity = useQuery({
     queryKey: ['identity', locale],
@@ -51,66 +51,65 @@ export default function SavedAreasScreen() {
     enabled: identity.isSuccess,
     queryFn: () => getPreferences(identity.data!),
   });
+  const remove = useMutation({
+    mutationFn: (areaId: string) => deleteArea(identity.data!, areaId),
+    onSuccess: async (_data, areaId) => {
+      setRemoveError(null);
+      if (getDiscoveryPlaceId() === areaId) setDiscoveryPlaceId(NEARBY_PLACE_ID);
+      await queryClient.invalidateQueries({ queryKey: ['preferences'] });
+    },
+    onError: () => setRemoveError(t('profile.areaDeleteError')),
+  });
 
   const areas = preferences.data?.areas ?? [];
+
+  function confirmDelete(area: { id: string; name: string }) {
+    Alert.alert(t('profile.areaDeleteTitle'), t('profile.areaDeleteMessage', { name: area.name }), [
+      { text: t('preferences.resetCancel'), style: 'cancel' },
+      {
+        text: t('profile.areaDelete'),
+        style: 'destructive',
+        onPress: () => remove.mutate(area.id),
+      },
+    ]);
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, paddingTop: insets.top }}>
       <View style={{ paddingHorizontal: space.xl, paddingTop: space.sm, paddingBottom: space.md }}>
         <BackPill />
       </View>
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ padding: space.xl, gap: space.xl, paddingBottom: space.xxxl }}
-      >
-        {identity.isError || preferences.isError ? (
-          <AppText variant="caption" style={{ color: colors.danger }}>
-            {t('profile.areasLoadError')}
-          </AppText>
-        ) : null}
-        {preferences.isSuccess && areas.length === 0 ? (
-          <View style={{ gap: space.sm }}>
-            <AppText variant="subtitle">{t('profile.areasEmptyTitle')}</AppText>
-            <AppText variant="caption">{t('profile.areasEmptyBody')}</AppText>
-          </View>
-        ) : null}
-        {areas.length > 0 ? (
-          <View
-            style={{
-              backgroundColor: colors.card,
-              borderRadius: radius.lg,
-              borderWidth: 1,
-              borderColor: colors.line,
-              overflow: 'hidden',
-            }}
-          >
-            {areas.map((area, index) => (
-              <Pressable
-                key={area.id}
-                accessibilityRole="button"
-                accessibilityLabel={t('profile.areaEditA11y', { name: area.name })}
-                onPress={() => router.push(`/profile/areas/${area.id}`)}
-                style={{
-                  minHeight: 64,
-                  paddingHorizontal: space.lg,
-                  paddingVertical: space.md,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: space.md,
-                  borderBottomWidth: index === areas.length - 1 ? 0 : 1,
-                  borderBottomColor: colors.line,
-                }}
-              >
-                <View style={{ flex: 1, gap: 2 }}>
-                  <AppText variant="body">{area.name}</AppText>
-                  <AppText variant="caption">{areaDetail(area, t)}</AppText>
-                </View>
-                <Chevron />
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-      </ScrollView>
+      {identity.isError || preferences.isError ? (
+        <AppText variant="caption" style={{ color: colors.danger, paddingHorizontal: space.xl }}>
+          {t('profile.areasLoadError')}
+        </AppText>
+      ) : null}
+      {removeError ? (
+        <AppText variant="caption" style={{ color: colors.danger, paddingHorizontal: space.xl }}>
+          {removeError}
+        </AppText>
+      ) : null}
+      {preferences.isSuccess && areas.length === 0 ? (
+        <View style={{ paddingHorizontal: space.xl, gap: space.sm }}>
+          <AppText variant="subtitle">{t('profile.areasEmptyTitle')}</AppText>
+          <AppText variant="caption">{t('profile.areasEmptyBody')}</AppText>
+        </View>
+      ) : null}
+      <ActionList
+        editLabel={t('lists.edit')}
+        deleteLabel={t('lists.delete')}
+        items={areas.map((area) => {
+          const open = () => router.push(`/profile/areas/${area.id}`);
+          return {
+            id: area.id,
+            title: area.name,
+            subtitle: areaDetail(area, t),
+            onPress: open,
+            onEdit: open,
+            onDelete: () => confirmDelete(area),
+          };
+        })}
+      />
     </View>
   );
 }

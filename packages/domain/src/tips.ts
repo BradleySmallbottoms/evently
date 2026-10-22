@@ -1012,6 +1012,13 @@ export function needsTipFollowUp(input: {
   return !clean(input.extraction.description);
 }
 
+/** The person can still change a tip in these phases. Later phases are status only. */
+const EDITABLE_TIP_PHASES: readonly TipPhase[] = ['collecting', 'confirm', 'follow_up', 'failed'];
+
+export function tipEditable(phase: TipPhase): boolean {
+  return EDITABLE_TIP_PHASES.includes(phase);
+}
+
 export function tipPhase(input: {
   path: TipPath;
   status: TipStatus;

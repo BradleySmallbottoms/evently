@@ -41,11 +41,14 @@ export function TipChat({
   tip,
   initialPhoto,
   revising = false,
+  embedded = false,
   onDone,
 }: {
   tip: Tip;
   initialPhoto?: string;
   revising?: boolean;
+  /** The chat sits in a sheet, so it does not pad for the status bar. */
+  embedded?: boolean;
   onDone: (tip: Tip) => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -297,7 +300,7 @@ export function TipChat({
     <>
       <View
         style={{
-          paddingTop: insets.top + space.sm,
+          paddingTop: (embedded ? space.md : insets.top) + space.sm,
           paddingHorizontal: space.xl,
           paddingBottom: space.lg,
           gap: space.sm,

@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleProp, View, ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -73,19 +73,6 @@ export function CollectedCard({
           zIndex: 1,
         }}
       >
-        <Pressable
-          style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}
-          onPress={() => router.back()}
-        >
-          {process.env.EXPO_OS === 'ios' ? (
-            <SymbolView name={'chevron.left' as never} size={16} tintColor={colors.ink} />
-          ) : (
-            <MaterialIcons name="chevron-left" size={20} color={colors.ink} />
-          )}
-          <AppText style={{ color: colors.ink, fontWeight: '600', fontSize: 14 }}>
-            {t('events.back')}
-          </AppText>
-        </Pressable>
         <View style={{ flexDirection: 'row', gap: space.md }}>
           <View
             style={{
@@ -114,43 +101,8 @@ export function CollectedCard({
             ) : null}
           </View>
           <View style={{ flex: 1, gap: space.xs }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-              <MaterialIcons name="auto-awesome" size={14} color={colors.accent} />
-              <AppText
-                variant="caption"
-                style={{ color: colors.inkMuted, flex: 1, fontSize: 11 }}
-                numberOfLines={1}
-              >
-                {t('tips.soFar')}
-              </AppText>
-              {working ? (
-                <ActivityIndicator
-                  size="small"
-                  color={colors.accent}
-                  style={{ width: 14, height: 14 }}
-                />
-              ) : null}
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  backgroundColor: colors.card,
-                  borderRadius: radius.pill,
-                  borderWidth: 1,
-                  borderColor: colors.line,
-                  paddingHorizontal: space.sm + 2,
-                  paddingVertical: 4,
-                }}
-              >
-                <MaterialIcons name="edit" size={14} color={colors.ink} />
-                <AppText variant="caption" style={{ color: colors.ink, fontSize: 11 }}>
-                  {t('tips.edit')}
-                </AppText>
-              </View>
-            </View>
             {firstLoad ? (
-              <SkeletonBlock width="78%" height={18} />
+              <SkeletonBlock width="78%" height={22} />
             ) : (
               <AppText
                 numberOfLines={2}
@@ -160,33 +112,37 @@ export function CollectedCard({
               </AppText>
             )}
             {firstLoad ? (
-              <SkeletonBlock width="46%" height={12} />
+              <SkeletonBlock
+                width="46%"
+                height={12}
+                style={{ marginTop: space.xs, marginBottom: space.xs }}
+              />
             ) : (
               <AppText variant="caption" style={{ color: colors.inkMuted, fontSize: 11 }}>
                 {when ?? '—'}
               </AppText>
             )}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                gap: space.sm,
+              }}
+            >
+              {firstLoad ? (
+                <SkeletonBlock width="48%" height={22} radius={radius.xs} />
+              ) : (
+                <FactChip icon="place" label={place?.trim() || '—'} />
+              )}
+              {firstLoad ? (
+                <SkeletonBlock width="48%" height={22} radius={radius.xs} />
+              ) : (
+                <FactChip icon="confirmation-number" label={priceLabel?.trim() || '—'} />
+              )}
+            </View>
           </View>
         </View>
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: space.sm,
-          }}
-        >
-          {firstLoad ? (
-            <SkeletonBlock width="48%" height={26} radius={radius.xs} />
-          ) : (
-            <FactChip icon="place" label={place?.trim() || '—'} />
-          )}
-          {firstLoad ? (
-            <SkeletonBlock width="48%" height={26} radius={radius.xs} />
-          ) : (
-            <FactChip icon="confirmation-number" label={priceLabel?.trim() || '—'} />
-          )}
-        </View>
+
         <CardProgress askKey={askKey} done={done} total={total} />
       </View>
       {/* <View style={{ position: 'absolute', bottom: -13.8, left: 0, right: 0, justifyContent: 'center', alignItems: 'center' }}>
@@ -202,10 +158,12 @@ function SkeletonBlock({
   width,
   height,
   radius: corner = radius.pill,
+  style,
 }: {
   width: number | `${number}%`;
   height: number;
   radius?: number;
+  style?: StyleProp<ViewStyle>;
 }) {
   const reduced = useReducedMotion();
   const opacity = useSharedValue(0.45);
@@ -224,7 +182,7 @@ function SkeletonBlock({
   return (
     <Animated.View
       accessibilityElementsHidden
-      style={[{ width, height, borderRadius: corner, backgroundColor: colors.line }, pulse]}
+      style={[{ width, height, borderRadius: corner, backgroundColor: colors.line }, pulse, style]}
     />
   );
 }
@@ -244,8 +202,8 @@ function FactChip({
         gap: 6,
         backgroundColor: colors.accentSoft,
         borderRadius: radius.xs,
-        paddingHorizontal: space.sm + 2,
-        paddingVertical: 4,
+        paddingHorizontal: space.sm,
+        paddingVertical: 2,
         maxWidth: '48.7%',
         width: '49%',
       }}

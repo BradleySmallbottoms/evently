@@ -117,6 +117,14 @@ export function createMemoryTipServices(
       rows.push({ role, body, createdAt: at });
       messages.set(tipId, rows);
     },
+    async remove(userId, tipId) {
+      const tip = tips.get(tipId);
+      if (!tip || tip.userId !== userId) return false;
+      tips.delete(tipId);
+      images.delete(tipId);
+      messages.delete(tipId);
+      return true;
+    },
     async createPendingEvent() {
       return randomUUID();
     },

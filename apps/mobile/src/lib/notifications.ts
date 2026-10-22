@@ -13,4 +13,16 @@ export async function listNotifications(
   );
 }
 
+export async function deleteNotification(
+  identity: StoredIdentity,
+  notificationId: string,
+): Promise<void> {
+  throwIfError(
+    await api.DELETE('/me/notifications/{id}', {
+      headers: { Authorization: `Bearer ${identity.sessionToken}` },
+      params: { path: { id: notificationId } },
+    }),
+  );
+}
+
 export type { NotificationItem };

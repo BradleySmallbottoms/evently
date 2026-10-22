@@ -92,6 +92,38 @@ describe('notification inbox', () => {
       headers: { ...authHeader, 'content-type': 'application/json' },
       body: JSON.stringify({ enabled: false, startMin: 23 * 60, endMin: 7 * 60 }),
     });
+    const notificationId = '11111111-1111-4111-8111-111111111401';
+    store.notifications.set(notificationId, {
+      id: notificationId,
+      userId: session.userId,
+      eventId,
+      reason: 'nearby',
+      pushState: 'sent',
+      sentAt: new Date('2026-06-15T22:00:00.000Z'),
+      pushedAt: null,
+      readAt: null,
+    });
+    const stranger = await createUserSession(app);
+    const denied = await app.request(`/v1/me/notifications/${notificationId}`, {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${stranger.sessionToken}` },
+    });
+    expect(denied.status).toBe(404);
+    const deleted = await app.request(`/v1/me/notifications/${notificationId}`, {
+      method: 'DELETE',
+      headers: authHeader,
+    });
+    expect(deleted.status).toBe(204);
+    const after = (await (
+      await app.request('/v1/me/notifications', { headers: authHeader })
+    ).json()) as { items: Array<{ id: string }> };
+    expect(after.items.some((item) => item.id === notificationId)).toBe(false);
+    const again = await app.request(`/v1/me/notifications/${notificationId}`, {
+      method: 'DELETE',
+      headers: authHeader,
+    });
+    expect(again.status).toBe(404);
+
     expect(quiet.status).toBe(200);
     expect(await quiet.json()).toEqual({
       enabled: false,

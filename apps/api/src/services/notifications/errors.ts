@@ -14,5 +14,11 @@ export function notificationErrorResponse(c: Context, err: unknown): any {
     };
     return c.json(body, 401);
   }
+  if (err instanceof NotificationError && err.code === 'not_found') {
+    const body: ErrorResponse = {
+      error: { code: 'not_found', message: 'Notification not found' },
+    };
+    return c.json(body, 404);
+  }
   throw err;
 }

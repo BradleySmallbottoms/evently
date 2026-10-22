@@ -1,6 +1,6 @@
 import type { AuthServices } from '../auth/types';
 import type { MemoryStore } from '../memory-store';
-import type { NotificationServices } from './types';
+import { NotificationError, type NotificationServices } from './types';
 
 export function createMemoryNotificationServices(
   auth: AuthServices,
@@ -29,6 +29,12 @@ export function createMemoryNotificationServices(
         items,
         unreadCount: mine.filter((n) => n.readAt == null).length,
       };
+    },
+    async deleteNotification(sessionToken, notificationId) {
+      const { userId } = await auth.requireUserSession(sessionToken);
+      const row = store.notifications.get(notificationId);
+      if (!row || row.userId !== userId) throw new NotificationError('not_found');
+      store.notifications.delete(notificationId);
     },
   };
 }

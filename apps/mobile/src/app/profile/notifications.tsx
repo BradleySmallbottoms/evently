@@ -1,16 +1,18 @@
+import type { NotificationListResponse } from '@local-events/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ActionList } from '@/components/ui/action-list';
 import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ensureIdentity } from '@/lib/identity';
 import { markNotificationsSeen } from '@/lib/notification-badge';
-import { listNotifications } from '@/lib/notifications';
+import { deleteNotification, listNotifications } from '@/lib/notifications';
 import { getPreferences, updateQuietHours } from '@/lib/preferences';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
@@ -52,6 +54,34 @@ export default function NotificationsScreen() {
       cancelled = true;
     };
   }, [unreadCount, queryClient]);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const remove = useMutation({
+    mutationFn: (notificationId: string) => deleteNotification(identity.data!, notificationId),
+    onMutate: (notificationId) => {
+      const key = ['notifications', identity.data?.userId] as const;
+      queryClient.setQueryData<NotificationListResponse>(key, (current) =>
+        current
+          ? {
+              ...current,
+              items: current.items.filter((item) => item.id !== notificationId),
+              unreadCount: current.items.some(
+                (item) => item.id === notificationId && item.readAt == null,
+              )
+                ? Math.max(0, current.unreadCount - 1)
+                : current.unreadCount,
+            }
+          : current,
+      );
+    },
+    onError: () => {
+      setRemoveError(t('events.notificationDeleteError'));
+      void queryClient.invalidateQueries({ queryKey: ['notifications', identity.data?.userId] });
+    },
+    onSuccess: () => {
+      setRemoveError(null);
+      void queryClient.invalidateQueries({ queryKey: ['notifications', identity.data?.userId] });
+    },
+  });
   const quietHours = useMutation({
     mutationFn: async (enabled: boolean) => {
       const id = identity.data;
@@ -78,94 +108,83 @@ export default function NotificationsScreen() {
       <View style={{ paddingHorizontal: space.xl, paddingTop: space.sm, paddingBottom: space.md }}>
         <BackPill />
       </View>
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{
-          padding: space.xl,
-          paddingBottom: space.xxxl,
-          gap: space.lg,
-        }}
-      >
-        <View style={{ gap: space.md }}>
-          <AppText variant="subtitle">{t('preferences.quietHoursTitle')}</AppText>
-          <AppText variant="caption">{t('preferences.quietHoursHint')}</AppText>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-            {(
-              [
-                { on: true, label: t('preferences.quietHoursOn') },
-                { on: false, label: t('preferences.quietHoursOff') },
-              ] as const
-            ).map((opt) => {
-              const selected = quietEnabled === opt.on;
-              return (
-                <Pressable
-                  key={opt.label}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  disabled={!identity.data || preferences.isPending || quietHours.isPending}
-                  onPress={() => quietHours.mutate(opt.on)}
-                  style={{
-                    paddingHorizontal: space.lg,
-                    paddingVertical: space.sm + 2,
-                    borderRadius: radius.pill,
-                    borderCurve: 'continuous',
-                    backgroundColor: selected ? colors.accent : (colors.card as string),
-                    borderWidth: selected ? 0 : 1,
-                    borderColor: colors.line,
-                  }}
-                >
-                  <AppText variant="label" style={{ color: colors.ink, fontWeight: '600' }}>
-                    {opt.label}
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </View>
-          {error ? (
-            <AppText variant="caption" style={{ color: colors.danger }}>
-              {error}
-            </AppText>
-          ) : null}
+      <View style={{ paddingHorizontal: space.xl, paddingBottom: space.lg, gap: space.md }}>
+        <AppText variant="subtitle">{t('preferences.quietHoursTitle')}</AppText>
+        <AppText variant="caption">{t('preferences.quietHoursHint')}</AppText>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+          {(
+            [
+              { on: true, label: t('preferences.quietHoursOn') },
+              { on: false, label: t('preferences.quietHoursOff') },
+            ] as const
+          ).map((opt) => {
+            const selected = quietEnabled === opt.on;
+            return (
+              <Pressable
+                key={opt.label}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                disabled={!identity.data || preferences.isPending || quietHours.isPending}
+                onPress={() => quietHours.mutate(opt.on)}
+                style={{
+                  paddingHorizontal: space.lg,
+                  paddingVertical: space.sm + 2,
+                  borderRadius: radius.pill,
+                  borderCurve: 'continuous',
+                  backgroundColor: selected ? colors.accent : (colors.card as string),
+                  borderWidth: selected ? 0 : 1,
+                  borderColor: colors.line,
+                }}
+              >
+                <AppText variant="label" style={{ color: colors.ink, fontWeight: '600' }}>
+                  {opt.label}
+                </AppText>
+              </Pressable>
+            );
+          })}
         </View>
-        {inbox.isPending ? (
-          <AppText variant="caption">{t('events.notificationsLoading')}</AppText>
-        ) : items.length === 0 ? (
+        {error ? (
+          <AppText variant="caption" style={{ color: colors.danger }}>
+            {error}
+          </AppText>
+        ) : null}
+        {removeError ? (
+          <AppText variant="caption" style={{ color: colors.danger }}>
+            {removeError}
+          </AppText>
+        ) : null}
+      </View>
+      {inbox.isPending ? (
+        <AppText variant="caption" style={{ paddingHorizontal: space.xl }}>
+          {t('events.notificationsLoading')}
+        </AppText>
+      ) : items.length === 0 ? (
+        <View style={{ paddingHorizontal: space.xl }}>
           <EmptyState title={t('events.notifications')} body={t('events.notificationsEmpty')} />
-        ) : (
-          <View style={{ gap: space.sm }}>
-            {items.map((item) => {
-              const reason =
-                item.reason === 'publisher'
-                  ? t('events.notificationReasonPublisher')
-                  : item.reason === 'event'
-                    ? t('events.notificationReasonEvent')
-                    : item.reason === 'broadcast'
-                      ? t('events.notificationReasonBroadcast')
-                      : t('events.notificationReasonNearby');
-              return (
-                <Pressable
-                  key={item.id}
-                  accessibilityRole="button"
-                  onPress={() => {
-                    if (item.eventId) router.push(`/events/${item.eventId}`);
-                  }}
-                  style={{
-                    backgroundColor: colors.card as string,
-                    borderRadius: radius.lg,
-                    borderWidth: 1,
-                    borderColor: colors.line,
-                    padding: space.lg,
-                    gap: space.xs,
-                  }}
-                >
-                  <AppText variant="subtitle">{item.eventTitle}</AppText>
-                  <AppText variant="caption">{reason}</AppText>
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
+        </View>
+      ) : (
+        <ActionList
+          editLabel={t('lists.edit')}
+          deleteLabel={t('lists.delete')}
+          items={items.map((item) => {
+            const reason =
+              item.reason === 'publisher'
+                ? t('events.notificationReasonPublisher')
+                : item.reason === 'event'
+                  ? t('events.notificationReasonEvent')
+                  : item.reason === 'broadcast'
+                    ? t('events.notificationReasonBroadcast')
+                    : t('events.notificationReasonNearby');
+            return {
+              id: item.id,
+              title: item.eventTitle,
+              subtitle: reason,
+              onPress: item.eventId ? () => router.push(`/events/${item.eventId}`) : undefined,
+              onDelete: () => remove.mutate(item.id),
+            };
+          })}
+        />
+      )}
     </View>
   );
 }

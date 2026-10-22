@@ -75,6 +75,8 @@ export interface TipRepository {
   ): Promise<void>;
   markSubmitted(tipId: string, eventId: string, now: Date): Promise<void>;
   addMessage(tipId: string, role: 'user' | 'assistant', body: string, now: Date): Promise<void>;
+  /** Drops the tip, its messages, and its images. The created event stays. */
+  remove(userId: string, tipId: string): Promise<boolean>;
   createPendingEvent(tip: TipRecord, images: TipImageRecord[]): Promise<string>;
 }
 

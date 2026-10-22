@@ -296,6 +296,13 @@ export function createDbTipServices(
     async addMessage(tipId, role, body, at) {
       await db.insert(schema.tipMessages).values({ tipId, role, body, createdAt: at });
     },
+    async remove(userId, tipId) {
+      const removed = await db
+        .delete(schema.eventTips)
+        .where(and(eq(schema.eventTips.id, tipId), eq(schema.eventTips.userId, userId)))
+        .returning({ id: schema.eventTips.id });
+      return removed.length > 0;
+    },
     async createPendingEvent(tip, images) {
       const [source] = await db
         .select({ id: schema.dataSources.id })

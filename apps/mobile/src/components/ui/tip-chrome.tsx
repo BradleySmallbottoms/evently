@@ -34,9 +34,19 @@ export function TipChrome({
         <View
           style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
         >
-          <BackPill />
+          <BackPill showLabel={false} />
           {title ? (
-            <AppText variant="title" style={{ textAlign: 'center' }}>
+            <AppText
+              variant="title"
+              style={{
+                textAlign: 'center',
+                maxWidth: '50%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                wordWrap: 'nowrap',
+                height: 44,
+              }}
+            >
               {title}
             </AppText>
           ) : null}
