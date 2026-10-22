@@ -388,7 +388,7 @@ describe('admin api', () => {
     ]);
   });
 
-  it('sends an imported review event back to the scan and refuses other rows', async () => {
+  it('sends an imported review or published event back to the scan and refuses other rows', async () => {
     const { auth } = await seededAuth();
     const importedId = '44444444-4444-4444-8444-444444444401';
     const publishedId = '44444444-4444-4444-8444-444444444402';
@@ -469,7 +469,9 @@ describe('admin api', () => {
       method: 'POST',
       headers: { cookie },
     });
-    expect(published.status).toBe(404);
+    expect(published.status).toBe(200);
+    expect(await published.json()).toMatchObject({ id: publishedId, status: 'pending_scan' });
+    expect(eventStore.events.get(publishedId)?.status).toBe('pending_scan');
 
     const native = await app.request(`/v1/events/${nativeId}/rescan`, {
       method: 'POST',

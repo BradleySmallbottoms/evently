@@ -343,7 +343,7 @@ function StatusList({ tip, locale }: { tip: Tip; locale: string }) {
           position: 'absolute',
           left: 10,
           top: 22,
-          bottom: 22,
+          bottom: 44,
           width: 2,
           backgroundColor: steps.every(([, at]) => at) ? colors.success : colors.line,
         }}

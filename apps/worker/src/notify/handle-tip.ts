@@ -34,7 +34,11 @@ export function tipPushMessages(input: {
 
 async function alreadyNotified(db: Db, userId: string, eventId: string | null): Promise<boolean> {
   if (!eventId) return false;
-  const [row] = await db
+  return (await tipNoticeCount(db, userId, eventId)) >= 1;
+}
+
+async function tipNoticeCount(db: Db, userId: string, eventId: string): Promise<number> {
+  const rows = await db
     .select({ id: schema.notifications.id })
     .from(schema.notifications)
     .where(
@@ -44,13 +48,14 @@ async function alreadyNotified(db: Db, userId: string, eventId: string | null): 
         eq(schema.notifications.reason, 'tip'),
       ),
     )
-    .limit(1);
-  return Boolean(row);
+    .limit(2);
+  return rows.length;
 }
 
 export async function handleTipScanned(
   input: { tipId: string; eventId: string; status: 'published' | 'in_review' | 'failed' },
   deps: { db: Db; expo: ExpoPushClient; now?: () => Date },
+  options?: { followUp?: boolean },
 ): Promise<void> {
   const now = deps.now?.() ?? new Date();
   const [tip] = await deps.db
@@ -59,7 +64,10 @@ export async function handleTipScanned(
     .where(eq(schema.eventTips.id, input.tipId))
     .limit(1);
   if (!tip) return;
-  if (await alreadyNotified(deps.db, tip.userId, input.eventId)) return;
+  if (options?.followUp) {
+    // The review notice is already there. One more row is the published notice.
+    if ((await tipNoticeCount(deps.db, tip.userId, input.eventId)) !== 1) return;
+  } else if (await alreadyNotified(deps.db, tip.userId, input.eventId)) return;
   const [event] = await deps.db
     .select({
       title: schema.events.title,

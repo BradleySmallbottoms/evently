@@ -46,7 +46,7 @@ sequenceDiagram
   Worker->>DB: inbox row reason tip
   Worker->>App: visible Expo push kind tip_scan
   App->>API: GET /v1/me/tips/{id}
-  App->>App: Ditt tips when published, otherwise Tipsets status
+  App->>App: thank-you screen when published, otherwise tip status
 ```
 
 - A tip stays in the chat until title, start date, start time, end date, end time, place, price,
@@ -67,7 +67,8 @@ sequenceDiagram
   harmful picture or one above a PG-13 level is refused with a warning and is not stored. A picture already on the tip is
   confirmed there: yes keeps it, and choosing another adds that picture to the chat. When the facts
   are already complete, that new picture is the last step: the chat verifies and opens the summary.
-  Change can replace the picture the same way. A picture chosen on the first
+  Change can replace the picture the same way. The picture comes from the camera or the photo
+  library. A picture chosen on the first
   screen is stored in the public assets bucket (Garage locally, S3 in production) and is read into
   that same chat: the photo shows with a spinner, and a bubble says the details are being read.
   The model names the missing fact on the first read. Later replies are applied on the tip, and the chat shows that
@@ -82,7 +83,9 @@ sequenceDiagram
 - Auth is the device session. A tip is readable only by that user.
 - `user-tips` is trust `review` and stays disabled, so the scan lands the event in `in_review`
   unless that source is later switched to `auto_publish` and the publisher is already published.
+  Publishing that event stores `published` on the tip and sends the published notice, so the status step reads “Granskad och publicerad”.
 - The push ignores quiet hours and the daily cap. The copy says the event was added only when
-  the scan published it. While the app is open the banner is hidden and the tip screen opens.
-  A tap from the lock screen opens that same screen.
+  the scan published it. While the app is open the banner is hidden. A published tip opens the
+  thank-you screen, and any other result opens the tip status. A tap from the lock screen, and a
+  tap on the inbox row, do the same.
 - Deleting the user removes `event_tips`, `tip_messages`, and `tip_images`. The event stays.

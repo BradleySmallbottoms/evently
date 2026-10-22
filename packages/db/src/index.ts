@@ -11,6 +11,7 @@ export {
   geographyPolygon,
   geographyMultiPolygon,
 } from './postgis';
+export { markTipPublished } from './tips';
 export {
   approveOpenPushMessagesForPublisher,
   approvePendingPushMessagesForEvent,

@@ -29,7 +29,9 @@ import { CollectedCard } from './collected-card';
 import { Composer } from './composer';
 import { ImageAsk } from './image-ask';
 import { endLabel } from './tip-answers';
+import { PhotoSourceMenu } from '@/components/native/photo-source-menu';
 import { API_URL } from '@/lib/api';
+import type { TipImageSource } from '@/lib/camera';
 import { ensureIdentity } from '@/lib/identity';
 import { chooseTipImage } from '@/lib/tip-photo';
 import { sendTipImage, sendTipText } from '@/lib/tips';
@@ -38,6 +40,7 @@ import { radius, space } from '@/theme/tokens';
 import type { Tip } from '@local-events/contracts';
 
 const VERIFY_HOLD_MS = 900;
+const THINK_HOLD_MS = 500;
 
 export function TipChat({
   tip,
@@ -69,14 +72,18 @@ export function TipChat({
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [thinking, setThinking] = useState(false);
   const verifyingSince = useRef<number | null>(null);
+  const thinkingSince = useRef<number | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const thinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pickedUri, setPickedUri] = useState<string | null>(initialPhoto ?? null);
   const [extraPhotos, setExtraPhotos] = useState<string[]>([]);
   const [photoBusy, setPhotoBusy] = useState(false);
   useEffect(
     () => () => {
       if (leaveTimer.current) clearTimeout(leaveTimer.current);
+      if (thinkTimer.current) clearTimeout(thinkTimer.current);
     },
     [],
   );
@@ -92,15 +99,30 @@ export function TipChat({
     if (leaveTimer.current) clearTimeout(leaveTimer.current);
   }
 
+  function beginThink() {
+    if (thinkTimer.current) clearTimeout(thinkTimer.current);
+    thinkingSince.current = Date.now();
+    setThinking(true);
+  }
+
+  function endThink() {
+    thinkingSince.current = null;
+    setThinking(false);
+    if (thinkTimer.current) clearTimeout(thinkTimer.current);
+  }
+
   function handoff(next: Tip) {
-    setPending(null);
     if (next.warning) {
+      setPending(null);
       stopVerify();
+      endThink();
       setWarning(next.warning);
       if (!revising) onDone({ ...next, warning: null });
       return;
     }
     if (next.imageStatus === 'scanning') {
+      setPending(null);
+      endThink();
       beginVerify();
       onDone(next);
       return;
@@ -108,11 +130,25 @@ export function TipChat({
     const leaving = next.phase === 'confirm' && (revising || tip.phase !== 'confirm');
     if (!leaving) {
       stopVerify();
-      setWarning(null);
-      setText('');
-      onDone(next);
+      const started = thinkingSince.current;
+      const wait = started == null ? 0 : Math.max(0, THINK_HOLD_MS - (Date.now() - started));
+      const finish = () => {
+        endThink();
+        setPending(null);
+        setWarning(null);
+        setText('');
+        onDone(next);
+      };
+      if (wait === 0) {
+        finish();
+        return;
+      }
+      if (thinkTimer.current) clearTimeout(thinkTimer.current);
+      thinkTimer.current = setTimeout(finish, wait);
       return;
     }
+    setPending(null);
+    endThink();
     beginVerify();
     const elapsed = Date.now() - (verifyingSince.current ?? Date.now());
     if (leaveTimer.current) clearTimeout(leaveTimer.current);
@@ -128,6 +164,7 @@ export function TipChat({
     onError: (err) => {
       setPending(null);
       stopVerify();
+      endThink();
       console.error('tip text failed', err);
       setError(t('tips.error'));
     },
@@ -201,21 +238,22 @@ export function TipChat({
 
   function sendBody(body: string) {
     const next = body.trim();
-    if (!next || send.isPending || verifying) return;
+    if (!next || send.isPending || verifying || thinking) return;
     setError(null);
     setWarning(null);
     setPending(next);
     if (completesNow()) beginVerify();
+    else beginThink();
     follow.current = true;
     send.mutate(next);
     reveal();
   }
 
-  async function uploadPhoto(finish: boolean) {
+  async function uploadPhoto(source: TipImageSource, finish: boolean) {
     let added = false;
     let previous = pickedUri;
     try {
-      const shot = await chooseTipImage();
+      const shot = await chooseTipImage(source);
       if (!shot.ok) {
         if (shot.reason === 'denied') setError(t('tips.cameraDenied'));
         return;
@@ -334,18 +372,39 @@ export function TipChat({
             />
           ) : null}
           <View style={{ flexDirection: 'row', gap: space.sm }}>
-            {askOptions.map((option) => (
-              <Choice
-                key={option.label}
-                label={option.label}
-                selected={option.reply != null && answer === option.reply}
-                disabled={answer != null || verifying || photoBusy}
-                onPress={() => {
-                  if (option.reply) sendBody(option.reply);
-                  else void uploadPhoto(true);
-                }}
-              />
-            ))}
+            {askOptions.map((option) =>
+              (() => {
+                const reply = option.reply;
+                if (reply) {
+                  return (
+                    <Choice
+                      key={option.label}
+                      label={option.label}
+                      selected={answer === reply}
+                      disabled={answer != null || verifying || photoBusy}
+                      onPress={() => sendBody(reply)}
+                    />
+                  );
+                }
+                return (
+                  <PhotoSourceMenu
+                    key={option.label}
+                    cameraLabel={t('tips.takePhoto')}
+                    libraryLabel={t('tips.photoLibrary')}
+                    onPick={(source) => {
+                      if (answer != null || verifying || photoBusy) return;
+                      void uploadPhoto(source, true);
+                    }}
+                  >
+                    <Choice
+                      label={option.label}
+                      selected={false}
+                      disabled={answer != null || verifying || photoBusy}
+                    />
+                  </PhotoSourceMenu>
+                );
+              })(),
+            )}
           </View>
         </View>,
       );
@@ -356,7 +415,7 @@ export function TipChat({
           key={`${message.createdAt}-image`}
           locked={send.isPending || verifying}
           onSkip={() => sendBody('image: none')}
-          onUpload={() => uploadPhoto(tip.question?.key === 'image' || revising)}
+          onUpload={(source) => uploadPhoto(source, tip.question?.key === 'image' || revising)}
         />,
       );
     }
@@ -488,10 +547,10 @@ export function TipChat({
               return <ChatArrival key={`${message.createdAt}-arrive`} pieces={pieces} />;
             })}
             {pendingEcho ? <Bubble mine>{userLabel(pendingEcho, locale, t)}</Bubble> : null}
-            {send.isPending && !verifying ? (
+            {thinking && !verifying ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
                 <AssistantAvatar />
-                <Bubble mine={false} hug>
+                <Bubble mine={false} hug tight>
                   <ActivityIndicator
                     accessibilityLabel={t('tips.verifying')}
                     size="small"
@@ -507,7 +566,7 @@ export function TipChat({
                 locked={send.isPending || verifying || photoBusy}
                 warning={warning}
                 photoUri={photoUri}
-                onReplace={() => void uploadPhoto(true)}
+                onReplace={(source) => void uploadPhoto(source, true)}
                 onSend={sendBody}
                 onEdit={reveal}
                 onDismissWarning={() => setWarning(null)}
@@ -535,7 +594,7 @@ export function TipChat({
                     style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
                   >
                     <AssistantAvatar />
-                    <Bubble mine={false}>
+                    <Bubble mine={false} hug>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
                         <ActivityIndicator
                           accessibilityLabel={t('tips.verifying')}
@@ -735,11 +794,14 @@ function stepHint(key: string, t: (key: string) => string): string | null {
 function Bubble({
   mine,
   hug = false,
+  tight = false,
   children,
 }: {
   mine: boolean;
-  /** Wraps the content instead of filling the row. Used for the spinner. */
+  /** Wraps the content instead of filling the row. */
   hug?: boolean;
+  /** Padding that sits just outside a spinner. */
+  tight?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -750,8 +812,8 @@ function Bubble({
         maxWidth: mine ? '82%' : '100%',
         backgroundColor: mine ? colors.accentSoft : colors.card,
         borderRadius: 22,
-        paddingHorizontal: hug ? space.sm : space.lg,
-        paddingVertical: hug ? space.sm : space.md,
+        paddingHorizontal: tight ? space.sm : space.lg,
+        paddingVertical: tight ? space.sm : space.md,
         gap: 4,
         ...(mine
           ? {}

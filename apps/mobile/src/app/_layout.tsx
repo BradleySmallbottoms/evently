@@ -236,6 +236,10 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="map" />
             <Stack.Screen name="events/[id]" />
+            <Stack.Screen
+              name="tips/published/[id]"
+              options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+            />
             <Stack.Screen name="for-you" />
             <Stack.Screen name="preferences/index" />
           </Stack>

@@ -9,6 +9,7 @@ export type NotificationRow = {
   title: string;
   subtitle: string;
   eventId: string | null;
+  reason: string;
 };
 
 type Props = {
@@ -19,7 +20,7 @@ type Props = {
   loadingMessage: string;
   loading: boolean;
   items: NotificationRow[];
-  onOpenEvent: (eventId: string) => void;
+  onOpen: (item: NotificationRow) => void;
 };
 
 export function NotificationsSheet({
@@ -30,7 +31,7 @@ export function NotificationsSheet({
   loadingMessage,
   loading,
   items,
-  onOpenEvent,
+  onOpen,
 }: Props) {
   return (
     <Host style={{ position: 'absolute', width: 0, height: 0 }}>
@@ -51,10 +52,8 @@ export function NotificationsSheet({
                 {items.map((item) => (
                   <Pressable
                     key={item.id}
-                    onPress={() => {
-                      if (item.eventId) onOpenEvent(item.eventId);
-                    }}
-                    disabled={!item.eventId}
+                    onPress={() => onOpen(item)}
+                    disabled={!item.eventId && item.reason !== 'tip'}
                     style={{ gap: 4 }}
                   >
                     <Text textStyle={{ fontSize: 16, fontWeight: '600' }}>{item.title}</Text>

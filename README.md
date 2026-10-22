@@ -72,12 +72,14 @@ pnpm api-client:generate   # after public API OpenAPI changes
   same chat. When the facts are complete, the model writes a short summary for the confirm screen.
   A finished tip becomes
   an imported `pending_scan` event on the seeded `user-tips` source, which stays disabled at trust
-  `review`, so the regular scan leaves it `in_review` until an admin publishes it. The event
+  `review`, so the regular scan leaves it `in_review` until an admin publishes it. Publishing the
+  event marks the tip published. The event
   description is the written description. The chat lines are stored on `meta.tip`, which public
   responses omit. The scan prompt receives those lines along with the written description.
 - The user gets a visible push (`kind` `tip_scan`) that ignores quiet hours and the daily cap.
   The wording says the event was added only when the scan published it. An open app hides the
-  banner and opens the tip. A tap does the same. Public event pages show “Från användartips” from
+  banner. A published tip opens the thank-you screen, and any other result opens the tip status.
+  A tap, including the inbox row, does the same. Public event pages show “Från användartips” from
   `meta.fromUserTip` and do not name who sent it.
 - Apply `pnpm db:migrate` so `event_tips` and the `user-tips` source exist. Tip text and photos
   are deleted with the user; the event row stays.
@@ -109,8 +111,8 @@ calls) in the same change as every new major feature.**
   A collapsed span lists each `meta.occasions` row that has not ended on that same page, and the date shown is the next of those rows. The same start and end is a whole day, shown as “Whole Day” through the end of that calendar day.
   A Citybreak time ending in `Z`, or with a numeric offset, is stored as that instant. A time with no zone is Europe/Stockholm. Hälsingland and Hudiksvall date-and-period values are Stockholm wall time too.
   Categories under Evenemang are stored as the tag catalog (`external_id` `visit-soderhamn:{id}`).
-  The import does not put those tags on the event. The scan job does. `GET /v1/tags` is that list. The mobile home and search call it with
-  `?upcoming=true`, which keeps only tags on a published event that has not ended. Choosing
+  The import does not put those tags on the event. The scan job does. `GET /v1/tags` is that list. The mobile home, calendar, and search call it with
+  `?upcoming=true` plus the selected place (`lat`, `lng`, `radiusM`). That keeps tags on a published event that has not ended and sits inside the place. An event without a point does not add a category. Choosing
   preferred tags loads the full list. Publishers and admin do too.
   A fresh database is seeded with the seven tags from the local fixture; a live run adds the rest.
 - Set `VISIT_SODERHAMN_API_KEY` before a live run. The key is not stored in `data_sources.config`.
@@ -186,7 +188,9 @@ calls) in the same change as every new major feature.**
   The tool-calling scan opens one https page: the source URL, then a ticket
   link, then an info link, then a Facebook page. A page on visit.destinationhalsingland.se
   is fetched with curl over HTTP/1.1. The model uses that page for tags,
-  instructions, the summary, missing dates, and the address. The model returns that address
+  instructions, the summary, missing dates, and the address. Instructions are visitor
+  steps from that page or the description. Tip chat lines, and a step that only asks
+  someone to confirm a field, are left out. The model returns that address
   in the scan JSON. A scraped point and address are kept. When the event has no point, the
   scraped address is geocoded, and the model address is used only when the import stored none.
   A street, or a postcode with a city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept.
@@ -386,7 +390,8 @@ calls) in the same change as every new major feature.**
 - **Admin queues:** `/review` lists imports in `in_review`, publishers in `in_review`, and `pending`
   notifications (approve/reject). A warning icon marks a row that needs a closer look, such as a
   possible duplicate. Import review and the event catalog can select rows and publish,
-  reject, or delete them. Scan again sends an imported review event back to `pending_scan`.
+  reject, or delete them. Scan again sends an imported review or published event back to `pending_scan`.
+  A published event leaves the public list until that scan finishes.
   An event with several occasions, or an `occasionGroupId`, has a Tillfällen tab. Collapse folds the
   checked events into that event and cancels them. Flow:
   [docs/flows/admin-collapse-occasions.md](docs/flows/admin-collapse-occasions.md). Publisher lists can select rows and verify them.

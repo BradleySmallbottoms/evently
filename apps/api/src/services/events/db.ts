@@ -358,15 +358,33 @@ export function createDbEventServices(
 
   return {
     async listTags(query) {
-      const rows = query?.upcoming
-        ? await db
-            .selectDistinct({ id: tags.id, slug: tags.slug, name: tags.name })
-            .from(tags)
-            .innerJoin(eventTags, eq(eventTags.tagId, tags.id))
-            .innerJoin(events, eq(events.id, eventTags.eventId))
-            .where(and(eq(events.status, 'published'), currentEventSql(env.now())))
-            .orderBy(asc(tags.slug))
-        : await db.select().from(tags).orderBy(asc(tags.slug));
+      const near =
+        query?.lat != null && query.lng != null && query.radiusM != null
+          ? { lat: query.lat, lng: query.lng, radiusM: query.radiusM }
+          : null;
+      if (!query?.upcoming && !near) {
+        const rows = await db.select().from(tags).orderBy(asc(tags.slug));
+        return rows.map((r) => ({ id: r.id, slug: r.slug, name: r.name }));
+      }
+      const filters = [eq(events.status, 'published'), currentEventSql(env.now())];
+      if (near) {
+        const point = pointEwkt({ lat: near.lat, lng: near.lng });
+        filters.push(sql`(
+          ${events.location} IS NOT NULL
+          AND ST_DWithin(
+            ${events.location},
+            ST_GeogFromText(${point}),
+            ${near.radiusM}
+          )
+        )`);
+      }
+      const rows = await db
+        .selectDistinct({ id: tags.id, slug: tags.slug, name: tags.name })
+        .from(tags)
+        .innerJoin(eventTags, eq(eventTags.tagId, tags.id))
+        .innerJoin(events, eq(events.id, eventTags.eventId))
+        .where(and(...filters))
+        .orderBy(asc(tags.slug));
       return rows.map((r) => ({
         id: r.id,
         slug: r.slug,

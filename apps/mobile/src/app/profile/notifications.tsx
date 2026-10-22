@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ensureIdentity } from '@/lib/identity';
 import { markNotificationsSeen } from '@/lib/notification-badge';
 import { deleteNotification, listNotifications } from '@/lib/notifications';
+import { openInboxItem } from '@/lib/open-inbox-item';
 import { getPreferences, updateQuietHours } from '@/lib/preferences';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
@@ -174,12 +175,19 @@ export default function NotificationsScreen() {
                   ? t('events.notificationReasonEvent')
                   : item.reason === 'broadcast'
                     ? t('events.notificationReasonBroadcast')
-                    : t('events.notificationReasonNearby');
+                    : item.reason === 'tip'
+                      ? t('events.notificationReasonTip')
+                      : t('events.notificationReasonNearby');
             return {
               id: item.id,
               title: item.eventTitle,
               subtitle: reason,
-              onPress: item.eventId ? () => router.push(`/events/${item.eventId}`) : undefined,
+              onPress:
+                item.eventId || item.reason === 'tip'
+                  ? () => {
+                      void openInboxItem(router, locale, item);
+                    }
+                  : undefined,
               onDelete: () => remove.mutate(item.id),
             };
           })}

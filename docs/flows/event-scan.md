@@ -37,6 +37,7 @@ For each event the Ollama runner:
 4. Asks the configured chat model for up to five catalog tags.
    Those tags replace any the event already has.
    Steps the model lists from the description are stored on `meta.instructions`.
+   Tip chat lines, and a step that only asks someone to confirm a field, are left out.
    When the event has no start and no end, the model also returns both instants. Those
    replace the empty dates. A range that is missing one side is ignored.
    The tool-calling scan may call `fetchEventPage`. That opens one https page:
@@ -71,8 +72,9 @@ when none is set. Public responses omit the field.
 `published` enqueues `event.published` and schedules the publisher's import reminders as approved.
 `in_review` schedules those reminders as pending when the publisher status is `published` and a plan is set.
 A model failure releases the lease and leaves that row `pending_scan`. The other rows in the batch
-still finish. An admin can send an imported `in_review` event back with `POST /v1/events/{id}/rescan`.
+still finish. An admin can send an imported `in_review` or `published` event back with `POST /v1/events/{id}/rescan`.
 That sets `pending_scan`, clears the scan lease, and cancels open reminders so the next run can claim it.
+A published event leaves the public list until that scan finishes.
 
 ```mermaid
 sequenceDiagram

@@ -81,7 +81,13 @@ export function TextAsk({
         <View style={{ gap: space.lg }}>
           <Composer
             value={value}
-            placeholder={t('tips.writePlaceholder')}
+            placeholder={t(
+              prefix === 'title'
+                ? 'tips.titlePlaceholder'
+                : prefix === 'place'
+                  ? 'tips.placePlaceholder'
+                  : 'tips.writePlaceholder',
+            )}
             editable={!locked}
             icon={icon}
             onChange={(next) => {

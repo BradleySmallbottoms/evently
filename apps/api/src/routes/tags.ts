@@ -10,7 +10,7 @@ export function registerTagRoutes(app: OpenAPIHono, events: EventServices): void
     responses: {
       200: {
         description:
-          'Event tags. Pass upcoming=true to keep tags that have a published event still to come.',
+          'Event tags. Pass upcoming=true to keep tags that have a published event still to come. Pass lat, lng, and radiusM with that to keep tags on an event inside that place. An event without a point is left out of a place.',
         content: { 'application/json': { schema: TagListResponse } },
       },
     },

@@ -35,6 +35,7 @@ import { loadHomeTagIds, saveHomeTagIds } from '@/lib/home-tag-selection';
 import { homeGroupForTags, retainedTagIds } from '@/lib/tag-groups';
 import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
+import { openInboxItem } from '@/lib/open-inbox-item';
 import { queryPointForArea } from '@/lib/area-point';
 import { refreshDeviceLocation } from '@/lib/device-location';
 import {
@@ -85,8 +86,9 @@ export default function HomeScreen() {
   const saveDiscoveryRadius = useSaveDiscoveryRadius(identity.data);
   const areaTags = useAreaTagPrompt(identity.data);
   const tags = useQuery({
-    queryKey: ['tags', 'upcoming'],
-    queryFn: () => listTags(),
+    queryKey: ['tags', 'upcoming', 'place', point.data?.lat, point.data?.lng, point.data?.radiusM],
+    enabled: point.isSuccess,
+    queryFn: () => listTags({ near: point.data! }),
   });
   const storedTagIds = useQuery({
     queryKey: ['home-tag-ids'],
@@ -714,12 +716,15 @@ export default function HomeScreen() {
                 ? t('events.notificationReasonEvent')
                 : n.reason === 'broadcast'
                   ? t('events.notificationReasonBroadcast')
-                  : t('events.notificationReasonNearby'),
+                  : n.reason === 'tip'
+                    ? t('events.notificationReasonTip')
+                    : t('events.notificationReasonNearby'),
           eventId: n.eventId,
+          reason: n.reason,
         }))}
-        onOpenEvent={(eventId) => {
+        onOpen={(item) => {
           setNotificationsOpen(false);
-          router.push(`/events/${eventId}`);
+          void openInboxItem(router, locale, item);
         }}
       />
 

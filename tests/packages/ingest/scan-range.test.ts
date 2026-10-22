@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { readScanRange } from '../../../packages/ingest/src/tag-match';
+import { readScanInstructions, readScanRange } from '../../../packages/ingest/src/tag-match';
+
+describe('readScanInstructions', () => {
+  it('keeps visitor steps and drops tip-field confirmations', () => {
+    expect(
+      readScanInstructions([
+        ' Ta med matsäck ',
+        '',
+        'Bekräfta platsen (place) för eventet',
+        'Bekräfta länken (link) till eventet',
+        'Bekräfta beskrivningen (description), särskilt tiderna',
+        'Anmäl dig i förväg',
+      ]),
+    ).toEqual(['Ta med matsäck', 'Anmäl dig i förväg']);
+  });
+});
 
 describe('readScanRange', () => {
   it('keeps both instants when the end is not before the start', () => {

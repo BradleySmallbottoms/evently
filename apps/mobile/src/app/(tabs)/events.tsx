@@ -32,7 +32,7 @@ import { listTags, namesForTagIds } from '@/lib/events';
 import { isWholeDay, shownWhen } from '@/lib/span-occasions';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { useSaveDiscoveryRadius } from '@/lib/save-discovery-radius';
-import { groupHomeTags } from '@/lib/tag-groups';
+import { groupHomeTags, retainedTagIds } from '@/lib/tag-groups';
 import { useAreaTagPrompt } from '@/lib/use-area-tag-prompt';
 import {
   NEARBY_PLACE_ID,
@@ -71,9 +71,15 @@ export default function EventsScreen() {
   const saveDiscoveryRadius = useSaveDiscoveryRadius(identity.data);
   const areaTags = useAreaTagPrompt(identity.data);
   const tags = useQuery({
-    queryKey: ['tags', 'upcoming'],
-    queryFn: () => listTags(),
+    queryKey: ['tags', 'upcoming', 'place', point.data?.lat, point.data?.lng, point.data?.radiusM],
+    enabled: point.isSuccess,
+    queryFn: () => listTags({ near: point.data! }),
   });
+  const knownTagIds = useMemo(
+    () => new Set((tags.data?.items ?? []).map((tag) => tag.id)),
+    [tags.data],
+  );
+  const listedTagIds = tags.isSuccess ? retainedTagIds(tagIds, knownTagIds) : tagIds;
   const saved = useQuery({
     queryKey: ['saved-events', identity.data?.userId],
     enabled: identity.isSuccess,
@@ -92,13 +98,13 @@ export default function EventsScreen() {
     return monthStamps(month.y, month.m);
   }, [custom, month.m, month.y, quick, today]);
   const iso = boundsIso(range.from, range.to);
-  const tagKey = [...tagIds].sort().join('\n');
+  const tagKey = [...listedTagIds].sort().join('\n');
   const events = useInfinitePublicEvents(
     point.data,
     {
       from: iso.from,
       to: iso.to,
-      tagIds: tagIds.length > 0 ? tagIds : undefined,
+      tagIds: listedTagIds.length > 0 ? listedTagIds : undefined,
       price: price === 'any' ? undefined : price,
       sort: 'soonest',
     },
@@ -135,7 +141,7 @@ export default function EventsScreen() {
     const labels: string[] = [];
     for (const group of groupHomeTags(tags.data?.items ?? [])) {
       const ids = group.tags.map((tag) => tag.id);
-      if (ids.length > 0 && ids.every((id) => tagIds.includes(id))) {
+      if (ids.length > 0 && ids.every((id) => listedTagIds.includes(id))) {
         labels.push(t(`events.tagGroup.${group.id}`));
       }
     }
@@ -146,7 +152,7 @@ export default function EventsScreen() {
     if (price === 'free') labels.push(t('events.free'));
     if (price === 'paid') labels.push(t('events.pricePaid'));
     return labels;
-  }, [custom, locale, price, quick, t, tagIds, tags.data?.items]);
+  }, [custom, listedTagIds, locale, price, quick, t, tags.data?.items]);
 
   const weekend = weekendStamps(today);
   const quickChips = [
@@ -384,7 +390,7 @@ export default function EventsScreen() {
       <CalendarFilterSheet
         isPresented={filtersOpen}
         tags={tags.data?.items ?? []}
-        tagIds={tagIds}
+        tagIds={listedTagIds}
         price={price}
         onDismiss={() => setFiltersOpen(false)}
         onApply={(nextTags, nextPrice) => {
@@ -397,7 +403,7 @@ export default function EventsScreen() {
         isPresented={dateOpen}
         locale={locale}
         point={point.data}
-        tagIds={tagIds}
+        tagIds={listedTagIds}
         price={price === 'any' ? undefined : price}
         initial={quick === 'custom' ? custom : null}
         onDismiss={() => setDateOpen(false)}

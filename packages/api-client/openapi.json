@@ -6161,11 +6161,43 @@
             "required": false,
             "name": "upcoming",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "nullable": true,
+              "minimum": -90,
+              "maximum": 90
+            },
+            "required": false,
+            "name": "lat",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "nullable": true,
+              "minimum": -180,
+              "maximum": 180
+            },
+            "required": false,
+            "name": "lng",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 200000
+            },
+            "required": false,
+            "name": "radiusM",
+            "in": "query"
           }
         ],
         "responses": {
           "200": {
-            "description": "Event tags. Pass upcoming=true to keep tags that have a published event still to come.",
+            "description": "Event tags. Pass upcoming=true to keep tags that have a published event still to come. Pass lat, lng, and radiusM with that to keep tags on an event inside that place. An event without a point is left out of a place.",
             "content": {
               "application/json": {
                 "schema": {

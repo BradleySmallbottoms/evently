@@ -96,9 +96,11 @@ export function canRejectImportedEvent(status: string): boolean {
   return status === 'in_review';
 }
 
-/** An imported review event can go back to the import scan. */
+/** An imported review or published event can go back to the import scan. */
 export function canRescanImportedEvent(input: { status: string; origin: string }): boolean {
-  return input.status === 'in_review' && input.origin === 'imported';
+  return (
+    input.origin === 'imported' && (input.status === 'in_review' || input.status === 'published')
+  );
 }
 
 /**

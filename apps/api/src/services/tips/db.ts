@@ -10,6 +10,7 @@ import {
   tipEventFields,
   tipInstant,
   tipOrganizerKeys,
+  tipScanStatus,
   type TipExtraction,
 } from '@local-events/domain';
 import { and, asc, count, desc, eq, gte, inArray } from 'drizzle-orm';
@@ -145,6 +146,7 @@ export function createDbTipServices(
               priceAmount: schema.events.priceAmount,
               description: schema.events.description,
               summary: schema.events.summary,
+              status: schema.events.status,
             })
             .from(schema.events)
             .where(inArray(schema.events.id, ids));
@@ -158,6 +160,7 @@ export function createDbTipServices(
       tip.eventPlace = event.venueName;
       tip.eventPriceAmount = event.priceAmount;
       tip.eventDescription = event.summary ?? event.description;
+      tip.scanStatus = tipScanStatus(tip.scanStatus, event.status);
       return tip;
     });
   }

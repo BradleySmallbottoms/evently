@@ -207,7 +207,7 @@ export function registerAdminEventRoutes(
         content: { 'application/json': { schema: ErrorResponse } },
       },
       404: {
-        description: 'Not found or not an imported event in review',
+        description: 'Not found, or not an imported event in review or published',
         content: { 'application/json': { schema: ErrorResponse } },
       },
     },

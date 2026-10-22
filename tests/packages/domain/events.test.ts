@@ -103,7 +103,10 @@ describe('event status gates', () => {
     expect(canDeleteImportedEvent({ status: 'published', origin: 'imported' })).toBe(false);
     expect(canDeleteImportedEvent({ status: 'in_review', origin: 'native' })).toBe(false);
     expect(canRescanImportedEvent({ status: 'in_review', origin: 'imported' })).toBe(true);
-    expect(canRescanImportedEvent({ status: 'published', origin: 'imported' })).toBe(false);
+    expect(canRescanImportedEvent({ status: 'published', origin: 'imported' })).toBe(true);
+    expect(canRescanImportedEvent({ status: 'published', origin: 'native' })).toBe(false);
+    expect(canRescanImportedEvent({ status: 'pending_scan', origin: 'imported' })).toBe(false);
+    expect(canRescanImportedEvent({ status: 'cancelled', origin: 'imported' })).toBe(false);
     expect(canRescanImportedEvent({ status: 'in_review', origin: 'native' })).toBe(false);
   });
 });

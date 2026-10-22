@@ -60,12 +60,16 @@ export async function resolveEventQueryPoint(): Promise<EventQueryPoint> {
   }
 }
 
-export async function listTags(options?: { upcoming?: boolean }) {
+export async function listTags(options?: { upcoming?: boolean; near?: EventQueryPoint }) {
   const upcoming = options?.upcoming !== false;
+  const near = options?.near;
   return throwIfError(
     await api.GET('/tags', {
       params: {
-        query: upcoming ? { upcoming: 'true' } : {},
+        query: {
+          ...(upcoming ? { upcoming: 'true' as const } : {}),
+          ...(near ? { lat: near.lat, lng: near.lng, radiusM: near.radiusM } : {}),
+        },
       },
     }),
   );

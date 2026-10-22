@@ -102,6 +102,59 @@ describe('events', () => {
     expect(await ended.json()).toEqual({ items: [] });
   });
 
+  it('upcoming place returns tags on a current event inside the radius', async () => {
+    const store = createMemoryStore();
+    const now = new Date('2026-06-15T12:00:00.000Z');
+    const auth = createMemoryAuthServices(
+      { includeVerificationToken: true, now: () => now },
+      store,
+    );
+    const events = createMemoryEventServices(auth, { now: () => now }, store);
+    const app = createApp({ auth, events });
+    const { publisherId, cookie } = await registerAndLogin(app, 'tags-place@example.com');
+
+    async function publish(body: typeof physicalBody) {
+      const created = await app.request(`/v1/publishers/${publisherId}/events`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie },
+        body: JSON.stringify(body),
+      });
+      expect(created.status).toBe(201);
+      const draft = (await created.json()) as { id: string };
+      const row = store.events.get(draft.id);
+      if (!row) throw new Error('missing event');
+      row.status = 'published';
+      return row;
+    }
+
+    const near = await publish({
+      ...physicalBody,
+      title: 'Visby concert',
+      location: { lat: 57.6348, lng: 18.2948 },
+      tagIds: [SEED_TAGS[1]!.id],
+    });
+    await publish({
+      ...physicalBody,
+      title: 'Söderhamn match',
+      location: { lat: 61.3037, lng: 17.0592 },
+      tagIds: [SEED_TAGS[0]!.id],
+    });
+
+    const place = await app.request('/v1/tags?upcoming=true&lat=57.6348&lng=18.2948&radiusM=25000');
+    expect(place.status).toBe(200);
+    const body = (await place.json()) as { items: { id: string }[] };
+    expect(body.items.map((tag) => tag.id)).toEqual([SEED_TAGS[1]!.id]);
+
+    near.location = null;
+    const unpinned = await app.request(
+      '/v1/tags?upcoming=true&lat=57.6348&lng=18.2948&radiusM=25000',
+    );
+    expect(await unpinned.json()).toEqual({ items: [] });
+
+    const partial = await app.request('/v1/tags?upcoming=true&lat=57.6348');
+    expect(partial.status).toBe(400);
+  });
+
   it('creates a draft, publishes as awaiting_verification, then releases on verify', async () => {
     const store = createMemoryStore();
     const auth = createMemoryAuthServices(

@@ -66,7 +66,16 @@ describe('stats domain event handlers', () => {
         })),
       })),
     };
-    const db = { select: vi.fn(() => selectChain) };
+    const db = {
+      select: vi.fn(() => selectChain),
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({
+          where: vi.fn(() => ({
+            returning: vi.fn(async () => []),
+          })),
+        })),
+      })),
+    };
     const stats = { put };
 
     await processMessage(

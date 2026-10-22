@@ -1,5 +1,6 @@
 import type {
   Tag,
+  TagListQuery,
   CreateEventRequest,
   Event,
   ManagedEvent,
@@ -32,7 +33,7 @@ export class EventError extends Error {
 }
 
 export type EventServices = {
-  listTags: (query?: { upcoming?: boolean }) => Promise<Tag[]>;
+  listTags: (query?: TagListQuery) => Promise<Tag[]>;
   listPublisherEvents: (input: {
     sessionToken: string | undefined;
     publisherId: string;

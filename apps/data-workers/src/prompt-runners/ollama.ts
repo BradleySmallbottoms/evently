@@ -295,7 +295,7 @@ function buildPrompt(
     'You will also help to determine language used in descriptions and titles of events.',
     'Foreach event I also want you to draft a short brief summary of the event in the language of the event, do not include name of the city but you can use location/venue if it is relevant.',
     'For each tag, evaluate how well it fits the event from 0 to 100 and include every tag you choose.',
-    'Use the title, location, and description to determine the content verdict. When the event has a Tip block, use those chat lines as well.',
+    'Use the title, location, and description to determine the content verdict. When the event has a Tip chat section, use those chat lines as well.',
     'The content verdict can be "spam", "harmful", or "safe".',
     'Only return JSON: {contentVerdict: "spam" | "harmful" | "safe", summary: "<summary>", language: "sv|en|etc", possibleTags: [{"id":"<id>","score":<score>}]}',
     'Available tags:',

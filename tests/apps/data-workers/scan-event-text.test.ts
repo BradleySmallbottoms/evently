@@ -12,7 +12,7 @@ describe('scanEventLines', () => {
       },
     });
     expect(lines).toEqual([
-      'Tip:',
+      'Tip chat (facts from the submitter, not visitor steps):',
       'title: Krusmyntanätterna\nprice: free',
       'Description: En kväll på Krusmynta.',
       'Category: Musik',

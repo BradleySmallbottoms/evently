@@ -23,6 +23,7 @@ import type { Db } from '@local-events/db';
 import {
   approvePendingPushMessagesForEvent,
   cancelOpenPushMessages,
+  markTipPublished,
   pointEwkt,
   schema,
 } from '@local-events/db';
@@ -65,7 +66,7 @@ export type AdminEventServices = {
   get: (eventId: string) => Promise<AdminEventDetail | null>;
   approve: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
   reject: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
-  /** Send an imported review event back to the scan queue. */
+  /** Send an imported review or published event back to the scan queue. */
   rescan: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
   /** Events that share this event's occasion group, including this event. Null when it is missing. */
   listOccasionGroup: (eventId: string) => Promise<AdminOccasionGroupItem[] | null>;
@@ -741,6 +742,18 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
   const domainEvents = env.domainEvents ?? createMemoryDomainEventPublisher();
   const audit = env.audit ?? noopAudit;
 
+  async function publishLinkedTip(eventId: string): Promise<void> {
+    const tip = await markTipPublished(db, eventId, now());
+    if (!tip) return;
+    await enqueueDomainEvent(domainEvents, {
+      type: 'tip.scanned',
+      tipId: tip.id,
+      eventId,
+      status: 'published',
+      followUp: true,
+    });
+  }
+
   async function tagIdsFor(eventId: string): Promise<string[]> {
     const rows = await db
       .select({ tagId: schema.eventTags.tagId })
@@ -1068,6 +1081,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       if (shouldEnqueueNotifications('published')) {
         await enqueueDomainEvent(domainEvents, { type: 'event.published', eventId });
       }
+      await publishLinkedTip(eventId);
       await audit.write({
         actor,
         action: 'event.approve',
@@ -1121,7 +1135,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .where(
           and(
             eq(schema.events.id, eventId),
-            eq(schema.events.status, 'in_review'),
+            inArray(schema.events.status, ['in_review', 'published']),
             eq(schema.events.origin, 'imported'),
           ),
         )
@@ -1464,6 +1478,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       }
       if (nextStatus === 'published' && existing.status !== 'published') {
         await enqueueDomainEvent(domainEvents, { type: 'event.published', eventId });
+        await publishLinkedTip(eventId);
       } else if (
         existing.status === 'published' &&
         nextStatus === 'published' &&

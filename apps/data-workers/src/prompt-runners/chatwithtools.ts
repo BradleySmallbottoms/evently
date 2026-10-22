@@ -444,9 +444,10 @@ function buildScanPrompt(event: ScanInput): string {
     '6. Call getNearbyEvents() before you decide a duplicate. This call is required. Compare the scanned event with each event in the result.',
     'Rank the match from 0 to 100 and return only a duplicate if the rank is over 90.',
     'For every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.',
-    'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe". When the event has a Tip block, use those chat lines as well.',
+    'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe". When the event has a Tip chat section, use those chat lines as well.',
     'Write a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.',
-    'If the description or the result from fetchEventPage contains instructions for the user to follow, summarize the steps in a list and include it in the json result.',
+    'instructions are steps a visitor follows, taken only from the description or the event page, such as what to bring or how to sign up. Use an empty list when the text has no such steps.',
+    'The Tip chat section is the chat with the person who submitted the event. Lines such as "place: ...", "link: ...", and "confirm: place" are that chat. Do not turn them into instructions. Do not write a step that asks anyone to confirm the place, the link, the description, or any other field.',
     'When Starts or Ends is missing, read the title, the description, and the event page and extract the event start and end.',
     ...(eventPageUrl(event)
       ? [
@@ -466,7 +467,7 @@ function buildScanPrompt(event: ScanInput): string {
     'contentVerdict is "spam", "harmful", or "safe". language is the event language, such as "sv" or "en". rank and score are numbers from 0 to 100.',
     'Include a explanation of why tags where chosed and why the publisher and duplicate were chosen etc. in the JSON object.',
     'When you are finished, return only the JSON object. Do not explain it and do not wrap it in markdown:',
-    '{"decision_explanation": "<decision_explanation>", "instructions":["<instruction1>","<instruction2>"],"possiblePublishers":[{"publisherId":"<publisherId>","rank":95}],"possibleDuplicates":[{"eventId":"<eventId>","rank":95,"occasionRank":10}],"contentVerdict":"safe","summary":"<summary>","language":"sv","possibleTags":[{"id":"<id>","score":95}],"startsAt":null,"endsAt":null,"address":{"address":"Köpmangatan 14","zipCode":"82471","city":"Delsbo"},"possibleVenueNames":[{"name":"Svea Bio","rank":95}]}',
+    '{"decision_explanation": "<decision_explanation>", "instructions":[],"possiblePublishers":[{"publisherId":"<publisherId>","rank":95}],"possibleDuplicates":[{"eventId":"<eventId>","rank":95,"occasionRank":10}],"contentVerdict":"safe","summary":"<summary>","language":"sv","possibleTags":[{"id":"<id>","score":95}],"startsAt":null,"endsAt":null,"address":{"address":"Köpmangatan 14","zipCode":"82471","city":"Delsbo"},"possibleVenueNames":[{"name":"Svea Bio","rank":95}]}',
     'Event:',
     `Title: ${event.title}`,
     `Starts: ${event.startsAt || '(missing)'}`,

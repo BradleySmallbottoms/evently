@@ -1,5 +1,6 @@
 'use client';
 
+import { canRescanImportedEvent } from '@local-events/domain';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarIcon, MoreHorizontalIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -249,7 +250,7 @@ export function EventCatalog() {
   }
   const canPublish = selectedItems.some((item) => item.status === 'in_review');
   const canRemove = reviewCount > 0;
-  const canRescan = reviewCount > 0;
+  const canRescan = selectedItems.some(canRescanImportedEvent);
   const canCancel = selectedItems.some((item) => item.status !== 'cancelled');
 
   function toggleAll() {
@@ -271,11 +272,13 @@ export function EventCatalog() {
     const rows =
       action === 'cancel'
         ? selectedItems.filter((item) => item.status !== 'cancelled')
-        : action === 'delete' || action === 'wipe' || action === 'rescan'
-          ? selectedItems.filter(
-              (item) => item.status === 'in_review' && item.origin === 'imported',
-            )
-          : selectedItems.filter((item) => item.status === 'in_review');
+        : action === 'rescan'
+          ? selectedItems.filter(canRescanImportedEvent)
+          : action === 'delete' || action === 'wipe'
+            ? selectedItems.filter(
+                (item) => item.status === 'in_review' && item.origin === 'imported',
+              )
+            : selectedItems.filter((item) => item.status === 'in_review');
     if (rows.length === 0) return;
     setBulkError(false);
     bulk.mutate({
@@ -495,7 +498,7 @@ export function EventCatalog() {
                   </TableCell>
                   <TableCell>{item.venueName}</TableCell>
                   <TableCell className="text-right">
-                    {item.status === 'in_review' ? (
+                    {item.status === 'in_review' || canRescanImportedEvent(item) ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           render={
@@ -506,17 +509,19 @@ export function EventCatalog() {
                           }
                         />
                         <DropdownMenuContent align="end">
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem
-                              disabled={busy}
-                              onClick={() => decide.mutate(item.id)}
-                            >
-                              {t('publish')}
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                          {item.origin === 'imported' ? (
+                          {item.status === 'in_review' ? (
+                            <DropdownMenuGroup>
+                              <DropdownMenuItem
+                                disabled={busy}
+                                onClick={() => decide.mutate(item.id)}
+                              >
+                                {t('publish')}
+                              </DropdownMenuItem>
+                            </DropdownMenuGroup>
+                          ) : null}
+                          {canRescanImportedEvent(item) ? (
                             <>
-                              <DropdownMenuSeparator />
+                              {item.status === 'in_review' ? <DropdownMenuSeparator /> : null}
                               <DropdownMenuGroup>
                                 <DropdownMenuItem
                                   disabled={busy}
@@ -530,6 +535,10 @@ export function EventCatalog() {
                                   {t('rescan')}
                                 </DropdownMenuItem>
                               </DropdownMenuGroup>
+                            </>
+                          ) : null}
+                          {item.status === 'in_review' && item.origin === 'imported' ? (
+                            <>
                               <DropdownMenuSeparator />
                               <DropdownMenuGroup>
                                 <DropdownMenuItem

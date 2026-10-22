@@ -26,6 +26,8 @@ export const DomainEvent = z.discriminatedUnion('type', [
     tipId: Id,
     eventId: Id,
     status: z.enum(['published', 'in_review', 'failed']),
+    /** Set when publishing the event, after the review notice was already sent. */
+    followUp: z.boolean().optional(),
   }),
   z.object({
     type: z.literal('tip.needs_input'),

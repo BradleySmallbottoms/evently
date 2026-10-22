@@ -4,6 +4,7 @@ import { schema } from '@local-events/db';
 import { eq } from 'drizzle-orm';
 import type { HandleDuePushDeps } from './notify/handle-due-push';
 import { handleTipNeedsInput, handleTipScanned } from './notify/handle-tip';
+import { publishTipForEvent } from './notify/publish-tip';
 import {
   applyCheckInStats,
   applyEngagementStats,
@@ -47,11 +48,11 @@ export const handlers: {
 } = {
   'event.published': async (e, ctx) => {
     const now = ctx.now?.() ?? new Date();
-    // Inbox purge runs on the due-push poller; keep publish handler stats-only.
     console.log(JSON.stringify({ handled: e.type, eventId: e.eventId }));
 
-    if (!ctx.stats) return;
     const db = ctx.db ?? ctx.notify?.db;
+    if (db) await publishTipForEvent(db, e.eventId, now, ctx.notify);
+    if (!ctx.stats) return;
     if (!db) return;
     const publisherId = await publisherIdFor(db, e.eventId);
     if (publisherId) {
@@ -102,7 +103,7 @@ export const handlers: {
   },
   'tip.scanned': async (e, ctx) => {
     if (!ctx.notify) return;
-    await handleTipScanned(e, ctx.notify);
+    await handleTipScanned(e, ctx.notify, { followUp: e.followUp === true });
   },
   'tip.needs_input': async (e, ctx) => {
     if (!ctx.notify) return;

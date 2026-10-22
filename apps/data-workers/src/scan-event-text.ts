@@ -13,7 +13,7 @@ export function scanEventLines(event: {
   const category = event.tip?.categoryHint?.trim();
   const description = event.description?.replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_LIMIT);
   if (text || category) {
-    const lines = ['Tip:'];
+    const lines = ['Tip chat (facts from the submitter, not visitor steps):'];
     if (text) lines.push(text.slice(0, TIP_LIMIT));
     if (description) lines.push(`Description: ${description}`);
     if (category) lines.push(`Category: ${category}`);

@@ -10,6 +10,7 @@ import {
   tipEditable,
   tipPhase,
   tipScanNotification,
+  tipScanStatus,
   applyTipAnswers,
   tipAcceptance,
   tipLocalReply,
@@ -342,6 +343,12 @@ describe('tip limits and titles', () => {
 });
 
 describe('tip phase and notification copy', () => {
+  it('treats a published event as a published tip', () => {
+    expect(tipScanStatus('in_review', 'published')).toBe('published');
+    expect(tipScanStatus('in_review', 'in_review')).toBe('in_review');
+    expect(tipScanStatus(null, null)).toBeNull();
+  });
+
   it('shows the published screen only after a published scan', () => {
     expect(
       tipPhase({

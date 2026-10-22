@@ -1,5 +1,6 @@
 'use client';
 
+import { canRescanImportedEvent } from '@local-events/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { XIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -36,7 +37,13 @@ import { EventTagsField } from './event-tags-field';
 
 type EventMode = 'physical' | 'digital';
 type EventStatus =
-  'draft' | 'awaiting_verification' | 'in_review' | 'published' | 'cancelled' | 'ended';
+  | 'draft'
+  | 'awaiting_verification'
+  | 'pending_scan'
+  | 'in_review'
+  | 'published'
+  | 'cancelled'
+  | 'ended';
 type LinkType = 'tickets' | 'registration' | 'info' | 'facebook' | 'instagram';
 
 type EventDetail = {
@@ -217,6 +224,22 @@ export function EventEditor({ eventId }: { eventId: string }) {
     },
   });
 
+  const rescan = useMutation({
+    mutationFn: () => adminFetch(`/events/${eventId}/rescan`, { method: 'POST' }),
+    onSuccess: async () => {
+      setDraft(null);
+      setNotice(t('rescanned'));
+      setFormError(null);
+      await queryClient.invalidateQueries({ queryKey: ['admin-event', eventId] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-events-catalog'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-events-in-review'] });
+    },
+    onError: () => {
+      setNotice(null);
+      setFormError(t('rescanError'));
+    },
+  });
+
   function update<K extends keyof Draft>(key: K, value: Draft[K]) {
     if (!form) return;
     setDraft({ ...form, [key]: value });
@@ -272,7 +295,6 @@ export function EventEditor({ eventId }: { eventId: string }) {
       title: form.title.trim(),
       description: form.description.trim() || null,
       mode: form.mode,
-      status: form.status,
       startsAt,
       endsAt,
       timezone: form.timezone.trim() || 'Europe/Stockholm',
@@ -285,6 +307,7 @@ export function EventEditor({ eventId }: { eventId: string }) {
       tagIds: form.tagIds,
       featured: form.featured,
       checkInEnabled: form.checkInEnabled,
+      ...(form.status === 'pending_scan' ? {} : { status: form.status }),
       links: links.map((link) => ({
         type: link.type,
         url: link.url,
@@ -340,15 +363,17 @@ export function EventEditor({ eventId }: { eventId: string }) {
     t(
       status === 'awaiting_verification'
         ? 'statusAwaiting'
-        : status === 'in_review'
-          ? 'statusInReview'
-          : status === 'draft'
-            ? 'statusDraft'
-            : status === 'published'
-              ? 'statusPublished'
-              : status === 'cancelled'
-                ? 'statusCancelled'
-                : 'statusEnded',
+        : status === 'pending_scan'
+          ? 'statusPendingScan'
+          : status === 'in_review'
+            ? 'statusInReview'
+            : status === 'draft'
+              ? 'statusDraft'
+              : status === 'published'
+                ? 'statusPublished'
+                : status === 'cancelled'
+                  ? 'statusCancelled'
+                  : 'statusEnded',
     );
   const statusItems = Object.fromEntries(STATUSES.map((status) => [status, statusLabel(status)]));
   const modeItems = {
@@ -403,7 +428,24 @@ export function EventEditor({ eventId }: { eventId: string }) {
       >
         {t('back')}
       </Link>
-      <h1 className="text-2xl font-semibold">{t('title')}</h1>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold">{t('title')}</h1>
+        {event && canRescanImportedEvent(event) ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={rescan.isPending || save.isPending}
+            onClick={() => {
+              setNotice(null);
+              setFormError(null);
+              rescan.mutate();
+            }}
+          >
+            {rescan.isPending ? <Spinner data-icon="inline-start" /> : null}
+            {t('rescan')}
+          </Button>
+        ) : null}
+      </div>
       {event ? (
         <p className="text-sm text-muted-foreground">
           {t('publisher')}:{' '}
@@ -521,27 +563,31 @@ export function EventEditor({ eventId }: { eventId: string }) {
               </Field>
               <Field>
                 <FieldLabel htmlFor="event-status">{t('status')}</FieldLabel>
-                <Select
-                  items={statusItems}
-                  value={form.status}
-                  onValueChange={(next) => {
-                    if (next == null || !STATUSES.includes(next as EventStatus)) return;
-                    update('status', next as EventStatus);
-                  }}
-                >
-                  <SelectTrigger id="event-status" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {STATUSES.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {statusLabel(status)}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                {form.status === 'pending_scan' ? (
+                  <Input id="event-status" value={statusLabel('pending_scan')} readOnly />
+                ) : (
+                  <Select
+                    items={statusItems}
+                    value={form.status}
+                    onValueChange={(next) => {
+                      if (next == null || !STATUSES.includes(next as EventStatus)) return;
+                      update('status', next as EventStatus);
+                    }}
+                  >
+                    <SelectTrigger id="event-status" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {STATUSES.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {statusLabel(status)}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
               </Field>
             </div>
             <Field orientation="horizontal">

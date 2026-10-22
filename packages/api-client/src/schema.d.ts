@@ -3620,6 +3620,9 @@ export interface paths {
       parameters: {
         query?: {
           upcoming?: 'true' | 'false';
+          lat?: number | null;
+          lng?: number | null;
+          radiusM?: number;
         };
         header?: never;
         path?: never;
@@ -3627,7 +3630,7 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
-        /** @description Event tags. Pass upcoming=true to keep tags that have a published event still to come. */
+        /** @description Event tags. Pass upcoming=true to keep tags that have a published event still to come. Pass lat, lng, and radiusM with that to keep tags on an event inside that place. An event without a point is left out of a place. */
         200: {
           headers: {
             [name: string]: unknown;

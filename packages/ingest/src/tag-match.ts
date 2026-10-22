@@ -195,14 +195,21 @@ export type LLMScanResult = {
 const INSTRUCTION_LIMIT = 20;
 const INSTRUCTION_LENGTH = 500;
 
-/** Keeps non-empty steps from the scan JSON. At most 20, each at most 500 characters. */
+/**
+ * A tip field named in parentheses. The scan sometimes restates the tip chat
+ * (`place:`, `confirm: place`) as a step such as "Bekräfta platsen (place)".
+ */
+const TIP_FIELD_STEP =
+  /\((?:place|link|description|title|price|startDate|startTime|endDate|endTime|startsAt|endsAt)\)/i;
+
+/** Keeps non-empty visitor steps from the scan JSON. At most 20, each at most 500 characters. */
 export function readScanInstructions(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   const steps: string[] = [];
   for (const item of value) {
     if (typeof item !== 'string') continue;
     const step = item.trim();
-    if (!step) continue;
+    if (!step || TIP_FIELD_STEP.test(step)) continue;
     steps.push(step.slice(0, INSTRUCTION_LENGTH));
     if (steps.length >= INSTRUCTION_LIMIT) break;
   }

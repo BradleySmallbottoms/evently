@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import type { Tip } from '@local-events/contracts';
 
+import { PhotoSourceMenu } from '@/components/native/photo-source-menu';
+import type { TipImageSource } from '@/lib/camera';
 import { radius, space } from '@/theme/tokens';
 
 import { AskControl } from './ask-control';
@@ -46,7 +48,7 @@ export function ChangeAsk({
   question: ReactNode;
   onSend: (body: string) => void;
   onEdit: () => void;
-  onReplace: () => void;
+  onReplace: (source: TipImageSource) => void;
   onDismissWarning: () => void;
 }) {
   const { t } = useTranslation();
@@ -88,12 +90,17 @@ export function ChangeAsk({
                 />
               ) : null}
               <View style={{ flexDirection: 'row' }}>
-                <Choice
-                  label={t(photoUri ? 'tips.replacePicture' : 'tips.addPicture')}
-                  selected={false}
-                  disabled={locked}
-                  onPress={onReplace}
-                />
+                <PhotoSourceMenu
+                  cameraLabel={t('tips.takePhoto')}
+                  libraryLabel={t('tips.photoLibrary')}
+                  onPick={onReplace}
+                >
+                  <Choice
+                    label={t(photoUri ? 'tips.replacePicture' : 'tips.addPicture')}
+                    selected={false}
+                    disabled={locked}
+                  />
+                </PhotoSourceMenu>
               </View>
               {warning ? <ContentWarning text={warning} /> : null}
             </View>,

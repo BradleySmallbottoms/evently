@@ -1087,6 +1087,12 @@ export function tipEditable(phase: TipPhase): boolean {
   return EDITABLE_TIP_PHASES.includes(phase);
 }
 
+/** The scan stores `in_review`. Publishing that event is what marks the tip published. */
+export function tipScanStatus(stored: string | null, eventStatus: string | null): string | null {
+  if (eventStatus === 'published') return 'published';
+  return stored;
+}
+
 export function tipPhase(input: {
   path: TipPath;
   status: TipStatus;

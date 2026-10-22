@@ -6,8 +6,10 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { AcknowledgeAlert } from '@/components/native/acknowledge-alert';
+import { PhotoSourceMenu } from '@/components/native/photo-source-menu';
 import { TipChatSheet } from '@/components/native/tip-chat-sheet';
 import { AppText } from '@/components/ui/app-text';
+import type { TipImageSource } from '@/lib/camera';
 import { ensureIdentity } from '@/lib/identity';
 import { chooseTipImage } from '@/lib/tip-photo';
 import { createTip, listTips, sendTipImage } from '@/lib/tips';
@@ -71,11 +73,11 @@ export default function TipStartScreen() {
     }
   }
 
-  async function startPhoto() {
-    setPending('photo');
+  async function startPhoto(source: TipImageSource) {
     setError(null);
+    setPending('photo');
     try {
-      const shot = await chooseTipImage();
+      const shot = await chooseTipImage(source);
       if (!shot.ok) {
         if (shot.reason === 'denied') setError(t('tips.cameraDenied'));
         return;
@@ -134,20 +136,25 @@ export default function TipStartScreen() {
           </View>
         ) : (
           <>
-            <Choice
-              title={t('tips.takePhoto')}
-              body={t('tips.takePhotoBody')}
-              icon={
-                <Image
-                  accessible={false}
-                  source={require('@/assets/images/kamera.png')}
-                  style={{ width: 48, height: 48 }}
-                  contentFit="contain"
-                />
-              }
-              pending={pending === 'photo'}
-              onPress={() => void startPhoto()}
-            />
+            <PhotoSourceMenu
+              cameraLabel={t('tips.takePhoto')}
+              libraryLabel={t('tips.photoLibrary')}
+              onPick={(source) => void startPhoto(source)}
+            >
+              <Choice
+                title={t('tips.takePhoto')}
+                body={t('tips.takePhotoBody')}
+                icon={
+                  <Image
+                    accessible={false}
+                    source={require('@/assets/images/kamera.png')}
+                    style={{ width: 48, height: 48 }}
+                    contentFit="contain"
+                  />
+                }
+                pending={pending === 'photo'}
+              />
+            </PhotoSourceMenu>
             <Choice
               title={t('tips.write')}
               body={t('tips.writeBody')}
@@ -207,8 +214,42 @@ function Choice({
   body: string;
   icon: ReactNode;
   pending: boolean;
-  onPress: () => void;
+  onPress?: () => void;
 }) {
+  const content = (
+    <>
+      {icon}
+      <View style={{ flex: 1, gap: 2 }}>
+        <AppText variant="label">{title}</AppText>
+        <AppText variant="caption" style={{ color: colors.inkMuted }}>
+          {body}
+        </AppText>
+      </View>
+      {pending ? (
+        <ActivityIndicator color={colors.ink} />
+      ) : (
+        <AppText style={{ color: colors.inkMuted }}>›</AppText>
+      )}
+    </>
+  );
+  if (!onPress) {
+    return (
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: space.md,
+          backgroundColor: colors.card,
+          borderRadius: radius.lg,
+          borderWidth: 1,
+          borderColor: colors.line,
+          padding: space.lg,
+        }}
+      >
+        {content}
+      </View>
+    );
+  }
   return (
     <Pressable
       accessibilityRole="button"
@@ -224,18 +265,7 @@ function Choice({
         padding: space.lg,
       }}
     >
-      {icon}
-      <View style={{ flex: 1, gap: 2 }}>
-        <AppText variant="label">{title}</AppText>
-        <AppText variant="caption" style={{ color: colors.inkMuted }}>
-          {body}
-        </AppText>
-      </View>
-      {pending ? (
-        <ActivityIndicator color={colors.ink} />
-      ) : (
-        <AppText style={{ color: colors.inkMuted }}>›</AppText>
-      )}
+      {content}
     </Pressable>
   );
 }

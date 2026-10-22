@@ -107,7 +107,11 @@ export function createMemoryEventServices(
   return {
     async listTags(query) {
       const items = [...tags.values()];
-      if (!query?.upcoming) return items;
+      const near =
+        query?.lat != null && query.lng != null && query.radiusM != null
+          ? { lat: query.lat, lng: query.lng, radiusM: query.radiusM }
+          : null;
+      if (!query?.upcoming && !near) return items;
       const now = env.now();
       const active = new Set<string>();
       for (const event of events.values()) {
@@ -121,6 +125,11 @@ export function createMemoryEventServices(
           })
         ) {
           continue;
+        }
+        if (near) {
+          if (event.location == null || haversineM(near, event.location) > near.radiusM) {
+            continue;
+          }
         }
         for (const tagId of event.tagIds) active.add(tagId);
       }

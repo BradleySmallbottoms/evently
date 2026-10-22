@@ -119,7 +119,8 @@ Architecture
 - Data workers never write events directly in an adapter; adapters only fetch and map to
   `IncomingEvent`. The ingest pipeline validates and upserts. A new import stays `pending_scan`
   until the scan job resolves the publisher, duplicate check, and tags. Steps the scan lists
-  from the description are stored on `meta.instructions`.
+  from the description are stored on `meta.instructions`. Tip chat lines, and a step that only
+  asks someone to confirm a field, are left out.
 
 Import adapters (every new source)
 
@@ -170,7 +171,8 @@ Product invariants (enforced in domain, tested)
 - An event without a point is omitted from the public event list. Tags do not replace a missing
   point. It has no map pin and does not match nearby push. Direct lookup by id still returns it.
   The list also leaves out an event that has ended. A whole day, the same start and end, stays
-  through that calendar day.
+  through that calendar day. Home, calendar, and search category buttons are tags on a current
+  published event inside the selected place. An event without a point does not add a category.
 - A new data-worker import is `pending_scan` until the scan job finishes. It becomes `published`
   only when the scan approves it, the publisher status is `published` and the publisher is not temporary, and the source
   trust is `auto_publish`. A temporary publisher, a publisher that is not `published`, or a review-trust
@@ -212,8 +214,9 @@ Product invariants (enforced in domain, tested)
   stays cancelled. Wiping it removes the row and skips that source id on later imports.
   Wipe refuses when someone has checked in, saved, rated, or been notified.
   Rejecting it cancels the event and leaves the row.
-  Scan again (`POST /events/{id}/rescan`) sets an imported `in_review` event back to
+  Scan again (`POST /events/{id}/rescan`) sets an imported `in_review` or `published` event back to
   `pending_scan`, clears the scan lease, and cancels open reminders so the scan job claims it.
+  A published event leaves the public list until that scan finishes.
 - Script-imported events are notified only when the publisher status is `published` and its import
   notification plan is set. Future reminders are approved when the event is published, and
   stored as pending while the event is still in review. Publishing the event approves them.
@@ -240,12 +243,13 @@ Product invariants (enforced in domain, tested)
 - v1 has no subscription/paid plan UI anywhere. Plan limits go through `entitlementsFor()`, which
   returns the all-unlocked launch plan.
 - A user tip is read by Anthropic, then saved as an imported `pending_scan` event on the disabled
-  `user-tips` source. Trust stays `review`, so the scan leaves it `in_review` until an admin
-  publishes it. `meta.fromUserTip` is public and does not name the submitter. The event
+  `user-tips` source. Trust stays `review`, so the scan leaves the event and the tip `in_review`
+  until an admin publishes the event. That sets the tip's scan status to `published`. `meta.fromUserTip` is public and does not name the submitter. The event
   description is the written description. The chat lines are stored on `meta.tip`, which public
   responses omit. The scan prompt receives those lines along with the written description. The tip push is
   visible, ignores quiet hours and the daily cap, and says the event was added only when it is
-  published. Tip text and photos cascade with the user. The event stays.
+  published. A published tip opens the thank-you screen. Any other result opens the tip status. The inbox
+  row does the same. Tip text and photos cascade with the user. The event stays.
 
 Code conventions
 

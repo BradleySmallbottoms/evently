@@ -110,21 +110,26 @@ export default function SearchScreen() {
   const saveDiscoveryRadius = useSaveDiscoveryRadius(identity.data);
   const areaTags = useAreaTagPrompt(identity.data);
   const tags = useQuery({
-    queryKey: ['tags', 'upcoming'],
-    queryFn: () => listTags(),
+    queryKey: ['tags', 'upcoming', 'place', point.data?.lat, point.data?.lng, point.data?.radiusM],
+    enabled: point.isSuccess,
+    queryFn: () => listTags({ near: point.data! }),
   });
+  const listedTagId =
+    tagId !== 'all' && tags.isSuccess && !tags.data.items.some((tag) => tag.id === tagId)
+      ? 'all'
+      : tagId;
   const bounds = dateBounds(dateId);
   const events = useInfinitePublicEvents(
     point.data,
     {
       q: q.trim() || undefined,
-      tagId: tagId === 'all' ? undefined : tagId,
+      tagId: listedTagId === 'all' ? undefined : listedTagId,
       price: price === 'any' ? undefined : price,
       from: bounds.from,
       to: bounds.to,
       sort: 'soonest',
     },
-    ['search-events', point.data, q, tagId, price, dateId],
+    ['search-events', point.data, q, listedTagId, price, dateId],
   );
   const eventItems = useMemo(
     () => events.data?.pages.flatMap((page) => page.items) ?? [],
@@ -266,7 +271,7 @@ export default function SearchScreen() {
               />
               <FilterDropdown
                 label={t('events.filterTagLabel')}
-                value={tagId}
+                value={listedTagId}
                 options={tagOptions}
                 onChange={setTagId}
               />

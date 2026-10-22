@@ -33,16 +33,28 @@ export const TagListResponse = z.object({
 });
 export type TagListResponse = z.infer<typeof TagListResponse>;
 
-export const TagListQuery = z.object({
-  /**
-   * When `true`, only tags on a published event that has not ended.
-   * Omitted returns the full vocabulary (publisher forms and interests).
-   */
-  upcoming: z
-    .enum(['true', 'false'])
-    .optional()
-    .transform((value) => value === 'true'),
-});
+export const TagListQuery = z
+  .object({
+    /**
+     * When `true`, only tags on a published event that has not ended.
+     * Omitted returns the full vocabulary (publisher forms and interests).
+     */
+    upcoming: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((value) => value === 'true'),
+    /**
+     * With `lng` and `radiusM`, only tags on a current published event inside
+     * that circle. An event without a point is left out. All three or none.
+     */
+    lat: z.coerce.number().min(-90).max(90).optional(),
+    lng: z.coerce.number().min(-180).max(180).optional(),
+    radiusM: z.coerce.number().int().min(100).max(200_000).optional(),
+  })
+  .refine((value) => {
+    const set = [value.lat, value.lng, value.radiusM].filter((part) => part !== undefined).length;
+    return set === 0 || set === 3;
+  }, 'lat, lng, and radiusM are set together');
 export type TagListQuery = z.infer<typeof TagListQuery>;
 
 export const EventLinkType = z.enum(['tickets', 'registration', 'info', 'facebook', 'instagram']);

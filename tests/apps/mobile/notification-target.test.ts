@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   eventIdFromNotificationData,
   tipIdFromNotificationData,
+  tipTargetFromNotificationData,
 } from '../../../apps/mobile/src/lib/notification-target';
 
 const EVENT_ID = '11111111-1111-4111-8111-111111111111';
@@ -35,5 +36,23 @@ describe('tipIdFromNotificationData', () => {
     expect(tipIdFromNotificationData({ kind: 'inbox', tipId: EVENT_ID })).toBeNull();
     expect(tipIdFromNotificationData({ kind: 'tip_scan', tipId: '../tips' })).toBeNull();
     expect(tipIdFromNotificationData(null)).toBeNull();
+  });
+});
+
+describe('tipTargetFromNotificationData', () => {
+  it('opens the thank-you screen only when the tip is published', () => {
+    expect(
+      tipTargetFromNotificationData({ kind: 'tip_scan', tipId: EVENT_ID, status: 'published' }),
+    ).toEqual({ tipId: EVENT_ID, screen: 'published' });
+    expect(
+      tipTargetFromNotificationData({ kind: 'tip_scan', tipId: EVENT_ID, status: 'in_review' }),
+    ).toEqual({ tipId: EVENT_ID, screen: 'status' });
+    expect(tipTargetFromNotificationData({ kind: 'tip_scan', tipId: EVENT_ID })).toEqual({
+      tipId: EVENT_ID,
+      screen: 'status',
+    });
+    expect(
+      tipTargetFromNotificationData({ kind: 'inbox', tipId: EVENT_ID, status: 'published' }),
+    ).toBeNull();
   });
 });
