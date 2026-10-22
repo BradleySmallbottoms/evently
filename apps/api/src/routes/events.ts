@@ -6,6 +6,8 @@ import {
   EventResponse,
   ManagedEvent,
   OccasionListQuery,
+  PublicEventCountQuery,
+  PublicEventCountResponse,
   PublicEventListQuery,
   PublicEventListResponse,
   UpdateEventRequest,
@@ -102,6 +104,23 @@ export function registerEventRoutes(app: OpenAPIHono, events: EventServices): vo
     return c.json(page, 200);
   });
 
+  const countPublicEvents = createRoute({
+    method: 'get',
+    path: '/events/count',
+    request: { query: PublicEventCountQuery },
+    responses: {
+      200: {
+        description:
+          'How many events GET /events would return for the same place, tags, date, price, and text.',
+        content: { 'application/json': { schema: PublicEventCountResponse } },
+      },
+    },
+  });
+  app.openapi(countPublicEvents, async (c) => {
+    const total = await events.countPublicEvents(c.req.valid('query'));
+    return c.json(total, 200);
+  });
+
   const listOccasions = createRoute({
     method: 'get',
     path: '/events/occasions',
@@ -143,7 +162,6 @@ export function registerEventRoutes(app: OpenAPIHono, events: EventServices): vo
         eventId: id,
         publicOnly: true,
       });
-      console.log('result', JSON.stringify(result, null, 2));
       return c.json(result, 200);
     } catch (err) {
       return eventErrorResponse(c, err);

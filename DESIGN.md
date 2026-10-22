@@ -314,7 +314,8 @@ Structure: 1. Large hero image with a circular back control, save (heart),
 and share. When the event has more than one photo, swipe between them and
 show a "1/5" counter on the image. The first tag sits as a small pill on
 the lower edge of the photo. 2. Title, then a short lead taken from the
-description. 3. Date row. A single day shows that day and its time, or
+description. A tickets link adds a ticket icon to the right of the title;
+tapping it opens that URL. 3. Date row. A single day shows that day and its time, or
 "Whole Day". A span shows the period ("19 sep – 15 nov 2026") and
 "Join whenever it suits you". 4. Place row. A physical event shows the
 venue, then the organizer and "Show map" when a point exists. The row
@@ -325,8 +326,10 @@ on at once, and each tap updates the count immediately. Pull down to
 reload. 6. "About" with the rest of the description and "Read more" when
 it is long. 7. "How it works" lists `meta.instructions` when the scan stored
 steps. The section is omitted when that list is empty. 8. Map preview when the event has a point. 9. Organizer name, with follow. 10. "Good to know": type, place, cost
-when the price is known, more-information link, and a reminder when one
-can still be set. Omit a row when the data is missing. 11. "All dates"
+when the price is known, a tickets link when the event has one, a
+more-information link, and a reminder when one can still be set. Omit a
+row when the data is missing. The tickets URL is not repeated under more
+information. 11. "All dates"
 when the event spans days or has other occasions. The period card can
 expand to the individual dates. 12. Similar events that share a tag. 13. Share: copy link, Facebook, Instagram, and the system share sheet.
 A sticky bar repeats the title, the period, and "I want to join".
@@ -340,8 +343,9 @@ Check-in, attendee content, and rating stay on the page when that event
 supports them. Report stays as a quiet action at the bottom.
 
 Rules: - The sticky join action stays reachable while scrolling. -
-Ticket, registration, and info links stay in "More information", separate
-from "I want to join". - Do not fabricate availability, prices, venue
+A tickets link opens from the title icon and from Good to know. Registration
+and info links stay in "More information", separate from "I want to join". -
+Do not fabricate availability, prices, venue
 details, audience, organizer blurbs, or participant photos. - Show the
 event's local date and time clearly. - Saving and marking coming are
 immediate and reversible.

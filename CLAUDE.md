@@ -171,7 +171,7 @@ Product invariants (enforced in domain, tested)
 - An event without a point is omitted from the public event list. Tags do not replace a missing
   point. It has no map pin and does not match nearby push. Direct lookup by id still returns it.
   The list also leaves out an event that has ended. A whole day, the same start and end, stays
-  through that calendar day. Home, calendar, and search category buttons are tags on a current
+  through that calendar day. The Show events buttons count that list with `GET /events/count` for the current place, tags, date, price, and search text. Caching is planned in `docs/flows/event-counts.md`. Home, calendar, and search category buttons are tags on a current
   published event inside the selected place. An event without a point does not add a category.
 - A new data-worker import is `pending_scan` until the scan job finishes. It becomes `published`
   only when the scan approves it, the publisher status is `published` and the publisher is not temporary, and the source
@@ -210,9 +210,9 @@ Product invariants (enforced in domain, tested)
   A link matches on host and path;
   protocol, query, and a trailing slash are ignored. A Citybreak product id matches with or
   without the `cbis:` prefix. The same source id updates its own row.
-- Deleting an imported `in_review` event cancels it and leaves the row, so a later import
-  stays cancelled. Wiping it removes the row and skips that source id on later imports.
-  Wipe refuses when someone has checked in, saved, rated, or been notified.
+- Deleting an imported `in_review` event from review cancels it and leaves the row, so a later import
+  stays cancelled. The event catalog uses one delete action for any event. It cancels the event and leaves the row. Permanent delete removes the row and skips that source id on later imports.
+  Permanent delete refuses when someone has checked in, saved, rated, or been notified.
   Rejecting it cancels the event and leaves the row.
   Scan again (`POST /events/{id}/rescan`) sets an imported `in_review` or `published` event back to
   `pending_scan`, clears the scan lease, and cancels open reminders so the scan job claims it.

@@ -6,6 +6,7 @@ import {
   type EventLink,
   type ManagedEvent,
   type OccasionListQuery,
+  type PublicEventCountQuery,
   type PublicEventListQuery,
   type UpdateEventRequest,
 } from '@local-events/contracts';
@@ -102,6 +103,54 @@ export function createMemoryEventServices(
       if (err instanceof AuthError) throw new EventError('unauthorized');
       throw err;
     }
+  }
+
+  function listedPublicEvents(
+    query: PublicEventCountQuery & { sort?: PublicEventListQuery['sort'] },
+  ) {
+    const from = query.from ? new Date(query.from) : undefined;
+    const to = query.to ? new Date(query.to) : undefined;
+    const center = { lat: query.lat, lng: query.lng };
+    const q = query.q?.toLowerCase();
+    return [...events.values()]
+      .filter((e) => e.status === 'published')
+      .filter((e) => isPubliclyListedEvent({ hasLocation: e.location != null }))
+      .filter((e) => e.location != null && haversineM(center, e.location) <= query.radiusM)
+      .filter((e) =>
+        eventIsCurrent({
+          startsAt: e.startsAtDate,
+          endsAt: e.endsAtDate,
+          timeZone: e.timezone,
+          now: env.now(),
+          from,
+        }),
+      )
+      .filter((e) => !to || e.startsAtDate <= to)
+      .filter((e) => {
+        const tagIds = publicEventTagIds(query);
+        return tagIds.length === 0 || e.tagIds.some((id) => tagIds.includes(id));
+      })
+      .filter((e) => {
+        if (query.price === 'free' || query.price === 'paid') {
+          return matchesListPrice(e.priceAmount, query.price);
+        }
+        return true;
+      })
+      .filter((e) => {
+        if (!q) return true;
+        const publisher = publishers.get(e.publisherId)?.name.toLowerCase() ?? '';
+        return (
+          e.title.toLowerCase().includes(q) ||
+          (e.venueName?.toLowerCase().includes(q) ?? false) ||
+          publisher.includes(q) ||
+          e.publisherName.toLowerCase().includes(q)
+        );
+      })
+      .filter((e) => {
+        if (query.sort !== 'popular') return true;
+        const counts = memoryEventEngagement(store, e.id);
+        return isPopularEvent(counts.numSaved, counts.numComing);
+      });
   }
 
   return {
@@ -297,49 +346,8 @@ export function createMemoryEventServices(
     },
 
     async listPublicEvents(query: PublicEventListQuery) {
-      const from = query.from ? new Date(query.from) : undefined;
-      const to = query.to ? new Date(query.to) : undefined;
       const center = { lat: query.lat, lng: query.lng };
-      const q = query.q?.toLowerCase();
-      const matched = [...events.values()]
-        .filter((e) => e.status === 'published')
-        .filter((e) => isPubliclyListedEvent({ hasLocation: e.location != null }))
-        .filter((e) => e.location != null && haversineM(center, e.location) <= query.radiusM)
-        .filter((e) =>
-          eventIsCurrent({
-            startsAt: e.startsAtDate,
-            endsAt: e.endsAtDate,
-            timeZone: e.timezone,
-            now: env.now(),
-            from,
-          }),
-        )
-        .filter((e) => !to || e.startsAtDate <= to)
-        .filter((e) => {
-          const tagIds = publicEventTagIds(query);
-          return tagIds.length === 0 || e.tagIds.some((id) => tagIds.includes(id));
-        })
-        .filter((e) => {
-          if (query.price === 'free' || query.price === 'paid') {
-            return matchesListPrice(e.priceAmount, query.price);
-          }
-          return true;
-        })
-        .filter((e) => {
-          if (!q) return true;
-          const publisher = publishers.get(e.publisherId)?.name.toLowerCase() ?? '';
-          return (
-            e.title.toLowerCase().includes(q) ||
-            (e.venueName?.toLowerCase().includes(q) ?? false) ||
-            publisher.includes(q) ||
-            e.publisherName.toLowerCase().includes(q)
-          );
-        })
-        .filter((e) => {
-          if (query.sort !== 'popular') return true;
-          const counts = memoryEventEngagement(store, e.id);
-          return isPopularEvent(counts.numSaved, counts.numComing);
-        });
+      const matched = listedPublicEvents(query);
       matched.sort((a, b) => {
         if (query.sort === 'popular') {
           const byCount =
@@ -372,6 +380,10 @@ export function createMemoryEventServices(
         toPublic(row, store),
       );
       return { items, nextOffset: hasMore ? query.offset + query.limit : null };
+    },
+
+    async countPublicEvents(query) {
+      return { total: listedPublicEvents(query).length };
     },
 
     async listOccasions(query: OccasionListQuery) {

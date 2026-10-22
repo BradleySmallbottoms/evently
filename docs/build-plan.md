@@ -93,6 +93,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Saved events in the database: `GET/PUT/DELETE /me/saved-events`
 - [x] Custom lists: `GET/POST/PATCH/DELETE /me/lists` and list membership
 - [x] Public event list filters: text, tag, price, sort. Home, calendar, and search category buttons are tags on a current published event inside the selected place
+- [x] Show events buttons count the current tags and filters (`GET /events/count`). Caching that count is planned in `docs/flows/event-counts.md`
 - [x] "I'm coming" (`GET/PUT/DELETE /me/coming-events`) and `sort=popular` from `numSaved` + `numComing`
 - [x] Public events include the organizer name
 - [x] Share event via OS sheet (web URL); Universal / App Links association routes on web
@@ -124,6 +125,8 @@ Closed beta around week 15, store launch around week 19.
       imported `in_review` event and keeps the row. Wipe removes it and records
       `import_suppressions` so the same external id is not imported again. Scan again also
       accepts a published import and returns it to `pending_scan`.
+- [x] Event catalog: one Ta bort action for any event. Confirmation keeps the row cancelled unless
+      Ta bort permanent is checked, which removes the row.
 - [x] Audit log viewer
 - [x] Collapse occasions on the admin event page. Checked events in the same
       `occasionGroupId` become `meta.occasions` on the open event and are cancelled.

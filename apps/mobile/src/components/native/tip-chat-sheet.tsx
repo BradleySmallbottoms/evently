@@ -1,5 +1,6 @@
 import { BottomSheet, Host } from '@expo/ui';
 import { useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TipFlow } from '@/app/tips/_components/tip-flow';
 import { colors } from '@/theme/colors';
@@ -20,14 +21,20 @@ export function TipChatSheet({
   onDismiss: () => void;
 }) {
   const { height, width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const fillsSheet = process.env.EXPO_OS === 'ios';
+  // A fixed height keeps the summary footer on screen the next time the sheet opens.
+  // Without it the list is measured as its content and the button sits below the sheet.
+  const bodyHeight = fillsSheet
+    ? Math.round(height - insets.top - insets.bottom - space.xxl)
+    : Math.round(height * 0.9);
 
   return (
     <Host style={{ position: 'absolute', width: 0, height: 0 }}>
       <BottomSheet
         isPresented={tipId != null}
         onDismiss={onDismiss}
-        snapPoints={[{ fraction: 1 }]}
+        snapPoints={[{ fraction: 0.9 }]}
         containerColor={colors.canvas}
         contentPadding={{ bottom: space.md, left: 0, right: 0, top: space.lg }}
       >
@@ -35,8 +42,8 @@ export function TipChatSheet({
           <View
             style={{
               width,
-              flex: fillsSheet ? 1 : undefined,
-              height: fillsSheet ? undefined : Math.round(height * 0.9),
+              height: bodyHeight,
+              overflow: 'hidden',
               backgroundColor: colors.canvas,
             }}
           >

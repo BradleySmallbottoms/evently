@@ -75,7 +75,7 @@ export function EventHeroGallery({ imageUrl, imageUrls, tags }: Props) {
         pointerEvents="none"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
-        style={{ position: 'absolute', left: space.lg, bottom: 64 }}
+        style={{ position: 'absolute', left: space.lg, bottom: space.lg * 2 }}
       >
         <View
           style={{

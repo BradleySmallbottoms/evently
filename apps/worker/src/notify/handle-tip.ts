@@ -3,7 +3,7 @@ import { schema } from '@local-events/db';
 import { tipScanNotification, type TipExtraction } from '@local-events/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import { isPushDryRun, type ExpoPushClient, type ExpoPushMessage } from './expo-push';
-import { loadPushDevicesForUsers } from './match';
+import { countUnreadNotifications, loadPushDevicesForUsers } from './match';
 
 export function tipPushMessages(input: {
   tokens: string[];
@@ -13,6 +13,7 @@ export function tipPushMessages(input: {
   place: string | null;
   tipId: string;
   eventId: string | null;
+  badge: number;
 }): ExpoPushMessage[] {
   const copy = tipScanNotification(input);
   return input.tokens.map((to) => ({
@@ -21,6 +22,7 @@ export function tipPushMessages(input: {
     body: copy.body,
     sound: 'default' as const,
     priority: 'high' as const,
+    badge: input.badge,
     data: {
       kind: 'tip_scan',
       tipId: input.tipId,
@@ -28,6 +30,7 @@ export function tipPushMessages(input: {
       status: input.status,
       title: copy.title,
       body: copy.body,
+      badge: String(input.badge),
     },
   }));
 }
@@ -145,9 +148,11 @@ async function sendTipPush(
     pushState: 'sent',
     pushedAt: input.now,
   });
+  const unread = await countUnreadNotifications(deps.db, input.userId);
   const devices = await loadPushDevicesForUsers(deps.db, [input.userId]);
   const messages = tipPushMessages({
     ...input,
+    badge: unread,
     tokens: devices.map((device) => device.expoPushToken),
   });
   if (messages.length === 0 || isPushDryRun()) return;

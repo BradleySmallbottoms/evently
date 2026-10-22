@@ -632,7 +632,7 @@ describe('admin api', () => {
     expect(await after.json()).toMatchObject({ items: [] });
   });
 
-  it('deletes an imported event in review and refuses other statuses', async () => {
+  it('cancels an imported review event and wipes any event that has no audience', async () => {
     const { auth } = await seededAuth();
     const inReviewId = '44444444-4444-4444-8444-444444444401';
     const wipeId = '44444444-4444-4444-8444-444444444404';
@@ -645,6 +645,7 @@ describe('admin api', () => {
           { id: '22222222-2222-4222-8222-222222222201', name: 'Imported Band' },
         ],
       ]),
+      wipeBlocked: new Set<string>(),
       events: new Map([
         [
           inReviewId,
@@ -744,7 +745,8 @@ describe('admin api', () => {
       method: 'POST',
       headers: { cookie },
     });
-    expect(wipeCancelled.status).toBe(404);
+    expect(wipeCancelled.status).toBe(200);
+    expect(eventStore.events.has(inReviewId)).toBe(false);
 
     const refused = await app.request(`/v1/events/${publishedId}`, {
       method: 'DELETE',
@@ -764,8 +766,38 @@ describe('admin api', () => {
       method: 'POST',
       headers: { cookie },
     });
-    expect(wipePublished.status).toBe(404);
-    expect(eventStore.events.has(publishedId)).toBe(true);
+    expect(wipePublished.status).toBe(200);
+    expect(eventStore.events.has(publishedId)).toBe(false);
+
+    const wipeNative = await app.request(`/v1/events/${nativeId}/wipe`, {
+      method: 'POST',
+      headers: { cookie },
+    });
+    expect(wipeNative.status).toBe(200);
+    expect(eventStore.events.has(nativeId)).toBe(false);
+
+    const blockedId = '44444444-4444-4444-8444-444444444405';
+    eventStore.events.set(blockedId, {
+      id: blockedId,
+      publisherId: '22222222-2222-4222-8222-222222222201',
+      title: 'Has a check-in',
+      mode: 'physical',
+      status: 'published',
+      origin: 'native',
+      startsAt: '2026-07-05T18:00:00.000Z',
+      endsAt: '2026-07-05T21:00:00.000Z',
+      venueName: null,
+      sourceUrl: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    eventStore.wipeBlocked.add(blockedId);
+    const wipeBlocked = await app.request(`/v1/events/${blockedId}/wipe`, {
+      method: 'POST',
+      headers: { cookie },
+    });
+    expect(wipeBlocked.status).toBe(404);
+    expect(eventStore.events.has(blockedId)).toBe(true);
 
     const anonymous = await app.request(`/v1/events/${publishedId}`, { method: 'DELETE' });
     expect(anonymous.status).toBe(401);

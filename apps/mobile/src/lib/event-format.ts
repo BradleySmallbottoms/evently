@@ -50,6 +50,18 @@ export function primaryAction(
   return selectPrimaryLink(safeLinks, safeHttpUrl(onlineUrl));
 }
 
+/** First safe tickets URL. Registration and info links are left out. */
+export function ticketLink(
+  links: readonly EventLink[],
+): { url: string; label: string | null } | null {
+  for (const link of links) {
+    if (link.type !== 'tickets') continue;
+    const url = safeHttpUrl(link.url);
+    if (url) return { url, label: link.label ?? null };
+  }
+  return null;
+}
+
 export function isThisWeekend(iso: string, now = new Date()): boolean {
   const date = new Date(iso);
   const day = now.getDay();

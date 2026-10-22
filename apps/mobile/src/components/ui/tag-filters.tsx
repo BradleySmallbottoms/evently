@@ -8,12 +8,14 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { CategoryFiltersSheet } from '@/components/native/category-filters-sheet';
 import { AppText } from '@/components/ui/app-text';
 import { TAG_GROUP_STYLE, TagGroupIcon, TagGroupList } from '@/components/ui/tag-group-list';
+import { type EventQueryPoint } from '@/lib/events';
 import {
   groupHomeTags,
   toggleGroupSelection,
   type HomeTag,
   type HomeTagGroup,
 } from '@/lib/tag-groups';
+import { useEventCount } from '@/lib/use-event-count';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
@@ -21,6 +23,10 @@ type Props = {
   tags: HomeTag[];
   selectedIds: readonly string[];
   onChange: (ids: string[]) => void;
+  /** Place the home list is using. The sheet counts events here. */
+  point?: EventQueryPoint;
+  /** Home search text, when the list is filtered by it. */
+  query?: string;
 };
 
 const CELL = 55;
@@ -158,10 +164,18 @@ function ToggleCircle({
 }
 
 /** Category circles. More stays pinned and opens the tag list in a sheet. */
-export function TagFilters({ tags, selectedIds, onChange }: Props) {
+export function TagFilters({ tags, selectedIds, onChange, point, query }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const groups = useMemo(() => groupHomeTags(tags), [tags]);
+  const eventCount = useEventCount(
+    point,
+    {
+      q: query,
+      tagIds: selectedIds.length > 0 ? [...selectedIds] : undefined,
+    },
+    open && point != null,
+  );
 
   if (groups.length === 0) return null;
 
@@ -192,7 +206,11 @@ export function TagFilters({ tags, selectedIds, onChange }: Props) {
           <ToggleCircle label={t('events.categoriesMore')} expanded={false} onPress={openSheet} />
         </View>
       </View>
-      <CategoryFiltersSheet isPresented={open} onDismiss={() => setOpen(false)}>
+      <CategoryFiltersSheet
+        isPresented={open}
+        onDismiss={() => setOpen(false)}
+        eventCount={eventCount}
+      >
         <TagGroupList tags={tags} selectedIds={selectedIds} onChange={onChange} />
       </CategoryFiltersSheet>
     </>

@@ -320,6 +320,22 @@ export interface IngestStore {
    * Writes the scan result while this claim still holds the row.
    * Returns false when a newer import or a newer claim owns it.
    */
+  finishImportedScan(input: ImportedScanWrite & { claimedUntil: Date }): Promise<boolean>;
+  /**
+   * Imported events with a stored model output (`events.llm_output`) that may be replayed.
+   * Rows are returned oldest first. `eventId` narrows to one row. `skipEventIds` leaves rows
+   * for a later batch.
+   */
+  listStoredScans(
+    limit: number,
+    eventId?: string,
+    skipEventIds?: readonly string[],
+  ): Promise<StoredScanRow[]>;
+  /**
+   * Reapplies a stored scan output to an imported event without requiring a pending-scan claim.
+   * Returns false when the row is not eligible at write time.
+   */
+  reapplyImportedScan(input: ImportedScanWrite): Promise<boolean>;
   /** `pending_scan` publishers whose lease is free. `publisherId` counts that one row. */
   countPendingPublisherScans(publisherId?: string): Promise<number>;
   /**
@@ -342,27 +358,6 @@ export interface IngestStore {
     publisherId: string;
     claimedUntil: Date;
     lookup: PublisherLookup | null;
-  }): Promise<boolean>;
-  finishImportedScan(input: {
-    eventId: string;
-    publisherId: string;
-    status: 'in_review' | 'published';
-    meta: EventMeta;
-    tagIds: string[];
-    llmOutput: object;
-    contentVerdict: 'spam' | 'harmful' | 'safe' | 'unknown';
-    /** Null when the scan did not write one. */
-    summary: string | null;
-    /** `en` when the scan says English. Anything else is `sv`. */
-    language: 'sv' | 'en';
-    claimedUntil: Date;
-    /** Set only when the scan found both and the row had neither. */
-    startsAt?: Date;
-    endsAt?: Date;
-    /** Set only when the row had no point and the page lookup found one. */
-    location?: { lat: number; lng: number };
-    /** Set only when the row had no venue name and the scan chose one. */
-    venueName?: string;
   }): Promise<boolean>;
   /**
    * Records the scan result on the tip that created this event.
@@ -396,6 +391,32 @@ export interface PendingScanRow {
   sourceTrust: SourceTrust;
   /** Lease timestamp written by the claim. Finish and release match this value. */
   claimedUntil: Date;
+}
+
+export interface StoredScanRow extends PendingScanRow {
+  status: EventStatus;
+  llmOutput: unknown;
+}
+
+export interface ImportedScanWrite {
+  eventId: string;
+  publisherId: string;
+  status: 'in_review' | 'published';
+  meta: EventMeta;
+  tagIds: string[];
+  llmOutput: object;
+  contentVerdict: 'spam' | 'harmful' | 'safe' | 'unknown';
+  /** Null when the scan did not write one. */
+  summary: string | null;
+  /** `en` when the scan says English. Anything else is `sv`. */
+  language: 'sv' | 'en';
+  /** Set only when the scan found both and the row had neither. */
+  startsAt?: Date;
+  endsAt?: Date;
+  /** Set only when the row had no point and the page lookup found one. */
+  location?: { lat: number; lng: number };
+  /** Set only when the row had no venue name and the scan chose one. */
+  venueName?: string;
 }
 
 /** One unscanned publisher plus the newest linked event, when one exists. */

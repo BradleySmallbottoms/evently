@@ -1,7 +1,13 @@
-# Delete or wipe an import from review
+# Delete or wipe an event
 
 An admin session cookie is required. Publish and reject stay `POST /v1/events/{id}/approve` and
-`POST /v1/events/{id}/reject`. Delete and wipe are only for imported events still `in_review`.
+`POST /v1/events/{id}/reject`.
+
+On `/events/manage`, Ta bort asks for confirmation. Leaving the box unchecked cancels every selected
+event and keeps the row: an event in review is rejected, and any other status is patched to
+`cancelled`. Checking Ta bort permanent calls wipe. Import review still deletes or wipes only an
+imported event that is `in_review`. Wipe itself removes any event and refuses when someone has
+checked in, saved, rated, or been notified.
 
 ```mermaid
 sequenceDiagram
@@ -9,9 +15,14 @@ sequenceDiagram
   participant API as Admin API
   participant DB
 
-  Admin->>API: DELETE /v1/events/{id} (session cookie)
-  API->>DB: set status cancelled
-  API-->>Admin: 200 { id, status: cancelled }
+  alt Catalog Ta bort
+    Admin->>API: POST /v1/events/{id}/reject, or PATCH status cancelled
+    API->>DB: set status cancelled
+  else Review delete of an imported event in review
+    Admin->>API: DELETE /v1/events/{id} (session cookie)
+    API->>DB: set status cancelled
+    API-->>Admin: 200 { id, status: cancelled }
+  end
 
   Note over DB: A later import leaves the cancelled row alone
 
@@ -21,5 +32,5 @@ sequenceDiagram
   API->>DB: delete events row (cascades refs, tags, images, pushes)
   API-->>Admin: 200 { id }
 
-  Note over DB: A later import of the same source id is skipped
+  Note over DB: A later import of the same source id is skipped. Wipe removes any event, not only a review import
 ```

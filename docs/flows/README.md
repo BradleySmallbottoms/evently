@@ -43,8 +43,9 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Bollnäs kommun import                                  | [bollnas-kommun.md](./bollnas-kommun.md)                                 |
 | Saved events and custom lists                          | [saved-events.md](./saved-events.md)                                     |
 | I'm coming and popular events                          | [event-coming.md](./event-coming.md)                                     |
+| Show events count                                      | [event-counts.md](./event-counts.md)                                     |
 | Admin view and edit an event                           | [admin-event-edit.md](./admin-event-edit.md)                             |
 | Collapse occasions from the admin event page           | [admin-collapse-occasions.md](./admin-collapse-occasions.md)             |
-| Delete or wipe an import from review                   | [import-review-delete.md](./import-review-delete.md)                     |
+| Delete or permanently remove an event                  | [import-review-delete.md](./import-review-delete.md)                     |
 | Publisher import notification plan                     | [publisher-import-notifications.md](./publisher-import-notifications.md) |
 | Event tips                                             | [event-tips.md](./event-tips.md)                                         |

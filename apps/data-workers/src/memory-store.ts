@@ -19,6 +19,7 @@ import {
 import type {
   EventRecord,
   ExternalRefHit,
+  ImportedScanWrite,
   ImportedEventWrite,
   IngestStore,
   NearbyEventHit,
@@ -28,6 +29,7 @@ import type {
   PublisherLink,
   PublisherRecord,
   ScanPublisherCandidate,
+  StoredScanRow,
   SourceRecord,
 } from './store';
 import {
@@ -73,6 +75,8 @@ interface StoredEvent {
   priceAmount?: number;
   currency?: string;
   meta: EventMeta;
+  contentVerdict?: 'spam' | 'harmful' | 'safe' | 'unknown';
+  llmOutput?: object | null;
   summary?: string | null;
   language?: 'sv' | 'en';
   links?: { type: EventLinkKind; url: string; label?: string }[];
@@ -154,6 +158,8 @@ function eventFromWrite(id: string, input: ImportedEventWrite): StoredEvent {
     priceAmount: input.event.priceAmount,
     currency: input.event.currency,
     meta: input.event.meta ?? {},
+    contentVerdict: 'unknown',
+    llmOutput: null,
     links: input.event.links?.map((link) => ({ ...link })),
   };
 }
@@ -624,6 +630,66 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       }
       return rows;
     },
+    async listStoredScans(limit, eventId, skipEventIds) {
+      const now = Date.now();
+      const skip = new Set(skipEventIds ?? []);
+      const due = events
+        .filter(
+          (event) =>
+            event.origin === 'imported' &&
+            event.llmOutput != null &&
+            (event.status === 'pending_scan' ||
+              event.status === 'in_review' ||
+              event.status === 'published') &&
+            (event.scanClaimedUntil == null || event.scanClaimedUntil.getTime() < now) &&
+            (eventId == null || event.id === eventId) &&
+            !skip.has(event.id),
+        )
+        .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0))
+        .slice(0, eventId ? 1 : limit);
+      const rows: StoredScanRow[] = [];
+      for (const event of due) {
+        const ref = refs.find((item) => item.eventId === event.id);
+        const source = ref ? sources.find((item) => item.id === ref.sourceId) : undefined;
+        if (!ref || !source) continue;
+        const meta = readEventMeta(event.meta);
+        const tagById = new Map([...tags.values()].map((tag) => [tag.id, tag]));
+        rows.push({
+          eventId: event.id,
+          title: event.title,
+          description: event.description,
+          venueName: event.venueName,
+          startsAt: event.startsAt,
+          endsAt: event.endsAt,
+          location: event.location ?? null,
+          sourceUrl: event.sourceUrl,
+          links: (event.links ?? []).map((link) => link.url),
+          pageLinks: (event.links ?? []).flatMap((link) =>
+            link.type === 'tickets' ||
+            link.type === 'registration' ||
+            link.type === 'info' ||
+            link.type === 'facebook'
+              ? [{ type: link.type, url: link.url }]
+              : [],
+          ),
+          externalId: ref.externalId,
+          workerId: event.workerId ?? source.slug,
+          tagIds: event.tagIds,
+          tags: event.tagIds.flatMap((tagId) => {
+            const tag = tagById.get(tagId);
+            return tag ? [{ externalId: tag.externalId, name: tag.name }] : [];
+          }),
+          meta,
+          sourceId: source.id,
+          sourceSlug: source.slug,
+          sourceTrust: source.trust,
+          claimedUntil: event.scanClaimedUntil ?? new Date(0),
+          status: event.status,
+          llmOutput: event.llmOutput,
+        });
+      }
+      return rows;
+    },
     /**
      * Live events inside the scan radius and time window, nearest first.
      * The event being scanned is left out. Cancelled and ended rows are left out.
@@ -780,6 +846,32 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       event.status = input.status;
       event.meta = input.meta;
       event.tagIds = input.tagIds;
+      event.contentVerdict = input.contentVerdict;
+      event.llmOutput = input.llmOutput;
+      event.summary = input.summary;
+      event.language = input.language;
+      if (input.startsAt && input.endsAt) {
+        event.startsAt = input.startsAt;
+        event.endsAt = input.endsAt;
+      }
+      if (input.location) event.location = input.location;
+      if (input.venueName) event.venueName = input.venueName;
+      event.scanClaimedUntil = null;
+      return true;
+    },
+    async reapplyImportedScan(input: ImportedScanWrite) {
+      const now = Date.now();
+      const event = events.find((item) => item.id === input.eventId);
+      if (!event || event.origin !== 'imported') return false;
+      if (event.llmOutput == null) return false;
+      if (!['pending_scan', 'in_review', 'published'].includes(event.status)) return false;
+      if (event.scanClaimedUntil != null && event.scanClaimedUntil.getTime() >= now) return false;
+      event.publisherId = input.publisherId;
+      event.status = input.status;
+      event.meta = input.meta;
+      event.tagIds = input.tagIds;
+      event.contentVerdict = input.contentVerdict;
+      event.llmOutput = input.llmOutput;
       event.summary = input.summary;
       event.language = input.language;
       if (input.startsAt && input.endsAt) {

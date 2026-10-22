@@ -37,10 +37,12 @@ import {
   NEARBY_RADIUS_M,
   PUBLISHER_NAME_SEARCH_RADIUS_M,
   publisherNameMatcher,
+  type ImportedScanWrite,
   type ImportedEventWrite,
   type IngestStore,
   type PendingPublisherRow,
   type PendingScanRow,
+  type StoredScanRow,
   type ScanPublisherCandidate,
   type NearbyPublisherHit,
   type NearbyEventHit,
@@ -814,6 +816,102 @@ export function createDbIngestStore(db: Db): IngestStore {
         return pending;
       });
     },
+    async listStoredScans(limit, eventId, skipEventIds) {
+      const now = new Date();
+      const skip = skipEventIds?.filter((id) => id.length > 0) ?? [];
+      const rows = await db
+        .select({
+          eventId: events.id,
+          title: events.title,
+          description: events.description,
+          venueName: events.venueName,
+          startsAt: events.startsAt,
+          endsAt: events.endsAt,
+          sourceUrl: events.sourceUrl,
+          refId: events.refId,
+          workerId: events.workerId,
+          meta: events.meta,
+          lat: sql<number | null>`ST_Y(${events.location}::geometry)`,
+          lng: sql<number | null>`ST_X(${events.location}::geometry)`,
+          externalId: externalRefs.externalId,
+          sourceId: dataSources.id,
+          sourceSlug: dataSources.slug,
+          sourceTrust: dataSources.trust,
+          status: events.status,
+          llmOutput: events.llmOutput,
+          scanClaimedUntil: events.scanClaimedUntil,
+        })
+        .from(events)
+        .innerJoin(externalRefs, eq(externalRefs.eventId, events.id))
+        .innerJoin(dataSources, eq(dataSources.id, externalRefs.sourceId))
+        .where(
+          and(
+            eq(events.origin, 'imported'),
+            isNotNull(events.llmOutput),
+            inArray(events.status, ['pending_scan', 'in_review', 'published']),
+            or(isNull(events.scanClaimedUntil), lt(events.scanClaimedUntil, now)),
+            ...(eventId ? [eq(events.id, eventId)] : []),
+            ...(skip.length > 0 ? [notInArray(events.id, skip)] : []),
+          ),
+        )
+        .orderBy(asc(events.createdAt))
+        .limit(eventId ? 1 : limit);
+      if (rows.length === 0) return [];
+      const idList = rows.map((row) => row.eventId);
+      const linkRows = await db
+        .select({ eventId: eventLinks.eventId, url: eventLinks.url, type: eventLinks.type })
+        .from(eventLinks)
+        .where(inArray(eventLinks.eventId, idList));
+      const tagRows = await db
+        .select({
+          eventId: eventTags.eventId,
+          tagId: eventTags.tagId,
+          externalId: tags.externalId,
+          name: tags.name,
+        })
+        .from(eventTags)
+        .innerJoin(tags, eq(tags.id, eventTags.tagId))
+        .where(inArray(eventTags.eventId, idList));
+      const replayable: StoredScanRow[] = [];
+      for (const row of rows) {
+        const eventTagsForRow = tagRows.filter((tag) => tag.eventId === row.eventId);
+        replayable.push({
+          eventId: row.eventId,
+          title: row.title,
+          description: row.description,
+          venueName: row.venueName,
+          startsAt: row.startsAt,
+          endsAt: row.endsAt,
+          location: row.lat == null || row.lng == null ? null : { lat: row.lat, lng: row.lng },
+          sourceUrl: row.sourceUrl,
+          links: linkRows.filter((link) => link.eventId === row.eventId).map((link) => link.url),
+          pageLinks: linkRows
+            .filter((link) => link.eventId === row.eventId)
+            .flatMap((link) =>
+              link.type === 'tickets' ||
+              link.type === 'registration' ||
+              link.type === 'info' ||
+              link.type === 'facebook'
+                ? [{ type: link.type, url: link.url }]
+                : [],
+            ),
+          externalId: row.externalId,
+          workerId: row.workerId ?? row.sourceSlug,
+          tagIds: eventTagsForRow.map((tag) => tag.tagId),
+          tags: eventTagsForRow.flatMap((tag) =>
+            tag.externalId ? [{ externalId: tag.externalId, name: tag.name }] : [],
+          ),
+          meta: readEventMeta(row.meta),
+          sourceId: row.sourceId,
+          sourceSlug: row.sourceSlug,
+          sourceTrust: row.sourceTrust,
+          claimedUntil: row.scanClaimedUntil ?? new Date(0),
+          status: row.status,
+          llmOutput: row.llmOutput,
+        });
+      }
+      return replayable;
+    },
     async nearbyEvents(
       point: GeoPoint,
       window: NearbyWindow,
@@ -1099,6 +1197,42 @@ export function createDbIngestStore(db: Db): IngestStore {
               eq(events.id, input.eventId),
               eq(events.status, 'pending_scan'),
               eq(events.scanClaimedUntil, input.claimedUntil),
+            ),
+          )
+          .returning({ id: events.id });
+        if (updated.length === 0) return false;
+        await writeTags(tx, input.eventId, input.tagIds);
+        return true;
+      });
+    },
+    async reapplyImportedScan(input: ImportedScanWrite) {
+      const now = new Date();
+      return db.transaction(async (tx) => {
+        const updated = await tx
+          .update(events)
+          .set({
+            publisherId: input.publisherId,
+            status: input.status,
+            meta: input.meta,
+            scanClaimedUntil: null,
+            updatedAt: new Date(),
+            llmOutput: input.llmOutput,
+            contentVerdict: input.contentVerdict,
+            summary: input.summary,
+            language: input.language,
+            ...(input.startsAt && input.endsAt
+              ? { startsAt: input.startsAt, endsAt: input.endsAt }
+              : {}),
+            ...(input.location ? { location: pointEwkt(input.location) } : {}),
+            ...(input.venueName ? { venueName: input.venueName } : {}),
+          })
+          .where(
+            and(
+              eq(events.id, input.eventId),
+              eq(events.origin, 'imported'),
+              isNotNull(events.llmOutput),
+              inArray(events.status, ['pending_scan', 'in_review', 'published']),
+              or(isNull(events.scanClaimedUntil), lt(events.scanClaimedUntil, now)),
             ),
           )
           .returning({ id: events.id });

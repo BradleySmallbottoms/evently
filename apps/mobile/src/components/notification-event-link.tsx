@@ -26,6 +26,7 @@ function NativeNotificationEventLink() {
     if (opened.current === key) return;
     const data = last.notification.request.content.data;
     const tip = tipTargetFromNotificationData(data);
+    console.log('tip', tip);
     if (tip) {
       opened.current = key;
       if (tip.screen === 'published') router.push(`/tips/published/${tip.tipId}`);

@@ -11,6 +11,9 @@ EventBridge runs the data-workers task every 5 minutes with `JOB=event-scan`. Lo
 pnpm --filter @local-events/data-workers dev -- --job event-scan
 pnpm --filter @local-events/data-workers dev -- --job event-scan --event <event-id>
 pnpm --filter @local-events/data-workers dev -- --job event-scan --limit 1
+pnpm --filter @local-events/data-workers dev -- --job replay-scan
+pnpm --filter @local-events/data-workers dev -- --job replay-scan --event <event-id>
+pnpm --filter @local-events/data-workers dev -- --job replay-scan --limit 20
 ```
 
 `--event` claims that one `pending_scan` row when its lease is free. `--limit` claims that many rows instead of the default five. The scheduled task sets neither, so it keeps the batch of five.
@@ -75,6 +78,11 @@ A model failure releases the lease and leaves that row `pending_scan`. The other
 still finish. An admin can send an imported `in_review` or `published` event back with `POST /v1/events/{id}/rescan`.
 That sets `pending_scan`, clears the scan lease, and cancels open reminders so the next run can claim it.
 A published event leaves the public list until that scan finishes.
+
+`replay-scan` does not call a model. It reads imported rows with a stored `llm_output` (`pending_scan`,
+`in_review`, or `published`), parses that payload, and reruns the same post-model chain:
+publisher selection, duplicate handling, tags, venue, geocode, status, reminder scheduling, and
+`event.published` when the result is `published`. Rows whose stored payload cannot be parsed are skipped.
 
 ```mermaid
 sequenceDiagram

@@ -12,10 +12,12 @@ type Props = {
   isPresented: boolean;
   onDismiss: () => void;
   children: ReactElement;
+  /** Events the current tags will show. Omitted until the count arrives. */
+  eventCount?: number;
 };
 
 /** Home categories. More opens this sheet; the row of circles stays on the page. */
-export function CategoryFiltersSheet({ isPresented, onDismiss, children }: Props) {
+export function CategoryFiltersSheet({ isPresented, onDismiss, children, eventCount }: Props) {
   const { t } = useTranslation();
   const { height, width } = useWindowDimensions();
   const contentWidth = width - space.xl * 2;
@@ -47,7 +49,14 @@ export function CategoryFiltersSheet({ isPresented, onDismiss, children }: Props
             >
               {children}
             </ScrollView>
-            <PrimaryButton label={t('events.showEvents')} onPress={onDismiss} />
+            <PrimaryButton
+              label={
+                eventCount == null
+                  ? t('events.showEvents')
+                  : t('events.showEventsCount', { count: eventCount })
+              }
+              onPress={onDismiss}
+            />
           </View>
         </SheetBody>
       </BottomSheet>

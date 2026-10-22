@@ -188,7 +188,7 @@ function scanDescription(row: PendingScanRow): Pick<ScanInput, 'description' | '
   };
 }
 
-function scanInputFor(row: PendingScanRow): ScanInput {
+export function scanInputFor(row: PendingScanRow): ScanInput {
   const organizerKeys = row.meta.import?.organizerKeys ?? [];
   const venue = importedVenueName(row.meta.import);
   return {
@@ -213,13 +213,16 @@ function scanInputFor(row: PendingScanRow): ScanInput {
   };
 }
 
-async function applyOutcome(
+export async function applyOutcome(
   store: IngestStore,
   row: PendingScanRow,
   outcome: Extract<ScanOutcome, { ok: true }>,
   enqueue: DomainEventSink,
   temporaries: Map<string, PublisherLink>,
   fetchImpl: typeof fetch,
+  persist: (input: Parameters<IngestStore['finishImportedScan']>[0]) => Promise<boolean> = (
+    input,
+  ) => store.finishImportedScan(input),
 ): Promise<'published' | 'review' | 'skipped'> {
   const publisher = await publisherFor(store, row, outcome, temporaries);
   const status = statusAfterImportScan({
@@ -230,10 +233,9 @@ async function applyOutcome(
     possibleDuplicate: outcome.duplicate !== null,
   });
   const tagIds = await store.tagIdsForExternalIds(outcome.tags.map((tag) => tag.externalId));
-  const meta = {
-    ...row.meta,
-    ...(outcome.duplicate ? { possibleDuplicate: outcome.duplicate } : {}),
-  };
+  const meta = { ...row.meta };
+  if (outcome.duplicate) meta.possibleDuplicate = outcome.duplicate;
+  else delete meta.possibleDuplicate;
   const instructions = readScanInstructions(outcome.instructions);
   if (instructions.length > 0) meta.instructions = instructions;
   else delete meta.instructions;
@@ -250,7 +252,7 @@ async function applyOutcome(
   const place = await placeFromScan(row, outcome, fetchImpl);
   const venueName = venueNameFromScan(outcome.possibleVenueNames, row.meta.import);
   if (place.address) meta.address = place.address;
-  const saved = await store.finishImportedScan({
+  const saved = await persist({
     eventId: row.eventId,
     publisherId: publisher.publisherId,
     status,

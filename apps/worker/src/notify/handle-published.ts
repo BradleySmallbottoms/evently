@@ -114,6 +114,7 @@ export async function handleEventPublished(
           eventId,
           reason,
           eventTitle: event.title,
+          badge: String(unread),
         },
         badge: unread,
         _contentAvailable: true,

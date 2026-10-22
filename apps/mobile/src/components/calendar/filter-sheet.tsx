@@ -6,7 +6,9 @@ import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { SheetBody } from '@/components/native/sheet-body';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { type EventQueryPoint } from '@/lib/events';
 import { groupHomeTags, toggleGroupSelection, type HomeTag } from '@/lib/tag-groups';
+import { useEventCount } from '@/lib/use-event-count';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
@@ -17,6 +19,10 @@ type Props = {
   tags: HomeTag[];
   tagIds: string[];
   price: Price;
+  /** Place and date range the calendar list is using. */
+  point?: EventQueryPoint;
+  from?: string;
+  to?: string;
   onDismiss: () => void;
   onApply: (tagIds: string[], price: Price) => void;
 };
@@ -56,6 +62,9 @@ export function CalendarFilterSheet({
   tags,
   tagIds,
   price,
+  point,
+  from,
+  to,
   onDismiss,
   onApply,
 }: Props) {
@@ -73,6 +82,16 @@ export function CalendarFilterSheet({
     }
   }
   const groups = groupHomeTags(tags);
+  const eventCount = useEventCount(
+    point,
+    {
+      tagIds: draftTags.length > 0 ? draftTags : undefined,
+      price: draftPrice === 'any' ? undefined : draftPrice,
+      from,
+      to,
+    },
+    isPresented && point != null,
+  );
 
   return (
     <Host style={{ position: 'absolute', width: 0, height: 0 }}>
@@ -149,7 +168,11 @@ export function CalendarFilterSheet({
               </View>
             </ScrollView>
             <PrimaryButton
-              label={t('events.calendar.showEvents')}
+              label={
+                eventCount == null
+                  ? t('events.calendar.showEvents')
+                  : t('events.showEventsCount', { count: eventCount })
+              }
               onPress={() => onApply(draftTags, draftPrice)}
             />
           </View>

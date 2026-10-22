@@ -5,6 +5,12 @@ import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 import { AppState, Platform } from 'react-native';
 
+import {
+  badgeApplyKey,
+  badgeCountFromNotification,
+  isLocalInboxPush,
+  resolveAppIconBadge,
+} from './app-icon-badge';
 import { api, throwIfError } from './api';
 import type { StoredIdentity } from './identity';
 import {
@@ -19,6 +25,20 @@ import {
 const LAST_TOKEN_KEY = 'le.expoPushToken';
 const ANDROID_CHANNEL = 'inbox';
 const presentedInboxIds = new Set<string>();
+const appliedBadgeKeys = new Set<string>();
+/** Bumped when the icon badge is cleared so a late push cannot restore it. */
+let badgeEpoch = 0;
+/** Badge writes run one at a time, in the order they were requested. */
+let badgeWrite = Promise.resolve();
+
+function enqueueBadgeWrite(work: () => Promise<void>): Promise<void> {
+  const run = badgeWrite.then(work, work);
+  badgeWrite = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
 
 function pushDebug(step: string, detail: Record<string, unknown> = {}): void {
   console.log('PUSH received', JSON.stringify({ pushDebug: { step, ...detail } }));
@@ -45,6 +65,7 @@ async function writeLastToken(token: string): Promise<void> {
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const data = notification.request.content.data ?? {};
+    const localInbox = data.kind === 'local_inbox';
     const tipWhileOpen = data.kind === 'tip_scan' && AppState.currentState === 'active';
     const show =
       !tipWhileOpen &&
@@ -60,11 +81,15 @@ Notifications.setNotificationHandler({
       showBanner: show,
     });
 
+    const badge = notification.request.content.badge;
     return {
       shouldShowBanner: show,
       shouldShowList: show,
       shouldPlaySound: show,
-      shouldSetBadge: true,
+      // The silent push already set the count. The local banner must not write it again
+      // after the app has opened and cleared the icon.
+      shouldSetBadge:
+        !localInbox && typeof badge === 'number' && Number.isFinite(badge) && badge >= 0,
     };
   },
 });
@@ -160,13 +185,20 @@ export type SilentPushHandlers = {
   onInboxPing: (data: InboxPushData) => void;
 };
 
+export type AppIconBadgeInput = {
+  count: number | null;
+  key?: string | null;
+  /** Foreground listener sets the icon even while the app is open. The headless task does not. */
+  allowWhileActive?: boolean;
+};
+
 /**
  * Post a local banner for a silent inbox push when outside quiet hours and under
  * the daily cap, including while the app is in the foreground.
  */
 export async function presentSilentInboxNotification(
   data: InboxPushData,
-  overrides?: { quietHours?: QuietHoursPrefs | null; locale?: string },
+  overrides?: { quietHours?: QuietHoursPrefs | null; locale?: string; badge?: number | null },
 ): Promise<boolean> {
   if (data.kind !== 'inbox') return false;
   const id = data.notificationId?.trim();
@@ -194,11 +226,13 @@ export async function presentSilentInboxNotification(
     const copy = bodyFromPush
       ? { title, body: bodyFromPush }
       : localNotificationCopy(locale, title, data.reason ?? 'nearby');
+    const badge = finiteContentBadge(overrides?.badge);
     await Notifications.scheduleNotificationAsync({
       content: {
         title: copy.title,
         body: copy.body,
         sound: true,
+        ...(badge != null ? { badge } : {}),
         data: {
           kind: 'local_inbox',
           notificationId: data.notificationId ?? '',
@@ -221,14 +255,72 @@ export async function presentSilentInboxNotification(
   }
 }
 
+function finiteContentBadge(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : null;
+}
+
+async function writeAppIconBadge(count: number): Promise<void> {
+  await Notifications.setBadgeCountAsync(count);
+}
+
 /** Clears the app icon badge. No-op on web and when the OS rejects the update. */
 export async function clearAppIconBadge(): Promise<void> {
   if (Platform.OS === 'web') return;
+  badgeEpoch += 1;
+  const epoch = badgeEpoch;
   try {
-    await Notifications.setBadgeCountAsync(0);
+    await enqueueBadgeWrite(async () => {
+      if (epoch !== badgeEpoch) return;
+      await writeAppIconBadge(0);
+    });
   } catch (err) {
     console.warn(
       'clear notification badge failed',
+      err instanceof Error ? err.message : 'unknown error',
+    );
+  }
+}
+
+/**
+ * Sets the icon badge from a received push. An absolute count replaces the icon
+ * number. A push with no count adds one. Opening the app clears it, and a push
+ * that finishes after that clear does not put the number back.
+ */
+export async function applyReceivedAppIconBadge(input: AppIconBadgeInput): Promise<void> {
+  if (Platform.OS === 'web') return;
+  const epoch = badgeEpoch;
+  const allowWhileActive = input.allowWhileActive === true;
+  if (AppState.currentState === 'active' && !allowWhileActive) return;
+  const key = input.key ?? null;
+  if (key) {
+    if (appliedBadgeKeys.has(key)) return;
+    if (appliedBadgeKeys.size > 200) appliedBadgeKeys.clear();
+    appliedBadgeKeys.add(key);
+  }
+
+  try {
+    await enqueueBadgeWrite(async () => {
+      if (epoch !== badgeEpoch) return;
+      if (AppState.currentState === 'active' && !allowWhileActive) return;
+      const current = input.count == null ? await Notifications.getBadgeCountAsync() : 0;
+      if (epoch !== badgeEpoch) return;
+      const next = resolveAppIconBadge({
+        appIsActive: AppState.currentState === 'active',
+        allowWhileActive,
+        current,
+        incoming: input.count,
+        duplicate: false,
+      });
+      if (next == null) return;
+      await writeAppIconBadge(next);
+      if (epoch !== badgeEpoch) await writeAppIconBadge(0);
+    });
+  } catch (err) {
+    if (key) appliedBadgeKeys.delete(key);
+    console.warn(
+      'set notification badge failed',
       err instanceof Error ? err.message : 'unknown error',
     );
   }
@@ -250,6 +342,19 @@ export function subscribeSilentPushHandlers(handlers: SilentPushHandlers): () =>
         reason: data.reason ?? null,
         notificationId: data.notificationId ?? null,
       });
+      const badge = isLocalInboxPush(data)
+        ? null
+        : badgeCountFromNotification({
+            contentBadge: notification.request.content.badge,
+            data,
+          });
+      if (!isLocalInboxPush(data)) {
+        await applyReceivedAppIconBadge({
+          count: badge,
+          key: badgeApplyKey(data, notification.request.identifier),
+          allowWhileActive: true,
+        });
+      }
       if (data.kind !== 'inbox') {
         handlers.onInboxPing(data);
         return;
@@ -264,7 +369,7 @@ export function subscribeSilentPushHandlers(handlers: SilentPushHandlers): () =>
       const quietHours = handlers.getQuietHours();
       const locale = handlers.getLocale();
       await cacheNotificationPresentationPrefs({ locale, quietHours });
-      await presentSilentInboxNotification(data, { quietHours, locale });
+      await presentSilentInboxNotification(data, { quietHours, locale, badge });
     })();
   });
 

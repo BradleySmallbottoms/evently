@@ -4,6 +4,7 @@ import type {
   EventLinkInput,
   ManagedEvent,
   OccasionListQuery,
+  PublicEventCountQuery,
   PublicEventListQuery,
   UpdateEventRequest,
 } from '@local-events/contracts';
@@ -212,6 +213,56 @@ export function createDbEventServices(
       .select(eventSelect)
       .from(events)
       .innerJoin(publishers, eq(events.publisherId, publishers.id));
+  }
+
+  /** Same rows as the public list. `sort=popular` drops events with no saves or coming marks. */
+  function publicEventFilters(
+    query: PublicEventCountQuery & { sort?: PublicEventListQuery['sort'] },
+  ) {
+    const from = query.from ? new Date(query.from) : undefined;
+    const to = query.to ? new Date(query.to) : undefined;
+    const point = pointEwkt({ lat: query.lat, lng: query.lng });
+    const filters = [eq(events.status, 'published'), currentEventSql(env.now(), from)];
+    if (to) filters.push(lte(events.startsAt, to));
+    if (query.q) {
+      const pattern = likePattern(query.q);
+      const match = or(
+        ilike(events.title, pattern),
+        ilike(events.venueName, pattern),
+        ilike(publishers.name, pattern),
+      );
+      if (match) filters.push(match);
+    }
+    const tagIds = publicEventTagIds(query);
+    if (tagIds.length > 0) {
+      filters.push(sql`exists (
+        select 1 from ${eventTags}
+        where ${eventTags.eventId} = ${events.id}
+          and ${eventTags.tagId} in (${sql.join(
+            tagIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})
+      )`);
+    }
+    if (query.price === 'free') {
+      const free = or(isNull(events.priceAmount), eq(events.priceAmount, 0));
+      if (free) filters.push(free);
+    }
+    if (query.price === 'paid') filters.push(sql`${events.priceAmount} > 0`);
+    if (query.sort === 'popular') {
+      const engagement = sql<number>`(${lifetimeStat('numSaved')}) + (${lifetimeStat('numComing')})`;
+      filters.push(sql`${engagement} >= 1`);
+    }
+    // isPubliclyListedEvent: a point inside the radius. No point is omitted.
+    filters.push(sql`(
+      ${events.location} IS NOT NULL
+      AND ST_DWithin(
+        ${events.location},
+        ST_GeogFromText(${point}),
+        ${query.radiusM}
+      )
+    )`);
+    return { filters, point };
   }
 
   async function requireMember(sessionToken: string | undefined, publisherId: string) {
@@ -601,40 +652,8 @@ export function createDbEventServices(
     },
 
     async listPublicEvents(query: PublicEventListQuery) {
-      const from = query.from ? new Date(query.from) : undefined;
-      const to = query.to ? new Date(query.to) : undefined;
-      const point = pointEwkt({ lat: query.lat, lng: query.lng });
-
-      const filters = [eq(events.status, 'published'), currentEventSql(env.now(), from)];
-      if (to) filters.push(lte(events.startsAt, to));
-      if (query.q) {
-        const pattern = likePattern(query.q);
-        const match = or(
-          ilike(events.title, pattern),
-          ilike(events.venueName, pattern),
-          ilike(publishers.name, pattern),
-        );
-        if (match) filters.push(match);
-      }
-      const tagIds = publicEventTagIds(query);
-      if (tagIds.length > 0) {
-        filters.push(sql`exists (
-          select 1 from ${eventTags}
-          where ${eventTags.eventId} = ${events.id}
-            and ${eventTags.tagId} in (${sql.join(
-              tagIds.map((id) => sql`${id}`),
-              sql`, `,
-            )})
-        )`);
-      }
-      if (query.price === 'free') {
-        const free = or(isNull(events.priceAmount), eq(events.priceAmount, 0));
-        if (free) filters.push(free);
-      }
-      if (query.price === 'paid') filters.push(sql`${events.priceAmount} > 0`);
-
+      const { filters, point } = publicEventFilters(query);
       const engagement = sql<number>`(${lifetimeStat('numSaved')}) + (${lifetimeStat('numComing')})`;
-      if (query.sort === 'popular') filters.push(sql`${engagement} >= 1`);
       const distanceOrder =
         query.sort === 'popular'
           ? [desc(engagement), asc(events.startsAt), asc(events.id)]
@@ -647,21 +666,8 @@ export function createDbEventServices(
               ]
             : [desc(events.featured), asc(events.startsAt), asc(events.id)];
 
-      // isPubliclyListedEvent: a point inside the radius. No point is omitted.
       const rows = await selectEvents()
-        .where(
-          and(
-            ...filters,
-            sql`(
-              ${events.location} IS NOT NULL
-              AND ST_DWithin(
-                ${events.location},
-                ST_GeogFromText(${point}),
-                ${query.radiusM}
-              )
-            )`,
-          ),
-        )
+        .where(and(...filters))
         .orderBy(...distanceOrder)
         .limit(query.limit + 1)
         .offset(query.offset);
@@ -684,6 +690,16 @@ export function createDbEventServices(
         );
       }
       return { items, nextOffset: hasMore ? query.offset + query.limit : null };
+    },
+
+    async countPublicEvents(query) {
+      const { filters } = publicEventFilters(query);
+      const [row] = await db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(events)
+        .innerJoin(publishers, eq(events.publisherId, publishers.id))
+        .where(and(...filters));
+      return { total: Number(row?.total ?? 0) };
     },
 
     async listOccasions(query: OccasionListQuery) {

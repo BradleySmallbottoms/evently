@@ -13,7 +13,11 @@ import Animated, {
   FadeIn,
   FadeOut,
   LinearTransition,
+  useAnimatedStyle,
   useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Tip, TipCard } from '@local-events/contracts';
@@ -34,6 +38,7 @@ export function TipSummary({
   embedded = false,
   onDone,
   onRevise,
+  onClose,
 }: {
   tip: Tip;
   photo?: string;
@@ -44,6 +49,7 @@ export function TipSummary({
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const alreadySent = useRef(tip.phase !== 'confirm').current;
@@ -111,20 +117,31 @@ export function TipSummary({
   const title = draft.title?.trim() || t('tips.fallbackTitle');
   const when = formatWhen(draft.startsAt, locale, 'short', true);
   const place = draft.place?.trim() || null;
+  const showClose = sent && !waiting && !inProgress;
+  const footerBottom = embedded ? space.lg : insets.bottom + space.lg;
+
+  function close() {
+    if (onClose) {
+      onClose();
+      return;
+    }
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+    <View style={{ flex: 1, minHeight: 0, backgroundColor: colors.canvas }}>
       <ScrollView
         contentContainerStyle={{
           paddingTop: (embedded ? space.md : insets.top) + space.sm,
           paddingHorizontal: space.xl,
-          paddingBottom: space.xl,
+          paddingBottom: showClose ? space.xl + 52 + space.sm + footerBottom : space.xl,
           gap: space.lg,
           width: '100%',
           maxWidth: MaxContentWidth,
           alignSelf: 'center',
         }}
-        style={{ flex: 1 }}
+        style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0 }}
       >
         <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'center' }}>
           {image ? (
@@ -262,12 +279,12 @@ export function TipSummary({
             />
           ) : null}
         </Animated.View>
-        {tip.eventId && tip.phase === 'published' ? <EventLink eventId={tip.eventId} /> : null}
         {error ? <AppText style={{ color: colors.danger }}>{error}</AppText> : null}
       </ScrollView>
       {inProgress ? (
         <View
           style={{
+            flexShrink: 0,
             paddingHorizontal: space.xl,
             paddingTop: space.sm,
             paddingBottom: embedded ? space.lg : insets.bottom + space.lg,
@@ -284,6 +301,7 @@ export function TipSummary({
           entering={fadeIn()}
           exiting={fadeOut()}
           style={{
+            flexShrink: 0,
             flexDirection: 'row',
             gap: space.sm,
             paddingHorizontal: space.xl,
@@ -316,6 +334,24 @@ export function TipSummary({
             />
           </View>
         </Animated.View>
+      ) : showClose ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            paddingHorizontal: space.xl,
+            paddingTop: space.sm,
+            paddingBottom: footerBottom,
+            backgroundColor: colors.canvas,
+            width: '100%',
+            maxWidth: MaxContentWidth,
+            alignSelf: 'center',
+          }}
+        >
+          <PrimaryButton label={t('tips.close')} onPress={close} />
+        </View>
       ) : null}
     </View>
   );
@@ -350,26 +386,29 @@ function StatusList({ tip, locale }: { tip: Tip; locale: string }) {
       />
       {steps.map(([key, at]) => {
         const done = Boolean(at);
-        const label =
-          key === 'reviewed' && tip.phase !== 'published' && tip.scanStatus === 'in_review'
-            ? t('tips.stepReviewing')
-            : t(`tips.step.${key}`);
+        const reviewing =
+          key === 'reviewed' && tip.phase !== 'published' && tip.scanStatus === 'in_review';
+        const label = reviewing ? t('tips.stepReviewing') : t(`tips.step.${key}`);
         return (
           <View key={key} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
-            <View
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 11,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: done ? colors.success : colors.canvas,
-                borderWidth: done ? 0 : 1.5,
-                borderColor: colors.line,
-              }}
-            >
-              {done ? <MaterialIcons name="check" size={14} color={colors.card} /> : null}
-            </View>
+            {reviewing ? (
+              <ActivityIndicator color={colors.accent} size={26} />
+            ) : (
+              <View
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: done ? colors.success : colors.canvas,
+                  borderWidth: done ? 0 : 1.5,
+                  borderColor: colors.line,
+                }}
+              >
+                {done ? <MaterialIcons name="check" size={14} color={colors.card} /> : null}
+              </View>
+            )}
             <View style={{ flex: 1, gap: 2 }}>
               <AppText style={{ fontSize: 16, fontWeight: '700', color: colors.ink }}>
                 {label}
@@ -437,40 +476,6 @@ function Meta({ icon, label }: { icon: 'calendar-today' | 'place'; label: string
         {label}
       </AppText>
     </View>
-  );
-}
-
-function BackMark() {
-  const { t } = useTranslation();
-  const router = useRouter();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={t('events.back')}
-      onPress={() => {
-        if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
-        router.back();
-      }}
-      style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
-    >
-      {process.env.EXPO_OS === 'ios' ? (
-        <SymbolView name={'chevron.left' as never} size={18} tintColor={colors.ink} />
-      ) : (
-        <MaterialIcons name="chevron-left" size={24} color={colors.ink} />
-      )}
-    </Pressable>
-  );
-}
-
-function EventLink({ eventId }: { eventId: string }) {
-  const { t } = useTranslation();
-  const router = useRouter();
-  return (
-    <Pressable accessibilityRole="button" onPress={() => router.push(`/events/${eventId}`)}>
-      <AppText variant="caption" style={{ color: colors.inkMuted }}>
-        {t('tips.viewEvent')}
-      </AppText>
-    </Pressable>
   );
 }
 

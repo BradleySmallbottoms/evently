@@ -79,7 +79,7 @@ const ALL_STATUSES = 'all';
 const ALL_TAGS = 'all';
 const NO_TAGS = 'none';
 
-type BulkAction = 'approve' | 'cancel' | 'delete' | 'wipe' | 'rescan';
+type BulkAction = 'approve' | 'remove' | 'rescan';
 
 const PAGE_SIZE = 50;
 
@@ -96,8 +96,7 @@ export function EventCatalog() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [rowDeleteId, setRowDeleteId] = useState<string | null>(null);
-  const [confirmWipe, setConfirmWipe] = useState(false);
-  const [rowWipeId, setRowWipeId] = useState<string | null>(null);
+  const [permanent, setPermanent] = useState(false);
   const [bulkError, setBulkError] = useState(false);
   const appliedSearch = useRef('');
 
@@ -138,49 +137,22 @@ export function EventCatalog() {
     },
   });
 
-  const removeOne = useMutation({
-    mutationFn: (id: string) => adminFetch(`/events/${id}`, { method: 'DELETE' }),
-    onSuccess: async () => {
-      setRowDeleteId(null);
-      setBulkError(false);
-      await queryClient.invalidateQueries({ queryKey: ['admin-events-catalog'] });
-      await queryClient.invalidateQueries({ queryKey: ['admin-events-in-review'] });
-    },
-    onError: () => {
-      setRowDeleteId(null);
-      setBulkError(true);
-    },
-  });
-
-  const wipeOne = useMutation({
-    mutationFn: (id: string) => adminFetch(`/events/${id}/wipe`, { method: 'POST' }),
-    onSuccess: async () => {
-      setRowWipeId(null);
-      setBulkError(false);
-      await queryClient.invalidateQueries({ queryKey: ['admin-events-catalog'] });
-      await queryClient.invalidateQueries({ queryKey: ['admin-events-in-review'] });
-    },
-    onError: () => {
-      setRowWipeId(null);
-      setBulkError(true);
-    },
-  });
-
   const bulk = useMutation({
-    mutationFn: async (input: { action: BulkAction; rows: { id: string; status: string }[] }) => {
+    mutationFn: async (input: {
+      action: BulkAction;
+      permanent?: boolean;
+      rows: { id: string; status: string }[];
+    }) => {
       const results = await Promise.allSettled(
         input.rows.map((row) => {
           if (input.action === 'approve') {
             return adminFetch(`/events/${row.id}/approve`, { method: 'POST' });
           }
-          if (input.action === 'delete') {
-            return adminFetch(`/events/${row.id}`, { method: 'DELETE' });
-          }
-          if (input.action === 'wipe') {
-            return adminFetch(`/events/${row.id}/wipe`, { method: 'POST' });
-          }
           if (input.action === 'rescan') {
             return adminFetch(`/events/${row.id}/rescan`, { method: 'POST' });
+          }
+          if (input.permanent) {
+            return adminFetch(`/events/${row.id}/wipe`, { method: 'POST' });
           }
           if (row.status === 'in_review') {
             return adminFetch(`/events/${row.id}/reject`, { method: 'POST' });
@@ -198,7 +170,8 @@ export function EventCatalog() {
     },
     onSuccess: async ({ failedIds }) => {
       setConfirmDelete(false);
-      setConfirmWipe(false);
+      setRowDeleteId(null);
+      setPermanent(false);
       setSelected(new Set(failedIds));
       setBulkError(failedIds.length > 0);
       await queryClient.invalidateQueries({ queryKey: ['admin-events-catalog'] });
@@ -232,26 +205,27 @@ export function EventCatalog() {
   const selectedItems = items.filter((item) => selected.has(item.id));
   const allSelected = items.length > 0 && selectedIds.length === items.length;
   const someSelected = selectedIds.length > 0 && !allSelected;
-  const busy = decide.isPending || bulk.isPending || removeOne.isPending || wipeOne.isPending;
-  const reviewCount = selectedItems.filter(
-    (item) => item.status === 'in_review' && item.origin === 'imported',
-  ).length;
-  const deleteCount = rowDeleteId ? 1 : reviewCount;
-  const wipeCount = rowWipeId ? 1 : reviewCount;
+  const busy = decide.isPending || bulk.isPending;
+  const deleteTargets = rowDeleteId
+    ? items.filter((item) => item.id === rowDeleteId)
+    : selectedItems;
+  const softTargets = deleteTargets.filter((item) => item.status !== 'cancelled');
+  const deleteCount = permanent ? deleteTargets.length : softTargets.length;
 
   function closeDelete() {
     setConfirmDelete(false);
     setRowDeleteId(null);
+    setPermanent(false);
   }
 
-  function closeWipe() {
-    setConfirmWipe(false);
-    setRowWipeId(null);
+  function openDelete(id?: string) {
+    setPermanent(false);
+    setRowDeleteId(id ?? null);
+    setConfirmDelete(id == null);
   }
+
   const canPublish = selectedItems.some((item) => item.status === 'in_review');
-  const canRemove = reviewCount > 0;
   const canRescan = selectedItems.some(canRescanImportedEvent);
-  const canCancel = selectedItems.some((item) => item.status !== 'cancelled');
 
   function toggleAll() {
     setBulkError(false);
@@ -270,19 +244,18 @@ export function EventCatalog() {
 
   function runBulk(action: BulkAction) {
     const rows =
-      action === 'cancel'
-        ? selectedItems.filter((item) => item.status !== 'cancelled')
+      action === 'remove'
+        ? permanent
+          ? deleteTargets
+          : softTargets
         : action === 'rescan'
           ? selectedItems.filter(canRescanImportedEvent)
-          : action === 'delete' || action === 'wipe'
-            ? selectedItems.filter(
-                (item) => item.status === 'in_review' && item.origin === 'imported',
-              )
-            : selectedItems.filter((item) => item.status === 'in_review');
+          : selectedItems.filter((item) => item.status === 'in_review');
     if (rows.length === 0) return;
     setBulkError(false);
     bulk.mutate({
       action,
+      permanent: action === 'remove' ? permanent : undefined,
       rows: rows.map((item) => ({ id: item.id, status: item.status })),
     });
   }
@@ -314,19 +287,10 @@ export function EventCatalog() {
               type="button"
               size="sm"
               variant="destructive"
-              disabled={!canRemove || busy}
-              onClick={() => setConfirmDelete(true)}
+              disabled={selectedIds.length === 0 || busy}
+              onClick={() => openDelete()}
             >
               {t('delete')}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              disabled={!canRemove || busy}
-              onClick={() => setConfirmWipe(true)}
-            >
-              {t('wipe')}
             </Button>
             <Button
               type="button"
@@ -336,15 +300,6 @@ export function EventCatalog() {
               onClick={() => runBulk('rescan')}
             >
               {t('rescan')}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={!canCancel || busy}
-              onClick={() => runBulk('cancel')}
-            >
-              {t('cancel')}
             </Button>
             <Button
               type="button"
@@ -498,69 +453,58 @@ export function EventCatalog() {
                   </TableCell>
                   <TableCell>{item.venueName}</TableCell>
                   <TableCell className="text-right">
-                    {item.status === 'in_review' || canRescanImportedEvent(item) ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button variant="ghost" size="icon" className="size-8" disabled={busy}>
-                              <MoreHorizontalIcon />
-                              <span className="sr-only">{t('openMenu')}</span>
-                            </Button>
-                          }
-                        />
-                        <DropdownMenuContent align="end">
-                          {item.status === 'in_review' ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button variant="ghost" size="icon" className="size-8" disabled={busy}>
+                            <MoreHorizontalIcon />
+                            <span className="sr-only">{t('openMenu')}</span>
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end">
+                        {item.status === 'in_review' ? (
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              disabled={busy}
+                              onClick={() => decide.mutate(item.id)}
+                            >
+                              {t('publish')}
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        ) : null}
+                        {canRescanImportedEvent(item) ? (
+                          <>
+                            {item.status === 'in_review' ? <DropdownMenuSeparator /> : null}
                             <DropdownMenuGroup>
                               <DropdownMenuItem
                                 disabled={busy}
-                                onClick={() => decide.mutate(item.id)}
+                                onClick={() =>
+                                  bulk.mutate({
+                                    action: 'rescan',
+                                    rows: [{ id: item.id, status: item.status }],
+                                  })
+                                }
                               >
-                                {t('publish')}
+                                {t('rescan')}
                               </DropdownMenuItem>
                             </DropdownMenuGroup>
-                          ) : null}
-                          {canRescanImportedEvent(item) ? (
-                            <>
-                              {item.status === 'in_review' ? <DropdownMenuSeparator /> : null}
-                              <DropdownMenuGroup>
-                                <DropdownMenuItem
-                                  disabled={busy}
-                                  onClick={() =>
-                                    bulk.mutate({
-                                      action: 'rescan',
-                                      rows: [{ id: item.id, status: item.status }],
-                                    })
-                                  }
-                                >
-                                  {t('rescan')}
-                                </DropdownMenuItem>
-                              </DropdownMenuGroup>
-                            </>
-                          ) : null}
-                          {item.status === 'in_review' && item.origin === 'imported' ? (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuGroup>
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  disabled={busy}
-                                  onClick={() => setRowDeleteId(item.id)}
-                                >
-                                  {t('delete')}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  disabled={busy}
-                                  onClick={() => setRowWipeId(item.id)}
-                                >
-                                  {t('wipe')}
-                                </DropdownMenuItem>
-                              </DropdownMenuGroup>
-                            </>
-                          ) : null}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : null}
+                          </>
+                        ) : null}
+                        {item.status === 'in_review' || canRescanImportedEvent(item) ? (
+                          <DropdownMenuSeparator />
+                        ) : null}
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            disabled={busy}
+                            onClick={() => openDelete(item.id)}
+                          >
+                            {t('delete')}
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
@@ -609,9 +553,25 @@ export function EventCatalog() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
-            <DialogDescription>{t('deleteConfirmBody', { count: deleteCount })}</DialogDescription>
+            <DialogTitle>
+              {deleteTargets.length === 1 ? t('deleteConfirmTitleOne') : t('deleteConfirmTitle')}
+            </DialogTitle>
+            <DialogDescription>
+              {permanent
+                ? t('deletePermanentBody', { count: deleteCount })
+                : deleteCount === 0
+                  ? t('deleteAlreadyCancelled')
+                  : t('deleteConfirmBody', { count: deleteCount })}
+            </DialogDescription>
           </DialogHeader>
+          <Field orientation="horizontal">
+            <Checkbox
+              id="event-delete-permanent"
+              checked={permanent}
+              onCheckedChange={(checked) => setPermanent(checked === true)}
+            />
+            <FieldLabel htmlFor="event-delete-permanent">{t('deletePermanent')}</FieldLabel>
+          </Field>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={closeDelete}>
               {t('cancel')}
@@ -619,42 +579,10 @@ export function EventCatalog() {
             <Button
               type="button"
               variant="destructive"
-              disabled={rowDeleteId ? busy : !canRemove || busy}
-              onClick={() => {
-                if (rowDeleteId) removeOne.mutate(rowDeleteId);
-                else runBulk('delete');
-              }}
+              disabled={busy || deleteCount === 0}
+              onClick={() => runBulk('remove')}
             >
               {t('delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={confirmWipe || rowWipeId !== null}
-        onOpenChange={(open) => {
-          if (!open) closeWipe();
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('wipeConfirmTitle')}</DialogTitle>
-            <DialogDescription>{t('wipeConfirmBody', { count: wipeCount })}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={closeWipe}>
-              {t('cancel')}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={rowWipeId ? busy : !canRemove || busy}
-              onClick={() => {
-                if (rowWipeId) wipeOne.mutate(rowWipeId);
-                else runBulk('wipe');
-              }}
-            >
-              {t('wipe')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -139,6 +139,8 @@ export type AdminEventMemoryStore = {
   publishers: Map<string, { id: string; name: string }>;
   tags?: Map<string, Tag>;
   events: Map<string, MemoryEvent>;
+  /** Event ids wipe must leave, matching a check-in, save, rating, or notification. */
+  wipeBlocked?: Set<string>;
 };
 
 const CONTENT_TOUCHES = [
@@ -588,7 +590,7 @@ export function createMemoryAdminEventServices(
     },
     async wipe(eventId, actor) {
       const row = store.events.get(eventId);
-      if (!row || !canDeleteImportedEvent(row)) return null;
+      if (!row || store.wipeBlocked?.has(eventId)) return null;
       const before = { status: row.status, title: row.title };
       store.events.delete(eventId);
       await audit.write({
@@ -1193,14 +1195,13 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           .select({
             id: schema.events.id,
             status: schema.events.status,
-            origin: schema.events.origin,
             title: schema.events.title,
           })
           .from(schema.events)
           .where(eq(schema.events.id, eventId))
           .limit(1)
           .for('update');
-        if (!row || !canDeleteImportedEvent(row)) return null;
+        if (!row) return null;
         const audience = [
           schema.checkIns,
           schema.ratings,
@@ -1225,13 +1226,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           .where(eq(schema.externalRefs.eventId, eventId));
         const removed = await tx
           .delete(schema.events)
-          .where(
-            and(
-              eq(schema.events.id, eventId),
-              eq(schema.events.status, 'in_review'),
-              eq(schema.events.origin, 'imported'),
-            ),
-          )
+          .where(eq(schema.events.id, eventId))
           .returning({ id: schema.events.id });
         if (!removed[0]) return null;
         if (refs.length > 0) {

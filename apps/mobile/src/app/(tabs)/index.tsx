@@ -37,6 +37,8 @@ import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
 import { openInboxItem } from '@/lib/open-inbox-item';
 import { queryPointForArea } from '@/lib/area-point';
+import { pointForPlace, tagsForLocationDraft } from '@/lib/location-draft';
+import { useEventCount } from '@/lib/use-event-count';
 import { refreshDeviceLocation } from '@/lib/device-location';
 import {
   NEARBY_PLACE_ID,
@@ -69,6 +71,9 @@ export default function HomeScreen() {
   const locale = i18n.language === 'en' ? 'en' : 'sv';
 
   const [locationOpen, setLocationOpen] = useState(false);
+  const [locationDraft, setLocationDraft] = useState<{ placeId: string; radiusM: number } | null>(
+    null,
+  );
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [pairingOpen, setPairingOpen] = useState(false);
   const [pairingTab, setPairingTab] = useState<PairingSheetTab>('web');
@@ -113,6 +118,38 @@ export default function HomeScreen() {
   const selectedTagKey = [...selectedTagIds].sort().join('\n');
   const query = q.trim();
   const searching = query.length > 0;
+  const locationPoint = useMemo(() => {
+    if (!locationOpen || !locationDraft) return undefined;
+    return (
+      pointForPlace(
+        locationDraft.placeId,
+        locationDraft.radiusM,
+        NEARBY_PLACE_ID,
+        preferences.data?.areas ?? [],
+        device.fix,
+      ) ?? undefined
+    );
+  }, [device.fix, locationDraft, locationOpen, preferences.data?.areas]);
+  const locationTagIds = useMemo(() => {
+    if (!locationDraft) return selectedTagIds;
+    const area = (preferences.data?.areas ?? []).find((item) => item.id === locationDraft.placeId);
+    return tagsForLocationDraft({
+      draftPlaceId: locationDraft.placeId,
+      currentPlaceId: placeId,
+      nearbyPlaceId: NEARBY_PLACE_ID,
+      currentTagIds: selectedTagIds,
+      nearbyTagIds: storedTagIds.data ?? [],
+      areaTagIds: area?.tagIds ?? [],
+    });
+  }, [locationDraft, placeId, preferences.data?.areas, selectedTagIds, storedTagIds.data]);
+  const locationEventCount = useEventCount(
+    locationPoint,
+    {
+      q: searching ? query : undefined,
+      tagIds: locationTagIds.length > 0 ? locationTagIds : undefined,
+    },
+    locationOpen,
+  );
   const events = useInfinitePublicEvents(
     storedTagIds.isSuccess && tagsSettled ? point.data : undefined,
     {
@@ -446,6 +483,8 @@ export default function HomeScreen() {
                   onIsPresentedChange={setLocationOpen}
                   canAdd={canAddSavedArea(preferences.data?.areas.length ?? 0)}
                   onCreatePlace={areaTags.createFromPlace}
+                  onDraftChange={setLocationDraft}
+                  eventCount={locationEventCount}
                   onSelect={(id) => {
                     setDiscoveryPlaceId(id);
                   }}
@@ -481,6 +520,8 @@ export default function HomeScreen() {
               tags={tags.data?.items ?? []}
               selectedIds={selectedTagIds}
               onChange={changeHomeTags}
+              point={point.data}
+              query={searching ? query : undefined}
             />
 
             {!searching && forYou.items.length > 0 ? (

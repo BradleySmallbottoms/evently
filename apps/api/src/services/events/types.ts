@@ -5,6 +5,8 @@ import type {
   Event,
   ManagedEvent,
   OccasionListQuery,
+  PublicEventCountQuery,
+  PublicEventCountResponse,
   PublicEventListQuery,
   PublicEventListResponse,
   UpdateEventRequest,
@@ -57,6 +59,8 @@ export type EventServices = {
   publishEvent: (input: { sessionToken: string | undefined; eventId: string }) => Promise<Event>;
   cancelEvent: (input: { sessionToken: string | undefined; eventId: string }) => Promise<Event>;
   listPublicEvents: (query: PublicEventListQuery) => Promise<PublicEventListResponse>;
+  /** How many events the public list would return for these filters. Sort is not included. */
+  countPublicEvents: (query: PublicEventCountQuery) => Promise<PublicEventCountResponse>;
   /** Published events in one occasion group that have not ended, soonest first. */
   listOccasions: (query: OccasionListQuery) => Promise<Event[]>;
 };

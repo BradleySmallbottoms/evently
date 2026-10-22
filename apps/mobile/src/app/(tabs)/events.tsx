@@ -17,6 +17,8 @@ import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { queryPointForArea } from '@/lib/area-point';
+import { pointForPlace } from '@/lib/location-draft';
+import { useEventCount } from '@/lib/use-event-count';
 import {
   addDays,
   boundsIso,
@@ -65,9 +67,12 @@ export default function EventsScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
+  const [locationDraft, setLocationDraft] = useState<{ placeId: string; radiusM: number } | null>(
+    null,
+  );
   const [refreshing, setRefreshing] = useState(false);
 
-  const { identity, preferences, point, placeId, radiusM, radiusMap } = useDiscoveryPoint();
+  const { identity, preferences, point, placeId, radiusM, radiusMap, device } = useDiscoveryPoint();
   const saveDiscoveryRadius = useSaveDiscoveryRadius(identity.data);
   const areaTags = useAreaTagPrompt(identity.data);
   const tags = useQuery({
@@ -99,6 +104,28 @@ export default function EventsScreen() {
   }, [custom, month.m, month.y, quick, today]);
   const iso = boundsIso(range.from, range.to);
   const tagKey = [...listedTagIds].sort().join('\n');
+  const locationPoint = useMemo(() => {
+    if (!locationOpen || !locationDraft) return undefined;
+    return (
+      pointForPlace(
+        locationDraft.placeId,
+        locationDraft.radiusM,
+        NEARBY_PLACE_ID,
+        preferences.data?.areas ?? [],
+        device.fix,
+      ) ?? undefined
+    );
+  }, [device.fix, locationDraft, locationOpen, preferences.data?.areas]);
+  const locationEventCount = useEventCount(
+    locationPoint,
+    {
+      from: iso.from,
+      to: iso.to,
+      tagIds: listedTagIds.length > 0 ? listedTagIds : undefined,
+      price: price === 'any' ? undefined : price,
+    },
+    locationOpen,
+  );
   const events = useInfinitePublicEvents(
     point.data,
     {
@@ -266,6 +293,8 @@ export default function EventsScreen() {
                   onIsPresentedChange={setLocationOpen}
                   canAdd={canAddSavedArea(preferences.data?.areas.length ?? 0)}
                   onCreatePlace={areaTags.createFromPlace}
+                  onDraftChange={setLocationDraft}
+                  eventCount={locationEventCount}
                   onSelect={setDiscoveryPlaceId}
                 />
               </View>
@@ -392,6 +421,9 @@ export default function EventsScreen() {
         tags={tags.data?.items ?? []}
         tagIds={listedTagIds}
         price={price}
+        point={point.data}
+        from={iso.from}
+        to={iso.to}
         onDismiss={() => setFiltersOpen(false)}
         onApply={(nextTags, nextPrice) => {
           setTagIds(nextTags);

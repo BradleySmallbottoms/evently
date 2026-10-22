@@ -7650,6 +7650,118 @@
         }
       }
     },
+    "/events/count": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "number",
+              "nullable": true,
+              "minimum": -90,
+              "maximum": 90
+            },
+            "required": false,
+            "name": "lat",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "nullable": true,
+              "minimum": -180,
+              "maximum": 180
+            },
+            "required": false,
+            "name": "lng",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 200000,
+              "default": 50000
+            },
+            "required": false,
+            "name": "radiusM",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "tagId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "tagIds",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["free", "paid"]
+            },
+            "required": false,
+            "name": "price",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "How many events GET /events would return for the same place, tags, date, price, and text.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": ["total"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/occasions": {
       "get": {
         "parameters": [

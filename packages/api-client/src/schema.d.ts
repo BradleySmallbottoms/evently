@@ -4142,6 +4142,53 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/events/count': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          lat?: number | null;
+          lng?: number | null;
+          radiusM?: number;
+          from?: string;
+          to?: string;
+          q?: string;
+          tagId?: string;
+          tagIds?: string;
+          price?: 'free' | 'paid';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description How many events GET /events would return for the same place, tags, date, price, and text. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              total: number;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/events/occasions': {
     parameters: {
       query?: never;
@@ -7019,7 +7066,6 @@ export interface paths {
                 } | null;
                 /** Format: date-time */
                 createdAt: string;
-                /** @description Set on the reply that refused a typed text. A later read is null. */
                 warning: string | null;
               }[];
             };
@@ -7179,7 +7225,6 @@ export interface paths {
               } | null;
               /** Format: date-time */
               createdAt: string;
-              /** @description Set on the reply that refused a typed text. A later read is null. */
               warning: string | null;
             };
           };
@@ -7343,7 +7388,6 @@ export interface paths {
               } | null;
               /** Format: date-time */
               createdAt: string;
-              /** @description Set on the reply that refused a typed text. A later read is null. */
               warning: string | null;
             };
           };
@@ -7578,7 +7622,6 @@ export interface paths {
               } | null;
               /** Format: date-time */
               createdAt: string;
-              /** @description Set on the reply that refused a typed text. A later read is null. */
               warning: string | null;
             };
           };
@@ -7794,7 +7837,6 @@ export interface paths {
               } | null;
               /** Format: date-time */
               createdAt: string;
-              /** @description Set on the reply that refused a typed text. A later read is null. */
               warning: string | null;
             };
           };
@@ -8020,7 +8062,6 @@ export interface paths {
               } | null;
               /** Format: date-time */
               createdAt: string;
-              /** @description Set on the reply that refused a typed text. A later read is null. */
               warning: string | null;
             };
           };

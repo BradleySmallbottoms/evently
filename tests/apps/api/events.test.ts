@@ -826,4 +826,134 @@ describe('events', () => {
     const missing = await app.request('/v1/events/occasions');
     expect(missing.status).toBe(400);
   });
+
+  it('counts the events the public list would show', async () => {
+    const store = createMemoryStore();
+    const now = new Date('2026-10-18T12:00:00.000Z');
+    const auth = createMemoryAuthServices(store);
+    const app = createApp({
+      auth,
+      events: createMemoryEventServices(auth, { now: () => now }, store),
+    });
+    const music = SEED_TAGS[0]!.id;
+    const sport = SEED_TAGS[1]!.id;
+    const base = {
+      publisherId: '11111111-1111-4111-8111-111111111403',
+      summary: null,
+      description: null,
+      mode: 'physical' as const,
+      status: 'published' as const,
+      origin: 'native' as const,
+      timezone: 'Europe/Stockholm',
+      venueName: 'Hall',
+      location: { lat: 61.3037, lng: 17.0592 },
+      geofenceRadiusM: 100,
+      onlineUrl: null,
+      priceAmount: null as number | null,
+      currency: 'SEK',
+      publisherName: 'Hall',
+      links: [],
+      imageUrl: null,
+      imageUrls: [],
+      tagIds: [] as string[],
+      featured: false,
+      checkInEnabled: false,
+      meta: {},
+      numSaved: 0,
+      numComing: 0,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    function row(
+      id: string,
+      title: string,
+      startsAt: string,
+      endsAt: string,
+      extra: Partial<MemoryEventRow> = {},
+    ): MemoryEventRow {
+      return {
+        ...base,
+        id,
+        title,
+        startsAt,
+        endsAt,
+        startsAtDate: new Date(startsAt),
+        endsAtDate: new Date(endsAt),
+        ...extra,
+      };
+    }
+    store.events.set(
+      '11111111-1111-4111-8111-111111111601',
+      row(
+        '11111111-1111-4111-8111-111111111601',
+        'Market',
+        '2026-10-20T15:00:00.000Z',
+        '2026-10-20T18:00:00.000Z',
+        { tagIds: [music] },
+      ),
+    );
+    store.events.set(
+      '11111111-1111-4111-8111-111111111602',
+      row(
+        '11111111-1111-4111-8111-111111111602',
+        'Match',
+        '2026-10-21T15:00:00.000Z',
+        '2026-10-21T18:00:00.000Z',
+        { tagIds: [sport], priceAmount: 12_000 },
+      ),
+    );
+    store.events.set(
+      '11111111-1111-4111-8111-111111111603',
+      row(
+        '11111111-1111-4111-8111-111111111603',
+        'Far away',
+        '2026-10-22T15:00:00.000Z',
+        '2026-10-22T18:00:00.000Z',
+        { location: { lat: 59.3, lng: 18.07 } },
+      ),
+    );
+    store.events.set(
+      '11111111-1111-4111-8111-111111111604',
+      row(
+        '11111111-1111-4111-8111-111111111604',
+        'No pin',
+        '2026-10-22T15:00:00.000Z',
+        '2026-10-22T18:00:00.000Z',
+        { location: null },
+      ),
+    );
+    store.events.set(
+      '11111111-1111-4111-8111-111111111605',
+      row(
+        '11111111-1111-4111-8111-111111111605',
+        'Ended',
+        '2026-10-01T15:00:00.000Z',
+        '2026-10-01T18:00:00.000Z',
+      ),
+    );
+
+    const place = 'lat=61.3037&lng=17.0592&radiusM=50000';
+    async function count(extra = '') {
+      const res = await app.request(`/v1/events/count?${place}${extra}`);
+      expect(res.status).toBe(200);
+      return ((await res.json()) as { total: number }).total;
+    }
+    async function listed(extra = '') {
+      const res = await app.request(`/v1/events?${place}${extra}`);
+      expect(res.status).toBe(200);
+      return ((await res.json()) as { items: unknown[] }).items.length;
+    }
+
+    expect(await count()).toBe(2);
+    expect(await count()).toBe(await listed());
+    expect(await count(`&tagIds=${music},${sport}`)).toBe(2);
+    expect(await count(`&tagIds=${music}`)).toBe(1);
+    expect(await count('&price=free')).toBe(1);
+    expect(await count('&price=paid')).toBe(1);
+    expect(await count('&q=market')).toBe(1);
+    expect(await count(`&tagIds=${music}&price=paid`)).toBe(0);
+
+    const missing = await app.request('/v1/events/count');
+    expect(missing.status).toBe(400);
+  });
 });

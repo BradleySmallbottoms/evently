@@ -48,6 +48,8 @@ pnpm --filter @local-events/mobile build:development:simulator
 pnpm --filter @local-events/data-workers dev -- --source example-fixture
 pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn --limit 5
 pnpm --filter @local-events/data-workers dev -- --job event-scan
+pnpm --filter @local-events/data-workers dev -- --job replay-scan --dry-run
+pnpm --filter @local-events/data-workers dev -- --job replay-scan --limit 20
 pnpm --filter @local-events/data-workers dev -- --job publisher-scan
 pnpm api-client:generate   # after public API OpenAPI changes
 ```
@@ -84,6 +86,13 @@ pnpm api-client:generate   # after public API OpenAPI changes
 - Apply `pnpm db:migrate` so `event_tips` and the `user-tips` source exist. Tip text and photos
   are deleted with the user; the event row stays.
   Flow: [docs/flows/event-tips.md](docs/flows/event-tips.md).
+
+### Event counts
+
+- The Show events button on home categories, calendar filters, and the location menu shows how many
+  events that combination will list. `GET /v1/events/count` uses the same filters as the public
+  list. The count is a database query for now. The cache plan is in
+  [docs/flows/event-counts.md](docs/flows/event-counts.md).
 
 ### Publisher import notifications
 
@@ -206,6 +215,9 @@ calls) in the same change as every new major feature.**
   `OLLAMA_DISABLED=1` skips local Ollama, so an event that still needs tags stays `pending_scan`.
   `pnpm --filter @local-events/data-workers dev -- --job event-scan`
   scans the next batch. Add `--event <event-id>` to scan one row, or `--limit 1` to cap the batch.
+  `pnpm --filter @local-events/data-workers dev -- --job replay-scan` reuses stored `events.llm_output`
+  and reruns the post-model chain (publisher, duplicate, tags, venue, status, reminders, and publish enqueue)
+  without calling a model again. It accepts `--event` and `--limit` too.
   Flow: [docs/flows/event-scan.md](docs/flows/event-scan.md). Publisher lookup: [docs/flows/publisher-scan.md](docs/flows/publisher-scan.md).
 
 ### Destination Hälsingland import
@@ -395,9 +407,9 @@ calls) in the same change as every new major feature.**
   An event with several occasions, or an `occasionGroupId`, has a Tillfällen tab. Collapse folds the
   checked events into that event and cancels them. Flow:
   [docs/flows/admin-collapse-occasions.md](docs/flows/admin-collapse-occasions.md). Publisher lists can select rows and verify them.
-  Delete cancels an imported review event and keeps the row. Wipe removes it and keeps
+  On `/events/manage`, Ta bort cancels any selected event and keeps the row. Ta bort permanent removes the row and keeps
   the source id out of later imports, and leaves the row when someone has already
-  checked in, saved, rated, or been notified
+  checked in, saved, rated, or been notified. Import review still deletes or wipes an imported event in review
   ([docs/flows/import-review-delete.md](docs/flows/import-review-delete.md)). `/events` redirects there. `/events/manage`
   pages the catalog 50 at a time and searches title, venue, and publisher, then patches status. `/publishers` publishes a publisher, remaps or completes temporary publishers, and shows status.
   A publisher page lists that publisher's events, with ids. Delete is available when the publisher has none.
@@ -453,8 +465,8 @@ calls) in the same change as every new major feature.**
   `DOMAIN_EVENTS_QUEUE_URL`, APIs keep events in-process and the worker idles.
 - Worker fan-out: nearby (covering area ∩ that area’s tags) plus publisher followers on every
   event notification → always insert. Rules: [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md).
-  `notifications` inbox row → silent Expo push (data + badge, no alert). The icon badge updates
-  from that payload and clears when the app becomes active. A banner is a local notification
+  `notifications` inbox row → silent Expo push (data + badge, no alert). The client sets the
+  icon badge from that count when the push arrives and clears it when the app becomes active. A banner is a local notification
   the app posts (including while it is open), only outside quiet hours and under the 5/day cap.
   Tapping a notification that carries an event id opens that event. iOS needs
   `enableBackgroundRemoteNotifications` (a new native build) or the background task never runs

@@ -11,10 +11,16 @@ describe('tip push messages', () => {
       place: 'Stadsparken',
       tipId: '11111111-1111-4111-8111-111111111111',
       eventId: '22222222-2222-4222-8222-222222222222',
+      badge: 2,
     });
     expect(published[0]?.title).toBe('Ditt event är klart!');
     expect(published[0]?.body).toContain('Sommarkonsert');
-    expect(published[0]?.data).toMatchObject({ kind: 'tip_scan', status: 'published' });
+    expect(published[0]?.badge).toBe(2);
+    expect(published[0]?.data).toMatchObject({
+      kind: 'tip_scan',
+      status: 'published',
+      badge: '2',
+    });
 
     const review = tipPushMessages({
       tokens: ['ExponentPushToken[abc]'],
@@ -24,6 +30,7 @@ describe('tip push messages', () => {
       place: null,
       tipId: '11111111-1111-4111-8111-111111111111',
       eventId: '22222222-2222-4222-8222-222222222222',
+      badge: 1,
     });
     expect(review[0]?.body).not.toContain('lagt till');
   });

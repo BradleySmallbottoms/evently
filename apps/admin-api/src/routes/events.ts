@@ -263,7 +263,7 @@ export function registerAdminEventRoutes(
     request: { params: z.object({ id: z.uuid() }) },
     responses: {
       200: {
-        description: 'Imported event removed',
+        description: 'Event removed',
         content: { 'application/json': { schema: AdminEventDeleteResponse } },
       },
       401: {
@@ -271,7 +271,7 @@ export function registerAdminEventRoutes(
         content: { 'application/json': { schema: ErrorResponse } },
       },
       404: {
-        description: 'Not found, not in review, or someone has already checked in',
+        description: 'Not found, or someone has checked in, saved, rated, or been notified',
         content: { 'application/json': { schema: ErrorResponse } },
       },
     },

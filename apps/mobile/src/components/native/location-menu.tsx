@@ -44,6 +44,10 @@ type Props = {
   canAdd?: boolean;
   /** Saves a typed place. The caller then asks for category groups. */
   onCreatePlace?: (place: NamedPlace) => Promise<void>;
+  /** Draft place and radius, so the caller can count that combination. */
+  onDraftChange?: (draft: { placeId: string; radiusM: number }) => void;
+  /** Events the draft place and radius will show. Omitted until the count arrives. */
+  eventCount?: number;
 };
 
 const STOPS_KM = DISCOVERY_RADIUS_STOPS_M.map((meters) => meters / 1_000);
@@ -87,6 +91,8 @@ export function LocationMenu({
   onSelect,
   canAdd = true,
   onCreatePlace,
+  onDraftChange,
+  eventCount,
 }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -106,6 +112,14 @@ export function LocationMenu({
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const wasOpen = useRef(false);
+  const onDraftChangeRef = useRef(onDraftChange);
+  onDraftChangeRef.current = onDraftChange;
+
+  useEffect(() => {
+    if (!open) return;
+    const meters = DISCOVERY_RADIUS_STOPS_M[radiusIndex] ?? DISCOVERY_RADIUS_STOPS_M[0];
+    onDraftChangeRef.current?.({ placeId: draftId, radiusM: meters });
+  }, [draftId, open, radiusIndex]);
 
   function setOpen(next: boolean) {
     onIsPresentedChange?.(next);
@@ -508,7 +522,9 @@ export function LocationMenu({
                     }}
                   >
                     <AppText variant="subtitle" style={{ color: colors.card, fontWeight: '700' }}>
-                      {t('events.showEvents')}
+                      {eventCount == null
+                        ? t('events.showEvents')
+                        : t('events.showEventsCount', { count: eventCount })}
                     </AppText>
                   </View>
                 )}

@@ -47,7 +47,7 @@ import {
   linkHost,
   periodStatus,
 } from '@/lib/event-detail-format';
-import { primaryAction, safeHttpUrl } from '@/lib/event-format';
+import { primaryAction, safeHttpUrl, ticketLink } from '@/lib/event-format';
 import { ensureIdentity } from '@/lib/identity';
 import {
   clearComing,
@@ -578,9 +578,13 @@ export default function EventDetailScreen() {
       : comingCount > 0
         ? t('events.detail.comingCount', { count: comingCount })
         : null;
+  const tickets = event.data ? ticketLink(event.data.links) : null;
   const facts: FactRow[] = [];
   if (event.data) {
-    const link = primaryAction(event.data.links, event.data.onlineUrl);
+    const link = primaryAction(
+      event.data.links.filter((item) => item.type !== 'tickets'),
+      event.data.onlineUrl,
+    );
     const linkUrl = link ? safeHttpUrl(link.url) : null;
     facts.push({
       key: 'type',
@@ -621,6 +625,19 @@ export default function EventDetailScreen() {
           value: price,
         });
       }
+    }
+    if (tickets) {
+      facts.push({
+        key: 'tickets',
+        sf: 'ticket',
+        md: 'confirmation-number',
+        label: t('events.detail.knowTickets'),
+        value: tickets.label || linkHost(tickets.url) || t('events.linkTickets'),
+        accent: true,
+        onPress: () => {
+          void Linking.openURL(tickets.url);
+        },
+      });
     }
     if (link && linkUrl) {
       facts.push({
@@ -811,11 +828,19 @@ export default function EventDetailScreen() {
                       {t('tips.fromUser')}
                     </AppText>
                   ) : null}
-                  <AppText
-                    style={{ fontSize: 28, lineHeight: 34, fontWeight: '700', color: colors.ink }}
-                  >
-                    {event.data.title}
-                  </AppText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                    <AppText
+                      style={{
+                        flex: 1,
+                        fontSize: 28,
+                        lineHeight: 34,
+                        fontWeight: '700',
+                        color: colors.ink,
+                      }}
+                    >
+                      {event.data.title}
+                    </AppText>
+                  </View>
                   {copy.lead ? (
                     <AppText style={{ fontSize: 16, lineHeight: 23, color: colors.inkMuted }}>
                       {copy.lead}
@@ -1314,6 +1339,7 @@ export default function EventDetailScreen() {
             joinLabel={comingOn ? t('events.detail.joined') : t('events.detail.join')}
             joined={comingOn}
             onJoin={toggleComing}
+            tickets={tickets}
           />
         ) : null}
       </View>

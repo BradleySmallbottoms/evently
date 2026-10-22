@@ -2,8 +2,9 @@ import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
 
+import { badgeUpdateFromTaskPayload } from './app-icon-badge';
 import { inboxPushFieldsFromTaskPayload } from './inbox-push-payload';
-import { presentSilentInboxNotification } from './push-notifications';
+import { applyReceivedAppIconBadge, presentSilentInboxNotification } from './push-notifications';
 
 /** Headless handler for silent inbox pushes (background and terminated). */
 export const INBOX_PUSH_TASK = 'inbox-silent-push';
@@ -13,9 +14,13 @@ TaskManager.defineTask<Notifications.NotificationTaskPayload>(
   async ({ data, error }) => {
     if (error) return Notifications.BackgroundNotificationTaskResult.Failed;
     try {
+      const badge = badgeUpdateFromTaskPayload(data);
+      if (badge) {
+        await applyReceivedAppIconBadge({ count: badge.count, key: badge.key });
+      }
       const fields = inboxPushFieldsFromTaskPayload(data);
       if (!fields) return Notifications.BackgroundNotificationTaskResult.NoData;
-      const presented = await presentSilentInboxNotification(fields);
+      const presented = await presentSilentInboxNotification(fields, { badge: badge?.count });
       return presented
         ? Notifications.BackgroundNotificationTaskResult.NewData
         : Notifications.BackgroundNotificationTaskResult.NoData;

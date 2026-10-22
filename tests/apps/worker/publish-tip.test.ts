@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../apps/worker/src/notify/match', () => ({
   loadPushDevicesForUsers: async () => [],
+  countUnreadNotifications: async () => 1,
 }));
 
 import { markTipPublished } from '../../../packages/db/src/tips';

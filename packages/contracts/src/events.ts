@@ -384,6 +384,19 @@ export const PublicEventListQuery = z.object({
 });
 export type PublicEventListQuery = z.infer<typeof PublicEventListQuery>;
 
+/** Same filters as the public list, without sort or pages. */
+export const PublicEventCountQuery = PublicEventListQuery.omit({
+  sort: true,
+  limit: true,
+  offset: true,
+});
+export type PublicEventCountQuery = z.infer<typeof PublicEventCountQuery>;
+
+export const PublicEventCountResponse = z.object({
+  total: z.number().int().nonnegative(),
+});
+export type PublicEventCountResponse = z.infer<typeof PublicEventCountResponse>;
+
 /** Split a `tagIds` query value. Empty and omitted both mean no tag filter. */
 export function tagIdList(value: string | undefined): string[] {
   if (!value) return [];

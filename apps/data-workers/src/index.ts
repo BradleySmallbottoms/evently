@@ -4,6 +4,7 @@ import { createSqsDomainEventPublisher, noopDomainEvents } from './domain-events
 import { eventImageUploaderFromEnv } from './event-images';
 import { persistSource } from './persist';
 import { promptRunnerFromEnv } from './prompt-runners';
+import { replayStoredScans } from './replay-scan';
 import { scanWithChatPod } from './scan-with-pod';
 import { parseScanSelection, scanPendingEvents } from './scan-pending';
 import { scanPendingPublishers } from './scan-publishers';
@@ -29,6 +30,12 @@ initSentry('data-workers');
  *   pnpm --filter @local-events/data-workers dev -- --job publisher-scan
  *   pnpm --filter @local-events/data-workers dev -- --job publisher-scan --publisher <publisher-id>
  *
+ * Replay scan reuses `events.llm_output` and reruns post-model scan writes.
+ *   pnpm --filter @local-events/data-workers dev -- --job replay-scan
+ *   pnpm --filter @local-events/data-workers dev -- --job replay-scan --event <event-id>
+ *   pnpm --filter @local-events/data-workers dev -- --job replay-scan --limit 20
+ *   pnpm --filter @local-events/data-workers dev -- --job replay-scan --dry-run
+ *
 
  * `CHAT_PROVIDER=runpod` starts the named GPU pod, drains pending rows in batches,
  * and stops the pod when the run ends.
@@ -43,12 +50,18 @@ function argValue(flag: string, envName: string): string | undefined {
   return value && !value.startsWith('--') ? value : '';
 }
 
+function hasFlag(flag: string, envName: string): boolean {
+  if (process.argv.includes(flag)) return true;
+  const value = process.env[envName]?.trim().toLowerCase();
+  return value === '1' || value === 'true' || value === 'yes';
+}
+
 const job = argValue('--job', 'JOB');
 const slug = argValue('--source', 'SOURCE_SLUG');
 
 /** `--limit` for a source import. Scan jobs parse their own limit. */
 function importLimit(): number | undefined {
-  if (job === 'event-scan' || job === 'publisher-scan') return undefined;
+  if (job === 'event-scan' || job === 'publisher-scan' || job === 'replay-scan') return undefined;
   const i = process.argv.indexOf('--limit');
   if (i < 0) return undefined;
   const raw = process.argv[i + 1];
@@ -60,7 +73,7 @@ function importLimit(): number | undefined {
 }
 
 const sourceLimit = importLimit();
-if (job !== 'event-scan' && job !== 'publisher-scan' && !slug) {
+if (job !== 'event-scan' && job !== 'publisher-scan' && job !== 'replay-scan' && !slug) {
   console.error('Missing source: pass --source <slug> or set SOURCE_SLUG');
   process.exit(2);
 }
@@ -119,6 +132,33 @@ async function main(): Promise<number> {
       process.env.CHAT_PROVIDER?.trim().toLowerCase() === 'runpod'
         ? await scanPublishersWithChatPod({ store, databaseUrl, selection })
         : await scanPendingPublishers(store, promptRunnerFromEnv(store), selection);
+    console.log(JSON.stringify(summary, null, 2));
+    return 0;
+  }
+
+  if (job === 'replay-scan') {
+    const databaseUrl = resolveDatabaseUrl();
+    if (!databaseUrl) {
+      console.error('DATABASE_URL is required for --job replay-scan');
+      return 1;
+    }
+    const db = createDb(databaseUrl);
+    const store = createDbIngestStore(db);
+    const queueUrl = process.env.DOMAIN_EVENTS_QUEUE_URL?.trim();
+    const selection = parseScanSelection({
+      eventId: argValue('--event', 'EVENT_ID'),
+      limit: argValue('--limit', 'SCAN_LIMIT'),
+    });
+    if (!selection.ok) {
+      console.error(selection.message);
+      return 2;
+    }
+    const enqueue = queueUrl ? createSqsDomainEventPublisher({ queueUrl }) : noopDomainEvents;
+    const summary = await replayStoredScans(store, enqueue, {
+      ...(selection.eventId ? { eventId: selection.eventId } : {}),
+      ...(selection.limit != null ? { limit: selection.limit } : {}),
+      ...(hasFlag('--dry-run', 'DRY_RUN') ? { dryRun: true } : {}),
+    });
     console.log(JSON.stringify(summary, null, 2));
     return 0;
   }

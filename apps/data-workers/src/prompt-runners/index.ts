@@ -14,6 +14,7 @@ export type {
 } from './types';
 export { createOllamaPromptRunner } from './ollama';
 export { createOllamaWithToolsPromptRunner } from './chatwithtools';
+export { parseStoredScanOutput, scanOutcomeFromContent } from './chatwithtools';
 export type { OllamaWithToolsRunnerOptions } from './chatwithtools';
 
 /**

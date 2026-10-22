@@ -450,6 +450,7 @@ async function deliverBundleToUser(
         // Client may use title/body from data when presenting local OS notification.
         title: presentation.title,
         body: presentation.body,
+        badge: String(unread),
       },
       badge: unread,
       _contentAvailable: true,

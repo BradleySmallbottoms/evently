@@ -36,6 +36,7 @@ sequenceDiagram
   Note over Mobile: Cap + quiet hours on device, including in the foreground
   Mobile->>Mobile: Local OS notification
   Note over Mobile: Tap with an event id opens that event
+  Note over Mobile: Push sets the app icon badge
   Note over Mobile: Becoming active clears the app icon badge
   Mobile->>API: GET /v1/me/notifications
 ```
@@ -75,7 +76,9 @@ with the earliest copy plus “And N more…”.
   That plist value needs a new native build.
 - Tapping a notification whose payload has an event id opens that event. Broadcasts have no
   event id and stay on the current screen.
-- The app icon badge from the silent push clears when the app becomes active.
+- The client sets the app icon badge from the push count when the notification arrives, and
+  clears it when the app becomes active. A push with no count adds one. The local banner does
+  not change the count again.
 
 ## Retention
 

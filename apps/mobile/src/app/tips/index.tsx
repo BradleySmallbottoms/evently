@@ -263,6 +263,7 @@ function Choice({
         borderWidth: 1,
         borderColor: colors.line,
         padding: space.lg,
+        paddingHorizontal: space.lg,
       }}
     >
       {content}

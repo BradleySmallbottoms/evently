@@ -126,6 +126,36 @@ export async function listPublicEvents(
   );
 }
 
+export type PublicEventCountFilter = {
+  q?: string;
+  tagId?: string;
+  tagIds?: string[];
+  from?: string;
+  to?: string;
+  price?: 'free' | 'paid';
+};
+
+/** How many events the public list would show for these filters. */
+export async function countPublicEvents(point: EventQueryPoint, filter?: PublicEventCountFilter) {
+  return throwIfError(
+    await api.GET('/events/count', {
+      params: {
+        query: {
+          lat: point.lat,
+          lng: point.lng,
+          radiusM: point.radiusM,
+          ...(filter?.q ? { q: filter.q } : {}),
+          ...(filter?.tagId ? { tagId: filter.tagId } : {}),
+          ...(filter?.tagIds?.length ? { tagIds: filter.tagIds.join(',') } : {}),
+          ...(filter?.from ? { from: filter.from } : {}),
+          ...(filter?.to ? { to: filter.to } : {}),
+          ...(filter?.price ? { price: filter.price } : {}),
+        },
+      },
+    }),
+  );
+}
+
 export async function listOccasionEvents(occasionGroupId: string) {
   return throwIfError(
     await api.GET('/events/occasions', {

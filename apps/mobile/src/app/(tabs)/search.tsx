@@ -21,6 +21,8 @@ import { listTags, namesForTagIds } from '@/lib/events';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { queryPointForArea } from '@/lib/area-point';
+import { pointForPlace } from '@/lib/location-draft';
+import { useEventCount } from '@/lib/use-event-count';
 import {
   NEARBY_PLACE_ID,
   radiiForPlaces,
@@ -87,6 +89,9 @@ export default function SearchScreen() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const [locationOpen, setLocationOpen] = useState(false);
+  const [locationDraft, setLocationDraft] = useState<{ placeId: string; radiusM: number } | null>(
+    null,
+  );
   const [q, setQ] = useState('');
   const [tagId, setTagId] = useState(
     typeof tagIdParam === 'string' && tagIdParam.length > 0 ? tagIdParam : 'all',
@@ -106,7 +111,7 @@ export default function SearchScreen() {
     return () => clearTimeout(timer);
   }, [focus]);
 
-  const { identity, preferences, point, placeId, radiusM, radiusMap } = useDiscoveryPoint();
+  const { identity, preferences, point, placeId, radiusM, radiusMap, device } = useDiscoveryPoint();
   const saveDiscoveryRadius = useSaveDiscoveryRadius(identity.data);
   const areaTags = useAreaTagPrompt(identity.data);
   const tags = useQuery({
@@ -119,6 +124,29 @@ export default function SearchScreen() {
       ? 'all'
       : tagId;
   const bounds = dateBounds(dateId);
+  const locationPoint = useMemo(() => {
+    if (!locationOpen || !locationDraft) return undefined;
+    return (
+      pointForPlace(
+        locationDraft.placeId,
+        locationDraft.radiusM,
+        NEARBY_PLACE_ID,
+        preferences.data?.areas ?? [],
+        device.fix,
+      ) ?? undefined
+    );
+  }, [device.fix, locationDraft, locationOpen, preferences.data?.areas]);
+  const locationEventCount = useEventCount(
+    locationPoint,
+    {
+      q: q.trim() || undefined,
+      tagId: listedTagId === 'all' ? undefined : listedTagId,
+      price: price === 'any' ? undefined : price,
+      from: bounds.from,
+      to: bounds.to,
+    },
+    locationOpen,
+  );
   const events = useInfinitePublicEvents(
     point.data,
     {
@@ -241,6 +269,8 @@ export default function SearchScreen() {
                   onIsPresentedChange={setLocationOpen}
                   canAdd={canAddSavedArea(preferences.data?.areas.length ?? 0)}
                   onCreatePlace={areaTags.createFromPlace}
+                  onDraftChange={setLocationDraft}
+                  eventCount={locationEventCount}
                   onSelect={(id) => {
                     setDiscoveryPlaceId(id);
                   }}

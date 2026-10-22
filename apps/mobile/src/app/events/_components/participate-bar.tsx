@@ -15,6 +15,7 @@ export function ParticipateBar({
   joinLabel,
   joined,
   onJoin,
+  tickets,
 }: {
   title: string;
   when: string;
@@ -23,6 +24,10 @@ export function ParticipateBar({
   joinLabel: string;
   joined: boolean;
   onJoin: () => void;
+  tickets?: {
+    url: string;
+    label: string | null;
+  } | null;
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -33,10 +38,10 @@ export function ParticipateBar({
         backgroundColor: colors.card,
         borderRadius: radius.lg,
         borderCurve: 'continuous',
-        boxShadow: shadow.card,
+        boxShadow: shadow.hardTop,
         paddingHorizontal: space.lg,
         paddingVertical: space.lg,
-        paddingBottom: Math.max(insets.bottom * 1.5, space.lg),
+        paddingBottom: Math.max(insets.bottom, space.lg),
         flexDirection: 'row',
         alignItems: 'center',
         gap: space.md,

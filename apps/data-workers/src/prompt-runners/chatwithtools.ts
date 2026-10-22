@@ -340,17 +340,24 @@ async function scanOneEvent(
       reason: content === 'timeout' ? 'timeout' : 'unavailable',
     };
   }
+  return scanOutcomeFromContent(event, content, context);
+}
 
+export async function scanOutcomeFromContent(
+  event: ScanInput,
+  content: LLMScanResult & LLMOutput,
+  context: Pick<LookupContext, 'store' | 'catalog'>,
+): Promise<Extract<ScanOutcome, { ok: true }>> {
   const tags =
     context.catalog.length > 0 ? parseTagChoices(content, context.catalog) : event.existingTags;
-  const publisher = await bestPublisher(content, context);
-  const duplicate = await bestDuplicate(content, context);
+  const lookupContext: LookupContext = { ...context, event };
+  const publisher = await bestPublisher(content, lookupContext);
+  const duplicate = await bestDuplicate(content, lookupContext);
   const occasionMatches = content.possibleDuplicates.flatMap((item) =>
     typeof item.occasionRank === 'number'
       ? [{ eventId: item.eventId, occasionRank: item.occasionRank }]
       : [],
   );
-
   return {
     ok: true,
     eventId: event.eventId,
@@ -1079,7 +1086,7 @@ function scanRangeOf(record: Record<string, unknown>): {
   return range ?? { startsAt: null, endsAt: null };
 }
 
-function parseScanJson(content: string): LLMScanResult | null {
+export function parseScanJson(content: string): LLMScanResult | null {
   const record = extractScanRecord(content);
   if (!record) return null;
   return {
@@ -1094,6 +1101,61 @@ function parseScanJson(content: string): LLMScanResult | null {
     ...scanRangeOf(record),
     ...addressFromModel(record.address),
   };
+}
+
+/**
+ * Reads the stored scan payload from `events.llm_output`.
+ * Accepts provider payloads (OpenAI, Ollama, Anthropic) and a bare scan object.
+ */
+export function parseStoredScanOutput(output: unknown): (LLMScanResult & LLMOutput) | null {
+  if (!output || typeof output !== 'object' || Array.isArray(output)) return null;
+  const record = output as Record<string, unknown>;
+  const direct = isScanRecord(record) ? normalizeStoredScanRecord(record) : null;
+  if (direct) return direct;
+  const assistant = assistantContentText(record);
+  if (!assistant) return null;
+  const parsed = parseScanJson(assistant);
+  if (!parsed) return null;
+  return { ...parsed, output: record };
+}
+
+function normalizeStoredScanRecord(record: Record<string, unknown>): LLMScanResult & LLMOutput {
+  const normalized = parseScanJson(JSON.stringify(record));
+  if (!normalized) {
+    return {
+      contentVerdict: 'unknown',
+      possibleTags: [],
+      possiblePublishers: [],
+      possibleDuplicates: [],
+      summary: '',
+      language: '',
+      instructions: [],
+      possibleVenueNames: [],
+      startsAt: null,
+      endsAt: null,
+      output: record,
+    };
+  }
+  return { ...normalized, output: record };
+}
+
+function assistantContentText(record: Record<string, unknown>): string | null {
+  const message = openAiMessage(record) ?? ollamaMessage(record) ?? anthropicMessage(record);
+  if (!message) return null;
+  return messageText(message.content);
+}
+
+function anthropicMessage(payload: Record<string, unknown>): Record<string, unknown> | null {
+  if (!Array.isArray(payload.content)) return null;
+  const parts: { text: string }[] = [];
+  for (const block of payload.content) {
+    if (!block || typeof block !== 'object') continue;
+    const type = 'type' in block ? block.type : undefined;
+    const text = 'text' in block ? block.text : undefined;
+    if (type === 'text' && typeof text === 'string') parts.push({ text });
+  }
+  if (parts.length === 0) return null;
+  return { content: parts };
 }
 
 /** Street, postcode, and city from the scan JSON. A coordinate in that object is dropped. */
@@ -1136,8 +1198,7 @@ function isScanRecord(record: Record<string, unknown>): boolean {
     'contentVerdict' in record ||
     'possibleTags' in record ||
     'possiblePublishers' in record ||
-    'possibleDuplicates' in record ||
-    'summary' in record
+    'possibleDuplicates' in record
   );
 }
 
