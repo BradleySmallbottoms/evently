@@ -229,7 +229,7 @@ export function createDbIngestStore(db: Db): IngestStore {
               and(
                 inArray(events.publisherId, ids),
                 isNotNull(events.location),
-                notInArray(events.status, ['cancelled', 'ended']),
+                notInArray(events.status, ['cancelled', 'ended', 'deleted']),
                 sql`ST_DWithin(${events.location}, ST_GeogFromText(${point}), ${PUBLISHER_NAME_RADIUS_M})`,
               ),
             );
@@ -424,7 +424,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             sql`ST_DWithin(${events.location}, ST_GeogFromText(${point}), ${DUPLICATE_RADIUS_M})`,
             gte(events.startsAt, from),
             lte(events.startsAt, to),
-            notInArray(events.status, ['cancelled', 'ended']),
+            notInArray(events.status, ['cancelled', 'ended', 'deleted']),
           ),
         );
       if (rows.length === 0) {
@@ -934,7 +934,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             sql`ST_DWithin(${events.location}, ST_GeogFromText(${ewkt}), ${NEARBY_RADIUS_M})`,
             gte(events.startsAt, window.from),
             lte(events.startsAt, window.to),
-            notInArray(events.status, ['cancelled', 'ended']),
+            notInArray(events.status, ['cancelled', 'ended', 'deleted']),
             ne(events.id, excludeEventId),
           ),
         )
@@ -1059,7 +1059,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             sql`ST_DWithin(${events.location}, ST_GeogFromText(${ewkt}), ${NEARBY_RADIUS_M})`,
             gte(events.startsAt, window.from),
             lte(events.startsAt, window.to),
-            notInArray(events.status, ['cancelled', 'ended']),
+            notInArray(events.status, ['cancelled', 'ended', 'deleted']),
             ne(events.id, excludeEventId),
           ),
         )

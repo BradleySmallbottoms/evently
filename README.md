@@ -81,7 +81,7 @@ pnpm api-client:generate   # after public API OpenAPI changes
 - The user gets a visible push (`kind` `tip_scan`) that ignores quiet hours and the daily cap.
   The wording says the event was added only when the scan published it. An open app hides the
   banner. A published tip opens the thank-you screen, and any other result opens the tip status.
-  A tap, including the inbox row, does the same. Public event pages show “Från användartips” from
+  A lock-screen tap does the same. The inbox row opens the thank-you screen when the tip is published, and the tip status in a bottom sheet otherwise. Public event pages show “Från användartips” from
   `meta.fromUserTip` and do not name who sent it.
 - Apply `pnpm db:migrate` so `event_tips` and the `user-tips` source exist. Tip text and photos
   are deleted with the user; the event row stays.
@@ -407,7 +407,7 @@ calls) in the same change as every new major feature.**
   An event with several occasions, or an `occasionGroupId`, has a Tillfällen tab. Collapse folds the
   checked events into that event and cancels them. Flow:
   [docs/flows/admin-collapse-occasions.md](docs/flows/admin-collapse-occasions.md). Publisher lists can select rows and verify them.
-  On `/events/manage`, Ta bort cancels any selected event and keeps the row. Ta bort permanent removes the row and keeps
+  On `/events/manage`, Ta bort marks any selected event `deleted` and removes it from lists. A later import sees that status and skips the source id. Ta bort permanent removes the row and keeps
   the source id out of later imports, and leaves the row when someone has already
   checked in, saved, rated, or been notified. Import review still deletes or wipes an imported event in review
   ([docs/flows/import-review-delete.md](docs/flows/import-review-delete.md)). `/events` redirects there. `/events/manage`

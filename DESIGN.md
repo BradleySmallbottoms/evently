@@ -332,17 +332,21 @@ row when the data is missing. The tickets URL is not repeated under more
 information. 11. "All dates"
 when the event spans days or has other occasions. The period card can
 expand to the individual dates. 12. Similar events that share a tag. 13. Share: copy link, Facebook, Instagram, and the system share sheet.
-A sticky bar repeats the title, the period, and "I want to join".
+A sheet rests on the bottom in two stops. The short stop repeats the title,
+the period, and "I want to join". Dragging it up shows share actions, a
+buy-tickets button when the event has a ticket link, the price beside that
+button when one is known, the event's other links, and a report icon in the
+upper right. The sheet does not dismiss.
 
 The page background is the canvas. The title block (through About), How it
 works when steps exist, the organizer, Good to know, All dates, and Share
 each sit in a white card. The map and each similar event are cards of their own. The
-join bar is a card fixed over the bottom of the page.
+join sheet is fixed over the bottom of the page.
 
 Check-in, attendee content, and rating stay on the page when that event
-supports them. Report stays as a quiet action at the bottom.
+supports them.
 
-Rules: - The sticky join action stays reachable while scrolling. -
+Rules: - The join action stays reachable while scrolling. -
 A tickets link opens from the title icon and from Good to know. Registration
 and info links stay in "More information", separate from "I want to join". -
 Do not fabricate availability, prices, venue

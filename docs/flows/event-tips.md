@@ -86,6 +86,6 @@ sequenceDiagram
   Publishing that event stores `published` on the tip and sends the published notice, so the status step reads “Granskad och publicerad”.
 - The push ignores quiet hours and the daily cap. The copy says the event was added only when
   the scan published it. While the app is open the banner is hidden. A published tip opens the
-  thank-you screen, and any other result opens the tip status. A tap from the lock screen, and a
-  tap on the inbox row, do the same.
+  thank-you screen, and any other result opens the tip status. A tap from the lock screen does
+  the same. A tap on the inbox row opens the thank-you screen when the tip is published, and the tip status in a bottom sheet otherwise.
 - Deleting the user removes `event_tips`, `tip_messages`, and `tip_images`. The event stays.

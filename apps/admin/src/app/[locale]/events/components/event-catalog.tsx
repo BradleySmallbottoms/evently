@@ -154,12 +154,9 @@ export function EventCatalog() {
           if (input.permanent) {
             return adminFetch(`/events/${row.id}/wipe`, { method: 'POST' });
           }
-          if (row.status === 'in_review') {
-            return adminFetch(`/events/${row.id}/reject`, { method: 'POST' });
-          }
           return adminFetch(`/events/${row.id}`, {
             method: 'PATCH',
-            body: JSON.stringify({ status: 'cancelled' }),
+            body: JSON.stringify({ status: 'deleted' }),
           });
         }),
       );
@@ -209,8 +206,7 @@ export function EventCatalog() {
   const deleteTargets = rowDeleteId
     ? items.filter((item) => item.id === rowDeleteId)
     : selectedItems;
-  const softTargets = deleteTargets.filter((item) => item.status !== 'cancelled');
-  const deleteCount = permanent ? deleteTargets.length : softTargets.length;
+  const deleteCount = deleteTargets.length;
 
   function closeDelete() {
     setConfirmDelete(false);
@@ -245,9 +241,7 @@ export function EventCatalog() {
   function runBulk(action: BulkAction) {
     const rows =
       action === 'remove'
-        ? permanent
-          ? deleteTargets
-          : softTargets
+        ? deleteTargets
         : action === 'rescan'
           ? selectedItems.filter(canRescanImportedEvent)
           : selectedItems.filter((item) => item.status === 'in_review');
@@ -559,9 +553,7 @@ export function EventCatalog() {
             <DialogDescription>
               {permanent
                 ? t('deletePermanentBody', { count: deleteCount })
-                : deleteCount === 0
-                  ? t('deleteAlreadyCancelled')
-                  : t('deleteConfirmBody', { count: deleteCount })}
+                : t('deleteConfirmBody', { count: deleteCount })}
             </DialogDescription>
           </DialogHeader>
           <Field orientation="horizontal">

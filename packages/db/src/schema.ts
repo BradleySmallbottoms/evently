@@ -50,6 +50,7 @@ export const eventStatus = pgEnum('event_status', [
   'published',
   'cancelled',
   'ended',
+  'deleted',
 ]);
 /** Import-scan content decision. `unknown` until a scan writes a result. */
 export const contentVerdict = pgEnum('content_verdict', ['safe', 'harmful', 'spam', 'unknown']);

@@ -24,7 +24,7 @@ import {
   statusOnPublish,
   validateEventFields,
 } from '@local-events/domain';
-import { and, asc, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
@@ -446,7 +446,7 @@ export function createDbEventServices(
     async listPublisherEvents({ sessionToken, publisherId }) {
       await requireMember(sessionToken, publisherId);
       const rows = await selectEvents()
-        .where(eq(events.publisherId, publisherId))
+        .where(and(eq(events.publisherId, publisherId), ne(events.status, 'deleted')))
         .orderBy(events.startsAt);
       const ids = rows.map((row) => row.id);
       const [links, images] = await Promise.all([linksFor(ids), imagesFor(ids)]);

@@ -94,7 +94,7 @@ export type AdminEventReviewListResponse = z.infer<typeof AdminEventReviewListRe
 
 export const AdminEventDecisionResponse = z.object({
   id: Id,
-  status: z.enum(['published', 'cancelled', 'pending_scan']),
+  status: z.enum(['published', 'cancelled', 'pending_scan', 'deleted']),
 });
 export type AdminEventDecisionResponse = z.infer<typeof AdminEventDecisionResponse>;
 
@@ -302,6 +302,7 @@ export const AdminEventListItem = z.object({
     'published',
     'cancelled',
     'ended',
+    'deleted',
   ]),
   origin: z.enum(['native', 'imported']),
   startsAt: z.iso.datetime().nullable(),
@@ -397,6 +398,7 @@ const AdminEventStatus = z.enum([
   'published',
   'cancelled',
   'ended',
+  'deleted',
 ]);
 
 export const AdminEventPatchRequest = z

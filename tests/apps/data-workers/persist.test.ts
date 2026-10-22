@@ -205,6 +205,18 @@ describe('saveIncomingEvents', () => {
     });
   });
 
+  it('skips a deleted event and leaves the row', async () => {
+    const store = createMemoryIngestStore();
+    await saveIncomingEvents(store, source, [bandy]);
+    store.events[0]!.status = 'deleted';
+    const renamed = { ...bandy, title: 'Should stay deleted' };
+    const counts = await saveIncomingEvents(store, source, [renamed]);
+    expect(counts.skipped).toBe(1);
+    expect(counts.updated).toBe(0);
+    expect(store.events[0]?.title).toBe(bandy.title);
+    expect(store.events[0]?.status).toBe('deleted');
+  });
+
   it('does not rewrite a cancelled event', async () => {
     const store = createMemoryIngestStore();
     await saveIncomingEvents(store, source, [bandy]);

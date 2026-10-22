@@ -234,7 +234,13 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       const nearIds = new Set<string>();
       if (near?.location) {
         for (const event of events) {
-          if (event.status === 'cancelled' || event.status === 'ended' || !event.location) continue;
+          if (
+            event.status === 'cancelled' ||
+            event.status === 'ended' ||
+            event.status === 'deleted' ||
+            !event.location
+          )
+            continue;
           if (!event.publisherId) continue;
           if (distanceMeters(near.location, event.location) <= PUBLISHER_NAME_RADIUS_M) {
             nearIds.add(event.publisherId);
@@ -397,6 +403,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         if (
           event.status === 'cancelled' ||
           event.status === 'ended' ||
+          event.status === 'deleted' ||
           !event.location ||
           !event.startsAt
         )
@@ -698,7 +705,8 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       const hits: NearbyEventHit[] = [];
       for (const event of events) {
         if (event.id === excludeEventId || !event.location || !event.startsAt) continue;
-        if (event.status === 'cancelled' || event.status === 'ended') continue;
+        if (event.status === 'cancelled' || event.status === 'ended' || event.status === 'deleted')
+          continue;
         const starts = event.startsAt.getTime();
         if (starts < window.from.getTime() || starts > window.to.getTime()) continue;
         const distanceM = Math.round(distanceMeters(point, event.location));
@@ -722,7 +730,8 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       for (const event of events) {
         if (!event.publisherId || event.id === excludeEventId || !event.location || !event.startsAt)
           continue;
-        if (event.status === 'cancelled' || event.status === 'ended') continue;
+        if (event.status === 'cancelled' || event.status === 'ended' || event.status === 'deleted')
+          continue;
         const starts = event.startsAt.getTime();
         if (starts < window.from.getTime() || starts > window.to.getTime()) continue;
         const publisher = publishers.find((item) => item.id === event.publisherId);
@@ -757,7 +766,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       const closest = new Map<string, NearbyPublisherHit>();
       for (const event of events) {
         if (!event.publisherId || event.id === excludeEventId || !event.location) continue;
-        if (event.status === 'cancelled') continue;
+        if (event.status === 'cancelled' || event.status === 'deleted') continue;
         const publisher = publishers.find((item) => item.id === event.publisherId);
         if (!publisher || !matcher.matches(publisher.name)) continue;
         const distanceM = Math.round(distanceMeters(point, event.location));

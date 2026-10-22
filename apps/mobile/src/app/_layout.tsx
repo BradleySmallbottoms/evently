@@ -238,7 +238,12 @@ export default function RootLayout() {
             <Stack.Screen name="events/[id]" />
             <Stack.Screen
               name="tips/published/[id]"
-              options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+              options={{
+                presentation: 'transparentModal',
+                animation: 'fade',
+                animationDuration: 220,
+                contentStyle: { backgroundColor: 'transparent' },
+              }}
             />
             <Stack.Screen name="for-you" />
             <Stack.Screen name="preferences/index" />

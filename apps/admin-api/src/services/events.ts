@@ -41,7 +41,7 @@ import {
   reviewWarnings,
   validateEventFields,
 } from '@local-events/domain';
-import { and, asc, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, ne, or, sql } from 'drizzle-orm';
 import type { AdminAuditServices } from './audit';
 import { noopAudit } from './audit';
 import { createMemoryDomainEventPublisher } from './domain-events/memory';
@@ -488,6 +488,7 @@ export function createMemoryAdminEventServices(
       const needle = query.q?.toLocaleLowerCase();
       const matched = [...store.events.values()]
         .filter((e) => {
+          if (e.status === 'deleted') return false;
           if (query.status && e.status !== query.status) return false;
           if (query.untagged === 'true' && tagCountOf(e.tagIds) > 0) return false;
           if (!needle) return true;
@@ -576,7 +577,7 @@ export function createMemoryAdminEventServices(
       const row = store.events.get(eventId);
       if (!row || !canDeleteImportedEvent(row)) return null;
       const before = { status: row.status };
-      row.status = 'cancelled';
+      row.status = 'deleted';
       row.updatedAt = now().toISOString();
       await audit.write({
         actor,
@@ -584,9 +585,9 @@ export function createMemoryAdminEventServices(
         entityType: 'event',
         entityId: eventId,
         before,
-        after: { status: 'cancelled' },
+        after: { status: 'deleted' },
       });
-      return { id: row.id, status: 'cancelled' as const };
+      return { id: row.id, status: 'deleted' as const };
     },
     async wipe(eventId, actor) {
       const row = store.events.get(eventId);
@@ -613,7 +614,8 @@ export function createMemoryAdminEventServices(
           (event) =>
             readEventMeta(event.meta).occasionGroupId === groupId &&
             event.status !== 'cancelled' &&
-            event.status !== 'ended',
+            event.status !== 'ended' &&
+            event.status !== 'deleted',
         )
         .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
         .map((event) => ({
@@ -640,7 +642,8 @@ export function createMemoryAdminEventServices(
             !event ||
             readEventMeta(event.meta).occasionGroupId !== hostMeta.occasionGroupId ||
             event.status === 'cancelled' ||
-            event.status === 'ended',
+            event.status === 'ended' ||
+            event.status === 'deleted',
         )
       ) {
         throw new AdminEventError('invalid_event');
@@ -949,7 +952,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         }));
     },
     async list(query) {
-      const filters = [];
+      const filters = [ne(schema.events.status, 'deleted')];
       if (query.status) filters.push(eq(schema.events.status, query.status));
       if (query.untagged === 'true') filters.push(untaggedEvents());
       if (query.q) {
@@ -1168,7 +1171,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       const at = now();
       const updated = await db
         .update(schema.events)
-        .set({ status: 'cancelled', updatedAt: at })
+        .set({ status: 'deleted', updatedAt: at })
         .where(
           and(
             eq(schema.events.id, eventId),
@@ -1185,9 +1188,9 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         entityType: 'event',
         entityId: eventId,
         before: { status: row.status },
-        after: { status: 'cancelled' },
+        after: { status: 'deleted' },
       });
-      return { id: eventId, status: 'cancelled' as const };
+      return { id: eventId, status: 'deleted' as const };
     },
     async wipe(eventId, actor) {
       const deleted = await db.transaction(async (tx) => {
@@ -1306,7 +1309,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         if (
           meta.occasionGroupId !== host.meta.occasionGroupId ||
           row.status === 'cancelled' ||
-          row.status === 'ended'
+          row.status === 'ended' ||
+          row.status === 'deleted'
         ) {
           throw new AdminEventError('invalid_event');
         }
@@ -1425,7 +1429,10 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .where(eq(schema.events.id, eventId));
       if (body.tagIds) await replaceTags(eventId, body.tagIds);
       if (body.links) await replaceLinks(eventId, body.links);
-      if (nextStatus === 'cancelled' && existing.status !== 'cancelled') {
+      if (
+        (nextStatus === 'cancelled' || nextStatus === 'deleted') &&
+        nextStatus !== existing.status
+      ) {
         await cancelOpenPushMessages(db, eventId, at);
       } else if (
         nextStatus === 'published' ||

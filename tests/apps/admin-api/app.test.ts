@@ -730,8 +730,8 @@ describe('admin api', () => {
       headers: { cookie },
     });
     expect(removed.status).toBe(200);
-    expect(await removed.json()).toEqual({ id: inReviewId, status: 'cancelled' });
-    expect(eventStore.events.get(inReviewId)?.status).toBe('cancelled');
+    expect(await removed.json()).toEqual({ id: inReviewId, status: 'deleted' });
+    expect(eventStore.events.get(inReviewId)?.status).toBe('deleted');
 
     const wiped = await app.request(`/v1/events/${wipeId}/wipe`, {
       method: 'POST',
@@ -1514,6 +1514,7 @@ describe('admin api', () => {
           ['Market', '2026-08-02T18:00:00.000Z', 'Square', publisherA, 'published'],
           ['Choir', '2026-08-01T18:00:00.000Z', 'Jazzkällaren', publisherB, 'cancelled'],
           ['100% fun', '2026-08-04T18:00:00.000Z', 'Park', publisherB, 'published'],
+          ['Gone', '2026-08-05T18:00:00.000Z', 'Hall', publisherA, 'deleted'],
         ].map(([title, startsAt, venueName, publisherId, status], index) => {
           const id = `44444444-4444-4444-8444-44444444440${index + 1}`;
           return [

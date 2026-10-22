@@ -3516,7 +3516,8 @@
                               "in_review",
                               "published",
                               "cancelled",
-                              "ended"
+                              "ended",
+                              "deleted"
                             ]
                           },
                           "origin": {
@@ -4045,7 +4046,8 @@
                               "in_review",
                               "published",
                               "cancelled",
-                              "ended"
+                              "ended",
+                              "deleted"
                             ]
                           },
                           "origin": {
@@ -4590,7 +4592,8 @@
                                     "in_review",
                                     "published",
                                     "cancelled",
-                                    "ended"
+                                    "ended",
+                                    "deleted"
                                   ]
                                 },
                                 "origin": {
@@ -5012,7 +5015,8 @@
                               "in_review",
                               "published",
                               "cancelled",
-                              "ended"
+                              "ended",
+                              "deleted"
                             ]
                           },
                           "origin": {
@@ -5468,7 +5472,8 @@
                               "in_review",
                               "published",
                               "cancelled",
-                              "ended"
+                              "ended",
+                              "deleted"
                             ]
                           },
                           "origin": {
@@ -6289,7 +6294,8 @@
                               "in_review",
                               "published",
                               "cancelled",
-                              "ended"
+                              "ended",
+                              "deleted"
                             ]
                           },
                           "origin": {
@@ -6798,7 +6804,8 @@
                         "in_review",
                         "published",
                         "cancelled",
-                        "ended"
+                        "ended",
+                        "deleted"
                       ]
                     },
                     "origin": {
@@ -7326,7 +7333,8 @@
                               "in_review",
                               "published",
                               "cancelled",
-                              "ended"
+                              "ended",
+                              "deleted"
                             ]
                           },
                           "origin": {
@@ -7821,7 +7829,8 @@
                               "in_review",
                               "published",
                               "cancelled",
-                              "ended"
+                              "ended",
+                              "deleted"
                             ]
                           },
                           "origin": {
@@ -8193,7 +8202,8 @@
                         "in_review",
                         "published",
                         "cancelled",
-                        "ended"
+                        "ended",
+                        "deleted"
                       ]
                     },
                     "origin": {
@@ -8580,7 +8590,8 @@
                         "in_review",
                         "published",
                         "cancelled",
-                        "ended"
+                        "ended",
+                        "deleted"
                       ]
                     },
                     "origin": {
@@ -9155,7 +9166,8 @@
                         "in_review",
                         "published",
                         "cancelled",
-                        "ended"
+                        "ended",
+                        "deleted"
                       ]
                     },
                     "origin": {
@@ -9594,7 +9606,8 @@
                         "in_review",
                         "published",
                         "cancelled",
-                        "ended"
+                        "ended",
+                        "deleted"
                       ]
                     },
                     "origin": {
@@ -10006,7 +10019,8 @@
                         "in_review",
                         "published",
                         "cancelled",
-                        "ended"
+                        "ended",
+                        "deleted"
                       ]
                     },
                     "origin": {

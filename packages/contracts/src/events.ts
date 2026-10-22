@@ -15,6 +15,7 @@ const EventStatus = z.enum([
   'published',
   'cancelled',
   'ended',
+  'deleted',
 ]);
 const EventOrigin = z.enum(['native', 'imported']);
 

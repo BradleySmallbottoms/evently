@@ -386,6 +386,7 @@ async function saveOne(
   const hash = contentHash(linked);
   const tagIds = await store.tagIdsForExternalIds(event.tags.map((tag) => tag.externalId));
   const existing = await store.findExternalRef(source.id, event.externalId);
+  if (existing?.status === 'deleted') return 'skipped';
   if (existing && existing.contentHash === hash) {
     await store.touchRef(source.id, event.externalId);
     await attachImages(store, existing.eventId, event, images);

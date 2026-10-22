@@ -188,7 +188,7 @@ export function createMemoryEventServices(
     async listPublisherEvents({ sessionToken, publisherId }) {
       await requireMember(sessionToken, publisherId);
       return [...events.values()]
-        .filter((e) => e.publisherId === publisherId)
+        .filter((e) => e.publisherId === publisherId && e.status !== 'deleted')
         .map((row) => toPublic(row, store))
         .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
     },

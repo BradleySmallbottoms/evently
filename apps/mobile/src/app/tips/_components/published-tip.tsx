@@ -1,17 +1,16 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { deviceAssetUrl } from '@local-events/domain';
 import type { Tip } from '@local-events/contracts';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
-import { Image, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
-import { API_URL } from '@/lib/api';
+import { EventImage } from '@/components/ui/event-image';
 import { shareEventLink } from '@/lib/event-share';
 import { foundTipClock, foundTipDay } from '@/lib/tip-clock';
 import { colors } from '@/theme/colors';
@@ -44,7 +43,7 @@ export function PublishedTip({ tip, event }: { tip: Tip; event: ShownEvent | nul
     event?.city ?? null,
     tip.found?.place ?? tip.card?.place ?? null,
   );
-  const imageUrl = previewUri(event?.imageUrl ?? tip.previewImageUrl);
+  const imageUrl = event?.imageUrl ?? tip.previewImageUrl;
   const eventId = tip.eventId;
 
   function goBack() {
@@ -67,34 +66,32 @@ export function PublishedTip({ tip, event }: { tip: Tip; event: ShownEvent | nul
           gap: space.lg,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 44 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            minHeight: 44,
+          }}
+        >
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('events.back')}
             onPress={goBack}
             style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Glyph sf="chevron.left" md="chevron-left" color={colors.ink} size={26} />
+            <Glyph sf="xmark" md="close" color={colors.accent} size={24} />
           </Pressable>
-          <AppText
-            style={{
-              flex: 1,
-              textAlign: 'center',
-              fontSize: 17,
-              lineHeight: 22,
-              fontWeight: '700',
-              color: colors.ink,
-            }}
-          >
-            {t('tips.yoursTitle')}
-          </AppText>
           {eventId ? (
             <CircleIconButton
               plain
-              sf="ellipsis"
+              sf="square.and.arrow.up"
               md="more-horiz"
               accessibilityLabel={t('tips.share')}
+              tintColor={colors.ink}
               onPress={share}
+              iconSize={28}
+              style={{ backgroundColor: colors.card, borderRadius: radius.pill }}
             />
           ) : (
             <View style={{ width: 44 }} />
@@ -135,15 +132,9 @@ export function PublishedTip({ tip, event }: { tip: Tip; event: ShownEvent | nul
         >
           <View style={{ flexDirection: 'row', gap: space.md }}>
             {imageUrl ? (
-              <Image
-                source={{ uri: imageUrl }}
-                accessibilityIgnoresInvertColors
-                style={{
-                  width: 84,
-                  height: 108,
-                  borderRadius: radius.sm,
-                  backgroundColor: colors.accentSoft,
-                }}
+              <EventImage
+                imageUrl={imageUrl}
+                style={{ width: 84, height: 108, borderRadius: radius.sm }}
               />
             ) : (
               <View
@@ -364,12 +355,6 @@ function PaperPlane() {
 function sparkle(cx: number, cy: number, r: number): string {
   const inner = r * 0.28;
   return `M ${cx} ${cy - r} L ${cx + inner} ${cy - inner} L ${cx + r} ${cy} L ${cx + inner} ${cy + inner} L ${cx} ${cy + r} L ${cx - inner} ${cy + inner} L ${cx - r} ${cy} L ${cx - inner} ${cy - inner} Z`;
-}
-
-function previewUri(url: string | null): string | null {
-  if (!url) return null;
-  if (Platform.OS === 'web') return url;
-  return deviceAssetUrl(url, API_URL);
 }
 
 function formatWhen(value: string | null, locale: string): string | null {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ticketLink } from '../../../apps/mobile/src/lib/event-format';
+import { participateSheetLinks, ticketLink } from '../../../apps/mobile/src/lib/event-format';
 
 describe('ticketLink', () => {
   it('returns the first safe tickets url and its label', () => {
@@ -26,5 +26,28 @@ describe('ticketLink', () => {
   it('returns null when the event has no tickets link', () => {
     expect(ticketLink([{ type: 'info', url: 'https://example.com' }])).toBeNull();
     expect(ticketLink([])).toBeNull();
+  });
+});
+
+describe('participateSheetLinks', () => {
+  it('keeps tickets apart from the event links and adds the online page', () => {
+    expect(
+      participateSheetLinks(
+        [
+          { type: 'tickets', url: 'https://nortic.se/ticket/1', label: 'Nortic' },
+          { type: 'info', url: 'https://andreas.se/live' },
+          { type: 'registration', url: 'javascript:alert(1)' },
+          { type: 'facebook', url: 'https://facebook.com/show', label: null },
+        ],
+        'https://live.example/room',
+      ),
+    ).toEqual({
+      tickets: [{ type: 'tickets', url: 'https://nortic.se/ticket/1', label: 'Nortic' }],
+      event: [
+        { type: 'info', url: 'https://andreas.se/live', label: null },
+        { type: 'facebook', url: 'https://facebook.com/show', label: null },
+        { type: 'online', url: 'https://live.example/room', label: null },
+      ],
+    });
   });
 });

@@ -231,7 +231,7 @@ export function registerAdminEventRoutes(
     request: { params: z.object({ id: z.uuid() }) },
     responses: {
       200: {
-        description: 'Imported event cancelled and kept',
+        description: 'Imported event marked deleted and kept',
         content: { 'application/json': { schema: AdminEventDecisionResponse } },
       },
       401: {

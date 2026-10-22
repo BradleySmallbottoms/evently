@@ -6,7 +6,8 @@ export type EventStatus =
   | 'in_review'
   | 'published'
   | 'cancelled'
-  | 'ended';
+  | 'ended'
+  | 'deleted';
 
 export type EventMode = 'physical' | 'digital';
 

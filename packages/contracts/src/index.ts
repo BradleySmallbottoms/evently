@@ -20,6 +20,7 @@ export const EventStatus = z.enum([
   'published',
   'cancelled',
   'ended',
+  'deleted',
 ]);
 export type EventStatus = z.infer<typeof EventStatus>;
 

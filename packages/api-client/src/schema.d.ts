@@ -2417,7 +2417,8 @@ export interface paths {
                   | 'in_review'
                   | 'published'
                   | 'cancelled'
-                  | 'ended';
+                  | 'ended'
+                  | 'deleted';
                 /** @enum {string} */
                 origin: 'native' | 'imported';
                 /** Format: date-time */
@@ -2677,7 +2678,8 @@ export interface paths {
                   | 'in_review'
                   | 'published'
                   | 'cancelled'
-                  | 'ended';
+                  | 'ended'
+                  | 'deleted';
                 /** @enum {string} */
                 origin: 'native' | 'imported';
                 /** Format: date-time */
@@ -2943,7 +2945,8 @@ export interface paths {
                     | 'in_review'
                     | 'published'
                     | 'cancelled'
-                    | 'ended';
+                    | 'ended'
+                    | 'deleted';
                   /** @enum {string} */
                   origin: 'native' | 'imported';
                   /** Format: date-time */
@@ -3091,7 +3094,8 @@ export interface paths {
                   | 'in_review'
                   | 'published'
                   | 'cancelled'
-                  | 'ended';
+                  | 'ended'
+                  | 'deleted';
                 /** @enum {string} */
                 origin: 'native' | 'imported';
                 /** Format: date-time */
@@ -3319,7 +3323,8 @@ export interface paths {
                   | 'in_review'
                   | 'published'
                   | 'cancelled'
-                  | 'ended';
+                  | 'ended'
+                  | 'deleted';
                 /** @enum {string} */
                 origin: 'native' | 'imported';
                 /** Format: date-time */
@@ -3699,7 +3704,8 @@ export interface paths {
                   | 'in_review'
                   | 'published'
                   | 'cancelled'
-                  | 'ended';
+                  | 'ended'
+                  | 'deleted';
                 /** @enum {string} */
                 origin: 'native' | 'imported';
                 /** Format: date-time */
@@ -3872,7 +3878,8 @@ export interface paths {
                 | 'in_review'
                 | 'published'
                 | 'cancelled'
-                | 'ended';
+                | 'ended'
+                | 'deleted';
               /** @enum {string} */
               origin: 'native' | 'imported';
               /** Format: date-time */
@@ -4046,7 +4053,8 @@ export interface paths {
                   | 'in_review'
                   | 'published'
                   | 'cancelled'
-                  | 'ended';
+                  | 'ended'
+                  | 'deleted';
                 /** @enum {string} */
                 origin: 'native' | 'imported';
                 /** Format: date-time */
@@ -4232,7 +4240,8 @@ export interface paths {
                   | 'in_review'
                   | 'published'
                   | 'cancelled'
-                  | 'ended';
+                  | 'ended'
+                  | 'deleted';
                 /** @enum {string} */
                 origin: 'native' | 'imported';
                 /** Format: date-time */
@@ -4369,7 +4378,8 @@ export interface paths {
                 | 'in_review'
                 | 'published'
                 | 'cancelled'
-                | 'ended';
+                | 'ended'
+                | 'deleted';
               /** @enum {string} */
               origin: 'native' | 'imported';
               /** Format: date-time */
@@ -4519,7 +4529,8 @@ export interface paths {
                 | 'in_review'
                 | 'published'
                 | 'cancelled'
-                | 'ended';
+                | 'ended'
+                | 'deleted';
               /** @enum {string} */
               origin: 'native' | 'imported';
               /** Format: date-time */
@@ -4719,7 +4730,8 @@ export interface paths {
                 | 'in_review'
                 | 'published'
                 | 'cancelled'
-                | 'ended';
+                | 'ended'
+                | 'deleted';
               /** @enum {string} */
               origin: 'native' | 'imported';
               /** Format: date-time */
@@ -4887,7 +4899,8 @@ export interface paths {
                 | 'in_review'
                 | 'published'
                 | 'cancelled'
-                | 'ended';
+                | 'ended'
+                | 'deleted';
               /** @enum {string} */
               origin: 'native' | 'imported';
               /** Format: date-time */
@@ -5051,7 +5064,8 @@ export interface paths {
                 | 'in_review'
                 | 'published'
                 | 'cancelled'
-                | 'ended';
+                | 'ended'
+                | 'deleted';
               /** @enum {string} */
               origin: 'native' | 'imported';
               /** Format: date-time */

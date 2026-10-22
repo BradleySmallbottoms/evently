@@ -54,12 +54,34 @@ export function primaryAction(
 export function ticketLink(
   links: readonly EventLink[],
 ): { url: string; label: string | null } | null {
+  const found = participateSheetLinks(links, null).tickets[0];
+  if (!found) return null;
+  return { url: found.url, label: found.label };
+}
+
+export type ParticipateLink = {
+  type: EventLink['type'] | 'online';
+  url: string;
+  label: string | null;
+};
+
+/** Safe tickets links, then the event's other links, including the online page. */
+export function participateSheetLinks(
+  links: readonly EventLink[],
+  onlineUrl: string | null | undefined,
+): { tickets: ParticipateLink[]; event: ParticipateLink[] } {
+  const tickets: ParticipateLink[] = [];
+  const event: ParticipateLink[] = [];
   for (const link of links) {
-    if (link.type !== 'tickets') continue;
     const url = safeHttpUrl(link.url);
-    if (url) return { url, label: link.label ?? null };
+    if (!url) continue;
+    const item = { type: link.type, url, label: link.label ?? null };
+    if (link.type === 'tickets') tickets.push(item);
+    else event.push(item);
   }
-  return null;
+  const online = safeHttpUrl(onlineUrl);
+  if (online) event.push({ type: 'online', url: online, label: null });
+  return { tickets, event };
 }
 
 export function isThisWeekend(iso: string, now = new Date()): boolean {

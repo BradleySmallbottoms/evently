@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { InboxTipSheet } from '@/components/native/inbox-tip-sheet';
 import { ActionList } from '@/components/ui/action-list';
 import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
@@ -13,7 +14,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ensureIdentity } from '@/lib/identity';
 import { markNotificationsSeen } from '@/lib/notification-badge';
 import { deleteNotification, listNotifications } from '@/lib/notifications';
-import { openInboxItem } from '@/lib/open-inbox-item';
+import { openInboxItem, type InboxTipTarget } from '@/lib/open-inbox-item';
 import { getPreferences, updateQuietHours } from '@/lib/preferences';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
@@ -28,6 +29,7 @@ export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [inboxTip, setInboxTip] = useState<InboxTipTarget | null>(null);
   const identity = useQuery({
     queryKey: ['identity', locale],
     queryFn: () => ensureIdentity(locale),
@@ -185,7 +187,7 @@ export default function NotificationsScreen() {
               onPress:
                 item.eventId || item.reason === 'tip'
                   ? () => {
-                      void openInboxItem(router, locale, item);
+                      void openInboxItem(router, locale, item, setInboxTip);
                     }
                   : undefined,
               onDelete: () => remove.mutate(item.id),
@@ -193,6 +195,7 @@ export default function NotificationsScreen() {
           })}
         />
       )}
+      <InboxTipSheet target={inboxTip} onDismiss={() => setInboxTip(null)} />
     </View>
   );
 }

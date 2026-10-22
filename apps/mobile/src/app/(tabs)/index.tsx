@@ -14,6 +14,7 @@ import {
 
 import { AreaTagGroupsSheet } from '@/components/native/area-tag-groups-sheet';
 import { LocationMenu } from '@/components/native/location-menu';
+import { InboxTipSheet } from '@/components/native/inbox-tip-sheet';
 import { NotificationsSheet } from '@/components/native/notifications-sheet';
 import { PairingSheet, type PairingSheetTab } from '@/components/native/pairing-sheet';
 import { RegionSuggestionSheet } from '@/components/native/region-suggestion-sheet';
@@ -35,7 +36,7 @@ import { loadHomeTagIds, saveHomeTagIds } from '@/lib/home-tag-selection';
 import { homeGroupForTags, retainedTagIds } from '@/lib/tag-groups';
 import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
-import { openInboxItem } from '@/lib/open-inbox-item';
+import { openInboxItem, type InboxTipTarget } from '@/lib/open-inbox-item';
 import { queryPointForArea } from '@/lib/area-point';
 import { pointForPlace, tagsForLocationDraft } from '@/lib/location-draft';
 import { useEventCount } from '@/lib/use-event-count';
@@ -75,6 +76,40 @@ export default function HomeScreen() {
     null,
   );
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [inboxTip, setInboxTip] = useState<InboxTipTarget | null>(null);
+  const pendingInboxTip = useRef<InboxTipTarget | null>(null);
+  const pendingThankYou = useRef<`/tips/published/${string}` | null>(null);
+  const followUpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notificationsOpenRef = useRef(false);
+  useEffect(() => {
+    notificationsOpenRef.current = notificationsOpen;
+  }, [notificationsOpen]);
+  useEffect(() => {
+    return () => {
+      if (followUpTimer.current) clearTimeout(followUpTimer.current);
+    };
+  }, []);
+
+  function openInboxFollowUp() {
+    if (followUpTimer.current) {
+      clearTimeout(followUpTimer.current);
+      followUpTimer.current = null;
+    }
+    const href = pendingThankYou.current;
+    pendingThankYou.current = null;
+    const next = pendingInboxTip.current;
+    pendingInboxTip.current = null;
+    if (href) router.push(href);
+    else if (next) setInboxTip(next);
+  }
+
+  function closeNotificationsForFollowUp() {
+    notificationsOpenRef.current = false;
+    setNotificationsOpen(false);
+    if (followUpTimer.current) clearTimeout(followUpTimer.current);
+    // onDismiss presents the next screen. This covers a close that never reports dismiss.
+    followUpTimer.current = setTimeout(() => openInboxFollowUp(), 400);
+  }
   const [pairingOpen, setPairingOpen] = useState(false);
   const [pairingTab, setPairingTab] = useState<PairingSheetTab>('web');
   const [pairingCode, setPairingCode] = useState<string | null>(null);
@@ -742,7 +777,11 @@ export default function HomeScreen() {
 
       <NotificationsSheet
         isPresented={notificationsOpen}
-        onDismiss={() => setNotificationsOpen(false)}
+        onDismiss={() => {
+          notificationsOpenRef.current = false;
+          setNotificationsOpen(false);
+          openInboxFollowUp();
+        }}
         title={t('events.notifications')}
         emptyMessage={t('events.notificationsEmpty')}
         loadingMessage={t('events.notificationsLoading')}
@@ -764,10 +803,39 @@ export default function HomeScreen() {
           reason: n.reason,
         }))}
         onOpen={(item) => {
-          setNotificationsOpen(false);
-          void openInboxItem(router, locale, item);
+          if (item.reason !== 'tip') {
+            notificationsOpenRef.current = false;
+            setNotificationsOpen(false);
+          }
+          void openInboxItem(
+            {
+              push: (href) => {
+                if (href.startsWith('/tips/published/') && notificationsOpenRef.current) {
+                  pendingThankYou.current = href as `/tips/published/${string}`;
+                  closeNotificationsForFollowUp();
+                  return;
+                }
+                router.push(href);
+              },
+            },
+            locale,
+            item,
+            (tip) => {
+              if (notificationsOpenRef.current) {
+                pendingInboxTip.current = tip;
+                closeNotificationsForFollowUp();
+                return;
+              }
+              setInboxTip(tip);
+            },
+          ).then((openedTip) => {
+            if (openedTip || pendingThankYou.current || !notificationsOpenRef.current) return;
+            notificationsOpenRef.current = false;
+            setNotificationsOpen(false);
+          });
         }}
       />
+      <InboxTipSheet target={inboxTip} onDismiss={() => setInboxTip(null)} />
 
       <PairingSheet
         isPresented={pairingOpen}

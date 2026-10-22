@@ -210,8 +210,7 @@ Product invariants (enforced in domain, tested)
   A link matches on host and path;
   protocol, query, and a trailing slash are ignored. A Citybreak product id matches with or
   without the `cbis:` prefix. The same source id updates its own row.
-- Deleting an imported `in_review` event from review cancels it and leaves the row, so a later import
-  stays cancelled. The event catalog uses one delete action for any event. It cancels the event and leaves the row. Permanent delete removes the row and skips that source id on later imports.
+- Deleting an event without permanent delete sets its status to `deleted` and leaves the row. It disappears from event lists. A later import finds that source id, sees `deleted`, and skips it. Permanent delete removes the row and skips that source id on later imports.
   Permanent delete refuses when someone has checked in, saved, rated, or been notified.
   Rejecting it cancels the event and leaves the row.
   Scan again (`POST /events/{id}/rescan`) sets an imported `in_review` or `published` event back to
@@ -248,8 +247,8 @@ Product invariants (enforced in domain, tested)
   description is the written description. The chat lines are stored on `meta.tip`, which public
   responses omit. The scan prompt receives those lines along with the written description. The tip push is
   visible, ignores quiet hours and the daily cap, and says the event was added only when it is
-  published. A published tip opens the thank-you screen. Any other result opens the tip status. The inbox
-  row does the same. Tip text and photos cascade with the user. The event stays.
+  published. A published tip opens the thank-you screen. Any other result opens the tip status. A
+  lock-screen tap does the same. The inbox row opens the thank-you screen when the tip is published, and the tip status in a bottom sheet otherwise. Tip text and photos cascade with the user. The event stays.
 
 Code conventions
 

@@ -19,6 +19,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ConfirmAction } from '@/components/native/confirm-action';
+import {
+  ParticipateSheet,
+  participatePeekHeight,
+  type ParticipateBarAction,
+  type ParticipateSheetLink,
+} from '@/components/native/participate-sheet';
 import { ProfilePromptSheet } from '@/components/native/profile-prompt-sheet';
 import { RatingSheet } from '@/components/native/rating-sheet';
 import { ReminderPicker } from '@/components/native/reminder-picker';
@@ -47,7 +53,13 @@ import {
   linkHost,
   periodStatus,
 } from '@/lib/event-detail-format';
-import { primaryAction, safeHttpUrl, ticketLink } from '@/lib/event-format';
+import {
+  participateSheetLinks,
+  primaryAction,
+  safeHttpUrl,
+  ticketLink,
+  type ParticipateLink,
+} from '@/lib/event-format';
 import { ensureIdentity } from '@/lib/identity';
 import {
   clearComing,
@@ -78,7 +90,6 @@ import { DetailMap } from './_components/detail-map';
 import { GoodToKnow, type FactRow } from './_components/good-to-know';
 import { HowItWorks } from './_components/how-it-works';
 import { OccasionPeriod } from './_components/occasion-period';
-import { ParticipateBar } from './_components/participate-bar';
 import { RelatedEvents } from './_components/related-events';
 import { ShareRow } from './_components/share-row';
 import { colors } from '@/theme/colors';
@@ -579,6 +590,52 @@ export default function EventDetailScreen() {
         ? t('events.detail.comingCount', { count: comingCount })
         : null;
   const tickets = event.data ? ticketLink(event.data.links) : null;
+  const sheetLinks = event.data
+    ? participateSheetLinks(event.data.links, event.data.onlineUrl)
+    : { tickets: [], event: [] };
+  const linkTitles: Record<ParticipateLink['type'], string> = {
+    tickets: t('events.linkTickets'),
+    registration: t('events.linkRegistration'),
+    info: t('events.linkInfo'),
+    facebook: t('events.detail.shareFacebook'),
+    instagram: t('events.detail.shareInstagram'),
+    online: t('events.linkOnline'),
+  };
+  const toSheetLink = (link: ParticipateLink, index: number): ParticipateSheetLink => ({
+    key: `${link.type}-${index}`,
+    url: link.url,
+    title: link.label || linkTitles[link.type],
+    detail: linkHost(link.url) ?? '',
+  });
+  const shareActions: ParticipateBarAction[] = [
+    {
+      key: 'copy',
+      label: t('events.copyLink'),
+      sf: 'link',
+      md: 'link',
+      onPress: () => void copyLink(),
+    },
+    {
+      key: 'facebook',
+      label: t('events.detail.shareFacebook'),
+      letter: 'f',
+      onPress: () => void shareFacebook(),
+    },
+    {
+      key: 'instagram',
+      label: t('events.detail.shareInstagram'),
+      sf: 'camera',
+      md: 'photo-camera',
+      onPress: () => void shareEvent(),
+    },
+    {
+      key: 'more',
+      label: t('events.detail.shareMore'),
+      sf: 'square.and.arrow.up',
+      md: 'share',
+      onPress: () => void shareEvent(),
+    },
+  ];
   const facts: FactRow[] = [];
   if (event.data) {
     const link = primaryAction(
@@ -687,7 +744,7 @@ export default function EventDetailScreen() {
           }
           contentContainerStyle={{
             flexGrow: 1,
-            paddingBottom: 128 + insets.bottom,
+            paddingBottom: participatePeekHeight(insets.bottom) + space.lg,
           }}
         >
           <View style={{ height: 300, backgroundColor: colors.accentSoft }}>
@@ -1284,54 +1341,15 @@ export default function EventDetailScreen() {
                 />
 
                 <DetailCard>
-                  <ShareRow
-                    title={t('events.detail.shareSection')}
-                    actions={[
-                      {
-                        key: 'copy',
-                        label: t('events.copyLink'),
-                        sf: 'link',
-                        md: 'link',
-                        onPress: () => void copyLink(),
-                      },
-                      {
-                        key: 'facebook',
-                        label: t('events.detail.shareFacebook'),
-                        letter: 'f',
-                        onPress: () => void shareFacebook(),
-                      },
-                      {
-                        key: 'instagram',
-                        label: t('events.detail.shareInstagram'),
-                        sf: 'camera',
-                        md: 'photo-camera',
-                        onPress: () => void shareEvent(),
-                      },
-                      {
-                        key: 'more',
-                        label: t('events.detail.shareMore'),
-                        sf: 'square.and.arrow.up',
-                        md: 'share',
-                        onPress: () => void shareEvent(),
-                      },
-                    ]}
-                  />
+                  <ShareRow title={t('events.detail.shareSection')} actions={shareActions} />
                 </DetailCard>
-
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => setReportOpen(true)}
-                  style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <AppText variant="caption">{t('events.report')}</AppText>
-                </Pressable>
               </View>
             ) : null}
           </View>
         </ScrollView>
 
         {event.data ? (
-          <ParticipateBar
+          <ParticipateSheet
             title={event.data.title}
             when={whenTitle}
             imageUrl={event.data.imageUrl}
@@ -1339,7 +1357,13 @@ export default function EventDetailScreen() {
             joinLabel={comingOn ? t('events.detail.joined') : t('events.detail.join')}
             joined={comingOn}
             onJoin={toggleComing}
-            tickets={tickets}
+            tickets={sheetLinks.tickets.map(toSheetLink)}
+            eventLinks={sheetLinks.event.map(toSheetLink)}
+            priceLabel={krPriceLabel(event.data.priceAmount)}
+            shares={shareActions}
+            reportLabel={t('events.report')}
+            onReport={() => setReportOpen(true)}
+            paused={reportOpen}
           />
         ) : null}
       </View>

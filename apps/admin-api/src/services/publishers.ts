@@ -320,9 +320,10 @@ export function createMemoryAdminPublisherServices(
     async listEvents(publisherId) {
       if (!store.publishers.has(publisherId)) return null;
       const rows = publisherEventRows(store, publisherId);
+      const visible = rows.filter((event) => event.status !== 'deleted');
       return {
         total: rows.length,
-        items: rows.slice(0, PUBLISHER_EVENT_LIST_LIMIT).map((event) => ({
+        items: visible.slice(0, PUBLISHER_EVENT_LIST_LIMIT).map((event) => ({
           id: event.id,
           title: event.title ?? '',
           status: event.status as AdminPublisherEventListResponse['items'][number]['status'],
@@ -710,7 +711,7 @@ export function createDbAdminPublisherServices(
           venueName: schema.events.venueName,
         })
         .from(schema.events)
-        .where(eq(schema.events.publisherId, publisherId))
+        .where(and(eq(schema.events.publisherId, publisherId), ne(schema.events.status, 'deleted')))
         .orderBy(desc(schema.events.startsAt))
         .limit(PUBLISHER_EVENT_LIST_LIMIT);
       return {
