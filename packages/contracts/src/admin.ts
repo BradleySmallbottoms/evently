@@ -340,6 +340,8 @@ export type AdminCollapseOccasionsRequest = z.infer<typeof AdminCollapseOccasion
 
 export const AdminEventListQuery = z.object({
   status: AdminEventListItem.shape.status.optional(),
+  /** `true` keeps events with no rows in `event_tags`. */
+  untagged: z.literal('true').optional(),
   /** Matches title, venue, or publisher name. */
   q: z.string().trim().min(1).max(200).optional(),
   /** `starts` is newest start time first. `created` is oldest created first. */

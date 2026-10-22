@@ -72,7 +72,9 @@ pnpm api-client:generate   # after public API OpenAPI changes
   same chat. When the facts are complete, the model writes a short summary for the confirm screen.
   A finished tip becomes
   an imported `pending_scan` event on the seeded `user-tips` source, which stays disabled at trust
-  `review`, so the regular scan leaves it `in_review` until an admin publishes it.
+  `review`, so the regular scan leaves it `in_review` until an admin publishes it. The event
+  description is the written description. The chat lines are stored on `meta.tip`, which public
+  responses omit. The scan prompt receives those lines along with the written description.
 - The user gets a visible push (`kind` `tip_scan`) that ignores quiet hours and the daily cap.
   The wording says the event was added only when the scan published it. An open app hides the
   banner and opens the tip. A tap does the same. Public event pages show “Från användartips” from
@@ -179,6 +181,7 @@ calls) in the same change as every new major feature.**
   network volume named `evnt-scan-models` in `CA-MTL-1`, and that volume keeps billing until it is deleted.
   `EU-SE-1` has no network volumes, so a volume cannot be created there.
   `http` is only allowed on loopback. A scan replaces tags the event already has.
+  A later import that sends no tags leaves them in place.
   Importers store the street, postcode, and city on `meta.address`, with the event point when they have one.
   The tool-calling scan opens one https page: the source URL, then a ticket
   link, then an info link, then a Facebook page. A page on visit.destinationhalsingland.se

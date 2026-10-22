@@ -62,7 +62,7 @@ sequenceDiagram
   category. The model receives the tag catalog and returns the names that fit. The confirm screen
   shows those tags under the summary. The chat says it is verifying, then opens that screen.
   Opening a saved tip shows that summary first. Continue returns to the chat while a fact is still
-  missing, and the chat opens at the latest step. Change returns to the chat, asks which fact to replace, and opens that control. Sending the new
+  missing, and the chat opens at the latest step. Change returns to the chat, asks which fact to replace, and opens that control. Cancel on that step returns to the summary without sending. Sending the new
   value returns to the summary. A picture is the last step. Every upload is checked first, and a
   harmful picture or one above a PG-13 level is refused with a warning and is not stored. A picture already on the tip is
   confirmed there: yes keeps it, and choosing another adds that picture to the chat. When the facts
@@ -76,7 +76,9 @@ sequenceDiagram
   `https://`. A question that asks whether a link exists has yes and no. A question that asks
   for the address stays a text field. The bar counts how many of
   those nine facts are filled. When they are all present, the model writes a short summary.
-  That summary is the lead on the confirm screen and is stored on the event.
+  That summary is the lead on the confirm screen and is stored on the event. The event description
+  is that written description. The chat lines are stored on `meta.tip`, which public responses omit,
+  and the scan prompt receives those lines along with the written description.
 - Auth is the device session. A tip is readable only by that user.
 - `user-tips` is trust `review` and stays disabled, so the scan lands the event in `in_review`
   unless that source is later switched to `auto_publish` and the publisher is already published.

@@ -20,6 +20,7 @@ import {
   tipFollowUpQuestion,
   tipOpenAllowed,
   tipSubmissionAllowed,
+  tipEventFields,
   tipTranscript,
   TIP_DAILY_LIMIT,
   TIP_IMAGE_MAX_BYTES,
@@ -77,6 +78,7 @@ describe('tip tags', () => {
     expect(tipTags(['musik', 'sport', 'Påhittad', 'Musik'], catalog)).toEqual(['Musik', 'Sport']);
     expect(mergeTipExtraction({ tags: ['Musik'] }, { title: 'A' }).tags).toEqual(['Musik']);
     expect(mergeTipExtraction({ tags: ['Musik'] }, { tags: ['Sport'] }).tags).toEqual(['Sport']);
+    expect(mergeTipExtraction({ tags: ['Musik'] }, { tags: [] }).tags).toEqual(['Musik']);
     expect(tipCard({ title: 'Konsert', tags: ['Musik'] }).tags).toEqual(['Musik']);
   });
 });
@@ -408,5 +410,30 @@ describe('tip phase and notification copy', () => {
       place: null,
     });
     expect(review.body).not.toContain('lagt till');
+  });
+
+  it('keeps the chat lines off the event description', () => {
+    const chat = [
+      'confirm: place',
+      'confirm: link',
+      'confirm: description',
+      'title: Krusmyntanätterna',
+      'startDate: 2026-10-24',
+      'startTime: 18:00',
+      'endDate: 2026-10-24',
+      'endTime: 23:00',
+      'price: free',
+      'image: keep',
+    ].join('\n');
+    expect(
+      tipEventFields({
+        description: 'En kväll på Krusmynta.',
+        sourceText: chat,
+        categoryHint: 'Musik',
+      }),
+    ).toEqual({
+      description: 'En kväll på Krusmynta.',
+      tip: { text: chat, categoryHint: 'Musik' },
+    });
   });
 });

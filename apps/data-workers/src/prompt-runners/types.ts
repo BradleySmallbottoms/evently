@@ -11,6 +11,8 @@ export interface ScanInput {
   eventId: string;
   title: string;
   description?: string;
+  /** Chat lines from a user tip. The prompt receives these beside the written description. */
+  tip?: { text?: string; categoryHint?: string };
   venue?: string;
   startsAt: string;
   endsAt: string;

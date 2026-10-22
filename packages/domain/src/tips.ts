@@ -143,10 +143,11 @@ export function mergeTipExtraction(base: TipExtraction, patch: TipExtraction): T
       continue;
     }
     if (key === 'tags' && Array.isArray(value)) {
-      next.tags = value
+      const tags = value
         .filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
         .map((tag) => tag.trim())
         .slice(0, 8);
+      if (tags.length > 0 || (next.tags?.length ?? 0) === 0) next.tags = tags;
       continue;
     }
     if (key === 'link' && typeof value === 'string') {
@@ -1013,6 +1014,34 @@ export function tipAskFromBody(body: string): TipFollowUp | null {
   } catch {
     return null;
   }
+}
+
+/** Chat lines stored on the event for the scan. Public responses omit this. */
+export interface StoredTip {
+  text?: string;
+  categoryHint?: string;
+}
+
+/**
+ * The event description is the written description. The chat lines and a category
+ * hint go on `meta.tip`. The scan reads those lines along with the written description.
+ */
+export function tipEventFields(input: {
+  description?: string | null;
+  sourceText?: string | null;
+  categoryHint?: string | null;
+}): { description: string | null; tip: StoredTip | null } {
+  const description = clean(input.description)?.slice(0, 4000) ?? null;
+  const text = clean(input.sourceText)?.slice(0, 8000) ?? null;
+  const categoryHint = clean(input.categoryHint)?.slice(0, 80) ?? null;
+  if (!text && !categoryHint) return { description, tip: null };
+  return {
+    description,
+    tip: {
+      ...(text ? { text } : {}),
+      ...(categoryHint ? { categoryHint } : {}),
+    },
+  };
 }
 
 /** Each reply is appended so the next read sees the whole conversation. */

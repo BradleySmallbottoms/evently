@@ -7,6 +7,7 @@ import {
   bareTipLink,
   fallbackTipTitle,
   TIP_LIST_LIMIT,
+  tipEventFields,
   tipInstant,
   tipOrganizerKeys,
   type TipExtraction,
@@ -323,13 +324,11 @@ export function createDbTipServices(
       const link = bare ? `https://${bare}` : null;
       const place = extraction.place?.trim().slice(0, 200) || null;
       const city = place?.includes(',') ? place.split(',').pop()?.trim() || null : null;
-      const description = [extraction.description?.trim(), tip.sourceText?.trim()]
-        .filter((part, index, all) => part && all.indexOf(part) === index)
-        .join('\n\n');
-      const withCategory = extraction.categoryHint?.trim()
-        ? `${description}\n\nKategori: ${extraction.categoryHint.trim().slice(0, 80)}`.trim()
-        : description;
-      const boundedDescription = withCategory.slice(0, 4000) || null;
+      const fields = tipEventFields({
+        description: extraction.description,
+        sourceText: tip.sourceText,
+        categoryHint: extraction.categoryHint,
+      });
       const eventId = randomUUID();
       const ready = [...images].reverse().find((image) => image.status === 'ready');
       await db.transaction(async (tx) => {
@@ -337,7 +336,7 @@ export function createDbTipServices(
           id: eventId,
           title,
           summary: extraction.summary?.trim().slice(0, 500) || null,
-          description: boundedDescription,
+          description: fields.description,
           language: tip.locale,
           mode: 'physical',
           status: 'pending_scan',
@@ -351,6 +350,7 @@ export function createDbTipServices(
           currency: 'SEK',
           meta: {
             fromUserTip: true,
+            ...(fields.tip ? { tip: fields.tip } : {}),
             ...(extraction.priceAmount === 0 ? { freeEntry: true } : {}),
             ...(city ? { address: { city, country: 'Sweden' as const } } : {}),
             import: {
@@ -368,7 +368,9 @@ export function createDbTipServices(
           sourceId: source.id,
           externalId: tip.id,
           eventId,
-          contentHash: createHash('sha256').update(`${title}\n${withCategory}`).digest('hex'),
+          contentHash: createHash('sha256')
+            .update(`${title}\n${fields.description ?? ''}\n${fields.tip?.text ?? ''}`)
+            .digest('hex'),
         });
         if (link) {
           const tickets = /ticket|biljett|tickster|nortic|ticketco/i.test(link);

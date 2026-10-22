@@ -301,6 +301,15 @@ function tagCountColumn() {
   )`;
 }
 
+/** Events with no `event_tags` rows. */
+function untaggedEvents() {
+  return sql`not exists (
+    select 1
+    from ${schema.eventTags}
+    where ${schema.eventTags.eventId} = ${schema.events.id}
+  )`;
+}
+
 function isoDate(value: Date | null): string | null {
   return value ? value.toISOString() : null;
 }
@@ -477,6 +486,7 @@ export function createMemoryAdminEventServices(
       const matched = [...store.events.values()]
         .filter((e) => {
           if (query.status && e.status !== query.status) return false;
+          if (query.untagged === 'true' && tagCountOf(e.tagIds) > 0) return false;
           if (!needle) return true;
           const publisherName = store.publishers.get(e.publisherId)?.name ?? 'Unknown';
           return (
@@ -926,6 +936,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
     async list(query) {
       const filters = [];
       if (query.status) filters.push(eq(schema.events.status, query.status));
+      if (query.untagged === 'true') filters.push(untaggedEvents());
       if (query.q) {
         const pattern = `%${query.q.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
         const match = or(

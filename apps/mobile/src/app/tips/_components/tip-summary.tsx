@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMutation } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import Animated, {
@@ -51,6 +51,15 @@ export function TipSummary({
   const editing = false;
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<TipCard>(tip.card ?? emptyCard());
+  const cardTags = (tip.card?.tags ?? []).join('\n');
+  useEffect(() => {
+    if (!cardTags) return;
+    setDraft((current) =>
+      (current.tags ?? []).join('\n') === cardTags
+        ? current
+        : { ...current, tags: cardTags.split('\n') },
+    );
+  }, [cardTags]);
   const [description, setDescription] = useState(tip.found?.description ?? tip.card?.summary ?? '');
   const [descriptionTouched, setDescriptionTouched] = useState(false);
   const inProgress = tip.phase === 'collecting';

@@ -8,6 +8,7 @@ import {
   withinDuplicateWindow,
   type DuplicateSignal,
 } from '@local-events/domain';
+import { scanEventLines } from '../scan-event-text';
 import {
   ollamaBaseUrl,
   ollamaDisabled,
@@ -192,19 +193,18 @@ export function createOllamaPromptRunner(
 
         let tags: TagChoice[] | 'unavailable' = event.existingTags;
         if (catalog.length > 0) {
-          const textKey = [event.title, event.description ?? '', event.venue ?? ''].join('\n');
+          const textKey = [
+            event.title,
+            event.description ?? '',
+            event.tip?.text ?? '',
+            event.tip?.categoryHint ?? '',
+            event.venue ?? '',
+          ].join('\n');
           const cached = tagsByText.get(textKey);
           if (cached) {
             tags = cached;
           } else {
-            const prompt = buildPrompt(
-              {
-                title: event.title,
-                ...(event.description ? { description: event.description } : {}),
-                ...(event.venue ? { venue: event.venue } : {}),
-              },
-              catalog,
-            );
+            const prompt = buildPrompt(event, catalog);
             llmoutput = await askOllama(prompt, config, fetchImpl);
             console.log('llmoutput', llmoutput);
             if (llmoutput == null) {
@@ -285,17 +285,17 @@ export function createOllamaPromptRunner(
   };
 }
 
-const DESCRIPTION_LIMIT = 1_200;
-
-function buildPrompt(event: TagMatchInput, catalog: TagChoice[]): string {
+function buildPrompt(
+  event: TagMatchInput & { tip?: { text?: string; categoryHint?: string } },
+  catalog: TagChoice[],
+): string {
   const lines = catalog.map((tag) => `${tag.externalId} | ${tag.name}`);
-  const description = event.description?.replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_LIMIT);
   return [
     'You are a helpful assistant that helps to tag and scan events from spam and harmful content using tags from a catalog.',
     'You will also help to determine language used in descriptions and titles of events.',
     'Foreach event I also want you to draft a short brief summary of the event in the language of the event, do not include name of the city but you can use location/venue if it is relevant.',
     'For each tag, evaluate how well it fits the event from 0 to 100 and include every tag you choose.',
-    'Use the title, location, and description to determine the content verdict.',
+    'Use the title, location, and description to determine the content verdict. When the event has a Tip block, use those chat lines as well.',
     'The content verdict can be "spam", "harmful", or "safe".',
     'Only return JSON: {contentVerdict: "spam" | "harmful" | "safe", summary: "<summary>", language: "sv|en|etc", possibleTags: [{"id":"<id>","score":<score>}]}',
     'Available tags:',
@@ -303,6 +303,6 @@ function buildPrompt(event: TagMatchInput, catalog: TagChoice[]): string {
     'Event Data:',
     `Title: ${event.title}`,
     ...(event.venue ? [`Location: ${event.venue}`] : []),
-    ...(description ? [`Description: ${description}`] : []),
+    ...scanEventLines(event),
   ].join('\n');
 }

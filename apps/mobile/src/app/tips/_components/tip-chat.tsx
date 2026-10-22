@@ -9,6 +9,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   View,
   type KeyboardEvent,
 } from 'react-native';
@@ -44,6 +45,7 @@ export function TipChat({
   revising = false,
   embedded = false,
   onDone,
+  onCancel,
 }: {
   tip: Tip;
   initialPhoto?: string;
@@ -51,6 +53,8 @@ export function TipChat({
   /** The chat sits in a sheet, so it does not pad for the status bar. */
   embedded?: boolean;
   onDone: (tip: Tip) => void;
+  /** Leaves an edit and returns to the summary without sending. */
+  onCancel?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -129,6 +133,10 @@ export function TipChat({
     },
   });
 
+  const pendingEcho =
+    pending && !tip.messages.some((message) => message.role === 'user' && message.body === pending)
+      ? pending
+      : null;
   const remotePhoto = tipPhotoUri(tip.previewImageUrl);
   const photoUri = pickedUri ?? remotePhoto;
   const hasImage = Boolean(photoUri) || tip.imageStatus !== 'none';
@@ -198,7 +206,9 @@ export function TipChat({
     setWarning(null);
     setPending(next);
     if (completesNow()) beginVerify();
+    follow.current = true;
     send.mutate(next);
+    reveal();
   }
 
   async function uploadPhoto(finish: boolean) {
@@ -465,12 +475,31 @@ export function TipChat({
                 {messagePieces(message, index)}
               </View>
             ))}
-            <ChatArrival
-              key={tip.id}
-              pieces={tip.messages
-                .slice(openedCount.current)
-                .flatMap((message, offset) => messagePieces(message, openedCount.current + offset))}
-            />
+            {tip.messages.slice(openedCount.current).map((message, offset) => {
+              const index = openedCount.current + offset;
+              const pieces = messagePieces(message, index);
+              if (message.role === 'user') {
+                return (
+                  <View key={`${message.createdAt}-user-${index}`} style={{ gap: space.md }}>
+                    {pieces}
+                  </View>
+                );
+              }
+              return <ChatArrival key={`${message.createdAt}-arrive`} pieces={pieces} />;
+            })}
+            {pendingEcho ? <Bubble mine>{userLabel(pendingEcho, locale, t)}</Bubble> : null}
+            {send.isPending && !verifying ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                <AssistantAvatar />
+                <Bubble mine={false} hug>
+                  <ActivityIndicator
+                    accessibilityLabel={t('tips.verifying')}
+                    size="small"
+                    color={colors.ink}
+                  />
+                </Bubble>
+              </View>
+            ) : null}
             {revising ? (
               <ChangeAsk
                 tip={tip}
@@ -568,6 +597,23 @@ export function TipChat({
           {error ? <AppText style={{ color: colors.danger }}>{error}</AppText> : null}
         </View>
       )}
+      {started && onCancel ? (
+        <Pressable
+          accessibilityRole="button"
+          disabled={verifying || send.isPending || photoBusy}
+          onPress={onCancel}
+          style={{
+            alignSelf: 'center',
+            paddingTop: space.sm,
+            paddingBottom: embedded ? space.md : insets.bottom + space.md,
+            opacity: verifying || send.isPending || photoBusy ? 0.45 : 1,
+          }}
+        >
+          <AppText variant="label" style={{ color: colors.inkMuted }}>
+            {t('tips.cancel')}
+          </AppText>
+        </Pressable>
+      ) : null}
     </>
   );
 
@@ -686,17 +732,26 @@ function stepHint(key: string, t: (key: string) => string): string | null {
   return t(`tips.hints.${key}`);
 }
 
-function Bubble({ mine, children }: { mine: boolean; children: ReactNode }) {
+function Bubble({
+  mine,
+  hug = false,
+  children,
+}: {
+  mine: boolean;
+  /** Wraps the content instead of filling the row. Used for the spinner. */
+  hug?: boolean;
+  children: ReactNode;
+}) {
   return (
     <View
       style={{
-        flex: mine ? undefined : 1,
-        alignSelf: mine ? 'flex-end' : 'stretch',
+        flex: mine || hug ? undefined : 1,
+        alignSelf: mine ? 'flex-end' : hug ? 'flex-start' : 'stretch',
         maxWidth: mine ? '82%' : '100%',
         backgroundColor: mine ? colors.accentSoft : colors.card,
         borderRadius: 22,
-        paddingHorizontal: space.lg,
-        paddingVertical: space.md,
+        paddingHorizontal: hug ? space.sm : space.lg,
+        paddingVertical: hug ? space.sm : space.md,
         gap: 4,
         ...(mine
           ? {}

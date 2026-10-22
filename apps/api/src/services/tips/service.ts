@@ -138,7 +138,13 @@ export function createTipServices(
 
   function keepKnownTags(extraction: TipExtraction, catalog: { id: string; name: string }[]) {
     if (!Array.isArray(extraction.tags)) return extraction;
-    return { ...extraction, tags: tipTags(extraction.tags, catalog) };
+    const tags = tipTags(extraction.tags, catalog);
+    if (tags.length === 0) {
+      const rest = { ...extraction };
+      delete rest.tags;
+      return rest;
+    }
+    return { ...extraction, tags };
   }
 
   async function readImage(tip: TipRecord, image: TipImageRecord, bytes: Uint8Array) {

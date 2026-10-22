@@ -29,6 +29,14 @@ import {
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -62,6 +70,8 @@ type ReviewPage = {
 type BulkAction = 'approve' | 'reject' | 'rescan' | 'delete' | 'wipe';
 
 const PAGE_SIZE = 100;
+const ALL_TAGS = 'all';
+const NO_TAGS = 'none';
 
 function httpUrl(value: string | null): string | null {
   if (!value) return null;
@@ -81,6 +91,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState('');
   const [q, setQ] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -101,7 +112,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   }, [searchInput]);
 
   const list = useQuery({
-    queryKey: ['admin-events-in-review', q, page],
+    queryKey: ['admin-events-in-review', q, tagFilter, page],
     queryFn: () => {
       const params = new URLSearchParams({
         status: 'in_review',
@@ -110,6 +121,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
         offset: String(page * PAGE_SIZE),
       });
       if (q) params.set('q', q);
+      if (tagFilter === NO_TAGS) params.set('untagged', 'true');
       return adminFetch<ReviewPage>(`/events?${params.toString()}`);
     },
     placeholderData: keepPreviousData,
@@ -282,22 +294,53 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
           <AlertDescription>{t('bulkError')}</AlertDescription>
         </Alert>
       ) : null}
-      <Field className="sm:max-w-[420px]">
-        <FieldLabel htmlFor="review-search">{t('search')}</FieldLabel>
-        <Input
-          id="review-search"
-          value={searchInput}
-          onChange={(event) => setSearchInput(event.target.value)}
-        />
-      </Field>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Field className="flex-1 sm:max-w-[420px]">
+          <FieldLabel htmlFor="review-search">{t('search')}</FieldLabel>
+          <Input
+            id="review-search"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+          />
+        </Field>
+        <Field className="w-full min-w-[180px] max-w-60">
+          <FieldLabel htmlFor="review-tags">{t('tagsFilter')}</FieldLabel>
+          <Select
+            items={{
+              [ALL_TAGS]: t('allTags'),
+              [NO_TAGS]: t('noTags'),
+            }}
+            value={tagFilter === '' ? ALL_TAGS : tagFilter}
+            onValueChange={(next) => {
+              if (next == null) return;
+              setTagFilter(next === ALL_TAGS ? '' : next);
+              setPage(0);
+              setSelected(new Set());
+            }}
+          >
+            <SelectTrigger id="review-tags" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value={ALL_TAGS}>{t('allTags')}</SelectItem>
+                <SelectItem value={NO_TAGS}>{t('noTags')}</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
       {waitingForPage ? <LoadingRows /> : null}
       {!waitingForPage && items.length === 0 ? (
-        <EmptyState icon={CalendarIcon} title={q ? t('reviewNoMatch') : t('reviewEmpty')} />
+        <EmptyState
+          icon={CalendarIcon}
+          title={q || tagFilter ? t('reviewNoMatch') : t('reviewEmpty')}
+        />
       ) : null}
       {items.length > 0 ? (
         <div className="overflow-hidden rounded-lg border">
           <Table>
-            <TableHeader className="rounded-t-lg border-b bg-muted">
+            <TableHeader className="rounded-t-lg border-b ">
               <TableRow>
                 <TableHead>
                   <Checkbox

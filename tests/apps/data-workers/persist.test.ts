@@ -110,6 +110,22 @@ describe('saveIncomingEvents', () => {
     expect(row.meta.import?.arenaName).toBe(bandy.arenaName);
   });
 
+  it('keeps tags the scan wrote when a later import has none', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [bandy]);
+    await finishScan(store);
+    const row = store.events[0]!;
+    row.tagIds = [visitTagId(30216), visitTagId(30184)];
+
+    const counts = await saveIncomingEvents(store, source, [
+      { ...bandy, tags: [], description: 'Uppdaterad beskrivning' },
+    ]);
+
+    expect(counts.updated).toBe(1);
+    expect(row.tagIds).toEqual([visitTagId(30216), visitTagId(30184)]);
+  });
+
   it('skips an external id deleted from review', async () => {
     const store = createMemoryIngestStore();
     await saveIncomingEvents(store, source, [bandy], { publish: async () => {} });

@@ -600,7 +600,8 @@ export function createDbIngestStore(db: Db): IngestStore {
           )
           .returning({ id: events.id });
         if (updated.length === 0) return false;
-        await writeTags(tx, eventId, input.tagIds);
+        // An import that names no tags leaves the ones the scan wrote.
+        if (input.tagIds.length > 0) await writeTags(tx, eventId, input.tagIds);
         if (input.event.links !== undefined) await replaceLinks(tx, eventId, input.event.links);
         await tx
           .update(externalRefs)

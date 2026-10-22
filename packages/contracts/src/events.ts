@@ -162,6 +162,16 @@ export const EventMeta = z.object({
    */
   fromUserTip: z.boolean().optional(),
   /**
+   * Chat lines from a user tip. The scan reads them along with the written description.
+   * Public responses omit this block.
+   */
+  tip: z
+    .object({
+      text: z.string().trim().min(1).max(8000).optional(),
+      categoryHint: z.string().trim().min(1).max(80).optional(),
+    })
+    .optional(),
+  /**
    * Organizer identity and the imported place name. The scan job reads them
    * before a publisher and a venue are chosen. Public responses omit this block.
    */
@@ -178,11 +188,12 @@ export const EventMeta = z.object({
 });
 export type EventMeta = z.infer<typeof EventMeta>;
 
-/** Public events omit the import duplicate note, the occasion group, and the scan organizer keys. */
+/** Public events omit the import duplicate note, the occasion group, the scan organizer keys, and the tip chat. */
 export const PublicEventMeta = EventMeta.omit({
   possibleDuplicate: true,
   possibleOccasionGroupId: true,
   import: true,
+  tip: true,
 });
 export type PublicEventMeta = z.infer<typeof PublicEventMeta>;
 
@@ -198,6 +209,7 @@ export function publicEventMeta(value: unknown): PublicEventMeta {
     possibleDuplicate: _flag,
     possibleOccasionGroupId: _group,
     import: _import,
+    tip: _tip,
     ...meta
   } = readEventMeta(value);
   return meta;

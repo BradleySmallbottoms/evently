@@ -75,8 +75,10 @@ const STATUSES = [
 ] as const;
 
 const ALL_STATUSES = 'all';
+const ALL_TAGS = 'all';
+const NO_TAGS = 'none';
 
-type BulkAction = 'approve' | 'cancel' | 'delete' | 'wipe';
+type BulkAction = 'approve' | 'cancel' | 'delete' | 'wipe' | 'rescan';
 
 const PAGE_SIZE = 50;
 
@@ -86,6 +88,7 @@ export function EventCatalog() {
   const tApp = useTranslations('App');
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(0);
@@ -110,10 +113,11 @@ export function EventCatalog() {
   }, [searchInput]);
 
   const list = useQuery({
-    queryKey: ['admin-events-catalog', statusFilter, q, page],
+    queryKey: ['admin-events-catalog', statusFilter, tagFilter, q, page],
     queryFn: () => {
       const params = new URLSearchParams();
       if (statusFilter) params.set('status', statusFilter);
+      if (tagFilter === NO_TAGS) params.set('untagged', 'true');
       if (q) params.set('q', q);
       params.set('limit', String(PAGE_SIZE));
       params.set('offset', String(page * PAGE_SIZE));
@@ -173,6 +177,9 @@ export function EventCatalog() {
           }
           if (input.action === 'wipe') {
             return adminFetch(`/events/${row.id}/wipe`, { method: 'POST' });
+          }
+          if (input.action === 'rescan') {
+            return adminFetch(`/events/${row.id}/rescan`, { method: 'POST' });
           }
           if (row.status === 'in_review') {
             return adminFetch(`/events/${row.id}/reject`, { method: 'POST' });
@@ -242,6 +249,7 @@ export function EventCatalog() {
   }
   const canPublish = selectedItems.some((item) => item.status === 'in_review');
   const canRemove = reviewCount > 0;
+  const canRescan = reviewCount > 0;
   const canCancel = selectedItems.some((item) => item.status !== 'cancelled');
 
   function toggleAll() {
@@ -263,7 +271,7 @@ export function EventCatalog() {
     const rows =
       action === 'cancel'
         ? selectedItems.filter((item) => item.status !== 'cancelled')
-        : action === 'delete' || action === 'wipe'
+        : action === 'delete' || action === 'wipe' || action === 'rescan'
           ? selectedItems.filter(
               (item) => item.status === 'in_review' && item.origin === 'imported',
             )
@@ -282,6 +290,10 @@ export function EventCatalog() {
   const statusItems = {
     [ALL_STATUSES]: t('allStatuses'),
     ...Object.fromEntries(STATUSES.map((status) => [status, status])),
+  };
+  const tagItems = {
+    [ALL_TAGS]: t('allTags'),
+    [NO_TAGS]: t('noTags'),
   };
 
   return (
@@ -312,6 +324,15 @@ export function EventCatalog() {
               onClick={() => setConfirmWipe(true)}
             >
               {t('wipe')}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={!canRescan || busy}
+              onClick={() => runBulk('rescan')}
+            >
+              {t('rescan')}
             </Button>
             <Button
               type="button"
@@ -374,10 +395,36 @@ export function EventCatalog() {
             </SelectContent>
           </Select>
         </Field>
+        <Field className="w-full min-w-[180px] max-w-60">
+          <FieldLabel htmlFor="event-catalog-tags">{t('tagsFilter')}</FieldLabel>
+          <Select
+            items={tagItems}
+            value={tagFilter === '' ? ALL_TAGS : tagFilter}
+            onValueChange={(next) => {
+              if (next == null) return;
+              setTagFilter(next === ALL_TAGS ? '' : next);
+              setPage(0);
+              setSelected(new Set());
+            }}
+          >
+            <SelectTrigger id="event-catalog-tags" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value={ALL_TAGS}>{t('allTags')}</SelectItem>
+                <SelectItem value={NO_TAGS}>{t('noTags')}</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
       </div>
       {list.isLoading ? <LoadingRows /> : null}
       {!list.isLoading && items.length === 0 ? (
-        <EmptyState icon={CalendarIcon} title={q || statusFilter ? t('emptyMatch') : t('empty')} />
+        <EmptyState
+          icon={CalendarIcon}
+          title={q || statusFilter || tagFilter ? t('emptyMatch') : t('empty')}
+        />
       ) : null}
       {items.length > 0 ? (
         <div className="overflow-hidden rounded-lg border">
@@ -469,6 +516,20 @@ export function EventCatalog() {
                           </DropdownMenuGroup>
                           {item.origin === 'imported' ? (
                             <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuGroup>
+                                <DropdownMenuItem
+                                  disabled={busy}
+                                  onClick={() =>
+                                    bulk.mutate({
+                                      action: 'rescan',
+                                      rows: [{ id: item.id, status: item.status }],
+                                    })
+                                  }
+                                >
+                                  {t('rescan')}
+                                </DropdownMenuItem>
+                              </DropdownMenuGroup>
                               <DropdownMenuSeparator />
                               <DropdownMenuGroup>
                                 <DropdownMenuItem

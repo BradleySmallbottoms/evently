@@ -171,13 +171,30 @@ async function notifyTipScan(
   });
 }
 
+/** A user tip is passed as `tip`. The written description stays a separate field. */
+function scanDescription(row: PendingScanRow): Pick<ScanInput, 'description' | 'tip'> {
+  const text = row.meta.tip?.text?.trim();
+  const categoryHint = row.meta.tip?.categoryHint?.trim();
+  return {
+    ...(row.description ? { description: row.description } : {}),
+    ...(text || categoryHint
+      ? {
+          tip: {
+            ...(text ? { text } : {}),
+            ...(categoryHint ? { categoryHint } : {}),
+          },
+        }
+      : {}),
+  };
+}
+
 function scanInputFor(row: PendingScanRow): ScanInput {
   const organizerKeys = row.meta.import?.organizerKeys ?? [];
   const venue = importedVenueName(row.meta.import);
   return {
     eventId: row.eventId,
     title: row.title,
-    ...(row.description ? { description: row.description } : {}),
+    ...scanDescription(row),
     ...(venue ? { venue } : {}),
     startsAt: row.startsAt?.toISOString() ?? '',
     endsAt: row.endsAt?.toISOString() ?? '',

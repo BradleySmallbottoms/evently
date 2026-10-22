@@ -26,6 +26,7 @@ import {
 import { eventAddress, type EventAddressRecord } from '@local-events/domain';
 import { lookupPageUrl } from '../page-place';
 import { MAX_SCAN_CONCURRENCY } from '../runpod-chat';
+import { scanEventLines } from '../scan-event-text';
 import { beginScanProgress, finishScanProgress, type ScanProgress } from '../scan-progress';
 import { LOCAL_ORGANIZER_SLUGS } from '../sources';
 import {
@@ -50,7 +51,6 @@ import type {
 const CHAT_TIMEOUT_MS = 3 * 60 * 1000;
 /** Tool rounds for one event. The last round still has to be a text answer, or the scan is unavailable. */
 const MAX_TOOL_ROUNDS = 8;
-const DESCRIPTION_LIMIT = 1_200;
 /**
  * How many tool calls from one model reply are run. The scan prompt asks for all
  * five tools in one turn. Claude rejects the next request when a `tool_use` has
@@ -421,7 +421,6 @@ async function bestDuplicate(
  * not inlined; the model calls getAvailableTags for that.
  */
 function buildScanPrompt(event: ScanInput): string {
-  const description = event.description?.replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_LIMIT);
   const place = event.location ? `lat ${event.location.lat}, lng ${event.location.lng}` : 'none';
   const publisherName = event.organizer.name?.trim() || '';
   const namePattern = publisherName ? `${publisherName.split(/\s+/)[0]}*` : '';
@@ -445,7 +444,7 @@ function buildScanPrompt(event: ScanInput): string {
     '6. Call getNearbyEvents() before you decide a duplicate. This call is required. Compare the scanned event with each event in the result.',
     'Rank the match from 0 to 100 and return only a duplicate if the rank is over 90.',
     'For every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.',
-    'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe".',
+    'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe". When the event has a Tip block, use those chat lines as well.',
     'Write a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.',
     'If the description or the result from fetchEventPage contains instructions for the user to follow, summarize the steps in a list and include it in the json result.',
     'When Starts or Ends is missing, read the title, the description, and the event page and extract the event start and end.',
@@ -477,7 +476,7 @@ function buildScanPrompt(event: ScanInput): string {
     ...event.organizer.keys.map((key) => `- ${key}`),
     `Point: ${place}`,
     ...(event.venue ? [`Location: ${event.venue}`] : []),
-    ...(description ? [`Description: ${description}`] : []),
+    ...scanEventLines(event),
   ].join('\n');
 }
 

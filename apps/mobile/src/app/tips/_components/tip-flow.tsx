@@ -106,6 +106,7 @@ export function TipFlow({
         queryClient.setQueryData(['tip', id], next);
         if (next.phase !== 'collecting') setEditing(false);
       }}
+      onCancel={editing ? () => setEditing(false) : undefined}
     />
   );
 }

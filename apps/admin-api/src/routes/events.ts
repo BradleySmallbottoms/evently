@@ -62,6 +62,7 @@ export function registerAdminEventRoutes(
       // The review queue pages with sort=created. An unpaged in_review call keeps the review shape.
       const paged =
         query.q !== undefined ||
+        query.untagged === 'true' ||
         c.req.query('limit') !== undefined ||
         c.req.query('offset') !== undefined;
       if (query.status === 'in_review' && !paged) {

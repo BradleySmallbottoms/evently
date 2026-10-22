@@ -1551,6 +1551,33 @@ describe('admin api', () => {
     const cancelled = (await filtered.json()) as { items: { title: string }[]; total: number };
     expect(cancelled.total).toBe(1);
     expect(cancelled.items[0]?.title).toBe('Choir');
+
+    const untagged = await app.request('/v1/events?untagged=true&limit=50', {
+      headers: { cookie },
+    });
+    const noTags = (await untagged.json()) as {
+      items: { title: string; tagCount: number }[];
+      total: number;
+    };
+    expect(noTags.total).toBe(3);
+    expect(noTags.items.map((item) => item.title)).toEqual(['100% fun', 'Market', 'Choir']);
+    expect(noTags.items.every((item) => item.tagCount === 0)).toBe(true);
+
+    const untaggedCancelled = await app.request(
+      '/v1/events?untagged=true&status=cancelled&limit=50',
+      { headers: { cookie } },
+    );
+    const cancelledUntagged = (await untaggedCancelled.json()) as {
+      items: { title: string }[];
+      total: number;
+    };
+    expect(cancelledUntagged.total).toBe(1);
+    expect(cancelledUntagged.items[0]?.title).toBe('Choir');
+
+    const rejected = await app.request('/v1/events?untagged=false&limit=50', {
+      headers: { cookie },
+    });
+    expect(rejected.status).toBe(400);
   });
 
   it('pages the review queue oldest created first', async () => {
@@ -1635,6 +1662,18 @@ describe('admin api', () => {
     const found = (await search.json()) as { items: { title: string }[]; total: number };
     expect(found.total).toBe(1);
     expect(found.items[0]?.title).toBe('Oldest');
+
+    const untagged = await app.request(
+      '/v1/events?status=in_review&sort=created&untagged=true&limit=100',
+      { headers: { cookie } },
+    );
+    const noTags = (await untagged.json()) as {
+      items: { title: string; tagCount: number }[];
+      total: number;
+    };
+    expect(noTags.total).toBe(2);
+    expect(noTags.items.map((item) => item.title)).toEqual(['Middle', 'Newest']);
+    expect(noTags.items.every((item) => item.tagCount === 0)).toBe(true);
   });
 
   it('marks a possible duplicate on the review list', async () => {
