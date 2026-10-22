@@ -7,6 +7,7 @@ import type { Tip } from '../../../packages/contracts/src/tips';
 
 let extracts = 0;
 let reviews = 0;
+let imageWarning: string | null = null;
 
 const model: TipModel = {
   async extract(input) {
@@ -30,6 +31,10 @@ const model: TipModel = {
     if (input.text.trim().toLowerCase() === 'asdf') {
       return { ok: false, warning: 'Skriv vad evenemanget heter.' };
     }
+    return { ok: true, warning: null };
+  },
+  async reviewImage() {
+    if (imageWarning) return { ok: false, warning: imageWarning };
     return { ok: true, warning: null };
   },
 };
@@ -245,6 +250,93 @@ describe('event tips', () => {
     expect(current.question?.options?.[0]?.reply).toBe('confirm: title');
   });
 
+  it('rejects a harmful picture and accepts a later one once the facts are done', async () => {
+    const api = app();
+    const headers = { ...(await session(api)), 'content-type': 'application/json' };
+    const created = await json<Tip>(
+      await api.request('/v1/me/tips', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ path: 'photo', locale: 'sv' }),
+      }),
+    );
+    imageWarning = 'Välj en annan bild.';
+    const readsBefore = extracts;
+    let refused: Tip;
+    try {
+      refused = await json<Tip>(
+        await api.request(`/v1/me/tips/${created.id}/images`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            contentType: 'image/jpeg',
+            dataBase64: Buffer.from('not-a-real-image-but-long-enough').toString('base64'),
+          }),
+        }),
+      );
+    } finally {
+      imageWarning = null;
+    }
+    expect(refused.warning).toBe('Välj en annan bild.');
+    expect(refused.imageStatus).toBe('none');
+    expect(refused.messages).toHaveLength(0);
+    expect(extracts).toBe(readsBefore);
+
+    const uploaded = await json<Tip>(
+      await api.request(`/v1/me/tips/${created.id}/images`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          contentType: 'image/jpeg',
+          dataBase64: Buffer.from('not-a-real-image-but-long-enough').toString('base64'),
+        }),
+      }),
+    );
+    let current = uploaded;
+    for (let attempt = 0; attempt < 20 && current.question?.key !== 'title'; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      current = await json<Tip>(await api.request(`/v1/me/tips/${created.id}`, { headers }));
+    }
+    for (let attempt = 0; attempt < 20 && current.question?.key !== 'image'; attempt += 1) {
+      const reply = current.question?.options.find((option) => option.reply)?.reply;
+      expect(reply).toBeTruthy();
+      current = await json<Tip>(
+        await api.request(`/v1/me/tips/${created.id}/text`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ text: reply }),
+        }),
+      );
+    }
+    expect(current.question?.key).toBe('image');
+    expect(current.question?.options?.[0]?.reply).toBe('image: keep');
+    const readsAfterFacts = extracts;
+    const kept = await json<Tip>(
+      await api.request(`/v1/me/tips/${created.id}/text`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text: 'image: keep' }),
+      }),
+    );
+    expect(kept.phase).toBe('confirm');
+    expect(kept.question).toBeNull();
+    expect(extracts).toBe(readsAfterFacts);
+    const replaced = await json<Tip>(
+      await api.request(`/v1/me/tips/${created.id}/images`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          contentType: 'image/jpeg',
+          dataBase64: Buffer.from('a-different-picture-long-enough').toString('base64'),
+        }),
+      }),
+    );
+    expect(replaced.warning).toBeNull();
+    expect(replaced.phase).toBe('confirm');
+    expect(replaced.imageStatus).toBe('ready');
+    expect(extracts).toBe(readsAfterFacts);
+  });
+
   it('warns on a typed title and still saves a real place', async () => {
     const api = app();
     const headers = { ...(await session(api)), 'content-type': 'application/json' };
@@ -317,6 +409,9 @@ describe('event tips', () => {
         async review() {
           throw new Error('down');
         },
+        async reviewImage() {
+          return { ok: true, warning: null };
+        },
       },
       tipTags: async () => [],
     });
@@ -355,6 +450,9 @@ describe('event tips', () => {
           };
         },
         async review() {
+          return { ok: true, warning: null };
+        },
+        async reviewImage() {
           return { ok: true, warning: null };
         },
       },

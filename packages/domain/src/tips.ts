@@ -59,6 +59,8 @@ export interface TipExtraction {
   endDeclined?: boolean | null;
   /** The person said there is no picture. */
   imageDeclined?: boolean | null;
+  /** The person kept the picture already on the tip. */
+  imageAccepted?: boolean | null;
   /** Facts the person accepted, or replaced. The model does not change these. */
   accepted?: TipDetail[] | null;
   /** The transcript was read once after every required fact was filled. */
@@ -114,6 +116,7 @@ export function emptyTipExtraction(): TipExtraction {
     endTimeDeclined: null,
     endDeclined: null,
     imageDeclined: null,
+    imageAccepted: null,
     accepted: null,
     summaryRead: null,
   };
@@ -131,6 +134,7 @@ export function mergeTipExtraction(base: TipExtraction, patch: TipExtraction): T
     if (
       key === 'linkDeclined' ||
       key === 'imageDeclined' ||
+      key === 'imageAccepted' ||
       key === 'startTimeDeclined' ||
       key === 'endTimeDeclined' ||
       key === 'endDeclined'
@@ -557,7 +561,7 @@ const LOCAL_REPLY = [
   /^(?:title|place|description):\s*\S/i,
   /^link:\s*\S+$/i,
   /^price:\s*(?:free|\d{1,6}(?:[.,]\d{1,2})?)$/i,
-  /^image:\s*none$/i,
+  /^image:\s*(?:none|keep)$/i,
   /^(?:end|endDate|startTime|endTime):\s*none$/i,
   /^(?:startTime|endTime|end):\s*(?:[01]\d|2[0-3]):[0-5]\d$/i,
   /^(?:date|startDate|end|endDate):\s*\d{4}-\d{2}-\d{2}(?:[ T](?:[01]\d|2[0-3]):[0-5]\d)?$/i,
@@ -654,6 +658,11 @@ export function applyTipAnswers(
     }
     if (/^image:\s*none$/i.test(line)) {
       next.imageDeclined = true;
+      continue;
+    }
+    if (/^image:\s*keep$/i.test(line)) {
+      next.imageAccepted = true;
+      next.imageDeclined = false;
       continue;
     }
     if (/^(?:end|endDate):\s*none$/i.test(line)) {
@@ -753,18 +762,30 @@ export function tipDetailProgress(extraction: TipExtraction): {
   };
 }
 
-const TIP_IMAGE_QUESTION: Record<TipLocale, { reading: string; ask: string }> = {
+const TIP_IMAGE_QUESTION: Record<TipLocale, { reading: string; ask: string; use: string }> = {
   sv: {
     reading: 'Vi hämtar uppgifter från bilden.',
     ask: 'Vill du lägga till en bild?',
+    use: 'Vill du använda den här bilden?',
   },
   en: {
     reading: "We're getting details from the picture.",
     ask: 'Do you want to add a picture?',
+    use: 'Do you want to use this picture?',
   },
 };
 
-export type TipImageState = 'missing' | 'scanning' | 'ready' | 'declined';
+const IMAGE_KEEP: Record<TipLocale, TipAskOption> = {
+  sv: { label: 'Ja', reply: 'image: keep' },
+  en: { label: 'Yes', reply: 'image: keep' },
+};
+
+const IMAGE_REPLACE: Record<TipLocale, TipAskOption> = {
+  sv: { label: 'Välj en annan', reply: null },
+  en: { label: 'Choose another', reply: null },
+};
+
+export type TipImageState = 'missing' | 'scanning' | 'ready' | 'declined' | 'failed';
 
 const LINK_YES: Record<TipLocale, TipAskOption> = {
   sv: { label: 'Ja', reply: null },
@@ -957,6 +978,13 @@ export function tipFollowUpQuestion(input: {
   }
   if (image === 'missing') {
     return { key: 'image', question: TIP_IMAGE_QUESTION[input.locale].ask, options: [] };
+  }
+  if (image === 'ready' && input.extraction && !input.extraction.imageAccepted) {
+    return {
+      key: 'image',
+      question: TIP_IMAGE_QUESTION[input.locale].use,
+      options: [IMAGE_KEEP[input.locale], IMAGE_REPLACE[input.locale]],
+    };
   }
   return null;
 }

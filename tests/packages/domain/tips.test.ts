@@ -158,6 +158,45 @@ describe('tip limits and titles', () => {
       options: [],
     });
     expect(applyTipAnswers({}, 'image: none').imageDeclined).toBe(true);
+    expect(applyTipAnswers({}, 'image: keep').imageAccepted).toBe(true);
+    const pictureReady = applyTipAnswers(
+      {
+        title: 'Konsert',
+        startsAt: '2026-08-24T17:00:00.000Z',
+        startTime: '17:00',
+        place: 'Parken',
+        priceLabel: 'Gratis',
+        priceAmount: 0,
+        link: 'stad.se',
+        description: 'En kväll.',
+      },
+      'confirm: title\nconfirm: startsAt\nconfirm: startTime\nconfirm: place\nconfirm: price\nconfirm: link\nconfirm: description\nendDate: none',
+    );
+    expect(
+      tipFollowUpQuestion({
+        questions: [],
+        missing: [],
+        locale: 'sv',
+        image: 'ready',
+        extraction: pictureReady,
+      }),
+    ).toEqual({
+      key: 'image',
+      question: 'Vill du använda den här bilden?',
+      options: [
+        { label: 'Ja', reply: 'image: keep' },
+        { label: 'Välj en annan', reply: null },
+      ],
+    });
+    expect(
+      tipFollowUpQuestion({
+        questions: [],
+        missing: [],
+        locale: 'sv',
+        image: 'ready',
+        extraction: { ...pictureReady, imageAccepted: true },
+      }),
+    ).toBeNull();
     const unknownEnd = applyTipAnswers({}, 'end: none');
     expect(unknownEnd.endDeclined).toBe(true);
     expect(unknownEnd.endsAt).toBeNull();

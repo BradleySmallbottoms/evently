@@ -111,7 +111,8 @@ export function createDbTipServices(
     const rows = await db
       .select()
       .from(schema.tipImages)
-      .where(inArray(schema.tipImages.tipId, tipIds));
+      .where(inArray(schema.tipImages.tipId, tipIds))
+      .orderBy(asc(schema.tipImages.createdAt));
     for (const row of rows) {
       const image: TipImageRecord = {
         id: row.id,
@@ -330,7 +331,7 @@ export function createDbTipServices(
         : description;
       const boundedDescription = withCategory.slice(0, 4000) || null;
       const eventId = randomUUID();
-      const ready = images.find((image) => image.status === 'ready') ?? images[0];
+      const ready = [...images].reverse().find((image) => image.status === 'ready');
       await db.transaction(async (tx) => {
         await tx.insert(schema.events).values({
           id: eventId,

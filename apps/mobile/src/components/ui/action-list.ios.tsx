@@ -29,7 +29,6 @@ import {
 import { colors } from '@/theme/colors';
 
 import { swipeEditColor, type ActionListItem } from './action-list-model';
-import { View } from 'react-native';
 
 export type { ActionListItem };
 

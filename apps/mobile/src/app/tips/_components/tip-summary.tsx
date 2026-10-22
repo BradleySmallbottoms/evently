@@ -27,7 +27,6 @@ import { foundTipClock, foundTipDay } from '@/lib/tip-clock';
 import { confirmTip } from '@/lib/tips';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
-import { BackPill } from '@/components/ui/back-pill';
 
 export function TipSummary({
   tip,
@@ -35,7 +34,6 @@ export function TipSummary({
   embedded = false,
   onDone,
   onRevise,
-  onClose,
 }: {
   tip: Tip;
   photo?: string;
@@ -55,7 +53,9 @@ export function TipSummary({
   const [draft, setDraft] = useState<TipCard>(tip.card ?? emptyCard());
   const [description, setDescription] = useState(tip.found?.description ?? tip.card?.summary ?? '');
   const [descriptionTouched, setDescriptionTouched] = useState(false);
-  const sent = tip.phase !== 'confirm' || sending;
+  const inProgress = tip.phase === 'collecting';
+  const awaitingSend = tip.phase === 'confirm' && !sending;
+  const sent = !inProgress && !awaitingSend;
   const waiting = sending && tip.phase === 'confirm';
   const ease = Easing.bezier(0.23, 1, 0.32, 1);
   const fadeIn = () => FadeIn.duration(reduced ? 120 : 240).easing(ease);
@@ -115,23 +115,8 @@ export function TipSummary({
           maxWidth: MaxContentWidth,
           alignSelf: 'center',
         }}
-        style={{ maxHeight: '85%' }}
+        style={{ flex: 1 }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 44 }}>
-          <BackPill onPress={onClose} />
-          <AppText
-            style={{
-              flex: 1,
-              textAlign: 'center',
-              fontSize: 17,
-              fontWeight: '700',
-              color: colors.ink,
-            }}
-          >
-            {t('tips.statusTitle')}
-          </AppText>
-          <View style={{ width: 36 }} />
-        </View>
         <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'center' }}>
           {image ? (
             <Image
@@ -271,7 +256,21 @@ export function TipSummary({
         {tip.eventId && tip.phase === 'published' ? <EventLink eventId={tip.eventId} /> : null}
         {error ? <AppText style={{ color: colors.danger }}>{error}</AppText> : null}
       </ScrollView>
-      {!sent ? (
+      {inProgress ? (
+        <View
+          style={{
+            paddingHorizontal: space.xl,
+            paddingTop: space.sm,
+            paddingBottom: embedded ? space.lg : insets.bottom + space.lg,
+            backgroundColor: colors.canvas,
+            width: '100%',
+            maxWidth: MaxContentWidth,
+            alignSelf: 'center',
+          }}
+        >
+          <PrimaryButton label={t('tips.continue')} onPress={onRevise} />
+        </View>
+      ) : !sent ? (
         <Animated.View
           entering={fadeIn()}
           exiting={fadeOut()}
@@ -279,7 +278,9 @@ export function TipSummary({
             flexDirection: 'row',
             gap: space.sm,
             paddingHorizontal: space.xl,
-            paddingBottom: insets.bottom + space.lg,
+            paddingTop: space.sm,
+            paddingBottom: embedded ? space.lg : insets.bottom + space.lg,
+            backgroundColor: colors.canvas,
             width: '100%',
             maxWidth: MaxContentWidth,
             alignSelf: 'center',

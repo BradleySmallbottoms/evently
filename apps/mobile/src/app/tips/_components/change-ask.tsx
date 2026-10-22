@@ -1,13 +1,15 @@
+import { Image } from 'expo-image';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import type { Tip } from '@local-events/contracts';
 
-import { space } from '@/theme/tokens';
+import { radius, space } from '@/theme/tokens';
 
 import { AskControl } from './ask-control';
 import { ChatArrival } from './chat-arrival';
 import { Choice } from './choice';
+import { ContentWarning } from './content-warning';
 
 const CHANGE_KEYS = [
   'title',
@@ -19,6 +21,7 @@ const CHANGE_KEYS = [
   'price',
   'link',
   'description',
+  'image',
 ] as const;
 
 type ChangeKey = (typeof CHANGE_KEYS)[number];
@@ -28,18 +31,22 @@ export function ChangeAsk({
   locale,
   locked,
   warning,
+  photoUri,
   question,
   onSend,
   onEdit,
+  onReplace,
   onDismissWarning,
 }: {
   tip: Tip;
   locale: string;
   locked: boolean;
   warning: string | null;
+  photoUri: string | null;
   question: ReactNode;
   onSend: (body: string) => void;
   onEdit: () => void;
+  onReplace: () => void;
   onDismissWarning: () => void;
 }) {
   const { t } = useTranslation();
@@ -67,7 +74,32 @@ export function ChangeAsk({
           </View>,
         ]}
       />
-      {picked ? (
+      {picked === 'image' ? (
+        <ChatArrival
+          pieces={[
+            <View key="image" style={{ gap: space.sm }}>
+              {photoUri ? (
+                <Image
+                  key={photoUri}
+                  accessibilityLabel={t('tips.facts.image')}
+                  source={{ uri: photoUri }}
+                  style={{ width: '100%', height: 220, borderRadius: radius.lg }}
+                  contentFit="cover"
+                />
+              ) : null}
+              <View style={{ flexDirection: 'row' }}>
+                <Choice
+                  label={t(photoUri ? 'tips.replacePicture' : 'tips.addPicture')}
+                  selected={false}
+                  disabled={locked}
+                  onPress={onReplace}
+                />
+              </View>
+              {warning ? <ContentWarning text={warning} /> : null}
+            </View>,
+          ]}
+        />
+      ) : picked ? (
         <ChatArrival
           pieces={[
             <AskControl

@@ -39,9 +39,12 @@ export function PriceAsk({
   const { t } = useTranslation();
   const parsed = parsePrice(answer);
   const confirming = options.some((option) => option.reply?.startsWith('confirm:'));
+  const seeded = seedPrice(seed);
   const [openInput, setOpenInput] = useState(parsed.choice != null);
-  const [choice, setChoice] = useState<'free' | 'paid' | null>(parsed.choice);
-  const [amount, setAmount] = useState(parsed.amount);
+  const [choice, setChoice] = useState<'free' | 'paid' | null>(
+    parsed.choice ?? (confirming ? null : seeded.choice),
+  );
+  const [amount, setAmount] = useState(parsed.amount || (confirming ? '' : seeded.amount));
   const [invalid, setInvalid] = useState(false);
 
   useEffect(() => {

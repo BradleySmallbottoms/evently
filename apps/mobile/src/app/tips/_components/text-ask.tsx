@@ -40,7 +40,7 @@ export function TextAsk({
   const parsed = answer?.match(/^(?:title|place|description):\s*(.+)$/i)?.[1] ?? null;
   const confirming = options.some((option) => option.reply?.startsWith('confirm:'));
   const [openInput, setOpenInput] = useState(parsed != null);
-  const [value, setValue] = useState(parsed ?? '');
+  const [value, setValue] = useState(parsed ?? (confirming ? '' : (seed ?? '')));
 
   useEffect(() => {
     if (parsed == null) return;

@@ -20,6 +20,7 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { MaxContentWidth } from '@/constants/theme';
 
 import { AskControl } from './ask-control';
+import { Choice } from './choice';
 import { ChangeAsk } from './change-ask';
 import { ContentWarning } from './content-warning';
 import { ChatArrival, ChatScroll } from './chat-arrival';
@@ -56,7 +57,6 @@ export function TipChat({
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const scroll = useAnimatedRef<Animated.ScrollView>();
   const openedCount = useRef(tip.messages.length);
-  const placed = useRef(false);
   const follow = useRef(true);
   const keyboard = useKeyboardOverlap();
   const keyboardWas = useRef(0);
@@ -68,6 +68,7 @@ export function TipChat({
   const verifyingSince = useRef<number | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pickedUri, setPickedUri] = useState<string | null>(initialPhoto ?? null);
+  const [extraPhotos, setExtraPhotos] = useState<string[]>([]);
   const [photoBusy, setPhotoBusy] = useState(false);
   useEffect(
     () => () => {
@@ -135,7 +136,10 @@ export function TipChat({
   const scanning = tip.imageStatus === 'scanning';
   const reading = [...tip.messages]
     .reverse()
-    .find((message) => message.role === 'assistant' && message.key === 'image')?.body;
+    .find(
+      (message) =>
+        message.role === 'assistant' && message.key === 'image' && message.options.length === 0,
+    )?.body;
   const progress = tip.progress ?? { done: 0, total: 9, verified: 0 };
   const lastAssistant = lastAssistantIndex(tip.messages);
 
@@ -169,24 +173,22 @@ export function TipChat({
   }, [keyboard, reveal, started]);
 
   useEffect(() => {
-    if (!started || placed.current) return;
-    placed.current = true;
-    const frame = requestAnimationFrame(() => {
-      runOnUI(() => {
-        'worklet';
-        scrollTo(scroll, 0, 1_000_000, false);
-      })();
-    });
+    if (!started) return;
+    follow.current = true;
+    let frame = 0;
+    let attempts = 0;
+    const tick = () => {
+      scrollToEnd(false);
+      attempts += 1;
+      if (attempts < 8) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [scroll, started]);
+  }, [scroll, scrollToEnd, started, tip.id]);
 
   function completesNow(): boolean {
     if (revising) return true;
-    if (tip.question?.key === 'image') return true;
-    const confirming = tip.question?.options.some((option) => option.reply?.startsWith('confirm:'));
-    return (
-      tip.imageStatus === 'ready' && tip.progress.done === tip.progress.total - 1 && !confirming
-    );
+    return tip.question?.key === 'image';
   }
 
   function sendBody(body: string) {
@@ -199,8 +201,50 @@ export function TipChat({
     send.mutate(next);
   }
 
+  async function uploadPhoto(finish: boolean) {
+    let added = false;
+    let previous = pickedUri;
+    try {
+      const shot = await chooseTipImage();
+      if (!shot.ok) {
+        if (shot.reason === 'denied') setError(t('tips.cameraDenied'));
+        return;
+      }
+      previous = pickedUri;
+      setPickedUri(shot.uri);
+      setExtraPhotos((rows) => [...rows, shot.uri]);
+      added = true;
+      setError(null);
+      setWarning(null);
+      setPhotoBusy(true);
+      if (finish) beginVerify();
+      reveal();
+      const identity = await ensureIdentity(locale);
+      const next = await sendTipImage(identity, tip.id, shot);
+      if (next.warning) {
+        setPickedUri(previous);
+        setExtraPhotos((rows) => rows.filter((uri) => uri !== shot.uri));
+      }
+      handoff(next);
+    } catch (err) {
+      stopVerify();
+      console.error('tip image failed', err);
+      if (added) {
+        setPickedUri(previous);
+        setExtraPhotos((rows) => rows.slice(0, -1));
+      }
+      setError(
+        err instanceof Error && err.message === 'too_large' ? t('tips.tooLarge') : t('tips.error'),
+      );
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
   function messagePieces(message: Tip['messages'][number], index: number): ReactNode[] {
-    if (message.role === 'assistant' && message.key === 'image' && hasImage) return [];
+    const readingOnly =
+      message.role === 'assistant' && message.key === 'image' && message.options.length === 0;
+    if (readingOnly && hasImage) return [];
     if (message.role === 'user') {
       return [
         <Bubble key={`${message.createdAt}-user`} mine>
@@ -214,7 +258,9 @@ export function TipChat({
     const askKey = current?.key ?? message.key;
     const askOptions = current?.options ?? message.options;
     const askBody = current?.question ?? message.body;
-    const confirming = askOptions.some((option) => option.reply?.startsWith('confirm:'));
+    const confirming = askOptions.some(
+      (option) => option.reply?.startsWith('confirm:') || option.reply === 'image: keep',
+    );
     const hint = askKey && !confirming ? stepHint(askKey, t) : null;
     const pieces: ReactNode[] = [
       <View
@@ -257,38 +303,50 @@ export function TipChat({
         />,
       );
     }
+    const keepPicture = askOptions.some((option) => option.reply === 'image: keep');
+    if (
+      !revising &&
+      askKey === 'image' &&
+      index === lastAssistant &&
+      !scanning &&
+      keepPicture &&
+      hasImage
+    ) {
+      pieces.push(
+        <View key={`${message.createdAt}-keep`} style={{ gap: space.sm }}>
+          {photoUri ? (
+            <Image
+              key={photoUri}
+              accessibilityLabel={askBody}
+              source={{ uri: photoUri }}
+              style={{ width: '100%', height: 220, borderRadius: radius.lg }}
+              contentFit="cover"
+            />
+          ) : null}
+          <View style={{ flexDirection: 'row', gap: space.sm }}>
+            {askOptions.map((option) => (
+              <Choice
+                key={option.label}
+                label={option.label}
+                selected={option.reply != null && answer === option.reply}
+                disabled={answer != null || verifying || photoBusy}
+                onPress={() => {
+                  if (option.reply) sendBody(option.reply);
+                  else void uploadPhoto(true);
+                }}
+              />
+            ))}
+          </View>
+        </View>,
+      );
+    }
     if (!revising && askKey === 'image' && index === lastAssistant && !scanning && !hasImage) {
       pieces.push(
         <ImageAsk
           key={`${message.createdAt}-image`}
           locked={send.isPending || verifying}
           onSkip={() => sendBody('image: none')}
-          onUpload={async () => {
-            try {
-              const shot = await chooseTipImage();
-              if (!shot.ok) {
-                if (shot.reason === 'denied') setError(t('tips.cameraDenied'));
-                return;
-              }
-              setPickedUri(shot.uri);
-              setError(null);
-              setPhotoBusy(true);
-              beginVerify();
-              const identity = await ensureIdentity(locale);
-              handoff(await sendTipImage(identity, tip.id, shot));
-            } catch (err) {
-              stopVerify();
-              console.error('tip image failed', err);
-              setPickedUri(initialPhoto ?? null);
-              setError(
-                err instanceof Error && err.message === 'too_large'
-                  ? t('tips.tooLarge')
-                  : t('tips.error'),
-              );
-            } finally {
-              setPhotoBusy(false);
-            }
-          }}
+          onUpload={() => uploadPhoto(tip.question?.key === 'image' || revising)}
         />,
       );
     }
@@ -417,8 +475,10 @@ export function TipChat({
               <ChangeAsk
                 tip={tip}
                 locale={locale}
-                locked={send.isPending || verifying}
+                locked={send.isPending || verifying || photoBusy}
                 warning={warning}
+                photoUri={photoUri}
+                onReplace={() => void uploadPhoto(true)}
                 onSend={sendBody}
                 onEdit={reveal}
                 onDismissWarning={() => setWarning(null)}
@@ -434,6 +494,10 @@ export function TipChat({
                 }
               />
             ) : null}
+            {extraPhotos.map((uri) => (
+              <PhotoBubble key={uri} uri={uri} busy={photoBusy && uri === extraPhotos.at(-1)} />
+            ))}
+            {warning ? <ContentWarning key={warning} text={warning} /> : null}
             {verifying ? (
               <ChatArrival
                 pieces={[
@@ -564,6 +628,39 @@ function AssistantAvatar() {
   );
 }
 
+function PhotoBubble({ uri, busy }: { uri: string; busy: boolean }) {
+  return (
+    <View
+      style={{
+        alignSelf: 'flex-end',
+        width: '85%',
+        height: 220,
+        borderRadius: radius.lg,
+        overflow: 'hidden',
+        backgroundColor: colors.line,
+      }}
+    >
+      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+      {busy ? (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.28)',
+          }}
+        >
+          <ActivityIndicator color={colors.card} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function tipPhotoUri(url: string | null): string | null {
   if (!url) return null;
   if (Platform.OS === 'web') return url;
@@ -635,7 +732,7 @@ function answerAfter(messages: Tip['messages'], index: number): string | null {
 
 function userLabel(body: string, locale: string, t: (key: string) => string): string {
   const line = body.trim();
-  if (/^confirm:\s*/i.test(line)) return t('tips.yes');
+  if (/^confirm:\s*/i.test(line) || /^image:\s*keep$/i.test(line)) return t('tips.yes');
   const corrected = line.match(/^(?:title|place|description):\s*(.+)$/i);
   if (corrected?.[1]) return corrected[1];
   if (/^link:\s*none$/i.test(line)) return t('tips.noLink');

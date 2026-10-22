@@ -19,11 +19,14 @@ export function TipFlow({
   id,
   photo,
   embedded = false,
+  resume = false,
   onClose,
 }: {
   id: string;
   photo?: string;
   embedded?: boolean;
+  /** Opening a saved tip starts on the summary. A new tip stays in the chat. */
+  resume?: boolean;
   onClose?: () => void;
 }) {
   const { i18n } = useTranslation();
@@ -39,7 +42,7 @@ export function TipFlow({
     queryFn: () => getTip(identity.data!, id),
     refetchInterval: (query) => (query.state.data?.imageStatus === 'scanning' ? 2000 : false),
   });
-  const [revising, setRevising] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   if (!tip.data) {
     return (
@@ -73,27 +76,15 @@ export function TipFlow({
       />
     );
   }
-  if (
-    data.phase === 'confirm' ||
-    data.phase === 'receipt' ||
-    data.phase === 'review' ||
-    data.phase === 'published' ||
-    data.phase === 'failed'
-  ) {
-    if (revising && data.phase === 'confirm') {
-      return (
-        <TipChat
-          tip={data}
-          revising
-          embedded={embedded}
-          initialPhoto={photo}
-          onDone={(next) => {
-            queryClient.setQueryData(['tip', id], next);
-            setRevising(false);
-          }}
-        />
-      );
-    }
+  const showSummary =
+    !editing &&
+    (resume ||
+      data.phase === 'confirm' ||
+      data.phase === 'receipt' ||
+      data.phase === 'review' ||
+      data.phase === 'published' ||
+      data.phase === 'failed');
+  if (showSummary) {
     return (
       <TipSummary
         tip={data}
@@ -101,16 +92,20 @@ export function TipFlow({
         embedded={embedded}
         onClose={onClose}
         onDone={(next) => queryClient.setQueryData(['tip', id], next)}
-        onRevise={() => setRevising(true)}
+        onRevise={() => setEditing(true)}
       />
     );
   }
   return (
     <TipChat
       tip={data}
+      revising={data.phase === 'confirm'}
       embedded={embedded}
       initialPhoto={photo}
-      onDone={(next) => queryClient.setQueryData(['tip', id], next)}
+      onDone={(next) => {
+        queryClient.setQueryData(['tip', id], next);
+        if (next.phase !== 'collecting') setEditing(false);
+      }}
     />
   );
 }

@@ -61,8 +61,13 @@ sequenceDiagram
   wheel, and the person can answer that they do not know. The chat does not ask for a tag or a
   category. The model receives the tag catalog and returns the names that fit. The confirm screen
   shows those tags under the summary. The chat says it is verifying, then opens that screen.
-  Change returns to the chat, asks which fact to replace, and opens that control. Sending the new
-  value returns to the summary. A picture is the last step. A picture chosen on the first
+  Opening a saved tip shows that summary first. Continue returns to the chat while a fact is still
+  missing, and the chat opens at the latest step. Change returns to the chat, asks which fact to replace, and opens that control. Sending the new
+  value returns to the summary. A picture is the last step. Every upload is checked first, and a
+  harmful picture or one above a PG-13 level is refused with a warning and is not stored. A picture already on the tip is
+  confirmed there: yes keeps it, and choosing another adds that picture to the chat. When the facts
+  are already complete, that new picture is the last step: the chat verifies and opens the summary.
+  Change can replace the picture the same way. A picture chosen on the first
   screen is stored in the public assets bucket (Garage locally, S3 in production) and is read into
   that same chat: the photo shows with a spinner, and a bubble says the details are being read.
   The model names the missing fact on the first read. Later replies are applied on the tip, and the chat shows that

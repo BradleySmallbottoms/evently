@@ -111,6 +111,7 @@ export default function MyTipsScreen() {
       </View>
       <TipChatSheet
         tipId={openId}
+        resume
         onDismiss={() => {
           setOpenId(null);
           void tips.refetch();

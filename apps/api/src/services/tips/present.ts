@@ -58,7 +58,9 @@ export function presentTip(
   const hasExtraction = Object.values(extraction).some((value) => value != null && value !== '');
   const progress = tipDetailProgress(extraction);
   const imageSettled =
-    Boolean(extraction.imageDeclined) || (images.length > 0 && imageStatus !== 'scanning');
+    Boolean(extraction.imageDeclined) ||
+    imageStatus === 'failed' ||
+    (imageStatus === 'ready' && Boolean(extraction.imageAccepted));
   const phase = tipPhase({
     path: tip.path,
     status: tip.status,
@@ -68,7 +70,7 @@ export function presentTip(
     detailsComplete:
       progress.missing.length === 0 && imageSettled && !tipPendingConfirm(extraction),
   });
-  const photo = images.find((image) => image.status !== 'failed') ?? images[0];
+  const photo = [...images].reverse().find((image) => image.status !== 'failed') ?? images.at(-1);
   return {
     id: tip.id,
     path: tip.path,
@@ -121,7 +123,9 @@ export function presentTip(
             ? 'scanning'
             : imageStatus === 'ready'
               ? 'ready'
-              : 'missing',
+              : imageStatus === 'failed'
+                ? 'failed'
+                : 'missing',
       });
       return next
         ? { key: next.key, question: next.question, options: shownTipOptions(next, tip.locale) }

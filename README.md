@@ -64,7 +64,10 @@ pnpm api-client:generate   # after public API OpenAPI changes
   is read once. A title, place, or description the person types is checked first. Text that is not
   an event is not saved, and the chat shows a warning. The model names the missing fact, and the
   chat shows that control. The chat does not ask for a tag or a category. The model picks tags
-  from the catalog, and the confirm screen shows them. A picture is the last question. A picture
+  from the catalog, and the confirm screen shows them. A picture is the last question, including
+  one already scanned: yes keeps it, and another picture is added to the chat. Every picture is
+  checked, and a harmful picture or one above a PG-13 level is refused. When the facts are already
+  complete, the new picture finishes the chat. Change can replace the picture too. A picture
   from the first screen is stored in the public assets bucket (Garage locally) and read into the
   same chat. When the facts are complete, the model writes a short summary for the confirm screen.
   A finished tip becomes

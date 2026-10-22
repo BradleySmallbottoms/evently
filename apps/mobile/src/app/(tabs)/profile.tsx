@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import { PairingSheet, type PairingSheetTab } from '@/components/native/pairing-sheet';
 import { TravelDistanceSetting } from '@/components/preferences/travel-distance-setting';
@@ -48,6 +48,7 @@ export default function ProfileScreen() {
   const [clearPromptsPending, setClearPromptsPending] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [travelError, setTravelError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const devActionPending = resetPending || clearPromptsPending;
 
   const identity = useQuery({
@@ -92,6 +93,20 @@ export default function ProfileScreen() {
 
   const { hasUnread, numUnread } = useHasUnreadNotifications();
   const name = profile.data?.displayName?.trim() || t('profile.guest');
+
+  async function refreshCounts() {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        preferences.refetch(),
+        tips.refetch(),
+        inbox.refetch(),
+        queryClient.refetchQueries({ queryKey: ['notifications-seen'] }),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function confirmDeviceLink() {
     setPairingPending(true);
@@ -232,6 +247,16 @@ export default function ProfileScreen() {
     <View style={{ flex: 1, backgroundColor: colors.canvas }}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
+        alwaysBounceVertical
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              void refreshCounts();
+            }}
+            tintColor={colors.accent}
+          />
+        }
         contentContainerStyle={{
           padding: space.xl,
           paddingBottom: BottomTabInset + space.xxxl,

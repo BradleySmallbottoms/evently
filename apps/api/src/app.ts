@@ -109,6 +109,9 @@ export function createApp(options: CreateAppOptions = {}) {
         async review() {
           return { ok: true, warning: null };
         },
+        async reviewImage() {
+          return { ok: true, warning: null };
+        },
       },
       { tags: options.tipTags },
     );

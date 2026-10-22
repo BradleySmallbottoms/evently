@@ -110,7 +110,8 @@ export function createTipServices(
   function imageState(extracted: TipExtraction, rows: TipImageRecord[]): TipImageState {
     if (extracted.imageDeclined) return 'declined';
     if (rows.some((image) => image.status === 'scanning')) return 'scanning';
-    if (rows.length > 0) return 'ready';
+    if (rows.some((image) => image.status === 'ready')) return 'ready';
+    if (rows.some((image) => image.status === 'failed')) return 'failed';
     return 'missing';
   }
 
@@ -274,7 +275,7 @@ export function createTipServices(
           mergeTipExtraction(extracted, keepKnownTags(read.extraction, tags)),
           transcript,
         );
-      } else if (tipAcceptance(text) == null && !/^image:\s*none$/i.test(text.trim())) {
+      } else if (tipAcceptance(text) == null && !/^image:\s*(?:none|keep)$/i.test(text.trim())) {
         extracted = { ...extracted, summary: null, summaryRead: false };
       }
       const factsReady = tipDetailProgress(extracted).missing.length === 0;
@@ -318,6 +319,19 @@ export function createTipServices(
         existingCount: found.images.length,
       });
       if (!check.ok) throw new TipError(check.reason);
+      let verdict: { ok: boolean; warning: string | null } = { ok: true, warning: null };
+      try {
+        verdict = await model.reviewImage({
+          locale: found.tip.locale,
+          image: { bytes, contentType: input.contentType },
+        });
+      } catch (err) {
+        console.error('tip image review failed', err instanceof Error ? err.message : 'error');
+      }
+      if (!verdict.ok && verdict.warning) {
+        const fresh = await show(ownerId, tipId);
+        return { ...fresh, warning: verdict.warning };
+      }
       const imageId = randomUUID();
       const key = tipImageKey(tipId, imageId, input.contentType);
       await images.put(key, bytes, input.contentType);
@@ -328,6 +342,20 @@ export function createTipServices(
         contentType: input.contentType,
         now: now(),
       });
+      const factsReady =
+        tipDetailProgress(found.tip.extracted).missing.length === 0 &&
+        tipPendingConfirm(found.tip.extracted) == null;
+      if (factsReady) {
+        const extracted = {
+          ...found.tip.extracted,
+          imageAccepted: true,
+          imageDeclined: false,
+        };
+        const at = now();
+        await repo.markImage(image.id, 'ready', extracted, at);
+        await repo.saveExtraction({ tipId, extracted, analyzedAt: at });
+        return show(ownerId, tipId);
+      }
       await repo.addMessage(
         tipId,
         'assistant',

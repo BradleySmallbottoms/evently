@@ -11,10 +11,12 @@ import { SheetBody } from './sheet-body';
 export function TipChatSheet({
   tipId,
   photo,
+  resume = false,
   onDismiss,
 }: {
   tipId: string | null;
   photo?: string;
+  resume?: boolean;
   onDismiss: () => void;
 }) {
   const { height, width } = useWindowDimensions();
@@ -38,7 +40,11 @@ export function TipChatSheet({
               backgroundColor: colors.canvas,
             }}
           >
-            {tipId ? <TipFlow id={tipId} photo={photo} embedded onClose={onDismiss} /> : <View />}
+            {tipId ? (
+              <TipFlow id={tipId} photo={photo} embedded resume={resume} onClose={onDismiss} />
+            ) : (
+              <View />
+            )}
           </View>
         </SheetBody>
       </BottomSheet>
