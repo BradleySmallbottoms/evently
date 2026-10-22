@@ -736,10 +736,21 @@ export function applyTipAnswers(
 export function tipDetailProgress(extraction: TipExtraction): {
   done: number;
   total: number;
+  /** Filled facts the person has accepted. */
+  verified: number;
   missing: TipDetail[];
 } {
   const missing = TIP_DETAILS.filter((detail) => !detailFilled(detail, extraction));
-  return { done: TIP_DETAILS.length - missing.length, total: TIP_DETAILS.length, missing };
+  const accepted = new Set(extraction.accepted ?? []);
+  const verified = TIP_DETAILS.filter(
+    (detail) => accepted.has(detail) && detailFilled(detail, extraction),
+  ).length;
+  return {
+    done: TIP_DETAILS.length - missing.length,
+    total: TIP_DETAILS.length,
+    verified,
+    missing,
+  };
 }
 
 const TIP_IMAGE_QUESTION: Record<TipLocale, { reading: string; ask: string }> = {

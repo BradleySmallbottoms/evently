@@ -473,6 +473,8 @@
     "writeTitle": "Skriv en beskrivning",
     "writePlaceholder": "Vad händer, när och var?",
     "progress": "{{done}} av {{total}}",
+    "foundCount": "Hittade {{count}}",
+    "verifiedCount": "Verifierade {{count}}",
     "soFar": "Hittills har vi:",
     "edit": "Redigera",
     "removeError": "Kunde inte ta bort tipset.",

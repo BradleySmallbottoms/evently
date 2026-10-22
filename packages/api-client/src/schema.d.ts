@@ -6965,6 +6965,7 @@ export interface paths {
                 progress: {
                   done: number;
                   total: number;
+                  verified: number;
                 };
                 messages: {
                   /** @enum {string} */
@@ -7124,6 +7125,7 @@ export interface paths {
               progress: {
                 done: number;
                 total: number;
+                verified: number;
               };
               messages: {
                 /** @enum {string} */
@@ -7287,6 +7289,7 @@ export interface paths {
               progress: {
                 done: number;
                 total: number;
+                verified: number;
               };
               messages: {
                 /** @enum {string} */
@@ -7521,6 +7524,7 @@ export interface paths {
               progress: {
                 done: number;
                 total: number;
+                verified: number;
               };
               messages: {
                 /** @enum {string} */
@@ -7736,6 +7740,7 @@ export interface paths {
               progress: {
                 done: number;
                 total: number;
+                verified: number;
               };
               messages: {
                 /** @enum {string} */
@@ -7961,6 +7966,7 @@ export interface paths {
               progress: {
                 done: number;
                 total: number;
+                verified: number;
               };
               messages: {
                 /** @enum {string} */

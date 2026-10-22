@@ -472,6 +472,8 @@
     "writeTitle": "Write a description",
     "writePlaceholder": "What is happening, when, and where?",
     "progress": "{{done}} of {{total}}",
+    "foundCount": "Found {{count}}",
+    "verifiedCount": "Verified {{count}}",
     "soFar": "So far we have:",
     "edit": "Edit",
     "removeError": "Could not delete the tip.",

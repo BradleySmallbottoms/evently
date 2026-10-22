@@ -43,7 +43,14 @@ export function TipFlow({
 
   if (!tip.data) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.canvas,
+        }}
+      >
         <ActivityIndicator color={colors.ink} />
       </View>
     );

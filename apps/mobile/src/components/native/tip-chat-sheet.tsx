@@ -27,7 +27,7 @@ export function TipChatSheet({
         onDismiss={onDismiss}
         snapPoints={[{ fraction: 1 }]}
         containerColor={colors.canvas}
-        contentPadding={{ bottom: 0, left: 0, right: 0 }}
+        contentPadding={{ bottom: space.md, left: 0, right: 0, top: space.lg }}
       >
         <SheetBody fill>
           <View
@@ -35,6 +35,7 @@ export function TipChatSheet({
               width,
               flex: fillsSheet ? 1 : undefined,
               height: fillsSheet ? undefined : Math.round(height * 0.9),
+              backgroundColor: colors.canvas,
             }}
           >
             {tipId ? <TipFlow id={tipId} photo={photo} embedded onClose={onDismiss} /> : <View />}

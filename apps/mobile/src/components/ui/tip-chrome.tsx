@@ -34,7 +34,7 @@ export function TipChrome({
         <View
           style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
         >
-          <BackPill showLabel={false} />
+          <BackPill />
           {title ? (
             <AppText
               variant="title"

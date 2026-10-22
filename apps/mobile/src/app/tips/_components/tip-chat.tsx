@@ -136,7 +136,7 @@ export function TipChat({
   const reading = [...tip.messages]
     .reverse()
     .find((message) => message.role === 'assistant' && message.key === 'image')?.body;
-  const progress = tip.progress ?? { done: 0, total: 9 };
+  const progress = tip.progress ?? { done: 0, total: 9, verified: 0 };
   const lastAssistant = lastAssistantIndex(tip.messages);
 
   const scrollToEnd = useCallback(
@@ -323,8 +323,8 @@ export function TipChat({
         </View> */}
         {started ? (
           <CollectedCard
-            askKey={tip.question?.key ?? null}
-            done={progress.done}
+            found={progress.done}
+            verified={progress.verified}
             total={progress.total}
             title={tip.card?.title ?? null}
             startsAt={tip.card?.startsAt ?? null}
@@ -352,7 +352,7 @@ export function TipChat({
               paddingHorizontal: space.xl,
               // The list runs under the keyboard. This padding is the scroll range
               // that brings the send button up above it.
-              paddingBottom: (keyboard > 0 ? keyboard : insets.bottom) + space.lg,
+              paddingBottom: (keyboard > 0 ? keyboard : insets.bottom) + space.xxxl,
               gap: space.lg,
               width: '100%',
               maxWidth: MaxContentWidth,

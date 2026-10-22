@@ -88,9 +88,13 @@ describe('tip limits and titles', () => {
     expect(tipOpenAllowed(TIP_DAILY_LIMIT)).toEqual({ ok: false, reason: 'open_limit' });
     expect(tipDetailProgress({ title: 'Konsert', place: 'Parken' })).toMatchObject({
       done: 2,
+      verified: 0,
       total: 9,
       missing: ['startsAt', 'startTime', 'endsAt', 'endTime', 'price', 'link', 'description'],
     });
+    expect(
+      tipDetailProgress(applyTipAnswers({ title: 'Konsert', place: 'Parken' }, 'confirm: title')),
+    ).toMatchObject({ done: 2, verified: 1 });
     expect(
       tipDetailProgress({
         title: 'Konsert',

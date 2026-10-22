@@ -90,10 +90,11 @@ export const Tip = z.object({
   timeline: TipTimeline,
   found: TipFound.nullable(),
   previewImageUrl: z.url().nullable(),
-  /** Required facts filled so far. The chat bar reads this as “a of b done”. */
+  /** Filled facts, and how many of those the person has accepted. */
   progress: z.object({
     done: z.number().int().nonnegative(),
     total: z.number().int().positive(),
+    verified: z.number().int().nonnegative(),
   }),
   messages: z.array(
     z.object({

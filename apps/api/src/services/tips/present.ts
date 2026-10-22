@@ -95,7 +95,7 @@ export function presentTip(
     },
     found: foundFor(tip, extraction),
     previewImageUrl: publicAssetUrl(assetsPublicBaseUrl, photo?.s3Key),
-    progress: { done: progress.done, total: progress.total },
+    progress: { done: progress.done, total: progress.total, verified: progress.verified },
     messages: messages.map((message) => {
       const ask = message.role === 'assistant' ? tipAskFromBody(message.body) : null;
       return {

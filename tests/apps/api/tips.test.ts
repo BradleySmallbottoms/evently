@@ -78,7 +78,7 @@ describe('event tips', () => {
     expect(read.status).toBe(200);
     const asking = await json<Tip>(read);
     expect(asking.phase).toBe('collecting');
-    expect(asking.progress).toEqual({ done: 7, total: 9 });
+    expect(asking.progress).toEqual({ done: 7, total: 9, verified: 0 });
     expect(asking.question?.key).toBe('title');
     expect(asking.question?.question).toBe('Vi har valt titeln: Sommarkonsert. Blir det bra?');
     expect(asking.question?.options).toEqual([
@@ -122,7 +122,7 @@ describe('event tips', () => {
     expect(ended.status).toBe(200);
     const withEnd = await json<Tip>(ended);
     expect(withEnd.phase).toBe('collecting');
-    expect(withEnd.progress).toEqual({ done: 9, total: 9 });
+    expect(withEnd.progress).toEqual({ done: 9, total: 9, verified: 9 });
     expect(withEnd.question?.key).toBe('image');
     expect(extracts).toBe(readsBeforeAccept + 1);
 

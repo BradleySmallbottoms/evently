@@ -13381,9 +13381,13 @@
                           "type": "integer",
                           "minimum": 0,
                           "exclusiveMinimum": true
+                        },
+                        "verified": {
+                          "type": "integer",
+                          "minimum": 0
                         }
                       },
-                      "required": ["done", "total"]
+                      "required": ["done", "total", "verified"]
                     },
                     "messages": {
                       "type": "array",
@@ -13755,9 +13759,13 @@
                                 "type": "integer",
                                 "minimum": 0,
                                 "exclusiveMinimum": true
+                              },
+                              "verified": {
+                                "type": "integer",
+                                "minimum": 0
                               }
                             },
-                            "required": ["done", "total"]
+                            "required": ["done", "total", "verified"]
                           },
                           "messages": {
                             "type": "array",
@@ -14141,9 +14149,13 @@
                           "type": "integer",
                           "minimum": 0,
                           "exclusiveMinimum": true
+                        },
+                        "verified": {
+                          "type": "integer",
+                          "minimum": 0
                         }
                       },
-                      "required": ["done", "total"]
+                      "required": ["done", "total", "verified"]
                     },
                     "messages": {
                       "type": "array",
@@ -14633,9 +14645,13 @@
                           "type": "integer",
                           "minimum": 0,
                           "exclusiveMinimum": true
+                        },
+                        "verified": {
+                          "type": "integer",
+                          "minimum": 0
                         }
                       },
-                      "required": ["done", "total"]
+                      "required": ["done", "total", "verified"]
                     },
                     "messages": {
                       "type": "array",
@@ -15111,9 +15127,13 @@
                           "type": "integer",
                           "minimum": 0,
                           "exclusiveMinimum": true
+                        },
+                        "verified": {
+                          "type": "integer",
+                          "minimum": 0
                         }
                       },
-                      "required": ["done", "total"]
+                      "required": ["done", "total", "verified"]
                     },
                     "messages": {
                       "type": "array",
@@ -15638,9 +15658,13 @@
                           "type": "integer",
                           "minimum": 0,
                           "exclusiveMinimum": true
+                        },
+                        "verified": {
+                          "type": "integer",
+                          "minimum": 0
                         }
                       },
-                      "required": ["done", "total"]
+                      "required": ["done", "total", "verified"]
                     },
                     "messages": {
                       "type": "array",

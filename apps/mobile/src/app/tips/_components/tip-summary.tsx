@@ -115,6 +115,7 @@ export function TipSummary({
           maxWidth: MaxContentWidth,
           alignSelf: 'center',
         }}
+        style={{ maxHeight: '85%' }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 44 }}>
           <BackPill onPress={onClose} />
