@@ -2,6 +2,8 @@ import { Suspense } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { PushMessageEditor } from './components/push-message-editor';
 
+export const instant = false;
+
 export default function PushMessageDetailPage({
   params,
 }: {

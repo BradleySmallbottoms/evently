@@ -2,6 +2,8 @@ import { Suspense } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { PublisherEditor } from './components/publisher-editor';
 
+export const instant = false;
+
 export default function PublisherPage({
   params,
 }: {

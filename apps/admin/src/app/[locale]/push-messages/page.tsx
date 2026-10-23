@@ -1,6 +1,8 @@
 import { setRequestLocale } from 'next-intl/server';
 import { PushMessagesPanel } from './components/push-messages-panel';
 
+export const instant = false;
+
 export default async function PushMessagesPage({
   params,
 }: {

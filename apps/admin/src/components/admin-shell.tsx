@@ -105,13 +105,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   }
 
   if (mode === 'pending' || mode === 'redirect') {
-    // The page stays mounted so Next can see the segment, and hidden so a
-    // signed-out visit shows a blank screen until it lands on the login form.
-    return (
-      <div className="min-h-svh bg-background">
-        <div hidden>{children}</div>
-      </div>
-    );
+    return <div className="min-h-svh bg-background" />;
   }
 
   if (mode === 'login') {

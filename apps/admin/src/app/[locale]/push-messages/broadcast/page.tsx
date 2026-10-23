@@ -1,6 +1,8 @@
 import { setRequestLocale } from 'next-intl/server';
 import { BroadcastComposer } from './components/broadcast-composer';
 
+export const instant = false;
+
 export default async function BroadcastPushPage({
   params,
 }: {

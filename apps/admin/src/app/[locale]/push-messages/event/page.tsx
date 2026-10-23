@@ -2,6 +2,8 @@ import { Suspense } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { EventPushComposer } from './components/event-push-composer';
 
+export const instant = false;
+
 export default function EventPushPage({
   params,
   searchParams,
