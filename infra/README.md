@@ -1,7 +1,8 @@
 # infra
 
 AWS CDK (TypeScript). One app, deployed per environment into its own AWS account, region
-`eu-north-1` (Stockholm).
+`eu-north-1` (Stockholm). A single EC2 test box is not these stacks — that compose file
+lives in `deploy/test`.
 
 ```bash
 pnpm --filter @local-events/infra synth -c env=dev

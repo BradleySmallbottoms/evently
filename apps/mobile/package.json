@@ -72,9 +72,9 @@
     "build:development:simulator": "eas build --profile development-simulator --platform ios",
     "build:staging": "eas build --profile staging",
     "build:production": "eas build --profile production",
-    "update:development": "eas update --channel development",
-    "update:staging": "eas update --channel staging",
-    "update:production": "eas update --channel production",
+    "development:update": "bash scripts/eas-update.sh development development",
+    "staging:update": "bash scripts/eas-update.sh staging preview",
+    "release:update": "bash scripts/eas-update.sh production production",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "test": "vitest run --root ../.. tests/apps/mobile --passWithNoTests"

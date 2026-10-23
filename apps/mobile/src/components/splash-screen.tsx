@@ -1,8 +1,13 @@
+import Constants from 'expo-constants';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient as SvgGradient, Stop, Path } from 'react-native-svg';
+
+import { appVersion } from '@/lib/app-version';
+import { colors } from '@/theme/colors';
 
 type AppSplashProps = {
   /** Called once the intro has settled. The cover stays up until home data is ready. */
@@ -51,6 +56,8 @@ function EventlyLandscape() {
 export default function AppSplash({ onIntroEnd }: AppSplashProps) {
   const { t } = useTranslation();
   const reduced = useReducedMotion();
+  const insets = useSafeAreaInsets();
+  const version = appVersion(Constants.expoConfig?.version);
   const onIntroEndRef = useRef(onIntroEnd);
   useEffect(() => {
     onIntroEndRef.current = onIntroEnd;
@@ -61,7 +68,7 @@ export default function AppSplash({ onIntroEnd }: AppSplashProps) {
   const [calendarScale] = useState(() => new Animated.Value(0.7));
   const [calendarOpacity] = useState(() => new Animated.Value(0));
   const [titleOpacity] = useState(() => new Animated.Value(0));
-  const [titleY] = useState(() => new Animated.Value(10));
+  const [titleY] = useState(() => new Animated.Value(50));
   const [dateValues] = useState(() => Array.from({ length: 6 }, () => new Animated.Value(0)));
 
   useEffect(() => {
@@ -109,34 +116,41 @@ export default function AppSplash({ onIntroEnd }: AppSplashProps) {
           stiffness: 160,
           useNativeDriver: true,
         }),
+        Animated.sequence([
+          Animated.delay(700),
+          Animated.parallel([
+            Animated.spring(calendarScale, {
+              toValue: 1,
+              damping: 11,
+              stiffness: 180,
+              useNativeDriver: true,
+            }),
+            Animated.timing(calendarOpacity, {
+              toValue: 1,
+              duration: 180,
+              useNativeDriver: true,
+            }),
+            dateAnimation,
+            Animated.sequence([
+              Animated.delay(500),
+              Animated.parallel([
+                Animated.timing(titleOpacity, {
+                  toValue: 1,
+                  duration: 280,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(titleY, {
+                  toValue: 0,
+                  duration: 280,
+                  easing: Easing.out(Easing.cubic),
+                  useNativeDriver: true,
+                }),
+              ]),
+            ]),
+          ]),
+        ]),
       ]),
-      Animated.parallel([
-        Animated.spring(calendarScale, {
-          toValue: 1,
-          damping: 11,
-          stiffness: 180,
-          useNativeDriver: true,
-        }),
-        Animated.timing(calendarOpacity, {
-          toValue: 1,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-      ]),
-      dateAnimation,
-      Animated.parallel([
-        Animated.timing(titleOpacity, {
-          toValue: 1,
-          duration: 280,
-          useNativeDriver: true,
-        }),
-        Animated.timing(titleY, {
-          toValue: 0,
-          duration: 280,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]),
+
       Animated.delay(350),
     ]);
 
@@ -159,7 +173,6 @@ export default function AppSplash({ onIntroEnd }: AppSplashProps) {
   return (
     <View pointerEvents="none" style={styles.container}>
       <EventlyLandscape />
-
       <View style={styles.content}>
         <AnimatedView
           style={[
@@ -236,6 +249,11 @@ export default function AppSplash({ onIntroEnd }: AppSplashProps) {
           <Text style={styles.subtitle}>{t('splash.subtitle')}</Text>
         </AnimatedView>
       </View>
+      {version ? (
+        <AnimatedView style={[styles.version, { bottom: Math.max(insets.bottom, 16) }]}>
+          <Text style={styles.versionText}>{t('app.version', { version })}</Text>
+        </AnimatedView>
+      ) : null}
     </View>
   );
 }
@@ -331,5 +349,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 7,
     color: '#84766E',
+  },
+  version: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 2,
+    alignItems: 'center',
+  },
+  versionText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.accentSoft,
   },
 });

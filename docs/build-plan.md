@@ -102,6 +102,8 @@ Closed beta around week 15, store launch around week 19.
 
 ## Phase 6 — Beta + hardening (weeks 15–19)
 
+- [x] Single-instance test server in `deploy/test`: web, admin, both APIs, the worker, Postgres,
+      Valkey, ElasticMQ, and Garage on one EC2. CDK stays the path for the real accounts.
 - [ ] TestFlight and Play internal testing
 - [ ] Load test the matcher and ingestion
 - [ ] Ad slots with consent dialog (UMP) and iOS tracking prompt

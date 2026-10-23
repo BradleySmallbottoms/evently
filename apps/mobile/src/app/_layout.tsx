@@ -30,6 +30,8 @@ import {
   type PermissionKind,
 } from '@/lib/onboarding';
 import { DEFAULT_ONBOARDING_STATE } from '@/lib/onboarding-state';
+import { OnboardingVisibleProvider } from '@/lib/onboarding-visibility';
+import { installOtaUpdateChecks } from '@/lib/ota-update-check';
 import { clearAppIconBadge } from '@/lib/push-notifications';
 import { refreshDeviceLocation, startDeviceLocation } from '@/lib/device-location';
 import { createAppQueryClient, subscribeQueryFocus } from '@/lib/query-client';
@@ -79,6 +81,7 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => subscribeQueryFocus(AppState, Platform.OS), []);
+  useEffect(() => installOtaUpdateChecks(), []);
 
   const countActivation = useCallback(async (state: OnboardingState) => {
     if (!state.completed || countedThisForegroundRef.current || identityLostRef.current) return;
@@ -228,48 +231,50 @@ export default function RootLayout() {
             onDismissed={markSplashSeen}
             waitForHome={!showOnboarding}
           >
-            <InboxPushSync />
-            <NotificationEventLink />
-            <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="map" />
-              <Stack.Screen name="events/[id]" />
-              <Stack.Screen
-                name="tips/published/[id]"
-                options={{
-                  presentation: 'transparentModal',
-                  animation: 'fade',
-                  animationDuration: 220,
-                  contentStyle: { backgroundColor: 'transparent' },
-                }}
-              />
-              <Stack.Screen name="for-you" />
-              <Stack.Screen name="preferences/index" />
-            </Stack>
-            {showOnboarding ? (
-              <OnboardingCover
-                onFinished={(state) => {
-                  setOnboarding(state);
-                  setReminder(null);
-                  countedThisForegroundRef.current = false;
-                  void countActivation(state);
-                }}
-                onHidden={closeOnboarding}
-              />
-            ) : null}
-            <AfterSplash>
-              {!showOnboarding && reminder ? (
-                <PermissionReminder
-                  kind={reminder}
-                  state={onboarding}
-                  onDone={(state) => {
-                    setOnboarding(state);
-                    setReminder(null);
-                    void refreshDeviceLocation();
+            <OnboardingVisibleProvider visible={showOnboarding}>
+              <InboxPushSync />
+              <NotificationEventLink />
+              <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="map" />
+                <Stack.Screen name="events/[id]" />
+                <Stack.Screen
+                  name="tips/published/[id]"
+                  options={{
+                    presentation: 'transparentModal',
+                    animation: 'fade',
+                    animationDuration: 220,
+                    contentStyle: { backgroundColor: 'transparent' },
                   }}
                 />
+                <Stack.Screen name="for-you" />
+                <Stack.Screen name="preferences/index" />
+              </Stack>
+              {showOnboarding ? (
+                <OnboardingCover
+                  onFinished={(state) => {
+                    setOnboarding(state);
+                    setReminder(null);
+                    countedThisForegroundRef.current = false;
+                    void countActivation(state);
+                  }}
+                  onHidden={closeOnboarding}
+                />
               ) : null}
-            </AfterSplash>
+              <AfterSplash>
+                {!showOnboarding && reminder ? (
+                  <PermissionReminder
+                    kind={reminder}
+                    state={onboarding}
+                    onDone={(state) => {
+                      setOnboarding(state);
+                      setReminder(null);
+                      void refreshDeviceLocation();
+                    }}
+                  />
+                ) : null}
+              </AfterSplash>
+            </OnboardingVisibleProvider>
           </SplashCover>
         </ThemeProvider>
       </QueryClientProvider>

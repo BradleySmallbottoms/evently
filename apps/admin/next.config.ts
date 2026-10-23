@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import path from 'node:path';
 import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
@@ -10,6 +11,8 @@ const allowedDevOrigins = (process.env.ALLOWED_DEV_ORIGINS ?? '')
   .filter(Boolean);
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
+  outputFileTracingRoot: path.join(process.cwd(), '../..'),
   transpilePackages: ['@local-events/contracts', '@local-events/domain'],
   cacheComponents: true,
   partialPrefetching: true,

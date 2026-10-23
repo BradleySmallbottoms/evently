@@ -143,3 +143,19 @@ export function shouldReevaluateRegionSuggestion(
   if (!previous || foregroundCheckChanged) return true;
   return distanceMeters(previous, next) >= minDistanceM;
 }
+
+/**
+ * Home stays mounted under onboarding. Granting location there is not a new
+ * place: hold the prompt until onboarding is gone and the device has moved.
+ */
+export function shouldHoldRegionSuggestion(input: {
+  onboardingVisible: boolean;
+  anchor: GeoPoint | null;
+  location: GeoPoint;
+  minMoveM?: number;
+}): boolean {
+  if (input.onboardingVisible) return true;
+  if (!input.anchor) return false;
+  const minMoveM = input.minMoveM ?? REGION_LOCATION_REFRESH_M;
+  return distanceMeters(input.anchor, input.location) < minMoveM;
+}

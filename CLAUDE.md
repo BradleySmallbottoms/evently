@@ -227,6 +227,8 @@ Product invariants (enforced in domain, tested)
   omitted from `sort=popular`.
 - No background location in v1. While the app is in use, location is read when it becomes active
   and watched until it backgrounds. Region suggestions run on the device and send nothing unless saved.
+  The prompt stays hidden while onboarding covers home, including when location permission is
+  granted, and until the device then moves about a kilometre.
   A dismiss, including skipping the onboarding area step, stays quiet near that place for 7 days;
   farther than the profile setting “How far can you go”
   (default 25 km) the prompt can show again. Continuing the onboarding area step stores the

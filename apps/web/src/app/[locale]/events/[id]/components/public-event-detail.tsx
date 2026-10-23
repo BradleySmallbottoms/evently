@@ -1,8 +1,9 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AppLink } from '@/components/app-link';
+import { serverApiUrl } from '@/lib/server-api-url';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:13000/v1';
+const API_URL = serverApiUrl();
 
 const backLinkClass = 'text-sm text-muted-foreground underline-offset-4 hover:underline';
 

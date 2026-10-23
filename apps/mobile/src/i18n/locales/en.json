@@ -1,9 +1,10 @@
 {
   "app": {
-    "name": "Local Events"
+    "name": "Evently",
+    "version": "Version {{version}}"
   },
   "home": {
-    "title": "Local Events",
+    "title": "Evently",
     "searchPlaceholder": "What are you looking for?",
     "subtitle": "Discover and check in to events near you.",
     "identityReady": "Device linked",
@@ -12,7 +13,7 @@
     "userId": "User id"
   },
   "splash": {
-    "title": "evently",
+    "title": "Evently",
     "subtitle": "Discover what's happening near you"
   },
   "tabs": {

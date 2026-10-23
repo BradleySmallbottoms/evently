@@ -9,8 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { Easing, FadeOut, useReducedMotion } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
+import Animated, { Easing, FadeOut, runOnJS, useReducedMotion } from 'react-native-reanimated';
 
 import AppSplash from '@/components/splash-screen';
 import { shouldHoldSplashForHome } from '@/lib/home-splash';
@@ -77,13 +76,14 @@ export function SplashCover({
     setDismissed(true);
     onDismissed?.();
   }, [onDismissed]);
+
   const exiting = useMemo(
     () =>
       FadeOut.duration(reduced ? FADE_REDUCED_MS : FADE_MS)
         .easing(EASE_OUT)
         .withCallback((finished) => {
           'worklet';
-          if (finished) scheduleOnRN(markDismissed);
+          if (finished) runOnJS(markDismissed)();
         }),
     [markDismissed, reduced],
   );

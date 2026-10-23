@@ -22,7 +22,10 @@
     "db:down": "docker compose down",
     "db:generate": "pnpm --filter @local-events/db db:generate",
     "db:migrate": "pnpm --filter @local-events/db db:migrate",
-    "api-client:generate": "tsx apps/api/scripts/export-openapi.ts && pnpm --filter @local-events/api-client generate"
+    "api-client:generate": "tsx apps/api/scripts/export-openapi.ts && pnpm --filter @local-events/api-client generate",
+    "development:update": "pnpm --filter @local-events/mobile development:update",
+    "staging:update": "pnpm --filter @local-events/mobile staging:update",
+    "release:update": "pnpm --filter @local-events/mobile release:update"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",

@@ -12,6 +12,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /repo/apps/data-workers/dist ./dist
+RUN printf '%s\n' '{"type":"module"}' > package.json && chown node:node package.json
+COPY --from=build --chown=node:node /repo/apps/data-workers/dist ./dist
 USER node
 CMD ["node", "--enable-source-maps", "dist/index.js"]

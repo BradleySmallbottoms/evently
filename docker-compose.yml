@@ -1,4 +1,5 @@
 # Local dependencies: PostgreSQL + PostGIS, Valkey, ElasticMQ (SQS), and Garage (S3).
+# The full test server (web, admin, APIs, worker) is deploy/test.
 # Official postgis/postgis is amd64-only; imresamu/postgis is the multi-arch mirror
 # (arm64 Macs included). Same tags as postgis/postgis — bump together when updating.
 #

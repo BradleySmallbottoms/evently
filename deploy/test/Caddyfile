@@ -1,0 +1,37 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$WEB_HOST} {
+	encode zstd gzip
+	reverse_proxy web:13100
+}
+
+{$API_HOST} {
+	encode zstd gzip
+	request_body {
+		max_size 20MB
+	}
+	reverse_proxy api:13000
+}
+
+{$ADMIN_HOST} {
+	encode zstd gzip
+	reverse_proxy admin:13200
+}
+
+{$ADMIN_API_HOST} {
+	encode zstd gzip
+	request_body {
+		max_size 20MB
+	}
+	reverse_proxy admin-api:13001
+}
+
+# Garage's website endpoint routes on the Host header. Browsers use assets.<domain>.
+{$ASSETS_HOST} {
+	encode zstd gzip
+	reverse_proxy garage:3902 {
+		header_up Host local-events-assets.localhost
+	}
+}

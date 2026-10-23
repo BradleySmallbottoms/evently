@@ -2,6 +2,7 @@ import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { DM_Sans, Geist_Mono } from 'next/font/google';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 import { AdminShell } from '@/components/admin-shell';
 import { ColorScheme } from '@/components/color-scheme';
 import { SentryProvider } from '@/components/sentry-provider';
@@ -9,6 +10,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { routing } from '@/i18n/routing';
 import { QueryProvider } from '@/lib/query-provider';
 import './globals.css';
+
+export const instant = false;
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -53,7 +56,9 @@ export default async function LocaleLayout({
           <NextIntlClientProvider messages={messages}>
             <SentryProvider>
               <QueryProvider>
-                <AdminShell>{children}</AdminShell>
+                <Suspense fallback={<div className="min-h-full bg-background" />}>
+                  <AdminShell>{children}</AdminShell>
+                </Suspense>
               </QueryProvider>
             </SentryProvider>
           </NextIntlClientProvider>

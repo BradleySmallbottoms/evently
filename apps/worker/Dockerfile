@@ -9,6 +9,7 @@ RUN pnpm --filter @local-events/worker build
 FROM node:24-slim
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /repo/apps/worker/dist ./dist
+RUN printf '%s\n' '{"type":"module"}' > package.json && chown node:node package.json
+COPY --from=build --chown=node:node /repo/apps/worker/dist ./dist
 USER node
 CMD ["node", "--enable-source-maps", "dist/index.js"]

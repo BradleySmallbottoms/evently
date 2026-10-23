@@ -480,6 +480,11 @@ ECS Fargate for backend services and data workers, managed data services, three 
 GitHub Actions (OIDC). CloudFront/WAF (`EdgeStack`) and scheduled data workers come later; ALBs are
 HTTP-only until the edge stack adds HTTPS.
 
+A testing box is separate from those accounts. `deploy/test` runs the web app, admin, both APIs,
+the worker, Postgres, Valkey, ElasticMQ, and Garage as Docker Compose on one small EC2 instance
+in the same region. The phone app is a store build pointed at that API. The CDK stacks remain
+the path for dev, staging, and prod.
+
 | Component         | AWS service                                                              | Notes                                                                |
 | ----------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------- |
 | Network           | VPC, 2–3 AZs, private subnets, NAT                                       | Fixed egress IP for data workers; shared App SG for ECS tasks        |
@@ -497,7 +502,7 @@ HTTP-only until the edge stack adds HTTPS.
 | Email             | SES                                                                      | Verification, recovery codes, invites                                |
 | Monitoring        | CloudWatch, X-Ray or OTel collector                                      | Alarms on 5xx, queue age, DB CPU, failed source runs                 |
 
-Mobile builds and store submissions run on EAS; EAS Update channels map to the three environments.
+Mobile builds and store submissions run on EAS; EAS Update channels map to the three environments. A release build checks for an update when its process starts, and again while that process stays alive: at least once an hour in the foreground, and immediately when it returns to the foreground after that hour. A downloaded update reloads the JavaScript bundle in place.
 
 ## Security, privacy and anti-abuse
 

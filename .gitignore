@@ -20,3 +20,5 @@ android/
 *.key
 *.mobileprovision
 test-results/
+deploy/test/garage.toml
+

@@ -23,6 +23,8 @@ remain.
 - Docker (local Postgres + PostGIS and Valkey)
 - For the mobile app: an Expo account and `eas-cli` when building natively
 - For deploying: AWS credentials and the AWS CDK (installed as a dev dependency)
+- For a single test instance: Docker on an EC2 box, and a domain. See
+  [deploy/test/README.md](deploy/test/README.md)
 
 ## Getting started
 
@@ -107,6 +109,26 @@ pnpm api-client:generate   # after public API OpenAPI changes
 Operational and product facts that bite during local development. **Update this section (and add
 a diagram under [`docs/flows/`](docs/flows/README.md) when the feature has complex client→API→DB
 calls) in the same change as every new major feature.**
+
+### Mobile updates
+
+- A release build checks EAS Update when the process starts. While that process stays alive it
+  checks again at least once an hour, including as soon as the app returns to the foreground after
+  that hour. A downloaded bundle reloads in place. A development build attached to Metro does not
+  check. Publish with `pnpm --filter @local-events/mobile development:update`, `staging:update`, or
+  `release:update`.
+
+### Test server
+
+- One EC2 instance can run the web app, admin, both APIs, the worker, Postgres, Valkey,
+  ElasticMQ, and Garage. The compose file is `deploy/test`. CDK (Fargate, RDS, real SQS)
+  stays the path for the real accounts. Steps and the hostname map are in
+  [deploy/test/README.md](deploy/test/README.md).
+- The public pages are built with the API hostname inside the image. Changing `DOMAIN`
+  means building the web and admin images again. Server-rendered fetches use `API_URL`
+  on the Docker network so the instance does not call its own public address.
+- Imports and scans stay off until `--profile manual` or `--profile ingest`. The box does
+  not run a local model. Push delivery stays a dry run until `PUSH_DRY_RUN=0`.
 
 ### Visit Söderhamn import
 

@@ -56,7 +56,11 @@ import {
   recordRegionDecline,
   type RegionSuggestion,
 } from '@/lib/region-suggestion';
-import { shouldReevaluateRegionSuggestion } from '@/lib/foreground-location';
+import {
+  shouldHoldRegionSuggestion,
+  shouldReevaluateRegionSuggestion,
+} from '@/lib/foreground-location';
+import { useOnboardingVisible } from '@/lib/onboarding-visibility';
 import { dateBadge, shownClock } from '@/lib/event-format';
 import { formatPeriod } from '@/lib/event-detail-format';
 import { isWholeDay, shownWhen } from '@/lib/span-occasions';
@@ -71,6 +75,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
+  const onboardingVisible = useOnboardingVisible();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
 
   const [locationOpen, setLocationOpen] = useState(false);
@@ -269,11 +274,28 @@ export default function HomeScreen() {
     language: string;
     travelDistanceM: number;
   } | null>(null);
+  const onboardingAnchor = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
+    if (onboardingVisible) {
+      if (device.fix?.located) {
+        onboardingAnchor.current = { lat: device.fix.lat, lng: device.fix.lng };
+      }
+      return;
+    }
     if (!identity.isSuccess || !preferences.isSuccess) return;
     const fix = device.fix;
     if (!fix?.located) return;
+    if (
+      shouldHoldRegionSuggestion({
+        onboardingVisible,
+        anchor: onboardingAnchor.current,
+        location: fix,
+      })
+    ) {
+      return;
+    }
+    onboardingAnchor.current = null;
     const areasKey = (preferences.data?.areas ?? []).map((area) => area.id).join('\n');
     const travelDistanceM = preferences.data?.travelDistanceM ?? 25_000;
     const previous = lastRegionEval.current;
@@ -329,6 +351,7 @@ export default function HomeScreen() {
       cancelled = true;
     };
   }, [
+    onboardingVisible,
     identity.isSuccess,
     preferences.isSuccess,
     preferences.data?.areas,

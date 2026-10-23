@@ -1,0 +1,365 @@
+# One EC2 instance: web, admin, both APIs, the worker, Postgres, Valkey,
+# ElasticMQ, and Garage. Caddy terminates HTTPS. Build from the repo root
+# (this file's context is ../..).
+#
+# Local `docker compose` at the repo root is only the databases. This file is the test server.
+
+name: local-events-test
+
+x-backend-env: &backend-env
+  NODE_ENV: production
+  AWS_REGION: eu-north-1
+  # ElasticMQ only. These values never talk to Amazon.
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+  AWS_ENDPOINT_URL_SQS: http://elasticmq:9324
+  DOMAIN_EVENTS_QUEUE_URL: http://elasticmq:9324/000000000000/domain-events
+  DATABASE_URL: postgres://events:${POSTGRES_PASSWORD}@postgres:5432/events
+  S3_ENDPOINT: http://garage:3900
+  S3_REGION: garage
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+  PUBLIC_ASSETS_BUCKET: local-events-assets
+  ASSETS_PUBLIC_BASE_URL: https://assets.${DOMAIN}
+  STATS_WORKER_TOKEN: ${STATS_WORKER_TOKEN}
+  SESSION_SECRET: ${SESSION_SECRET}
+
+x-build: &build
+  context: ../..
+  dockerfile: deploy/test/Dockerfile
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    init: true
+    mem_limit: 64m
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+      WEB_HOST: app.${DOMAIN}
+      API_HOST: api.${DOMAIN}
+      ADMIN_HOST: admin.${DOMAIN}
+      ADMIN_API_HOST: admin-api.${DOMAIN}
+      ASSETS_HOST: assets.${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+      admin:
+        condition: service_healthy
+      admin-api:
+        condition: service_healthy
+
+  postgres:
+    image: imresamu/postgis:17-3.5
+    restart: unless-stopped
+    mem_limit: 512m
+    shm_size: 256mb
+    environment:
+      POSTGRES_USER: events
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: events
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - max_connections=40
+      - -c
+      - work_mem=4MB
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../../infra/local/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U events -d events']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  valkey:
+    # Nothing reads this yet. It is here so a later cache can use the same box.
+    image: valkey/valkey:8
+    restart: unless-stopped
+    mem_limit: 96m
+    command: ['valkey-server', '--maxmemory', '64mb', '--maxmemory-policy', 'allkeys-lru']
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  elasticmq:
+    image: softwaremill/elasticmq-native:1.6.12
+    restart: unless-stopped
+    mem_limit: 128m
+    volumes:
+      - ./elasticmq.conf:/opt/elasticmq.conf:ro
+
+  garage:
+    image: dxflrs/garage:v2.4.1
+    restart: unless-stopped
+    mem_limit: 192m
+    command: ['/garage', 'server', '--single-node', '--default-bucket']
+    environment:
+      GARAGE_DEFAULT_ACCESS_KEY: ${S3_ACCESS_KEY_ID}
+      GARAGE_DEFAULT_SECRET_KEY: ${S3_SECRET_ACCESS_KEY}
+      GARAGE_DEFAULT_BUCKET: local-events-assets
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+      - garagedata:/var/lib/garage
+
+  # Shares Garage's network so the CLI can use 127.0.0.1. Retries until the bucket exists.
+  garage-init:
+    image: dxflrs/garage:v2.4.1
+    network_mode: service:garage
+    depends_on:
+      garage:
+        condition: service_started
+    restart: on-failure
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+    entrypoint: ['/garage']
+    command: ['bucket', 'website', '--allow', 'local-events-assets']
+
+  migrate:
+    image: local-events-test/migrate
+    build:
+      <<: *build
+      target: migrate
+    restart: 'no'
+    environment:
+      DATABASE_URL: postgres://events:${POSTGRES_PASSWORD}@postgres:5432/events
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    image: local-events-test/api
+    build:
+      <<: *build
+      target: api
+    restart: unless-stopped
+    init: true
+    mem_limit: 384m
+    environment:
+      <<: *backend-env
+      API_PORT: '13000'
+      CORS_ORIGINS: https://app.${DOMAIN}
+      INCLUDE_VERIFICATION_TOKEN: 'true'
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      garage-init:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      elasticmq:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:13000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  admin-api:
+    image: local-events-test/admin-api
+    build:
+      <<: *build
+      target: admin-api
+    restart: unless-stopped
+    init: true
+    mem_limit: 384m
+    environment:
+      <<: *backend-env
+      ADMIN_API_PORT: '13001'
+      ADMIN_CORS_ORIGINS: https://admin.${DOMAIN}
+      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL}
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      elasticmq:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:13001/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  worker:
+    image: local-events-test/worker
+    build:
+      <<: *build
+      target: worker
+    restart: unless-stopped
+    init: true
+    mem_limit: 256m
+    environment:
+      <<: *backend-env
+      API_URL: http://api:13000/v1
+      PUSH_DRY_RUN: ${PUSH_DRY_RUN:-1}
+    depends_on:
+      api:
+        condition: service_healthy
+      elasticmq:
+        condition: service_started
+
+  web:
+    image: local-events-test/web
+    build:
+      <<: *build
+      target: web
+      args:
+        NEXT_PUBLIC_API_URL: https://api.${DOMAIN}/v1
+    restart: unless-stopped
+    init: true
+    mem_limit: 640m
+    environment:
+      NODE_ENV: production
+      PORT: '13100'
+      HOSTNAME: 0.0.0.0
+      API_URL: http://api:13000/v1
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+      IOS_BUNDLE_ID: ${IOS_BUNDLE_ID:-se.candybanana.lcly}
+      ANDROID_PACKAGE: ${ANDROID_PACKAGE:-se.candybanana.lcly}
+      ANDROID_SHA256_CERT_FINGERPRINTS: ${ANDROID_SHA256_CERT_FINGERPRINTS:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:13100/').then((r)=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  admin:
+    image: local-events-test/admin
+    build:
+      <<: *build
+      target: admin
+      args:
+        NEXT_PUBLIC_ADMIN_API_URL: https://admin-api.${DOMAIN}/v1
+    restart: unless-stopped
+    init: true
+    mem_limit: 640m
+    environment:
+      NODE_ENV: production
+      PORT: '13200'
+      HOSTNAME: 0.0.0.0
+    depends_on:
+      admin-api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:13200/').then((r)=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # One import, then exit. Not started by `up`.
+  #   docker compose --profile manual run --rm --no-deps -e SOURCE_SLUG=visit-soderhamn data-workers
+  data-workers:
+    image: local-events-test/data-workers
+    profiles: ['manual']
+    build:
+      <<: *build
+      target: data-workers
+    restart: 'no'
+    init: true
+    mem_limit: 512m
+    environment:
+      <<: *backend-env
+      SOURCE_SLUG: ${SOURCE_SLUG:-visit-soderhamn}
+      OLLAMA_DISABLED: ${OLLAMA_DISABLED:-1}
+      CHAT_PROVIDER: ${CHAT_PROVIDER:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+      VISIT_SODERHAMN_API_KEY: ${VISIT_SODERHAMN_API_KEY:-}
+      BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+
+  # Repeats import, event scan, and publisher scan. Off until you opt in.
+  ingest:
+    image: local-events-test/data-workers
+    profiles: ['ingest']
+    build:
+      <<: *build
+      target: data-workers
+    restart: unless-stopped
+    init: true
+    mem_limit: 512m
+    entrypoint: ['sh', '-c']
+    command:
+      - |
+        while true; do
+          echo "import $$(date -Is)"
+          env -u JOB node --enable-source-maps dist/index.js || true
+          JOB=event-scan node --enable-source-maps dist/index.js || true
+          JOB=publisher-scan node --enable-source-maps dist/index.js || true
+          sleep "$${INGEST_INTERVAL_SECONDS:-21600}"
+        done
+    environment:
+      <<: *backend-env
+      SOURCE_SLUG: ${SOURCE_SLUG:-visit-soderhamn}
+      INGEST_INTERVAL_SECONDS: ${INGEST_INTERVAL_SECONDS:-21600}
+      OLLAMA_DISABLED: ${OLLAMA_DISABLED:-1}
+      CHAT_PROVIDER: ${CHAT_PROVIDER:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+      VISIT_SODERHAMN_API_KEY: ${VISIT_SODERHAMN_API_KEY:-}
+      BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      garage-init:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  valkeydata:
+  garagedata:
+  caddydata:
+  caddyconfig:

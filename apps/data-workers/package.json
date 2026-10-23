@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx --env-file=../../.env src/index.ts",
     "start": "node --env-file=../../.env dist/index.js",
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --sourcemap --outfile=dist/index.js --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --sourcemap --outfile=dist/index.js --banner:js=\"import { createRequire as createNodeRequire } from 'node:module'; const require = createNodeRequire(import.meta.url);\"",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --root ../.. tests/apps/data-workers --passWithNoTests"
   },

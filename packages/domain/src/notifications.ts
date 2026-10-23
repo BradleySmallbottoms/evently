@@ -123,7 +123,7 @@ export function eventNotificationCopy(
           : reason === 'event'
             ? 'An event you follow was updated'
             : reason === 'broadcast'
-              ? 'A message from Local Events'
+              ? 'A message from Evently'
               : 'A new event near you',
     };
   }
@@ -135,7 +135,7 @@ export function eventNotificationCopy(
         : reason === 'event'
           ? 'Ett evenemang du följer uppdaterades'
           : reason === 'broadcast'
-            ? 'Ett meddelande från Local Events'
+            ? 'Ett meddelande från Evently'
             : 'Ett nytt evenemang nära dig',
   };
 }

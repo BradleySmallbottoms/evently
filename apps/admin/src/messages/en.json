@@ -1,7 +1,7 @@
 {
   "App": {
     "name": "Admin",
-    "tagline": "Internal console for Local Events.",
+    "tagline": "Internal console for Evently.",
     "navPublishers": "Publishers",
     "navEvents": "Review",
     "navEventCatalog": "Events",

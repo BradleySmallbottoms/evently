@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { reloadAppAsync } from 'expo';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
@@ -13,6 +14,7 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { api, throwIfError } from '@/lib/api';
+import { appVersion } from '@/lib/app-version';
 import { clearLocalAppData, clearStoredPromptState } from '@/lib/clear-local-data';
 import { ensureIdentity, loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
@@ -93,6 +95,7 @@ export default function ProfileScreen() {
 
   const { hasUnread, numUnread } = useHasUnreadNotifications();
   const name = profile.data?.displayName?.trim() || t('profile.guest');
+  const version = appVersion(Constants.expoConfig?.version);
 
   async function refreshCounts() {
     setRefreshing(true);
@@ -258,6 +261,7 @@ export default function ProfileScreen() {
           />
         }
         contentContainerStyle={{
+          flexGrow: 1,
           padding: space.xl,
           paddingBottom: BottomTabInset + space.xxxl,
           gap: space.lg,
@@ -389,6 +393,14 @@ export default function ProfileScreen() {
             onPress={promptClearRegionPrompts}
           />
         </View>
+        {version ? (
+          <>
+            <View style={{ flexGrow: 1 }} />
+            <AppText variant="caption" style={{ textAlign: 'center', color: colors.ink }}>
+              {t('app.version', { version })}
+            </AppText>
+          </>
+        ) : null}
       </ScrollView>
 
       <PairingSheet

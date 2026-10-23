@@ -1,12 +1,13 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppLink } from '@/components/app-link';
 import { PageMain } from '@/components/page-main';
+import { serverApiUrl } from '@/lib/server-api-url';
 import { PublicEventCard, type PublicEventCardData } from './components/public-event-card';
 
 const FALLBACK_LAT = 61.3037;
 const FALLBACK_LNG = 17.0592;
 const FALLBACK_RADIUS_M = 50_000;
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:13000/v1';
+const API_URL = serverApiUrl();
 
 const backLinkClass = 'text-sm text-muted-foreground underline-offset-4 hover:underline';
 

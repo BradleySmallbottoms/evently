@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   createForegroundLocationSession,
+  shouldHoldRegionSuggestion,
   shouldReevaluateRegionSuggestion,
   type ForegroundLocationPort,
 } from '../../../apps/mobile/src/lib/foreground-location';
@@ -139,5 +140,41 @@ describe('shouldReevaluateRegionSuggestion', () => {
   it('waits for about a kilometre of movement while the app stays open', () => {
     expect(shouldReevaluateRegionSuggestion(here, { lat: 61.312, lng: 17.07 }, false)).toBe(false);
     expect(shouldReevaluateRegionSuggestion(here, { lat: 61.33, lng: 17.07 }, false)).toBe(true);
+  });
+});
+
+describe('shouldHoldRegionSuggestion', () => {
+  const here = { lat: 61.31, lng: 17.07 };
+
+  it('holds the prompt while onboarding is on screen', () => {
+    expect(
+      shouldHoldRegionSuggestion({ onboardingVisible: true, anchor: null, location: here }),
+    ).toBe(true);
+  });
+
+  it('holds the place granted during onboarding until the device moves', () => {
+    expect(
+      shouldHoldRegionSuggestion({ onboardingVisible: false, anchor: here, location: here }),
+    ).toBe(true);
+    expect(
+      shouldHoldRegionSuggestion({
+        onboardingVisible: false,
+        anchor: here,
+        location: { lat: 61.312, lng: 17.07 },
+      }),
+    ).toBe(true);
+    expect(
+      shouldHoldRegionSuggestion({
+        onboardingVisible: false,
+        anchor: here,
+        location: { lat: 61.33, lng: 17.07 },
+      }),
+    ).toBe(false);
+  });
+
+  it('does not hold a later visit once onboarding had no location', () => {
+    expect(
+      shouldHoldRegionSuggestion({ onboardingVisible: false, anchor: null, location: here }),
+    ).toBe(false);
   });
 });
