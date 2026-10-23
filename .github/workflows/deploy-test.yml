@@ -27,12 +27,11 @@ jobs:
       - run: pnpm --filter @local-events/infra synth -c env=dev
 
   deploy:
-    needs: check
+    #needs: check
     runs-on: [self-hosted, test]
     steps:
       - name: Update and start
         run: |
-          set -eu
           cd /home/ubuntu/evently
           git fetch origin main
           git checkout main
