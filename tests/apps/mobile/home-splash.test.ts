@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { isHomeListReady, shouldHoldSplashForHome } from '../../../apps/mobile/src/lib/home-splash';
+import {
+  isHomeListReady,
+  observedHomeListSettled,
+  shouldHoldSplashForHome,
+} from '../../../apps/mobile/src/lib/home-splash';
 
 describe('isHomeListReady', () => {
   it('waits while the place or saved tags are still loading', () => {
@@ -93,6 +97,27 @@ describe('isHomeListReady', () => {
         events: 'ready',
       }),
     ).toBe(true);
+  });
+});
+
+describe('observedHomeListSettled', () => {
+  it('waits until a mounted list is idle', () => {
+    expect(observedHomeListSettled([])).toBe(false);
+    expect(
+      observedHomeListSettled([{ observers: 1, status: 'pending', fetchStatus: 'idle' }]),
+    ).toBe(false);
+    expect(
+      observedHomeListSettled([{ observers: 1, status: 'success', fetchStatus: 'fetching' }]),
+    ).toBe(false);
+    expect(
+      observedHomeListSettled([
+        { observers: 0, status: 'success', fetchStatus: 'idle' },
+        { observers: 1, status: 'success', fetchStatus: 'idle' },
+      ]),
+    ).toBe(true);
+    expect(observedHomeListSettled([{ observers: 1, status: 'error', fetchStatus: 'idle' }])).toBe(
+      true,
+    );
   });
 });
 

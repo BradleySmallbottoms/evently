@@ -12,7 +12,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { InboxPushSync } from '@/components/inbox-push-sync';
 import { NotificationEventLink } from '@/components/notification-event-link';
 import { IdentityResetAlert } from '@/components/native/identity-reset-alert';
-import { OnboardingCarousel } from '@/components/onboarding/onboarding-carousel';
+import { OnboardingCover } from '@/components/onboarding-cover';
 import { PermissionReminder } from '@/components/onboarding/permission-reminder';
 import { AfterSplash, SplashCover } from '@/components/splash-cover';
 import {
@@ -63,6 +63,7 @@ export default function RootLayout() {
     void SplashScreen.hideAsync();
   }, []);
   const markSplashSeen = useCallback(() => setSplashSeen(true), []);
+  const closeOnboarding = useCallback(() => setShowOnboarding(false), []);
 
   useEffect(() => {
     onboardingRef.current = onboarding;
@@ -174,10 +175,11 @@ export default function RootLayout() {
     }
   }, [queryClient]);
 
+  const shellReady = onboarding != null && !identityLost;
   useEffect(() => {
-    if (!onboarding?.completed || showOnboarding || identityLost) return;
+    if (!shellReady) return;
     return startDeviceLocation();
-  }, [identityLost, onboarding?.completed, showOnboarding]);
+  }, [shellReady]);
 
   if (!onboarding) return null;
 
@@ -216,29 +218,16 @@ export default function RootLayout() {
     },
   };
 
-  if (showOnboarding) {
-    return (
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SplashCover onCovered={hideNativeSplash} onDismissed={markSplashSeen} waitForHome={false}>
-          <OnboardingCarousel
-            onFinished={(state) => {
-              setOnboarding(state);
-              setShowOnboarding(false);
-              setReminder(null);
-              countedThisForegroundRef.current = false;
-              void countActivation(state);
-            }}
-          />
-        </SplashCover>
-      </GestureHandlerRootView>
-    );
-  }
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider value={navTheme}>
-          <SplashCover alreadySeen={splashSeen} onCovered={hideNativeSplash}>
+          <SplashCover
+            alreadySeen={splashSeen}
+            onCovered={hideNativeSplash}
+            onDismissed={markSplashSeen}
+            waitForHome={!showOnboarding}
+          >
             <InboxPushSync />
             <NotificationEventLink />
             <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
@@ -257,8 +246,19 @@ export default function RootLayout() {
               <Stack.Screen name="for-you" />
               <Stack.Screen name="preferences/index" />
             </Stack>
+            {showOnboarding ? (
+              <OnboardingCover
+                onFinished={(state) => {
+                  setOnboarding(state);
+                  setReminder(null);
+                  countedThisForegroundRef.current = false;
+                  void countActivation(state);
+                }}
+                onHidden={closeOnboarding}
+              />
+            ) : null}
             <AfterSplash>
-              {reminder ? (
+              {!showOnboarding && reminder ? (
                 <PermissionReminder
                   kind={reminder}
                   state={onboarding}

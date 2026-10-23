@@ -1,4 +1,5 @@
 import { resolveTravelDistanceM } from '@local-events/domain';
+import { useQueryClient } from '@tanstack/react-query';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
@@ -26,6 +27,8 @@ import { OnboardingTagsStep } from '@/components/onboarding/onboarding-tags-step
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton, type ButtonIcon } from '@/components/ui/primary-button';
 import { ensureIdentity } from '@/lib/identity';
+import { publishArea, publishHomeTagIds, publishPreferences } from '@/lib/home-discovery-cache';
+import { whenObservedHomeListSettles } from '@/lib/home-splash';
 import { saveHomeTagIds } from '@/lib/home-tag-selection';
 import {
   createCircleArea,
@@ -49,6 +52,7 @@ import {
 } from '@/lib/onboarding';
 import { registerPushToken } from '@/lib/push-notifications';
 import { deferRegionPromptAfterAreaSkip } from '@/lib/region-suggestion';
+import { refreshDeviceLocation } from '@/lib/device-location';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
 
@@ -98,6 +102,7 @@ type Props = {
 };
 
 export function OnboardingCarousel({ onFinished }: Props) {
+  const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const insets = useSafeAreaInsets();
@@ -251,6 +256,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
           ? await requestNotificationPermission(null)
           : await requestLocationPermission();
       current = await setPermissionChoice(current, kind, choice);
+      if (kind === 'location' && choice === 'granted') void refreshDeviceLocation();
       if (kind === 'notifications' && choice === 'granted') {
         // Ask the OS first so Activate never waits on API / Expo push registration.
         void ensureUser().then((identity) => {
@@ -298,6 +304,8 @@ export function OnboardingCarousel({ onFinished }: Props) {
       if (!identity) return;
       await updateTravelDistance(identity, resolveTravelDistanceM(place.radiusM));
       const area = await createCircleArea(identity, place);
+      await queryClient.cancelQueries({ queryKey: ['preferences', identity.userId] });
+      publishPreferences(queryClient, identity.userId, await getPreferences(identity));
       await setDiscoveryPlaceId(area.id);
       celebrateThen('area', () => goTo(TAGS_INDEX));
     } catch (err) {
@@ -342,22 +350,30 @@ export function OnboardingCarousel({ onFinished }: Props) {
       const identity = await ensureUser();
       if (!identity) return;
       await saveHomeTagIds(tagIds);
+      await queryClient.cancelQueries({ queryKey: ['home-tag-ids'] });
+      publishHomeTagIds(queryClient, tagIds);
       const placeId = getDiscoveryPlaceId();
       if (placeId !== NEARBY_PLACE_ID) {
-        await updateAreaTags(
+        const area = await updateAreaTags(
           identity,
           placeId,
           tagIds,
           tagIds.length === 0 ? { notify: false } : undefined,
         );
+        await queryClient.cancelQueries({ queryKey: ['preferences', identity.userId] });
+        publishArea(queryClient, identity.userId, area);
       }
       const current = await ensureState();
-      if (!celebrate) {
+      const reveal = async () => {
+        await whenObservedHomeListSettles(queryClient);
         await finish(current);
+      };
+      if (!celebrate) {
+        await reveal();
         return;
       }
       celebrateThen('tags', () => {
-        void finish(current);
+        void reveal();
       });
     } catch (err) {
       console.warn('onboarding tags save failed', err);
