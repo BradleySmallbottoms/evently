@@ -64,6 +64,9 @@ services:
     restart: unless-stopped
     mem_limit: 512m
     shm_size: 256mb
+    # Reachable on the host. Limit 5432 to your IP in the security group.
+    ports:
+      - '5432:5432'
     environment:
       POSTGRES_USER: events
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}

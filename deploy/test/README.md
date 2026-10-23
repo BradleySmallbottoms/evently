@@ -21,8 +21,11 @@ Elastic IP. A t4g.small (2 GiB) runs out of memory while Next.js builds. Add 4 G
 before the first build. Build on the instance so the images match its CPU. An image built on
 an Intel machine will not start on a t4g instance.
 
-Nothing except 22 (your IP), 80, and 443 should be open. Postgres, Valkey, ElasticMQ, and
-Garage are only on the Docker network.
+Nothing except 22 (your IP), 80, 443, and 5432 (your IP) should be open. Postgres is
+published on 5432 so you can connect from that address. Valkey, ElasticMQ, and Garage stay
+on the Docker network. Docker presents the bridge address to Postgres, so the security
+group is what limits who can reach it. Connect as `events` to database `events` with
+`POSTGRES_PASSWORD`.
 
 ## DNS
 
