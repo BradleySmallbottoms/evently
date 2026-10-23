@@ -81,6 +81,7 @@ export default function TicketsScreen() {
                 shownWhen(item, new Date()).endsAt,
                 locale,
                 t('events.wholeDay'),
+                item.timezone,
               )}
               dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
               saved={savedIds.has(item.id)}

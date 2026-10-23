@@ -20,7 +20,7 @@ describe('shownClock', () => {
       'Heldag',
     );
     expect(label).not.toBe('Heldag');
-    expect(label).toMatch(/10:00|08:00/);
+    expect(label).toMatch(/08[:.]00/);
   });
 });
 

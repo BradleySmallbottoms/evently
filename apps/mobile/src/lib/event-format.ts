@@ -2,6 +2,8 @@ import { selectPrimaryLink, type PrimaryEventAction } from '@local-events/domain
 
 import { isWholeDay } from './span-occasions';
 
+const DEFAULT_TIME_ZONE = 'Europe/Stockholm';
+
 export type EventLink = {
   type: 'tickets' | 'registration' | 'info' | 'facebook' | 'instagram';
   url: string;
@@ -25,9 +27,14 @@ export function shownClock(
   endsAt: string,
   locale: string,
   wholeDayLabel: string,
+  timeZone = DEFAULT_TIME_ZONE,
 ): string {
   if (isWholeDay(startsAt, endsAt)) return wholeDayLabel;
-  return new Date(startsAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  return new Date(startsAt).toLocaleTimeString(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone,
+  });
 }
 
 /** Same rule as the web event page: only http(s) is safe to open. */
