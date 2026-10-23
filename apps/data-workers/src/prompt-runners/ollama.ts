@@ -130,9 +130,11 @@ function bestDuplicate(
   const incomingUrls = [event.sourceUrl, ...event.links];
   let best: { candidate: DuplicateCandidate; signal: DuplicateSignal } | null = null;
   for (const candidate of candidates) {
-    const sameRowOrWorkerId =
-      candidate.eventId === event.eventId || candidate.workerId === event.workerId;
-    if (sameRowOrWorkerId) continue;
+    const sameRow =
+      candidate.eventId === event.eventId ||
+      (candidate.workerId === event.workerId &&
+        (candidate.refId === event.externalId || candidate.externalIds.includes(event.externalId)));
+    if (sameRow) continue;
     const candidateUrls = [candidate.sourceUrl, ...candidate.links];
     const signal = duplicateSignal({
       distanceM: candidate.distanceM,
@@ -206,7 +208,6 @@ export function createOllamaPromptRunner(
           } else {
             const prompt = buildPrompt(event, catalog);
             llmoutput = await askOllama(prompt, config, fetchImpl);
-            console.log('llmoutput', llmoutput);
             if (llmoutput == null) {
               tagsByText.set(textKey, 'unavailable');
               outcomes.push({ ok: false, eventId: event.eventId, reason: 'unavailable' });

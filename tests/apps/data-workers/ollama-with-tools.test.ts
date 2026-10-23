@@ -217,6 +217,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
       'getPublishersByName',
       'getPossiblePublishers',
       'getAvailableTags',
+      'fetchEventPage',
     ]);
     expect(
       bodies[0]?.tools?.find((tool) => tool.function.name === 'getNearbyEvents')?.function,

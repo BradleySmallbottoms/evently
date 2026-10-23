@@ -97,8 +97,8 @@ describe('visit-soderhamn map', () => {
       hearingLoop: true,
       accessibleToilet: true,
       address: {
-        address: 'Oxtorgsgatan 5',
-        zipCode: '82632',
+        address: 'Hällåsen',
+        zipCode: '82640',
         city: 'Söderhamn',
         country: 'Sweden',
         location: { lat: 61.2887228674144, lng: 17.0729084004415 },

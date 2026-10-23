@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  a40CountForConcurrency,
   createRunpodChat,
   runpodChatConfigFromEnv,
   type RunpodChatConfig,
@@ -49,18 +50,23 @@ describe('runpodChatConfigFromEnv', () => {
     });
   });
 
-  it('serves Qwen3 on four A40s unless the model or the concurrency is set', () => {
+  it('serves Qwen3 on one A40 at the concurrency cap', () => {
     const resolved = runpodChatConfigFromEnv({ RUNPOD_API_KEY: 'rp', RUNPOD_CHAT_KEY: 'ck' });
     expect(resolved).toMatchObject({
       model: 'Qwen/Qwen3-32B-AWQ',
       image: 'vllm/vllm-openai:v0.17.0',
-      concurrency: 25,
+      concurrency: 10,
       gpuId: 'NVIDIA A40',
-      gpuCount: 4,
+      gpuCount: 1,
     });
   });
 
-  it('uses one A40 for a small batch and two up to 24', () => {
+  it('uses one A40 through ten scans, two through 24, and four above that', () => {
+    expect(a40CountForConcurrency(3)).toBe(1);
+    expect(a40CountForConcurrency(10)).toBe(1);
+    expect(a40CountForConcurrency(11)).toBe(2);
+    expect(a40CountForConcurrency(24)).toBe(2);
+    expect(a40CountForConcurrency(25)).toBe(4);
     expect(
       runpodChatConfigFromEnv({
         RUNPOD_API_KEY: 'rp',
@@ -68,13 +74,6 @@ describe('runpodChatConfigFromEnv', () => {
         SCAN_CONCURRENCY: '3',
       }),
     ).toMatchObject({ concurrency: 3, gpuCount: 1 });
-    expect(
-      runpodChatConfigFromEnv({
-        RUNPOD_API_KEY: 'rp',
-        RUNPOD_CHAT_KEY: 'ck',
-        SCAN_CONCURRENCY: '24',
-      }),
-    ).toMatchObject({ concurrency: 24, gpuCount: 2 });
   });
 
   it('keeps a custom GPU as one card', () => {
@@ -83,9 +82,9 @@ describe('runpodChatConfigFromEnv', () => {
         RUNPOD_API_KEY: 'rp',
         RUNPOD_CHAT_KEY: 'ck',
         RUNPOD_GPU: 'NVIDIA H100 80GB HBM3',
-        SCAN_CONCURRENCY: '25',
+        SCAN_CONCURRENCY: '10',
       }),
-    ).toMatchObject({ gpuId: 'NVIDIA H100 80GB HBM3', gpuCount: 1, concurrency: 25 });
+    ).toMatchObject({ gpuId: 'NVIDIA H100 80GB HBM3', gpuCount: 1, concurrency: 10 });
   });
 
   it('rejects concurrency above the cap', () => {
@@ -93,9 +92,9 @@ describe('runpodChatConfigFromEnv', () => {
       runpodChatConfigFromEnv({
         RUNPOD_API_KEY: 'rp',
         RUNPOD_CHAT_KEY: 'ck',
-        SCAN_CONCURRENCY: '26',
+        SCAN_CONCURRENCY: '11',
       }),
-    ).toEqual({ error: 'SCAN_CONCURRENCY must be a whole number from 1 to 25' });
+    ).toEqual({ error: 'SCAN_CONCURRENCY must be a whole number from 1 to 10' });
   });
 });
 

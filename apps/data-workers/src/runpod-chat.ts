@@ -21,8 +21,8 @@ export const MAX_SCAN_CONCURRENCY = 10;
 
 /** A40s required so `concurrency` sequences fit at the 16384 cap. */
 export function a40CountForConcurrency(concurrency: number): 1 | 2 | 4 {
-  if (concurrency < 1) return 1;
-  if (concurrency < 10) return 2;
+  if (concurrency <= 10) return 1;
+  if (concurrency <= 24) return 2;
   return 4;
 }
 

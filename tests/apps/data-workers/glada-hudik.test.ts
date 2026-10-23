@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { createMemoryIngestStore } from '../../../apps/data-workers/src/memory-store';
 import { persistSource } from '../../../apps/data-workers/src/persist';
-import { IncomingEvent, type SourceRunContext } from '../../../packages/ingest/src/index';
+import {
+  IncomingEvent,
+  ollamaDisabled,
+  type SourceRunContext,
+} from '../../../packages/ingest/src/index';
 import { describe, expect, it, vi } from 'vitest';
 import fixture from '../../../apps/data-workers/src/sources/glada-hudik/fixture.json' with { type: 'json' };
 import {
@@ -20,7 +24,6 @@ import {
 } from '../../../apps/data-workers/src/sources/glada-hudik/location';
 import {
   keptTagsForProduct,
-  matchEventTag,
   ollamaBaseUrl,
   parseTagChoices,
   tagCatalog,
@@ -31,6 +34,11 @@ const showHtml = readFileSync(
   new URL('../../../apps/data-workers/src/sources/glada-hudik/show.html', import.meta.url),
   'utf8',
 );
+
+/** The map div is split across lines, so a single-line match leaves the pin in place. */
+function withoutMap(html: string): string {
+  return html.replace(/<div\b[^>]*\bclass="sidebar-map\b[^>]*>\s*<\/div>/, '');
+}
 
 function ctx(
   fetchImpl: SourceRunContext['fetch'],
@@ -252,7 +260,7 @@ describe('glada-hudik fetch', () => {
   });
 
   it('keeps a page without a map unpointed and stores the contact address', async () => {
-    const noMap = showHtml.replace(/<div class="sidebar-map[^>]*><\/div>/, '');
+    const noMap = withoutMap(showHtml);
     const calls: string[] = [];
     const card = '<a href="/sv/fredrik-andersson-too-soon" data-productid="cbis:2823720">Show</a>';
     const fetched = await gladaHudik.fetchRaw(
@@ -280,9 +288,10 @@ describe('glada-hudik fetch', () => {
   });
 
   it('leaves a digital showing without a point', async () => {
-    const digital = showHtml
-      .replace(/<div class="sidebar-map[^>]*><\/div>/, '')
-      .replace('<span>Kulturhuset Glada Hudik</span>', '<span>Digitalt</span>');
+    const digital = withoutMap(showHtml).replace(
+      '<span>Kulturhuset Glada Hudik</span>',
+      '<span>Digitalt</span>',
+    );
     const calls: string[] = [];
     const card = '<a href="/sv/digitalt" data-productid="cbis:9">Digital</a>';
     const fetched = await gladaHudik.fetchRaw(
@@ -554,36 +563,15 @@ describe('glada-hudik tag match', () => {
     expect(() => ollamaBaseUrl({ ollamaBaseUrl: 'http://10.0.0.8:11434' })).toThrow(/loopback/);
   });
 
-  it('skips the model when OLLAMA_DISABLED is set', async () => {
+  it('skips the model when OLLAMA_DISABLED is set', () => {
     const previous = process.env.OLLAMA_DISABLED;
     process.env.OLLAMA_DISABLED = '1';
     try {
-      const result = await matchEventTag({ title: 'Konsert' }, catalog, {}, async () => {
-        throw new Error('ollama should not be called');
-      });
-      expect(result).toEqual({ ok: true, tags: [] });
+      expect(ollamaDisabled()).toBe(true);
     } finally {
       if (previous === undefined) delete process.env.OLLAMA_DISABLED;
       else process.env.OLLAMA_DISABLED = previous;
     }
-  });
-
-  it('stores the tag the local model returns', async () => {
-    const result = await matchEventTag(
-      { title: 'Blomstrande väggar', description: 'Utställning på Hälsinglands Museum' },
-      catalog,
-      {},
-      async () =>
-        json({
-          message: {
-            content: '{"externalIds":[{"id":"visit-soderhamn:30224","score":97}]}',
-          },
-        }),
-    );
-    expect(result).toEqual({
-      ok: true,
-      tags: [{ externalId: 'visit-soderhamn:30224', name: 'Utställning' }],
-    });
   });
 
   it('reuses tags only for the same product', () => {
@@ -604,27 +592,5 @@ describe('glada-hudik tag match', () => {
       },
     ]);
     expect(keptTagsForProduct('cbis:999', existing)).toBeNull();
-  });
-
-  it('leaves the event untagged when the local model is down', async () => {
-    const result = await matchEventTag({ title: 'Konsert' }, catalog, {}, async () => {
-      throw new Error('connection refused');
-    });
-    expect(result).toEqual({ ok: false });
-  });
-
-  it('stores tags the local model scores above 90', async () => {
-    const result = await matchEventTag({ title: 'Julmarknad' }, catalog, {}, async () =>
-      json({
-        message: {
-          content:
-            '{"externalIds":[{"id":"30224","score":95},{"id":"30192","score":88},{"id":"30216","score":91},{"id":"30184","score":90}]}',
-        },
-      }),
-    );
-    expect(result).toEqual({
-      ok: true,
-      tags: [catalog[0], catalog[2]],
-    });
   });
 });

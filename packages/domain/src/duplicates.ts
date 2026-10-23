@@ -115,7 +115,6 @@ export function duplicateLinkKeys(urls: (string | null | undefined)[]): string[]
     const key = duplicateLinkKey(url);
     if (key && !keys.includes(key)) keys.push(key);
   }
-  console.log('keys', keys);
   return keys;
 }
 
