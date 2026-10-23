@@ -104,6 +104,7 @@ export class DataStack extends Stack {
       replicationGroupDescription: `local-events ${props.envName} valkey`,
       engine: 'valkey',
       engineVersion: '8.0',
+      transitEncryptionEnabled: false,
       cacheNodeType: 'cache.t4g.micro',
       numCacheClusters: 1,
       automaticFailoverEnabled: false,
