@@ -119,7 +119,8 @@ services:
       - ./garage.toml:/etc/garage.toml:ro
       - garagedata:/var/lib/garage
 
-  # Shares Garage's network so the CLI can use 127.0.0.1. Retries until the bucket exists.
+  # Shares Garage's network and metadata volume. The CLI reads the node key
+  # from metadata_dir, which the server writes on first launch.
   garage-init:
     image: dxflrs/garage:v2.4.1
     network_mode: service:garage
@@ -129,6 +130,7 @@ services:
     restart: on-failure
     volumes:
       - ./garage.toml:/etc/garage.toml:ro
+      - garagedata:/var/lib/garage
     entrypoint: ['/garage']
     command: ['bucket', 'website', '--allow', 'local-events-assets']
 
