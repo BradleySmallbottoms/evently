@@ -13,6 +13,7 @@ import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
 import { enqueueDomainEvent, type DomainEventPublisher } from '../domain-events/types';
+import { dbPoint, dbTimestamp } from '../db-values';
 import { LibraryError, type LibraryServices } from './types';
 import { requirePublisherId } from '../publisher-id';
 
@@ -25,12 +26,12 @@ type LocRow = {
   mode: Event['mode'];
   status: Event['status'];
   origin: Event['origin'];
-  startsAt: Date | null;
-  endsAt: Date | null;
+  startsAt: Date | string | null;
+  endsAt: Date | string | null;
   timezone: string;
   venueName: string | null;
-  lat: number | null;
-  lng: number | null;
+  lat: number | string | null;
+  lng: number | string | null;
   geofenceRadiusM: number | null;
   onlineUrl: string | null;
   priceAmount: number | null;
@@ -52,7 +53,9 @@ function mapRow(
   imageUrls: string[],
   links: EventLink[],
 ): Event {
-  if (!row.startsAt || !row.endsAt) throw new LibraryError('not_found');
+  const startsAt = dbTimestamp(row.startsAt);
+  const endsAt = dbTimestamp(row.endsAt);
+  if (!startsAt || !endsAt) throw new LibraryError('not_found');
   return {
     id: row.id,
     publisherId: requirePublisherId(row.publisherId),
@@ -62,11 +65,11 @@ function mapRow(
     mode: row.mode,
     status: row.status,
     origin: row.origin,
-    startsAt: row.startsAt.toISOString(),
-    endsAt: row.endsAt.toISOString(),
+    startsAt: startsAt.toISOString(),
+    endsAt: endsAt.toISOString(),
     timezone: row.timezone,
     venueName: row.venueName,
-    location: row.lat != null && row.lng != null ? { lat: row.lat, lng: row.lng } : null,
+    location: dbPoint(row.lat, row.lng),
     geofenceRadiusM: row.geofenceRadiusM,
     onlineUrl: row.onlineUrl,
     priceAmount: row.priceAmount,

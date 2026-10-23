@@ -115,10 +115,6 @@ export type EventAddress = z.infer<typeof EventAddress>;
  * An empty object means the event has none.
  */
 export const EventMeta = z.object({
-  /**
-   * Legacy grouping field kept for compatibility while occasions move to a table.
-   */
-  occasionGroupId: z.string().trim().min(1).max(200).optional(),
   /** Legacy span marker kept for compatibility while occasions move to a table. */
   collapsed: z.boolean().optional(),
   /** Legacy collapsed rows kept for compatibility while occasions move to a table. */
@@ -147,10 +143,7 @@ export const EventMeta = z.object({
   allergyAdapted: z.boolean().optional(),
   smokeFree: z.boolean().optional(),
   wc: z.boolean().optional(),
-  /**
-   * Scan grouping for other showings of the same event. A product id already stored on
-   * `occasionGroupId` is reused; otherwise this is a new id. Public responses omit it.
-   */
+  /** Scan grouping hint for possible other showings of another event. Public responses omit it. */
   possibleOccasionGroupId: z.string().trim().min(1).max(200).optional(),
   /** Set when an import looks like another event. The new row stays in review. */
   possibleDuplicate: z
@@ -367,16 +360,15 @@ export const EventListResponse = z.object({
 });
 export type EventListResponse = z.infer<typeof EventListResponse>;
 
-/** Soonest published occasions returned for one `occasionGroupId`. */
+/** Soonest published occasions returned for one `eventId`. */
 export const OCCASION_LIST_LIMIT = 100;
 
 export const OccasionListQuery = z
   .object({
     eventId: z.uuid().optional(),
-    occasionGroupId: z.string().trim().min(1).max(200).optional(),
   })
-  .refine((value) => Boolean(value.eventId || value.occasionGroupId), {
-    message: 'eventId or occasionGroupId is required',
+  .refine((value) => Boolean(value.eventId), {
+    message: 'eventId is required',
   });
 export type OccasionListQuery = z.infer<typeof OccasionListQuery>;
 

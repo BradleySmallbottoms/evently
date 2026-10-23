@@ -84,6 +84,11 @@ import { reportEvent } from '@/lib/reports';
 import { followTarget, listSubscriptions, unfollowTarget } from '@/lib/subscriptions';
 import { fetchEventStats } from '@/lib/stats';
 import { DetailCard } from './_components/detail-card';
+import {
+  EventDetailBarSkeleton,
+  EventDetailHeroSkeleton,
+  EventDetailSkeleton,
+} from './_components/event-detail-skeleton';
 import { DetailGlyph, IconTile } from './_components/detail-glyph';
 import { DetailMap } from './_components/detail-map';
 import { GoodToKnow, type FactRow } from './_components/good-to-know';
@@ -742,7 +747,14 @@ export default function EventDetailScreen() {
             paddingBottom: participatePeekHeight(insets.bottom) + space.lg,
           }}
         >
-          <View style={{ height: 300, backgroundColor: colors.accentSoft }}>
+          <View
+            style={{
+              height: 300,
+              backgroundColor: event.isLoading ? colors.canvas : colors.accentSoft,
+              overflow: 'hidden',
+            }}
+          >
+            {event.isLoading ? <EventDetailHeroSkeleton /> : null}
             {event.data ? (
               <EventHeroGallery
                 imageUrl={event.data.imageUrl}
@@ -750,18 +762,20 @@ export default function EventDetailScreen() {
                 tags={tagNames}
               />
             ) : null}
-            <View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                top: 0,
-                height: 120,
-                experimental_backgroundImage:
-                  'linear-gradient(to bottom, rgba(20,20,20,0.38) 0%, rgba(20,20,20,0) 100%)',
-              }}
-            />
+            {event.data ? (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: 120,
+                  experimental_backgroundImage:
+                    'linear-gradient(to bottom, rgba(20,20,20,0.38) 0%, rgba(20,20,20,0) 100%)',
+                }}
+              />
+            ) : null}
             <View
               style={{
                 position: 'absolute',
@@ -816,7 +830,7 @@ export default function EventDetailScreen() {
               borderTopRightRadius: radius.lg,
             }}
           >
-            {event.isPending ? <AppText variant="caption">{t('events.loading')}</AppText> : null}
+            {event.isLoading ? <EventDetailSkeleton /> : null}
             {event.isError ? (
               <AppText variant="caption" style={{ color: colors.danger }}>
                 {t('events.loadError')}
@@ -1343,6 +1357,7 @@ export default function EventDetailScreen() {
           </View>
         </ScrollView>
 
+        {event.isLoading ? <EventDetailBarSkeleton bottomInset={insets.bottom} /> : null}
         {event.data ? (
           <ParticipateSheet
             title={event.data.title}

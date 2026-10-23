@@ -77,11 +77,15 @@ const booking = {
 describe('destination-halsingland map', () => {
   const [event] = destinationHalsingland.map(raw);
 
-  it('emits a Stockholm time and the list coordinate', () => {
+  it('emits one event per product with a Stockholm time and list coordinate', () => {
     expect(IncomingEvent.safeParse(event).success).toBe(true);
-    expect(event?.externalId).toBe('2826465:2026-11-14T19:00:00:2026-11-14T20:30:00');
+    expect(event?.externalId).toBe('2826465');
     expect(event?.startsAt).toBe('2026-11-14T19:00:00+01:00');
     expect(event?.endsAt).toBe('2026-11-14T20:30:00+01:00');
+    expect(event?.occasions?.[0]).toMatchObject({
+      startsAt: '2026-11-14T19:00:00+01:00',
+      endsAt: '2026-11-14T20:30:00+01:00',
+    });
     expect(event?.priceAmount).toBe(20_000);
     expect(event?.currency).toBe('SEK');
     expect(event?.venueName).toBe('Kulturhuset Bollnäs');
@@ -104,7 +108,7 @@ describe('destination-halsingland map', () => {
     expect(pointFromCoordinates(null)).toBeUndefined();
   });
 
-  it('collapses a long daily exhibition into one span', () => {
+  it('keeps a long daily exhibition as one event with many occasions', () => {
     const occasions: HalsinglandProduct['occasions'] = [];
     for (let day = 0; day < 40; day += 1) {
       const date = new Date(Date.UTC(2026, 10, 13 + day));
@@ -128,23 +132,22 @@ describe('destination-halsingland map', () => {
       occasions,
     };
     const [span] = destinationHalsingland.map({ ...raw, products: [product] });
-    expect(span?.externalId).toBe('1960936:span');
+    expect(span?.externalId).toBe('1960936');
     expect(span?.startsAt).toBe('2026-11-13T10:00:00+01:00');
     expect(span?.endsAt).toBe('2026-12-22T18:00:00+01:00');
     expect(span?.priceAmount).toBe(0);
     expect(span?.meta?.freeEntry).toBe(true);
-    expect(span?.meta?.collapsed).toBe(true);
-    expect(span?.meta?.occasions).toHaveLength(40);
-    expect(span?.meta?.occasions?.[0]).toEqual({
+    expect(span?.occasions).toHaveLength(40);
+    expect(span?.occasions?.[0]).toMatchObject({
       startsAt: '2026-11-13T10:00:00+01:00',
       endsAt: '2026-11-13T18:00:00+01:00',
       venueName: 'Mobackes Trädgårdscenter, Bollnäs',
     });
-    expect(span?.meta?.occasions?.at(-1)?.endsAt).toBe('2026-12-22T18:00:00+01:00');
+    expect(span?.occasions?.at(-1)?.endsAt).toBe('2026-12-22T18:00:00+01:00');
     expect(span?.venueName).toBe('Mobackes Trädgårdscenter, Bollnäs');
   });
 
-  it('stamps the product id when two occasions stay separate', () => {
+  it('stores two occasions on one event when two occasions stay separate', () => {
     const product: HalsinglandProduct = {
       ...raw.products[0]!,
       occasions: [
@@ -153,8 +156,9 @@ describe('destination-halsingland map', () => {
       ],
     };
     const events = destinationHalsingland.map({ ...raw, products: [product] });
-    expect(events).toHaveLength(2);
-    expect(events.map((event) => event.meta?.occasionGroupId)).toEqual(['2826465', '2826465']);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.externalId).toBe('2826465');
+    expect(events[0]?.occasions).toHaveLength(2);
   });
 
   it('rolls an end after midnight onto the next day', () => {

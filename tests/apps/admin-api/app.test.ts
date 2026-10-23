@@ -495,7 +495,7 @@ describe('admin api', () => {
     expect(again.status).toBe(404);
   });
 
-  it('collapses checked occasions into the open event and cancels them', async () => {
+  it('collapses checked events that share a scan occasion group into the open event', async () => {
     const { auth } = await seededAuth();
     const hostId = '44444444-4444-4444-8444-444444444401';
     const earlyId = '44444444-4444-4444-8444-444444444402';
@@ -523,7 +523,7 @@ describe('admin api', () => {
             title: 'Host',
             startsAt: '2026-08-02T16:00:00.000Z',
             endsAt: '2026-08-02T18:00:00.000Z',
-            meta: { occasionGroupId: 'product-1', freeEntry: true },
+            meta: { possibleOccasionGroupId: 'product-1', freeEntry: true },
           },
         ],
         [
@@ -535,7 +535,7 @@ describe('admin api', () => {
             startsAt: '2026-08-01T10:00:00.000Z',
             endsAt: '2026-08-01T12:00:00.000Z',
             venueName: 'Park',
-            meta: { occasionGroupId: 'product-1' },
+            meta: { possibleOccasionGroupId: 'product-1' },
           },
         ],
         [
@@ -546,7 +546,7 @@ describe('admin api', () => {
             title: 'Late',
             startsAt: '2026-08-04T19:00:00.000Z',
             endsAt: '2026-08-04T21:00:00.000Z',
-            meta: { occasionGroupId: 'product-1' },
+            meta: { possibleOccasionGroupId: 'product-1' },
           },
         ],
         [
@@ -557,7 +557,7 @@ describe('admin api', () => {
             title: 'Other product',
             startsAt: '2026-08-03T19:00:00.000Z',
             endsAt: '2026-08-03T21:00:00.000Z',
-            meta: { occasionGroupId: 'product-2' },
+            meta: { possibleOccasionGroupId: 'product-2' },
           },
         ],
       ]),
@@ -598,34 +598,32 @@ describe('admin api', () => {
       id: hostId,
       startsAt: '2026-08-01T10:00:00.000Z',
       endsAt: '2026-08-04T21:00:00.000Z',
-      meta: {
-        collapsed: true,
-        freeEntry: true,
-        occasions: [
-          {
-            startsAt: '2026-08-01T10:00:00.000Z',
-            endsAt: '2026-08-01T12:00:00.000Z',
-            venueName: 'Park',
-          },
-          {
-            startsAt: '2026-08-02T16:00:00.000Z',
-            endsAt: '2026-08-02T18:00:00.000Z',
-            venueName: 'Hall',
-          },
-          {
-            startsAt: '2026-08-04T19:00:00.000Z',
-            endsAt: '2026-08-04T21:00:00.000Z',
-            venueName: 'Hall',
-          },
-        ],
-      },
+      venueName: 'Park',
+      meta: { freeEntry: true },
+      occasions: [
+        {
+          startsAt: '2026-08-01T10:00:00.000Z',
+          endsAt: '2026-08-01T12:00:00.000Z',
+          venueName: 'Park',
+        },
+        {
+          startsAt: '2026-08-02T16:00:00.000Z',
+          endsAt: '2026-08-02T18:00:00.000Z',
+          venueName: 'Hall',
+        },
+        {
+          startsAt: '2026-08-04T19:00:00.000Z',
+          endsAt: '2026-08-04T21:00:00.000Z',
+          venueName: 'Hall',
+        },
+      ],
     });
-    expect(eventStore.events.get(hostId)?.meta).not.toHaveProperty('occasionGroupId');
-    expect(eventStore.events.get(earlyId)?.status).toBe('cancelled');
-    expect(eventStore.events.get(lateId)?.status).toBe('cancelled');
-    expect(eventStore.events.get(lateId)?.meta).not.toHaveProperty('occasionGroupId');
+    expect(eventStore.events.get(hostId)?.meta).not.toHaveProperty('possibleOccasionGroupId');
+    expect(eventStore.events.get(earlyId)).toBeUndefined();
+    expect(eventStore.events.get(lateId)).toBeUndefined();
+    expect(eventStore.events.get(otherId)?.status).toBe('published');
     expect(domainEvents.events).toEqual([
-      { type: 'event.updated', eventId: hostId, changedFields: ['startsAt', 'endsAt'] },
+      { type: 'event.updated', eventId: hostId, changedFields: ['occasions'] },
     ]);
 
     const after = await app.request(`/v1/events/${hostId}/occasion-group`, { headers: { cookie } });

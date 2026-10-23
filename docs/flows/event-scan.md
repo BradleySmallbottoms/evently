@@ -61,9 +61,9 @@ For each event the Ollama runner:
 
 The worker writes the publisher, tags, and `meta.possibleDuplicate`, then sets the status.
 A duplicate ranked over 90 as another showing also stores `meta.possibleOccasionGroupId` on the
-scanned event and on each of those duplicates. An `occasionGroupId` already on one of them is
-reused. Otherwise an existing `possibleOccasionGroupId` is reused, and a new id is created only
-when none is set. Public responses omit the field.
+scanned event and on each of those duplicates. An existing `possibleOccasionGroupId` is reused, and
+a new id is created only when none is set. Public responses omit the field. Admin lists those
+events on the Tillfällen tab and can fold the checked ones into the open event.
 
 | Result                                                                             | Status      |
 | ---------------------------------------------------------------------------------- | ----------- |

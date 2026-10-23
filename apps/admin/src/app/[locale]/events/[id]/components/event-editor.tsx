@@ -67,9 +67,14 @@ type EventDetail = {
   sourceUrl: string | null;
   refId: string | null;
   workerId: string | null;
+  occasions?: {
+    id: string;
+    startsAt: string;
+    endsAt: string;
+    venueName: string | null;
+  }[];
   meta: {
-    occasionGroupId?: string;
-    occasions?: { startsAt: string; endsAt?: string; venueName?: string }[];
+    possibleOccasionGroupId?: string;
     possibleDuplicate?: {
       eventId: string;
       title: string;
@@ -346,7 +351,7 @@ export function EventEditor({ eventId }: { eventId: string }) {
 
   const event = eventQuery.data;
   const showOccasions =
-    (event?.meta.occasions?.length ?? 0) > 1 || Boolean(event?.meta.occasionGroupId);
+    (event?.occasions?.length ?? 0) > 1 || Boolean(event?.meta.possibleOccasionGroupId);
   const activeTab: EditorTab = tab === 'occasions' && !showOccasions ? 'info' : tab;
   const source = httpUrl(event?.sourceUrl ?? null);
   const saveError =
@@ -848,8 +853,9 @@ export function EventEditor({ eventId }: { eventId: string }) {
           <TabsContent value="occasions">
             <EventOccasions
               eventId={eventId}
-              occasions={event.meta.occasions}
-              occasionGroupId={event.meta.occasionGroupId}
+              occasions={event.occasions}
+              possibleOccasionGroupId={event.meta.possibleOccasionGroupId}
+              timeZone={event.timezone}
               onCollapsed={() => {
                 setDraft(null);
                 setNotice(t('collapsed'));

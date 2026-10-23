@@ -295,7 +295,7 @@ export function registerAdminEventRoutes(
     request: { params: z.object({ id: z.uuid() }) },
     responses: {
       200: {
-        description: 'Other events that share this event’s occasion group',
+        description: 'Open events that share this event’s scan occasion group',
         content: { 'application/json': { schema: AdminOccasionGroupResponse } },
       },
       401: {
@@ -333,11 +333,11 @@ export function registerAdminEventRoutes(
     },
     responses: {
       200: {
-        description: 'Checked events folded into this event and cancelled',
+        description: 'Checked events folded into this event and removed',
         content: { 'application/json': { schema: AdminEventDetail } },
       },
       400: {
-        description: 'The selection is not part of this occasion group',
+        description: 'The selection is not in this scan occasion group',
         content: { 'application/json': { schema: ErrorResponse } },
       },
       401: {
@@ -345,7 +345,7 @@ export function registerAdminEventRoutes(
         content: { 'application/json': { schema: ErrorResponse } },
       },
       404: {
-        description: 'Not found or this event has no occasion group',
+        description: 'Not found, or this event has no scan occasion group',
         content: { 'application/json': { schema: ErrorResponse } },
       },
     },

@@ -230,8 +230,9 @@ calls) in the same change as every new major feature.**
   `pnpm --filter @local-events/data-workers dev -- --job publisher-scan` claims those publishers.
   With `BRAVE_API_KEY` it searches the web, stores the profile on `publishers.meta.lookup`, stores a fetched website as an organizer key, and sets `in_review`.
   A missing key claims nothing. A failed lookup leaves the publisher `pending_scan`. A duplicate ranked over 90 as another showing stores
-  `meta.possibleOccasionGroupId` on that event and the matches. An existing `occasionGroupId` is
-  reused; otherwise a new id is created. Public responses omit it. `OLLAMA_BASE_URL` must be a loopback URL.
+  `meta.possibleOccasionGroupId` on that event and the matches. An existing
+  `possibleOccasionGroupId` is reused; otherwise a new id is created. Public responses omit it.
+  `OLLAMA_BASE_URL` must be a loopback URL.
   `OLLAMA_DISABLED=1` skips local Ollama, so an event that still needs tags stays `pending_scan`.
   `pnpm --filter @local-events/data-workers dev -- --job event-scan`
   scans the next batch. Add `--event <event-id>` to scan one row, or `--limit 1` to cap the batch.
@@ -422,7 +423,8 @@ calls) in the same change as every new major feature.**
   possible duplicate. Import review and the event catalog can select rows and publish,
   reject, or delete them. Scan again sends an imported review or published event back to `pending_scan`.
   A published event leaves the public list until that scan finishes.
-  An event with several occasions has a Tillfallen tab. Collapse moves the checked events'
+  An event with several occasions, or one the scan grouped with `meta.possibleOccasionGroupId`, has a Tillfällen tab.
+  That tab lists `event_occasions`. Collapse moves the checked events'
   occasion rows and related child rows to the open event, then removes the checked event rows. Flow:
   [docs/flows/admin-collapse-occasions.md](docs/flows/admin-collapse-occasions.md). Publisher lists can select rows and verify them.
   On `/events/manage`, Ta bort marks any selected event `deleted` and removes it from lists. A later import sees that status and skips the source id. Ta bort permanent removes the row and keeps

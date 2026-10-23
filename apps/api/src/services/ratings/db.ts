@@ -5,6 +5,7 @@ import { canComment, canRate, RATING_WINDOW_DAYS } from '@local-events/domain';
 import { and, avg, count, eq, isNull, sql } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
+import { dbTimestamp } from '../db-values';
 import { requirePublisherId } from '../publisher-id';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
 import { enqueueDomainEvent } from '../domain-events/types';
@@ -33,8 +34,9 @@ export function createDbRatingServices(
       .from(schema.events)
       .where(eq(schema.events.id, eventId))
       .limit(1);
-    if (!row || row.status !== 'published' || !row.endsAt) throw new RatingError('not_found');
-    return { ...row, endsAt: row.endsAt };
+    const endsAt = row ? dbTimestamp(row.endsAt) : null;
+    if (!row || row.status !== 'published' || !endsAt) throw new RatingError('not_found');
+    return { ...row, endsAt };
   }
 
   async function loadAggregate(eventId: string) {

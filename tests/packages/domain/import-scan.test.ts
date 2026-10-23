@@ -53,25 +53,23 @@ describe('choosePossibleOccasionGroupId', () => {
     ).toBe(fresh);
   });
 
-  it('reuses the scanned event product id', () => {
+  it('reuses the scanned event group id', () => {
     expect(
       choosePossibleOccasionGroupId({
-        event: { occasionGroupId: 'cbis:1' },
-        duplicates: [
-          { occasionRank: 95, occasionGroupId: 'cbis:2', possibleOccasionGroupId: fresh },
-        ],
+        event: { possibleOccasionGroupId: 'cbis:1' },
+        duplicates: [{ occasionRank: 95, possibleOccasionGroupId: 'cbis:2' }],
         newId: '55555555-5555-4555-8555-555555555555',
       }),
     ).toBe('cbis:1');
   });
 
-  it('reuses a duplicate product id, then an existing scan group', () => {
+  it('reuses a duplicate group id, then an existing scanned group', () => {
     expect(
       choosePossibleOccasionGroupId({
         event: {},
         duplicates: [
-          { occasionRank: 91, occasionGroupId: 'cbis:low' },
-          { occasionRank: 99, occasionGroupId: 'cbis:high' },
+          { occasionRank: 91, possibleOccasionGroupId: 'cbis:low' },
+          { occasionRank: 99, possibleOccasionGroupId: 'cbis:high' },
         ],
         newId: fresh,
       }),
@@ -88,8 +86,8 @@ describe('choosePossibleOccasionGroupId', () => {
   it('leaves the group alone when no duplicate ranks over 90', () => {
     expect(
       choosePossibleOccasionGroupId({
-        event: { occasionGroupId: 'cbis:1' },
-        duplicates: [{ occasionRank: 90, occasionGroupId: 'cbis:2' }],
+        event: { possibleOccasionGroupId: 'cbis:1' },
+        duplicates: [{ occasionRank: 90, possibleOccasionGroupId: 'cbis:2' }],
         newId: fresh,
       }),
     ).toBeNull();

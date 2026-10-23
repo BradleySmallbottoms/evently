@@ -112,12 +112,16 @@ describe('glada-hudik map', () => {
   const show = parseEventPage(showHtml, 'cbis:2823720', '/sv/fredrik-andersson-too-soon')!;
   const mapped = gladaHudik.map({ ...raw, products: [show, ...raw.products] });
 
-  it('emits a Stockholm time and a ticket link for the show', () => {
+  it('emits one event per product with Stockholm times and links', () => {
     const event = mapped[0]!;
     expect(IncomingEvent.safeParse(event).success).toBe(true);
-    expect(event.externalId).toBe('cbis:2823720:2026-10-15T19:00:00:2026-10-15T20:20:00');
+    expect(event.externalId).toBe('cbis:2823720');
     expect(event.startsAt).toBe('2026-10-15T19:00:00+02:00');
     expect(event.endsAt).toBe('2026-10-15T20:20:00+02:00');
+    expect(event.occasions?.[0]).toMatchObject({
+      startsAt: '2026-10-15T19:00:00+02:00',
+      endsAt: '2026-10-15T20:20:00+02:00',
+    });
     expect(event.priceAmount).toBe(45_000);
     expect(event.currency).toBe('SEK');
     expect(event.venueName).toBe('Kulturhuset Glada Hudik');
@@ -139,21 +143,17 @@ describe('glada-hudik map', () => {
     expect(event.links?.[1]).toMatchObject({ type: 'tickets' });
   });
 
-  it('keeps a monthly book circle as separate occasions', () => {
+  it('keeps a monthly book circle as one event with several occasions', () => {
     const circle = mapped.filter((event) => event.title.startsWith('Bokcirkel'));
-    expect(circle.map((event) => event.startsAt)).toEqual([
+    expect(circle).toHaveLength(1);
+    expect(circle[0]?.occasions?.map((occasion) => occasion.startsAt)).toEqual([
       '2026-10-20T18:00:00+02:00',
       '2026-11-17T18:00:00+01:00',
       '2026-12-15T18:00:00+01:00',
     ]);
-    expect(circle.map((event) => event.meta?.occasionGroupId)).toEqual([
-      'cbis:2806136',
-      'cbis:2806136',
-      'cbis:2806136',
-    ]);
   });
 
-  it('collapses a long daily exhibition into one span', () => {
+  it('keeps a long daily exhibition as one event with many occasions', () => {
     const occasions: GladaProduct['occasions'] = [];
     for (let day = 0; day < 40; day += 1) {
       const date = new Date(Date.UTC(2026, 9, 12 + day));
@@ -175,18 +175,17 @@ describe('glada-hudik map', () => {
       occasions,
     };
     const [event] = gladaHudik.map({ ...raw, products: [product] });
-    expect(event?.externalId).toBe('cbis:2866558:span');
+    expect(event?.externalId).toBe('cbis:2866558');
     expect(event?.startsAt).toBe('2026-10-12T10:00:00+02:00');
     expect(event?.endsAt).toBe('2026-11-20T16:00:00+01:00');
     expect(event?.venueName).toBe('Hälsingland Museum');
-    expect(event?.meta?.collapsed).toBe(true);
-    expect(event?.meta?.occasions).toHaveLength(40);
-    expect(event?.meta?.occasions?.[0]).toEqual({
+    expect(event?.occasions).toHaveLength(40);
+    expect(event?.occasions?.[0]).toMatchObject({
       startsAt: '2026-10-12T10:00:00+02:00',
       endsAt: '2026-10-12T16:00:00+02:00',
       venueName: 'Hälsingland Museum',
     });
-    expect(event?.meta?.occasions?.at(-1)?.endsAt).toBe('2026-11-20T16:00:00+01:00');
+    expect(event?.occasions?.at(-1)?.endsAt).toBe('2026-11-20T16:00:00+01:00');
     const kept = gladaHudik.map(
       { ...raw, products: [product] },
       ctx(
@@ -196,8 +195,8 @@ describe('glada-hudik map', () => {
         { occasionSpanDays: 100 },
       ),
     );
-    expect(kept).toHaveLength(40);
-    expect(kept.every((item) => item.meta?.occasionGroupId === 'cbis:2866558')).toBe(true);
+    expect(kept).toHaveLength(1);
+    expect(kept[0]?.externalId).toBe('cbis:2866558');
   });
 
   it('keeps a product that has no occasions and leaves the dates empty', () => {

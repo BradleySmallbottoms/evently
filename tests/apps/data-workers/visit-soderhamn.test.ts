@@ -43,17 +43,10 @@ describe('visit-soderhamn map', () => {
   const { ctx: mapCtx } = ctx();
   const events = visitSoderhamn.map(raw, mapCtx);
 
-  it('emits one event per occasion and parses as IncomingEvent', () => {
-    expect(events).toHaveLength(3);
+  it('emits one event per product and parses as IncomingEvent', () => {
+    expect(events).toHaveLength(2);
     for (const event of events) expect(IncomingEvent.safeParse(event).success).toBe(true);
-    expect(events.map((event) => event.externalId)).toEqual([
-      'cbis:2678865:2025-01-31T19:00:00:2025-01-31T21:00:00',
-      'cbis:2682743:2024-12-14T12:00:00:2024-12-14T15:00:00',
-      'cbis:2682743:2024-12-15T12:00:00:2024-12-15T15:00:00',
-    ]);
-    expect(events[0]?.meta?.occasionGroupId).toBeUndefined();
-    expect(events[1]?.meta?.occasionGroupId).toBe('cbis:2682743');
-    expect(events[2]?.meta?.occasionGroupId).toBe('cbis:2682743');
+    expect(events.map((event) => event.externalId)).toEqual(['cbis:2678865', 'cbis:2682743']);
     expect(events[1]?.links).toEqual([
       {
         type: 'info',
@@ -166,7 +159,7 @@ describe('visit-soderhamn map', () => {
     ]);
   });
 
-  it('collapses a long daily exhibition into one span', () => {
+  it('keeps a long daily exhibition as one event with many occasions', () => {
     const product: VisitProduct = {
       ...raw.products[0]!,
       Occasions: Array.from({ length: 40 }, (_, index) => {
@@ -180,26 +173,24 @@ describe('visit-soderhamn map', () => {
       }),
     };
     const [span] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
-    expect(span?.externalId).toBe(`${product.Id}:span`);
+    expect(span?.externalId).toBe(String(product.Id));
     expect(span?.startsAt).toBe('2026-11-13T10:00:00+01:00');
     expect(span?.endsAt).toBe('2026-12-22T18:00:00+01:00');
     expect(span?.venueName).toBe('Helsingehus Arena, Hällåsen');
     expect(span?.arenaName).toBe('Helsingehus Arena, Hällåsen');
-    expect(span?.meta?.collapsed).toBe(true);
-    expect(span?.meta?.occasionGroupId).toBeUndefined();
-    expect(span?.meta?.occasions).toHaveLength(40);
-    expect(span?.meta?.occasions?.[0]).toMatchObject({
+    expect(span?.occasions).toHaveLength(40);
+    expect(span?.occasions?.[0]).toMatchObject({
       startsAt: '2026-11-13T10:00:00+01:00',
       endsAt: '2026-11-13T18:00:00+01:00',
       venueName: 'Helsingehus Arena, Hällåsen',
     });
-    expect(span?.meta?.occasions?.at(-1)).toMatchObject({
+    expect(span?.occasions?.at(-1)).toMatchObject({
       startsAt: '2026-12-22T10:00:00+01:00',
       endsAt: '2026-12-22T18:00:00+01:00',
     });
   });
 
-  it('keeps a long run split when the configured span is longer, and stamps the product id', () => {
+  it('keeps one event when the configured span is longer', () => {
     const product: VisitProduct = {
       ...raw.products[0]!,
       Occasions: Array.from({ length: 40 }, (_, index) => {
@@ -210,8 +201,9 @@ describe('visit-soderhamn map', () => {
     };
     const { ctx: wide } = ctx({ occasionSpanDays: 100 });
     const events = visitSoderhamn.map({ categories: [], products: [product] }, wide);
-    expect(events).toHaveLength(40);
-    expect(events.every((event) => event.meta?.occasionGroupId === product.Id)).toBe(true);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.externalId).toBe(String(product.Id));
+    expect(events[0]?.occasions).toHaveLength(40);
   });
 
   it('uses a summer offset', () => {
@@ -232,7 +224,7 @@ describe('visit-soderhamn map', () => {
     const [event] = visitSoderhamn.map({ categories: [], products: [product] }, mapCtx);
     expect(event?.startsAt).toBe('2026-10-28T15:00:00.000Z');
     expect(event?.endsAt).toBe('2026-10-28T16:00:00.000Z');
-    expect(event?.externalId).toBe(`${product.Id}:2026-10-28T15:00:00Z:2026-10-28T16:00:00Z`);
+    expect(event?.externalId).toBe(String(product.Id));
   });
 
   it('drops a product with no source url and keeps one with no occasion', () => {
@@ -314,7 +306,6 @@ describe('visit-soderhamn map', () => {
       ageLimit: 13,
       accessibleParking: true,
       visuallyImpairedAccess: true,
-      occasionGroupId: 'cbis:2682743',
       address: {
         address: 'Oxtorgsgatan 5',
         zipCode: '82632',
@@ -359,7 +350,6 @@ describe('visit-soderhamn map', () => {
     expect(event?.priceAmount).toBe(0);
     expect(event?.meta).toEqual({
       freeEntry: true,
-      occasionGroupId: 'cbis:2682743',
       address: {
         address: 'Oxtorgsgatan 5',
         zipCode: '82632',

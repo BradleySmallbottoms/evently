@@ -30,6 +30,7 @@ import { AuthError } from '../auth/types';
 import { createMemoryDomainEventPublisher } from '../domain-events/memory';
 import { enqueueDomainEvent } from '../domain-events/types';
 import { upsertEventPushDraft } from '../push-messages/drafts';
+import { dbPoint, dbTimestamp } from '../db-values';
 import { EventError, type EventEnv, type EventServices } from './types';
 import { requirePublisherId } from '../publisher-id';
 
@@ -62,12 +63,12 @@ type LocRow = {
   mode: Event['mode'];
   status: Event['status'];
   origin: Event['origin'];
-  startsAt: Date | null;
-  endsAt: Date | null;
+  startsAt: Date | string | null;
+  endsAt: Date | string | null;
   timezone: string;
   venueName: string | null;
-  lat: number | null;
-  lng: number | null;
+  lat: number | string | null;
+  lng: number | string | null;
   geofenceRadiusM: number | null;
   onlineUrl: string | null;
   priceAmount: number | null;
@@ -92,11 +93,13 @@ function assertFields(
   if (!check.ok) throw new EventError(check.reason);
 }
 
-function withDates<T extends { startsAt: Date | null; endsAt: Date | null }>(
+function withDates<T extends { startsAt: Date | string | null; endsAt: Date | string | null }>(
   row: T,
 ): (T & { startsAt: Date; endsAt: Date }) | null {
-  if (!row.startsAt || !row.endsAt) return null;
-  return { ...row, startsAt: row.startsAt, endsAt: row.endsAt };
+  const startsAt = dbTimestamp(row.startsAt);
+  const endsAt = dbTimestamp(row.endsAt);
+  if (!startsAt || !endsAt) return null;
+  return { ...row, startsAt, endsAt };
 }
 
 function mapEvent(
@@ -127,7 +130,7 @@ function mapEvent(
     endsAt: row.endsAt.toISOString(),
     timezone: row.timezone,
     venueName: row.venueName,
-    location: row.lat != null && row.lng != null ? { lat: row.lat, lng: row.lng } : null,
+    location: dbPoint(row.lat, row.lng),
     geofenceRadiusM: row.geofenceRadiusM,
     onlineUrl: row.onlineUrl,
     priceAmount: row.priceAmount,
@@ -412,23 +415,23 @@ export function createDbEventServices(
         startsAt: eventOccasions.startsAt,
         endsAt: eventOccasions.endsAt,
         venueName: eventOccasions.venueName,
-        lat: sql<number | null>`ST_Y(${eventOccasions.location}::geometry)`,
-        lng: sql<number | null>`ST_X(${eventOccasions.location}::geometry)`,
+        lat: sql<number | string | null>`ST_Y(${eventOccasions.location}::geometry)`,
+        lng: sql<number | string | null>`ST_X(${eventOccasions.location}::geometry)`,
       })
       .from(eventOccasions)
       .where(inArray(eventOccasions.eventId, eventIds))
       .orderBy(asc(eventOccasions.startsAt), asc(eventOccasions.id));
     for (const row of rows) {
+      const startsAt = dbTimestamp(row.startsAt);
+      const endsAt = dbTimestamp(row.endsAt);
+      if (!startsAt || !endsAt) continue;
       const list = grouped.get(row.eventId) ?? [];
       list.push({
         id: row.id,
-        startsAt: row.startsAt.toISOString(),
-        endsAt: row.endsAt.toISOString(),
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString(),
         venueName: row.venueName,
-        location:
-          row.lat != null && row.lng != null
-            ? { lat: Number(row.lat), lng: Number(row.lng) }
-            : null,
+        location: dbPoint(row.lat, row.lng),
       });
       grouped.set(row.eventId, list);
     }
@@ -897,16 +900,12 @@ export function createDbEventServices(
     },
 
     async listOccasions(query: OccasionListQuery) {
-      const groupFilter = query.occasionGroupId
-        ? sql`${events.meta}->>'occasionGroupId' = ${query.occasionGroupId}`
-        : undefined;
       const rows = await selectEvents()
         .where(
           and(
             eq(events.status, 'published'),
             currentEventSql(env.now()),
             ...(query.eventId ? [eq(events.id, query.eventId)] : []),
-            ...(groupFilter ? [groupFilter] : []),
           ),
         )
         .orderBy(
@@ -976,8 +975,9 @@ export async function verifyPublisherInDb(
 
   let releasedEventCount = 0;
   for (const row of awaiting) {
-    if (!row.endsAt) continue;
-    const next = releaseOnVerification({ status: row.status, endsAt: row.endsAt }, now);
+    const endsAt = dbTimestamp(row.endsAt);
+    if (!endsAt) continue;
+    const next = releaseOnVerification({ status: row.status, endsAt }, now);
     if (next !== row.status) {
       await db
         .update(schema.events)

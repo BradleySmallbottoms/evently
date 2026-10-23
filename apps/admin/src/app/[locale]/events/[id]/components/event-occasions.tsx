@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarIcon } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { EmptyState, LoadingRows } from '@/components/list-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -22,10 +22,20 @@ import { adminFetch } from '@/lib/api';
 
 const OCCASION_PREVIEW = 10;
 
+function formatWhen(iso: string | null, timeZone: string, locale: string) {
+  if (!iso) return '—';
+  return new Intl.DateTimeFormat(locale, {
+    timeZone,
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(iso));
+}
+
 type Occasion = {
+  id: string;
   startsAt: string;
-  endsAt?: string;
-  venueName?: string;
+  endsAt: string;
+  venueName: string | null;
 };
 
 type GroupItem = {
@@ -39,15 +49,18 @@ type GroupItem = {
 export function EventOccasions({
   eventId,
   occasions,
-  occasionGroupId,
+  possibleOccasionGroupId,
+  timeZone,
   onCollapsed,
 }: {
   eventId: string;
   occasions: Occasion[] | undefined;
-  occasionGroupId: string | undefined;
+  possibleOccasionGroupId: string | undefined;
+  timeZone: string;
   onCollapsed: () => void;
 }) {
   const t = useTranslations('EventEditor');
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState(false);
@@ -57,9 +70,9 @@ export function EventOccasions({
   const visibleOccasions = showAllOccasions ? stored : stored.slice(0, OCCASION_PREVIEW);
 
   const group = useQuery({
-    queryKey: ['admin-event-occasion-group', eventId, occasionGroupId],
+    queryKey: ['admin-event-occasion-group', eventId, possibleOccasionGroupId],
     queryFn: () => adminFetch<{ items: GroupItem[] }>(`/events/${eventId}/occasion-group`),
-    enabled: Boolean(occasionGroupId),
+    enabled: Boolean(possibleOccasionGroupId),
     retry: false,
   });
 
@@ -124,11 +137,9 @@ export function EventOccasions({
               </TableHeader>
               <TableBody>
                 {visibleOccasions.map((occasion) => (
-                  <TableRow key={`${occasion.startsAt}-${occasion.endsAt ?? ''}`}>
-                    <TableCell>{new Date(occasion.startsAt).toLocaleString()}</TableCell>
-                    <TableCell>
-                      {occasion.endsAt ? new Date(occasion.endsAt).toLocaleString() : '—'}
-                    </TableCell>
+                  <TableRow key={occasion.id}>
+                    <TableCell>{formatWhen(occasion.startsAt, timeZone, locale)}</TableCell>
+                    <TableCell>{formatWhen(occasion.endsAt, timeZone, locale)}</TableCell>
                     <TableCell>{occasion.venueName ?? '—'}</TableCell>
                   </TableRow>
                 ))}
@@ -147,7 +158,7 @@ export function EventOccasions({
           ) : null}
         </div>
       ) : null}
-      {occasionGroupId ? (
+      {possibleOccasionGroupId ? (
         <div className="flex flex-col gap-2">
           <div className="flex flex-row items-center gap-2">
             <Button
@@ -227,12 +238,8 @@ export function EventOccasions({
                             </Link>
                           )}
                         </TableCell>
-                        <TableCell>
-                          {item.startsAt ? new Date(item.startsAt).toLocaleString() : '—'}
-                        </TableCell>
-                        <TableCell>
-                          {item.endsAt ? new Date(item.endsAt).toLocaleString() : '—'}
-                        </TableCell>
+                        <TableCell>{formatWhen(item.startsAt, timeZone, locale)}</TableCell>
+                        <TableCell>{formatWhen(item.endsAt, timeZone, locale)}</TableCell>
                         <TableCell>{item.venueName ?? '—'}</TableCell>
                       </TableRow>
                     );

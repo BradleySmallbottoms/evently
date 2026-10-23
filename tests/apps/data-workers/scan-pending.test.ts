@@ -484,7 +484,7 @@ describe('scanPendingEvents', () => {
       endsAt: new Date('2027-06-02T21:00:00.000Z'),
       venueName: null,
       tagIds: [],
-      meta: { occasionGroupId: 'cbis:concert', freeEntry: true },
+      meta: { possibleOccasionGroupId: 'cbis:concert', freeEntry: true },
     });
     const runner: PromptRunner = {
       id: 'occasion',
@@ -513,7 +513,6 @@ describe('scanPendingEvents', () => {
     const sibling = store.events.find((row) => row.id === siblingId);
     expect(scannedEvent?.meta.possibleOccasionGroupId).toBe('cbis:concert');
     expect(sibling?.meta.possibleOccasionGroupId).toBe('cbis:concert');
-    expect(sibling?.meta.occasionGroupId).toBe('cbis:concert');
     expect(sibling?.meta.freeEntry).toBe(true);
   });
 

@@ -420,9 +420,6 @@ export function createMemoryEventServices(
             now,
           }),
         )
-        .filter((event) =>
-          query.occasionGroupId ? event.meta.occasionGroupId === query.occasionGroupId : true,
-        )
         .sort((a, b) => {
           const byDate = a.startsAt.localeCompare(b.startsAt);
           return byDate !== 0 ? byDate : a.id.localeCompare(b.id);

@@ -1,8 +1,12 @@
 # Collapse occasions in admin
 
 Staff open an event and pick one or more other events to fold into it. The admin session cookie is
-required. The Tillfallen tab lists the event's occasion rows from `event_occasions`. Older grouped
-imports can still use the group list to pick merge candidates.
+required. The Tillfallen tab lists this event's rows from `event_occasions`.
+
+Collapse moves selected events' occasion rows onto the open event, repoints child rows (saves,
+coming, check-ins, ratings, reports, tags, translations, images, links, refs, stats, and push),
+and deletes the checked event rows. Their source ids move with `external_refs`, so a later import
+updates the surviving event.
 
 ```mermaid
 sequenceDiagram
@@ -13,9 +17,7 @@ sequenceDiagram
   Admin->>API: GET /v1/events/{id}
   API->>DB: events + event_occasions
   API-->>Admin: detail with occasion rows
-  Admin->>API: GET /v1/events/{id}/occasion-group
-  API->>DB: grouped candidates (legacy meta.occasionGroupId)
-  API-->>Admin: mergeable events
+  Admin->>API: choose events to merge
   Admin->>API: POST /v1/events/{id}/collapse
   Note over API: Body is the checked event ids.
   API->>DB: move occasion rows to host event_id
@@ -27,5 +29,4 @@ sequenceDiagram
   API-->>Admin: updated host event
 ```
 
-The surviving event keeps one id. Future imports update that event through the rewritten
-`external_refs` product id mapping.
+The surviving event keeps one id. Future imports of a merged source id update that event.

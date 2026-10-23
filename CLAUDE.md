@@ -156,9 +156,8 @@ Import adapters (every new source)
   sends no tags leaves them in place.
 - `organizerKeys()` is the ordered list: ids, email, an info-link host plus its path, that host,
   the name, then the slug fallback only when nothing else identifies the organizer. `skipHosts`
-  includes the source site. Occasion collapse (`occasionSpanDays`, `occasionCoverage`,
-  `meta.collapsed`, `meta.occasions`, `meta.occasionGroupId`) is only for Visit Söderhamn, Glada
-  Hudik, and Destination Hälsingland, where one product has many occasions. A calendar that already
+  includes the source site. Visit Söderhamn, Glada Hudik, and Destination Hälsingland store every
+  showing of one product on that one event as `event_occasions` rows. A calendar that already
   lists one showing per row stores that row as one event. The page or item id is the external id.
 
 Product invariants (enforced in domain, tested)
@@ -182,8 +181,8 @@ Product invariants (enforced in domain, tested)
   publisher `pending_scan`.
 - An imported physical event with no venue name stores the city from its scraped address on `meta.import.venueName`. When that
   address has no city, the nearest city within 25 km of its point is used. A name the adapter already set stays on that field.
-- Visit Söderhamn, Glada Hudik, and Destination Hälsingland turn each occasion into its own event.
-  An import with no occasion, and a library page or ICS event with no date, is still saved, with empty start and end.
+- Visit Söderhamn, Glada Hudik, and Destination Hälsingland store one product as one event, with each
+  showing on `event_occasions`. An import with no occasion, and a library page or ICS event with no date, is still saved, with empty start and end.
   The event scan fills both when it can read them from the text or from the ticket or info page.
   The model may read that page for tags, instructions, and the summary.
   A page on visit.destinationhalsingland.se is fetched with curl over HTTP/1.1.
@@ -193,20 +192,16 @@ Product invariants (enforced in domain, tested)
   event has none, it geocodes the scraped address, or the model address when the import stored none.
   A street, or a postcode and city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept. The model does not supply coordinates.
   The model returns possible venue names. Importers leave `events.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written. When the model returns none, the arena name is written, then the imported venue name. A later import does not clear a venue the scan already wrote.
-  A dense run longer than `data_sources.config.occasionSpanDays` (default 21) that covers at least
-  `occasionCoverage` of those days (default 0.6) becomes one span (`externalId` `{productId}:span`,
-  `meta.collapsed` true, with every occasion on `meta.occasions`).
-  When two or more occasions stay separate, each event stores that product id on `meta.occasionGroupId`.
-  The mobile event page lists the other published occasions in that group that have not ended
-  (`GET /events/occasions`). An event with no point is included. A collapsed span lists each
-  `meta.occasions` row that has not ended on that same page. The date shown for that event is the next of those rows.
+  Showings stay on `event_occasions`. They are not copied onto `meta.occasions`. The mobile event page
+  lists that event's occasion rows that have not ended.
   The same start and end is a whole day: the time reads “Whole Day”, and that occasion stays current through its calendar day.
-  Admin can fold other events in that group into the open event (`POST /events/{id}/collapse`).
-  Its start becomes the earliest start and its end the latest end. The checked events are cancelled.
+  Admin can fold selected events into the open event (`POST /events/{id}/collapse`).
+  Their occasion rows and child rows move onto it, and the checked events are deleted.
 - A lookalike within 500 m and 30 minutes is still inserted, then marked `in_review` by the scan
   job, with `meta.possibleDuplicate` pointing at the existing event. A duplicate ranked over 90 as
   another showing stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates.
-  An existing `occasionGroupId` is reused; otherwise a new id is created. Public responses omit it.
+  An existing `possibleOccasionGroupId` is reused; otherwise a new id is created. Public responses omit it.
+  Admin uses that id to list events it can fold together.
   A link matches on host and path;
   protocol, query, and a trailing slash are ignored. A Citybreak product id matches with or
   without the `cbis:` prefix. The same source id updates its own row.

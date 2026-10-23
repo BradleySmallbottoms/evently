@@ -416,7 +416,10 @@ export function EventCatalog() {
                   <TableCell className="whitespace-normal">
                     <div className="flex flex-row items-center gap-1.5">
                       <EventWarningMark warnings={item.warnings} />
-                      <Link href={`/events/${item.id}`} className="underline underline-offset-4">
+                      <Link
+                        href={`/events/${item.id}`}
+                        className="whitespace-nowrap max-w-[400] overflow-hidden text-ellipsis underline underline-offset-4"
+                      >
                         {item.title}
                       </Link>
                     </div>

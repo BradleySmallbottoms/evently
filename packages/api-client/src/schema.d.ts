@@ -2437,6 +2437,18 @@ export interface paths {
                 priceAmount: number | null;
                 currency: string;
                 meta: {
+                  collapsed?: boolean;
+                  occasions?: {
+                    /** Format: date-time */
+                    startsAt: string;
+                    /** Format: date-time */
+                    endsAt?: string;
+                    venueName?: string;
+                    location?: {
+                      lat: number;
+                      lng: number;
+                    };
+                  }[];
                   address?: {
                     address?: string;
                     zipCode?: string;
@@ -2460,19 +2472,6 @@ export interface paths {
                   allergyAdapted?: boolean;
                   smokeFree?: boolean;
                   wc?: boolean;
-                  occasionGroupId?: string;
-                  collapsed?: boolean;
-                  occasions?: {
-                    /** Format: date-time */
-                    startsAt: string;
-                    /** Format: date-time */
-                    endsAt?: string;
-                    venueName?: string;
-                    location?: {
-                      lat: number;
-                      lng: number;
-                    };
-                  }[];
                   instructions?: string[];
                   fromUserTip?: boolean;
                 };
@@ -2495,6 +2494,19 @@ export interface paths {
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
+                occasions?: {
+                  /** Format: uuid */
+                  id: string;
+                  /** Format: date-time */
+                  startsAt: string;
+                  /** Format: date-time */
+                  endsAt: string;
+                  venueName: string | null;
+                  location: {
+                    lat: number;
+                    lng: number;
+                  } | null;
+                }[];
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -2698,6 +2710,18 @@ export interface paths {
                 priceAmount: number | null;
                 currency: string;
                 meta: {
+                  collapsed?: boolean;
+                  occasions?: {
+                    /** Format: date-time */
+                    startsAt: string;
+                    /** Format: date-time */
+                    endsAt?: string;
+                    venueName?: string;
+                    location?: {
+                      lat: number;
+                      lng: number;
+                    };
+                  }[];
                   address?: {
                     address?: string;
                     zipCode?: string;
@@ -2721,19 +2745,6 @@ export interface paths {
                   allergyAdapted?: boolean;
                   smokeFree?: boolean;
                   wc?: boolean;
-                  occasionGroupId?: string;
-                  collapsed?: boolean;
-                  occasions?: {
-                    /** Format: date-time */
-                    startsAt: string;
-                    /** Format: date-time */
-                    endsAt?: string;
-                    venueName?: string;
-                    location?: {
-                      lat: number;
-                      lng: number;
-                    };
-                  }[];
                   instructions?: string[];
                   fromUserTip?: boolean;
                 };
@@ -2756,6 +2767,19 @@ export interface paths {
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
+                occasions?: {
+                  /** Format: uuid */
+                  id: string;
+                  /** Format: date-time */
+                  startsAt: string;
+                  /** Format: date-time */
+                  endsAt: string;
+                  venueName: string | null;
+                  location: {
+                    lat: number;
+                    lng: number;
+                  } | null;
+                }[];
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -2965,6 +2989,18 @@ export interface paths {
                   priceAmount: number | null;
                   currency: string;
                   meta: {
+                    collapsed?: boolean;
+                    occasions?: {
+                      /** Format: date-time */
+                      startsAt: string;
+                      /** Format: date-time */
+                      endsAt?: string;
+                      venueName?: string;
+                      location?: {
+                        lat: number;
+                        lng: number;
+                      };
+                    }[];
                     address?: {
                       address?: string;
                       zipCode?: string;
@@ -2988,19 +3024,6 @@ export interface paths {
                     allergyAdapted?: boolean;
                     smokeFree?: boolean;
                     wc?: boolean;
-                    occasionGroupId?: string;
-                    collapsed?: boolean;
-                    occasions?: {
-                      /** Format: date-time */
-                      startsAt: string;
-                      /** Format: date-time */
-                      endsAt?: string;
-                      venueName?: string;
-                      location?: {
-                        lat: number;
-                        lng: number;
-                      };
-                    }[];
                     instructions?: string[];
                     fromUserTip?: boolean;
                   };
@@ -3023,6 +3046,19 @@ export interface paths {
                   checkInEnabled: boolean;
                   numSaved: number;
                   numComing: number;
+                  occasions?: {
+                    /** Format: uuid */
+                    id: string;
+                    /** Format: date-time */
+                    startsAt: string;
+                    /** Format: date-time */
+                    endsAt: string;
+                    venueName: string | null;
+                    location: {
+                      lat: number;
+                      lng: number;
+                    } | null;
+                  }[];
                   /** Format: date-time */
                   createdAt: string;
                   /** Format: date-time */
@@ -3114,6 +3150,18 @@ export interface paths {
                 priceAmount: number | null;
                 currency: string;
                 meta: {
+                  collapsed?: boolean;
+                  occasions?: {
+                    /** Format: date-time */
+                    startsAt: string;
+                    /** Format: date-time */
+                    endsAt?: string;
+                    venueName?: string;
+                    location?: {
+                      lat: number;
+                      lng: number;
+                    };
+                  }[];
                   address?: {
                     address?: string;
                     zipCode?: string;
@@ -3137,19 +3185,6 @@ export interface paths {
                   allergyAdapted?: boolean;
                   smokeFree?: boolean;
                   wc?: boolean;
-                  occasionGroupId?: string;
-                  collapsed?: boolean;
-                  occasions?: {
-                    /** Format: date-time */
-                    startsAt: string;
-                    /** Format: date-time */
-                    endsAt?: string;
-                    venueName?: string;
-                    location?: {
-                      lat: number;
-                      lng: number;
-                    };
-                  }[];
                   instructions?: string[];
                   fromUserTip?: boolean;
                 };
@@ -3172,6 +3207,19 @@ export interface paths {
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
+                occasions?: {
+                  /** Format: uuid */
+                  id: string;
+                  /** Format: date-time */
+                  startsAt: string;
+                  /** Format: date-time */
+                  endsAt: string;
+                  venueName: string | null;
+                  location: {
+                    lat: number;
+                    lng: number;
+                  } | null;
+                }[];
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -3343,6 +3391,18 @@ export interface paths {
                 priceAmount: number | null;
                 currency: string;
                 meta: {
+                  collapsed?: boolean;
+                  occasions?: {
+                    /** Format: date-time */
+                    startsAt: string;
+                    /** Format: date-time */
+                    endsAt?: string;
+                    venueName?: string;
+                    location?: {
+                      lat: number;
+                      lng: number;
+                    };
+                  }[];
                   address?: {
                     address?: string;
                     zipCode?: string;
@@ -3366,19 +3426,6 @@ export interface paths {
                   allergyAdapted?: boolean;
                   smokeFree?: boolean;
                   wc?: boolean;
-                  occasionGroupId?: string;
-                  collapsed?: boolean;
-                  occasions?: {
-                    /** Format: date-time */
-                    startsAt: string;
-                    /** Format: date-time */
-                    endsAt?: string;
-                    venueName?: string;
-                    location?: {
-                      lat: number;
-                      lng: number;
-                    };
-                  }[];
                   instructions?: string[];
                   fromUserTip?: boolean;
                 };
@@ -3401,6 +3448,19 @@ export interface paths {
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
+                occasions?: {
+                  /** Format: uuid */
+                  id: string;
+                  /** Format: date-time */
+                  startsAt: string;
+                  /** Format: date-time */
+                  endsAt: string;
+                  venueName: string | null;
+                  location: {
+                    lat: number;
+                    lng: number;
+                  } | null;
+                }[];
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -3724,6 +3784,18 @@ export interface paths {
                 priceAmount: number | null;
                 currency: string;
                 meta: {
+                  collapsed?: boolean;
+                  occasions?: {
+                    /** Format: date-time */
+                    startsAt: string;
+                    /** Format: date-time */
+                    endsAt?: string;
+                    venueName?: string;
+                    location?: {
+                      lat: number;
+                      lng: number;
+                    };
+                  }[];
                   address?: {
                     address?: string;
                     zipCode?: string;
@@ -3747,19 +3819,6 @@ export interface paths {
                   allergyAdapted?: boolean;
                   smokeFree?: boolean;
                   wc?: boolean;
-                  occasionGroupId?: string;
-                  collapsed?: boolean;
-                  occasions?: {
-                    /** Format: date-time */
-                    startsAt: string;
-                    /** Format: date-time */
-                    endsAt?: string;
-                    venueName?: string;
-                    location?: {
-                      lat: number;
-                      lng: number;
-                    };
-                  }[];
                   instructions?: string[];
                   fromUserTip?: boolean;
                 };
@@ -3782,6 +3841,19 @@ export interface paths {
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
+                occasions?: {
+                  /** Format: uuid */
+                  id: string;
+                  /** Format: date-time */
+                  startsAt: string;
+                  /** Format: date-time */
+                  endsAt: string;
+                  venueName: string | null;
+                  location: {
+                    lat: number;
+                    lng: number;
+                  } | null;
+                }[];
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -3824,9 +3896,9 @@ export interface paths {
             /** @enum {string} */
             mode: 'physical' | 'digital';
             /** Format: date-time */
-            startsAt: string;
+            startsAt?: string;
             /** Format: date-time */
-            endsAt: string;
+            endsAt?: string;
             /** @default Europe/Stockholm */
             timezone?: string;
             venueName?: string;
@@ -3834,6 +3906,17 @@ export interface paths {
               lat: number;
               lng: number;
             };
+            occasions?: {
+              /** Format: date-time */
+              startsAt: string;
+              /** Format: date-time */
+              endsAt: string;
+              venueName?: string | null;
+              location?: {
+                lat: number;
+                lng: number;
+              } | null;
+            }[];
             geofenceRadiusM?: number;
             /** Format: uri */
             onlineUrl?: string;
@@ -3898,6 +3981,18 @@ export interface paths {
               priceAmount: number | null;
               currency: string;
               meta: {
+                collapsed?: boolean;
+                occasions?: {
+                  /** Format: date-time */
+                  startsAt: string;
+                  /** Format: date-time */
+                  endsAt?: string;
+                  venueName?: string;
+                  location?: {
+                    lat: number;
+                    lng: number;
+                  };
+                }[];
                 address?: {
                   address?: string;
                   zipCode?: string;
@@ -3921,19 +4016,6 @@ export interface paths {
                 allergyAdapted?: boolean;
                 smokeFree?: boolean;
                 wc?: boolean;
-                occasionGroupId?: string;
-                collapsed?: boolean;
-                occasions?: {
-                  /** Format: date-time */
-                  startsAt: string;
-                  /** Format: date-time */
-                  endsAt?: string;
-                  venueName?: string;
-                  location?: {
-                    lat: number;
-                    lng: number;
-                  };
-                }[];
                 instructions?: string[];
                 fromUserTip?: boolean;
               };
@@ -3956,6 +4038,19 @@ export interface paths {
               checkInEnabled: boolean;
               numSaved: number;
               numComing: number;
+              occasions?: {
+                /** Format: uuid */
+                id: string;
+                /** Format: date-time */
+                startsAt: string;
+                /** Format: date-time */
+                endsAt: string;
+                venueName: string | null;
+                location: {
+                  lat: number;
+                  lng: number;
+                } | null;
+              }[];
               /** Format: date-time */
               createdAt: string;
               /** Format: date-time */
@@ -4073,6 +4168,18 @@ export interface paths {
                 priceAmount: number | null;
                 currency: string;
                 meta: {
+                  collapsed?: boolean;
+                  occasions?: {
+                    /** Format: date-time */
+                    startsAt: string;
+                    /** Format: date-time */
+                    endsAt?: string;
+                    venueName?: string;
+                    location?: {
+                      lat: number;
+                      lng: number;
+                    };
+                  }[];
                   address?: {
                     address?: string;
                     zipCode?: string;
@@ -4096,19 +4203,6 @@ export interface paths {
                   allergyAdapted?: boolean;
                   smokeFree?: boolean;
                   wc?: boolean;
-                  occasionGroupId?: string;
-                  collapsed?: boolean;
-                  occasions?: {
-                    /** Format: date-time */
-                    startsAt: string;
-                    /** Format: date-time */
-                    endsAt?: string;
-                    venueName?: string;
-                    location?: {
-                      lat: number;
-                      lng: number;
-                    };
-                  }[];
                   instructions?: string[];
                   fromUserTip?: boolean;
                 };
@@ -4131,6 +4225,19 @@ export interface paths {
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
+                occasions?: {
+                  /** Format: uuid */
+                  id: string;
+                  /** Format: date-time */
+                  startsAt: string;
+                  /** Format: date-time */
+                  endsAt: string;
+                  venueName: string | null;
+                  location: {
+                    lat: number;
+                    lng: number;
+                  } | null;
+                }[];
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -4206,8 +4313,8 @@ export interface paths {
     };
     get: {
       parameters: {
-        query: {
-          occasionGroupId: string;
+        query?: {
+          eventId?: string;
         };
         header?: never;
         path?: never;
@@ -4215,7 +4322,7 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
-        /** @description Published events that share occasionGroupId and have not ended, soonest first. At most 100. An event without a point is included. */
+        /** @description Published event occasions for one eventId that have not ended, soonest first. At most 100. An event without a point is included. */
         200: {
           headers: {
             [name: string]: unknown;
@@ -4260,6 +4367,18 @@ export interface paths {
                 priceAmount: number | null;
                 currency: string;
                 meta: {
+                  collapsed?: boolean;
+                  occasions?: {
+                    /** Format: date-time */
+                    startsAt: string;
+                    /** Format: date-time */
+                    endsAt?: string;
+                    venueName?: string;
+                    location?: {
+                      lat: number;
+                      lng: number;
+                    };
+                  }[];
                   address?: {
                     address?: string;
                     zipCode?: string;
@@ -4283,19 +4402,6 @@ export interface paths {
                   allergyAdapted?: boolean;
                   smokeFree?: boolean;
                   wc?: boolean;
-                  occasionGroupId?: string;
-                  collapsed?: boolean;
-                  occasions?: {
-                    /** Format: date-time */
-                    startsAt: string;
-                    /** Format: date-time */
-                    endsAt?: string;
-                    venueName?: string;
-                    location?: {
-                      lat: number;
-                      lng: number;
-                    };
-                  }[];
                   instructions?: string[];
                   fromUserTip?: boolean;
                 };
@@ -4318,6 +4424,19 @@ export interface paths {
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
+                occasions?: {
+                  /** Format: uuid */
+                  id: string;
+                  /** Format: date-time */
+                  startsAt: string;
+                  /** Format: date-time */
+                  endsAt: string;
+                  venueName: string | null;
+                  location: {
+                    lat: number;
+                    lng: number;
+                  } | null;
+                }[];
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -4398,6 +4517,18 @@ export interface paths {
               priceAmount: number | null;
               currency: string;
               meta: {
+                collapsed?: boolean;
+                occasions?: {
+                  /** Format: date-time */
+                  startsAt: string;
+                  /** Format: date-time */
+                  endsAt?: string;
+                  venueName?: string;
+                  location?: {
+                    lat: number;
+                    lng: number;
+                  };
+                }[];
                 address?: {
                   address?: string;
                   zipCode?: string;
@@ -4421,19 +4552,6 @@ export interface paths {
                 allergyAdapted?: boolean;
                 smokeFree?: boolean;
                 wc?: boolean;
-                occasionGroupId?: string;
-                collapsed?: boolean;
-                occasions?: {
-                  /** Format: date-time */
-                  startsAt: string;
-                  /** Format: date-time */
-                  endsAt?: string;
-                  venueName?: string;
-                  location?: {
-                    lat: number;
-                    lng: number;
-                  };
-                }[];
                 instructions?: string[];
                 fromUserTip?: boolean;
               };
@@ -4456,6 +4574,19 @@ export interface paths {
               checkInEnabled: boolean;
               numSaved: number;
               numComing: number;
+              occasions?: {
+                /** Format: uuid */
+                id: string;
+                /** Format: date-time */
+                startsAt: string;
+                /** Format: date-time */
+                endsAt: string;
+                venueName: string | null;
+                location: {
+                  lat: number;
+                  lng: number;
+                } | null;
+              }[];
               /** Format: date-time */
               createdAt: string;
               /** Format: date-time */
@@ -4549,6 +4680,18 @@ export interface paths {
               priceAmount: number | null;
               currency: string;
               meta: {
+                collapsed?: boolean;
+                occasions?: {
+                  /** Format: date-time */
+                  startsAt: string;
+                  /** Format: date-time */
+                  endsAt?: string;
+                  venueName?: string;
+                  location?: {
+                    lat: number;
+                    lng: number;
+                  };
+                }[];
                 address?: {
                   address?: string;
                   zipCode?: string;
@@ -4572,19 +4715,6 @@ export interface paths {
                 allergyAdapted?: boolean;
                 smokeFree?: boolean;
                 wc?: boolean;
-                occasionGroupId?: string;
-                collapsed?: boolean;
-                occasions?: {
-                  /** Format: date-time */
-                  startsAt: string;
-                  /** Format: date-time */
-                  endsAt?: string;
-                  venueName?: string;
-                  location?: {
-                    lat: number;
-                    lng: number;
-                  };
-                }[];
                 instructions?: string[];
                 fromUserTip?: boolean;
               };
@@ -4607,6 +4737,19 @@ export interface paths {
               checkInEnabled: boolean;
               numSaved: number;
               numComing: number;
+              occasions?: {
+                /** Format: uuid */
+                id: string;
+                /** Format: date-time */
+                startsAt: string;
+                /** Format: date-time */
+                endsAt: string;
+                venueName: string | null;
+                location: {
+                  lat: number;
+                  lng: number;
+                } | null;
+              }[];
               /** Format: date-time */
               createdAt: string;
               /** Format: date-time */
@@ -4683,6 +4826,17 @@ export interface paths {
               lat: number;
               lng: number;
             } | null;
+            occasions?: {
+              /** Format: date-time */
+              startsAt: string;
+              /** Format: date-time */
+              endsAt: string;
+              venueName?: string | null;
+              location?: {
+                lat: number;
+                lng: number;
+              } | null;
+            }[];
             geofenceRadiusM?: number | null;
             /** Format: uri */
             onlineUrl?: string | null;
@@ -4750,6 +4904,18 @@ export interface paths {
               priceAmount: number | null;
               currency: string;
               meta: {
+                collapsed?: boolean;
+                occasions?: {
+                  /** Format: date-time */
+                  startsAt: string;
+                  /** Format: date-time */
+                  endsAt?: string;
+                  venueName?: string;
+                  location?: {
+                    lat: number;
+                    lng: number;
+                  };
+                }[];
                 address?: {
                   address?: string;
                   zipCode?: string;
@@ -4773,19 +4939,6 @@ export interface paths {
                 allergyAdapted?: boolean;
                 smokeFree?: boolean;
                 wc?: boolean;
-                occasionGroupId?: string;
-                collapsed?: boolean;
-                occasions?: {
-                  /** Format: date-time */
-                  startsAt: string;
-                  /** Format: date-time */
-                  endsAt?: string;
-                  venueName?: string;
-                  location?: {
-                    lat: number;
-                    lng: number;
-                  };
-                }[];
                 instructions?: string[];
                 fromUserTip?: boolean;
               };
@@ -4808,6 +4961,19 @@ export interface paths {
               checkInEnabled: boolean;
               numSaved: number;
               numComing: number;
+              occasions?: {
+                /** Format: uuid */
+                id: string;
+                /** Format: date-time */
+                startsAt: string;
+                /** Format: date-time */
+                endsAt: string;
+                venueName: string | null;
+                location: {
+                  lat: number;
+                  lng: number;
+                } | null;
+              }[];
               /** Format: date-time */
               createdAt: string;
               /** Format: date-time */
@@ -4919,6 +5085,18 @@ export interface paths {
               priceAmount: number | null;
               currency: string;
               meta: {
+                collapsed?: boolean;
+                occasions?: {
+                  /** Format: date-time */
+                  startsAt: string;
+                  /** Format: date-time */
+                  endsAt?: string;
+                  venueName?: string;
+                  location?: {
+                    lat: number;
+                    lng: number;
+                  };
+                }[];
                 address?: {
                   address?: string;
                   zipCode?: string;
@@ -4942,19 +5120,6 @@ export interface paths {
                 allergyAdapted?: boolean;
                 smokeFree?: boolean;
                 wc?: boolean;
-                occasionGroupId?: string;
-                collapsed?: boolean;
-                occasions?: {
-                  /** Format: date-time */
-                  startsAt: string;
-                  /** Format: date-time */
-                  endsAt?: string;
-                  venueName?: string;
-                  location?: {
-                    lat: number;
-                    lng: number;
-                  };
-                }[];
                 instructions?: string[];
                 fromUserTip?: boolean;
               };
@@ -4977,6 +5142,19 @@ export interface paths {
               checkInEnabled: boolean;
               numSaved: number;
               numComing: number;
+              occasions?: {
+                /** Format: uuid */
+                id: string;
+                /** Format: date-time */
+                startsAt: string;
+                /** Format: date-time */
+                endsAt: string;
+                venueName: string | null;
+                location: {
+                  lat: number;
+                  lng: number;
+                } | null;
+              }[];
               /** Format: date-time */
               createdAt: string;
               /** Format: date-time */
@@ -5084,6 +5262,18 @@ export interface paths {
               priceAmount: number | null;
               currency: string;
               meta: {
+                collapsed?: boolean;
+                occasions?: {
+                  /** Format: date-time */
+                  startsAt: string;
+                  /** Format: date-time */
+                  endsAt?: string;
+                  venueName?: string;
+                  location?: {
+                    lat: number;
+                    lng: number;
+                  };
+                }[];
                 address?: {
                   address?: string;
                   zipCode?: string;
@@ -5107,19 +5297,6 @@ export interface paths {
                 allergyAdapted?: boolean;
                 smokeFree?: boolean;
                 wc?: boolean;
-                occasionGroupId?: string;
-                collapsed?: boolean;
-                occasions?: {
-                  /** Format: date-time */
-                  startsAt: string;
-                  /** Format: date-time */
-                  endsAt?: string;
-                  venueName?: string;
-                  location?: {
-                    lat: number;
-                    lng: number;
-                  };
-                }[];
                 instructions?: string[];
                 fromUserTip?: boolean;
               };
@@ -5142,6 +5319,19 @@ export interface paths {
               checkInEnabled: boolean;
               numSaved: number;
               numComing: number;
+              occasions?: {
+                /** Format: uuid */
+                id: string;
+                /** Format: date-time */
+                startsAt: string;
+                /** Format: date-time */
+                endsAt: string;
+                venueName: string | null;
+                location: {
+                  lat: number;
+                  lng: number;
+                } | null;
+              }[];
               /** Format: date-time */
               createdAt: string;
               /** Format: date-time */

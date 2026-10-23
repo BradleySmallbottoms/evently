@@ -701,13 +701,12 @@ describe('events', () => {
     });
   });
 
-  it('lists published occasions that share a group and have not ended', async () => {
+  it('lists published occasions for one event that has not ended', async () => {
     const store = createMemoryStore();
     const now = new Date('2026-06-15T12:00:00.000Z');
     const auth = createMemoryAuthServices({ now: () => now }, store);
     const events = createMemoryEventServices(auth, { now: () => now }, store);
     const app = createApp({ auth, events });
-    const group = 'cbis:2682743';
     const base = {
       publisherId: '11111111-1111-4111-8111-111111111403',
       description: null,
@@ -761,7 +760,7 @@ describe('events', () => {
         'Later',
         '2026-07-02T18:00:00.000Z',
         '2026-07-02T20:00:00.000Z',
-        { occasionGroupId: group },
+        {},
       ),
     );
     store.events.set(
@@ -771,7 +770,7 @@ describe('events', () => {
         'Sooner',
         '2026-07-01T18:00:00.000Z',
         '2026-07-01T20:00:00.000Z',
-        { occasionGroupId: group },
+        {},
       ),
     );
     store.events.set(
@@ -781,7 +780,7 @@ describe('events', () => {
         'Ended',
         '2026-06-01T18:00:00.000Z',
         '2026-06-01T20:00:00.000Z',
-        { occasionGroupId: group },
+        {},
       ),
     );
     store.events.set(
@@ -791,7 +790,7 @@ describe('events', () => {
         'In review',
         '2026-07-03T18:00:00.000Z',
         '2026-07-03T20:00:00.000Z',
-        { occasionGroupId: group },
+        {},
         'in_review',
       ),
     );
@@ -802,7 +801,7 @@ describe('events', () => {
         'Other group',
         '2026-07-01T12:00:00.000Z',
         '2026-07-01T14:00:00.000Z',
-        { occasionGroupId: 'cbis:other' },
+        {},
       ),
     );
     store.events.set(
@@ -812,16 +811,16 @@ describe('events', () => {
         'No pin',
         '2026-07-04T18:00:00.000Z',
         '2026-07-04T20:00:00.000Z',
-        { occasionGroupId: group },
+        {},
       ),
     );
 
     const listed = await app.request(
-      `/v1/events/occasions?occasionGroupId=${encodeURIComponent(group)}`,
+      '/v1/events/occasions?eventId=11111111-1111-4111-8111-111111111502',
     );
     expect(listed.status).toBe(200);
     const body = (await listed.json()) as { items: { id: string; title: string }[] };
-    expect(body.items.map((item) => item.title)).toEqual(['Sooner', 'Later', 'No pin']);
+    expect(body.items.map((item) => item.title)).toEqual(['Sooner']);
 
     const missing = await app.request('/v1/events/occasions');
     expect(missing.status).toBe(400);

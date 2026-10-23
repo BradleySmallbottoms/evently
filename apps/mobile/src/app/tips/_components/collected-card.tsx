@@ -1,17 +1,9 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, StyleProp, View, ViewStyle } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
+import { SkeletonBlock } from '@/components/ui/skeleton-block';
 import { foundTipClock, foundTipDay } from '@/lib/tip-clock';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
@@ -133,39 +125,6 @@ export function CollectedCard({
         </View>
       </View> */}
     </View>
-  );
-}
-
-function SkeletonBlock({
-  width,
-  height,
-  radius: corner = radius.pill,
-  style,
-}: {
-  width: number | `${number}%`;
-  height: number;
-  radius?: number;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const reduced = useReducedMotion();
-  const opacity = useSharedValue(0.45);
-  useEffect(() => {
-    if (reduced) {
-      opacity.value = 1;
-      return;
-    }
-    opacity.value = withRepeat(
-      withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true,
-    );
-  }, [opacity, reduced]);
-  const pulse = useAnimatedStyle(() => ({ opacity: reduced ? 1 : opacity.value }));
-  return (
-    <Animated.View
-      accessibilityElementsHidden
-      style={[{ width, height, borderRadius: corner, backgroundColor: colors.line }, pulse, style]}
-    />
   );
 }
 

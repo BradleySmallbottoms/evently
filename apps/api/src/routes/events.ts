@@ -128,7 +128,7 @@ export function registerEventRoutes(app: OpenAPIHono, events: EventServices): vo
     responses: {
       200: {
         description:
-          'Published events that match eventId (or legacy occasionGroupId) and have not ended, soonest first. At most 100. An event without a point is included.',
+          'Published event occasions for one eventId that have not ended, soonest first. At most 100. An event without a point is included.',
         content: { 'application/json': { schema: EventListResponse } },
       },
     },

@@ -32,8 +32,6 @@ import {
   canDeleteImportedEvent,
   canRejectImportedEvent,
   canRescanImportedEvent,
-  collapseOccasionSpan,
-  type CollapseMember,
   publicAssetUrl,
   publicGalleryUrls,
   shouldEnqueueNotifications,
@@ -68,9 +66,9 @@ export type AdminEventServices = {
   reject: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
   /** Send an imported review or published event back to the scan queue. */
   rescan: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
-  /** Events that share this event's occasion group, including this event. Null when it is missing. */
+  /** Open events that share this event's scan occasion group, including this event. Null when the event is missing. */
   listOccasionGroup: (eventId: string) => Promise<AdminOccasionGroupItem[] | null>;
-  /** Fold the chosen events into this one and cancel them. */
+  /** Move the chosen events' occasion rows onto this event, then delete those events. */
   collapseOccasions: (
     eventId: string,
     eventIds: string[],
@@ -131,6 +129,13 @@ type MemoryEvent = {
   featured?: boolean;
   checkInEnabled?: boolean;
   images?: { role: string; s3Key: string }[];
+  occasions?: {
+    id: string;
+    startsAt: string;
+    endsAt: string;
+    venueName: string | null;
+    location: { lat: number; lng: number } | null;
+  }[];
   createdAt: string;
   updatedAt: string;
 };
@@ -322,29 +327,97 @@ function isoDate(value: Date | string | null): string | null {
   return value.toISOString();
 }
 
-function metaWithoutGroup(meta: EventMeta): EventMeta {
-  const { occasionGroupId: _group, ...rest } = meta;
+function deleteLaterCopies(
+  table:
+    | typeof schema.eventOccasions
+    | typeof schema.savedEvents
+    | typeof schema.comingEvents
+    | typeof schema.eventListItems
+    | typeof schema.checkIns
+    | typeof schema.ratings
+    | typeof schema.eventReports
+    | typeof schema.eventTags
+    | typeof schema.eventTranslations
+    | typeof schema.eventImages,
+  column: string,
+  childIdsSql: ReturnType<typeof sql.join>,
+) {
+  const key = sql.raw(column);
+  return sql`
+    delete from ${table} drop_row
+    using ${table} keep_row
+    where drop_row.event_id in (${childIdsSql})
+      and keep_row.event_id in (${childIdsSql})
+      and drop_row.${key} is not null
+      and drop_row.${key} = keep_row.${key}
+      and drop_row.ctid > keep_row.ctid
+  `;
+}
+
+function metaWithoutScanGroup(meta: EventMeta): EventMeta {
+  const { possibleOccasionGroupId: _group, ...rest } = meta;
   return rest;
 }
 
-function metaCollapsed(meta: EventMeta, occasions: EventMeta['occasions']): EventMeta {
-  return { ...metaWithoutGroup(meta), collapsed: true, occasions };
+function occasionRows(event: MemoryEvent): NonNullable<MemoryEvent['occasions']> {
+  if (event.occasions && event.occasions.length > 0) {
+    return event.occasions.map((row) => ({
+      id: row.id,
+      startsAt: row.startsAt,
+      endsAt: row.endsAt,
+      venueName: row.venueName,
+      location: row.location,
+    }));
+  }
+  return [
+    {
+      id: randomUUID(),
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+      venueName: event.venueName,
+      location: event.location ?? null,
+    },
+  ];
 }
 
-function collapseMember(row: {
-  startsAt: string;
-  endsAt: string;
+function applyOccasionBounds(
+  event: MemoryEvent,
+  rows: NonNullable<MemoryEvent['occasions']>,
+): void {
+  const sorted = [...rows].sort(
+    (a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id),
+  );
+  const first = sorted[0];
+  if (!first) return;
+  let endsAt = first.endsAt;
+  for (const row of sorted) {
+    if (row.endsAt > endsAt) endsAt = row.endsAt;
+  }
+  event.occasions = sorted;
+  event.startsAt = first.startsAt;
+  event.endsAt = endsAt;
+  event.venueName = first.venueName;
+  event.location = first.location;
+}
+
+function listedTimes(event: MemoryEvent): {
+  startsAt: string | null;
+  endsAt: string | null;
   venueName: string | null;
-  location: { lat: number; lng: number } | null;
-  meta: EventMeta;
-}): CollapseMember {
-  return {
-    startsAt: row.startsAt,
-    endsAt: row.endsAt,
-    venueName: row.venueName,
-    location: row.location,
-    ...(row.meta.occasions ? { occasions: row.meta.occasions } : {}),
-  };
+} {
+  const rows = event.occasions;
+  if (!rows || rows.length === 0) {
+    return { startsAt: event.startsAt, endsAt: event.endsAt, venueName: event.venueName };
+  }
+  const sorted = [...rows].sort(
+    (a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id),
+  );
+  const first = sorted[0]!;
+  let endsAt = first.endsAt;
+  for (const row of sorted) {
+    if (row.endsAt > endsAt) endsAt = row.endsAt;
+  }
+  return { startsAt: first.startsAt, endsAt, venueName: first.venueName };
 }
 
 const OPEN_OCCASION_STATUSES = [
@@ -426,6 +499,7 @@ function asDetail(
     tagIds: e.tagIds ?? [],
     links: e.links ?? [],
     ...imageFields(e.images ?? [], assetsPublicBaseUrl),
+    ...(e.occasions && e.occasions.length > 0 ? { occasions: e.occasions } : {}),
     llmOutput: e.llmOutput ?? null,
     updatedAt: e.updatedAt,
   };
@@ -612,30 +686,39 @@ export function createMemoryAdminEventServices(
     async listOccasionGroup(eventId) {
       const host = store.events.get(eventId);
       if (!host) return null;
-      const groupId = readEventMeta(host.meta).occasionGroupId;
+      const groupId = readEventMeta(host.meta).possibleOccasionGroupId;
       if (!groupId) return [];
       return [...store.events.values()]
         .filter(
           (event) =>
-            readEventMeta(event.meta).occasionGroupId === groupId &&
+            readEventMeta(event.meta).possibleOccasionGroupId === groupId &&
             event.status !== 'cancelled' &&
             event.status !== 'ended' &&
             event.status !== 'deleted',
         )
-        .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
-        .map((event) => ({
-          id: event.id,
-          title: event.title,
-          status: event.status as AdminOccasionGroupItem['status'],
-          startsAt: event.startsAt,
-          endsAt: event.endsAt,
-          venueName: event.venueName,
-        }));
+        .sort((a, b) => {
+          const left = listedTimes(a);
+          const right = listedTimes(b);
+          return (
+            (left.startsAt ?? '').localeCompare(right.startsAt ?? '') || a.id.localeCompare(b.id)
+          );
+        })
+        .map((event) => {
+          const times = listedTimes(event);
+          return {
+            id: event.id,
+            title: event.title,
+            status: event.status as AdminOccasionGroupItem['status'],
+            startsAt: times.startsAt,
+            endsAt: times.endsAt,
+            venueName: times.venueName,
+          };
+        });
     },
     async collapseOccasions(eventId, eventIds, actor) {
       const host = store.events.get(eventId);
       const hostMeta = readEventMeta(host?.meta);
-      if (!host || !hostMeta.occasionGroupId) return null;
+      if (!host || !hostMeta.possibleOccasionGroupId) return null;
       const unique = [...new Set(eventIds)];
       if (unique.length !== eventIds.length || unique.includes(eventId)) {
         throw new AdminEventError('invalid_event');
@@ -645,7 +728,8 @@ export function createMemoryAdminEventServices(
         members.some(
           (event) =>
             !event ||
-            readEventMeta(event.meta).occasionGroupId !== hostMeta.occasionGroupId ||
+            readEventMeta(event.meta).possibleOccasionGroupId !==
+              hostMeta.possibleOccasionGroupId ||
             event.status === 'cancelled' ||
             event.status === 'ended' ||
             event.status === 'deleted',
@@ -654,40 +738,27 @@ export function createMemoryAdminEventServices(
         throw new AdminEventError('invalid_event');
       }
       const chosen = members.filter((event) => event != null);
-      const span = collapseOccasionSpan(
-        collapseMember({
-          startsAt: host.startsAt,
-          endsAt: host.endsAt,
-          venueName: host.venueName,
-          location: host.location ?? null,
-          meta: hostMeta,
-        }),
-        chosen.map((event) =>
-          collapseMember({
-            startsAt: event.startsAt,
-            endsAt: event.endsAt,
-            venueName: event.venueName,
-            location: event.location ?? null,
-            meta: readEventMeta(event.meta),
-          }),
-        ),
-      );
-      if (!span) throw new AdminEventError('invalid_event');
+      const rows = [occasionRows(host), ...chosen.map((event) => occasionRows(event))].flat();
+      if (rows.length < 2) throw new AdminEventError('invalid_event');
       const at = now().toISOString();
-      host.startsAt = span.startsAt;
-      host.endsAt = span.endsAt;
-      host.meta = metaCollapsed(hostMeta, span.occasions);
+      const groupId = hostMeta.possibleOccasionGroupId;
+      applyOccasionBounds(host, rows);
+      for (const event of chosen) store.events.delete(event.id);
+      const stillOpen = [...store.events.values()].some(
+        (event) =>
+          event.id !== host.id &&
+          readEventMeta(event.meta).possibleOccasionGroupId === groupId &&
+          event.status !== 'cancelled' &&
+          event.status !== 'ended' &&
+          event.status !== 'deleted',
+      );
+      if (!stillOpen) host.meta = metaWithoutScanGroup(hostMeta);
       host.updatedAt = at;
-      for (const event of chosen) {
-        event.status = 'cancelled';
-        event.meta = metaWithoutGroup(readEventMeta(event.meta));
-        event.updatedAt = at;
-      }
       if (host.status === 'published') {
         await enqueueDomainEvent(domainEvents, {
           type: 'event.updated',
           eventId,
-          changedFields: ['startsAt', 'endsAt'],
+          changedFields: ['occasions'],
         });
       }
       await audit.write({
@@ -695,8 +766,8 @@ export function createMemoryAdminEventServices(
         action: 'event.collapse',
         entityType: 'event',
         entityId: eventId,
-        before: { occasionGroupId: hostMeta.occasionGroupId },
-        after: { startsAt: span.startsAt, endsAt: span.endsAt, cancelledEventIds: unique },
+        before: { possibleOccasionGroupId: groupId },
+        after: { mergedEventIds: unique },
       });
       return asDetail(
         host,
@@ -780,6 +851,37 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       .from(schema.eventImages)
       .where(eq(schema.eventImages.eventId, eventId));
     return imageFields(rows, env.assetsPublicBaseUrl);
+  }
+
+  async function occasionsFor(
+    eventId: string,
+  ): Promise<NonNullable<AdminEventDetail['occasions']>> {
+    const rows = await db
+      .select({
+        id: schema.eventOccasions.id,
+        startsAt: schema.eventOccasions.startsAt,
+        endsAt: schema.eventOccasions.endsAt,
+        venueName: schema.eventOccasions.venueName,
+        lat: sql<number | null>`ST_Y(${schema.eventOccasions.location}::geometry)`,
+        lng: sql<number | null>`ST_X(${schema.eventOccasions.location}::geometry)`,
+      })
+      .from(schema.eventOccasions)
+      .where(eq(schema.eventOccasions.eventId, eventId))
+      .orderBy(asc(schema.eventOccasions.startsAt), asc(schema.eventOccasions.id));
+    return rows.map((row) => {
+      const lat = row.lat == null ? null : Number(row.lat);
+      const lng = row.lng == null ? null : Number(row.lng);
+      return {
+        id: row.id,
+        startsAt: row.startsAt.toISOString(),
+        endsAt: row.endsAt.toISOString(),
+        venueName: row.venueName,
+        location:
+          lat != null && lng != null && !Number.isNaN(lat) && !Number.isNaN(lng)
+            ? { lat, lng }
+            : null,
+      };
+    });
   }
 
   async function linksFor(eventId: string): Promise<EventLink[]> {
@@ -891,6 +993,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       tagIds,
       tagCount: tagIds.length,
       links: await linksFor(eventId),
+      occasions: await occasionsFor(eventId),
       ...(await imagesFor(eventId)),
       featured: row.featured,
       checkInEnabled: row.checkInEnabled,
@@ -1373,7 +1476,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .where(eq(schema.events.id, eventId))
         .limit(1);
       if (!host) return null;
-      const groupId = readEventMeta(host.meta).occasionGroupId;
+      const groupId = readEventMeta(host.meta).possibleOccasionGroupId;
       if (!groupId) return [];
       const rows = await db
         .select({
@@ -1401,7 +1504,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .from(schema.events)
         .where(
           and(
-            sql`${schema.events.meta}->>'occasionGroupId' = ${groupId}`,
+            sql`${schema.events.meta}->>'possibleOccasionGroupId' = ${groupId}`,
             inArray(schema.events.status, [...OPEN_OCCASION_STATUSES]),
           ),
         )
@@ -1424,7 +1527,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
     },
     async collapseOccasions(eventId, eventIds, actor) {
       const host = await loadDetail(eventId);
-      if (!host?.meta.occasionGroupId) return null;
+      const groupId = host?.meta.possibleOccasionGroupId;
+      if (!host || !groupId) return null;
       const unique = [...new Set(eventIds)];
       if (unique.length !== eventIds.length || unique.includes(eventId)) {
         throw new AdminEventError('invalid_event');
@@ -1442,7 +1546,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       for (const row of rows) {
         const meta = readEventMeta(row.meta);
         if (
-          meta.occasionGroupId !== host.meta.occasionGroupId ||
+          meta.possibleOccasionGroupId !== groupId ||
           row.status === 'cancelled' ||
           row.status === 'ended' ||
           row.status === 'deleted'
@@ -1454,8 +1558,54 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         unique.map((id) => sql`${id}`),
         sql`, `,
       );
-      const groupId = host.meta.occasionGroupId;
       await db.transaction(async (tx) => {
+        const locked = await tx
+          .select({
+            id: schema.events.id,
+            status: schema.events.status,
+            meta: schema.events.meta,
+          })
+          .from(schema.events)
+          .where(inArray(schema.events.id, [eventId, ...unique]))
+          .for('update');
+        const lockedHost = locked.find((row) => row.id === eventId);
+        const membersStillOpen = unique.every((id) => {
+          const row = locked.find((item) => item.id === id);
+          if (!row) return false;
+          return (
+            readEventMeta(row.meta).possibleOccasionGroupId === groupId &&
+            row.status !== 'cancelled' &&
+            row.status !== 'ended' &&
+            row.status !== 'deleted'
+          );
+        });
+        if (
+          !lockedHost ||
+          readEventMeta(lockedHost.meta).possibleOccasionGroupId !== groupId ||
+          !membersStillOpen
+        ) {
+          throw new AdminEventError('invalid_event');
+        }
+        await tx.execute(deleteLaterCopies(schema.eventOccasions, 'source_key', childIdsSql));
+        await tx.execute(deleteLaterCopies(schema.savedEvents, 'user_id', childIdsSql));
+        await tx.execute(deleteLaterCopies(schema.comingEvents, 'user_id', childIdsSql));
+        await tx.execute(deleteLaterCopies(schema.eventListItems, 'list_id', childIdsSql));
+        await tx.execute(deleteLaterCopies(schema.checkIns, 'user_id', childIdsSql));
+        await tx.execute(deleteLaterCopies(schema.ratings, 'user_id', childIdsSql));
+        await tx.execute(deleteLaterCopies(schema.eventReports, 'user_id', childIdsSql));
+        await tx.execute(deleteLaterCopies(schema.eventTags, 'tag_id', childIdsSql));
+        await tx.execute(deleteLaterCopies(schema.eventTranslations, 'language', childIdsSql));
+        await tx.execute(deleteLaterCopies(schema.eventImages, 'role', childIdsSql));
+        await tx.execute(sql`
+          delete from ${schema.subscriptions} drop_row
+          using ${schema.subscriptions} keep_row
+          where drop_row.target_type = 'event'
+            and keep_row.target_type = 'event'
+            and drop_row.target_id in (${childIdsSql})
+            and keep_row.target_id in (${childIdsSql})
+            and drop_row.user_id = keep_row.user_id
+            and drop_row.ctid > keep_row.ctid
+        `);
         await tx.execute(sql`
           delete from ${schema.eventOccasions} child
           using ${schema.eventOccasions} host_occ
@@ -1607,10 +1757,11 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           .where(inArray(schema.eventTips.eventId, unique));
         await tx.execute(sql`
           insert into ${schema.stats} ("source_type", "source_id", "key", "value", "created_at", "updated_at")
-          select s."source_type", ${eventId}, s."key", s."value", s."created_at", s."updated_at"
+          select 'event', ${eventId}, s."key", sum(s."value"), min(s."created_at"), max(s."updated_at")
           from ${schema.stats} s
           where s."source_type" = 'event'
             and s."source_id" in (${childIdsSql})
+          group by s."key"
           on conflict ("source_type", "source_id", "key")
           do update set
             "value" = ${schema.stats}.value + excluded.value,
@@ -1629,31 +1780,29 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
             and child.source_id = host_row.source_id
             and child.external_id = host_row.external_id
         `);
-        if (groupId) {
-          await tx.execute(sql`
-            insert into ${schema.externalRefs} ("source_id", "external_id", "event_id", "content_hash", "last_seen_at")
-            select er."source_id", ${groupId}, ${eventId}, er."content_hash", er."last_seen_at"
-            from ${schema.externalRefs} er
-            where er."event_id" in (${childIdsSql})
-            on conflict ("source_id", "external_id")
-            do update set
-              "event_id" = excluded.event_id,
-              "content_hash" = excluded.content_hash,
-              "last_seen_at" = greatest(${schema.externalRefs}.last_seen_at, excluded.last_seen_at)
-          `);
-        }
         await tx
           .update(schema.externalRefs)
           .set({ eventId, lastSeenAt: at })
           .where(inArray(schema.externalRefs.eventId, unique));
+        await tx.delete(schema.events).where(inArray(schema.events.id, unique));
+        const [remaining] = await tx
+          .select({ id: schema.events.id })
+          .from(schema.events)
+          .where(
+            and(
+              sql`${schema.events.meta}->>'possibleOccasionGroupId' = ${groupId}`,
+              inArray(schema.events.status, [...OPEN_OCCASION_STATUSES]),
+              ne(schema.events.id, eventId),
+            ),
+          )
+          .limit(1);
         await tx
           .update(schema.events)
           .set({
-            meta: metaWithoutGroup(host.meta),
+            ...(remaining ? {} : { meta: sql`${schema.events.meta} - 'possibleOccasionGroupId'` }),
             updatedAt: at,
           })
           .where(eq(schema.events.id, eventId));
-        await tx.delete(schema.events).where(inArray(schema.events.id, unique));
       });
       if (host.status === 'published') {
         await enqueueDomainEvent(domainEvents, {
@@ -1668,7 +1817,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         action: 'event.collapse',
         entityType: 'event',
         entityId: eventId,
-        before: { occasionGroupId: host.meta.occasionGroupId },
+        before: { possibleOccasionGroupId: groupId },
         after: { mergedEventIds: unique },
       });
       return updated;
