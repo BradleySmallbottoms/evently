@@ -9,9 +9,6 @@ import {
 import {
   defineAdapter,
   occasionCollapseFromConfig,
-  shouldCollapseOccasions,
-  withCollapsedSpan,
-  withOccasionGroup,
   type IncomingEvent,
   type OccasionCollapseOptions,
   type SourceRunContext,
@@ -460,43 +457,24 @@ function mapProduct(
   if (occasions.length === 0) {
     return [{ ...base, externalId: product.id }];
   }
-  if (shouldCollapseOccasions(occasions, collapse)) {
-    const first = occasions[0]!;
-    const last = occasions.at(-1)!;
-    const externalId = `${product.id}:span`;
-    return [
-      {
-        ...base,
-        externalId,
-        startsAt: first.startsAt,
-        ...(last.endsAt ? { endsAt: last.endsAt } : {}),
-        meta: withCollapsedSpan(
-          place ? { address: place } : undefined,
-          occasions.map((occasion) => ({
-            startsAt: occasion.startsAt,
-            ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
-            ...(occasion.venue ? { venueName: occasion.venue } : {}),
-          })),
-        ),
-      },
-    ];
-  }
-  const grouped = withOccasionGroup(
-    place ? { address: place } : undefined,
-    product.id,
-    occasions.length,
-  );
-  return occasions.map((occasion) => {
-    const externalId = `${product.id}:${occasion.startsAt.slice(0, 19)}:${occasion.endsAt?.slice(0, 19) ?? ''}`;
-    return {
+  void collapse;
+  const first = occasions[0]!;
+  const last = occasions.at(-1)!;
+  return [
+    {
       ...base,
-      externalId,
-      startsAt: occasion.startsAt,
-      ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
-      ...(occasion.venue && !digital ? { venueName: occasion.venue } : {}),
-      ...(grouped ? { meta: grouped } : {}),
-    };
-  });
+      externalId: product.id,
+      startsAt: first.startsAt,
+      endsAt: last.endsAt ?? first.endsAt ?? first.startsAt,
+      ...(first.venue && !digital ? { venueName: first.venue } : {}),
+      occasions: occasions.map((occasion) => ({
+        startsAt: occasion.startsAt,
+        endsAt: occasion.endsAt ?? occasion.startsAt,
+        ...(occasion.venue ? { venueName: occasion.venue } : {}),
+        sourceKey: `${occasion.startsAt.slice(0, 19)}:${occasion.endsAt?.slice(0, 19) ?? ''}`,
+      })),
+    },
+  ];
 }
 
 async function readJson(response: Response): Promise<{ totalCount?: number; items?: unknown[] }> {

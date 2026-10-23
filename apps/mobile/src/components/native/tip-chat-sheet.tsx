@@ -22,12 +22,8 @@ export function TipChatSheet({
 }) {
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const fillsSheet = process.env.EXPO_OS === 'ios';
-  // A fixed height keeps the summary footer on screen the next time the sheet opens.
-  // Without it the list is measured as its content and the button sits below the sheet.
-  const bodyHeight = fillsSheet
-    ? Math.round(height - insets.top - insets.bottom - space.xxl)
-    : Math.round(height * 0.9);
+  // The detent is 90% of the window. A full-screen body lays the footer below that clip.
+  const bodyHeight = Math.round(height * 0.9) - insets.top - insets.bottom;
 
   return (
     <Host style={{ position: 'absolute', width: 0, height: 0 }}>

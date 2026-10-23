@@ -36,7 +36,6 @@ import { MaxContentWidth } from '@/constants/theme';
 import {
   FALLBACK_CENTER,
   getPublicEvent,
-  listOccasionEvents,
   listPublicEvents,
   listTags,
   namesForTagIds,
@@ -78,7 +77,7 @@ import {
   type ReminderSlot,
 } from '@/lib/reminder-times';
 import { directionsUrl } from '@/lib/directions';
-import { isWholeDay, upcomingSpanOccasions } from '@/lib/span-occasions';
+import { isWholeDay } from '@/lib/span-occasions';
 import { shareEventLink } from '@/lib/event-share';
 import { buildEventWebUrl } from '@/lib/event-share-url';
 import { reportEvent } from '@/lib/reports';
@@ -94,6 +93,13 @@ import { RelatedEvents } from './_components/related-events';
 import { ShareRow } from './_components/share-row';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
+
+type Occasion = {
+  startsAt: string;
+  endsAt: string;
+  venueName?: string | null;
+  location?: { lat: number; lng: number } | null;
+};
 
 export default function EventDetailScreen() {
   const { t, i18n } = useTranslation();
@@ -142,37 +148,28 @@ export default function EventDetailScreen() {
     setCountedComing(serverComing);
     setComingDelta(0);
   }
-  const occasionGroupId = event.data?.meta.occasionGroupId;
-  const occasions = useQuery({
-    queryKey: ['event-occasions', occasionGroupId],
-    ...eventListFreshness,
-    queryFn: () => listOccasionEvents(occasionGroupId!),
-    enabled: typeof occasionGroupId === 'string' && occasionGroupId.length > 0,
-  });
   const otherOccasions = useMemo(() => {
-    const folded = upcomingSpanOccasions(
-      event.data?.meta.occasions,
-      new Date(),
-      event.data?.timezone,
-    ).map((occasion, index) => ({
-      key: `${occasion.startsAt}-${index}`,
-      startsAt: occasion.startsAt,
-      endsAt: occasion.endsAt ?? null,
-      venueName: occasion.venueName ?? event.data?.venueName ?? null,
-      publisherName: event.data?.publisherName ?? '',
-    }));
-    const siblings = (occasions.data?.items ?? [])
-      .filter((item) => item.id !== id)
-      .map((item) => ({
-        key: item.id,
-        eventId: item.id,
-        startsAt: item.startsAt,
-        endsAt: item.endsAt,
-        venueName: item.venueName,
-        publisherName: item.publisherName,
+    const occasions = (event.data as { occasions?: Occasion[] } | undefined)?.occasions ?? [];
+    const now = new Date();
+    return occasions
+      .filter((occasion) => {
+        const start = new Date(occasion.startsAt);
+        const end = new Date(occasion.endsAt);
+        if (isWholeDay(occasion.startsAt, occasion.endsAt)) {
+          const closing = new Date(end);
+          closing.setUTCHours(23, 59, 59, 999);
+          return closing >= now;
+        }
+        return end >= now || start >= now;
+      })
+      .map((occasion, index) => ({
+        key: `${occasion.startsAt}-${occasion.endsAt}-${index}`,
+        startsAt: occasion.startsAt,
+        endsAt: occasion.endsAt ?? null,
+        venueName: occasion.venueName ?? event.data?.venueName ?? null,
+        publisherName: event.data?.publisherName ?? '',
       }));
-    return [...folded, ...siblings];
-  }, [event.data, occasions.data?.items, id]);
+  }, [event.data]);
   const reminder = useQuery({
     queryKey: ['event-reminder', id],
     queryFn: () => eventReminderSlots(id!),
@@ -426,7 +423,6 @@ export default function EventDetailScreen() {
         ratingStatus.refetch(),
         reminder.refetch(),
         tags.refetch(),
-        ...(occasionGroupId ? [occasions.refetch()] : []),
         ...(event.data?.tagIds[0] ? [related.refetch()] : []),
       ];
       if (identity.isSuccess) {
@@ -547,12 +543,11 @@ export default function EventDetailScreen() {
       points.push({ lat: location.lat, lng: location.lng });
     };
     add(event.data.location);
-    for (const occasion of event.data.meta.occasions ?? []) add(occasion.location);
-    for (const item of occasions.data?.items ?? []) {
-      if (item.id !== id) add(item.location);
+    for (const occasion of (event.data as { occasions?: Occasion[] }).occasions ?? []) {
+      add(occasion.location);
     }
     return points;
-  }, [event.data, occasions.data?.items, id]);
+  }, [event.data]);
   const relatedItems = useMemo(() => {
     return (related.data?.items ?? [])
       .filter((item) => item.id !== id)

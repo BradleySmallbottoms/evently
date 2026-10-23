@@ -1,8 +1,8 @@
 # Collapse occasions in admin
 
-Staff open an event that already has several `meta.occasions` rows, or an `meta.occasionGroupId`.
-The admin session cookie is required. The Tillfällen tab lists the stored occasions, then every
-event in the group. The open event is shown in gray and cannot be checked.
+Staff open an event and pick one or more other events to fold into it. The admin session cookie is
+required. The Tillfallen tab lists the event's occasion rows from `event_occasions`. Older grouped
+imports can still use the group list to pick merge candidates.
 
 ```mermaid
 sequenceDiagram
@@ -11,21 +11,21 @@ sequenceDiagram
   participant DB
   participant SQS
   Admin->>API: GET /v1/events/{id}
-  API->>DB: events
-  API-->>Admin: detail, including meta.occasions and meta.occasionGroupId
+  API->>DB: events + event_occasions
+  API-->>Admin: detail with occasion rows
   Admin->>API: GET /v1/events/{id}/occasion-group
-  API->>DB: events where meta.occasionGroupId matches
-  API-->>Admin: events in the group that are not cancelled or ended, including this one
+  API->>DB: grouped candidates (legacy meta.occasionGroupId)
+  API-->>Admin: mergeable events
   Admin->>API: POST /v1/events/{id}/collapse
-  Note over API: Body is the checked event ids. They must share this event's group.
-  API->>DB: set this event's start, end, meta.collapsed, and meta.occasions
-  API->>DB: cancel the checked events and clear their occasionGroupId
-  API->>DB: cancel their open reminders, write audit_log
-  alt this event is published
+  Note over API: Body is the checked event ids.
+  API->>DB: move occasion rows to host event_id
+  API->>DB: repoint child rows (saved/coming/check-ins/ratings/reports/refs/stats/push)
+  API->>DB: delete merged event rows + write audit log
+  alt host is published
     API->>SQS: event.updated
   end
-  API-->>Admin: updated event
+  API-->>Admin: updated host event
 ```
 
-The event start is the earliest occasion start. The end is the latest occasion end. A later import
-of a cancelled source id leaves that row cancelled.
+The surviving event keeps one id. Future imports update that event through the rewritten
+`external_refs` product id mapping.

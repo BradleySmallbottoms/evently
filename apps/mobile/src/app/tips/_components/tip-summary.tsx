@@ -3,7 +3,6 @@ import { deviceAssetUrl } from '@local-events/domain';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,13 +10,8 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, TextInput, View } f
 import Animated, {
   Easing,
   FadeIn,
-  FadeOut,
   LinearTransition,
-  useAnimatedStyle,
   useReducedMotion,
-  useSharedValue,
-  withRepeat,
-  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Tip, TipCard } from '@local-events/contracts';
@@ -74,7 +68,6 @@ export function TipSummary({
   const waiting = sending && tip.phase === 'confirm';
   const ease = Easing.bezier(0.23, 1, 0.32, 1);
   const fadeIn = () => FadeIn.duration(reduced ? 120 : 240).easing(ease);
-  const fadeOut = () => FadeOut.duration(reduced ? 100 : 180).easing(ease);
   const layout = () => LinearTransition.duration(reduced ? 120 : 280).easing(ease);
   const send = useMutation({
     mutationFn: async () => {
@@ -141,7 +134,7 @@ export function TipSummary({
           maxWidth: MaxContentWidth,
           alignSelf: 'center',
         }}
-        style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0 }}
+        style={{ flexGrow: 0, flexShrink: 1, minHeight: 0 }}
       >
         <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'center' }}>
           {image ? (
@@ -297,9 +290,7 @@ export function TipSummary({
           <PrimaryButton label={t('tips.continue')} onPress={onRevise} />
         </View>
       ) : !sent ? (
-        <Animated.View
-          entering={fadeIn()}
-          exiting={fadeOut()}
+        <View
           style={{
             flexShrink: 0,
             flexDirection: 'row',
@@ -333,7 +324,7 @@ export function TipSummary({
               }}
             />
           </View>
-        </Animated.View>
+        </View>
       ) : showClose ? (
         <View
           style={{

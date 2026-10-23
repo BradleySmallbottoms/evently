@@ -17,6 +17,18 @@ export const IncomingEvent = z.object({
   /** Omitted when the source has no occasion. The scan may fill both later. */
   startsAt: z.iso.datetime({ offset: true }).optional(),
   endsAt: z.iso.datetime({ offset: true }).optional(),
+  occasions: z
+    .array(
+      z.object({
+        startsAt: z.iso.datetime({ offset: true }),
+        endsAt: z.iso.datetime({ offset: true }),
+        venueName: z.string().trim().min(1).max(500).optional(),
+        location: GeoPointSchema.optional(),
+        sourceKey: z.string().trim().min(1).max(300).optional(),
+      }),
+    )
+    .max(2000)
+    .optional(),
   timezone: z.string().default('Europe/Stockholm'),
   /** Moved onto `meta.import.venueName` before insert. The venue column stays empty. */
   venueName: z.string().optional(),

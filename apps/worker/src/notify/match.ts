@@ -33,9 +33,10 @@ export async function loadPublishedEvent(
       title: schema.events.title,
       status: schema.events.status,
       publisherId: schema.events.publisherId,
-      location: schema.events.location,
+      hasLocation: sql<boolean>`${schema.eventOccasions.location} IS NOT NULL`,
     })
     .from(schema.events)
+    .leftJoin(schema.eventOccasions, eq(schema.eventOccasions.eventId, schema.events.id))
     .where(eq(schema.events.id, eventId))
     .limit(1);
   if (!row?.publisherId) return null;
@@ -48,7 +49,7 @@ export async function loadPublishedEvent(
     title: row.title,
     status: row.status,
     publisherId: row.publisherId,
-    hasLocation: row.location != null,
+    hasLocation: row.hasLocation,
     tagIds: cats.map((c) => c.tagId),
   };
 }
@@ -66,16 +67,17 @@ export async function findNearbyMatchedUsers(
   const rows = await db.execute(sql`
     SELECT DISTINCT u.id AS user_id
     FROM events e
+    INNER JOIN event_occasions eo ON eo.event_id = e.id
     INNER JOIN event_tags et ON et.event_id = e.id
     INNER JOIN user_areas ua
       ON ua.active = true
       AND ua.notify = true
       AND (
-        (ua.area IS NOT NULL AND ST_Covers(ua.area, e.location))
+        (ua.area IS NOT NULL AND ST_Covers(ua.area, eo.location))
         OR (
           ua.center IS NOT NULL
           AND ua.radius_m IS NOT NULL
-          AND ST_DWithin(ua.center, e.location, ua.radius_m)
+          AND ST_DWithin(ua.center, eo.location, ua.radius_m)
         )
       )
     INNER JOIN user_area_tags uat
@@ -84,7 +86,7 @@ export async function findNearbyMatchedUsers(
     INNER JOIN users u ON u.id = ua.user_id
     WHERE e.id = ${eventId}::uuid
       AND e.status = 'published'
-      AND e.location IS NOT NULL
+      AND eo.location IS NOT NULL
     LIMIT ${limit}
   `);
 
@@ -104,21 +106,22 @@ export async function findAreaMatchedUsers(
   const rows = await db.execute(sql`
     SELECT DISTINCT u.id AS user_id
     FROM events e
+    INNER JOIN event_occasions eo ON eo.event_id = e.id
     INNER JOIN user_areas ua
       ON ua.active = true
       AND ua.notify = true
       AND (
-        (ua.area IS NOT NULL AND ST_Covers(ua.area, e.location))
+        (ua.area IS NOT NULL AND ST_Covers(ua.area, eo.location))
         OR (
           ua.center IS NOT NULL
           AND ua.radius_m IS NOT NULL
-          AND ST_DWithin(ua.center, e.location, ua.radius_m)
+          AND ST_DWithin(ua.center, eo.location, ua.radius_m)
         )
       )
     INNER JOIN users u ON u.id = ua.user_id
     WHERE e.id = ${eventId}::uuid
       AND e.status = 'published'
-      AND e.location IS NOT NULL
+      AND eo.location IS NOT NULL
     LIMIT ${limit}
   `);
 

@@ -44,22 +44,32 @@ export function createDbCheckInServices(
   }
 
   async function loadPublished(eventId: string) {
+    const at = now();
     const [row] = await db
       .select({
         id: schema.events.id,
         publisherId: schema.events.publisherId,
         mode: schema.events.mode,
         status: schema.events.status,
-        startsAt: schema.events.startsAt,
-        endsAt: schema.events.endsAt,
+        startsAt: schema.eventOccasions.startsAt,
+        endsAt: schema.eventOccasions.endsAt,
         geofenceRadiusM: schema.events.geofenceRadiusM,
-        lat: sql<number | null>`ST_Y(${schema.events.location}::geometry)`,
-        lng: sql<number | null>`ST_X(${schema.events.location}::geometry)`,
-        hasLocation: sql<boolean>`${schema.events.location} IS NOT NULL`,
+        lat: sql<number | null>`ST_Y(${schema.eventOccasions.location}::geometry)`,
+        lng: sql<number | null>`ST_X(${schema.eventOccasions.location}::geometry)`,
+        hasLocation: sql<boolean>`${schema.eventOccasions.location} IS NOT NULL`,
         checkInEnabled: schema.events.checkInEnabled,
       })
       .from(schema.events)
+      .leftJoin(schema.eventOccasions, eq(schema.eventOccasions.eventId, schema.events.id))
       .where(eq(schema.events.id, eventId))
+      .orderBy(
+        sql`case
+          when ${schema.eventOccasions.startsAt} <= ${at} and ${schema.eventOccasions.endsAt} >= ${at} then 0
+          when ${schema.eventOccasions.startsAt} > ${at} then 1
+          else 2
+        end`,
+        schema.eventOccasions.startsAt,
+      )
       .limit(1);
     if (!row || row.status !== 'published' || !row.startsAt || !row.endsAt) {
       throw new CheckInError('not_found');

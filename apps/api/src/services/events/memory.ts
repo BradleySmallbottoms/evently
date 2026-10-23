@@ -66,7 +66,7 @@ function toManaged(row: MemoryEventRow, store: MemoryStore): ManagedEvent {
 
 function toPublic(row: MemoryEventRow, store: MemoryStore): Event {
   const { attendeeText: _text, attendeeLinks: _links, ...event } = toManaged(row, store);
-  return event;
+  return { ...event, occasions: [] };
 }
 
 function linksFromInput(links: CreateEventRequest['links']): EventLink[] {
@@ -110,12 +110,17 @@ export function createMemoryEventServices(
   ) {
     const from = query.from ? new Date(query.from) : undefined;
     const to = query.to ? new Date(query.to) : undefined;
-    const center = { lat: query.lat, lng: query.lng };
+    const center =
+      query.lat != null && query.lng != null ? { lat: query.lat, lng: query.lng } : null;
+    const radiusM = query.radiusM ?? 50_000;
     const q = query.q?.toLowerCase();
     return [...events.values()]
       .filter((e) => e.status === 'published')
       .filter((e) => isPubliclyListedEvent({ hasLocation: e.location != null }))
-      .filter((e) => e.location != null && haversineM(center, e.location) <= query.radiusM)
+      .filter((e) => {
+        if (!center) return e.location != null;
+        return e.location != null && haversineM(center, e.location) <= radiusM;
+      })
       .filter((e) =>
         eventIsCurrent({
           startsAt: e.startsAtDate,
@@ -195,7 +200,12 @@ export function createMemoryEventServices(
 
     async createEvent({ sessionToken, publisherId, body }) {
       await requireMember(sessionToken, publisherId);
-      const location = body.location ?? null;
+      const firstOccasion = body.occasions?.[0];
+      const startsAt = body.startsAt ?? firstOccasion?.startsAt;
+      const endsAt = body.endsAt ?? firstOccasion?.endsAt;
+      if (!startsAt || !endsAt) throw new EventError('invalid_event');
+      const location = body.location ?? firstOccasion?.location ?? null;
+      const venueName = body.venueName ?? firstOccasion?.venueName ?? null;
       const onlineUrl = body.onlineUrl ?? null;
       assertFields(body.mode, location, onlineUrl);
       for (const id of body.tagIds) {
@@ -212,10 +222,10 @@ export function createMemoryEventServices(
         mode: body.mode,
         status: 'draft',
         origin: 'native',
-        startsAt: body.startsAt,
-        endsAt: body.endsAt,
+        startsAt,
+        endsAt,
         timezone: body.timezone,
-        venueName: body.venueName ?? null,
+        venueName: venueName ?? null,
         location,
         geofenceRadiusM: body.geofenceRadiusM ?? (body.mode === 'physical' ? 100 : null),
         onlineUrl,
@@ -231,12 +241,13 @@ export function createMemoryEventServices(
         checkInEnabled: false,
         numSaved: 0,
         numComing: 0,
+        occasions: [],
         attendeeText: null,
         attendeeLinks: [],
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),
-        startsAtDate: new Date(body.startsAt),
-        endsAtDate: new Date(body.endsAt),
+        startsAtDate: new Date(startsAt),
+        endsAtDate: new Date(endsAt),
       };
       events.set(id, row);
       return toPublic(row, store);
@@ -273,6 +284,15 @@ export function createMemoryEventServices(
       if (body.timezone !== undefined) row.timezone = body.timezone;
       if (body.venueName !== undefined) row.venueName = body.venueName;
       if (body.location !== undefined) row.location = body.location;
+      if (body.occasions && body.occasions.length > 0) {
+        const first = body.occasions[0]!;
+        row.startsAt = first.startsAt;
+        row.endsAt = first.endsAt;
+        row.startsAtDate = new Date(first.startsAt);
+        row.endsAtDate = new Date(first.endsAt);
+        row.venueName = first.venueName ?? null;
+        row.location = first.location ?? null;
+      }
       if (body.geofenceRadiusM !== undefined) row.geofenceRadiusM = body.geofenceRadiusM;
       if (body.onlineUrl !== undefined) row.onlineUrl = body.onlineUrl;
       if (body.priceAmount !== undefined) row.priceAmount = body.priceAmount;
@@ -346,7 +366,8 @@ export function createMemoryEventServices(
     },
 
     async listPublicEvents(query: PublicEventListQuery) {
-      const center = { lat: query.lat, lng: query.lng };
+      const center =
+        query.lat != null && query.lng != null ? { lat: query.lat, lng: query.lng } : null;
       const matched = listedPublicEvents(query);
       matched.sort((a, b) => {
         if (query.sort === 'popular') {
@@ -365,7 +386,7 @@ export function createMemoryEventServices(
           return a.id.localeCompare(b.id);
         }
         if (a.featured !== b.featured) return a.featured ? -1 : 1;
-        if (query.sort === 'distance') {
+        if (query.sort === 'distance' && center) {
           const da = a.location ? haversineM(center, a.location) : Number.POSITIVE_INFINITY;
           const db = b.location ? haversineM(center, b.location) : Number.POSITIVE_INFINITY;
           if (da !== db) return da - db;
@@ -389,6 +410,7 @@ export function createMemoryEventServices(
     async listOccasions(query: OccasionListQuery) {
       const now = env.now();
       return [...events.values()]
+        .filter((event) => (query.eventId ? event.id === query.eventId : true))
         .filter((event) => event.status === 'published')
         .filter((event) =>
           eventIsCurrent({
@@ -398,7 +420,9 @@ export function createMemoryEventServices(
             now,
           }),
         )
-        .filter((event) => event.meta.occasionGroupId === query.occasionGroupId)
+        .filter((event) =>
+          query.occasionGroupId ? event.meta.occasionGroupId === query.occasionGroupId : true,
+        )
         .sort((a, b) => {
           const byDate = a.startsAt.localeCompare(b.startsAt);
           return byDate !== 0 ? byDate : a.id.localeCompare(b.id);

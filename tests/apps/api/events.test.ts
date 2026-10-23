@@ -954,6 +954,11 @@ describe('events', () => {
     expect(await count(`&tagIds=${music}&price=paid`)).toBe(0);
 
     const missing = await app.request('/v1/events/count');
-    expect(missing.status).toBe(400);
+    expect(missing.status).toBe(200);
+    const missingList = await app.request('/v1/events');
+    expect(missingList.status).toBe(200);
+    expect(((await missing.json()) as { total: number }).total).toBe(
+      ((await missingList.json()) as { items: unknown[] }).items.length,
+    );
   });
 });

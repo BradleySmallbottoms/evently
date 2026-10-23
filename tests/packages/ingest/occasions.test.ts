@@ -43,10 +43,9 @@ describe('occasion collapse', () => {
 
   it('stores the product id only when several occasions stay separate', () => {
     expect(withOccasionGroup({ ageLimit: 18 }, 'cbis:1', 1)).toEqual({ ageLimit: 18 });
-    expect(withOccasionGroup(undefined, 'cbis:1', 3)).toEqual({ occasionGroupId: 'cbis:1' });
+    expect(withOccasionGroup(undefined, 'cbis:1', 3)).toEqual(undefined);
     expect(withOccasionGroup({ freeEntry: true }, ' 1960936 ', 2)).toEqual({
       freeEntry: true,
-      occasionGroupId: '1960936',
     });
     expect(
       withCollapsedSpan({ freeEntry: true }, [
@@ -59,15 +58,6 @@ describe('occasion collapse', () => {
       ]),
     ).toEqual({
       freeEntry: true,
-      collapsed: true,
-      occasions: [
-        {
-          startsAt: '2026-11-13T10:00:00+01:00',
-          endsAt: '2026-11-13T18:00:00+01:00',
-          venueName: 'A',
-        },
-        { startsAt: '2026-11-14T10:00:00+01:00' },
-      ],
     });
   });
 });

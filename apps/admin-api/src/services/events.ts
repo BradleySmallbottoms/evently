@@ -313,8 +313,13 @@ function untaggedEvents() {
   )`;
 }
 
-function isoDate(value: Date | null): string | null {
-  return value ? value.toISOString() : null;
+function isoDate(value: Date | string | null): string | null {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  }
+  return value.toISOString();
 }
 
 function metaWithoutGroup(meta: EventMeta): EventMeta {
@@ -803,12 +808,38 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         mode: schema.events.mode,
         status: schema.events.status,
         origin: schema.events.origin,
-        startsAt: schema.events.startsAt,
-        endsAt: schema.events.endsAt,
+        startsAt: sql<Date | null>`(
+          select min(${schema.eventOccasions.startsAt})
+          from ${schema.eventOccasions}
+          where ${schema.eventOccasions.eventId} = ${schema.events.id}
+        )`,
+        endsAt: sql<Date | null>`(
+          select max(${schema.eventOccasions.endsAt})
+          from ${schema.eventOccasions}
+          where ${schema.eventOccasions.eventId} = ${schema.events.id}
+        )`,
         timezone: schema.events.timezone,
-        venueName: schema.events.venueName,
-        lat: sql<number | null>`ST_Y(${schema.events.location}::geometry)`,
-        lng: sql<number | null>`ST_X(${schema.events.location}::geometry)`,
+        venueName: sql<string | null>`(
+          select ${schema.eventOccasions.venueName}
+          from ${schema.eventOccasions}
+          where ${schema.eventOccasions.eventId} = ${schema.events.id}
+          order by ${schema.eventOccasions.startsAt} asc
+          limit 1
+        )`,
+        lat: sql<number | null>`(
+          select ST_Y(${schema.eventOccasions.location}::geometry)
+          from ${schema.eventOccasions}
+          where ${schema.eventOccasions.eventId} = ${schema.events.id}
+          order by ${schema.eventOccasions.startsAt} asc
+          limit 1
+        )`,
+        lng: sql<number | null>`(
+          select ST_X(${schema.eventOccasions.location}::geometry)
+          from ${schema.eventOccasions}
+          where ${schema.eventOccasions.eventId} = ${schema.events.id}
+          order by ${schema.eventOccasions.startsAt} asc
+          limit 1
+        )`,
         geofenceRadiusM: schema.events.geofenceRadiusM,
         onlineUrl: schema.events.onlineUrl,
         priceAmount: schema.events.priceAmount,
@@ -906,6 +937,50 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
     );
   }
 
+  async function replaceOccasions(
+    eventId: string,
+    input: {
+      startsAt?: string;
+      endsAt?: string;
+      venueName?: string | null;
+      location?: { lat: number; lng: number } | null;
+      occasions?: {
+        startsAt: string;
+        endsAt: string;
+        venueName?: string | null;
+        location?: { lat: number; lng: number } | null;
+      }[];
+    },
+  ) {
+    const rows =
+      input.occasions && input.occasions.length > 0
+        ? input.occasions
+        : input.startsAt && input.endsAt
+          ? [
+              {
+                startsAt: input.startsAt,
+                endsAt: input.endsAt,
+                venueName: input.venueName ?? null,
+                location: input.location ?? null,
+              },
+            ]
+          : [];
+    if (rows.length === 0) return;
+    await db.transaction(async (tx) => {
+      await tx.delete(schema.eventOccasions).where(eq(schema.eventOccasions.eventId, eventId));
+      await tx.insert(schema.eventOccasions).values(
+        rows.map((row) => ({
+          eventId,
+          startsAt: new Date(row.startsAt),
+          endsAt: new Date(row.endsAt),
+          venueName: row.venueName ?? null,
+          location: row.location ? pointEwkt(row.location) : null,
+          sourceKey: `${row.startsAt}:${row.endsAt}`,
+        })),
+      );
+    });
+  }
+
   return {
     async listInReview() {
       const rows = await db
@@ -917,9 +992,23 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           mode: schema.events.mode,
           status: schema.events.status,
           origin: schema.events.origin,
-          startsAt: schema.events.startsAt,
-          endsAt: schema.events.endsAt,
-          venueName: schema.events.venueName,
+          startsAt: sql<Date | null>`(
+            select min(${schema.eventOccasions.startsAt})
+            from ${schema.eventOccasions}
+            where ${schema.eventOccasions.eventId} = ${schema.events.id}
+          )`,
+          endsAt: sql<Date | null>`(
+            select max(${schema.eventOccasions.endsAt})
+            from ${schema.eventOccasions}
+            where ${schema.eventOccasions.eventId} = ${schema.events.id}
+          )`,
+          venueName: sql<string | null>`(
+            select ${schema.eventOccasions.venueName}
+            from ${schema.eventOccasions}
+            where ${schema.eventOccasions.eventId} = ${schema.events.id}
+            order by ${schema.eventOccasions.startsAt} asc
+            limit 1
+          )`,
           sourceUrl: schema.events.sourceUrl,
           contentVerdict: schema.events.contentVerdict,
           tagCount: tagCountColumn(),
@@ -959,7 +1048,11 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         const pattern = `%${query.q.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
         const match = or(
           ilike(schema.events.title, pattern),
-          ilike(schema.events.venueName, pattern),
+          sql`exists (
+            select 1 from ${schema.eventOccasions} eo
+            where eo.event_id = ${schema.events.id}
+              and eo.venue_name ilike ${pattern}
+          )`,
           ilike(schema.publishers.name, pattern),
         );
         if (match) filters.push(match);
@@ -974,9 +1067,23 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           mode: schema.events.mode,
           status: schema.events.status,
           origin: schema.events.origin,
-          startsAt: schema.events.startsAt,
-          endsAt: schema.events.endsAt,
-          venueName: schema.events.venueName,
+          startsAt: sql<Date | null>`(
+            select min(${schema.eventOccasions.startsAt})
+            from ${schema.eventOccasions}
+            where ${schema.eventOccasions.eventId} = ${schema.events.id}
+          )`,
+          endsAt: sql<Date | null>`(
+            select max(${schema.eventOccasions.endsAt})
+            from ${schema.eventOccasions}
+            where ${schema.eventOccasions.eventId} = ${schema.events.id}
+          )`,
+          venueName: sql<string | null>`(
+            select ${schema.eventOccasions.venueName}
+            from ${schema.eventOccasions}
+            where ${schema.eventOccasions.eventId} = ${schema.events.id}
+            order by ${schema.eventOccasions.startsAt} asc
+            limit 1
+          )`,
           sourceUrl: schema.events.sourceUrl,
           featured: schema.events.featured,
           checkInEnabled: schema.events.checkInEnabled,
@@ -995,7 +1102,14 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       const ordered =
         query.sort === 'created'
           ? filtered.orderBy(asc(schema.events.createdAt), asc(schema.events.id))
-          : filtered.orderBy(desc(schema.events.startsAt), desc(schema.events.id));
+          : filtered.orderBy(
+              sql`(
+                select min(${schema.eventOccasions.startsAt})
+                from ${schema.eventOccasions}
+                where ${schema.eventOccasions.eventId} = ${schema.events.id}
+              ) desc`,
+              desc(schema.events.id),
+            );
       const [rows, [totalRow]] = await Promise.all([
         ordered.limit(query.limit).offset(query.offset),
         where ? counted.where(where) : counted,
@@ -1045,7 +1159,11 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           title: schema.events.title,
           origin: schema.events.origin,
           publisherId: schema.events.publisherId,
-          startsAt: schema.events.startsAt,
+          startsAt: sql<Date | null>`(
+            select min(${schema.eventOccasions.startsAt})
+            from ${schema.eventOccasions}
+            where ${schema.eventOccasions.eventId} = ${schema.events.id}
+          )`,
         })
         .from(schema.events)
         .where(eq(schema.events.id, eventId))
@@ -1262,9 +1380,23 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           id: schema.events.id,
           title: schema.events.title,
           status: schema.events.status,
-          startsAt: schema.events.startsAt,
-          endsAt: schema.events.endsAt,
-          venueName: schema.events.venueName,
+          startsAt: sql<Date | null>`(
+            select min(${schema.eventOccasions.startsAt})
+            from ${schema.eventOccasions}
+            where ${schema.eventOccasions.eventId} = ${schema.events.id}
+          )`,
+          endsAt: sql<Date | null>`(
+            select max(${schema.eventOccasions.endsAt})
+            from ${schema.eventOccasions}
+            where ${schema.eventOccasions.eventId} = ${schema.events.id}
+          )`,
+          venueName: sql<string | null>`(
+            select ${schema.eventOccasions.venueName}
+            from ${schema.eventOccasions}
+            where ${schema.eventOccasions.eventId} = ${schema.events.id}
+            order by ${schema.eventOccasions.startsAt} asc
+            limit 1
+          )`,
         })
         .from(schema.events)
         .where(
@@ -1273,7 +1405,14 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
             inArray(schema.events.status, [...OPEN_OCCASION_STATUSES]),
           ),
         )
-        .orderBy(asc(schema.events.startsAt), asc(schema.events.id));
+        .orderBy(
+          sql`(
+            select min(${schema.eventOccasions.startsAt})
+            from ${schema.eventOccasions}
+            where ${schema.eventOccasions.eventId} = ${schema.events.id}
+          )`,
+          asc(schema.events.id),
+        );
       return rows.map((row) => ({
         id: row.id,
         title: row.title,
@@ -1294,17 +1433,13 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .select({
           id: schema.events.id,
           status: schema.events.status,
-          startsAt: schema.events.startsAt,
-          endsAt: schema.events.endsAt,
-          venueName: schema.events.venueName,
           meta: schema.events.meta,
-          lat: sql<number | null>`ST_Y(${schema.events.location}::geometry)`,
-          lng: sql<number | null>`ST_X(${schema.events.location}::geometry)`,
         })
         .from(schema.events)
         .where(inArray(schema.events.id, unique));
       if (rows.length !== unique.length) throw new AdminEventError('invalid_event');
-      const members = rows.map((row) => {
+      const at = now();
+      for (const row of rows) {
         const meta = readEventMeta(row.meta);
         if (
           meta.occasionGroupId !== host.meta.occasionGroupId ||
@@ -1314,63 +1449,217 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         ) {
           throw new AdminEventError('invalid_event');
         }
-        const lat = row.lat == null ? null : Number(row.lat);
-        const lng = row.lng == null ? null : Number(row.lng);
-        if (!row.startsAt || !row.endsAt) throw new AdminEventError('invalid_event');
-        return collapseMember({
-          startsAt: row.startsAt.toISOString(),
-          endsAt: row.endsAt.toISOString(),
-          venueName: row.venueName,
-          location:
-            lat != null && lng != null && !Number.isNaN(lat) && !Number.isNaN(lng)
-              ? { lat, lng }
-              : null,
-          meta,
-        });
-      });
-      if (!host.startsAt || !host.endsAt) throw new AdminEventError('invalid_event');
-      const span = collapseOccasionSpan(
-        collapseMember({
-          startsAt: host.startsAt,
-          endsAt: host.endsAt,
-          venueName: host.venueName,
-          location: host.location,
-          meta: host.meta,
-        }),
-        members,
+      }
+      const childIdsSql = sql.join(
+        unique.map((id) => sql`${id}`),
+        sql`, `,
       );
-      if (!span) throw new AdminEventError('invalid_event');
-      const at = now();
-      const nextMeta = metaCollapsed(host.meta, span.occasions);
+      const groupId = host.meta.occasionGroupId;
       await db.transaction(async (tx) => {
+        await tx.execute(sql`
+          delete from ${schema.eventOccasions} child
+          using ${schema.eventOccasions} host_occ
+          where child.event_id in (${childIdsSql})
+            and host_occ.event_id = ${eventId}
+            and child.source_key is not null
+            and child.source_key = host_occ.source_key
+        `);
+        await tx
+          .update(schema.eventOccasions)
+          .set({ eventId, updatedAt: at })
+          .where(inArray(schema.eventOccasions.eventId, unique));
+        await tx.execute(sql`
+          delete from ${schema.savedEvents} child
+          using ${schema.savedEvents} host_row
+          where child.event_id in (${childIdsSql})
+            and host_row.event_id = ${eventId}
+            and child.user_id = host_row.user_id
+        `);
+        await tx
+          .update(schema.savedEvents)
+          .set({ eventId })
+          .where(inArray(schema.savedEvents.eventId, unique));
+        await tx.execute(sql`
+          delete from ${schema.comingEvents} child
+          using ${schema.comingEvents} host_row
+          where child.event_id in (${childIdsSql})
+            and host_row.event_id = ${eventId}
+            and child.user_id = host_row.user_id
+        `);
+        await tx
+          .update(schema.comingEvents)
+          .set({ eventId })
+          .where(inArray(schema.comingEvents.eventId, unique));
+        await tx.execute(sql`
+          delete from ${schema.eventListItems} child
+          using ${schema.eventListItems} host_row
+          where child.event_id in (${childIdsSql})
+            and host_row.event_id = ${eventId}
+            and child.list_id = host_row.list_id
+        `);
+        await tx
+          .update(schema.eventListItems)
+          .set({ eventId })
+          .where(inArray(schema.eventListItems.eventId, unique));
+        await tx.execute(sql`
+          delete from ${schema.checkIns} child
+          using ${schema.checkIns} host_row
+          where child.event_id in (${childIdsSql})
+            and host_row.event_id = ${eventId}
+            and child.user_id = host_row.user_id
+        `);
+        await tx
+          .update(schema.checkIns)
+          .set({ eventId })
+          .where(inArray(schema.checkIns.eventId, unique));
+        await tx.execute(sql`
+          delete from ${schema.ratings} child
+          using ${schema.ratings} host_row
+          where child.event_id in (${childIdsSql})
+            and host_row.event_id = ${eventId}
+            and child.user_id = host_row.user_id
+        `);
+        await tx
+          .update(schema.ratings)
+          .set({ eventId })
+          .where(inArray(schema.ratings.eventId, unique));
+        await tx.execute(sql`
+          delete from ${schema.eventReports} child
+          using ${schema.eventReports} host_row
+          where child.event_id in (${childIdsSql})
+            and host_row.event_id = ${eventId}
+            and child.user_id = host_row.user_id
+        `);
+        await tx
+          .update(schema.eventReports)
+          .set({ eventId })
+          .where(inArray(schema.eventReports.eventId, unique));
+        await tx.execute(sql`
+          delete from ${schema.eventTags} child
+          using ${schema.eventTags} host_row
+          where child.event_id in (${childIdsSql})
+            and host_row.event_id = ${eventId}
+            and child.tag_id = host_row.tag_id
+        `);
+        await tx
+          .update(schema.eventTags)
+          .set({ eventId })
+          .where(inArray(schema.eventTags.eventId, unique));
+        await tx.execute(sql`
+          delete from ${schema.eventTranslations} child
+          using ${schema.eventTranslations} host_row
+          where child.event_id in (${childIdsSql})
+            and host_row.event_id = ${eventId}
+            and child.language = host_row.language
+        `);
+        await tx
+          .update(schema.eventTranslations)
+          .set({ eventId })
+          .where(inArray(schema.eventTranslations.eventId, unique));
+        await tx.execute(sql`
+          delete from ${schema.subscriptions} child
+          using ${schema.subscriptions} host_row
+          where child.target_type = 'event'
+            and child.target_id in (${childIdsSql})
+            and host_row.target_type = 'event'
+            and host_row.target_id = ${eventId}
+            and child.user_id = host_row.user_id
+        `);
+        await tx
+          .update(schema.subscriptions)
+          .set({ targetId: eventId })
+          .where(
+            and(
+              eq(schema.subscriptions.targetType, 'event'),
+              inArray(schema.subscriptions.targetId, unique),
+            ),
+          );
+        await tx.execute(sql`
+          delete from ${schema.eventImages} child
+          using ${schema.eventImages} host_row
+          where child.event_id in (${childIdsSql})
+            and host_row.event_id = ${eventId}
+            and child.role = host_row.role
+        `);
+        await tx
+          .update(schema.eventImages)
+          .set({ eventId })
+          .where(inArray(schema.eventImages.eventId, unique));
+        await tx
+          .update(schema.eventLinks)
+          .set({ eventId })
+          .where(inArray(schema.eventLinks.eventId, unique));
+        await tx
+          .update(schema.eventContent)
+          .set({ eventId })
+          .where(inArray(schema.eventContent.eventId, unique));
+        await tx
+          .update(schema.pushMessages)
+          .set({ eventId, updatedAt: at })
+          .where(inArray(schema.pushMessages.eventId, unique));
+        await tx
+          .update(schema.notifications)
+          .set({ eventId })
+          .where(inArray(schema.notifications.eventId, unique));
+        await tx
+          .update(schema.eventTips)
+          .set({ eventId, updatedAt: at })
+          .where(inArray(schema.eventTips.eventId, unique));
+        await tx.execute(sql`
+          insert into ${schema.stats} ("source_type", "source_id", "key", "value", "created_at", "updated_at")
+          select s."source_type", ${eventId}, s."key", s."value", s."created_at", s."updated_at"
+          from ${schema.stats} s
+          where s."source_type" = 'event'
+            and s."source_id" in (${childIdsSql})
+          on conflict ("source_type", "source_id", "key")
+          do update set
+            "value" = ${schema.stats}.value + excluded.value,
+            "updated_at" = greatest(${schema.stats}.updated_at, excluded.updated_at)
+        `);
+        await tx.execute(sql`
+          delete from ${schema.stats}
+          where "source_type" = 'event'
+            and "source_id" in (${childIdsSql})
+        `);
+        await tx.execute(sql`
+          delete from ${schema.externalRefs} child
+          using ${schema.externalRefs} host_row
+          where child.event_id in (${childIdsSql})
+            and host_row.event_id = ${eventId}
+            and child.source_id = host_row.source_id
+            and child.external_id = host_row.external_id
+        `);
+        if (groupId) {
+          await tx.execute(sql`
+            insert into ${schema.externalRefs} ("source_id", "external_id", "event_id", "content_hash", "last_seen_at")
+            select er."source_id", ${groupId}, ${eventId}, er."content_hash", er."last_seen_at"
+            from ${schema.externalRefs} er
+            where er."event_id" in (${childIdsSql})
+            on conflict ("source_id", "external_id")
+            do update set
+              "event_id" = excluded.event_id,
+              "content_hash" = excluded.content_hash,
+              "last_seen_at" = greatest(${schema.externalRefs}.last_seen_at, excluded.last_seen_at)
+          `);
+        }
+        await tx
+          .update(schema.externalRefs)
+          .set({ eventId, lastSeenAt: at })
+          .where(inArray(schema.externalRefs.eventId, unique));
         await tx
           .update(schema.events)
           .set({
-            startsAt: new Date(span.startsAt),
-            endsAt: new Date(span.endsAt),
-            meta: nextMeta,
+            meta: metaWithoutGroup(host.meta),
             updatedAt: at,
           })
           .where(eq(schema.events.id, eventId));
-        for (const row of rows) {
-          await tx
-            .update(schema.events)
-            .set({
-              status: 'cancelled',
-              meta: metaWithoutGroup(readEventMeta(row.meta)),
-              updatedAt: at,
-            })
-            .where(eq(schema.events.id, row.id));
-        }
+        await tx.delete(schema.events).where(inArray(schema.events.id, unique));
       });
-      for (const row of rows) {
-        await cancelOpenPushMessages(db, row.id, at);
-      }
       if (host.status === 'published') {
         await enqueueDomainEvent(domainEvents, {
           type: 'event.updated',
           eventId,
-          changedFields: ['startsAt', 'endsAt'],
+          changedFields: ['occasions'],
         });
       }
       const updated = await loadDetail(eventId);
@@ -1380,7 +1669,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         entityType: 'event',
         entityId: eventId,
         before: { occasionGroupId: host.meta.occasionGroupId },
-        after: { startsAt: span.startsAt, endsAt: span.endsAt, cancelledEventIds: unique },
+        after: { mergedEventIds: unique },
       });
       return updated;
     },
@@ -1413,10 +1702,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           description: body.description !== undefined ? body.description : existing.description,
           mode,
           status: nextStatus,
-          ...(startsAt && endsAt ? { startsAt: new Date(startsAt), endsAt: new Date(endsAt) } : {}),
           timezone: body.timezone ?? existing.timezone,
-          venueName: body.venueName !== undefined ? body.venueName : existing.venueName,
-          location: location ? pointEwkt(location) : null,
           geofenceRadiusM:
             body.geofenceRadiusM !== undefined ? body.geofenceRadiusM : existing.geofenceRadiusM,
           onlineUrl,
@@ -1427,6 +1713,15 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           updatedAt: at,
         })
         .where(eq(schema.events.id, eventId));
+      if (body.occasions || (body.startsAt !== undefined && body.endsAt !== undefined)) {
+        await replaceOccasions(eventId, {
+          startsAt: startsAt ?? undefined,
+          endsAt: endsAt ?? undefined,
+          venueName: body.venueName !== undefined ? body.venueName : existing.venueName,
+          location,
+          occasions: body.occasions,
+        });
+      }
       if (body.tagIds) await replaceTags(eventId, body.tagIds);
       if (body.links) await replaceLinks(eventId, body.links);
       if (

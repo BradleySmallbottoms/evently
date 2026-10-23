@@ -389,6 +389,7 @@ export function TipChat({
                 return (
                   <PhotoSourceMenu
                     key={option.label}
+                    style={{ flex: 1 }}
                     cameraLabel={t('tips.takePhoto')}
                     libraryLabel={t('tips.photoLibrary')}
                     onPick={(source) => {
@@ -436,18 +437,6 @@ export function TipChat({
           alignSelf: 'center',
         }}
       >
-        {/* <BackPill /> */}
-        {/* <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.sm }}>
-          <View style={{ minWidth: '15%' }}></View>
-          <AppText variant="caption" style={{ fontWeight: '600' }}>
-            {t('tips.startTitle')}
-          </AppText>
-          <Pressable style={{ minWidth: '15%' }} onPress={() => router.back()}>
-            <AppText variant="caption" style={{ fontWeight: '600', color: colors.danger }}>
-              {t('tips.cancel')}
-            </AppText>
-          </Pressable>
-        </View> */}
         {started ? (
           <CollectedCard
             found={progress.done}
@@ -479,7 +468,7 @@ export function TipChat({
               paddingHorizontal: space.xl,
               // The list runs under the keyboard. This padding is the scroll range
               // that brings the send button up above it.
-              paddingBottom: (keyboard > 0 ? keyboard : insets.bottom) + space.xxxl,
+              paddingBottom: (keyboard > 0 ? keyboard : insets.bottom) + space.xxxl + 30,
               gap: space.lg,
               width: '100%',
               maxWidth: MaxContentWidth,
@@ -548,15 +537,24 @@ export function TipChat({
             })}
             {pendingEcho ? <Bubble mine>{userLabel(pendingEcho, locale, t)}</Bubble> : null}
             {thinking && !verifying ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+              <View
+                style={{ height: 100, flexDirection: 'row', alignItems: 'center', gap: space.sm }}
+              >
                 <AssistantAvatar />
-                <Bubble mine={false} hug tight>
+                <View
+                  style={{
+                    padding: space.md,
+                    backgroundColor: colors.card,
+                    borderRadius: radius.lg,
+                    paddingHorizontal: space.lg,
+                  }}
+                >
                   <ActivityIndicator
                     accessibilityLabel={t('tips.verifying')}
                     size="small"
                     color={colors.ink}
                   />
-                </Bubble>
+                </View>
               </View>
             ) : null}
             {revising ? (

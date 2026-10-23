@@ -813,7 +813,6 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         return [
           {
             eventId: event.id,
-            ...(event.meta.occasionGroupId ? { occasionGroupId: event.meta.occasionGroupId } : {}),
             ...(event.meta.possibleOccasionGroupId
               ? { possibleOccasionGroupId: event.meta.possibleOccasionGroupId }
               : {}),

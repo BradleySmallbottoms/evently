@@ -3,7 +3,7 @@ import { Button, ConfirmationDialog, RNHostView } from '@expo/ui/swift-ui';
 import * as Device from 'expo-device';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Platform, Pressable, View } from 'react-native';
+import { Platform, Pressable, StyleProp, View, ViewStyle } from 'react-native';
 
 import { tipImageSources, type TipImageSource } from '@/lib/camera';
 
@@ -12,6 +12,7 @@ type Props = {
   libraryLabel: string;
   onPick: (source: TipImageSource) => void;
   children: ReactNode;
+  style?: StyleProp<ViewStyle>;
 };
 
 /** Lets the sheet close before the system picker opens. */
@@ -23,7 +24,7 @@ const DISMISS_MS = 250;
  * the stray frame and a tap only dismissed it. The dialog is anchored to the
  * card, so the choices open on the button that was tapped.
  */
-export function PhotoSourceMenu({ cameraLabel, libraryLabel, onPick, children }: Props) {
+export function PhotoSourceMenu({ cameraLabel, libraryLabel, onPick, children, style }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState({ width: 0, height: 0 });
@@ -36,7 +37,7 @@ export function PhotoSourceMenu({ cameraLabel, libraryLabel, onPick, children }:
 
   if (!allowsCamera) {
     return (
-      <Pressable accessibilityRole="button" onPress={() => onPick('library')}>
+      <Pressable accessibilityRole="button" onPress={() => onPick('library')} style={style}>
         {children}
       </Pressable>
     );
@@ -44,6 +45,7 @@ export function PhotoSourceMenu({ cameraLabel, libraryLabel, onPick, children }:
 
   return (
     <View
+      style={style}
       onLayout={(event) => {
         const width = Math.round(event.nativeEvent.layout.width);
         const height = Math.round(event.nativeEvent.layout.height);
@@ -53,7 +55,11 @@ export function PhotoSourceMenu({ cameraLabel, libraryLabel, onPick, children }:
         );
       }}
     >
-      <Pressable accessibilityRole="button" onPress={() => setOpen(true)}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setOpen(true)}
+        style={{ alignSelf: 'stretch' }}
+      >
         {children}
       </Pressable>
       {anchor.width > 0 ? (

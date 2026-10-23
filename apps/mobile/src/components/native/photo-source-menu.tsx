@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, ViewStyle, StyleProp } from 'react-native';
 
 import type { TipImageSource } from '@/lib/camera';
 
@@ -8,9 +8,14 @@ type Props = {
   libraryLabel: string;
   onPick: (source: TipImageSource) => void;
   children: ReactNode;
+  style?: StyleProp<ViewStyle>;
 };
 
 /** Web fallback: open the photo library directly. */
-export function PhotoSourceMenu({ onPick, children }: Props) {
-  return <Pressable onPress={() => onPick('library')}>{children}</Pressable>;
+export function PhotoSourceMenu({ onPick, children, style }: Props) {
+  return (
+    <Pressable onPress={() => onPick('library')} style={style}>
+      {children}
+    </Pressable>
+  );
 }

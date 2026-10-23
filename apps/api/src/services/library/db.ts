@@ -81,6 +81,7 @@ function mapRow(
     checkInEnabled: row.checkInEnabled,
     numSaved: Number(row.numSaved ?? 0),
     numComing: Number(row.numComing ?? 0),
+    occasions: [],
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -148,12 +149,38 @@ export function createDbLibraryServices(
     mode: events.mode,
     status: events.status,
     origin: events.origin,
-    startsAt: events.startsAt,
-    endsAt: events.endsAt,
+    startsAt: sql<Date | null>`(
+      select min(${schema.eventOccasions.startsAt})
+      from ${schema.eventOccasions}
+      where ${schema.eventOccasions.eventId} = ${events.id}
+    )`,
+    endsAt: sql<Date | null>`(
+      select max(${schema.eventOccasions.endsAt})
+      from ${schema.eventOccasions}
+      where ${schema.eventOccasions.eventId} = ${events.id}
+    )`,
     timezone: events.timezone,
-    venueName: events.venueName,
-    lat: sql<number | null>`ST_Y(${events.location}::geometry)`,
-    lng: sql<number | null>`ST_X(${events.location}::geometry)`,
+    venueName: sql<string | null>`(
+      select ${schema.eventOccasions.venueName}
+      from ${schema.eventOccasions}
+      where ${schema.eventOccasions.eventId} = ${events.id}
+      order by ${schema.eventOccasions.startsAt} asc
+      limit 1
+    )`,
+    lat: sql<number | null>`(
+      select ST_Y(${schema.eventOccasions.location}::geometry)
+      from ${schema.eventOccasions}
+      where ${schema.eventOccasions.eventId} = ${events.id}
+      order by ${schema.eventOccasions.startsAt} asc
+      limit 1
+    )`,
+    lng: sql<number | null>`(
+      select ST_X(${schema.eventOccasions.location}::geometry)
+      from ${schema.eventOccasions}
+      where ${schema.eventOccasions.eventId} = ${events.id}
+      order by ${schema.eventOccasions.startsAt} asc
+      limit 1
+    )`,
     geofenceRadiusM: events.geofenceRadiusM,
     onlineUrl: events.onlineUrl,
     priceAmount: events.priceAmount,

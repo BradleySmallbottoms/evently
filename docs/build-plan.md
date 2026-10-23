@@ -131,8 +131,8 @@ Closed beta around week 15, store launch around week 19.
       removes it from lists, unless Ta bort permanent is checked, which removes the row. A later
       import skips a `deleted` source id.
 - [x] Audit log viewer
-- [x] Collapse occasions on the admin event page. Checked events in the same
-      `occasionGroupId` become `meta.occasions` on the open event and are cancelled.
+- [x] Collapse occasions on the admin event page. Checked events move their
+      `event_occasions` and child rows to the open event, then the checked event rows are deleted.
 
 ## Parallel track — Data workers (from week 6)
 

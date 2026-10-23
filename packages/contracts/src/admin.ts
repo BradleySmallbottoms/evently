@@ -3,6 +3,8 @@ import {
   CurrencyCode,
   EventLink,
   EventLinkInput,
+  EventOccasion,
+  EventOccasionInput,
   EventMeta,
   HttpUrl,
   ImportNotificationPlan,
@@ -78,6 +80,14 @@ export const AdminEventReviewItem = z.object({
   startsAt: z.iso.datetime().nullable(),
   endsAt: z.iso.datetime().nullable(),
   venueName: z.string().nullable(),
+  location: z
+    .object({
+      lat: z.number(),
+      lng: z.number(),
+    })
+    .nullable()
+    .optional(),
+  occasions: z.array(EventOccasion).optional(),
   sourceUrl: z.string().nullable(),
   contentVerdict: ContentVerdict,
   /** Rows in `event_tags` for this event. */
@@ -308,6 +318,14 @@ export const AdminEventListItem = z.object({
   startsAt: z.iso.datetime().nullable(),
   endsAt: z.iso.datetime().nullable(),
   venueName: z.string().nullable(),
+  location: z
+    .object({
+      lat: z.number(),
+      lng: z.number(),
+    })
+    .nullable()
+    .optional(),
+  occasions: z.array(EventOccasion).optional(),
   sourceUrl: z.string().nullable(),
   featured: z.boolean(),
   checkInEnabled: z.boolean(),
@@ -326,6 +344,7 @@ export const AdminOccasionGroupItem = z.object({
   startsAt: z.iso.datetime().nullable(),
   endsAt: z.iso.datetime().nullable(),
   venueName: z.string().nullable(),
+  occasions: z.array(EventOccasion).optional(),
 });
 export type AdminOccasionGroupItem = z.infer<typeof AdminOccasionGroupItem>;
 
@@ -418,6 +437,7 @@ export const AdminEventPatchRequest = z
       })
       .nullable()
       .optional(),
+    occasions: z.array(EventOccasionInput).min(1).max(2000).optional(),
     geofenceRadiusM: z.number().int().min(10).max(5000).nullable().optional(),
     onlineUrl: HttpUrl.nullable().optional(),
     priceAmount: PriceAmount.nullable().optional(),
@@ -433,6 +453,15 @@ export const AdminEventPatchRequest = z
       return true;
     },
     { message: 'endsAt must be after startsAt', path: ['endsAt'] },
+  )
+  .refine(
+    (body) => {
+      if (!body.status || body.status !== 'published') return true;
+      if (body.occasions && body.occasions.length > 0) return true;
+      if (body.startsAt && body.endsAt) return true;
+      return false;
+    },
+    { message: 'published events need occasions or startsAt/endsAt', path: ['occasions'] },
   );
 export type AdminEventPatchRequest = z.infer<typeof AdminEventPatchRequest>;
 

@@ -95,6 +95,13 @@ export function createApp(options: CreateAdminAppOptions = {}) {
   const pushMessages = options.pushMessages ?? createMemoryAdminPushMessageServices();
 
   app.onError((err, c) => {
+    const requestId = c.res.headers.get('x-request-id') ?? 'unknown';
+    console.error('[admin-api] unhandled error', {
+      requestId,
+      method: c.req.method,
+      path: c.req.path,
+      error: err instanceof Error ? (err.stack ?? err.message) : String(err),
+    });
     Sentry.captureException(err);
     return c.json({ error: { code: 'internal_error', message: 'Internal server error' } }, 500);
   });
@@ -115,6 +122,13 @@ export function createApp(options: CreateAdminAppOptions = {}) {
 
   const api = new OpenAPIHono();
   api.onError((err, c) => {
+    const requestId = c.res.headers.get('x-request-id') ?? 'unknown';
+    console.error('[admin-api] route error', {
+      requestId,
+      method: c.req.method,
+      path: c.req.path,
+      error: err instanceof Error ? (err.stack ?? err.message) : String(err),
+    });
     Sentry.captureException(err);
     return c.json({ error: { code: 'internal_error', message: 'Internal server error' } }, 500);
   });

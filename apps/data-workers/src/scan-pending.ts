@@ -349,7 +349,6 @@ async function occasionGroupFor(
   ]);
   const byId = new Map(stored.map((item) => [item.eventId, item]));
   const self = byId.get(row.eventId);
-  const occasionGroupId = self?.occasionGroupId ?? row.meta.occasionGroupId;
   const possibleOccasionGroupId = self?.possibleOccasionGroupId ?? row.meta.possibleOccasionGroupId;
   const duplicates = known.flatMap((match) => {
     const existing = byId.get(match.eventId);
@@ -357,7 +356,6 @@ async function occasionGroupFor(
     return [
       {
         occasionRank: match.occasionRank,
-        ...(existing.occasionGroupId ? { occasionGroupId: existing.occasionGroupId } : {}),
         ...(existing.possibleOccasionGroupId
           ? { possibleOccasionGroupId: existing.possibleOccasionGroupId }
           : {}),
@@ -366,7 +364,6 @@ async function occasionGroupFor(
   });
   const groupId = choosePossibleOccasionGroupId({
     event: {
-      ...(occasionGroupId ? { occasionGroupId } : {}),
       ...(possibleOccasionGroupId ? { possibleOccasionGroupId } : {}),
     },
     duplicates,

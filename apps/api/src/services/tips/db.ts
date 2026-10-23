@@ -141,14 +141,15 @@ export function createDbTipServices(
             .select({
               id: schema.events.id,
               title: schema.events.title,
-              startsAt: schema.events.startsAt,
-              venueName: schema.events.venueName,
+              startsAt: schema.eventOccasions.startsAt,
+              venueName: schema.eventOccasions.venueName,
               priceAmount: schema.events.priceAmount,
               description: schema.events.description,
               summary: schema.events.summary,
               status: schema.events.status,
             })
             .from(schema.events)
+            .leftJoin(schema.eventOccasions, eq(schema.eventOccasions.eventId, schema.events.id))
             .where(inArray(schema.events.id, ids));
     const byId = new Map(events.map((event) => [event.id, event]));
     return rows.map((row) => {
@@ -347,8 +348,6 @@ export function createDbTipServices(
           sourceUrl: link,
           refId: tip.id,
           workerId: USER_TIPS_SLUG,
-          startsAt,
-          endsAt,
           priceAmount: extraction.priceAmount ?? null,
           currency: 'SEK',
           meta: {
@@ -367,6 +366,15 @@ export function createDbTipServices(
             },
           },
         });
+        if (startsAt && endsAt) {
+          await tx.insert(schema.eventOccasions).values({
+            eventId,
+            startsAt,
+            endsAt,
+            venueName: place,
+            sourceKey: `${tip.id}:${startsAt.toISOString()}:${endsAt.toISOString()}`,
+          });
+        }
         await tx.insert(schema.externalRefs).values({
           sourceId: source.id,
           externalId: tip.id,

@@ -133,13 +133,11 @@ calls) in the same change as every new major feature.**
 ### Visit Söderhamn import
 
 - First external source is the Citybreak API used by Visit Söderhamn. The worker loads the category
-  tree, then products in **Evenemang** (category `30172`) only. Each occasion becomes its own event,
-  unless the occasions are a dense run of opening hours longer than `occasionSpanDays` (default 21)
-  covering at least `occasionCoverage` of those days (default 0.6). Both live on `data_sources.config`.
-  A collapsed run is one event with `meta.collapsed` true and every occasion on `meta.occasions`. When two or more occasions stay separate, each event stores the
-  product id on `meta.occasionGroupId`. A product with no occasion is still saved, with empty start and end. The mobile event page loads the other published occasions
-  in that group from `GET /v1/events/occasions?occasionGroupId=` and lists the ones that have not ended.
-  A collapsed span lists each `meta.occasions` row that has not ended on that same page, and the date shown is the next of those rows. The same start and end is a whole day, shown as “Whole Day” through the end of that calendar day.
+  tree, then products in **Evenemang** (category `30172`) only. One product is one event row.
+  All showings are rows in `event_occasions` (start/end, venue, point), and list/count/nearby
+  filters run on those occasion rows. A product with no occasion is still saved as an event with
+  no occasion rows. The same start and end is a whole day, shown as “Whole Day” through the end
+  of that calendar day.
   A Citybreak time ending in `Z`, or with a numeric offset, is stored as that instant. A time with no zone is Europe/Stockholm. Hälsingland and Hudiksvall date-and-period values are Stockholm wall time too.
   Categories under Evenemang are stored as the tag catalog (`external_id` `visit-soderhamn:{id}`).
   The import does not put those tags on the event. The scan job does. `GET /v1/tags` is that list. The mobile home, calendar, and search call it with
@@ -188,9 +186,9 @@ calls) in the same change as every new major feature.**
   A page without a map is saved without a point. The contact address is stored, and the scan
   geocodes a missing point later. A digital showing stays without one.
   Links in the description, information, and contact (including Facebook) are stored. The site
-  footer is not. A long daily exhibition becomes one event; a concert or a monthly circle stays
-  one event per occasion and stores the product id on `meta.occasionGroupId`. A page with no occasion is still saved, with empty start and end. A collapsed span sets `meta.collapsed` and keeps every occasion on `meta.occasions`. Span length and
-  coverage are `occasionSpanDays` and `occasionCoverage` on `data_sources.config` (defaults 21 and 0.6).
+  footer is not. One Citybreak product stays one event row, and each showing is saved in
+  `event_occasions` (start, end, venue, point). A page with no occasion is still saved as one
+  event with no occasion rows.
   The hero image is the page `og:image`.
   The worker reads the list, then saves each event after its page is ready, before fetching the
   next page. New imports are `pending_scan`. Tag matching, the publisher, and the duplicate check
@@ -252,11 +250,9 @@ calls) in the same change as every new major feature.**
   page is not already a link. A product with no venue uses the city after the postcode in Postadress.
   When that line has no city, the town and the list coordinate stay as they are. Gatuadress,
   Postadress, and the list coordinate are stored on `meta.address`. A product
-  with no occasion is still saved, with empty start and end. The event scan fills both
-  when it can read them from the text. An event with no start stays off the public list. A long daily
-  exhibition becomes one event; a concert stays one event per occasion and stores the product id
-  on `meta.occasionGroupId`. A collapsed span sets `meta.collapsed` and keeps every occasion on `meta.occasions`. Span length and coverage are `occasionSpanDays` and `occasionCoverage`
-  on `data_sources.config` (defaults 21 and 0.6). A lookalike within 200 m
+  with no occasion is still saved as an event with no occasion rows. The event scan fills dates
+  when it can read them from the text. An event with no start stays off the public list.
+  A lookalike within 200 m
   and 30 minutes is saved as its own review event and flagged in `meta`. That product
   is saved
   before the next product is fetched. Those requests go through `curl` over HTTP/1.1 with
@@ -426,8 +422,8 @@ calls) in the same change as every new major feature.**
   possible duplicate. Import review and the event catalog can select rows and publish,
   reject, or delete them. Scan again sends an imported review or published event back to `pending_scan`.
   A published event leaves the public list until that scan finishes.
-  An event with several occasions, or an `occasionGroupId`, has a Tillfällen tab. Collapse folds the
-  checked events into that event and cancels them. Flow:
+  An event with several occasions has a Tillfallen tab. Collapse moves the checked events'
+  occasion rows and related child rows to the open event, then removes the checked event rows. Flow:
   [docs/flows/admin-collapse-occasions.md](docs/flows/admin-collapse-occasions.md). Publisher lists can select rows and verify them.
   On `/events/manage`, Ta bort marks any selected event `deleted` and removes it from lists. A later import sees that status and skips the source id. Ta bort permanent removes the row and keeps
   the source id out of later imports, and leaves the row when someone has already

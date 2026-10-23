@@ -35,22 +35,21 @@ import { requirePublisherId } from '../publisher-id';
 
 /** Same rule as domain `eventIsCurrent`, for the public list queries. */
 function currentEventSql(now: Date, from?: Date) {
-  const { events } = schema;
+  const { events, eventOccasions } = schema;
   const zone = sql`COALESCE(NULLIF(btrim(${events.timezone}), ''), 'Europe/Stockholm')`;
   const lower = from && from.getTime() > now.getTime() ? from : now;
   // ISO text, not a Date. postgres.js encodes a Date as text when it sits beside
   // AT TIME ZONE, and that throws before the query runs.
   const bound = lower.toISOString();
   const localMidnight = sql`(date_trunc('day', ${bound}::timestamptz AT TIME ZONE ${zone}) AT TIME ZONE ${zone})`;
-  return sql`(
-    ${events.startsAt} is not null
-    AND (
-    ${events.endsAt} >= ${bound}::timestamptz
-    OR (
-      ${events.startsAt} = ${events.endsAt}
-      AND ${events.startsAt} >= ${localMidnight}
-    )
-  )
+  return sql`exists (
+    select 1
+    from ${eventOccasions} eo
+    where eo.event_id = ${events.id}
+      and (
+        eo.ends_at >= ${bound}::timestamptz
+        or (eo.starts_at = eo.ends_at and eo.starts_at >= ${localMidnight})
+      )
   )`;
 }
 
@@ -106,6 +105,13 @@ function mapEvent(
   imageKey: string | null,
   gallery: readonly { role: string; s3Key: string }[],
   links: EventLink[],
+  occasions: {
+    id: string;
+    startsAt: string;
+    endsAt: string;
+    venueName: string | null;
+    location: Event['location'];
+  }[],
   baseUrl: string | undefined,
 ): Event {
   return {
@@ -136,6 +142,7 @@ function mapEvent(
     checkInEnabled: row.checkInEnabled,
     numSaved: Number(row.numSaved ?? 0),
     numComing: Number(row.numComing ?? 0),
+    occasions,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -179,12 +186,38 @@ const eventSelect = {
   mode: schema.events.mode,
   status: schema.events.status,
   origin: schema.events.origin,
-  startsAt: schema.events.startsAt,
-  endsAt: schema.events.endsAt,
+  startsAt: sql<Date | null>`(
+    select min(${schema.eventOccasions.startsAt})
+    from ${schema.eventOccasions}
+    where ${schema.eventOccasions.eventId} = ${schema.events.id}
+  )`,
+  endsAt: sql<Date | null>`(
+    select max(${schema.eventOccasions.endsAt})
+    from ${schema.eventOccasions}
+    where ${schema.eventOccasions.eventId} = ${schema.events.id}
+  )`,
   timezone: schema.events.timezone,
-  venueName: schema.events.venueName,
-  lat: sql<number | null>`ST_Y(${schema.events.location}::geometry)`,
-  lng: sql<number | null>`ST_X(${schema.events.location}::geometry)`,
+  venueName: sql<string | null>`(
+    select ${schema.eventOccasions.venueName}
+    from ${schema.eventOccasions}
+    where ${schema.eventOccasions.eventId} = ${schema.events.id}
+    order by ${schema.eventOccasions.startsAt} asc
+    limit 1
+  )`,
+  lat: sql<number | null>`(
+    select ST_Y(${schema.eventOccasions.location}::geometry)
+    from ${schema.eventOccasions}
+    where ${schema.eventOccasions.eventId} = ${schema.events.id}
+    order by ${schema.eventOccasions.startsAt} asc
+    limit 1
+  )`,
+  lng: sql<number | null>`(
+    select ST_X(${schema.eventOccasions.location}::geometry)
+    from ${schema.eventOccasions}
+    where ${schema.eventOccasions.eventId} = ${schema.events.id}
+    order by ${schema.eventOccasions.startsAt} asc
+    limit 1
+  )`,
   geofenceRadiusM: schema.events.geofenceRadiusM,
   onlineUrl: schema.events.onlineUrl,
   priceAmount: schema.events.priceAmount,
@@ -206,7 +239,40 @@ export function createDbEventServices(
   env: EventEnv = { now: () => new Date() },
 ): EventServices {
   const domainEvents = env.domainEvents ?? createMemoryDomainEventPublisher();
-  const { events, eventTags, eventImages, eventLinks, tags, publishers } = schema;
+  const { events, eventOccasions, eventTags, eventImages, eventLinks, tags, publishers } = schema;
+
+  function occasionRowsFromInput(
+    input: Pick<UpdateEventRequest, 'startsAt' | 'endsAt' | 'venueName' | 'location'> & {
+      occasions?: {
+        startsAt: string;
+        endsAt: string;
+        venueName?: string | null;
+        location?: Event['location'];
+      }[];
+    },
+  ) {
+    if (input.occasions && input.occasions.length > 0) {
+      return input.occasions.map((occasion) => ({
+        startsAt: new Date(occasion.startsAt),
+        endsAt: new Date(occasion.endsAt),
+        venueName: occasion.venueName ?? null,
+        location: occasion.location ? pointEwkt(occasion.location) : null,
+        sourceKey: `${occasion.startsAt}:${occasion.endsAt}`,
+      }));
+    }
+    if (input.startsAt && input.endsAt) {
+      return [
+        {
+          startsAt: new Date(input.startsAt),
+          endsAt: new Date(input.endsAt),
+          venueName: input.venueName ?? null,
+          location: input.location ? pointEwkt(input.location) : null,
+          sourceKey: `${input.startsAt}:${input.endsAt}`,
+        },
+      ];
+    }
+    return [];
+  }
 
   function selectEvents() {
     return db
@@ -221,14 +287,26 @@ export function createDbEventServices(
   ) {
     const from = query.from ? new Date(query.from) : undefined;
     const to = query.to ? new Date(query.to) : undefined;
-    const point = pointEwkt({ lat: query.lat, lng: query.lng });
+    const point =
+      query.lat != null && query.lng != null ? pointEwkt({ lat: query.lat, lng: query.lng }) : null;
+    const radiusM = query.radiusM ?? 50_000;
     const filters = [eq(events.status, 'published'), currentEventSql(env.now(), from)];
-    if (to) filters.push(lte(events.startsAt, to));
+    if (to) {
+      filters.push(sql`exists (
+        select 1 from ${schema.eventOccasions} eo
+        where eo.event_id = ${events.id}
+          and eo.starts_at <= ${to}
+      )`);
+    }
     if (query.q) {
       const pattern = likePattern(query.q);
       const match = or(
         ilike(events.title, pattern),
-        ilike(events.venueName, pattern),
+        sql`exists (
+          select 1 from ${schema.eventOccasions} eo
+          where eo.event_id = ${events.id}
+            and eo.venue_name ilike ${pattern}
+        )`,
         ilike(publishers.name, pattern),
       );
       if (match) filters.push(match);
@@ -253,15 +331,23 @@ export function createDbEventServices(
       const engagement = sql<number>`(${lifetimeStat('numSaved')}) + (${lifetimeStat('numComing')})`;
       filters.push(sql`${engagement} >= 1`);
     }
-    // isPubliclyListedEvent: a point inside the radius. No point is omitted.
-    filters.push(sql`(
-      ${events.location} IS NOT NULL
-      AND ST_DWithin(
-        ${events.location},
-        ST_GeogFromText(${point}),
-        ${query.radiusM}
-      )
-    )`);
+    // isPubliclyListedEvent: without near filter, require any point; with near, require a point in range.
+    if (point) {
+      filters.push(sql`exists (
+        select 1
+        from ${schema.eventOccasions} eo
+        where eo.event_id = ${events.id}
+          and eo.location IS NOT NULL
+          and ST_DWithin(eo.location, ST_GeogFromText(${point}), ${radiusM})
+      )`);
+    } else {
+      filters.push(sql`exists (
+        select 1
+        from ${schema.eventOccasions} eo
+        where eo.event_id = ${events.id}
+          and eo.location IS NOT NULL
+      )`);
+    }
     return { filters, point };
   }
 
@@ -306,13 +392,71 @@ export function createDbEventServices(
     return grouped;
   }
 
+  async function occasionsFor(eventIds: string[]) {
+    const grouped = new Map<
+      string,
+      {
+        id: string;
+        startsAt: string;
+        endsAt: string;
+        venueName: string | null;
+        location: Event['location'];
+      }[]
+    >();
+    for (const id of eventIds) grouped.set(id, []);
+    if (eventIds.length === 0) return grouped;
+    const rows = await db
+      .select({
+        id: eventOccasions.id,
+        eventId: eventOccasions.eventId,
+        startsAt: eventOccasions.startsAt,
+        endsAt: eventOccasions.endsAt,
+        venueName: eventOccasions.venueName,
+        lat: sql<number | null>`ST_Y(${eventOccasions.location}::geometry)`,
+        lng: sql<number | null>`ST_X(${eventOccasions.location}::geometry)`,
+      })
+      .from(eventOccasions)
+      .where(inArray(eventOccasions.eventId, eventIds))
+      .orderBy(asc(eventOccasions.startsAt), asc(eventOccasions.id));
+    for (const row of rows) {
+      const list = grouped.get(row.eventId) ?? [];
+      list.push({
+        id: row.id,
+        startsAt: row.startsAt.toISOString(),
+        endsAt: row.endsAt.toISOString(),
+        venueName: row.venueName,
+        location:
+          row.lat != null && row.lng != null
+            ? { lat: Number(row.lat), lng: Number(row.lng) }
+            : null,
+      });
+      grouped.set(row.eventId, list);
+    }
+    return grouped;
+  }
+
   function toEvent(
     row: LocRow & { startsAt: Date; endsAt: Date },
     tagIds: string[],
     images: { main: string | null; gallery: { role: string; s3Key: string }[] },
     links: EventLink[],
+    occasions: {
+      id: string;
+      startsAt: string;
+      endsAt: string;
+      venueName: string | null;
+      location: Event['location'];
+    }[],
   ): Event {
-    return mapEvent(row, tagIds, images.main, images.gallery, links, env.assetsPublicBaseUrl);
+    return mapEvent(
+      row,
+      tagIds,
+      images.main,
+      images.gallery,
+      links,
+      occasions,
+      env.assetsPublicBaseUrl,
+    );
   }
 
   async function linksFor(eventIds: string[]): Promise<Map<string, StoredLink[]>> {
@@ -389,8 +533,9 @@ export function createDbEventServices(
     if (!dated) return null;
     const stored = (await linksFor([eventId])).get(eventId) ?? [];
     const images = (await imagesFor([eventId])).get(eventId) ?? { main: null, gallery: [] };
+    const occasions = (await occasionsFor([eventId])).get(eventId) ?? [];
     return {
-      ...toEvent(dated, await tagIdsFor(eventId), images, publicLinks(stored)),
+      ...toEvent(dated, await tagIdsFor(eventId), images, publicLinks(stored), occasions),
       attendeeText: dated.attendeeText,
       attendeeLinks: attendeeLinksOf(stored),
     };
@@ -407,6 +552,25 @@ export function createDbEventServices(
     }
   }
 
+  async function replaceOccasions(
+    eventId: string,
+    input: Pick<UpdateEventRequest, 'startsAt' | 'endsAt' | 'venueName' | 'location'> & {
+      occasions?: {
+        startsAt: string;
+        endsAt: string;
+        venueName?: string | null;
+        location?: Event['location'];
+      }[];
+    },
+  ) {
+    const rows = occasionRowsFromInput(input);
+    await db.transaction(async (tx) => {
+      await tx.delete(eventOccasions).where(eq(eventOccasions.eventId, eventId));
+      if (rows.length === 0) return;
+      await tx.insert(eventOccasions).values(rows.map((row) => ({ eventId, ...row })));
+    });
+  }
+
   return {
     async listTags(query) {
       const near =
@@ -420,13 +584,12 @@ export function createDbEventServices(
       const filters = [eq(events.status, 'published'), currentEventSql(env.now())];
       if (near) {
         const point = pointEwkt({ lat: near.lat, lng: near.lng });
-        filters.push(sql`(
-          ${events.location} IS NOT NULL
-          AND ST_DWithin(
-            ${events.location},
-            ST_GeogFromText(${point}),
-            ${near.radiusM}
-          )
+        filters.push(sql`exists (
+          select 1
+          from ${eventOccasions} eo
+          where eo.event_id = ${events.id}
+            and eo.location is not null
+            and ST_DWithin(eo.location, ST_GeogFromText(${point}), ${near.radiusM})
         )`);
       }
       const rows = await db
@@ -445,11 +608,17 @@ export function createDbEventServices(
 
     async listPublisherEvents({ sessionToken, publisherId }) {
       await requireMember(sessionToken, publisherId);
-      const rows = await selectEvents()
-        .where(and(eq(events.publisherId, publisherId), ne(events.status, 'deleted')))
-        .orderBy(events.startsAt);
+      const rows = await selectEvents().where(
+        and(eq(events.publisherId, publisherId), ne(events.status, 'deleted')),
+      ).orderBy(sql`(
+          select min(eo.starts_at) from ${eventOccasions} eo where eo.event_id = ${events.id}
+        )`);
       const ids = rows.map((row) => row.id);
-      const [links, images] = await Promise.all([linksFor(ids), imagesFor(ids)]);
+      const [links, images, occasions] = await Promise.all([
+        linksFor(ids),
+        imagesFor(ids),
+        occasionsFor(ids),
+      ]);
       const result: Event[] = [];
       for (const row of rows) {
         const dated = withDates(row);
@@ -460,6 +629,7 @@ export function createDbEventServices(
             await tagIdsFor(row.id),
             images.get(row.id) ?? { main: null, gallery: [] },
             publicLinks(links.get(row.id) ?? []),
+            occasions.get(row.id) ?? [],
           ),
         );
       }
@@ -469,8 +639,10 @@ export function createDbEventServices(
     async createEvent({ sessionToken, publisherId, body }) {
       await requireMember(sessionToken, publisherId);
       const location = body.location ?? null;
+      const firstOccasion = body.occasions?.[0];
+      const locationForValidation = firstOccasion?.location ?? location;
       const onlineUrl = body.onlineUrl ?? null;
-      assertFields(body.mode, location, onlineUrl);
+      assertFields(body.mode, locationForValidation, onlineUrl);
 
       const now = env.now();
       const [row] = await db
@@ -482,11 +654,7 @@ export function createDbEventServices(
           mode: body.mode,
           status: 'draft',
           origin: 'native',
-          startsAt: new Date(body.startsAt),
-          endsAt: new Date(body.endsAt),
           timezone: body.timezone,
-          venueName: body.venueName,
-          location: location ? pointEwkt(location) : null,
           geofenceRadiusM: body.geofenceRadiusM ?? (body.mode === 'physical' ? 100 : null),
           onlineUrl: onlineUrl ?? null,
           priceAmount: body.priceAmount ?? null,
@@ -496,6 +664,7 @@ export function createDbEventServices(
         })
         .returning({ id: events.id });
       if (!row) throw new Error('failed to create event');
+      await replaceOccasions(row.id, body);
       await replaceTags(row.id, body.tagIds);
       await replacePublicLinks(row.id, body.links);
       const created = await loadEvent(row.id);
@@ -532,11 +701,13 @@ export function createDbEventServices(
 
       const mode = body.mode ?? existing.mode;
       const location = body.location !== undefined ? body.location : existing.location;
+      const occasionInput = body.occasions?.[0];
+      const locationForValidation = occasionInput?.location ?? location;
       const onlineUrl = body.onlineUrl !== undefined ? body.onlineUrl : existing.onlineUrl;
       const startsAt = body.startsAt ?? existing.startsAt;
       const endsAt = body.endsAt ?? existing.endsAt;
       if (new Date(endsAt) <= new Date(startsAt)) throw new EventError('invalid_event');
-      assertFields(mode, location, onlineUrl);
+      assertFields(mode, locationForValidation, onlineUrl);
 
       await db
         .update(events)
@@ -544,11 +715,7 @@ export function createDbEventServices(
           title: body.title ?? existing.title,
           description: body.description !== undefined ? body.description : existing.description,
           mode,
-          startsAt: new Date(startsAt),
-          endsAt: new Date(endsAt),
           timezone: body.timezone ?? existing.timezone,
-          venueName: body.venueName !== undefined ? body.venueName : existing.venueName,
-          location: location ? pointEwkt(location) : null,
           geofenceRadiusM:
             body.geofenceRadiusM !== undefined ? body.geofenceRadiusM : existing.geofenceRadiusM,
           onlineUrl,
@@ -557,6 +724,15 @@ export function createDbEventServices(
           updatedAt: env.now(),
         })
         .where(eq(events.id, eventId));
+      if (body.occasions || (body.startsAt && body.endsAt)) {
+        await replaceOccasions(eventId, {
+          startsAt: body.startsAt,
+          endsAt: body.endsAt,
+          venueName: body.venueName,
+          location: body.location,
+          occasions: body.occasions,
+        });
+      }
 
       if (body.tagIds) await replaceTags(eventId, body.tagIds);
       if (body.attendeeText !== undefined || body.attendeeLinks !== undefined) {
@@ -656,15 +832,28 @@ export function createDbEventServices(
       const engagement = sql<number>`(${lifetimeStat('numSaved')}) + (${lifetimeStat('numComing')})`;
       const distanceOrder =
         query.sort === 'popular'
-          ? [desc(engagement), asc(events.startsAt), asc(events.id)]
-          : query.sort === 'distance'
+          ? [
+              desc(engagement),
+              sql`(select min(eo.starts_at) from ${eventOccasions} eo where eo.event_id = ${events.id})`,
+              asc(events.id),
+            ]
+          : query.sort === 'distance' && point
             ? [
                 desc(events.featured),
-                sql`ST_Distance(${events.location}, ST_GeogFromText(${point}))`,
-                asc(events.startsAt),
+                sql`(
+                  select min(ST_Distance(eo.location, ST_GeogFromText(${point})))
+                  from ${eventOccasions} eo
+                  where eo.event_id = ${events.id}
+                    and eo.location is not null
+                )`,
+                sql`(select min(eo.starts_at) from ${eventOccasions} eo where eo.event_id = ${events.id})`,
                 asc(events.id),
               ]
-            : [desc(events.featured), asc(events.startsAt), asc(events.id)];
+            : [
+                desc(events.featured),
+                sql`(select min(eo.starts_at) from ${eventOccasions} eo where eo.event_id = ${events.id})`,
+                asc(events.id),
+              ];
 
       const rows = await selectEvents()
         .where(and(...filters))
@@ -675,7 +864,11 @@ export function createDbEventServices(
       const hasMore = rows.length > query.limit;
       const pageRows = hasMore ? rows.slice(0, query.limit) : rows;
       const ids = pageRows.map((row) => row.id);
-      const [links, images] = await Promise.all([linksFor(ids), imagesFor(ids)]);
+      const [links, images, occasions] = await Promise.all([
+        linksFor(ids),
+        imagesFor(ids),
+        occasionsFor(ids),
+      ]);
       const items: Event[] = [];
       for (const row of pageRows) {
         const dated = withDates(row);
@@ -686,6 +879,7 @@ export function createDbEventServices(
             await tagIdsFor(row.id),
             images.get(row.id) ?? { main: null, gallery: [] },
             publicLinks(links.get(row.id) ?? []),
+            occasions.get(row.id) ?? [],
           ),
         );
       }
@@ -703,18 +897,29 @@ export function createDbEventServices(
     },
 
     async listOccasions(query: OccasionListQuery) {
+      const groupFilter = query.occasionGroupId
+        ? sql`${events.meta}->>'occasionGroupId' = ${query.occasionGroupId}`
+        : undefined;
       const rows = await selectEvents()
         .where(
           and(
             eq(events.status, 'published'),
             currentEventSql(env.now()),
-            sql`${events.meta}->>'occasionGroupId' = ${query.occasionGroupId}`,
+            ...(query.eventId ? [eq(events.id, query.eventId)] : []),
+            ...(groupFilter ? [groupFilter] : []),
           ),
         )
-        .orderBy(asc(events.startsAt), asc(events.id))
+        .orderBy(
+          sql`(select min(eo.starts_at) from ${eventOccasions} eo where eo.event_id = ${events.id})`,
+          asc(events.id),
+        )
         .limit(OCCASION_LIST_LIMIT);
       const ids = rows.map((row) => row.id);
-      const [links, images] = await Promise.all([linksFor(ids), imagesFor(ids)]);
+      const [links, images, occasions] = await Promise.all([
+        linksFor(ids),
+        imagesFor(ids),
+        occasionsFor(ids),
+      ]);
       const items: Event[] = [];
       for (const row of rows) {
         const dated = withDates(row);
@@ -725,6 +930,7 @@ export function createDbEventServices(
             await tagIdsFor(row.id),
             images.get(row.id) ?? { main: null, gallery: [] },
             publicLinks(links.get(row.id) ?? []),
+            occasions.get(row.id) ?? [],
           ),
         );
       }
@@ -754,7 +960,11 @@ export async function verifyPublisherInDb(
     .select({
       id: schema.events.id,
       status: schema.events.status,
-      endsAt: schema.events.endsAt,
+      endsAt: sql<Date | null>`(
+        select max(${schema.eventOccasions.endsAt})
+        from ${schema.eventOccasions}
+        where ${schema.eventOccasions.eventId} = ${schema.events.id}
+      )`,
     })
     .from(schema.events)
     .where(

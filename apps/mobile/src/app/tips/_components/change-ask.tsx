@@ -91,6 +91,7 @@ export function ChangeAsk({
               ) : null}
               <View style={{ flexDirection: 'row' }}>
                 <PhotoSourceMenu
+                  style={{ flex: 1 }}
                   cameraLabel={t('tips.takePhoto')}
                   libraryLabel={t('tips.photoLibrary')}
                   onPick={onReplace}

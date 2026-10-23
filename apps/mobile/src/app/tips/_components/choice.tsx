@@ -26,7 +26,7 @@ export function Choice({
     return (
       <View
         style={{
-          flex: compact ? undefined : 1,
+          alignSelf: 'stretch',
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: selected ? colors.accent : colors.card,

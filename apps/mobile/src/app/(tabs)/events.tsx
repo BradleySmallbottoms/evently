@@ -48,6 +48,12 @@ import { radius, space } from '@/theme/tokens';
 
 type Range = { from: DayStamp; to: DayStamp };
 type Price = 'any' | 'free' | 'paid';
+type EventOccasion = {
+  startsAt: string;
+  endsAt: string;
+  venueName?: string | null;
+  location?: { lat: number; lng: number } | null;
+};
 
 function clock(iso: string, locale: string) {
   return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
@@ -140,29 +146,49 @@ export default function EventsScreen() {
   const sections = useMemo(() => {
     const items = events.data?.pages.flatMap((page) => page.items) ?? [];
     const now = new Date();
+    const rangeStart = new Date(iso.from);
+    const rangeEnd = new Date(iso.to);
     const groups = new Map<
       string,
       { key: string; title: string; count: number; data: typeof items }
     >();
     for (const event of items) {
-      const when = shownWhen(event, now);
-      const stamp = partsInZone(new Date(when.startsAt), event.timezone);
-      const key = `${stamp.y}-${stamp.m}-${stamp.d}`;
-      const section = groups.get(key);
-      if (section) {
-        section.data.push(event);
-        section.count += 1;
-      } else {
-        groups.set(key, {
-          key,
-          title: formatSectionTitle(stamp, locale),
-          count: 1,
-          data: [event],
-        });
+      const showingRows =
+        ((event as { occasions?: EventOccasion[] }).occasions?.length ?? 0) > 0
+          ? ((event as { occasions?: EventOccasion[] }).occasions ?? [])
+              .filter((occasion: EventOccasion) => {
+                const start = new Date(occasion.startsAt);
+                const end = new Date(occasion.endsAt);
+                return end >= rangeStart && start <= rangeEnd;
+              })
+              .map((occasion: EventOccasion) => ({
+                ...event,
+                startsAt: occasion.startsAt,
+                endsAt: occasion.endsAt,
+                venueName: occasion.venueName ?? event.venueName,
+                location: occasion.location ?? event.location,
+              }))
+          : [event];
+      for (const showing of showingRows) {
+        const when = shownWhen(showing, now);
+        const stamp = partsInZone(new Date(when.startsAt), showing.timezone);
+        const key = `${stamp.y}-${stamp.m}-${stamp.d}`;
+        const section = groups.get(key);
+        if (section) {
+          section.data.push(showing);
+          section.count += 1;
+        } else {
+          groups.set(key, {
+            key,
+            title: formatSectionTitle(stamp, locale),
+            count: 1,
+            data: [showing],
+          });
+        }
       }
     }
     return [...groups.values()];
-  }, [events.data, locale]);
+  }, [events.data, iso.from, iso.to, locale]);
 
   const filterLabels = useMemo(() => {
     const labels: string[] = [];
@@ -251,7 +277,7 @@ export default function EventsScreen() {
         style={{ width: '100%', maxWidth: MaxContentWidth }}
         contentInsetAdjustmentBehavior="automatic"
         sections={sections}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => `${item.id}:${item.startsAt}:${item.endsAt}`}
         stickySectionHeadersEnabled={false}
         onEndReached={() => {
           if (events.hasNextPage && !events.isFetchingNextPage) void events.fetchNextPage();

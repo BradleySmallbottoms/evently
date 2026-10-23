@@ -115,6 +115,24 @@ export type EventAddress = z.infer<typeof EventAddress>;
  * An empty object means the event has none.
  */
 export const EventMeta = z.object({
+  /**
+   * Legacy grouping field kept for compatibility while occasions move to a table.
+   */
+  occasionGroupId: z.string().trim().min(1).max(200).optional(),
+  /** Legacy span marker kept for compatibility while occasions move to a table. */
+  collapsed: z.boolean().optional(),
+  /** Legacy collapsed rows kept for compatibility while occasions move to a table. */
+  occasions: z
+    .array(
+      z.object({
+        startsAt: z.iso.datetime({ offset: true }),
+        endsAt: z.iso.datetime({ offset: true }).optional(),
+        venueName: z.string().trim().min(1).max(500).optional(),
+        location: GeoPointSchema.optional(),
+      }),
+    )
+    .max(2000)
+    .optional(),
   address: EventAddress.optional(),
   /** Minimum age in years, when the source states one. */
   ageLimit: z.number().int().min(0).max(120).optional(),
@@ -130,29 +148,10 @@ export const EventMeta = z.object({
   smokeFree: z.boolean().optional(),
   wc: z.boolean().optional(),
   /**
-   * Source product id shared by every event created from that product's separate occasions.
-   * Absent when the product is one occasion or one collapsed span.
-   */
-  occasionGroupId: z.string().trim().min(1).max(200).optional(),
-  /**
    * Scan grouping for other showings of the same event. A product id already stored on
    * `occasionGroupId` is reused; otherwise this is a new id. Public responses omit it.
    */
   possibleOccasionGroupId: z.string().trim().min(1).max(200).optional(),
-  /** True when several occasions were saved as this one span. */
-  collapsed: z.boolean().optional(),
-  /** Each occasion folded into a collapsed span, in start order. */
-  occasions: z
-    .array(
-      z.object({
-        startsAt: z.iso.datetime({ offset: true }),
-        endsAt: z.iso.datetime({ offset: true }).optional(),
-        venueName: z.string().trim().min(1).max(500).optional(),
-        location: GeoPointSchema.optional(),
-      }),
-    )
-    .max(2000)
-    .optional(),
   /** Set when an import looks like another event. The new row stays in review. */
   possibleDuplicate: z
     .object({
@@ -236,6 +235,28 @@ export const CurrencyCode = z
   .length(3)
   .transform((value) => value.toUpperCase());
 
+export const EventOccasion = z.object({
+  id: Id,
+  startsAt: z.iso.datetime(),
+  endsAt: z.iso.datetime(),
+  venueName: z.string().nullable(),
+  location: GeoPointSchema.nullable(),
+});
+export type EventOccasion = z.infer<typeof EventOccasion>;
+
+export const EventOccasionInput = z
+  .object({
+    startsAt: z.iso.datetime(),
+    endsAt: z.iso.datetime(),
+    venueName: z.string().trim().max(200).nullable().optional(),
+    location: GeoPointSchema.nullable().optional(),
+  })
+  .refine((b) => new Date(b.endsAt) > new Date(b.startsAt), {
+    message: 'endsAt must be after startsAt',
+    path: ['endsAt'],
+  });
+export type EventOccasionInput = z.infer<typeof EventOccasionInput>;
+
 export const Event = z.object({
   id: Id,
   publisherId: Id,
@@ -271,6 +292,7 @@ export const Event = z.object({
   numSaved: z.number().int().nonnegative(),
   /** Lifetime "I'm coming" marks. 0 when the stats row is missing. */
   numComing: z.number().int().nonnegative(),
+  occasions: z.array(EventOccasion).optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -288,11 +310,12 @@ export const CreateEventRequest = z
     title: z.string().trim().min(2).max(200),
     description: z.string().trim().max(10_000).optional(),
     mode: EventMode,
-    startsAt: z.iso.datetime(),
-    endsAt: z.iso.datetime(),
+    startsAt: z.iso.datetime().optional(),
+    endsAt: z.iso.datetime().optional(),
     timezone: z.string().min(1).max(64).optional().default('Europe/Stockholm'),
     venueName: z.string().trim().max(200).optional(),
     location: GeoPointSchema.optional(),
+    occasions: z.array(EventOccasionInput).min(1).max(2000).optional(),
     geofenceRadiusM: z.number().int().min(10).max(5000).optional(),
     onlineUrl: HttpUrl.optional(),
     priceAmount: PriceAmount.nullable().optional(),
@@ -300,10 +323,10 @@ export const CreateEventRequest = z
     links: z.array(EventLinkInput).max(10).optional().default([]),
     tagIds: z.array(Id).max(20).default([]),
   })
-  .refine((b) => new Date(b.endsAt) > new Date(b.startsAt), {
-    message: 'endsAt must be after startsAt',
-    path: ['endsAt'],
-  });
+  .refine((b) => {
+    if (b.occasions && b.occasions.length > 0) return true;
+    return Boolean(b.startsAt && b.endsAt && new Date(b.endsAt) > new Date(b.startsAt));
+  }, 'occasions or startsAt/endsAt is required');
 export type CreateEventRequest = z.infer<typeof CreateEventRequest>;
 
 export const UpdateEventRequest = z
@@ -316,6 +339,7 @@ export const UpdateEventRequest = z
     timezone: z.string().min(1).max(64).optional(),
     venueName: z.string().trim().max(200).nullable().optional(),
     location: GeoPointSchema.nullable().optional(),
+    occasions: z.array(EventOccasionInput).min(1).max(2000).optional(),
     geofenceRadiusM: z.number().int().min(10).max(5000).nullable().optional(),
     onlineUrl: HttpUrl.nullable().optional(),
     priceAmount: PriceAmount.nullable().optional(),
@@ -346,10 +370,14 @@ export type EventListResponse = z.infer<typeof EventListResponse>;
 /** Soonest published occasions returned for one `occasionGroupId`. */
 export const OCCASION_LIST_LIMIT = 100;
 
-export const OccasionListQuery = z.object({
-  /** Source product id stored on `meta.occasionGroupId`. */
-  occasionGroupId: z.string().trim().min(1).max(200),
-});
+export const OccasionListQuery = z
+  .object({
+    eventId: z.uuid().optional(),
+    occasionGroupId: z.string().trim().min(1).max(200).optional(),
+  })
+  .refine((value) => Boolean(value.eventId || value.occasionGroupId), {
+    message: 'eventId or occasionGroupId is required',
+  });
 export type OccasionListQuery = z.infer<typeof OccasionListQuery>;
 
 export const PublicEventListResponse = z.object({
@@ -359,10 +387,19 @@ export const PublicEventListResponse = z.object({
 });
 export type PublicEventListResponse = z.infer<typeof PublicEventListResponse>;
 
-export const PublicEventListQuery = z.object({
-  lat: z.coerce.number().min(-90).max(90),
-  lng: z.coerce.number().min(-180).max(180),
-  radiusM: z.coerce.number().int().min(100).max(200_000).optional().default(50_000),
+function hasValidNearFilter(value: { lat?: number; lng?: number; radiusM?: number }) {
+  const hasLat = value.lat !== undefined;
+  const hasLng = value.lng !== undefined;
+  const hasRadius = value.radiusM !== undefined;
+  if (!hasLat && !hasLng && !hasRadius) return true;
+  if (hasLat && hasLng) return true;
+  return !hasRadius && hasLat === hasLng;
+}
+
+const PublicEventQueryFields = {
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  radiusM: z.coerce.number().int().min(100).max(200_000).optional(),
   from: z.iso.datetime().optional(),
   to: z.iso.datetime().optional(),
   /** Matches title, venue, or organizer name. */
@@ -382,15 +419,24 @@ export const PublicEventListQuery = z.object({
   price: z.enum(['free', 'paid']).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
   offset: z.coerce.number().int().min(0).max(10_000).optional().default(0),
+} as const;
+
+export const PublicEventListQuery = z.object(PublicEventQueryFields).refine(hasValidNearFilter, {
+  message: 'lat and lng are set together. radiusM requires lat and lng',
 });
 export type PublicEventListQuery = z.infer<typeof PublicEventListQuery>;
 
 /** Same filters as the public list, without sort or pages. */
-export const PublicEventCountQuery = PublicEventListQuery.omit({
-  sort: true,
-  limit: true,
-  offset: true,
-});
+export const PublicEventCountQuery = z
+  .object(PublicEventQueryFields)
+  .omit({
+    sort: true,
+    limit: true,
+    offset: true,
+  })
+  .refine(hasValidNearFilter, {
+    message: 'lat and lng are set together. radiusM requires lat and lng',
+  });
 export type PublicEventCountQuery = z.infer<typeof PublicEventCountQuery>;
 
 export const PublicEventCountResponse = z.object({

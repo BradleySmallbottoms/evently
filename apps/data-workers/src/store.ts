@@ -111,7 +111,6 @@ export interface PublisherRecord {
 
 export interface OccasionGroupRow {
   eventId: string;
-  occasionGroupId?: string;
   possibleOccasionGroupId?: string;
 }
 

@@ -74,10 +74,12 @@ export async function handleTipScanned(
   const [event] = await deps.db
     .select({
       title: schema.events.title,
-      venueName: schema.events.venueName,
+      venueName: schema.eventOccasions.venueName,
     })
     .from(schema.events)
+    .leftJoin(schema.eventOccasions, eq(schema.eventOccasions.eventId, schema.events.id))
     .where(eq(schema.events.id, input.eventId))
+    .orderBy(schema.eventOccasions.startsAt)
     .limit(1);
   await sendTipPush(deps, {
     userId: tip.userId,

@@ -445,12 +445,7 @@ export const events = pgTable(
     refId: text('ref_id'),
     /** Data-worker slug that imported the event. Null on a native event. */
     workerId: text('worker_id'),
-    /** Null when an import has no occasion. The scan may fill both. */
-    startsAt: timestamp('starts_at', { withTimezone: true }),
-    endsAt: timestamp('ends_at', { withTimezone: true }),
     timezone: text('timezone').notNull().default('Europe/Stockholm'),
-    venueName: text('venue_name'),
-    location: geographyPoint('location'),
     geofence: geographyPolygon('geofence'),
     geofenceRadiusM: integer('geofence_radius_m').default(100),
     onlineUrl: text('online_url'),
@@ -468,11 +463,35 @@ export const events = pgTable(
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
+  (t) => [index('events_worker_ref_idx').on(t.workerId, t.refId)],
+);
+
+/** One row per showing/occasion attached to an event. */
+export const eventOccasions = pgTable(
+  'event_occasions',
+  {
+    id: id(),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    venueName: text('venue_name'),
+    location: geographyPoint('location'),
+    /**
+     * Source-stable key so one imported showing can be updated in place
+     * rather than inserted as a duplicate.
+     */
+    sourceKey: text('source_key'),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
   (t) => [
-    index('events_location_gist').using('gist', t.location),
-    index('events_status_starts_idx').on(t.status, t.startsAt),
-    index('events_worker_ref_idx').on(t.workerId, t.refId),
-    index('events_occasion_group_idx').on(sql`(${t.meta}->>'occasionGroupId')`),
+    index('event_occasions_event_starts_idx').on(t.eventId, t.startsAt),
+    index('event_occasions_location_gist').using('gist', t.location),
+    uniqueIndex('event_occasions_event_source_key_idx')
+      .on(t.eventId, t.sourceKey)
+      .where(sql`${t.sourceKey} is not null`),
   ],
 );
 

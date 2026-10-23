@@ -60,11 +60,7 @@ function eventValues(input: ImportedEventWrite) {
     status: input.status,
     origin: 'imported' as const,
     sourceUrl: input.event.sourceUrl,
-    startsAt: input.event.startsAt ? new Date(input.event.startsAt) : null,
-    endsAt: input.endsAt ? new Date(input.endsAt) : null,
     timezone: input.event.timezone,
-    venueName: input.event.venueName ?? null,
-    location: input.event.location ? pointEwkt(input.event.location) : null,
     onlineUrl: input.event.onlineUrl ?? null,
     priceAmount: input.event.priceAmount ?? null,
     currency: input.event.currency ?? 'SEK',
@@ -72,6 +68,30 @@ function eventValues(input: ImportedEventWrite) {
     refId: input.refId,
     workerId: input.workerId,
   };
+}
+
+function importOccasions(event: ImportedEventWrite['event']) {
+  if (event.occasions && event.occasions.length > 0) {
+    return event.occasions.map((occasion) => ({
+      startsAt: new Date(occasion.startsAt),
+      endsAt: new Date(occasion.endsAt),
+      venueName: occasion.venueName ?? null,
+      location: occasion.location ? pointEwkt(occasion.location) : null,
+      sourceKey: occasion.sourceKey ?? `${occasion.startsAt}:${occasion.endsAt}`,
+    }));
+  }
+  if (event.startsAt && event.endsAt) {
+    return [
+      {
+        startsAt: new Date(event.startsAt),
+        endsAt: new Date(event.endsAt),
+        venueName: event.venueName ?? null,
+        location: event.location ? pointEwkt(event.location) : null,
+        sourceKey: `${event.startsAt}:${event.endsAt}`,
+      },
+    ];
+  }
+  return [];
 }
 
 async function replaceLinks(
@@ -99,6 +119,7 @@ async function replaceLinks(
 export function createDbIngestStore(db: Db): IngestStore {
   const {
     events,
+    eventOccasions,
     eventLinks,
     eventTags,
     eventImages,
@@ -130,6 +151,26 @@ export function createDbIngestStore(db: Db): IngestStore {
     await tx.delete(eventTags).where(eq(eventTags.eventId, eventId));
     if (tagIds.length === 0) return;
     await tx.insert(eventTags).values(tagIds.map((tagId) => ({ eventId, tagId })));
+  }
+
+  async function replaceOccasions(
+    tx: Pick<Db, 'insert' | 'delete'>,
+    eventId: string,
+    incoming: ImportedEventWrite['event'],
+  ) {
+    await tx.delete(eventOccasions).where(eq(eventOccasions.eventId, eventId));
+    const occasions = importOccasions(incoming);
+    if (occasions.length === 0) return;
+    await tx.insert(eventOccasions).values(
+      occasions.map((occasion) => ({
+        eventId,
+        startsAt: occasion.startsAt,
+        endsAt: occasion.endsAt,
+        venueName: occasion.venueName,
+        location: occasion.location,
+        sourceKey: occasion.sourceKey,
+      })),
+    );
   }
 
   const store: IngestStore = {
@@ -222,15 +263,16 @@ export function createDbIngestStore(db: Db): IngestStore {
           const nearby = await db
             .select({
               publisherId: events.publisherId,
-              distance: sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${point}))`,
+              distance: sql<number>`ST_Distance(${eventOccasions.location}, ST_GeogFromText(${point}))`,
             })
             .from(events)
+            .innerJoin(eventOccasions, eq(eventOccasions.eventId, events.id))
             .where(
               and(
                 inArray(events.publisherId, ids),
-                isNotNull(events.location),
+                isNotNull(eventOccasions.location),
                 notInArray(events.status, ['cancelled', 'ended', 'deleted']),
-                sql`ST_DWithin(${events.location}, ST_GeogFromText(${point}), ${PUBLISHER_NAME_RADIUS_M})`,
+                sql`ST_DWithin(${eventOccasions.location}, ST_GeogFromText(${point}), ${PUBLISHER_NAME_RADIUS_M})`,
               ),
             );
           for (const row of nearby) {
@@ -409,21 +451,22 @@ export function createDbIngestStore(db: Db): IngestStore {
         .select({
           eventId: events.id,
           title: events.title,
-          startsAt: events.startsAt,
+          startsAt: eventOccasions.startsAt,
           sourceUrl: events.sourceUrl,
           refId: events.refId,
           workerId: events.workerId,
-          lat: sql<number | null>`ST_Y(${events.location}::geometry)`,
-          lng: sql<number | null>`ST_X(${events.location}::geometry)`,
-          distanceM: sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${point}))`,
+          lat: sql<number | null>`ST_Y(${eventOccasions.location}::geometry)`,
+          lng: sql<number | null>`ST_X(${eventOccasions.location}::geometry)`,
+          distanceM: sql<number>`ST_Distance(${eventOccasions.location}, ST_GeogFromText(${point}))`,
         })
         .from(events)
+        .innerJoin(eventOccasions, eq(eventOccasions.eventId, events.id))
         .where(
           and(
-            isNotNull(events.location),
-            sql`ST_DWithin(${events.location}, ST_GeogFromText(${point}), ${DUPLICATE_RADIUS_M})`,
-            gte(events.startsAt, from),
-            lte(events.startsAt, to),
+            isNotNull(eventOccasions.location),
+            sql`ST_DWithin(${eventOccasions.location}, ST_GeogFromText(${point}), ${DUPLICATE_RADIUS_M})`,
+            gte(eventOccasions.startsAt, from),
+            lte(eventOccasions.startsAt, to),
             notInArray(events.status, ['cancelled', 'ended', 'deleted']),
           ),
         );
@@ -546,6 +589,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           .values(eventValues(input))
           .returning({ id: events.id });
         if (!row) throw new Error('Failed to insert imported event');
+        await replaceOccasions(tx, row.id, input.event);
         await writeTags(tx, row.id, input.tagIds);
         await replaceLinks(tx, row.id, input.event.links);
         await tx.insert(externalRefs).values({
@@ -582,10 +626,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             description: values.description,
             mode: values.mode,
             sourceUrl: values.sourceUrl,
-            ...(input.event.startsAt ? { startsAt: values.startsAt, endsAt: values.endsAt } : {}),
             timezone: values.timezone,
-            ...(input.event.venueName !== undefined ? { venueName: values.venueName } : {}),
-            ...(input.event.location ? { location: values.location } : {}),
             ...(input.event.onlineUrl !== undefined ? { onlineUrl: values.onlineUrl } : {}),
             ...(input.event.priceAmount !== undefined ? { priceAmount: values.priceAmount } : {}),
             ...(input.event.currency !== undefined ? { currency: values.currency } : {}),
@@ -602,6 +643,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           )
           .returning({ id: events.id });
         if (updated.length === 0) return false;
+        await replaceOccasions(tx, eventId, input.event);
         // An import that names no tags leaves the ones the scan wrote.
         if (input.tagIds.length > 0) await writeTags(tx, eventId, input.tagIds);
         if (input.event.links !== undefined) await replaceLinks(tx, eventId, input.event.links);
@@ -735,15 +777,10 @@ export function createDbIngestStore(db: Db): IngestStore {
             eventId: events.id,
             title: events.title,
             description: events.description,
-            venueName: events.venueName,
-            startsAt: events.startsAt,
-            endsAt: events.endsAt,
             sourceUrl: events.sourceUrl,
             refId: events.refId,
             workerId: events.workerId,
             meta: events.meta,
-            lat: sql<number | null>`ST_Y(${events.location}::geometry)`,
-            lng: sql<number | null>`ST_X(${events.location}::geometry)`,
             externalId: externalRefs.externalId,
             sourceId: dataSources.id,
             sourceSlug: dataSources.slug,
@@ -753,6 +790,18 @@ export function createDbIngestStore(db: Db): IngestStore {
           .innerJoin(externalRefs, eq(externalRefs.eventId, events.id))
           .innerJoin(dataSources, eq(dataSources.id, externalRefs.sourceId))
           .where(inArray(events.id, idList));
+        const occasionRows = await tx
+          .select({
+            eventId: eventOccasions.eventId,
+            startsAt: eventOccasions.startsAt,
+            endsAt: eventOccasions.endsAt,
+            venueName: eventOccasions.venueName,
+            lat: sql<number | null>`ST_Y(${eventOccasions.location}::geometry)`,
+            lng: sql<number | null>`ST_X(${eventOccasions.location}::geometry)`,
+          })
+          .from(eventOccasions)
+          .where(inArray(eventOccasions.eventId, idList))
+          .orderBy(asc(eventOccasions.startsAt));
         const linkRows = await tx
           .select({ eventId: eventLinks.eventId, url: eventLinks.url, type: eventLinks.type })
           .from(eventLinks)
@@ -772,14 +821,18 @@ export function createDbIngestStore(db: Db): IngestStore {
           const row = rows.find((item) => item.eventId === id);
           if (!row) continue;
           const eventTagsForRow = tagRows.filter((tag) => tag.eventId === id);
+          const firstOccasion = occasionRows.find((occasion) => occasion.eventId === id);
           pending.push({
             eventId: row.eventId,
             title: row.title,
             description: row.description,
-            venueName: row.venueName,
-            startsAt: row.startsAt,
-            endsAt: row.endsAt,
-            location: row.lat == null || row.lng == null ? null : { lat: row.lat, lng: row.lng },
+            venueName: firstOccasion?.venueName ?? null,
+            startsAt: firstOccasion?.startsAt ?? null,
+            endsAt: firstOccasion?.endsAt ?? null,
+            location:
+              firstOccasion?.lat == null || firstOccasion?.lng == null
+                ? null
+                : { lat: firstOccasion.lat, lng: firstOccasion.lng },
             sourceUrl: row.sourceUrl,
             links: linkRows.filter((link) => link.eventId === id).map((link) => link.url),
             pageLinks: linkRows
@@ -824,15 +877,10 @@ export function createDbIngestStore(db: Db): IngestStore {
           eventId: events.id,
           title: events.title,
           description: events.description,
-          venueName: events.venueName,
-          startsAt: events.startsAt,
-          endsAt: events.endsAt,
           sourceUrl: events.sourceUrl,
           refId: events.refId,
           workerId: events.workerId,
           meta: events.meta,
-          lat: sql<number | null>`ST_Y(${events.location}::geometry)`,
-          lng: sql<number | null>`ST_X(${events.location}::geometry)`,
           externalId: externalRefs.externalId,
           sourceId: dataSources.id,
           sourceSlug: dataSources.slug,
@@ -858,6 +906,18 @@ export function createDbIngestStore(db: Db): IngestStore {
         .limit(eventId ? 1 : limit);
       if (rows.length === 0) return [];
       const idList = rows.map((row) => row.eventId);
+      const occasionRows = await db
+        .select({
+          eventId: eventOccasions.eventId,
+          startsAt: eventOccasions.startsAt,
+          endsAt: eventOccasions.endsAt,
+          venueName: eventOccasions.venueName,
+          lat: sql<number | null>`ST_Y(${eventOccasions.location}::geometry)`,
+          lng: sql<number | null>`ST_X(${eventOccasions.location}::geometry)`,
+        })
+        .from(eventOccasions)
+        .where(inArray(eventOccasions.eventId, idList))
+        .orderBy(asc(eventOccasions.startsAt));
       const linkRows = await db
         .select({ eventId: eventLinks.eventId, url: eventLinks.url, type: eventLinks.type })
         .from(eventLinks)
@@ -875,14 +935,18 @@ export function createDbIngestStore(db: Db): IngestStore {
       const replayable: StoredScanRow[] = [];
       for (const row of rows) {
         const eventTagsForRow = tagRows.filter((tag) => tag.eventId === row.eventId);
+        const firstOccasion = occasionRows.find((occasion) => occasion.eventId === row.eventId);
         replayable.push({
           eventId: row.eventId,
           title: row.title,
           description: row.description,
-          venueName: row.venueName,
-          startsAt: row.startsAt,
-          endsAt: row.endsAt,
-          location: row.lat == null || row.lng == null ? null : { lat: row.lat, lng: row.lng },
+          venueName: firstOccasion?.venueName ?? null,
+          startsAt: firstOccasion?.startsAt ?? null,
+          endsAt: firstOccasion?.endsAt ?? null,
+          location:
+            firstOccasion?.lat == null || firstOccasion?.lng == null
+              ? null
+              : { lat: firstOccasion.lat, lng: firstOccasion.lng },
           sourceUrl: row.sourceUrl,
           links: linkRows.filter((link) => link.eventId === row.eventId).map((link) => link.url),
           pageLinks: linkRows
@@ -917,28 +981,29 @@ export function createDbIngestStore(db: Db): IngestStore {
       window: NearbyWindow,
       excludeEventId: string,
     ): Promise<NearbyEventHit[]> {
-      const { events } = schema;
+      const { events, eventOccasions } = schema;
       const ewkt = pointEwkt(point);
       const rows = await db
         .select({
           id: events.id,
           title: events.title,
-          startsAt: events.startsAt,
-          venue: events.venueName,
-          distanceM: sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${ewkt}))`,
+          startsAt: eventOccasions.startsAt,
+          venue: eventOccasions.venueName,
+          distanceM: sql<number>`ST_Distance(${eventOccasions.location}, ST_GeogFromText(${ewkt}))`,
         })
         .from(events)
+        .innerJoin(eventOccasions, eq(eventOccasions.eventId, events.id))
         .where(
           and(
-            isNotNull(events.location),
-            sql`ST_DWithin(${events.location}, ST_GeogFromText(${ewkt}), ${NEARBY_RADIUS_M})`,
-            gte(events.startsAt, window.from),
-            lte(events.startsAt, window.to),
+            isNotNull(eventOccasions.location),
+            sql`ST_DWithin(${eventOccasions.location}, ST_GeogFromText(${ewkt}), ${NEARBY_RADIUS_M})`,
+            gte(eventOccasions.startsAt, window.from),
+            lte(eventOccasions.startsAt, window.to),
             notInArray(events.status, ['cancelled', 'ended', 'deleted']),
             ne(events.id, excludeEventId),
           ),
         )
-        .orderBy(sql`ST_Distance(${events.location}, ST_GeogFromText(${ewkt}))`)
+        .orderBy(sql`ST_Distance(${eventOccasions.location}, ST_GeogFromText(${ewkt}))`)
         .limit(NEARBY_RESULT_LIMIT);
       return rows.flatMap((row) => {
         if (!row.startsAt) return [];
@@ -965,7 +1030,6 @@ export function createDbIngestStore(db: Db): IngestStore {
         const meta = readEventMeta(row.meta);
         return {
           eventId: row.id,
-          ...(meta.occasionGroupId ? { occasionGroupId: meta.occasionGroupId } : {}),
           ...(meta.possibleOccasionGroupId
             ? { possibleOccasionGroupId: meta.possibleOccasionGroupId }
             : {}),
@@ -985,15 +1049,21 @@ export function createDbIngestStore(db: Db): IngestStore {
         .where(inArray(events.id, eventIds));
     },
     async getEvent(eventId: string): Promise<EventRecord | null> {
-      const { events } = schema;
+      const { events, eventOccasions } = schema;
       const rows = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
       if (rows.length === 0) return null;
       const row = rows[0];
       if (!row) return null;
+      const [firstOccasion] = await db
+        .select({ startsAt: eventOccasions.startsAt })
+        .from(eventOccasions)
+        .where(eq(eventOccasions.eventId, eventId))
+        .orderBy(asc(eventOccasions.startsAt))
+        .limit(1);
       return {
         eventId: row.id,
         title: row.title,
-        startsAt: row.startsAt?.toISOString() ?? '',
+        startsAt: firstOccasion?.startsAt?.toISOString() ?? '',
         refId: row.refId,
         workerId: row.workerId,
       };
@@ -1038,9 +1108,9 @@ export function createDbIngestStore(db: Db): IngestStore {
       window: NearbyWindow,
       excludeEventId: string,
     ): Promise<NearbyPublisherHit[]> {
-      const { events, publishers } = schema;
+      const { events, eventOccasions, publishers } = schema;
       const ewkt = pointEwkt(point);
-      const distance = sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${ewkt}))`;
+      const distance = sql<number>`ST_Distance(${eventOccasions.location}, ST_GeogFromText(${ewkt}))`;
       const rows = await db
         .selectDistinctOn([publishers.id], {
           id: publishers.id,
@@ -1051,14 +1121,15 @@ export function createDbIngestStore(db: Db): IngestStore {
           distanceM: distance,
         })
         .from(events)
+        .innerJoin(eventOccasions, eq(eventOccasions.eventId, events.id))
         .innerJoin(publishers, eq(publishers.id, events.publisherId))
         .where(
           and(
-            isNotNull(events.location),
+            isNotNull(eventOccasions.location),
             isNotNull(events.publisherId),
-            sql`ST_DWithin(${events.location}, ST_GeogFromText(${ewkt}), ${NEARBY_RADIUS_M})`,
-            gte(events.startsAt, window.from),
-            lte(events.startsAt, window.to),
+            sql`ST_DWithin(${eventOccasions.location}, ST_GeogFromText(${ewkt}), ${NEARBY_RADIUS_M})`,
+            gte(eventOccasions.startsAt, window.from),
+            lte(eventOccasions.startsAt, window.to),
             notInArray(events.status, ['cancelled', 'ended', 'deleted']),
             ne(events.id, excludeEventId),
           ),
@@ -1095,9 +1166,9 @@ export function createDbIngestStore(db: Db): IngestStore {
     async publishersByName(point, name, excludeEventId) {
       const matcher = publisherNameMatcher(name);
       if ('error' in matcher) return [];
-      const { events, publishers } = schema;
+      const { events, eventOccasions, publishers } = schema;
       const ewkt = pointEwkt(point);
-      const distance = sql<number>`ST_Distance(${events.location}, ST_GeogFromText(${ewkt}))`;
+      const distance = sql<number>`ST_Distance(${eventOccasions.location}, ST_GeogFromText(${ewkt}))`;
       const rows = await db
         .selectDistinctOn([publishers.id], {
           id: publishers.id,
@@ -1108,12 +1179,13 @@ export function createDbIngestStore(db: Db): IngestStore {
           distanceM: distance,
         })
         .from(events)
+        .innerJoin(eventOccasions, eq(eventOccasions.eventId, events.id))
         .innerJoin(publishers, eq(publishers.id, events.publisherId))
         .where(
           and(
-            isNotNull(events.location),
+            isNotNull(eventOccasions.location),
             isNotNull(events.publisherId),
-            sql`ST_DWithin(${events.location}, ST_GeogFromText(${ewkt}), ${PUBLISHER_NAME_SEARCH_RADIUS_M})`,
+            sql`ST_DWithin(${eventOccasions.location}, ST_GeogFromText(${ewkt}), ${PUBLISHER_NAME_SEARCH_RADIUS_M})`,
             sql`${publishers.name} ILIKE ${matcher.like} ESCAPE '!'`,
             ne(events.status, 'cancelled'),
             ne(events.id, excludeEventId),
@@ -1302,14 +1374,15 @@ export function createDbIngestStore(db: Db): IngestStore {
             .select({
               title: events.title,
               description: events.description,
-              venueName: events.venueName,
+              venueName: eventOccasions.venueName,
               sourceUrl: events.sourceUrl,
-              lat: sql<number | null>`ST_Y(${events.location}::geometry)`,
-              lng: sql<number | null>`ST_X(${events.location}::geometry)`,
+              lat: sql<number | null>`ST_Y(${eventOccasions.location}::geometry)`,
+              lng: sql<number | null>`ST_X(${eventOccasions.location}::geometry)`,
               sourceId: dataSources.id,
               sourceSlug: dataSources.slug,
             })
             .from(events)
+            .leftJoin(eventOccasions, eq(eventOccasions.eventId, events.id))
             .leftJoin(externalRefs, eq(externalRefs.eventId, events.id))
             .leftJoin(dataSources, eq(dataSources.id, externalRefs.sourceId))
             .where(eq(events.publisherId, id))

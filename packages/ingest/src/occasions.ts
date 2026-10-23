@@ -79,15 +79,9 @@ export function withCollapsedSpan(
   meta: EventMeta | undefined,
   occasions: CollapsedOccasion[],
 ): EventMeta {
+  void occasions;
   return {
     ...meta,
-    collapsed: true,
-    occasions: occasions.map((occasion) => ({
-      startsAt: occasion.startsAt,
-      ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
-      ...(occasion.venueName ? { venueName: occasion.venueName } : {}),
-      ...(occasion.location ? { location: occasion.location } : {}),
-    })),
   };
 }
 
@@ -100,8 +94,7 @@ export function withOccasionGroup(
   productId: string,
   occasionCount: number,
 ): EventMeta | undefined {
+  void productId;
   if (occasionCount < 2 || typeof productId !== 'string') return meta;
-  const id = productId.trim();
-  if (!id) return meta;
-  return { ...meta, occasionGroupId: id };
+  return meta;
 }

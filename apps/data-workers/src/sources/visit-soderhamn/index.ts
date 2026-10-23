@@ -9,9 +9,6 @@ import {
 import {
   defineAdapter,
   occasionCollapseFromConfig,
-  shouldCollapseOccasions,
-  withCollapsedSpan,
-  withOccasionGroup,
   type IncomingEvent,
   type OccasionCollapseOptions,
   type SourceRunContext,
@@ -21,7 +18,7 @@ import { crawlLinkImages } from './page-images';
 /**
  * Visit Söderhamn via the Citybreak CBIS API.
  * Same selection as the previous lambda: products in category 30172 (Evenemang),
- * one incoming event per occasion, unless a dense run of opening hours collapses to one span.
+ * one incoming event per product with one or more occasion rows.
  * The API key is VISIT_SODERHAMN_API_KEY, never config.
  */
 
@@ -583,46 +580,30 @@ function mapProduct(
       },
     ];
   }
-  if (shouldCollapseOccasions(occasions, collapse)) {
-    const first = occasions[0]!;
-    const last = occasions.at(-1)!;
-    const venue = sharedName(occasions.map((occasion) => occasion.venue));
-    const location =
-      sharedLocation(occasions.map((occasion) => occasion.location)) ?? pointOf(product.Position);
-    return [
-      {
-        ...base,
-        externalId: `${product.Id}:span`,
-        startsAt: first.startsAt,
-        ...(last.endsAt ? { endsAt: last.endsAt } : {}),
-        ...(venue ? { venueName: venue, arenaName: venue } : {}),
-        ...(location ? { location } : {}),
-        meta: withCollapsedSpan(
-          addressed(meta, product, location),
-          occasions.map((occasion) => ({
-            startsAt: occasion.startsAt,
-            ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
-            ...(occasion.venue ? { venueName: occasion.venue } : {}),
-            ...(occasion.location ? { location: occasion.location } : {}),
-          })),
-        ),
-      },
-    ];
-  }
-  const grouped = withOccasionGroup(meta, product.Id, occasions.length);
-  return occasions.map((occasion) => {
-    const location = occasion.location;
-    const next = addressed(grouped, product, location);
-    return {
+  void collapse;
+  const first = occasions[0]!;
+  const last = occasions.at(-1)!;
+  const venue = sharedName(occasions.map((occasion) => occasion.venue));
+  const location =
+    sharedLocation(occasions.map((occasion) => occasion.location)) ?? pointOf(product.Position);
+  return [
+    {
       ...base,
-      externalId: `${product.Id}:${occasion.startRaw}:${occasion.endRaw ?? ''}`,
-      startsAt: occasion.startsAt,
-      ...(occasion.endsAt ? { endsAt: occasion.endsAt } : {}),
-      ...(occasion.venue ? { venueName: occasion.venue, arenaName: occasion.venue } : {}),
+      externalId: String(product.Id),
+      startsAt: first.startsAt,
+      endsAt: last.endsAt ?? first.endsAt ?? first.startsAt,
+      ...(venue ? { venueName: venue, arenaName: venue } : {}),
       ...(location ? { location } : {}),
-      ...(next ? { meta: next } : {}),
-    };
-  });
+      occasions: occasions.map((occasion) => ({
+        startsAt: occasion.startsAt,
+        endsAt: occasion.endsAt ?? occasion.startsAt,
+        ...(occasion.venue ? { venueName: occasion.venue } : {}),
+        ...(occasion.location ? { location: occasion.location } : {}),
+        sourceKey: `${occasion.startRaw}:${occasion.endRaw ?? ''}`,
+      })),
+      ...(addressed(meta, product, location) ? { meta: addressed(meta, product, location) } : {}),
+    },
+  ];
 }
 
 export const visitSoderhamn = defineAdapter<VisitRaw>({
