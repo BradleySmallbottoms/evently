@@ -11,6 +11,10 @@
     "identityError": "Kunde inte skapa identitet. Kontrollera att API:t körs.",
     "userId": "Användar-id"
   },
+  "splash": {
+    "title": "evently",
+    "subtitle": "Upptäck vad som händer nära dig"
+  },
   "tabs": {
     "list": "Hem",
     "search": "Sök",

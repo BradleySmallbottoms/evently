@@ -11,6 +11,10 @@
     "identityError": "Could not create identity. Make sure the API is running.",
     "userId": "User id"
   },
+  "splash": {
+    "title": "evently",
+    "subtitle": "Discover what's happening near you"
+  },
   "tabs": {
     "list": "Home",
     "search": "Search",

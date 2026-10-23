@@ -9,12 +9,12 @@ import { useTranslation } from 'react-i18next';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { InboxPushSync } from '@/components/inbox-push-sync';
 import { NotificationEventLink } from '@/components/notification-event-link';
 import { IdentityResetAlert } from '@/components/native/identity-reset-alert';
 import { OnboardingCarousel } from '@/components/onboarding/onboarding-carousel';
 import { PermissionReminder } from '@/components/onboarding/permission-reminder';
+import { AfterSplash, SplashCover } from '@/components/splash-cover';
 import {
   currentIdentityEpoch,
   discardStoredIdentity,
@@ -44,6 +44,7 @@ export default function RootLayout() {
   const [queryClient] = useState(() => createAppQueryClient());
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [splashSeen, setSplashSeen] = useState(false);
   const [reminder, setReminder] = useState<PermissionKind | null>(null);
   const [identityLost, setIdentityLost] = useState(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -55,6 +56,13 @@ export default function RootLayout() {
   const countedThisForegroundRef = useRef(false);
   const bootstrappedRef = useRef(false);
   const resettingRef = useRef(false);
+  const hidNativeSplash = useRef(false);
+  const hideNativeSplash = useCallback(() => {
+    if (hidNativeSplash.current) return;
+    hidNativeSplash.current = true;
+    void SplashScreen.hideAsync();
+  }, []);
+  const markSplashSeen = useCallback(() => setSplashSeen(true), []);
 
   useEffect(() => {
     onboardingRef.current = onboarding;
@@ -67,10 +75,6 @@ export default function RootLayout() {
   useEffect(() => {
     setIdentityRejectedHandler(() => setIdentityLost(true));
     return () => setIdentityRejectedHandler(null);
-  }, []);
-
-  useEffect(() => {
-    void SplashScreen.hideAsync();
   }, []);
 
   useEffect(() => subscribeQueryFocus(AppState, Platform.OS), []);
@@ -191,7 +195,10 @@ export default function RootLayout() {
 
   if (identityLost) {
     return (
-      <GestureHandlerRootView style={{ flex: 1, backgroundColor: brand.canvas }}>
+      <GestureHandlerRootView
+        onLayout={hideNativeSplash}
+        style={{ flex: 1, backgroundColor: brand.canvas }}
+      >
         {resetAlert}
       </GestureHandlerRootView>
     );
@@ -212,15 +219,17 @@ export default function RootLayout() {
   if (showOnboarding) {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <OnboardingCarousel
-          onFinished={(state) => {
-            setOnboarding(state);
-            setShowOnboarding(false);
-            setReminder(null);
-            countedThisForegroundRef.current = false;
-            void countActivation(state);
-          }}
-        />
+        <SplashCover onCovered={hideNativeSplash} onDismissed={markSplashSeen} waitForHome={false}>
+          <OnboardingCarousel
+            onFinished={(state) => {
+              setOnboarding(state);
+              setShowOnboarding(false);
+              setReminder(null);
+              countedThisForegroundRef.current = false;
+              void countActivation(state);
+            }}
+          />
+        </SplashCover>
       </GestureHandlerRootView>
     );
   }
@@ -229,36 +238,39 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider value={navTheme}>
-          <AnimatedSplashOverlay />
-          <InboxPushSync />
-          <NotificationEventLink />
-          <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="map" />
-            <Stack.Screen name="events/[id]" />
-            <Stack.Screen
-              name="tips/published/[id]"
-              options={{
-                presentation: 'transparentModal',
-                animation: 'fade',
-                animationDuration: 220,
-                contentStyle: { backgroundColor: 'transparent' },
-              }}
-            />
-            <Stack.Screen name="for-you" />
-            <Stack.Screen name="preferences/index" />
-          </Stack>
-          {reminder ? (
-            <PermissionReminder
-              kind={reminder}
-              state={onboarding}
-              onDone={(state) => {
-                setOnboarding(state);
-                setReminder(null);
-                void refreshDeviceLocation();
-              }}
-            />
-          ) : null}
+          <SplashCover alreadySeen={splashSeen} onCovered={hideNativeSplash}>
+            <InboxPushSync />
+            <NotificationEventLink />
+            <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="map" />
+              <Stack.Screen name="events/[id]" />
+              <Stack.Screen
+                name="tips/published/[id]"
+                options={{
+                  presentation: 'transparentModal',
+                  animation: 'fade',
+                  animationDuration: 220,
+                  contentStyle: { backgroundColor: 'transparent' },
+                }}
+              />
+              <Stack.Screen name="for-you" />
+              <Stack.Screen name="preferences/index" />
+            </Stack>
+            <AfterSplash>
+              {reminder ? (
+                <PermissionReminder
+                  kind={reminder}
+                  state={onboarding}
+                  onDone={(state) => {
+                    setOnboarding(state);
+                    setReminder(null);
+                    void refreshDeviceLocation();
+                  }}
+                />
+              ) : null}
+            </AfterSplash>
+          </SplashCover>
         </ThemeProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

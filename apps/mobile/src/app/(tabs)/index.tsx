@@ -18,6 +18,7 @@ import { InboxTipSheet } from '@/components/native/inbox-tip-sheet';
 import { NotificationsSheet } from '@/components/native/notifications-sheet';
 import { PairingSheet, type PairingSheetTab } from '@/components/native/pairing-sheet';
 import { RegionSuggestionSheet } from '@/components/native/region-suggestion-sheet';
+import { useReportHomeReady } from '@/components/splash-cover';
 import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { FeaturedEventCard } from './_components/featured-event-card';
@@ -32,6 +33,7 @@ import { listPublicEvents, listTags, namesForTagIds } from '@/lib/events';
 import { useForYouEvents } from '@/lib/use-for-you';
 import { eventListFreshness } from '@/lib/query-client';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
+import { isHomeListReady } from '@/lib/home-splash';
 import { loadHomeTagIds, saveHomeTagIds } from '@/lib/home-tag-selection';
 import { homeGroupForTags, retainedTagIds } from '@/lib/tag-groups';
 import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
@@ -194,6 +196,16 @@ export default function HomeScreen() {
     },
     ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM, selectedTagKey, query],
   );
+  const reportHomeReady = useReportHomeReady();
+  const homeListReady = isHomeListReady({
+    storedTags: storedTagIds.isError ? 'failed' : storedTagIds.isSuccess ? 'ready' : 'pending',
+    point: point.isError ? 'failed' : point.isSuccess ? 'ready' : 'pending',
+    tags: !tagsSettled ? 'pending' : tags.isError ? 'failed' : 'ready',
+    events: events.isError ? 'failed' : events.isSuccess ? 'ready' : 'pending',
+  });
+  useEffect(() => {
+    if (homeListReady) reportHomeReady();
+  }, [homeListReady, reportHomeReady]);
   const popular = useQuery({
     queryKey: ['popular-events', point.data?.lat, point.data?.lng, point.data?.radiusM],
     ...eventListFreshness,

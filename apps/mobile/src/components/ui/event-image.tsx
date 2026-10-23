@@ -48,8 +48,7 @@ export function EventImage({ imageUrl, tags, style }: Props) {
 
   return (
     <View style={[styles.frame, style]}>
-      {uri && !ready && !failed ? <ImageSweep reduced={reduced ?? false} /> : null}
-      {uri && !failed ? (
+      {uri && !failed && (
         <Image
           accessible={false}
           accessibilityIgnoresInvertColors
@@ -61,14 +60,8 @@ export function EventImage({ imageUrl, tags, style }: Props) {
           onDisplay={() => setLoadedUri(uri)}
           onError={() => setFailedUri(uri)}
         />
-      ) : (
-        <Image
-          accessible={false}
-          source={placeholder}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-        />
       )}
+      {uri && !ready && !failed ? <ImageSweep reduced={reduced ?? false} /> : null}
     </View>
   );
 }
