@@ -98,18 +98,22 @@ export class DataStack extends Stack {
       cacheSubnetGroupName: `local-events-${props.envName}-valkey`,
     });
 
-    const valkey = new elasticache.CfnCacheCluster(this, 'Valkey', {
+    // CreateCacheCluster rejects engine valkey. A one-node replication group is the
+    // supported API, with failover off so there is no replica.
+    const valkey = new elasticache.CfnReplicationGroup(this, 'Valkey', {
+      replicationGroupDescription: `local-events ${props.envName} valkey`,
       engine: 'valkey',
       engineVersion: '8.0',
       cacheNodeType: 'cache.t4g.micro',
-      numCacheNodes: 1,
-      vpcSecurityGroupIds: [this.valkeySecurityGroup.securityGroupId],
+      numCacheClusters: 1,
+      automaticFailoverEnabled: false,
+      securityGroupIds: [this.valkeySecurityGroup.securityGroupId],
       cacheSubnetGroupName: valkeySubnetGroup.ref,
-      clusterName: `le-${props.envName}-valkey`,
+      replicationGroupId: `le-${props.envName}-valkey`,
     });
     valkey.addResourceDependency(valkeySubnetGroup);
-    this.valkeyEndpoint = valkey.attrRedisEndpointAddress;
-    this.valkeyPort = valkey.attrRedisEndpointPort;
+    this.valkeyEndpoint = valkey.attrPrimaryEndPointAddress;
+    this.valkeyPort = valkey.attrPrimaryEndPointPort;
 
     const bucketDefaults = {
       encryption: s3.BucketEncryption.S3_MANAGED,
