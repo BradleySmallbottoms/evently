@@ -4,7 +4,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -106,6 +106,51 @@ type Occasion = {
   location?: { lat: number; lng: number } | null;
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function calendarDay(instant: Date, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(instant);
+  } catch {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Stockholm',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(instant);
+  }
+}
+
+function dayRange(startDay: string, endDay: string): string[] {
+  const out: string[] = [];
+  const start = new Date(`${startDay}T00:00:00.000Z`).getTime();
+  const end = new Date(`${endDay}T00:00:00.000Z`).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) return out;
+  for (let at = start; at <= end; at += DAY_MS) {
+    out.push(new Date(at).toISOString().slice(0, 10));
+  }
+  return out;
+}
+
+function formatShortDayWithWeekday(iso: string, locale: string, timeZone?: string | null): string {
+  const zone = timeZone?.trim() || 'Europe/Stockholm';
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: zone,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
+    .format(new Date(iso))
+    .replace(/\./g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export default function EventDetailScreen() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
@@ -121,6 +166,9 @@ export default function EventDetailScreen() {
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [occasionOpenToken, setOccasionOpenToken] = useState(0);
+  const [occasionSectionY, setOccasionSectionY] = useState<number | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
   /** Local on/off until the saved and coming lists catch up. */
   const [savedOverride, setSavedOverride] = useState<boolean | null>(null);
   const [comingOverride, setComingOverride] = useState<boolean | null>(null);
@@ -153,17 +201,38 @@ export default function EventDetailScreen() {
     setCountedComing(serverComing);
     setComingDelta(0);
   }
-  const otherOccasions = useMemo(() => {
+  const occasionFacts = useMemo(() => {
     const occasions = (event.data as { occasions?: Occasion[] } | undefined)?.occasions ?? [];
+    const timeZone = event.data?.timezone || 'Europe/Stockholm';
     const now = new Date();
-    return occasions
+    const sorted = [...occasions].sort(
+      (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+    );
+    const current = sorted.find((occasion) => {
+      const start = new Date(occasion.startsAt);
+      const end = new Date(occasion.endsAt);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+      if (isWholeDay(occasion.startsAt, occasion.endsAt)) {
+        return calendarDay(start, timeZone) === calendarDay(now, timeZone);
+      }
+      return start <= now && end >= now;
+    });
+    const next = sorted.find((occasion) => {
+      const start = new Date(occasion.startsAt);
+      const end = new Date(occasion.endsAt);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+      if (isWholeDay(occasion.startsAt, occasion.endsAt)) {
+        return calendarDay(start, timeZone) >= calendarDay(now, timeZone);
+      }
+      return end >= now;
+    });
+    const active = sorted
       .filter((occasion) => {
         const start = new Date(occasion.startsAt);
         const end = new Date(occasion.endsAt);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
         if (isWholeDay(occasion.startsAt, occasion.endsAt)) {
-          const closing = new Date(end);
-          closing.setUTCHours(23, 59, 59, 999);
-          return closing >= now;
+          return calendarDay(start, timeZone) >= calendarDay(now, timeZone);
         }
         return end >= now || start >= now;
       })
@@ -174,6 +243,31 @@ export default function EventDetailScreen() {
         venueName: occasion.venueName ?? event.data?.venueName ?? null,
         publisherName: event.data?.publisherName ?? '',
       }));
+    const coverageDays = new Set<string>();
+    for (const occasion of sorted) {
+      const start = new Date(occasion.startsAt);
+      const end = new Date(occasion.endsAt);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) continue;
+      const startDay = calendarDay(start, timeZone);
+      const endDay = calendarDay(end, timeZone);
+      for (const day of dayRange(startDay, endDay)) coverageDays.add(day);
+    }
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const fullRangeDays =
+      first && last
+        ? dayRange(
+            calendarDay(new Date(first.startsAt), timeZone),
+            calendarDay(new Date(last.endsAt), timeZone),
+          )
+        : [];
+    const hasGap = fullRangeDays.some((day) => !coverageDays.has(day));
+    return {
+      active,
+      current,
+      next,
+      hasGap,
+    };
   }, [event.data]);
   const reminder = useQuery({
     queryKey: ['event-reminder', id],
@@ -532,6 +626,10 @@ export default function EventDetailScreen() {
   const multiDay = event.data
     ? isOpenPeriod(event.data.startsAt, event.data.endsAt, timeZone)
     : false;
+  const headlineOccasion = occasionFacts.current ?? occasionFacts.next ?? null;
+  const headlineMultiDay = headlineOccasion
+    ? isOpenPeriod(headlineOccasion.startsAt, headlineOccasion.endsAt, timeZone)
+    : false;
   const copy = descriptionParts(event.data?.description, event.data?.summary);
   const tagNames = namesForTagIds(event.data?.tagIds ?? [], tags.data?.items);
   const interestCount = Math.max(0, (event.data?.numSaved ?? 0) + savedDelta);
@@ -572,17 +670,49 @@ export default function EventDetailScreen() {
   }, [related.data?.items, id, locale, tags.data?.items, relatedSaved, saved.data?.items]);
 
   const whenTitle = event.data
-    ? multiDay
-      ? formatPeriod(event.data.startsAt, event.data.endsAt, locale, timeZone)
-      : formatDayHeading(event.data.startsAt, locale, timeZone)
+    ? headlineOccasion
+      ? occasionFacts.hasGap
+        ? `${formatShortDayWithWeekday(event.data.startsAt, locale, timeZone)} – ${formatShortDayWithWeekday(
+            event.data.endsAt,
+            locale,
+            timeZone,
+          )}`
+        : headlineMultiDay
+          ? formatPeriod(headlineOccasion.startsAt, headlineOccasion.endsAt, locale, timeZone)
+          : formatDayHeading(headlineOccasion.startsAt, locale, timeZone)
+      : multiDay
+        ? formatPeriod(event.data.startsAt, event.data.endsAt, locale, timeZone)
+        : formatDayHeading(event.data.startsAt, locale, timeZone)
     : '';
   const whenSubtitle = event.data
-    ? multiDay
-      ? t('events.detail.joinWhenYouWant')
-      : isWholeDay(event.data.startsAt, event.data.endsAt)
-        ? t('events.wholeDay')
-        : formatTimeRange(event.data.startsAt, event.data.endsAt, locale, timeZone)
+    ? headlineOccasion
+      ? headlineMultiDay
+        ? occasionFacts.current
+          ? t('events.detail.happeningNow')
+          : occasionFacts.hasGap && occasionFacts.next
+            ? t('events.detail.nextOccasionOn', {
+                date: formatDayHeading(occasionFacts.next.startsAt, locale, timeZone),
+              })
+            : t('events.detail.upcoming')
+        : isWholeDay(headlineOccasion.startsAt, headlineOccasion.endsAt)
+          ? t('events.wholeDay')
+          : occasionFacts.hasGap && occasionFacts.next && !occasionFacts.current
+            ? t('events.detail.nextOccasionOn', {
+                date: formatDayHeading(occasionFacts.next.startsAt, locale, timeZone),
+              })
+            : formatTimeRange(headlineOccasion.startsAt, headlineOccasion.endsAt, locale, timeZone)
+      : multiDay
+        ? t('events.detail.joinWhenYouWant')
+        : isWholeDay(event.data.startsAt, event.data.endsAt)
+          ? t('events.wholeDay')
+          : formatTimeRange(event.data.startsAt, event.data.endsAt, locale, timeZone)
     : '';
+  function jumpToOccasions() {
+    if (!showOccasions) return;
+    setOccasionOpenToken((value) => value + 1);
+    if (occasionSectionY == null) return;
+    scrollRef.current?.scrollTo({ y: Math.max(0, occasionSectionY - 12), animated: true });
+  }
   const socialLabel =
     interestCount > 0
       ? t('events.detail.interestCount', { count: interestCount })
@@ -720,15 +850,33 @@ export default function EventDetailScreen() {
       });
     }
   }
-  const showOccasions = Boolean(event.data) && (multiDay || otherOccasions.length > 0);
-  const status = event.data
-    ? periodStatus(event.data.startsAt, event.data.endsAt, new Date(), timeZone)
-    : 'soon';
+  const showOccasions = Boolean(event.data) && (multiDay || occasionFacts.active.length > 0);
+  const status: 'now' | 'soon' | 'past' = occasionFacts.current
+    ? 'now'
+    : occasionFacts.next
+      ? 'soon'
+      : event.data
+        ? periodStatus(event.data.startsAt, event.data.endsAt, new Date(), timeZone)
+        : 'soon';
+  const occasionRangeLabel = event.data
+    ? occasionFacts.current
+      ? t('events.detail.happeningNow')
+      : occasionFacts.next
+        ? t('events.detail.nextOccasionOn', {
+            date: formatDayHeading(occasionFacts.next.startsAt, locale, timeZone),
+          })
+        : occasionFacts.hasGap
+          ? t('events.detail.multipleOccasionsBetween', {
+              range: formatPeriod(event.data.startsAt, event.data.endsAt, locale, timeZone),
+            })
+          : t('events.detail.ongoingRange', { range: whenTitle })
+    : '';
   const aboutLong = copy.about.length > 280;
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
       <View style={{ flex: 1, width: '100%', maxWidth: MaxContentWidth }}>
         <ScrollView
+          ref={scrollRef}
           style={{ flex: 1, backgroundColor: colors.canvas }}
           directionalLockEnabled
           contentInsetAdjustmentBehavior="never"
@@ -936,6 +1084,31 @@ export default function EventDetailScreen() {
                         </AppText>
                         <AppText variant="caption">{whenSubtitle}</AppText>
                       </View>
+                      {showOccasions ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={t('events.detail.showDates')}
+                          onPress={jumpToOccasions}
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: radius.md,
+                            borderCurve: 'continuous',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: colors.canvas,
+                            borderWidth: 1,
+                            borderColor: colors.line,
+                          }}
+                        >
+                          <DetailGlyph
+                            sf="list.bullet"
+                            md="list"
+                            size={18}
+                            color={colors.info as string}
+                          />
+                        </Pressable>
+                      ) : null}
                     </View>
 
                     <Pressable
@@ -1306,28 +1479,35 @@ export default function EventDetailScreen() {
                 ) : null}
 
                 {showOccasions ? (
-                  <DetailCard>
-                    <OccasionPeriod
-                      title={t('events.detail.allOccasions')}
-                      infoLabel={t('events.detail.whenCanIJoin')}
-                      rangeLabel={t('events.detail.ongoingRange', { range: whenTitle })}
-                      badgeLabel={
-                        status === 'now'
-                          ? t('events.detail.happeningNow')
-                          : status === 'soon'
-                            ? t('events.detail.upcoming')
-                            : t('events.detail.ended')
-                      }
-                      badgeTone={status}
-                      hint={t('events.detail.pickYourDay')}
-                      showDatesLabel={t('events.detail.showDates')}
-                      hideDatesLabel={t('events.detail.hideDates')}
-                      items={otherOccasions}
-                      locale={locale}
-                      timeZone={timeZone ?? undefined}
-                      missingVenue={t('events.missingVenue')}
-                    />
-                  </DetailCard>
+                  <View
+                    onLayout={(layout) => {
+                      setOccasionSectionY(layout.nativeEvent.layout.y);
+                    }}
+                  >
+                    <DetailCard>
+                      <OccasionPeriod
+                        title={t('events.detail.allOccasions')}
+                        infoLabel={t('events.detail.whenCanIJoin')}
+                        rangeLabel={occasionRangeLabel}
+                        badgeLabel={
+                          status === 'now'
+                            ? t('events.detail.happeningNow')
+                            : status === 'soon'
+                              ? t('events.detail.upcoming')
+                              : t('events.detail.ended')
+                        }
+                        badgeTone={status}
+                        hint={t('events.detail.pickYourDay')}
+                        showDatesLabel={t('events.detail.showDates')}
+                        hideDatesLabel={t('events.detail.hideDates')}
+                        items={occasionFacts.active}
+                        locale={locale}
+                        timeZone={timeZone ?? undefined}
+                        missingVenue={t('events.missingVenue')}
+                        openToken={occasionOpenToken}
+                      />
+                    </DetailCard>
+                  </View>
                 ) : null}
 
                 <RelatedEvents

@@ -641,7 +641,7 @@ function sharedVenue(occasions: ResolvedOccasion[]): string | undefined {
   return names.length === 1 ? names[0] : undefined;
 }
 
-function metaOf(product: HalsinglandProduct): EventMeta | undefined {
+function metaOf(product: HalsinglandProduct, digital: boolean): EventMeta | undefined {
   const meta: EventMeta = {};
   if (product.ageLimit !== undefined) meta.ageLimit = product.ageLimit;
   if (product.freeEntry) meta.freeEntry = true;
@@ -649,7 +649,7 @@ function metaOf(product: HalsinglandProduct): EventMeta | undefined {
     address: product.street,
     zipCode: product.zipCode,
     city: product.postalCity || product.town,
-    location: product.location,
+    location: digital ? undefined : product.location,
   });
   if (place) meta.address = place;
   return Object.keys(meta).length > 0 ? meta : undefined;
@@ -667,7 +667,7 @@ function mapProduct(
   const venue = sharedVenue(occasions);
   const digital = venue?.toLocaleLowerCase('sv') === 'digitalt';
   const venueName = !digital ? venue || product.postalCity : undefined;
-  const meta = metaOf(product);
+  const meta = metaOf(product, digital);
   const onlineUrl = digital ? product.links.find((link) => link.url)?.url : undefined;
   const base = {
     title: product.title,

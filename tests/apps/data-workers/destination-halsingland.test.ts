@@ -97,6 +97,20 @@ describe('destination-halsingland map', () => {
     );
   });
 
+  it('leaves a digital showing without a point', () => {
+    const product: HalsinglandProduct = {
+      ...raw.products[0]!,
+      id: 'digital-1',
+      location: { lat: 61.35, lng: 16.39 },
+      occasions: [{ date: '2026-11-14', start: '19:00', end: '20:30', venue: 'Digitalt' }],
+    };
+    const [digital] = destinationHalsingland.map({ ...raw, products: [product] });
+    expect(digital?.mode).toBe('digital');
+    expect(digital?.location).toBeUndefined();
+    expect(digital?.occasions?.[0]?.location).toBeUndefined();
+    expect(digital?.meta?.address?.location).toBeUndefined();
+  });
+
   it('reads longitude first and swaps a latitude-first pair', () => {
     expect(pointFromCoordinates([16.3952167, 61.3505711])).toEqual({
       lat: 61.3505711,

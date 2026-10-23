@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
@@ -30,6 +30,7 @@ export function OccasionPeriod({
   locale,
   timeZone,
   missingVenue,
+  openToken,
 }: {
   title: string;
   infoLabel: string;
@@ -43,8 +44,14 @@ export function OccasionPeriod({
   locale: string;
   timeZone?: string;
   missingVenue: string;
+  /** Increase this value to force-open the list from outside. */
+  openToken?: number;
 }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (openToken == null) return;
+    setOpen(true);
+  }, [openToken]);
   const badgeColor =
     badgeTone === 'now' ? colors.success : badgeTone === 'soon' ? colors.info : colors.inkMuted;
   const badgeBackground =

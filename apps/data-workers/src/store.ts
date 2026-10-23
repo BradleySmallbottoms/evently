@@ -412,7 +412,7 @@ export interface ImportedScanWrite {
   /** Set only when the scan found both and the row had neither. */
   startsAt?: Date;
   endsAt?: Date;
-  /** Set only when the row had no point and the page lookup found one. */
+  /** The point nearby tools used. Written onto occasions that still have none. */
   location?: { lat: number; lng: number };
   /** Set only when the row had no venue name and the scan chose one. */
   venueName?: string;

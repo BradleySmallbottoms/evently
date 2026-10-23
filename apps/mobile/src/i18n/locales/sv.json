@@ -274,6 +274,8 @@
       "allOccasions": "Alla tillfällen",
       "whenCanIJoin": "När kan jag delta?",
       "ongoingRange": "Pågår {{range}}",
+      "multipleOccasionsBetween": "Flera tillfällen mellan {{range}}",
+      "nextOccasionOn": "Nästa tillfälle: {{date}}",
       "happeningNow": "Pågår nu",
       "upcoming": "Kommande",
       "ended": "Avslutad",

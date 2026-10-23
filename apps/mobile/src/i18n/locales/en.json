@@ -274,6 +274,8 @@
       "allOccasions": "All dates",
       "whenCanIJoin": "When can I join?",
       "ongoingRange": "Runs {{range}}",
+      "multipleOccasionsBetween": "Multiple occasions between {{range}}",
+      "nextOccasionOn": "Next occasion: {{date}}",
       "happeningNow": "Happening now",
       "upcoming": "Upcoming",
       "ended": "Ended",
