@@ -107,6 +107,7 @@ export async function scanPendingEvents(
   const batch: ScanInput[] = [];
   const rows = new Map<string, PendingScanRow>();
   for (const row of claimed) {
+    await ensureScanPoint(row, fetchImpl);
     const input = scanInputFor(row);
     rows.set(row.eventId, row);
     batch.push(input);
@@ -250,6 +251,7 @@ export async function applyOutcome(
   }
   const dates = datesFromScan(row, outcome);
   const place = await placeFromScan(row, outcome, fetchImpl);
+  const location = place.location ?? row.location ?? undefined;
   const venueName = venueNameFromScan(outcome.possibleVenueNames, row.meta.import);
   if (place.address) meta.address = place.address;
   const saved = await persist({
@@ -264,7 +266,7 @@ export async function applyOutcome(
     language: eventLanguage(outcome.language),
     claimedUntil: row.claimedUntil,
     ...(dates ?? {}),
-    ...(place.location ? { location: place.location } : {}),
+    ...(location ? { location } : {}),
     ...(venueName ? { venueName } : {}),
   });
   if (!saved) return 'skipped';
@@ -291,14 +293,35 @@ export async function applyOutcome(
 }
 
 /**
- * Dates from the scan, used only when the stored event has neither start nor end
- * and the model returned both.
+ * A point already on the occasion or the scraped address is kept. Otherwise the
+ * scraped address is geocoded so nearby tools can use it. The address from the
+ * scan JSON is used only when the import stored none. The model does not supply
+ * the point.
  */
-/**
- * A scraped point is kept. A scraped address is kept, and geocoded when the
- * event has no point. The address from the scan JSON is used only when the
- * import stored none. The model does not supply the point.
- */
+function addressPoint(
+  location: { lat: number; lng: number } | undefined,
+): { lat: number; lng: number } | undefined {
+  if (!location || !Number.isFinite(location.lat) || !Number.isFinite(location.lng)) {
+    return undefined;
+  }
+  if (location.lat < -90 || location.lat > 90 || location.lng < -180 || location.lng > 180) {
+    return undefined;
+  }
+  return { lat: location.lat, lng: location.lng };
+}
+
+async function ensureScanPoint(row: PendingScanRow, fetchImpl: typeof fetch): Promise<void> {
+  if (row.location) return;
+  const stored = addressPoint(row.meta.address?.location);
+  if (stored) {
+    row.location = stored;
+    return;
+  }
+  if (!row.meta.address) return;
+  const location = await geocodeSwedishAddress(row.meta.address, fetchImpl);
+  if (location) row.location = location;
+}
+
 async function placeFromScan(
   row: PendingScanRow,
   outcome: Extract<ScanOutcome, { ok: true }>,
@@ -309,7 +332,13 @@ async function placeFromScan(
 }> {
   const scraped = row.meta.address;
   const chosen = scraped ?? outcome.address;
-  if (row.location) return scraped || !chosen ? {} : { address: chosen };
+  if (row.location) {
+    if (scraped && !scraped.location) {
+      return { location: row.location, address: { ...scraped, location: row.location } };
+    }
+    if (!scraped && chosen) return { location: row.location, address: chosen };
+    return { location: row.location };
+  }
   if (!chosen) return {};
   const location = await geocodeSwedishAddress(chosen, fetchImpl);
   const address = location ? { ...chosen, location } : chosen;
@@ -319,6 +348,10 @@ async function placeFromScan(
   };
 }
 
+/**
+ * Dates from the scan, used only when the stored event has neither start nor end
+ * and the model returned both.
+ */
 function datesFromScan(
   row: PendingScanRow,
   outcome: Extract<ScanOutcome, { ok: true }>,

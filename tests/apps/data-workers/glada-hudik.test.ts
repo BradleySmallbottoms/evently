@@ -121,6 +121,7 @@ describe('glada-hudik map', () => {
     expect(event.occasions?.[0]).toMatchObject({
       startsAt: '2026-10-15T19:00:00+02:00',
       endsAt: '2026-10-15T20:20:00+02:00',
+      location: { lat: 61.7279731, lng: 17.1077112 },
     });
     expect(event.priceAmount).toBe(45_000);
     expect(event.currency).toBe('SEK');

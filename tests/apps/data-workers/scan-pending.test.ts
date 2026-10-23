@@ -929,6 +929,7 @@ describe('scanPendingEvents', () => {
         expect(batch[0]?.pageLinks).toEqual([
           { type: 'tickets', url: 'https://tickets.example/show' },
         ]);
+        expect(batch[0]?.location).toEqual({ lat: 61.8, lng: 16.55 });
         return batch.map((item): ScanOutcome => ({
           ok: true,
           eventId: item.eventId,
@@ -962,6 +963,54 @@ describe('scanPendingEvents', () => {
       country: 'Sweden',
       location: { lat: 61.8, lng: 16.55 },
     });
+  });
+
+  it('uses a point already stored on the address before nearby tools run', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const point = { lat: 61.3025885, lng: 17.0558599 };
+    await saveIncomingEvents(store, source, [
+      {
+        ...event,
+        location: undefined,
+        meta: {
+          address: {
+            address: 'Köpmangatan 11',
+            city: 'Söderhamn',
+            country: 'Sweden' as const,
+            location: point,
+          },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'address-point',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        expect(batch[0]?.location).toEqual(point);
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () => {
+        throw new Error('address point should not be geocoded again');
+      },
+    });
+
+    expect(store.events[0]?.location).toEqual(point);
   });
 
   it('leaves an existing point and stores a page address when the import had none', async () => {

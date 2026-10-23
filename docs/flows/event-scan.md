@@ -48,8 +48,10 @@ For each event the Ollama runner:
    A page on visit.destinationhalsingland.se is fetched with curl over HTTP/1.1.
    The model uses the page text for tags, instructions, the summary, and
    missing dates, and for the address. The model returns that address in the scan JSON.
-   A scraped point is kept. When the event has no point, the scraped address is geocoded,
-   and the address from that JSON is used only when the import stored none. A street, or a
+   A scraped point is kept. A point already on the scraped address is used when the occasion
+   has none. When the event still has no point, that address is geocoded before nearby tools
+   run, and the address from that JSON is used only when the import stored none. The point is
+   written on occasions that have none. A street, or a
    postcode with a city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept. The model does not
    supply coordinates. The model also returns possible venue names. Importers leave
    `events.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn

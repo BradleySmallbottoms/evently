@@ -21,7 +21,7 @@ The organizer key is the library desk email, `biblioteket@soderhamn.se`. The chi
 same contact card is not used. An `Arrangör` line in the text is the organizer name. Otherwise the
 name is Söderhamns stadsbibliotek.
 
-The place street, postcode, and city are stored on `meta.address`. The import does not geocode. The scan geocodes a missing point later. The seeded row
+The place street, postcode, and city are stored on `meta.address`. The import does not geocode. The scan geocodes a missing point before nearby tools run and writes it on occasions that have none. The seeded row
 stays disabled until a manual run succeeds.
 
 ```mermaid

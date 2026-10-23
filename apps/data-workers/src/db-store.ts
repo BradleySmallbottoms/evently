@@ -70,13 +70,22 @@ function eventValues(input: ImportedEventWrite) {
   };
 }
 
+/** An occasion keeps its own point. Otherwise the event point is the place. */
+function occasionPoint(
+  occasion: { location?: { lat: number; lng: number } } | undefined,
+  event: ImportedEventWrite['event'],
+): string | null {
+  const point = occasion?.location ?? event.location;
+  return point ? pointEwkt(point) : null;
+}
+
 function importOccasions(event: ImportedEventWrite['event']) {
   if (event.occasions && event.occasions.length > 0) {
     return event.occasions.map((occasion) => ({
       startsAt: new Date(occasion.startsAt),
       endsAt: new Date(occasion.endsAt),
       venueName: occasion.venueName ?? null,
-      location: occasion.location ? pointEwkt(occasion.location) : null,
+      location: occasionPoint(occasion, event),
       sourceKey: occasion.sourceKey ?? `${occasion.startsAt}:${occasion.endsAt}`,
     }));
   }
@@ -86,7 +95,7 @@ function importOccasions(event: ImportedEventWrite['event']) {
         startsAt: new Date(event.startsAt),
         endsAt: new Date(event.endsAt),
         venueName: event.venueName ?? null,
-        location: event.location ? pointEwkt(event.location) : null,
+        location: occasionPoint(undefined, event),
         sourceKey: `${event.startsAt}:${event.endsAt}`,
       },
     ];
@@ -151,6 +160,19 @@ export function createDbIngestStore(db: Db): IngestStore {
     await tx.delete(eventTags).where(eq(eventTags.eventId, eventId));
     if (tagIds.length === 0) return;
     await tx.insert(eventTags).values(tagIds.map((tagId) => ({ eventId, tagId })));
+  }
+
+  /** Occasions that still have no point take the point the scan resolved. */
+  async function fillOccasionPoints(
+    tx: Pick<Db, 'update'>,
+    eventId: string,
+    location: { lat: number; lng: number } | undefined,
+  ) {
+    if (!location) return;
+    await tx
+      .update(eventOccasions)
+      .set({ location: pointEwkt(location), updatedAt: new Date() })
+      .where(and(eq(eventOccasions.eventId, eventId), isNull(eventOccasions.location)));
   }
 
   async function replaceOccasions(
@@ -1261,7 +1283,6 @@ export function createDbIngestStore(db: Db): IngestStore {
             ...(input.startsAt && input.endsAt
               ? { startsAt: input.startsAt, endsAt: input.endsAt }
               : {}),
-            ...(input.location ? { location: pointEwkt(input.location) } : {}),
             ...(input.venueName ? { venueName: input.venueName } : {}),
           })
           .where(
@@ -1274,6 +1295,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           .returning({ id: events.id });
         if (updated.length === 0) return false;
         await writeTags(tx, input.eventId, input.tagIds);
+        await fillOccasionPoints(tx, input.eventId, input.location);
         return true;
       });
     },
@@ -1295,7 +1317,6 @@ export function createDbIngestStore(db: Db): IngestStore {
             ...(input.startsAt && input.endsAt
               ? { startsAt: input.startsAt, endsAt: input.endsAt }
               : {}),
-            ...(input.location ? { location: pointEwkt(input.location) } : {}),
             ...(input.venueName ? { venueName: input.venueName } : {}),
           })
           .where(
@@ -1310,6 +1331,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           .returning({ id: events.id });
         if (updated.length === 0) return false;
         await writeTags(tx, input.eventId, input.tagIds);
+        await fillOccasionPoints(tx, input.eventId, input.location);
         return true;
       });
     },

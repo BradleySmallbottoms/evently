@@ -85,6 +85,7 @@ describe('destination-halsingland map', () => {
     expect(event?.occasions?.[0]).toMatchObject({
       startsAt: '2026-11-14T19:00:00+01:00',
       endsAt: '2026-11-14T20:30:00+01:00',
+      location: { lat: 61.3505711, lng: 16.3952167 },
     });
     expect(event?.priceAmount).toBe(20_000);
     expect(event?.currency).toBe('SEK');

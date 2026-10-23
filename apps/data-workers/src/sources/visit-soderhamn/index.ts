@@ -594,13 +594,16 @@ function mapProduct(
       endsAt: last.endsAt ?? first.endsAt ?? first.startsAt,
       ...(venue ? { venueName: venue, arenaName: venue } : {}),
       ...(location ? { location } : {}),
-      occasions: occasions.map((occasion) => ({
-        startsAt: occasion.startsAt,
-        endsAt: occasion.endsAt ?? occasion.startsAt,
-        ...(occasion.venue ? { venueName: occasion.venue } : {}),
-        ...(occasion.location ? { location: occasion.location } : {}),
-        sourceKey: `${occasion.startRaw}:${occasion.endRaw ?? ''}`,
-      })),
+      occasions: occasions.map((occasion) => {
+        const point = occasion.location ?? location;
+        return {
+          startsAt: occasion.startsAt,
+          endsAt: occasion.endsAt ?? occasion.startsAt,
+          ...(occasion.venue ? { venueName: occasion.venue } : {}),
+          ...(point ? { location: point } : {}),
+          sourceKey: `${occasion.startRaw}:${occasion.endRaw ?? ''}`,
+        };
+      }),
       ...(addressed(meta, product, location) ? { meta: addressed(meta, product, location) } : {}),
     },
   ];

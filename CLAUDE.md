@@ -188,8 +188,10 @@ Product invariants (enforced in domain, tested)
   A page on visit.destinationhalsingland.se is fetched with curl over HTTP/1.1.
   An event with no start stays off the public list.
   Importers store a scraped point and the street, postcode, and city on `meta.address`. They do not
-  geocode. The model returns an address in the scan JSON. The scan keeps a scraped point. When the
-  event has none, it geocodes the scraped address, or the model address when the import stored none.
+  geocode. The model returns an address in the scan JSON. The scan keeps a scraped point. A point
+  already on the scraped address is used when the occasion has none. When the event still has none,
+  it geocodes the scraped address before nearby tools run, or the model address when the import
+  stored none, and writes that point on occasions that have none.
   A street, or a postcode and city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept. The model does not supply coordinates.
   The model returns possible venue names. Importers leave `events.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written. When the model returns none, the arena name is written, then the imported venue name. A later import does not clear a venue the scan already wrote.
   Showings stay on `event_occasions`. They are not copied onto `meta.occasions`. The mobile event page

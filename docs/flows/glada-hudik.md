@@ -12,7 +12,7 @@ Each Citybreak product is one event. A concert, film week, or monthly circle kee
 `event.occasions`. A page with no occasion is still saved, with empty start and end. The scan
 fills both when it can read them from the text.
 The hero is the event page `og:image`. `data-lat` and `data-lng` on the page map become the
-event point. A page without that map is saved without a point. The contact street, postcode, and city are stored on `meta.address`. The scan geocodes a missing point later.
+event point. A page without that map is saved without a point. The contact street, postcode, and city are stored on `meta.address`. The scan geocodes a missing point before nearby tools run and writes it on occasions that have none.
 A digital showing stays without a point.
 
 A booking link (`Bokningslänk`) is `tickets`. Event, website, and Facebook links in
@@ -34,7 +34,7 @@ sequenceDiagram
   end
   loop each event, save before the next page
     Runner->>Site: GET /sv/{event}
-    Note over Runner: one event per product<br/>all showings on event.occasions<br/>map data-lat / data-lng is kept; a missing point is geocoded after the scan<br/>Europe/Stockholm offset<br/>organizer keys = email, website, name<br/>Bokningslänk → tickets<br/>Facebook and other content links → info
+    Note over Runner: one event per product<br/>all showings on event.occasions<br/>map data-lat / data-lng is kept; a missing point is geocoded before nearby tools run<br/>Europe/Stockholm offset<br/>organizer keys = email, website, name<br/>Bokningslänk → tickets<br/>Facebook and other content links → info
     Runner->>DB: insert this event (status pending_scan, origin imported)<br/>external_refs, meta.import
   end
   Runner->>DB: finish ingestion_runs

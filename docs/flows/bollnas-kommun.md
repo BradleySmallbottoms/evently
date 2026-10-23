@@ -20,7 +20,7 @@ the text and otherwise leaves the price unknown. The event page is an info link.
 registration, Facebook, and Instagram URLs in the text keep those types.
 
 The place line is split into venue, street, and town. Those go on `meta.address`. The JSON has no
-coordinates, so the import does not geocode. The scan geocodes a missing point later. A contact
+coordinates, so the import does not geocode. The scan geocodes a missing point before nearby tools run and writes it on occasions that have none. A contact
 email in the text is the organizer key. Otherwise the venue name is the key.
 
 ```mermaid

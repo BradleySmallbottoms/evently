@@ -54,6 +54,23 @@ function currentEventSql(now: Date, from?: Date) {
   )`;
 }
 
+function nextListOccasionStartSql(now: Date, from?: Date) {
+  const { events, eventOccasions } = schema;
+  const zone = sql`COALESCE(NULLIF(btrim(${events.timezone}), ''), 'Europe/Stockholm')`;
+  const lower = from && from.getTime() > now.getTime() ? from : now;
+  const bound = lower.toISOString();
+  const localMidnight = sql`(date_trunc('day', ${bound}::timestamptz AT TIME ZONE ${zone}) AT TIME ZONE ${zone})`;
+  return sql`(
+    select min(eo.starts_at)
+    from ${eventOccasions} eo
+    where eo.event_id = ${events.id}
+      and (
+        eo.ends_at >= ${bound}::timestamptz
+        or (eo.starts_at = eo.ends_at and eo.starts_at >= ${localMidnight})
+      )
+  )`;
+}
+
 type LocRow = {
   id: string;
   publisherId: string | null;
@@ -100,6 +117,81 @@ function withDates<T extends { startsAt: Date | string | null; endsAt: Date | st
   const endsAt = dbTimestamp(row.endsAt);
   if (!startsAt || !endsAt) return null;
   return { ...row, startsAt, endsAt };
+}
+
+function sameCalendarDay(a: Date, b: Date, timeZone: string): boolean {
+  const format = (value: Date) =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(value);
+  try {
+    return format(a) === format(b);
+  } catch {
+    return (
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Stockholm',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(a) ===
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Stockholm',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(b)
+    );
+  }
+}
+
+function occasionIsCurrentForList(
+  occasion: { startsAt: string; endsAt: string },
+  now: Date,
+  timeZone: string,
+  from?: Date,
+): boolean {
+  const startsAt = new Date(occasion.startsAt);
+  const endsAt = new Date(occasion.endsAt);
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return false;
+  if (startsAt.getTime() === endsAt.getTime()) {
+    if (!sameCalendarDay(startsAt, now, timeZone) && startsAt < now) return false;
+    if (from && !sameCalendarDay(startsAt, from, timeZone) && startsAt < from) return false;
+    return true;
+  }
+  const lower = from && from.getTime() > now.getTime() ? from : now;
+  return endsAt >= lower;
+}
+
+function rowWithListOccasion(
+  row: LocRow,
+  occasions: {
+    id: string;
+    startsAt: string;
+    endsAt: string;
+    venueName: string | null;
+    location: Event['location'];
+  }[],
+  now: Date,
+  from?: Date,
+): LocRow {
+  const selected = occasions.find((occasion) =>
+    occasionIsCurrentForList(occasion, now, row.timezone, from),
+  );
+  if (!selected) return row;
+  const startsAt = new Date(selected.startsAt);
+  const endsAt = new Date(selected.endsAt);
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return row;
+  return {
+    ...row,
+    startsAt,
+    endsAt,
+    venueName: selected.venueName ?? null,
+    lat: selected.location?.lat ?? null,
+    lng: selected.location?.lng ?? null,
+  };
 }
 
 function mapEvent(
@@ -832,14 +924,12 @@ export function createDbEventServices(
 
     async listPublicEvents(query: PublicEventListQuery) {
       const { filters, point } = publicEventFilters(query);
+      const from = query.from ? new Date(query.from) : undefined;
+      const nextStartOrder = nextListOccasionStartSql(env.now(), from);
       const engagement = sql<number>`(${lifetimeStat('numSaved')}) + (${lifetimeStat('numComing')})`;
       const distanceOrder =
         query.sort === 'popular'
-          ? [
-              desc(engagement),
-              sql`(select min(eo.starts_at) from ${eventOccasions} eo where eo.event_id = ${events.id})`,
-              asc(events.id),
-            ]
+          ? [desc(engagement), nextStartOrder, asc(events.id)]
           : query.sort === 'distance' && point
             ? [
                 desc(events.featured),
@@ -849,14 +939,10 @@ export function createDbEventServices(
                   where eo.event_id = ${events.id}
                     and eo.location is not null
                 )`,
-                sql`(select min(eo.starts_at) from ${eventOccasions} eo where eo.event_id = ${events.id})`,
+                nextStartOrder,
                 asc(events.id),
               ]
-            : [
-                desc(events.featured),
-                sql`(select min(eo.starts_at) from ${eventOccasions} eo where eo.event_id = ${events.id})`,
-                asc(events.id),
-              ];
+            : [desc(events.featured), nextStartOrder, asc(events.id)];
 
       const rows = await selectEvents()
         .where(and(...filters))
@@ -872,9 +958,12 @@ export function createDbEventServices(
         imagesFor(ids),
         occasionsFor(ids),
       ]);
+      const now = env.now();
       const items: Event[] = [];
       for (const row of pageRows) {
-        const dated = withDates(row);
+        const eventOccasions = occasions.get(row.id) ?? [];
+        const listed = rowWithListOccasion(row, eventOccasions, now, from);
+        const dated = withDates(listed);
         if (!dated) continue;
         items.push(
           toEvent(
@@ -882,7 +971,7 @@ export function createDbEventServices(
             await tagIdsFor(row.id),
             images.get(row.id) ?? { main: null, gallery: [] },
             publicLinks(links.get(row.id) ?? []),
-            occasions.get(row.id) ?? [],
+            eventOccasions,
           ),
         );
       }
@@ -900,6 +989,7 @@ export function createDbEventServices(
     },
 
     async listOccasions(query: OccasionListQuery) {
+      const nextStartOrder = nextListOccasionStartSql(env.now());
       const rows = await selectEvents()
         .where(
           and(
@@ -908,10 +998,7 @@ export function createDbEventServices(
             ...(query.eventId ? [eq(events.id, query.eventId)] : []),
           ),
         )
-        .orderBy(
-          sql`(select min(eo.starts_at) from ${eventOccasions} eo where eo.event_id = ${events.id})`,
-          asc(events.id),
-        )
+        .orderBy(nextStartOrder, asc(events.id))
         .limit(OCCASION_LIST_LIMIT);
       const ids = rows.map((row) => row.id);
       const [links, images, occasions] = await Promise.all([
@@ -919,9 +1006,12 @@ export function createDbEventServices(
         imagesFor(ids),
         occasionsFor(ids),
       ]);
+      const now = env.now();
       const items: Event[] = [];
       for (const row of rows) {
-        const dated = withDates(row);
+        const eventOccasions = occasions.get(row.id) ?? [];
+        const listed = rowWithListOccasion(row, eventOccasions, now);
+        const dated = withDates(listed);
         if (!dated) continue;
         items.push(
           toEvent(
@@ -929,7 +1019,7 @@ export function createDbEventServices(
             await tagIdsFor(row.id),
             images.get(row.id) ?? { main: null, gallery: [] },
             publicLinks(links.get(row.id) ?? []),
-            occasions.get(row.id) ?? [],
+            eventOccasions,
           ),
         );
       }

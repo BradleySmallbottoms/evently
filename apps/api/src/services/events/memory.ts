@@ -88,6 +88,58 @@ function assertFields(
   if (!check.ok) throw new EventError(check.reason);
 }
 
+function listWindowForEvent(
+  row: MemoryEventRow,
+  now: Date,
+  from?: Date,
+): Pick<
+  MemoryEventRow,
+  'startsAt' | 'endsAt' | 'startsAtDate' | 'endsAtDate' | 'venueName' | 'location'
+> {
+  const occasions = (row.occasions ?? [])
+    .slice()
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  for (const occasion of occasions) {
+    const startsAtDate = new Date(occasion.startsAt);
+    const endsAtDate = new Date(occasion.endsAt);
+    if (Number.isNaN(startsAtDate.getTime()) || Number.isNaN(endsAtDate.getTime())) continue;
+    if (
+      eventIsCurrent({
+        startsAt: startsAtDate,
+        endsAt: endsAtDate,
+        timeZone: row.timezone,
+        now,
+        from,
+      })
+    ) {
+      return {
+        startsAt: occasion.startsAt,
+        endsAt: occasion.endsAt,
+        startsAtDate,
+        endsAtDate,
+        venueName: occasion.venueName ?? null,
+        location: occasion.location ?? null,
+      };
+    }
+  }
+  return {
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
+    startsAtDate: row.startsAtDate,
+    endsAtDate: row.endsAtDate,
+    venueName: row.venueName,
+    location: row.location,
+  };
+}
+
+function toListedRow(row: MemoryEventRow, now: Date, from?: Date): MemoryEventRow {
+  const window = listWindowForEvent(row, now, from);
+  return {
+    ...row,
+    ...window,
+  };
+}
+
 export function createMemoryEventServices(
   auth: AuthServices,
   env: EventEnv = { now: () => new Date() },
@@ -110,11 +162,13 @@ export function createMemoryEventServices(
   ) {
     const from = query.from ? new Date(query.from) : undefined;
     const to = query.to ? new Date(query.to) : undefined;
+    const now = env.now();
     const center =
       query.lat != null && query.lng != null ? { lat: query.lat, lng: query.lng } : null;
     const radiusM = query.radiusM ?? 50_000;
     const q = query.q?.toLowerCase();
     return [...events.values()]
+      .map((e) => toListedRow(e, now, from))
       .filter((e) => e.status === 'published')
       .filter((e) => isPubliclyListedEvent({ hasLocation: e.location != null }))
       .filter((e) => {
@@ -126,7 +180,7 @@ export function createMemoryEventServices(
           startsAt: e.startsAtDate,
           endsAt: e.endsAtDate,
           timeZone: e.timezone,
-          now: env.now(),
+          now,
           from,
         }),
       )

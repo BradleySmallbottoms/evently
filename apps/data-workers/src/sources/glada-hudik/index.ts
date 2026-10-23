@@ -471,6 +471,7 @@ function mapProduct(
         startsAt: occasion.startsAt,
         endsAt: occasion.endsAt ?? occasion.startsAt,
         ...(occasion.venue ? { venueName: occasion.venue } : {}),
+        ...(product.location && !digital ? { location: product.location } : {}),
         sourceKey: `${occasion.startsAt.slice(0, 19)}:${occasion.endsAt?.slice(0, 19) ?? ''}`,
       })),
     },
