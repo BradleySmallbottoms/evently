@@ -38,12 +38,11 @@ export function TipChrome({
           {title ? (
             <AppText
               variant="title"
+              numberOfLines={1}
+              ellipsizeMode="tail"
               style={{
                 textAlign: 'center',
                 maxWidth: '50%',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                wordWrap: 'nowrap',
                 height: 44,
               }}
             >
