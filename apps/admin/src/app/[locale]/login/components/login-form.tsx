@@ -1,5 +1,6 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -9,6 +10,7 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { useRouter } from '@/i18n/navigation';
+import { ADMIN_ME_QUERY_KEY } from '@/lib/admin-session';
 import { AdminApiError, adminFetch } from '@/lib/api';
 import { OtpCodeInput } from './otp-code-input';
 import { TotpQr } from './totp-qr';
@@ -22,6 +24,7 @@ const TOTP_AUTO_SUBMIT_MS = 500;
 export function LoginForm() {
   const t = useTranslations('Login');
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [challenge, setChallenge] = useState<Challenge | null>(null);
@@ -66,6 +69,7 @@ export function LoginForm() {
         method: 'POST',
         body: JSON.stringify({ token, code }),
       });
+      await queryClient.invalidateQueries({ queryKey: ADMIN_ME_QUERY_KEY });
       router.push('/publishers');
     } catch (err) {
       if (err instanceof AdminApiError && err.code === 'invalid_totp') {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   BellIcon,
   CalendarIcon,
@@ -12,8 +12,7 @@ import {
   StoreIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
+import { useEffect, type ReactNode } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -28,8 +27,8 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
+import { ADMIN_ME_QUERY_KEY, adminShellMode, isAdminSignedIn } from '@/lib/admin-session';
 import { adminFetch } from '@/lib/api';
 
 type Me = { adminId: string; email: string; role: string; expiresAt: string };
@@ -83,47 +82,44 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const t = useTranslations('App');
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const me = useQuery({
-    queryKey: ['admin-me'],
+    queryKey: ADMIN_ME_QUERY_KEY,
     queryFn: () => adminFetch<Me>('/admin/me'),
     retry: false,
   });
+  const mode = adminShellMode({
+    pending: me.isPending,
+    signedIn: isAdminSignedIn(me.data, me.error),
+    pathname,
+  });
+
+  useEffect(() => {
+    if (mode === 'redirect') router.replace('/login');
+  }, [mode, router]);
 
   async function logout() {
     await adminFetch('/admin/logout', { method: 'POST' });
-    await me.refetch();
-    router.push('/login');
+    queryClient.removeQueries({ queryKey: ADMIN_ME_QUERY_KEY });
+    router.replace('/login');
   }
 
-  if (me.isPending) {
+  if (mode === 'pending' || mode === 'redirect') {
+    // The page stays mounted so Next can see the segment, and hidden so a
+    // signed-out visit shows a blank screen until it lands on the login form.
     return (
-      <div className="flex min-h-svh flex-col">
-        <header className="flex h-14 items-center border-b px-4">
-          <Skeleton className="h-5 w-24" />
-        </header>
-        <main className="flex flex-1 flex-col">{children}</main>
+      <div className="min-h-svh bg-background">
+        <div hidden>{children}</div>
       </div>
     );
+  }
+
+  if (mode === 'login') {
+    return <div className="flex min-h-svh flex-col">{children}</div>;
   }
 
   if (!me.data) {
-    return (
-      <div className="flex min-h-svh flex-col">
-        <header className="flex h-14 items-center border-b bg-card px-4">
-          <span className="text-base font-semibold">{t('name')}</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto"
-            nativeButton={false}
-            render={<Link href="/login" />}
-          >
-            {t('navLogin')}
-          </Button>
-        </header>
-        <main className="flex flex-1 flex-col">{children}</main>
-      </div>
-    );
+    return <div className="min-h-svh bg-background" />;
   }
 
   return (
