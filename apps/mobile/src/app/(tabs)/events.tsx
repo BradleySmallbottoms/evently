@@ -8,6 +8,7 @@ import { ActivityIndicator, RefreshControl, SectionList, View } from 'react-nati
 import { AreaTagGroupsSheet } from '@/components/native/area-tag-groups-sheet';
 import { LocationMenu } from '@/components/native/location-menu';
 import { CalendarEventRow } from '@/components/calendar/calendar-event-row';
+import { SponsoredEventCard } from '@/components/ui/sponsored-event-card';
 import { CalendarDateSheet } from '@/components/calendar/date-sheet';
 import { CalendarFilterBar } from '@/components/calendar/filter-bar';
 import { CalendarFilterSheet } from '@/components/calendar/filter-sheet';
@@ -402,25 +403,39 @@ export default function EventsScreen() {
           const whole = isWholeDay(when.startsAt, when.endsAt);
           const amount = item.priceAmount;
           const priceLabel = amount != null && amount > 0 ? krPriceLabel(amount) : t('events.free');
+          const where =
+            item.mode === 'physical'
+              ? (item.venueName ?? item.publisherName ?? t('events.missingVenue'))
+              : (item.publisherName ?? t('events.missingUrl'));
+          const startLabel = whole ? t('events.wholeDay') : clock(when.startsAt, locale);
+          const endLabel = whole ? undefined : `${clock(when.endsAt, locale)}`;
+          const tagNames = namesForTagIds(item.tagIds, tags.data?.items);
           return (
             <View style={{ paddingHorizontal: space.xl, paddingBottom: space.sm }}>
-              <CalendarEventRow
-                title={item.title}
-                where={
-                  item.mode === 'physical'
-                    ? (item.venueName ?? item.publisherName ?? t('events.missingVenue'))
-                    : (item.publisherName ?? t('events.missingUrl'))
-                }
-                startLabel={whole ? t('events.wholeDay') : clock(when.startsAt, locale)}
-                endLabel={whole ? undefined : `${clock(when.endsAt, locale)}`}
-                tags={namesForTagIds(item.tagIds, tags.data?.items)}
-                priceLabel={priceLabel}
-                imageUrl={item.imageUrl}
-                saved={savedIds.has(item.id)}
-                saveLabel={savedIds.has(item.id) ? t('events.unfavorite') : t('events.favorite')}
-                onSavePress={() => toggleSave(item.id)}
-                onPress={() => router.push(`/events/${item.id}`)}
-              />
+              {item.sponsored && item.posterUrl ? (
+                <SponsoredEventCard
+                  title={item.title}
+                  posterUrl={item.posterUrl}
+                  saved={savedIds.has(item.id)}
+                  onSavePress={() => toggleSave(item.id)}
+                  onPress={() => router.push(`/events/${item.id}`)}
+                />
+              ) : (
+                <CalendarEventRow
+                  title={item.title}
+                  where={where}
+                  startLabel={startLabel}
+                  endLabel={endLabel}
+                  tags={tagNames}
+                  priceLabel={priceLabel}
+                  imageUrl={item.imageUrl}
+                  sponsoredLabel={item.sponsored ? t('events.sponsored') : undefined}
+                  saved={savedIds.has(item.id)}
+                  saveLabel={savedIds.has(item.id) ? t('events.unfavorite') : t('events.favorite')}
+                  onSavePress={() => toggleSave(item.id)}
+                  onPress={() => router.push(`/events/${item.id}`)}
+                />
+              )}
             </View>
           );
         }}

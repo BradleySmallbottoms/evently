@@ -3759,6 +3759,11 @@
                               "format": "uri"
                             }
                           },
+                          "posterUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
                           "tagIds": {
                             "type": "array",
                             "items": {
@@ -3767,6 +3772,9 @@
                             }
                           },
                           "featured": {
+                            "type": "boolean"
+                          },
+                          "sponsored": {
                             "type": "boolean"
                           },
                           "checkInEnabled": {
@@ -3854,8 +3862,10 @@
                           "links",
                           "imageUrl",
                           "imageUrls",
+                          "posterUrl",
                           "tagIds",
                           "featured",
+                          "sponsored",
                           "checkInEnabled",
                           "numSaved",
                           "numComing",
@@ -4326,6 +4336,11 @@
                               "format": "uri"
                             }
                           },
+                          "posterUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
                           "tagIds": {
                             "type": "array",
                             "items": {
@@ -4334,6 +4349,9 @@
                             }
                           },
                           "featured": {
+                            "type": "boolean"
+                          },
+                          "sponsored": {
                             "type": "boolean"
                           },
                           "checkInEnabled": {
@@ -4421,8 +4439,10 @@
                           "links",
                           "imageUrl",
                           "imageUrls",
+                          "posterUrl",
                           "tagIds",
                           "featured",
+                          "sponsored",
                           "checkInEnabled",
                           "numSaved",
                           "numComing",
@@ -4909,6 +4929,11 @@
                                     "format": "uri"
                                   }
                                 },
+                                "posterUrl": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "uri"
+                                },
                                 "tagIds": {
                                   "type": "array",
                                   "items": {
@@ -4917,6 +4942,9 @@
                                   }
                                 },
                                 "featured": {
+                                  "type": "boolean"
+                                },
+                                "sponsored": {
                                   "type": "boolean"
                                 },
                                 "checkInEnabled": {
@@ -5010,8 +5038,10 @@
                                 "links",
                                 "imageUrl",
                                 "imageUrls",
+                                "posterUrl",
                                 "tagIds",
                                 "featured",
+                                "sponsored",
                                 "checkInEnabled",
                                 "numSaved",
                                 "numComing",
@@ -5375,6 +5405,11 @@
                               "format": "uri"
                             }
                           },
+                          "posterUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
                           "tagIds": {
                             "type": "array",
                             "items": {
@@ -5383,6 +5418,9 @@
                             }
                           },
                           "featured": {
+                            "type": "boolean"
+                          },
+                          "sponsored": {
                             "type": "boolean"
                           },
                           "checkInEnabled": {
@@ -5470,8 +5508,10 @@
                           "links",
                           "imageUrl",
                           "imageUrls",
+                          "posterUrl",
                           "tagIds",
                           "featured",
+                          "sponsored",
                           "checkInEnabled",
                           "numSaved",
                           "numComing",
@@ -5869,6 +5909,11 @@
                               "format": "uri"
                             }
                           },
+                          "posterUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
                           "tagIds": {
                             "type": "array",
                             "items": {
@@ -5877,6 +5922,9 @@
                             }
                           },
                           "featured": {
+                            "type": "boolean"
+                          },
+                          "sponsored": {
                             "type": "boolean"
                           },
                           "checkInEnabled": {
@@ -5964,8 +6012,10 @@
                           "links",
                           "imageUrl",
                           "imageUrls",
+                          "posterUrl",
                           "tagIds",
                           "featured",
+                          "sponsored",
                           "checkInEnabled",
                           "numSaved",
                           "numComing",
@@ -6728,6 +6778,11 @@
                               "format": "uri"
                             }
                           },
+                          "posterUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
                           "tagIds": {
                             "type": "array",
                             "items": {
@@ -6736,6 +6791,9 @@
                             }
                           },
                           "featured": {
+                            "type": "boolean"
+                          },
+                          "sponsored": {
                             "type": "boolean"
                           },
                           "checkInEnabled": {
@@ -6823,8 +6881,10 @@
                           "links",
                           "imageUrl",
                           "imageUrls",
+                          "posterUrl",
                           "tagIds",
                           "featured",
+                          "sponsored",
                           "checkInEnabled",
                           "numSaved",
                           "numComing",
@@ -7310,6 +7370,11 @@
                         "format": "uri"
                       }
                     },
+                    "posterUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
                     "tagIds": {
                       "type": "array",
                       "items": {
@@ -7318,6 +7383,9 @@
                       }
                     },
                     "featured": {
+                      "type": "boolean"
+                    },
+                    "sponsored": {
                       "type": "boolean"
                     },
                     "checkInEnabled": {
@@ -7405,8 +7473,10 @@
                     "links",
                     "imageUrl",
                     "imageUrls",
+                    "posterUrl",
                     "tagIds",
                     "featured",
+                    "sponsored",
                     "checkInEnabled",
                     "numSaved",
                     "numComing",
@@ -7881,6 +7951,11 @@
                               "format": "uri"
                             }
                           },
+                          "posterUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
                           "tagIds": {
                             "type": "array",
                             "items": {
@@ -7889,6 +7964,9 @@
                             }
                           },
                           "featured": {
+                            "type": "boolean"
+                          },
+                          "sponsored": {
                             "type": "boolean"
                           },
                           "checkInEnabled": {
@@ -7976,8 +8054,10 @@
                           "links",
                           "imageUrl",
                           "imageUrls",
+                          "posterUrl",
                           "tagIds",
                           "featured",
+                          "sponsored",
                           "checkInEnabled",
                           "numSaved",
                           "numComing",
@@ -8412,6 +8492,11 @@
                               "format": "uri"
                             }
                           },
+                          "posterUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uri"
+                          },
                           "tagIds": {
                             "type": "array",
                             "items": {
@@ -8420,6 +8505,9 @@
                             }
                           },
                           "featured": {
+                            "type": "boolean"
+                          },
+                          "sponsored": {
                             "type": "boolean"
                           },
                           "checkInEnabled": {
@@ -8507,8 +8595,10 @@
                           "links",
                           "imageUrl",
                           "imageUrls",
+                          "posterUrl",
                           "tagIds",
                           "featured",
+                          "sponsored",
                           "checkInEnabled",
                           "numSaved",
                           "numComing",
@@ -8816,6 +8906,11 @@
                         "format": "uri"
                       }
                     },
+                    "posterUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
                     "tagIds": {
                       "type": "array",
                       "items": {
@@ -8824,6 +8919,9 @@
                       }
                     },
                     "featured": {
+                      "type": "boolean"
+                    },
+                    "sponsored": {
                       "type": "boolean"
                     },
                     "checkInEnabled": {
@@ -8911,8 +9009,10 @@
                     "links",
                     "imageUrl",
                     "imageUrls",
+                    "posterUrl",
                     "tagIds",
                     "featured",
+                    "sponsored",
                     "checkInEnabled",
                     "numSaved",
                     "numComing",
@@ -9241,6 +9341,11 @@
                         "format": "uri"
                       }
                     },
+                    "posterUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
                     "tagIds": {
                       "type": "array",
                       "items": {
@@ -9249,6 +9354,9 @@
                       }
                     },
                     "featured": {
+                      "type": "boolean"
+                    },
+                    "sponsored": {
                       "type": "boolean"
                     },
                     "checkInEnabled": {
@@ -9361,8 +9469,10 @@
                     "links",
                     "imageUrl",
                     "imageUrls",
+                    "posterUrl",
                     "tagIds",
                     "featured",
+                    "sponsored",
                     "checkInEnabled",
                     "numSaved",
                     "numComing",
@@ -9895,6 +10005,11 @@
                         "format": "uri"
                       }
                     },
+                    "posterUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
                     "tagIds": {
                       "type": "array",
                       "items": {
@@ -9903,6 +10018,9 @@
                       }
                     },
                     "featured": {
+                      "type": "boolean"
+                    },
+                    "sponsored": {
                       "type": "boolean"
                     },
                     "checkInEnabled": {
@@ -10015,8 +10133,10 @@
                     "links",
                     "imageUrl",
                     "imageUrls",
+                    "posterUrl",
                     "tagIds",
                     "featured",
+                    "sponsored",
                     "checkInEnabled",
                     "numSaved",
                     "numComing",
@@ -10372,6 +10492,11 @@
                         "format": "uri"
                       }
                     },
+                    "posterUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
                     "tagIds": {
                       "type": "array",
                       "items": {
@@ -10380,6 +10505,9 @@
                       }
                     },
                     "featured": {
+                      "type": "boolean"
+                    },
+                    "sponsored": {
                       "type": "boolean"
                     },
                     "checkInEnabled": {
@@ -10467,8 +10595,10 @@
                     "links",
                     "imageUrl",
                     "imageUrls",
+                    "posterUrl",
                     "tagIds",
                     "featured",
+                    "sponsored",
                     "checkInEnabled",
                     "numSaved",
                     "numComing",
@@ -10822,6 +10952,11 @@
                         "format": "uri"
                       }
                     },
+                    "posterUrl": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri"
+                    },
                     "tagIds": {
                       "type": "array",
                       "items": {
@@ -10830,6 +10965,9 @@
                       }
                     },
                     "featured": {
+                      "type": "boolean"
+                    },
+                    "sponsored": {
                       "type": "boolean"
                     },
                     "checkInEnabled": {
@@ -10917,8 +11055,10 @@
                     "links",
                     "imageUrl",
                     "imageUrls",
+                    "posterUrl",
                     "tagIds",
                     "featured",
+                    "sponsored",
                     "checkInEnabled",
                     "numSaved",
                     "numComing",

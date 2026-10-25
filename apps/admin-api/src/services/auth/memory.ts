@@ -1,16 +1,28 @@
 import {
   ADMIN_CHALLENGE_TTL_SECONDS,
+  ADMIN_LOGIN_OTP_MAX_ATTEMPTS,
+  ADMIN_LOGIN_OTP_MAX_REQUESTS,
+  ADMIN_LOGIN_OTP_TTL_SECONDS,
+  ADMIN_LOGIN_OTP_WINDOW_SECONDS,
   ADMIN_SESSION_TTL_SECONDS,
+  decideLoginOtpConfirm,
+  generateLoginOtp,
   generateSessionToken,
   generateTotpSecret,
   hashPassword,
   hashToken,
+  loginOtpHash,
+  loginOtpMatches,
   totpOtpauthUrl,
   verifyPassword,
   verifyTotpCode,
 } from '@local-events/auth';
-import { randomUUID } from 'node:crypto';
+import type { AdminSessionResponse } from '@local-events/contracts';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { createEmailWindowLimit } from './rate-limit';
 import { AdminAuthError, type AdminAuthServices } from './types';
+
+const DUMMY_LOGIN_OTP_HASH = hashToken('dummy-login-otp');
 
 export type MemoryAdminUser = {
   id: string;
@@ -37,10 +49,20 @@ export type MemoryAdminChallenge = {
   expiresAt: Date;
 };
 
+export type MemoryAdminLoginOtp = {
+  id: string;
+  adminId: string;
+  tokenHash: string;
+  expiresAt: Date;
+  usedAt: Date | null;
+  attempts: number;
+};
+
 export type AdminMemoryAuthStore = {
   admins: Map<string, MemoryAdminUser>;
   sessions: MemoryAdminSession[];
   challenges: MemoryAdminChallenge[];
+  loginOtps: MemoryAdminLoginOtp[];
 };
 
 export function createAdminMemoryAuthStore(): AdminMemoryAuthStore {
@@ -48,6 +70,7 @@ export function createAdminMemoryAuthStore(): AdminMemoryAuthStore {
     admins: new Map(),
     sessions: [],
     challenges: [],
+    loginOtps: [],
   };
 }
 
@@ -57,9 +80,38 @@ function addSeconds(d: Date, seconds: number): Date {
 
 export function createMemoryAdminAuthServices(
   store: AdminMemoryAuthStore = createAdminMemoryAuthStore(),
-  env: { now?: () => Date } = {},
+  env: { now?: () => Date; includeLoginOtp?: boolean; otpPepper?: string } = {},
 ): AdminAuthServices {
   const now = env.now ?? (() => new Date());
+  const includeLoginOtp = env.includeLoginOtp ?? false;
+  const otpPepper = env.otpPepper ?? randomBytes(32).toString('hex');
+  const allowOtpRequest = createEmailWindowLimit({
+    now,
+    windowSeconds: ADMIN_LOGIN_OTP_WINDOW_SECONDS,
+    max: ADMIN_LOGIN_OTP_MAX_REQUESTS,
+  });
+
+  function issueSession(
+    admin: MemoryAdminUser,
+    at: Date,
+  ): AdminSessionResponse & { sessionToken: string } {
+    const sessionToken = generateSessionToken();
+    const expiresAt = addSeconds(at, ADMIN_SESSION_TTL_SECONDS);
+    store.sessions.push({
+      id: randomUUID(),
+      adminId: admin.id,
+      tokenHash: hashToken(sessionToken),
+      expiresAt,
+      revokedAt: null,
+    });
+    return {
+      adminId: admin.id,
+      email: admin.email,
+      role: admin.role,
+      expiresAt: expiresAt.toISOString(),
+      sessionToken,
+    };
+  }
 
   async function requireSession(sessionToken: string | undefined) {
     if (!sessionToken) throw new AdminAuthError('unauthorized');
@@ -149,22 +201,68 @@ export function createMemoryAdminAuthServices(
         }
       }
 
-      const sessionToken = generateSessionToken();
-      const expiresAt = addSeconds(at, ADMIN_SESSION_TTL_SECONDS);
-      store.sessions.push({
+      return issueSession(admin, at);
+    },
+
+    async requestOtp(input) {
+      const email = input.email.toLowerCase();
+      if (!allowOtpRequest(email)) throw new AdminAuthError('otp_rate_limited');
+      const admin = [...store.admins.values()].find((a) => a.email === email);
+      if (!admin) return { status: 'code_sent' as const };
+      const at = now();
+      for (const row of store.loginOtps) {
+        if (row.adminId === admin.id && !row.usedAt) row.usedAt = at;
+      }
+      const code = generateLoginOtp();
+      store.loginOtps.push({
         id: randomUUID(),
         adminId: admin.id,
-        tokenHash: hashToken(sessionToken),
-        expiresAt,
-        revokedAt: null,
+        tokenHash: loginOtpHash(code, otpPepper),
+        expiresAt: addSeconds(at, ADMIN_LOGIN_OTP_TTL_SECONDS),
+        usedAt: null,
+        attempts: 0,
       });
-      return {
-        adminId: admin.id,
-        email: admin.email,
-        role: admin.role,
-        expiresAt: expiresAt.toISOString(),
-        sessionToken,
-      };
+      return includeLoginOtp
+        ? { status: 'code_sent' as const, code }
+        : { status: 'code_sent' as const };
+    },
+
+    async confirmOtp(input) {
+      const email = input.email.toLowerCase();
+      const at = now();
+      const admin = [...store.admins.values()].find((a) => a.email === email);
+      if (!admin) {
+        loginOtpMatches(input.code, otpPepper, DUMMY_LOGIN_OTP_HASH);
+        throw new AdminAuthError('invalid_otp');
+      }
+      const open = store.loginOtps.filter((row) => row.adminId === admin.id && !row.usedAt);
+      const decision = decideLoginOtpConfirm({
+        code: input.code,
+        pepper: otpPepper,
+        records: open.map((row) => ({
+          id: row.id,
+          tokenHash: row.tokenHash,
+          expiresAt: row.expiresAt,
+          attempts: row.attempts,
+        })),
+        now: at,
+        maxAttempts: ADMIN_LOGIN_OTP_MAX_ATTEMPTS,
+      });
+      if (!decision.ok) {
+        for (const next of decision.attempts) {
+          const row = store.loginOtps.find((item) => item.id === next.id);
+          if (row) row.attempts = next.attempts;
+        }
+        for (const id of decision.burnIds) {
+          const row = store.loginOtps.find((item) => item.id === id);
+          if (row) row.usedAt = at;
+        }
+        throw new AdminAuthError(decision.code);
+      }
+      const matched = store.loginOtps.find((row) => row.id === decision.id && !row.usedAt);
+      if (!matched) throw new AdminAuthError('invalid_otp');
+      matched.usedAt = at;
+      return issueSession(admin, at);
     },
 
     async me(sessionToken) {

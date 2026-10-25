@@ -61,6 +61,7 @@ function GroupCircle({
           toggleGroupSelection(
             selectedIds,
             group.tags.map((tag) => tag.id),
+            'any',
           ),
         );
       }}

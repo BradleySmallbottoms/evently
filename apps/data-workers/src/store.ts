@@ -414,7 +414,7 @@ export interface ImportedScanWrite {
   endsAt?: Date;
   /** The point nearby tools used. Written onto occasions that still have none. */
   location?: { lat: number; lng: number };
-  /** Set only when the row had no venue name and the scan chose one. */
+  /** Chosen venue. Written on every occasion. Omitted when the scan found none. */
   venueName?: string;
 }
 

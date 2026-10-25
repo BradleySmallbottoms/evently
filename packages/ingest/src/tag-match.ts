@@ -181,7 +181,7 @@ export type LLMScanResult = {
   /** Both set when the model found a range. Null when it did not. */
   startsAt: string | null;
   endsAt: string | null;
-  /** Venue guesses. The scan uses one only when the event has no venue name. */
+  /** Venue guesses. The scan writes the highest rank above 80 on every occasion. */
   possibleVenueNames: { name: string; rank: number }[];
   /** Street, postcode, and city from the description or the event page. Absent when the model found none. */
   address?: {

@@ -223,7 +223,7 @@ calls) in the same change as every new major feature.**
   in the scan JSON. A scraped point and address are kept. When the event has no point, the
   scraped address is geocoded, and the model address is used only when the import stored none.
   A street, or a postcode with a city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept.
-  The model does not supply coordinates. The model returns possible venue names. Importers leave `events.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written. When the model returns none, the arena name is written, then the imported venue name. A later import does not clear a venue the scan already wrote.
+  The model does not supply coordinates. The model returns possible venue names. Importers leave `event_occasions.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written. When the model returns none, the arena name is written, then the imported venue name. A later import does not clear a venue the scan already wrote.
   The worker publishes the event only when the scan approves it, the publisher status is `published`,
   and the source trust is `auto_publish`. Anything else that finishes goes to `in_review`. A model
   failure leaves the row `pending_scan`. A new temporary publisher is `pending_scan`. The event scan does not look it up.
@@ -317,6 +317,18 @@ calls) in the same change as every new major feature.**
   quota) are still a later feature.
   Flow: [docs/flows/admin-event-edit.md](docs/flows/admin-event-edit.md).
 
+### Sponsored events
+
+- Admins set `sponsored` in the event editor and upload a poster with `POST /v1/events/{id}/poster`
+  (JPEG, PNG, or WebP, up to 8 MB). The file is stored as `event_images.role` `poster`.
+  A later upload replaces it, and `DELETE /v1/events/{id}/poster` removes it. Public
+  events include `sponsored` and `posterUrl`. On the home upcoming list and the events screen, a
+  sponsored event with a poster is that image alone, with a Sponsored / Sponsrad pill in the upper left.
+  Title, time, and place stay on the poster.
+  Featured still removes the event from the home upcoming list. Turning sponsored off keeps the
+  poster. Imports do not clear the flag or the poster.
+  Flow: [docs/flows/admin-event-edit.md](docs/flows/admin-event-edit.md).
+
 ### Saved events, lists, and links
 
 - A save is `PUT /v1/me/saved-events/{eventId}` for the device session. That bookmark is "I'm
@@ -366,7 +378,11 @@ calls) in the same change as every new major feature.**
 - Empty mobile/web lists usually mean no published events nearby — not a broken client. Verify
   publishers via admin console (`apps/admin` → Publishers) or
   `POST /v1/publishers/{id}/verify` (admin session cookie / Bearer). Bootstrap first admin with
-  `ADMIN_BOOTSTRAP_EMAIL` + `ADMIN_BOOTSTRAP_PASSWORD`; enroll TOTP on first login.
+  `ADMIN_BOOTSTRAP_EMAIL` + `ADMIN_BOOTSTRAP_PASSWORD`; enroll TOTP on first password login.
+  An admin can also sign in with a 6-digit email code (`POST /v1/admin/login/otp`). Outside
+  production that response includes the code, because mail is not wired. Do not set
+  `ADMIN_INCLUDE_LOGIN_OTP=true` on a public host. Flow:
+  [docs/flows/admin-otp-login.md](docs/flows/admin-otp-login.md).
 - Fallback discovery point is **Söderhamn** (`61.3037, 17.0592`, 50 km).
 - **Publisher profiles / invites:** owners `GET`/`PATCH /v1/publishers/{id}`, list members, create
   email invites (`POST …/invites`). Invitee signs in with the invited email and

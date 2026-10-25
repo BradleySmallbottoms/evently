@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   choosePossibleOccasionGroupId,
   statusAfterImportScan,
+  occasionVenueOnImport,
   venueNameFromScan,
 } from '../../../packages/domain/src/import-scan';
 
@@ -120,5 +121,48 @@ describe('venueNameFromScan', () => {
   it('uses the imported venue when there is no arena', () => {
     expect(venueNameFromScan(undefined, { venueName: 'Hudiksvall' })).toBe('Hudiksvall');
     expect(venueNameFromScan([], { arenaName: '  ', venueName: '   ' })).toBeUndefined();
+  });
+});
+
+describe('occasionVenueOnImport', () => {
+  it('keeps the name the scan wrote when a later import sends another', () => {
+    expect(
+      occasionVenueOnImport({
+        scanned: true,
+        incoming: 'Hudiksvall',
+        previousForKey: 'Glysis ishall',
+        previousAny: 'Glysis ishall',
+      }),
+    ).toBe('Glysis ishall');
+  });
+
+  it('gives a new showing the venue already stored on the event', () => {
+    expect(
+      occasionVenueOnImport({
+        scanned: true,
+        incoming: 'Hudiksvall',
+        previousForKey: null,
+        previousAny: 'Glysis ishall',
+      }),
+    ).toBe('Glysis ishall');
+  });
+
+  it('uses the incoming showing name before the scan', () => {
+    expect(
+      occasionVenueOnImport({
+        scanned: false,
+        incoming: 'Helsingehus',
+        previousForKey: null,
+        previousAny: null,
+      }),
+    ).toBe('Helsingehus');
+    expect(
+      occasionVenueOnImport({
+        scanned: false,
+        incoming: null,
+        previousForKey: null,
+        previousAny: null,
+      }),
+    ).toBeNull();
   });
 });

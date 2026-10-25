@@ -63,6 +63,8 @@ describe('admin api', () => {
     const doc = (await res.json()) as { paths: Record<string, unknown> };
     expect(doc.paths['/admin/login']).toBeDefined();
     expect(doc.paths['/admin/login/totp']).toBeDefined();
+    expect(doc.paths['/admin/login/otp']).toBeDefined();
+    expect(doc.paths['/admin/login/otp/confirm']).toBeDefined();
     expect(doc.paths['/publishers']).toBeDefined();
     expect(doc.paths['/publishers/{id}/verify']).toBeDefined();
     expect(doc.paths['/publishers/{id}/map']).toBeDefined();
@@ -78,6 +80,8 @@ describe('admin api', () => {
     expect(doc.paths['/events/{id}/rescan']).toBeDefined();
     expect(doc.paths['/events/{id}/occasion-group']).toBeDefined();
     expect(doc.paths['/events/{id}/collapse']).toBeDefined();
+    expect(doc.paths['/events/{id}/poster']).toBeDefined();
+    expect((doc.paths['/events/{id}/poster'] as { delete?: unknown }).delete).toBeDefined();
     expect((doc.paths['/events/{id}'] as { delete?: unknown }).delete).toBeDefined();
     expect(doc.paths['/data-sources']).toBeDefined();
     expect(doc.paths['/data-sources/{id}/runs']).toBeDefined();
@@ -960,6 +964,58 @@ describe('admin api', () => {
       changedFields: ['featured', 'checkInEnabled'],
     });
 
+    const sponsored = await app.request('/v1/events/66666666-6666-4666-8666-666666666601', {
+      method: 'PATCH',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ sponsored: true }),
+    });
+    expect(sponsored.status).toBe(200);
+    expect(await sponsored.json()).toMatchObject({ sponsored: true, posterUrl: null });
+
+    const poster = await app.request('/v1/events/66666666-6666-4666-8666-666666666601/poster', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'image/png' },
+      body: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    });
+    expect(poster.status).toBe(200);
+    const uploaded = (await poster.json()) as { posterUrl: string };
+    expect(uploaded.posterUrl).toMatch(
+      /^https:\/\/assets\.example\/events\/66666666-6666-4666-8666-666666666601\/poster\/[0-9a-f-]{36}$/,
+    );
+    expect(domainEvents.events.at(-1)).toEqual({
+      type: 'event.updated',
+      eventId: '66666666-6666-4666-8666-666666666601',
+      changedFields: ['poster'],
+    });
+
+    const replaced = await app.request('/v1/events/66666666-6666-4666-8666-666666666601/poster', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'image/png' },
+      body: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    });
+    expect(replaced.status).toBe(200);
+    const nextPoster = (await replaced.json()) as { posterUrl: string };
+    expect(nextPoster.posterUrl).not.toBe(uploaded.posterUrl);
+
+    const removed = await app.request('/v1/events/66666666-6666-4666-8666-666666666601/poster', {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    expect(removed.status).toBe(200);
+    expect(await removed.json()).toEqual({ posterUrl: null });
+    const afterRemove = await app.request('/v1/events/66666666-6666-4666-8666-666666666601', {
+      headers: { cookie },
+    });
+    expect(await afterRemove.json()).toMatchObject({ sponsored: true, posterUrl: null });
+
+    const gif = await app.request('/v1/events/66666666-6666-4666-8666-666666666601/poster', {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'image/gif' },
+      body: new Uint8Array([71, 73, 70]),
+    });
+    expect(gif.status).toBe(400);
+    expect(await gif.json()).toMatchObject({ error: { code: 'unsupported_type' } });
+
     const backwards = await app.request('/v1/events/44444444-4444-4444-8444-444444444401', {
       method: 'PATCH',
       headers: { cookie, 'content-type': 'application/json' },
@@ -1788,5 +1844,150 @@ describe('admin api', () => {
         matchedOn: 'title',
       },
     ]);
+  });
+
+  it('signs in with a one-time email code and rejects reuse, expiry, and unknown emails', async () => {
+    let at = new Date('2026-06-15T12:00:00.000Z');
+    const { store } = await seededAuth();
+    const quiet = createApp({
+      auth: createMemoryAdminAuthServices(store, { now: () => at }),
+    });
+    const hidden = await quiet.request('/v1/admin/login/otp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com' }),
+    });
+    expect(hidden.status).toBe(200);
+    expect(await hidden.json()).toEqual({ status: 'code_sent' });
+
+    const auth = createMemoryAdminAuthServices(store, {
+      now: () => at,
+      includeLoginOtp: true,
+    });
+    const app = createApp({ auth });
+
+    const unknown = await app.request('/v1/admin/login/otp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'missing@example.com' }),
+    });
+    expect(unknown.status).toBe(200);
+    expect(await unknown.json()).toEqual({ status: 'code_sent' });
+
+    const issued = await app.request('/v1/admin/login/otp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com' }),
+    });
+    expect(issued.status).toBe(200);
+    const first = (await issued.json()) as { status: string; code?: string };
+    expect(first.status).toBe('code_sent');
+    expect(first.code).toMatch(/^\d{6}$/);
+
+    const replaced = await app.request('/v1/admin/login/otp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com' }),
+    });
+    const second = (await replaced.json()) as { code: string };
+    expect(second.code).not.toBe(first.code);
+
+    const stale = await app.request('/v1/admin/login/otp/confirm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com', code: first.code }),
+    });
+    expect(stale.status).toBe(401);
+    expect(await stale.json()).toMatchObject({ error: { code: 'invalid_otp' } });
+
+    const wrong = await app.request('/v1/admin/login/otp/confirm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        email: 'admin@example.com',
+        code: second.code === '000000' ? '000001' : '000000',
+      }),
+    });
+    expect(wrong.status).toBe(401);
+
+    const ok = await app.request('/v1/admin/login/otp/confirm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com', code: second.code }),
+    });
+    expect(ok.status).toBe(200);
+    expect(ok.headers.get('set-cookie') ?? '').toContain('le_admin_session=');
+
+    const reuse = await app.request('/v1/admin/login/otp/confirm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com', code: second.code }),
+    });
+    expect(reuse.status).toBe(401);
+
+    const again = await app.request('/v1/admin/login/otp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com' }),
+    });
+    const expiring = (await again.json()) as { code: string };
+    at = new Date(at.getTime() + 11 * 60 * 1000);
+    const expired = await app.request('/v1/admin/login/otp/confirm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com', code: expiring.code }),
+    });
+    expect(expired.status).toBe(401);
+    expect(await expired.json()).toMatchObject({ error: { code: 'otp_expired' } });
+  });
+
+  it('burns an email code after five wrong guesses and limits requests', async () => {
+    const { store } = await seededAuth();
+    const app = createApp({
+      auth: createMemoryAdminAuthServices(store, {
+        now: () => new Date('2026-06-15T12:00:00.000Z'),
+        includeLoginOtp: true,
+      }),
+    });
+
+    const issued = await app.request('/v1/admin/login/otp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com' }),
+    });
+    const { code } = (await issued.json()) as { code: string };
+    for (let i = 0; i < 5; i += 1) {
+      const miss = await app.request('/v1/admin/login/otp/confirm', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: 'admin@example.com',
+          code: code === '111111' ? '222222' : '111111',
+        }),
+      });
+      expect(miss.status).toBe(401);
+    }
+    const burned = await app.request('/v1/admin/login/otp/confirm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com', code }),
+    });
+    expect(burned.status).toBe(401);
+
+    for (let i = 0; i < 4; i += 1) {
+      const sent = await app.request('/v1/admin/login/otp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: 'admin@example.com' }),
+      });
+      expect(sent.status).toBe(200);
+    }
+    const limited = await app.request('/v1/admin/login/otp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com' }),
+    });
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toMatchObject({ error: { code: 'otp_rate_limited' } });
   });
 });

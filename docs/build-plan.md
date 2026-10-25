@@ -113,6 +113,7 @@ Closed beta around week 15, store launch around week 19.
 ## Parallel track — Admin console (from week 4)
 
 - [x] Admin login (password + TOTP) + publisher verification queue
+- [x] Admin email one-time-code login (alongside password + TOTP)
 - [x] Entity CRUD (events, users, remaining publisher fields)
 - [x] Publisher editor: name, slug, type, and import notification plan (nothing, or a marketing plan
       scheduled for published publishers' script imports). In-review imports get `pending`
@@ -144,7 +145,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Import scan queue: `pending_scan` rows, batch prompt runner, Ollama model client, EventBridge
       schedule every 5 minutes (`JOB=event-scan`). `CHAT_PROVIDER=runpod` serves that job from one
       GPU pod of one, two, or four A40s, 25 scans at a time, and stops the pod when the run ends. More than one GPU disables vLLM custom all-reduce and NCCL peer access, and a pod started without that is replaced. A later scan starts that same pod. A start with no free GPU retries until one is free, and the pod stays. A duplicate ranked over 90 as another showing
-      stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates. A new temporary publisher is `pending_scan`. A separate publisher scan (`JOB=publisher-scan`) looks it up on the web (`BRAVE_API_KEY`), stores the profile on `publishers.meta.lookup`, stores a fetched website as an organizer key, and sets `in_review`. Steps from the description are stored on `events.meta.instructions`. Tip chat lines, and a step that only asks someone to confirm a field, are left out. Possible venue names come back from the model. Importers leave `events.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written. When the model returns none, the arena name is written, then the imported venue name. A later import does not clear a venue the scan already wrote. A later import that sends no tags leaves the scan's tags in place.
+      stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates. A new temporary publisher is `pending_scan`. A separate publisher scan (`JOB=publisher-scan`) looks it up on the web (`BRAVE_API_KEY`), stores the profile on `publishers.meta.lookup`, stores a fetched website as an organizer key, and sets `in_review`. Steps from the description are stored on `events.meta.instructions`. Tip chat lines, and a step that only asks someone to confirm a field, are left out. Possible venue names come back from the model. Importers leave `event_occasions.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written. When the model returns none, the arena name is written, then the imported venue name. A later import does not clear a venue the scan already wrote. A later import that sends no tags leaves the scan's tags in place.
 - [x] Raw ingestion payloads to S3 (`raw/<slug>/<runId>`; no-op when `RAW_INGESTION_BUCKET` unset)
 - [x] Fargate task definition + EventBridge Scheduler schedules in CDK
 - [x] First real source: Visit Söderhamn adapter (Citybreak, Evenemang only). Occasions follow the shared collapse rule with Glada Hudik and Destination Hälsingland.
@@ -166,5 +167,6 @@ Closed beta around week 15, store launch around week 19.
 Stripe Billing on the web workspace, plan picker and upgrade flow, paid featured placements on the
 start page, enforcement of plan limits, admin tools for plans and refunds. Admins can already mark
 an event featured so it sorts first on the home page. For you leaves those
-events out. Entitlement checks already exist
+events out. Admins can also mark an event sponsored and upload a poster; that poster
+shows in the upcoming lists on the home page and the events screen. Entitlement checks already exist
 (`packages/domain/src/entitlements.ts`), so the rest is mostly billing and UI.

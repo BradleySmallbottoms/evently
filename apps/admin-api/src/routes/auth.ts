@@ -2,6 +2,9 @@ import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
   AdminLoginChallengeResponse,
   AdminLoginRequest,
+  AdminOtpConfirmRequest,
+  AdminOtpLoginRequest,
+  AdminOtpLoginResponse,
   AdminSessionResponse,
   AdminTotpConfirmRequest,
   ErrorResponse,
@@ -60,6 +63,69 @@ export function registerAdminAuthRoutes(app: OpenAPIHono, auth: AdminAuthService
       },
     },
   });
+  const requestOtp = createRoute({
+    method: 'post',
+    path: '/admin/login/otp',
+    request: {
+      body: { content: { 'application/json': { schema: AdminOtpLoginRequest } }, required: true },
+    },
+    responses: {
+      200: {
+        description: 'Code issued when the email is an admin. Unknown emails get the same body.',
+        content: { 'application/json': { schema: AdminOtpLoginResponse } },
+      },
+      429: {
+        description: 'Too many code requests for this email',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(requestOtp, async (c) => {
+    try {
+      return c.json(await auth.requestOtp(c.req.valid('json')), 200);
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
+  const confirmOtp = createRoute({
+    method: 'post',
+    path: '/admin/login/otp/confirm',
+    request: {
+      body: {
+        content: { 'application/json': { schema: AdminOtpConfirmRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Session created',
+        content: { 'application/json': { schema: AdminSessionResponse } },
+      },
+      401: {
+        description: 'Invalid or expired code',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(confirmOtp, async (c) => {
+    try {
+      const result = await auth.confirmOtp(c.req.valid('json'));
+      setAdminSessionCookie(c, result.sessionToken, new Date(result.expiresAt));
+      return c.json(
+        {
+          adminId: result.adminId,
+          email: result.email,
+          role: result.role,
+          expiresAt: result.expiresAt,
+        },
+        200,
+      );
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
   app.openapi(confirm, async (c) => {
     try {
       const result = await auth.confirmTotp(c.req.valid('json'));

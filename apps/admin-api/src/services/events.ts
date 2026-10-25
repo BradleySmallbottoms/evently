@@ -35,8 +35,11 @@ import {
   canDeleteImportedEvent,
   canRejectImportedEvent,
   canRescanImportedEvent,
+  POSTER_IMAGE_ROLE,
+  posterImageError,
   publicAssetUrl,
   publicGalleryUrls,
+  publicPosterUrl,
   shouldEnqueueNotifications,
   importPlanToSchedule,
   reviewWarnings,
@@ -49,11 +52,24 @@ import { createMemoryDomainEventPublisher } from './domain-events/memory';
 import { scheduleImportPlanForEvent } from './import-notifications';
 import { upsertEventPushDraft } from './push-drafts/drafts';
 import { enqueueDomainEvent, type DomainEventPublisher } from './domain-events/types';
+import type { PosterStore } from './poster-store';
 
 export class AdminEventError extends Error {
-  readonly code: 'invalid_event' | 'online_url_required';
+  readonly code:
+    | 'invalid_event'
+    | 'online_url_required'
+    | 'unsupported_type'
+    | 'too_large'
+    | 'poster_unavailable';
 
-  constructor(code: 'invalid_event' | 'online_url_required') {
+  constructor(
+    code:
+      | 'invalid_event'
+      | 'online_url_required'
+      | 'unsupported_type'
+      | 'too_large'
+      | 'poster_unavailable',
+  ) {
     super(code);
     this.name = 'AdminEventError';
     this.code = code;
@@ -86,6 +102,15 @@ export type AdminEventServices = {
     body: AdminEventPatchRequest,
     actor: string,
   ) => Promise<AdminEventDetail | null>;
+  /** Store the sponsored poster. Null when the event is missing. */
+  putPoster: (
+    eventId: string,
+    body: Uint8Array,
+    contentType: string,
+    actor: string,
+  ) => Promise<{ posterUrl: string | null } | null>;
+  /** Remove the sponsored poster. Null when the event is missing. */
+  deletePoster: (eventId: string, actor: string) => Promise<{ posterUrl: null } | null>;
 };
 
 export type AdminEventEnv = {
@@ -94,6 +119,8 @@ export type AdminEventEnv = {
   audit?: AdminAuditServices;
   /** Garage or CloudFront origin. Image URLs are omitted when this is unset. */
   assetsPublicBaseUrl?: string;
+  /** Required for a database poster upload. The memory store keeps the key without it. */
+  posterStore?: PosterStore;
 };
 
 type MemoryEventLink = {
@@ -130,6 +157,7 @@ type MemoryEvent = {
   tagIds?: string[];
   links?: MemoryEventLink[];
   featured?: boolean;
+  sponsored?: boolean;
   checkInEnabled?: boolean;
   images?: { role: string; s3Key: string }[];
   occasions?: {
@@ -216,6 +244,7 @@ function contentChanges(
     tagIds?: string[];
     links?: { type: string; url: string; label: string | null }[];
     featured?: boolean;
+    sponsored?: boolean;
     checkInEnabled?: boolean;
   },
   body: AdminEventPatchRequest,
@@ -263,6 +292,9 @@ function contentChanges(
     note('links', JSON.stringify(prev) !== JSON.stringify(next));
   }
   if (body.featured !== undefined) note('featured', body.featured !== (existing.featured ?? false));
+  if (body.sponsored !== undefined) {
+    note('sponsored', body.sponsored !== (existing.sponsored ?? false));
+  }
   if (body.checkInEnabled !== undefined) {
     note('checkInEnabled', body.checkInEnabled !== (existing.checkInEnabled ?? false));
   }
@@ -286,6 +318,7 @@ function auditSnapshot(detail: AdminEventDetail): Record<string, unknown> {
     currency: detail.currency,
     tagIds: detail.tagIds,
     featured: detail.featured,
+    sponsored: detail.sponsored,
     checkInEnabled: detail.checkInEnabled,
     links: detail.links.map((link) => ({
       type: link.type,
@@ -455,6 +488,7 @@ function asListItem(
     venueName: e.venueName,
     sourceUrl: e.sourceUrl,
     featured: e.featured ?? false,
+    sponsored: e.sponsored ?? false,
     checkInEnabled: e.checkInEnabled ?? false,
     contentVerdict: contentVerdictOf(e.contentVerdict),
     tagCount: tagCountOf(e.tagIds),
@@ -473,11 +507,12 @@ function compareListed(a: MemoryEvent, b: MemoryEvent, sort: AdminEventListQuery
 function imageFields(
   images: readonly { role: string; s3Key: string }[],
   assetsPublicBaseUrl: string | undefined,
-): Pick<AdminEventDetail, 'imageUrl' | 'imageUrls'> {
+): Pick<AdminEventDetail, 'imageUrl' | 'imageUrls' | 'posterUrl'> {
   const main = images.find((image) => image.role === 'main')?.s3Key ?? null;
   return {
     imageUrl: publicAssetUrl(assetsPublicBaseUrl, main),
     imageUrls: publicGalleryUrls(assetsPublicBaseUrl, images),
+    posterUrl: publicPosterUrl(assetsPublicBaseUrl, images),
   };
 }
 
@@ -524,6 +559,7 @@ function applyMemoryPatch(row: MemoryEvent, body: AdminEventPatchRequest): void 
   if (body.currency !== undefined) row.currency = body.currency;
   if (body.tagIds !== undefined) row.tagIds = [...body.tagIds];
   if (body.featured !== undefined) row.featured = body.featured;
+  if (body.sponsored !== undefined) row.sponsored = body.sponsored;
   if (body.checkInEnabled !== undefined) row.checkInEnabled = body.checkInEnabled;
   if (body.links !== undefined) {
     row.links = body.links.map((link, position) => ({
@@ -818,6 +854,63 @@ export function createMemoryAdminEventServices(
       });
       return after;
     },
+    async putPoster(eventId, body, contentType, actor) {
+      const row = store.events.get(eventId);
+      if (!row) return null;
+      const problem = posterImageError(contentType, body);
+      if (problem) throw new AdminEventError(problem);
+      const key = `events/${eventId}/${POSTER_IMAGE_ROLE}/${randomUUID()}`;
+      const publisherName = store.publishers.get(row.publisherId)?.name ?? 'Unknown';
+      const before = asDetail(row, publisherName, env.assetsPublicBaseUrl);
+      row.images = [
+        ...(row.images ?? []).filter((image) => image.role !== POSTER_IMAGE_ROLE),
+        { role: POSTER_IMAGE_ROLE, s3Key: key },
+      ];
+      row.updatedAt = now().toISOString();
+      if (row.status === 'published') {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.updated',
+          eventId,
+          changedFields: ['poster'],
+        });
+      }
+      const after = asDetail(row, publisherName, env.assetsPublicBaseUrl);
+      await audit.write({
+        actor,
+        action: 'event.poster',
+        entityType: 'event',
+        entityId: eventId,
+        before: { posterUrl: before.posterUrl },
+        after: { posterUrl: after.posterUrl },
+      });
+      return { posterUrl: after.posterUrl };
+    },
+    async deletePoster(eventId, actor) {
+      const row = store.events.get(eventId);
+      if (!row) return null;
+      const publisherName = store.publishers.get(row.publisherId)?.name ?? 'Unknown';
+      const before = asDetail(row, publisherName, env.assetsPublicBaseUrl);
+      const hadPoster = (row.images ?? []).some((image) => image.role === POSTER_IMAGE_ROLE);
+      row.images = (row.images ?? []).filter((image) => image.role !== POSTER_IMAGE_ROLE);
+      row.updatedAt = now().toISOString();
+      if (hadPoster && row.status === 'published') {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.updated',
+          eventId,
+          changedFields: ['poster'],
+        });
+      }
+      const after = asDetail(row, publisherName, env.assetsPublicBaseUrl);
+      await audit.write({
+        actor,
+        action: 'event.poster',
+        entityType: 'event',
+        entityId: eventId,
+        before: { posterUrl: before.posterUrl },
+        after: { posterUrl: after.posterUrl },
+      });
+      return { posterUrl: null };
+    },
   };
 }
 
@@ -848,7 +941,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
 
   async function imagesFor(
     eventId: string,
-  ): Promise<Pick<AdminEventDetail, 'imageUrl' | 'imageUrls'>> {
+  ): Promise<Pick<AdminEventDetail, 'imageUrl' | 'imageUrls' | 'posterUrl'>> {
     const rows = await db
       .select({ role: schema.eventImages.role, s3Key: schema.eventImages.s3Key })
       .from(schema.eventImages)
@@ -956,6 +1049,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         refId: schema.events.refId,
         workerId: schema.events.workerId,
         featured: schema.events.featured,
+        sponsored: schema.events.sponsored,
         checkInEnabled: schema.events.checkInEnabled,
         createdAt: schema.events.createdAt,
         updatedAt: schema.events.updatedAt,
@@ -999,6 +1093,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       occasions: await occasionsFor(eventId),
       ...(await imagesFor(eventId)),
       featured: row.featured,
+      sponsored: row.sponsored,
       checkInEnabled: row.checkInEnabled,
       contentVerdict: row.contentVerdict,
       llmOutput: row.llmOutput ?? null,
@@ -1192,6 +1287,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           )`,
           sourceUrl: schema.events.sourceUrl,
           featured: schema.events.featured,
+          sponsored: schema.events.sponsored,
           checkInEnabled: schema.events.checkInEnabled,
           contentVerdict: schema.events.contentVerdict,
           tagCount: tagCountColumn(),
@@ -1236,6 +1332,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           venueName: r.venueName,
           sourceUrl: r.sourceUrl,
           featured: r.featured,
+          sponsored: r.sponsored,
           checkInEnabled: r.checkInEnabled,
           contentVerdict: r.contentVerdict,
           tagCount: Number(r.tagCount),
@@ -1836,6 +1933,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           priceAmount: body.priceAmount !== undefined ? body.priceAmount : existing.priceAmount,
           currency: body.currency ?? existing.currency,
           featured: body.featured ?? existing.featured,
+          sponsored: body.sponsored ?? existing.sponsored,
           checkInEnabled: body.checkInEnabled ?? existing.checkInEnabled,
           updatedAt: at,
         })
@@ -1924,6 +2022,101 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         after: updated ? auditSnapshot(updated) : null,
       });
       return updated;
+    },
+    async putPoster(eventId, body, contentType, actor) {
+      const existing = await loadDetail(eventId);
+      if (!existing) return null;
+      const problem = posterImageError(contentType, body);
+      if (problem) throw new AdminEventError(problem);
+      if (!env.posterStore) throw new AdminEventError('poster_unavailable');
+      const [previous] = await db
+        .select({ s3Key: schema.eventImages.s3Key })
+        .from(schema.eventImages)
+        .where(
+          and(
+            eq(schema.eventImages.eventId, eventId),
+            eq(schema.eventImages.role, POSTER_IMAGE_ROLE),
+          ),
+        )
+        .limit(1);
+      const key = `events/${eventId}/${POSTER_IMAGE_ROLE}/${randomUUID()}`;
+      const type = contentType.split(';')[0]?.trim().toLowerCase() ?? contentType;
+      await env.posterStore.put(key, body, type);
+      const at = now();
+      await db
+        .insert(schema.eventImages)
+        .values({
+          eventId,
+          role: POSTER_IMAGE_ROLE,
+          s3Key: key,
+          contentType: type,
+          createdAt: at,
+        })
+        .onConflictDoUpdate({
+          target: [schema.eventImages.eventId, schema.eventImages.role],
+          set: { s3Key: key, contentType: type },
+        });
+      if (previous && previous.s3Key !== key) {
+        await env.posterStore.delete(previous.s3Key);
+      }
+      if (existing.status === 'published') {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.updated',
+          eventId,
+          changedFields: ['poster'],
+        });
+      }
+      const updated = await loadDetail(eventId);
+      await audit.write({
+        actor,
+        action: 'event.poster',
+        entityType: 'event',
+        entityId: eventId,
+        before: { posterUrl: existing.posterUrl },
+        after: { posterUrl: updated?.posterUrl ?? null },
+      });
+      return { posterUrl: updated?.posterUrl ?? null };
+    },
+    async deletePoster(eventId, actor) {
+      const existing = await loadDetail(eventId);
+      if (!existing) return null;
+      const [image] = await db
+        .select({ s3Key: schema.eventImages.s3Key })
+        .from(schema.eventImages)
+        .where(
+          and(
+            eq(schema.eventImages.eventId, eventId),
+            eq(schema.eventImages.role, POSTER_IMAGE_ROLE),
+          ),
+        )
+        .limit(1);
+      if (image && env.posterStore) await env.posterStore.delete(image.s3Key);
+      if (image) {
+        await db
+          .delete(schema.eventImages)
+          .where(
+            and(
+              eq(schema.eventImages.eventId, eventId),
+              eq(schema.eventImages.role, POSTER_IMAGE_ROLE),
+            ),
+          );
+      }
+      if (image && existing.status === 'published') {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.updated',
+          eventId,
+          changedFields: ['poster'],
+        });
+      }
+      await audit.write({
+        actor,
+        action: 'event.poster',
+        entityType: 'event',
+        entityId: eventId,
+        before: { posterUrl: existing.posterUrl },
+        after: { posterUrl: null },
+      });
+      return { posterUrl: null };
     },
   };
 }

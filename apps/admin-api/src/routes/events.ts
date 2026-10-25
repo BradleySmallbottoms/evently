@@ -1,4 +1,5 @@
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
+import { bodyLimit } from 'hono/body-limit';
 import {
   AdminCollapseOccasionsRequest,
   AdminEventDecisionResponse,
@@ -9,9 +10,11 @@ import {
   AdminEventPatchRequest,
   AdminEventReviewListResponse,
   AdminOccasionGroupResponse,
+  AdminPosterResponse,
   TagListResponse,
   ErrorResponse,
 } from '@local-events/contracts';
+import { POSTER_MAX_BYTES } from '@local-events/domain';
 import { z } from 'zod';
 import { readAdminSessionToken } from '../services/auth/cookies';
 import { adminAuthErrorResponse } from '../services/auth/errors';
@@ -23,8 +26,15 @@ function eventWriteError(c: Parameters<typeof adminAuthErrorResponse>[0], err: u
     const message =
       err.code === 'online_url_required'
         ? 'Digital events need an online URL'
-        : 'Event is not valid';
-    return c.json({ error: { code: err.code, message } }, 400);
+        : err.code === 'unsupported_type'
+          ? 'Poster must be a JPEG, PNG, or WebP'
+          : err.code === 'too_large'
+            ? 'Poster is too large'
+            : err.code === 'poster_unavailable'
+              ? 'Poster storage is not configured'
+              : 'Event is not valid';
+    const status = err.code === 'poster_unavailable' ? 503 : 400;
+    return c.json({ error: { code: err.code, message } }, status);
   }
   return adminAuthErrorResponse(c, err);
 }
@@ -358,6 +368,101 @@ export function registerAdminEventRoutes(
         c.req.valid('json').eventIds,
         session.adminId,
       );
+      if (!result) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json(result, 200);
+    } catch (err) {
+      return eventWriteError(c, err);
+    }
+  });
+
+  app.use(
+    '/events/:id/poster',
+    bodyLimit({
+      maxSize: POSTER_MAX_BYTES,
+      onError: (c) => c.json({ error: { code: 'too_large', message: 'Poster is too large' } }, 400),
+    }),
+  );
+
+  const poster = createRoute({
+    method: 'post',
+    path: '/events/{id}/poster',
+    request: {
+      params: z.object({ id: z.uuid() }),
+    },
+    responses: {
+      200: {
+        description: 'Sponsored poster stored',
+        content: { 'application/json': { schema: AdminPosterResponse } },
+      },
+      400: {
+        description: 'The file is not a JPEG, PNG, or WebP, or it is too large',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      503: {
+        description: 'Poster storage is not configured',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(poster, async (c) => {
+    try {
+      const session = await auth.requireSession(readAdminSessionToken(c));
+      const declared = Number(c.req.header('content-length') ?? '');
+      if (Number.isFinite(declared) && declared > POSTER_MAX_BYTES) {
+        throw new AdminEventError('too_large');
+      }
+      const contentType = c.req.header('content-type') ?? '';
+      const body = new Uint8Array(await c.req.arrayBuffer());
+      const result = await events.putPoster(
+        c.req.valid('param').id,
+        body,
+        contentType,
+        session.adminId,
+      );
+      if (!result) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json(result, 200);
+    } catch (err) {
+      return eventWriteError(c, err);
+    }
+  });
+
+  const deletePoster = createRoute({
+    method: 'delete',
+    path: '/events/{id}/poster',
+    request: {
+      params: z.object({ id: z.uuid() }),
+    },
+    responses: {
+      200: {
+        description: 'Sponsored poster removed',
+        content: { 'application/json': { schema: AdminPosterResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(deletePoster, async (c) => {
+    try {
+      const session = await auth.requireSession(readAdminSessionToken(c));
+      const result = await events.deletePoster(c.req.valid('param').id, session.adminId);
       if (!result) {
         return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
       }

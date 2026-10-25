@@ -7,6 +7,7 @@ import { Pressable, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import { DateBox } from '@/components/ui/date-box';
 import { EventImage } from '@/components/ui/event-image';
+import { SponsoredPill } from '@/components/ui/sponsored-event-card';
 import { PricePill, TagPills } from '@/components/ui/tag-pills';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
@@ -20,6 +21,8 @@ type Props = {
   time?: string;
   tags?: string[];
   imageUrl?: string | null;
+  /** Shown on the thumbnail when this row is sponsored and has no poster. */
+  sponsoredLabel?: string;
   priceAmount?: number | null;
   dateBadge?: { weekday: string; day: string; month: string } | null;
   saved?: boolean;
@@ -33,6 +36,7 @@ export function EventListItem({
   time,
   tags = [],
   imageUrl,
+  sponsoredLabel,
   priceAmount,
   dateBadge,
   saved,
@@ -71,6 +75,11 @@ export function EventListItem({
             >
               <EventImage imageUrl={imageUrl} tags={tags} />
             </View>
+            {sponsoredLabel ? (
+              <View style={{ position: 'absolute', left: 4, top: 4, right: 4 }}>
+                <SponsoredPill label={sponsoredLabel} size="sm" />
+              </View>
+            ) : null}
             {dateBadge ? (
               <View
                 style={{

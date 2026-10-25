@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { serve } from '@hono/node-server';
 import { createDb, resolveDatabaseUrl } from '@local-events/db';
 import { createApp } from './app';
@@ -11,6 +12,7 @@ import {
   createMemoryAdminDataSourceServices,
 } from './services/data-sources';
 import { createDbAdminEventServices, createMemoryAdminEventServices } from './services/events';
+import { posterStoreFromEnv } from './services/poster-store';
 import {
   createDbAdminModerationServices,
   createMemoryAdminModerationServices,
@@ -44,18 +46,24 @@ const corsOrigin =
     ? (origin: string) => (origin.length > 0 ? origin : null)
     : corsOriginList;
 
+const includeLoginOtp =
+  process.env.ADMIN_INCLUDE_LOGIN_OTP === 'true' ||
+  (process.env.ADMIN_INCLUDE_LOGIN_OTP !== 'false' && process.env.NODE_ENV !== 'production');
+const otpPepper = process.env.ADMIN_OTP_PEPPER?.trim() || randomBytes(32).toString('hex');
+
 const authStore = createAdminMemoryAuthStore();
 const { auth, publishers, events, dataSources, audit, moderation, pushMessages } = (() => {
   if (databaseUrl) {
     const db = createDb(databaseUrl);
     const auditSvc = createDbAdminAuditServices(db);
     return {
-      auth: createDbAdminAuthServices(db),
+      auth: createDbAdminAuthServices(db, { includeLoginOtp, otpPepper }),
       publishers: createDbAdminPublisherServices(db, { domainEvents }),
       events: createDbAdminEventServices(db, {
         domainEvents,
         audit: auditSvc,
         assetsPublicBaseUrl: process.env.ASSETS_PUBLIC_BASE_URL?.trim() || undefined,
+        posterStore: posterStoreFromEnv(),
       }),
       dataSources: createDbAdminDataSourceServices(db),
       audit: auditSvc,
@@ -65,7 +73,7 @@ const { auth, publishers, events, dataSources, audit, moderation, pushMessages }
   }
   const auditSvc = createMemoryAdminAuditServices();
   return {
-    auth: createMemoryAdminAuthServices(authStore),
+    auth: createMemoryAdminAuthServices(authStore, { includeLoginOtp, otpPepper }),
     publishers: createMemoryAdminPublisherServices(
       { publishers: new Map(), events: new Map() },
       { domainEvents },
@@ -93,6 +101,11 @@ if (!databaseUrl) {
 if (!queueUrl) {
   console.warn('DOMAIN_EVENTS_QUEUE_URL not set; domain events stay in-process (not durable)');
 }
+console.log(
+  JSON.stringify({
+    adminLoginOtp: includeLoginOtp ? 'inline' : 'stored-only',
+  }),
+);
 
 const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase();
 const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;

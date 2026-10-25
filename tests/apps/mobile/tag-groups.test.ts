@@ -57,6 +57,13 @@ describe('home tag selection', () => {
     expect(toggleGroupSelection(['a', 'b', 'c'], ids)).toEqual(['c']);
   });
 
+  it('clears a partly selected home group instead of filling it in', () => {
+    const ids = ['a', 'b'];
+    expect(toggleGroupSelection(['a', 'c'], ids, 'any')).toEqual(['c']);
+    expect(toggleGroupSelection(['a', 'b', 'c'], ids, 'any')).toEqual(['c']);
+    expect(toggleGroupSelection(['c'], ids, 'any')).toEqual(['c', 'a', 'b']);
+  });
+
   it('toggles a single tag without clearing the rest of the group', () => {
     expect(toggleTagSelection(['a', 'b'], 'b')).toEqual(['a']);
     expect(toggleTagSelection(['a'], 'b')).toEqual(['a', 'b']);

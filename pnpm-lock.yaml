@@ -275,6 +275,9 @@ importers:
 
   apps/admin-api:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1149.0
+        version: 3.1149.0
       '@aws-sdk/client-sqs':
         specifier: ^3.1148.0
         version: 3.1148.0

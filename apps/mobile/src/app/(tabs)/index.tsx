@@ -24,6 +24,7 @@ import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { FeaturedEventCard } from './_components/featured-event-card';
 import { EventCard } from '@/components/ui/event-card';
 import { EventListItem } from '@/components/ui/event-list-item';
+import { SponsoredEventCard } from '@/components/ui/sponsored-event-card';
 import { SearchBar } from '@/components/ui/search-bar';
 import { TagFilters } from '@/components/ui/tag-filters';
 import { PopularNow } from '@/components/ui/popular-now';
@@ -783,32 +784,49 @@ export default function HomeScreen() {
             </View>
           ) : null
         }
-        renderItem={({ item }) => (
-          <View style={{ paddingHorizontal: space.xl }}>
-            <EventListItem
-              title={item.title}
-              where={
-                item.mode === 'physical'
-                  ? (item.venueName ?? t('events.missingVenue'))
-                  : (item.onlineUrl ?? t('events.missingUrl'))
-              }
-              tags={namesForTagIds(item.tagIds, tags.data?.items)}
-              imageUrl={item.imageUrl}
-              priceAmount={item.priceAmount}
-              time={shownClock(
-                shownWhen(item, new Date()).startsAt,
-                shownWhen(item, new Date()).endsAt,
-                locale,
-                t('events.wholeDay'),
-                item.timezone,
+        renderItem={({ item }) => {
+          const when = shownWhen(item, new Date());
+          const where =
+            item.mode === 'physical'
+              ? (item.venueName ?? t('events.missingVenue'))
+              : (item.onlineUrl ?? t('events.missingUrl'));
+          const time = shownClock(
+            when.startsAt,
+            when.endsAt,
+            locale,
+            t('events.wholeDay'),
+            item.timezone,
+          );
+          const tagNames = namesForTagIds(item.tagIds, tags.data?.items);
+          const poster = !searching && item.sponsored && item.posterUrl;
+          return (
+            <View style={{ paddingHorizontal: space.xl }}>
+              {poster ? (
+                <SponsoredEventCard
+                  title={item.title}
+                  posterUrl={item.posterUrl ?? ''}
+                  saved={savedIds.has(item.id)}
+                  onSavePress={() => toggleSave(item.id)}
+                  onPress={() => router.push(`/events/${item.id}`)}
+                />
+              ) : (
+                <EventListItem
+                  title={item.title}
+                  where={where}
+                  tags={tagNames}
+                  imageUrl={item.imageUrl}
+                  sponsoredLabel={!searching && item.sponsored ? t('events.sponsored') : undefined}
+                  priceAmount={item.priceAmount}
+                  time={time}
+                  dateBadge={dateBadge(when.startsAt, locale)}
+                  saved={savedIds.has(item.id)}
+                  onSavePress={() => toggleSave(item.id)}
+                  onPress={() => router.push(`/events/${item.id}`)}
+                />
               )}
-              dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
-              saved={savedIds.has(item.id)}
-              onSavePress={() => toggleSave(item.id)}
-              onPress={() => router.push(`/events/${item.id}`)}
-            />
-          </View>
-        )}
+            </View>
+          );
+        }}
       />
 
       <NotificationsSheet

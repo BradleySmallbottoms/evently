@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import * as argon2 from 'argon2';
 
 /**
@@ -21,16 +21,7 @@ export function generateEmailToken(): string {
   return randomBytes(32).toString('base64url');
 }
 
-/** Credentials and tokens are stored hashed; only the client ever holds the raw value. */
-export function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
-
-export function tokenMatchesHash(token: string, storedHash: string): boolean {
-  const a = Buffer.from(hashToken(token), 'hex');
-  const b = Buffer.from(storedHash, 'hex');
-  return a.length === b.length && timingSafeEqual(a, b);
-}
+export { hashToken, tokenMatchesHash } from './hash';
 
 /** Argon2id password hashes (see docs/project-description.md → Security). */
 export async function hashPassword(password: string): Promise<string> {
@@ -70,6 +61,20 @@ export {
   TOTP_DIGITS,
   TOTP_STEP_SECONDS,
 } from './totp';
+
+export {
+  generateLoginOtp,
+  loginOtpHash,
+  loginOtpMatches,
+  decideLoginOtpConfirm,
+  ADMIN_LOGIN_OTP_TTL_SECONDS,
+  ADMIN_LOGIN_OTP_MAX_ATTEMPTS,
+  ADMIN_LOGIN_OTP_MAX_REQUESTS,
+  ADMIN_LOGIN_OTP_WINDOW_SECONDS,
+  ADMIN_LOGIN_OTP_PURPOSE,
+  type LoginOtpRecord,
+  type LoginOtpConfirmDecision,
+} from './login-otp';
 
 /** Crockford-style alphabet without 0/O, 1/I/L, U to avoid misreads when typed by hand. */
 const PAIRING_ALPHABET = '23456789ABCDEFGHJKMNPQRSTVWXYZ';

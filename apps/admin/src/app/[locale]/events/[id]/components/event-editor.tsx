@@ -29,6 +29,7 @@ import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
 import { toDatetimeLocal, zonedLocalToIso } from '@/lib/zoned-datetime';
 import { EventImages } from './event-images';
+import { EventPoster } from './event-poster';
 import { EventLocationMap } from './event-location-map';
 import { EventNotifications } from './event-notifications';
 import { EventOccasions } from './event-occasions';
@@ -86,9 +87,11 @@ type EventDetail = {
   };
   tagIds: string[];
   featured: boolean;
+  sponsored: boolean;
   checkInEnabled: boolean;
   imageUrl: string | null;
   imageUrls: string[];
+  posterUrl: string | null;
   links: { type: LinkType; url: string; label: string | null }[];
   llmOutput: unknown;
   createdAt: string;
@@ -117,6 +120,7 @@ type Draft = {
   tagIds: string[];
   links: DraftLink[];
   featured: boolean;
+  sponsored: boolean;
   checkInEnabled: boolean;
 };
 
@@ -162,6 +166,7 @@ function toDraft(event: EventDetail): Draft {
     currency: event.currency,
     tagIds: event.tagIds,
     featured: event.featured,
+    sponsored: event.sponsored,
     checkInEnabled: event.checkInEnabled,
     links: event.links.map((link) => ({
       type: link.type,
@@ -311,6 +316,7 @@ export function EventEditor({ eventId }: { eventId: string }) {
       currency: form.currency.trim() || 'SEK',
       tagIds: form.tagIds,
       featured: form.featured,
+      sponsored: form.sponsored,
       checkInEnabled: form.checkInEnabled,
       ...(form.status === 'pending_scan' ? {} : { status: form.status }),
       links: links.map((link) => ({
@@ -603,6 +609,15 @@ export function EventEditor({ eventId }: { eventId: string }) {
               />
               <FieldLabel htmlFor="event-featured">{t('featured')}</FieldLabel>
             </Field>
+            <Field orientation="horizontal">
+              <Switch
+                id="event-sponsored"
+                checked={form.sponsored}
+                onCheckedChange={(checked) => update('sponsored', checked)}
+              />
+              <FieldLabel htmlFor="event-sponsored">{t('sponsored')}</FieldLabel>
+            </Field>
+            <EventPoster eventId={eventId} posterUrl={event?.posterUrl ?? null} />
             <Field orientation="horizontal">
               <Switch
                 id="event-check-in"

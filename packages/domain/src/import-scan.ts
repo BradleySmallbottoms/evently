@@ -96,6 +96,23 @@ export function venueNameFromScan(
   return best?.name ?? importedVenueName(imported);
 }
 
+/**
+ * Venue stored on one occasion when an import replaces the showing rows.
+ * After the scan has finished, the name it wrote stays. Before that, the
+ * incoming showing name is used. A new showing with no name of its own takes
+ * the name already stored on another showing of the same event.
+ */
+export function occasionVenueOnImport(input: {
+  scanned: boolean;
+  incoming: string | null;
+  previousForKey: string | null;
+  previousAny: string | null;
+}): string | null {
+  const previous = input.previousForKey ?? input.previousAny;
+  if (input.scanned) return previous ?? input.incoming;
+  return input.incoming ?? previous;
+}
+
 function firstGroupId(
   members: OccasionGroupMember[],
   key: 'possibleOccasionGroupId',

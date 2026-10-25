@@ -120,14 +120,21 @@ export function homeGroupForTags(
   return groupHomeTags(tags).find((group) => group.tags.some((tag) => wanted.has(tag.id)))?.id;
 }
 
-/** Select every tag in the group, or clear the group when all of them are already selected. */
+/**
+ * Select every tag in the group, or clear the group.
+ * A group that is already fully on always clears.
+ * A group that is only partly on fills in the rest, unless `clearWhen` is `any`:
+ * then any chosen tag means the control already looks on, and the tap clears it.
+ */
 export function toggleGroupSelection(
   selected: readonly string[],
   groupTagIds: readonly string[],
+  clearWhen: 'all' | 'any' = 'all',
 ): string[] {
   const next = new Set(selected);
-  const allOn = groupTagIds.length > 0 && groupTagIds.every((id) => next.has(id));
-  if (allOn) {
+  const chosen = groupTagIds.filter((id) => next.has(id)).length;
+  const on = chosen > 0 && (clearWhen === 'any' || chosen === groupTagIds.length);
+  if (on) {
     for (const id of groupTagIds) next.delete(id);
   } else {
     for (const id of groupTagIds) next.add(id);

@@ -19,7 +19,13 @@ type Challenge =
   | { status: 'totp_required'; challengeToken: string }
   | { status: 'totp_setup'; setupToken: string; otpauthUrl: string; secret: string };
 
-const TOTP_AUTO_SUBMIT_MS = 500;
+type Step =
+  | { name: 'password' }
+  | { name: 'otp-email' }
+  | { name: 'otp-code'; email: string; devCode?: string }
+  | { name: 'totp'; challenge: Challenge };
+
+const CODE_AUTO_SUBMIT_MS = 500;
 
 export function LoginForm() {
   const t = useTranslations('Login');
@@ -27,8 +33,9 @@ export function LoginForm() {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [challenge, setChallenge] = useState<Challenge | null>(null);
-  const [totpCode, setTotpCode] = useState('');
+  const [step, setStep] = useState<Step>({ name: 'password' });
+  const [otpEmail, setOtpEmail] = useState('');
+  const [code, setCode] = useState('');
   const pendingRef = useRef(false);
 
   async function onPassword(event: FormEvent<HTMLFormElement>) {
@@ -44,8 +51,8 @@ export function LoginForm() {
           password: String(formData.get('password') ?? ''),
         }),
       });
-      setTotpCode('');
-      setChallenge(body);
+      setCode('');
+      setStep({ name: 'totp', challenge: body });
     } catch (err) {
       if (err instanceof AdminApiError && err.code === 'invalid_credentials') {
         setError(t('errorCredentials'));
@@ -57,28 +64,84 @@ export function LoginForm() {
     }
   }
 
-  async function confirmTotp(code: string) {
-    if (!challenge || code.length !== 6 || pendingRef.current) return;
+  async function requestOtp(email: string) {
+    const trimmed = email.trim();
+    if (!trimmed || pendingRef.current) return;
+    pendingRef.current = true;
+    setPending(true);
+    setError(null);
+    try {
+      const body = await adminFetch<{ status: 'code_sent'; code?: string }>('/admin/login/otp', {
+        method: 'POST',
+        body: JSON.stringify({ email: trimmed }),
+      });
+      setCode('');
+      setStep({ name: 'otp-code', email: trimmed, devCode: body.code });
+    } catch (err) {
+      if (err instanceof AdminApiError && err.code === 'otp_rate_limited') {
+        setError(t('errorRateLimit'));
+      } else {
+        setError(err instanceof Error ? err.message : t('errorGeneric'));
+      }
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
+    }
+  }
+
+  async function confirmTotp(nextCode: string) {
+    if (step.name !== 'totp' || nextCode.length !== 6 || pendingRef.current) return;
     pendingRef.current = true;
     setPending(true);
     setError(null);
     try {
       const token =
-        challenge.status === 'totp_setup' ? challenge.setupToken : challenge.challengeToken;
+        step.challenge.status === 'totp_setup'
+          ? step.challenge.setupToken
+          : step.challenge.challengeToken;
       await adminFetch('/admin/login/totp', {
         method: 'POST',
-        body: JSON.stringify({ token, code }),
+        body: JSON.stringify({ token, code: nextCode }),
       });
       await queryClient.invalidateQueries({ queryKey: ADMIN_ME_QUERY_KEY });
       router.push('/publishers');
     } catch (err) {
       if (err instanceof AdminApiError && err.code === 'invalid_totp') {
         setError(t('errorTotp'));
-        setTotpCode('');
+        setCode('');
       } else if (err instanceof AdminApiError && err.code === 'challenge_expired') {
         setError(t('errorExpired'));
-        setChallenge(null);
-        setTotpCode('');
+        setStep({ name: 'password' });
+        setCode('');
+      } else {
+        setError(err instanceof Error ? err.message : t('errorGeneric'));
+      }
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
+    }
+  }
+
+  async function confirmOtp(nextCode: string) {
+    if (step.name !== 'otp-code' || nextCode.length !== 6 || pendingRef.current) return;
+    pendingRef.current = true;
+    setPending(true);
+    setError(null);
+    try {
+      await adminFetch('/admin/login/otp/confirm', {
+        method: 'POST',
+        body: JSON.stringify({ email: step.email, code: nextCode }),
+      });
+      await queryClient.invalidateQueries({ queryKey: ADMIN_ME_QUERY_KEY });
+      router.push('/publishers');
+    } catch (err) {
+      if (err instanceof AdminApiError && err.code === 'invalid_otp') {
+        setError(t('errorOtp'));
+        setCode('');
+      } else if (err instanceof AdminApiError && err.code === 'otp_expired') {
+        setError(t('errorOtpExpired'));
+        setStep({ name: 'otp-email' });
+        setCode('');
       } else {
         setError(err instanceof Error ? err.message : t('errorGeneric'));
       }
@@ -89,23 +152,26 @@ export function LoginForm() {
   }
 
   useEffect(() => {
-    if (!challenge || totpCode.length !== 6 || pendingRef.current) return;
+    if (code.length !== 6 || pendingRef.current) return;
+    if (step.name !== 'totp' && step.name !== 'otp-code') return;
     const timer = window.setTimeout(() => {
-      void confirmTotp(totpCode);
-    }, TOTP_AUTO_SUBMIT_MS);
+      if (step.name === 'totp') void confirmTotp(code);
+      else void confirmOtp(code);
+    }, CODE_AUTO_SUBMIT_MS);
     return () => window.clearTimeout(timer);
-    // confirmTotp closes over challenge/t/router; re-run when code or challenge changes
+    // confirm functions close over step; re-run when the code or step changes
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: fire only when code is complete
-  }, [totpCode, challenge]);
+  }, [code, step]);
 
-  if (challenge) {
+  if (step.name === 'totp') {
+    const challenge = step.challenge;
     return (
       <div className="flex w-full flex-1 items-center justify-center">
         <form
           method="post"
           onSubmit={(event) => {
             event.preventDefault();
-            void confirmTotp(totpCode);
+            void confirmTotp(code);
           }}
           className="flex w-full max-w-[420px] flex-col items-center gap-4 text-center"
         >
@@ -120,8 +186,8 @@ export function LoginForm() {
           ) : null}
           <OtpCodeInput
             label={t('totpCode')}
-            value={totpCode}
-            onChange={setTotpCode}
+            value={code}
+            onChange={setCode}
             disabled={pending}
             autoFocus
           />
@@ -130,9 +196,99 @@ export function LoginForm() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : null}
-          <Button type="submit" className="w-full" disabled={pending || totpCode.length !== 6}>
+          <Button type="submit" className="w-full" disabled={pending || code.length !== 6}>
             {pending ? <Spinner data-icon="inline-start" /> : null}
             {t('confirmTotp')}
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
+  if (step.name === 'otp-email' || step.name === 'otp-code') {
+    return (
+      <div className="flex w-full flex-1 items-center justify-center">
+        <form
+          method="post"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (step.name === 'otp-email') void requestOtp(otpEmail);
+            else void confirmOtp(code);
+          }}
+          className="flex w-full max-w-[420px] flex-col items-center gap-4 text-center"
+        >
+          <h1 className="text-2xl font-semibold">{t('otpTitle')}</h1>
+          {step.name === 'otp-email' ? (
+            <>
+              <p className="text-sm text-muted-foreground">{t('otpHint')}</p>
+              <FieldGroup className="w-full text-left">
+                <Field>
+                  <FieldLabel htmlFor="otp-email">{t('email')}</FieldLabel>
+                  <Input
+                    id="otp-email"
+                    name="email"
+                    type="email"
+                    required
+                    autoFocus
+                    value={otpEmail}
+                    onChange={(event) => setOtpEmail(event.target.value)}
+                  />
+                </Field>
+              </FieldGroup>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">{t('otpSent')}</p>
+              {step.devCode ? (
+                <Alert className="w-full text-left">
+                  <AlertDescription>
+                    {t('otpDevCode')}{' '}
+                    <span className="font-mono tracking-widest">{step.devCode}</span>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              <OtpCodeInput
+                label={t('otpCode')}
+                value={code}
+                onChange={setCode}
+                disabled={pending}
+                autoFocus
+              />
+            </>
+          )}
+          {error ? (
+            <Alert variant="destructive" className="w-full text-left">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={pending || (step.name === 'otp-code' && code.length !== 6)}
+          >
+            {pending ? <Spinner data-icon="inline-start" /> : null}
+            {step.name === 'otp-email' ? t('sendCode') : t('confirmOtp')}
+          </Button>
+          {step.name === 'otp-code' ? (
+            <Button
+              type="button"
+              variant="link"
+              disabled={pending}
+              onClick={() => void requestOtp(step.email)}
+            >
+              {t('sendAgain')}
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="link"
+            onClick={() => {
+              setError(null);
+              setCode('');
+              setStep({ name: 'password' });
+            }}
+          >
+            {t('usePassword')}
           </Button>
         </form>
       </div>
@@ -165,6 +321,16 @@ export function LoginForm() {
         <Button type="submit" className="w-full" disabled={pending}>
           {pending ? <Spinner data-icon="inline-start" /> : null}
           {t('continue')}
+        </Button>
+        <Button
+          type="button"
+          variant="link"
+          onClick={() => {
+            setError(null);
+            setStep({ name: 'otp-email' });
+          }}
+        >
+          {t('useCode')}
         </Button>
       </form>
     </div>

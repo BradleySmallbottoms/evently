@@ -1,18 +1,39 @@
 import {
   ADMIN_CHALLENGE_TTL_SECONDS,
+  ADMIN_LOGIN_OTP_MAX_ATTEMPTS,
+  ADMIN_LOGIN_OTP_MAX_REQUESTS,
+  ADMIN_LOGIN_OTP_PURPOSE,
+  ADMIN_LOGIN_OTP_TTL_SECONDS,
+  ADMIN_LOGIN_OTP_WINDOW_SECONDS,
   ADMIN_SESSION_TTL_SECONDS,
+  decideLoginOtpConfirm,
+  generateLoginOtp,
   generateSessionToken,
   generateTotpSecret,
   hashPassword,
   hashToken,
+  loginOtpHash,
+  loginOtpMatches,
   totpOtpauthUrl,
   verifyPassword,
   verifyTotpCode,
 } from '@local-events/auth';
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
-import { and, count, eq, gt, isNull } from 'drizzle-orm';
+import type { AdminSessionResponse } from '@local-events/contracts';
+import { and, count, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
+import { randomBytes } from 'node:crypto';
+import { createEmailWindowLimit } from './rate-limit';
 import { AdminAuthError, type AdminAuthServices } from './types';
+
+const DUMMY_LOGIN_OTP_HASH = hashToken('dummy-login-otp');
+
+function isUniqueViolation(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  if ('code' in err && (err as { code?: string }).code === '23505') return true;
+  if ('cause' in err) return isUniqueViolation((err as { cause?: unknown }).cause);
+  return false;
+}
 
 type ChallengeRow = {
   tokenHash: string;
@@ -32,10 +53,45 @@ function addSeconds(d: Date, seconds: number): Date {
  */
 export function createDbAdminAuthServices(
   db: Db,
-  env: { now?: () => Date; challenges?: Map<string, ChallengeRow> } = {},
+  env: {
+    now?: () => Date;
+    challenges?: Map<string, ChallengeRow>;
+    includeLoginOtp?: boolean;
+    otpPepper?: string;
+  } = {},
 ): AdminAuthServices {
   const now = env.now ?? (() => new Date());
   const challenges = env.challenges ?? new Map<string, ChallengeRow>();
+  const includeLoginOtp = env.includeLoginOtp ?? false;
+  const otpPepper = env.otpPepper ?? randomBytes(32).toString('hex');
+  const otpAttempts = new Map<string, number>();
+  const allowOtpRequest = createEmailWindowLimit({
+    now,
+    windowSeconds: ADMIN_LOGIN_OTP_WINDOW_SECONDS,
+    max: ADMIN_LOGIN_OTP_MAX_REQUESTS,
+  });
+
+  async function issueSession(
+    admin: { id: string; email: string; role: string },
+    at: Date,
+  ): Promise<AdminSessionResponse & { sessionToken: string }> {
+    const sessionToken = generateSessionToken();
+    const expiresAt = addSeconds(at, ADMIN_SESSION_TTL_SECONDS);
+    await db.insert(schema.sessions).values({
+      subjectType: 'admin',
+      subjectId: admin.id,
+      tokenHash: hashToken(sessionToken),
+      client: 'admin',
+      expiresAt,
+    });
+    return {
+      adminId: admin.id,
+      email: admin.email,
+      role: admin.role,
+      expiresAt: expiresAt.toISOString(),
+      sessionToken,
+    };
+  }
 
   function purgeChallenges(at: Date) {
     for (const [k, v] of challenges) {
@@ -162,21 +218,144 @@ export function createDbAdminAuthServices(
         }
       }
 
-      const sessionToken = generateSessionToken();
-      const expiresAt = addSeconds(at, ADMIN_SESSION_TTL_SECONDS);
-      await db.insert(schema.sessions).values({
-        subjectType: 'admin',
-        subjectId: admin.id,
-        tokenHash: hashToken(sessionToken),
-        client: 'admin',
-        expiresAt,
+      return issueSession(admin, at);
+    },
+
+    async requestOtp(input) {
+      const email = input.email.toLowerCase();
+      if (!allowOtpRequest(email)) throw new AdminAuthError('otp_rate_limited');
+      const [admin] = await db
+        .select()
+        .from(schema.adminUsers)
+        .where(eq(schema.adminUsers.email, email))
+        .limit(1);
+      if (!admin) return { status: 'code_sent' as const };
+      const at = now();
+      let code = '';
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        code = generateLoginOtp();
+        try {
+          await db.transaction(async (tx) => {
+            await tx.execute(sql`select id from admin_users where id = ${admin.id} for update`);
+            const retired = await tx
+              .update(schema.emailVerificationTokens)
+              .set({ usedAt: at })
+              .where(
+                and(
+                  eq(schema.emailVerificationTokens.purpose, ADMIN_LOGIN_OTP_PURPOSE),
+                  eq(schema.emailVerificationTokens.subjectId, admin.id),
+                  isNull(schema.emailVerificationTokens.usedAt),
+                ),
+              )
+              .returning({ id: schema.emailVerificationTokens.id });
+            for (const row of retired) otpAttempts.delete(row.id);
+            const [inserted] = await tx
+              .insert(schema.emailVerificationTokens)
+              .values({
+                purpose: ADMIN_LOGIN_OTP_PURPOSE,
+                subjectId: admin.id,
+                tokenHash: loginOtpHash(code, otpPepper),
+                expiresAt: addSeconds(at, ADMIN_LOGIN_OTP_TTL_SECONDS),
+              })
+              .returning({ id: schema.emailVerificationTokens.id });
+            if (inserted) otpAttempts.set(inserted.id, 0);
+          });
+          return includeLoginOtp
+            ? { status: 'code_sent' as const, code }
+            : { status: 'code_sent' as const };
+        } catch (err) {
+          if (!isUniqueViolation(err)) throw err;
+        }
+      }
+      throw new Error('admin_otp_code_collision');
+    },
+
+    async confirmOtp(input) {
+      const email = input.email.toLowerCase();
+      const at = now();
+      const [admin] = await db
+        .select()
+        .from(schema.adminUsers)
+        .where(eq(schema.adminUsers.email, email))
+        .limit(1);
+      if (!admin) {
+        loginOtpMatches(input.code, otpPepper, DUMMY_LOGIN_OTP_HASH);
+        throw new AdminAuthError('invalid_otp');
+      }
+      const open = await db
+        .select({
+          id: schema.emailVerificationTokens.id,
+          tokenHash: schema.emailVerificationTokens.tokenHash,
+          expiresAt: schema.emailVerificationTokens.expiresAt,
+        })
+        .from(schema.emailVerificationTokens)
+        .where(
+          and(
+            eq(schema.emailVerificationTokens.purpose, ADMIN_LOGIN_OTP_PURPOSE),
+            eq(schema.emailVerificationTokens.subjectId, admin.id),
+            isNull(schema.emailVerificationTokens.usedAt),
+          ),
+        );
+      const decision = decideLoginOtpConfirm({
+        code: input.code,
+        pepper: otpPepper,
+        records: open.map((row) => ({
+          id: row.id,
+          tokenHash: row.tokenHash,
+          expiresAt: row.expiresAt,
+          attempts: otpAttempts.get(row.id) ?? 0,
+        })),
+        now: at,
+        maxAttempts: ADMIN_LOGIN_OTP_MAX_ATTEMPTS,
       });
+      if (!decision.ok) {
+        for (const next of decision.attempts) otpAttempts.set(next.id, next.attempts);
+        if (decision.burnIds.length > 0) {
+          await db
+            .update(schema.emailVerificationTokens)
+            .set({ usedAt: at })
+            .where(
+              and(
+                inArray(schema.emailVerificationTokens.id, decision.burnIds),
+                isNull(schema.emailVerificationTokens.usedAt),
+              ),
+            );
+          for (const id of decision.burnIds) otpAttempts.delete(id);
+        }
+        throw new AdminAuthError(decision.code);
+      }
+      const consumed = await db.transaction(async (tx) => {
+        const [row] = await tx
+          .update(schema.emailVerificationTokens)
+          .set({ usedAt: at })
+          .where(
+            and(
+              eq(schema.emailVerificationTokens.id, decision.id),
+              isNull(schema.emailVerificationTokens.usedAt),
+              gt(schema.emailVerificationTokens.expiresAt, at),
+            ),
+          )
+          .returning({ id: schema.emailVerificationTokens.id });
+        if (!row) return false;
+        const sessionToken = generateSessionToken();
+        const expiresAt = addSeconds(at, ADMIN_SESSION_TTL_SECONDS);
+        await tx.insert(schema.sessions).values({
+          subjectType: 'admin',
+          subjectId: admin.id,
+          tokenHash: hashToken(sessionToken),
+          client: 'admin',
+          expiresAt,
+        });
+        return { sessionToken, expiresAt };
+      });
+      if (!consumed) throw new AdminAuthError('invalid_otp');
+      otpAttempts.delete(decision.id);
       return {
         adminId: admin.id,
         email: admin.email,
         role: admin.role,
-        expiresAt: expiresAt.toISOString(),
-        sessionToken,
+        expiresAt: consumed.expiresAt.toISOString(),
+        sessionToken: consumed.sessionToken,
       };
     },
 

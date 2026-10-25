@@ -46,6 +46,30 @@ export const AdminTotpConfirmRequest = z.object({
 });
 export type AdminTotpConfirmRequest = z.infer<typeof AdminTotpConfirmRequest>;
 
+export const AdminOtpLoginRequest = z.object({
+  email: z.email().trim().toLowerCase(),
+});
+export type AdminOtpLoginRequest = z.infer<typeof AdminOtpLoginRequest>;
+
+export const AdminOtpLoginResponse = z.object({
+  status: z.literal('code_sent'),
+  /**
+   * Present only when the server is allowed to reveal the code (local/dev, until mail exists).
+   * Omitted for an unknown email so a production response never distinguishes accounts.
+   */
+  code: z
+    .string()
+    .regex(/^\d{6}$/)
+    .optional(),
+});
+export type AdminOtpLoginResponse = z.infer<typeof AdminOtpLoginResponse>;
+
+export const AdminOtpConfirmRequest = z.object({
+  email: z.email().trim().toLowerCase(),
+  code: z.string().regex(/^\d{6}$/),
+});
+export type AdminOtpConfirmRequest = z.infer<typeof AdminOtpConfirmRequest>;
+
 export const AdminSessionResponse = z.object({
   adminId: Id,
   email: z.email(),
@@ -328,6 +352,7 @@ export const AdminEventListItem = z.object({
   occasions: z.array(EventOccasion).optional(),
   sourceUrl: z.string().nullable(),
   featured: z.boolean(),
+  sponsored: z.boolean(),
   checkInEnabled: z.boolean(),
   contentVerdict: ContentVerdict,
   /** Rows in `event_tags` for this event. */
@@ -352,6 +377,11 @@ export const AdminOccasionGroupResponse = z.object({
   items: z.array(AdminOccasionGroupItem),
 });
 export type AdminOccasionGroupResponse = z.infer<typeof AdminOccasionGroupResponse>;
+
+export const AdminPosterResponse = z.object({
+  posterUrl: z.url().nullable(),
+});
+export type AdminPosterResponse = z.infer<typeof AdminPosterResponse>;
 
 export const AdminCollapseOccasionsRequest = z.object({
   eventIds: z.array(Id).min(1).max(100),
@@ -404,6 +434,8 @@ export const AdminEventDetail = AdminEventListItem.extend({
   imageUrl: z.url().nullable(),
   /** Photos after the hero, `gallery-1` then `gallery-2`, and so on. */
   imageUrls: z.array(z.url()),
+  /** Sponsored poster. Null when the event has none or the public asset host is unset. */
+  posterUrl: z.url().nullable(),
   /** Raw model JSON from the import scan. Null until a scan writes it. */
   llmOutput: z.unknown().nullable(),
   updatedAt: z.iso.datetime(),
@@ -445,6 +477,7 @@ export const AdminEventPatchRequest = z
     links: z.array(EventLinkInput).max(10).optional(),
     tagIds: z.array(Id).max(20).optional(),
     featured: z.boolean().optional(),
+    sponsored: z.boolean().optional(),
     checkInEnabled: z.boolean().optional(),
   })
   .refine(

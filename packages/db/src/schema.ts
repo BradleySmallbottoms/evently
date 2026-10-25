@@ -456,6 +456,8 @@ export const events = pgTable(
     meta: jsonb('meta').notNull().default({}),
     /** Admin pick shown first on the home feed. Distinct from future paid placements. */
     featured: boolean('featured').notNull().default(false),
+    /** Admin pick shown as a poster in the upcoming lists. A later import does not clear it. */
+    sponsored: boolean('sponsored').notNull().default(false),
     /** Admin opt-in. When false, check-in and the text/links it unlocks are unavailable. */
     checkInEnabled: boolean('check_in_enabled').notNull().default(false),
     /** Extra text the publisher writes. Returned only after check-in. */
@@ -760,7 +762,7 @@ export const eventImages = pgTable(
     eventId: uuid('event_id')
       .notNull()
       .references(() => events.id, { onDelete: 'cascade' }),
-    /** `main` is the hero. More roles can share this table. */
+    /** `main` is the hero. `poster` is the sponsored image. Gallery roles are `gallery-N`. */
     role: text('role').notNull().default('main'),
     s3Key: text('s3_key').notNull(),
     sourceUrl: text('source_url'),

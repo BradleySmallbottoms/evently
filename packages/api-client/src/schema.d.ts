@@ -2489,8 +2489,11 @@ export interface paths {
                 /** Format: uri */
                 imageUrl: string | null;
                 imageUrls: string[];
+                /** Format: uri */
+                posterUrl: string | null;
                 tagIds: string[];
                 featured: boolean;
+                sponsored: boolean;
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
@@ -2762,8 +2765,11 @@ export interface paths {
                 /** Format: uri */
                 imageUrl: string | null;
                 imageUrls: string[];
+                /** Format: uri */
+                posterUrl: string | null;
                 tagIds: string[];
                 featured: boolean;
+                sponsored: boolean;
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
@@ -3041,8 +3047,11 @@ export interface paths {
                   /** Format: uri */
                   imageUrl: string | null;
                   imageUrls: string[];
+                  /** Format: uri */
+                  posterUrl: string | null;
                   tagIds: string[];
                   featured: boolean;
+                  sponsored: boolean;
                   checkInEnabled: boolean;
                   numSaved: number;
                   numComing: number;
@@ -3202,8 +3211,11 @@ export interface paths {
                 /** Format: uri */
                 imageUrl: string | null;
                 imageUrls: string[];
+                /** Format: uri */
+                posterUrl: string | null;
                 tagIds: string[];
                 featured: boolean;
+                sponsored: boolean;
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
@@ -3443,8 +3455,11 @@ export interface paths {
                 /** Format: uri */
                 imageUrl: string | null;
                 imageUrls: string[];
+                /** Format: uri */
+                posterUrl: string | null;
                 tagIds: string[];
                 featured: boolean;
+                sponsored: boolean;
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
@@ -3836,8 +3851,11 @@ export interface paths {
                 /** Format: uri */
                 imageUrl: string | null;
                 imageUrls: string[];
+                /** Format: uri */
+                posterUrl: string | null;
                 tagIds: string[];
                 featured: boolean;
+                sponsored: boolean;
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
@@ -4033,8 +4051,11 @@ export interface paths {
               /** Format: uri */
               imageUrl: string | null;
               imageUrls: string[];
+              /** Format: uri */
+              posterUrl: string | null;
               tagIds: string[];
               featured: boolean;
+              sponsored: boolean;
               checkInEnabled: boolean;
               numSaved: number;
               numComing: number;
@@ -4220,8 +4241,11 @@ export interface paths {
                 /** Format: uri */
                 imageUrl: string | null;
                 imageUrls: string[];
+                /** Format: uri */
+                posterUrl: string | null;
                 tagIds: string[];
                 featured: boolean;
+                sponsored: boolean;
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
@@ -4419,8 +4443,11 @@ export interface paths {
                 /** Format: uri */
                 imageUrl: string | null;
                 imageUrls: string[];
+                /** Format: uri */
+                posterUrl: string | null;
                 tagIds: string[];
                 featured: boolean;
+                sponsored: boolean;
                 checkInEnabled: boolean;
                 numSaved: number;
                 numComing: number;
@@ -4569,8 +4596,11 @@ export interface paths {
               /** Format: uri */
               imageUrl: string | null;
               imageUrls: string[];
+              /** Format: uri */
+              posterUrl: string | null;
               tagIds: string[];
               featured: boolean;
+              sponsored: boolean;
               checkInEnabled: boolean;
               numSaved: number;
               numComing: number;
@@ -4732,8 +4762,11 @@ export interface paths {
               /** Format: uri */
               imageUrl: string | null;
               imageUrls: string[];
+              /** Format: uri */
+              posterUrl: string | null;
               tagIds: string[];
               featured: boolean;
+              sponsored: boolean;
               checkInEnabled: boolean;
               numSaved: number;
               numComing: number;
@@ -4956,8 +4989,11 @@ export interface paths {
               /** Format: uri */
               imageUrl: string | null;
               imageUrls: string[];
+              /** Format: uri */
+              posterUrl: string | null;
               tagIds: string[];
               featured: boolean;
+              sponsored: boolean;
               checkInEnabled: boolean;
               numSaved: number;
               numComing: number;
@@ -5137,8 +5173,11 @@ export interface paths {
               /** Format: uri */
               imageUrl: string | null;
               imageUrls: string[];
+              /** Format: uri */
+              posterUrl: string | null;
               tagIds: string[];
               featured: boolean;
+              sponsored: boolean;
               checkInEnabled: boolean;
               numSaved: number;
               numComing: number;
@@ -5314,8 +5353,11 @@ export interface paths {
               /** Format: uri */
               imageUrl: string | null;
               imageUrls: string[];
+              /** Format: uri */
+              posterUrl: string | null;
               tagIds: string[];
               featured: boolean;
+              sponsored: boolean;
               checkInEnabled: boolean;
               numSaved: number;
               numComing: number;

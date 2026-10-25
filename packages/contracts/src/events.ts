@@ -277,8 +277,12 @@ export const Event = z.object({
   imageUrl: z.url().nullable(),
   /** Photos after the hero, `gallery-1` then `gallery-2`, and so on. Empty when there are none. */
   imageUrls: z.array(z.url()),
+  /** Sponsored poster. Null when the event has none or the public asset host is unset. */
+  posterUrl: z.url().nullable(),
   tagIds: z.array(Id),
   featured: z.boolean(),
+  /** Shown with its poster in the upcoming lists. */
+  sponsored: z.boolean(),
   /** When false, the event has no check-in and no attendee-only text or links. */
   checkInEnabled: z.boolean(),
   /** Lifetime saves. 0 when the stats row is missing. */

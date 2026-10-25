@@ -93,6 +93,7 @@ type LocRow = {
   meta: unknown;
   publisherName: string;
   featured: boolean;
+  sponsored: boolean;
   checkInEnabled: boolean;
   numSaved: number;
   numComing: number;
@@ -198,6 +199,7 @@ function mapEvent(
   row: LocRow & { startsAt: Date; endsAt: Date },
   tagIds: string[],
   imageKey: string | null,
+  posterKey: string | null,
   gallery: readonly { role: string; s3Key: string }[],
   links: EventLink[],
   occasions: {
@@ -232,8 +234,10 @@ function mapEvent(
     links,
     imageUrl: publicAssetUrl(baseUrl, imageKey),
     imageUrls: publicGalleryUrls(baseUrl, gallery),
+    posterUrl: publicAssetUrl(baseUrl, posterKey),
     tagIds,
     featured: row.featured,
+    sponsored: row.sponsored,
     checkInEnabled: row.checkInEnabled,
     numSaved: Number(row.numSaved ?? 0),
     numComing: Number(row.numComing ?? 0),
@@ -320,6 +324,7 @@ const eventSelect = {
   meta: schema.events.meta,
   publisherName: schema.publishers.name,
   featured: schema.events.featured,
+  sponsored: schema.events.sponsored,
   checkInEnabled: schema.events.checkInEnabled,
   numSaved: lifetimeStat('numSaved'),
   numComing: lifetimeStat('numComing'),
@@ -466,9 +471,9 @@ export function createDbEventServices(
   async function imagesFor(eventIds: string[]) {
     const grouped = new Map<
       string,
-      { main: string | null; gallery: { role: string; s3Key: string }[] }
+      { main: string | null; poster: string | null; gallery: { role: string; s3Key: string }[] }
     >();
-    for (const id of eventIds) grouped.set(id, { main: null, gallery: [] });
+    for (const id of eventIds) grouped.set(id, { main: null, poster: null, gallery: [] });
     if (eventIds.length === 0) return grouped;
     const rows = await db
       .select({
@@ -479,8 +484,9 @@ export function createDbEventServices(
       .from(eventImages)
       .where(inArray(eventImages.eventId, eventIds));
     for (const row of rows) {
-      const entry = grouped.get(row.eventId) ?? { main: null, gallery: [] };
+      const entry = grouped.get(row.eventId) ?? { main: null, poster: null, gallery: [] };
       if (row.role === 'main') entry.main = row.s3Key;
+      if (row.role === 'poster') entry.poster = row.s3Key;
       entry.gallery.push({ role: row.role, s3Key: row.s3Key });
       grouped.set(row.eventId, entry);
     }
@@ -533,7 +539,11 @@ export function createDbEventServices(
   function toEvent(
     row: LocRow & { startsAt: Date; endsAt: Date },
     tagIds: string[],
-    images: { main: string | null; gallery: { role: string; s3Key: string }[] },
+    images: {
+      main: string | null;
+      poster: string | null;
+      gallery: { role: string; s3Key: string }[];
+    },
     links: EventLink[],
     occasions: {
       id: string;
@@ -547,6 +557,7 @@ export function createDbEventServices(
       row,
       tagIds,
       images.main,
+      images.poster,
       images.gallery,
       links,
       occasions,
@@ -627,7 +638,11 @@ export function createDbEventServices(
     const dated = row ? withDates(row) : null;
     if (!dated) return null;
     const stored = (await linksFor([eventId])).get(eventId) ?? [];
-    const images = (await imagesFor([eventId])).get(eventId) ?? { main: null, gallery: [] };
+    const images = (await imagesFor([eventId])).get(eventId) ?? {
+      main: null,
+      poster: null,
+      gallery: [],
+    };
     const occasions = (await occasionsFor([eventId])).get(eventId) ?? [];
     return {
       ...toEvent(dated, await tagIdsFor(eventId), images, publicLinks(stored), occasions),
@@ -722,7 +737,7 @@ export function createDbEventServices(
           toEvent(
             dated,
             await tagIdsFor(row.id),
-            images.get(row.id) ?? { main: null, gallery: [] },
+            images.get(row.id) ?? { main: null, poster: null, gallery: [] },
             publicLinks(links.get(row.id) ?? []),
             occasions.get(row.id) ?? [],
           ),
@@ -969,7 +984,7 @@ export function createDbEventServices(
           toEvent(
             dated,
             await tagIdsFor(row.id),
-            images.get(row.id) ?? { main: null, gallery: [] },
+            images.get(row.id) ?? { main: null, poster: null, gallery: [] },
             publicLinks(links.get(row.id) ?? []),
             eventOccasions,
           ),
@@ -1017,7 +1032,7 @@ export function createDbEventServices(
           toEvent(
             dated,
             await tagIdsFor(row.id),
-            images.get(row.id) ?? { main: null, gallery: [] },
+            images.get(row.id) ?? { main: null, poster: null, gallery: [] },
             publicLinks(links.get(row.id) ?? []),
             eventOccasions,
           ),

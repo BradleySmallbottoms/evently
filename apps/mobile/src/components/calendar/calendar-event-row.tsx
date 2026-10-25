@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { EventImage } from '@/components/ui/event-image';
+import { SponsoredPill } from '@/components/ui/sponsored-event-card';
 import { TagPills } from '@/components/ui/tag-pills';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
@@ -18,6 +19,8 @@ type Props = {
   tags: string[];
   priceLabel?: string | null;
   imageUrl?: string | null;
+  /** Shown on the thumbnail when this row is sponsored and has no poster. */
+  sponsoredLabel?: string;
   saved?: boolean;
   saveLabel: string;
   onPress: () => void;
@@ -74,6 +77,7 @@ export function CalendarEventRow({
   tags,
   priceLabel,
   imageUrl,
+  sponsoredLabel,
   saved,
   saveLabel,
   onPress,
@@ -111,6 +115,11 @@ export function CalendarEventRow({
             >
               <EventImage imageUrl={imageUrl} tags={tags} style={{ width: THUMB, height: THUMB }} />
             </View>
+            {sponsoredLabel ? (
+              <View style={{ position: 'absolute', left: 4, top: 4, right: 4 }}>
+                <SponsoredPill label={sponsoredLabel} size="sm" />
+              </View>
+            ) : null}
             <View style={{ position: 'absolute', left: 6, bottom: -6 }}>
               <TimePill start={startLabel} end={endLabel} />
             </View>

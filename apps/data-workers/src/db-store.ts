@@ -4,6 +4,7 @@ import { mergeEventAddress } from '@local-events/domain';
 import { insertApprovedEventReminders, pointEwkt, schema } from '@local-events/db';
 import {
   choosePublisher,
+  occasionVenueOnImport,
   DUPLICATE_RADIUS_M,
   DUPLICATE_WINDOW_MINUTES,
   IMPORT_NOTIFICATION_AUDIENCE,
@@ -175,11 +176,43 @@ export function createDbIngestStore(db: Db): IngestStore {
       .where(and(eq(eventOccasions.eventId, eventId), isNull(eventOccasions.location)));
   }
 
+  /** The venue the scan chose, on every showing. `events` has no venue column. */
+  async function writeScanVenue(
+    tx: Pick<Db, 'update'>,
+    eventId: string,
+    venueName: string | undefined,
+  ) {
+    if (!venueName) return;
+    await tx
+      .update(eventOccasions)
+      .set({ venueName, updatedAt: new Date() })
+      .where(eq(eventOccasions.eventId, eventId));
+  }
+
   async function replaceOccasions(
-    tx: Pick<Db, 'insert' | 'delete'>,
+    tx: Pick<Db, 'insert' | 'delete' | 'select'>,
     eventId: string,
     incoming: ImportedEventWrite['event'],
   ) {
+    const [event] = await tx
+      .select({ status: events.status })
+      .from(events)
+      .where(eq(events.id, eventId))
+      .limit(1);
+    const previous = await tx
+      .select({
+        sourceKey: eventOccasions.sourceKey,
+        venueName: eventOccasions.venueName,
+      })
+      .from(eventOccasions)
+      .where(eq(eventOccasions.eventId, eventId));
+    const byKey = new Map(
+      previous.flatMap((row) =>
+        row.sourceKey && row.venueName ? [[row.sourceKey, row.venueName] as const] : [],
+      ),
+    );
+    const previousAny = previous.find((row) => row.venueName)?.venueName ?? null;
+    const scanned = event != null && event.status !== 'pending_scan';
     await tx.delete(eventOccasions).where(eq(eventOccasions.eventId, eventId));
     const occasions = importOccasions(incoming);
     if (occasions.length === 0) return;
@@ -188,7 +221,12 @@ export function createDbIngestStore(db: Db): IngestStore {
         eventId,
         startsAt: occasion.startsAt,
         endsAt: occasion.endsAt,
-        venueName: occasion.venueName,
+        venueName: occasionVenueOnImport({
+          scanned,
+          incoming: occasion.venueName,
+          previousForKey: byKey.get(occasion.sourceKey) ?? null,
+          previousAny,
+        }),
         location: occasion.location,
         sourceKey: occasion.sourceKey,
       })),
@@ -1283,7 +1321,6 @@ export function createDbIngestStore(db: Db): IngestStore {
             ...(input.startsAt && input.endsAt
               ? { startsAt: input.startsAt, endsAt: input.endsAt }
               : {}),
-            ...(input.venueName ? { venueName: input.venueName } : {}),
           })
           .where(
             and(
@@ -1296,6 +1333,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         if (updated.length === 0) return false;
         await writeTags(tx, input.eventId, input.tagIds);
         await fillOccasionPoints(tx, input.eventId, input.location);
+        await writeScanVenue(tx, input.eventId, input.venueName);
         return true;
       });
     },
@@ -1317,7 +1355,6 @@ export function createDbIngestStore(db: Db): IngestStore {
             ...(input.startsAt && input.endsAt
               ? { startsAt: input.startsAt, endsAt: input.endsAt }
               : {}),
-            ...(input.venueName ? { venueName: input.venueName } : {}),
           })
           .where(
             and(
@@ -1332,6 +1369,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         if (updated.length === 0) return false;
         await writeTags(tx, input.eventId, input.tagIds);
         await fillOccasionPoints(tx, input.eventId, input.location);
+        await writeScanVenue(tx, input.eventId, input.venueName);
         return true;
       });
     },

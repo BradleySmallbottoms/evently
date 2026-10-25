@@ -39,6 +39,7 @@ type LocRow = {
   meta: unknown;
   publisherName: string;
   featured: boolean;
+  sponsored: boolean;
   checkInEnabled: boolean;
   numSaved: number;
   numComing: number;
@@ -51,6 +52,7 @@ function mapRow(
   tagIds: string[],
   imageUrl: string | null,
   imageUrls: string[],
+  posterUrl: string | null,
   links: EventLink[],
 ): Event {
   const startsAt = dbTimestamp(row.startsAt);
@@ -79,8 +81,10 @@ function mapRow(
     links,
     imageUrl,
     imageUrls,
+    posterUrl,
     tagIds,
     featured: row.featured,
+    sponsored: row.sponsored,
     checkInEnabled: row.checkInEnabled,
     numSaved: Number(row.numSaved ?? 0),
     numComing: Number(row.numComing ?? 0),
@@ -191,6 +195,7 @@ export function createDbLibraryServices(
     meta: events.meta,
     publisherName: publishers.name,
     featured: events.featured,
+    sponsored: events.sponsored,
     checkInEnabled: events.checkInEnabled,
     numSaved: lifetimeStat('numSaved'),
     numComing: lifetimeStat('numComing'),
@@ -232,6 +237,10 @@ export function createDbLibraryServices(
             pictures.find((item) => item.role === 'main')?.s3Key ?? null,
           ),
           publicGalleryUrls(env.assetsPublicBaseUrl, pictures),
+          publicAssetUrl(
+            env.assetsPublicBaseUrl,
+            pictures.find((item) => item.role === 'poster')?.s3Key ?? null,
+          ),
           links
             .filter((item) => item.eventId === row.id && item.audience !== 'attendees')
             .map((item) => ({
