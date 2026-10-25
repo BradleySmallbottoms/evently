@@ -10,7 +10,7 @@ import type {
 } from '@local-events/contracts';
 import { OCCASION_LIST_LIMIT, publicEventMeta, publicEventTagIds } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
-import { cancelOpenPushMessages, pointEwkt, schema } from '@local-events/db';
+import { cancelOpenPushMessages, occasionEndsAtSql, pointEwkt, schema } from '@local-events/db';
 import {
   canCancelEvent,
   canEditEvent,
@@ -1049,11 +1049,7 @@ export async function verifyPublisherInDb(
     .select({
       id: schema.events.id,
       status: schema.events.status,
-      endsAt: sql<Date | null>`(
-        select max(${schema.eventOccasions.endsAt})
-        from ${schema.eventOccasions}
-        where ${schema.eventOccasions.eventId} = ${schema.events.id}
-      )`,
+      endsAt: occasionEndsAtSql(),
     })
     .from(schema.events)
     .where(

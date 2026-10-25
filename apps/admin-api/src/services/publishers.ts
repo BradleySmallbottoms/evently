@@ -12,7 +12,13 @@ import type {
   VerifyPublisherResponse,
 } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
-import { approveOpenPushMessagesForPublisher, schema } from '@local-events/db';
+import {
+  approveOpenPushMessagesForPublisher,
+  occasionEndsAtSql,
+  occasionStartsAtSql,
+  occasionVenueNameSql,
+  schema,
+} from '@local-events/db';
 import {
   importNotificationMessages,
   canDeletePublisher,
@@ -23,7 +29,7 @@ import {
   type MarketingPushPlanId,
   type PublisherStatus,
 } from '@local-events/domain';
-import { and, asc, count, desc, eq, ne, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ne } from 'drizzle-orm';
 import { scheduleImportPlanForPublisher } from './import-notifications';
 import { createMemoryDomainEventPublisher } from './domain-events/memory';
 import { enqueueDomainEvent, type DomainEventPublisher } from './domain-events/types';
@@ -449,11 +455,7 @@ export function createDbAdminPublisherServices(
         .select({
           id: schema.events.id,
           status: schema.events.status,
-          endsAt: sql<Date | null>`(
-            select max(${schema.eventOccasions.endsAt})
-            from ${schema.eventOccasions}
-            where ${schema.eventOccasions.eventId} = ${schema.events.id}
-          )`,
+          endsAt: occasionEndsAtSql(),
         })
         .from(schema.events)
         .where(
@@ -710,33 +712,13 @@ export function createDbAdminPublisherServices(
           id: schema.events.id,
           title: schema.events.title,
           status: schema.events.status,
-          startsAt: sql<Date | null>`(
-            select min(${schema.eventOccasions.startsAt})
-            from ${schema.eventOccasions}
-            where ${schema.eventOccasions.eventId} = ${schema.events.id}
-          )`,
-          endsAt: sql<Date | null>`(
-            select max(${schema.eventOccasions.endsAt})
-            from ${schema.eventOccasions}
-            where ${schema.eventOccasions.eventId} = ${schema.events.id}
-          )`,
-          venueName: sql<string | null>`(
-            select ${schema.eventOccasions.venueName}
-            from ${schema.eventOccasions}
-            where ${schema.eventOccasions.eventId} = ${schema.events.id}
-            order by ${schema.eventOccasions.startsAt} asc
-            limit 1
-          )`,
+          startsAt: occasionStartsAtSql(),
+          endsAt: occasionEndsAtSql(),
+          venueName: occasionVenueNameSql(),
         })
         .from(schema.events)
         .where(and(eq(schema.events.publisherId, publisherId), ne(schema.events.status, 'deleted')))
-        .orderBy(
-          sql`(
-            select min(${schema.eventOccasions.startsAt})
-            from ${schema.eventOccasions}
-            where ${schema.eventOccasions.eventId} = ${schema.events.id}
-          ) desc`,
-        )
+        .orderBy(desc(occasionStartsAtSql()))
         .limit(PUBLISHER_EVENT_LIST_LIMIT);
       return {
         total: Number(counted?.total ?? 0),

@@ -12,6 +12,7 @@ export {
   geographyMultiPolygon,
 } from './postgis';
 export { markTipPublished } from './tips';
+export { occasionEndsAtSql, occasionStartsAtSql, occasionVenueNameSql } from './occasion-span';
 export {
   approveOpenPushMessagesForPublisher,
   approvePendingPushMessagesForEvent,

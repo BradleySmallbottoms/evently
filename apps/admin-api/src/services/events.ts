@@ -24,6 +24,9 @@ import {
   approvePendingPushMessagesForEvent,
   cancelOpenPushMessages,
   markTipPublished,
+  occasionEndsAtSql,
+  occasionStartsAtSql,
+  occasionVenueNameSql,
   pointEwkt,
   schema,
 } from '@local-events/db';
@@ -1262,11 +1265,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           title: schema.events.title,
           origin: schema.events.origin,
           publisherId: schema.events.publisherId,
-          startsAt: sql<Date | null>`(
-            select min(${schema.eventOccasions.startsAt})
-            from ${schema.eventOccasions}
-            where ${schema.eventOccasions.eventId} = ${schema.events.id}
-          )`,
+          startsAt: occasionStartsAtSql(),
         })
         .from(schema.events)
         .where(eq(schema.events.id, eventId))
@@ -1483,23 +1482,9 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           id: schema.events.id,
           title: schema.events.title,
           status: schema.events.status,
-          startsAt: sql<Date | null>`(
-            select min(${schema.eventOccasions.startsAt})
-            from ${schema.eventOccasions}
-            where ${schema.eventOccasions.eventId} = ${schema.events.id}
-          )`,
-          endsAt: sql<Date | null>`(
-            select max(${schema.eventOccasions.endsAt})
-            from ${schema.eventOccasions}
-            where ${schema.eventOccasions.eventId} = ${schema.events.id}
-          )`,
-          venueName: sql<string | null>`(
-            select ${schema.eventOccasions.venueName}
-            from ${schema.eventOccasions}
-            where ${schema.eventOccasions.eventId} = ${schema.events.id}
-            order by ${schema.eventOccasions.startsAt} asc
-            limit 1
-          )`,
+          startsAt: occasionStartsAtSql(),
+          endsAt: occasionEndsAtSql(),
+          venueName: occasionVenueNameSql(),
         })
         .from(schema.events)
         .where(
@@ -1508,14 +1493,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
             inArray(schema.events.status, [...OPEN_OCCASION_STATUSES]),
           ),
         )
-        .orderBy(
-          sql`(
-            select min(${schema.eventOccasions.startsAt})
-            from ${schema.eventOccasions}
-            where ${schema.eventOccasions.eventId} = ${schema.events.id}
-          )`,
-          asc(schema.events.id),
-        );
+        .orderBy(occasionStartsAtSql(), asc(schema.events.id));
       return rows.map((row) => ({
         id: row.id,
         title: row.title,

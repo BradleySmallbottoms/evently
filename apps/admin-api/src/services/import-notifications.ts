@@ -1,12 +1,12 @@
 import type { Db } from '@local-events/db';
-import { insertApprovedEventReminders, schema } from '@local-events/db';
+import { insertApprovedEventReminders, occasionStartsAtSql, schema } from '@local-events/db';
 import {
   IMPORT_NOTIFICATION_AUDIENCE,
   importNotificationMessages,
   pushStatusForEvent,
   type MarketingPushPlanId,
 } from '@local-events/domain';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 /** Schedule a publisher plan for one imported event. Skips reminders already in the past. */
 export async function scheduleImportPlanForEvent(
@@ -53,12 +53,7 @@ export async function scheduleImportPlanForPublisher(
     .select({
       id: schema.events.id,
       title: schema.events.title,
-      startsAt: sql<Date | null>`(
-        select min(${schema.eventOccasions.startsAt})
-        from ${schema.eventOccasions}
-        where ${schema.eventOccasions.eventId} = ${schema.events.id}
-          and ${schema.eventOccasions.startsAt} > ${now}
-      )`,
+      startsAt: occasionStartsAtSql(now),
       status: schema.events.status,
     })
     .from(schema.events)

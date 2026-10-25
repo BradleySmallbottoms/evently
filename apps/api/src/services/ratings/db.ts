@@ -1,8 +1,8 @@
 import type { CreateRatingRequest, Rating } from '@local-events/contracts';
 import type { Db } from '@local-events/db';
-import { schema } from '@local-events/db';
+import { occasionEndsAtSql, schema } from '@local-events/db';
 import { canComment, canRate, RATING_WINDOW_DAYS } from '@local-events/domain';
-import { and, avg, count, eq, isNull, sql } from 'drizzle-orm';
+import { and, avg, count, eq, isNull } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { dbTimestamp } from '../db-values';
@@ -25,11 +25,7 @@ export function createDbRatingServices(
         id: schema.events.id,
         publisherId: schema.events.publisherId,
         status: schema.events.status,
-        endsAt: sql<Date | null>`(
-          select max(${schema.eventOccasions.endsAt})
-          from ${schema.eventOccasions}
-          where ${schema.eventOccasions.eventId} = ${schema.events.id}
-        )`,
+        endsAt: occasionEndsAtSql(),
       })
       .from(schema.events)
       .where(eq(schema.events.id, eventId))
