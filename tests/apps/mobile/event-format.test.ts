@@ -60,6 +60,18 @@ describe('featuredTicketLink', () => {
     expect(featuredTicketLink(links, null)?.url).toBe('https://riksteatern.se/show');
   });
 
+  it('does not treat a shop name in the path as the host', () => {
+    expect(
+      featuredTicketLink(
+        [
+          { url: 'https://venue.example/show', title: 'Info' },
+          { url: 'https://example.com/tickster', title: 'Evenemangslänk' },
+        ],
+        '150kr',
+      )?.url,
+    ).toBe('https://venue.example/show');
+  });
+
   it('puts a link that states its own price first', () => {
     expect(
       featuredTicketLink(

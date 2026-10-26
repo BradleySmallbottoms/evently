@@ -294,7 +294,7 @@ function ShareActions({
   }
   return (
     <View style={{ flexDirection: 'row', gap: space.sm }}>
-      {links.splice(0, 1).map((link) => (
+      {links.slice(0, 1).map((link) => (
         <Pressable
           key={link.key}
           accessibilityRole="button"

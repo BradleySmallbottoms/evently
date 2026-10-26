@@ -70,12 +70,21 @@ type TicketCandidate = {
   detail?: string | null;
 };
 
-/** A link states its own price, or it is a ticket shop when the event has one. */
+function ticketHost(link: TicketCandidate): string {
+  if (link.detail) return link.detail.toLowerCase();
+  try {
+    return new URL(link.url).host.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+/** A link states its own price, or its host is a ticket shop when the event has one. */
 function ticketOffersPrice(link: TicketCandidate, priceLabel?: string | null): boolean {
   const written = priceAmountFromText(`${link.label ?? ''} ${link.title ?? ''}`);
   if (written != null && written > 0) return true;
   if (!priceLabel) return false;
-  return TICKET_SHOP.test(`${link.detail ?? ''} ${link.url}`.toLowerCase());
+  return TICKET_SHOP.test(ticketHost(link));
 }
 
 /**
