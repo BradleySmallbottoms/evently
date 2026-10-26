@@ -14,11 +14,15 @@ const USER_ID = '33333333-3333-4333-8333-333333333333';
 
 function selects(...pages: unknown[][]) {
   const queue = [...pages];
+  const limit = async () => queue.shift() ?? [];
+  const where = () => ({
+    limit,
+    orderBy: () => ({ limit }),
+  });
   return () => ({
     from: () => ({
-      where: () => ({
-        limit: async () => queue.shift() ?? [],
-      }),
+      where,
+      leftJoin: () => ({ where }),
     }),
   });
 }
