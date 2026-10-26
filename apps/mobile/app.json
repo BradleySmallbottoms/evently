@@ -74,6 +74,14 @@
           }
         }
       ],
+      [
+        "expo-calendar",
+        {
+          "writeOnlyAccess": true,
+          "calendarPermission": "Används för att lägga till evenemang i din kalender.",
+          "writeOnlyCalendarPermission": "Används för att lägga till evenemang i din kalender."
+        }
+      ],
       "expo-secure-store",
       "expo-localization",
       "@sentry/react-native"

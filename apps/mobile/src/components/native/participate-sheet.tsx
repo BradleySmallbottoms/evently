@@ -15,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/ui/app-text';
+import { featuredTicketLink } from '@/lib/event-format';
 import { EventImage } from '@/components/ui/event-image';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { colors } from '@/theme/colors';
@@ -148,6 +149,8 @@ export function ParticipateSheet({
     void Linking.openURL(url);
   }
 
+  const featuredTicket = featuredTicketLink(tickets, priceLabel);
+
   return (
     <GestureDetector gesture={pan}>
       <Animated.View
@@ -216,15 +219,15 @@ export function ParticipateSheet({
                   <Glyph sf="flag" md="flag" size={20} color={colors.inkMuted as string} />
                 </Pressable>
               </View>
-              {tickets.map((link, index) => (
+              {featuredTicket ? (
                 <TicketButton
-                  key={link.key}
-                  vendor={link.detail}
+                  key={featuredTicket.key}
+                  vendor={featuredTicket.detail}
                   label={t('events.detail.buyTickets')}
-                  price={index === 0 ? priceLabel : null}
-                  onPress={() => openLink(link.url)}
+                  price={priceLabel}
+                  onPress={() => openLink(featuredTicket.url)}
                 />
-              ))}
+              ) : null}
               <View style={{ height: 1, backgroundColor: colors.line }} />
             </View>
           </View>
@@ -387,7 +390,15 @@ function TicketButton({
             </AppText>
           ) : null}
         </View>
-      ) : null}
+      ) : (
+        <View>
+          <AppText variant="caption" numberOfLines={2}>
+            {t('events.detail.buyTicketsFrom')}
+            {'\n'}
+            {vendor}
+          </AppText>
+        </View>
+      )}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={price ? `${label}, ${price}` : label}

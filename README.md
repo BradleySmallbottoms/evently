@@ -110,6 +110,12 @@ Operational and product facts that bite during local development. **Update this 
 a diagram under [`docs/flows/`](docs/flows/README.md) when the feature has complex client→API→DB
 calls) in the same change as every new major feature.**
 
+### Add to calendar
+
+- The event page opens the phone calendar with the next occasion filled in. iOS asks only for
+  permission to add events. That prompt is in the native build, so a development client built
+  before this change will not show it until it is rebuilt.
+
 ### Mobile updates
 
 - A release build checks EAS Update when the process starts. While that process stays alive it

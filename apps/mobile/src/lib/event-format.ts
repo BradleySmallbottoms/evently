@@ -1,4 +1,8 @@
-import { selectPrimaryLink, type PrimaryEventAction } from '@local-events/domain';
+import {
+  priceAmountFromText,
+  selectPrimaryLink,
+  type PrimaryEventAction,
+} from '@local-events/domain';
 
 import { isWholeDay } from './span-occasions';
 
@@ -57,11 +61,43 @@ export function primaryAction(
   return selectPrimaryLink(safeLinks, safeHttpUrl(onlineUrl));
 }
 
-/** First safe tickets URL. Registration and info links are left out. */
+const TICKET_SHOP = /tickster|nortic|ticketco/;
+
+type TicketCandidate = {
+  url: string;
+  label?: string | null;
+  title?: string | null;
+  detail?: string | null;
+};
+
+/** A link states its own price, or it is a ticket shop when the event has one. */
+function ticketOffersPrice(link: TicketCandidate, priceLabel?: string | null): boolean {
+  const written = priceAmountFromText(`${link.label ?? ''} ${link.title ?? ''}`);
+  if (written != null && written > 0) return true;
+  if (!priceLabel) return false;
+  return TICKET_SHOP.test(`${link.detail ?? ''} ${link.url}`.toLowerCase());
+}
+
+/**
+ * Ticket link to show. One that carries a price stays ahead of the others.
+ * Order is otherwise unchanged.
+ */
+export function featuredTicketLink<T extends TicketCandidate>(
+  links: readonly T[],
+  priceLabel?: string | null,
+): T | undefined {
+  if (links.length === 0) return undefined;
+  return [...links].sort(
+    (a, b) => Number(ticketOffersPrice(b, priceLabel)) - Number(ticketOffersPrice(a, priceLabel)),
+  )[0];
+}
+
+/** Ticket link for the event page. Registration and info links are left out. */
 export function ticketLink(
   links: readonly EventLink[],
+  priceLabel?: string | null,
 ): { url: string; label: string | null } | null {
-  const found = participateSheetLinks(links, null).tickets[0];
+  const found = featuredTicketLink(participateSheetLinks(links, null).tickets, priceLabel);
   if (!found) return null;
   return { url: found.url, label: found.label };
 }

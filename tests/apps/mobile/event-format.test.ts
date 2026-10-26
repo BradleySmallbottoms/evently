@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { participateSheetLinks, ticketLink } from '../../../apps/mobile/src/lib/event-format';
+import {
+  featuredTicketLink,
+  participateSheetLinks,
+  ticketLink,
+} from '../../../apps/mobile/src/lib/event-format';
 
 describe('ticketLink', () => {
   it('returns the first safe tickets url and its label', () => {
@@ -26,6 +30,46 @@ describe('ticketLink', () => {
   it('returns null when the event has no tickets link', () => {
     expect(ticketLink([{ type: 'info', url: 'https://example.com' }])).toBeNull();
     expect(ticketLink([])).toBeNull();
+  });
+
+  it('prefers the ticket shop when the event has a price', () => {
+    expect(
+      ticketLink(
+        [
+          { type: 'tickets', url: 'https://riksteatern.se/show', label: 'Evenemangslänk' },
+          { type: 'tickets', url: 'https://secure.tickster.com/abc', label: 'Tickster' },
+        ],
+        '150kr',
+      ),
+    ).toEqual({ url: 'https://secure.tickster.com/abc', label: 'Tickster' });
+  });
+});
+
+describe('featuredTicketLink', () => {
+  const links = [
+    { url: 'https://riksteatern.se/show', title: 'Evenemangslänk', detail: 'riksteatern.se' },
+    { url: 'https://secure.tickster.com/abc', title: 'Tickster', detail: 'secure.tickster.com' },
+    { url: 'https://secure.tickster.com/later', title: 'Tickster', detail: 'secure.tickster.com' },
+  ];
+
+  it('puts a priced ticket shop first and keeps the other shops in order', () => {
+    expect(featuredTicketLink(links, '150kr')?.url).toBe('https://secure.tickster.com/abc');
+  });
+
+  it('keeps the original first link when the event has no price', () => {
+    expect(featuredTicketLink(links, null)?.url).toBe('https://riksteatern.se/show');
+  });
+
+  it('puts a link that states its own price first', () => {
+    expect(
+      featuredTicketLink(
+        [
+          { url: 'https://example.com/a', title: 'Info' },
+          { url: 'https://example.com/b', title: 'Biljett 80 kr' },
+        ],
+        null,
+      )?.url,
+    ).toBe('https://example.com/b');
   });
 });
 

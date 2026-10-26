@@ -76,6 +76,8 @@ import {
   upcomingReminderSlots,
   type ReminderSlot,
 } from '@/lib/reminder-times';
+import { presentAddToCalendar } from '@/lib/add-to-calendar';
+import { calendarDraft } from '@/lib/calendar-draft';
 import { directionsUrl } from '@/lib/directions';
 import { isWholeDay } from '@/lib/span-occasions';
 import { shareEventLink } from '@/lib/event-share';
@@ -84,6 +86,7 @@ import { reportEvent } from '@/lib/reports';
 import { followTarget, listSubscriptions, unfollowTarget } from '@/lib/subscriptions';
 import { fetchEventStats } from '@/lib/stats';
 import { DetailCard } from './_components/detail-card';
+import { EventQuickActions } from './_components/event-quick-actions';
 import {
   EventDetailBarSkeleton,
   EventDetailHeroSkeleton,
@@ -707,6 +710,40 @@ export default function EventDetailScreen() {
           ? t('events.wholeDay')
           : formatTimeRange(event.data.startsAt, event.data.endsAt, locale, timeZone)
     : '';
+  async function addToCalendar() {
+    if (!event.data) return;
+    const span = headlineOccasion ?? event.data;
+    const place =
+      event.data.mode === 'physical'
+        ? headlineOccasion?.venueName || event.data.venueName || null
+        : null;
+    let url: string | null = null;
+    try {
+      url = buildEventWebUrl(event.data.id);
+    } catch {
+      url = null;
+    }
+    const notes = [event.data.summary?.trim(), url].filter(Boolean).join('\n') || null;
+    try {
+      const result = await presentAddToCalendar(
+        calendarDraft({
+          title: event.data.title,
+          startsAt: span.startsAt,
+          endsAt: span.endsAt,
+          allDay: isWholeDay(span.startsAt, span.endsAt),
+          location: place,
+          notes,
+          timeZone: event.data.timezone,
+          url,
+        }),
+      );
+      if (result === 'unavailable') {
+        Alert.alert(t('events.detail.addToCalendar'), t('events.calendarUnavailable'));
+      }
+    } catch {
+      Alert.alert(t('events.detail.addToCalendar'), t('events.calendarError'));
+    }
+  }
   function jumpToOccasions() {
     if (!showOccasions) return;
     setOccasionOpenToken((value) => value + 1);
@@ -719,7 +756,8 @@ export default function EventDetailScreen() {
       : comingCount > 0
         ? t('events.detail.comingCount', { count: comingCount })
         : null;
-  const tickets = event.data ? ticketLink(event.data.links) : null;
+  const priceLabel = event.data ? krPriceLabel(event.data.priceAmount) : null;
+  const tickets = event.data ? ticketLink(event.data.links, priceLabel) : null;
   const sheetLinks = event.data
     ? participateSheetLinks(event.data.links, event.data.onlineUrl)
     : { tickets: [], event: [] };
@@ -1155,6 +1193,25 @@ export default function EventDetailScreen() {
                   </View>
                 </DetailCard>
 
+                <EventQuickActions
+                  actions={[
+                    {
+                      label: t('events.detail.addToCalendar'),
+                      sf: 'calendar.badge.plus',
+                      md: 'event',
+                      onPress: () => {
+                        void addToCalendar();
+                      },
+                    },
+                    {
+                      label: t('events.remindMe'),
+                      sf: reminderOn ? 'bell.fill' : 'bell',
+                      md: reminderOn ? 'notifications' : 'notifications-none',
+                      onPress: openReminderPicker,
+                    },
+                  ]}
+                />
+
                 {socialLabel ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
                     <DetailGlyph
@@ -1549,7 +1606,7 @@ export default function EventDetailScreen() {
             onJoin={toggleComing}
             tickets={sheetLinks.tickets.map(toSheetLink)}
             eventLinks={sheetLinks.event.map(toSheetLink)}
-            priceLabel={krPriceLabel(event.data.priceAmount)}
+            priceLabel={priceLabel}
             shares={shareActions}
             reportLabel={t('events.report')}
             onReport={() => setReportOpen(true)}
