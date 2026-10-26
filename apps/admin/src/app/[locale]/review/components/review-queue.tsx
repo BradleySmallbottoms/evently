@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/table';
 import { Link } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
+import { QuickReview } from './quick-review';
 
 type ReviewItem = {
   id: string;
@@ -96,6 +97,8 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   const [tagFilter, setTagFilter] = useState('');
   const [workerFilter, setWorkerFilter] = useState('');
   const [page, setPage] = useState(0);
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [reviewId, setReviewId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState(false);
@@ -110,6 +113,8 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
       setQ(next);
       setPage(0);
       setSelected(new Set());
+      setReviewIndex(0);
+      setReviewId(null);
     }, 300);
     return () => clearTimeout(handle);
   }, [searchInput]);
@@ -194,6 +199,20 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   }
 
   const items = list.data?.items ?? [];
+  const pinnedIndex = reviewId ? items.findIndex((item) => item.id === reviewId) : -1;
+  const reviewAt =
+    items.length === 0
+      ? 0
+      : pinnedIndex >= 0
+        ? pinnedIndex
+        : Math.min(reviewIndex, items.length - 1);
+  const reviewItem = items[reviewAt];
+
+  function showReview(index: number) {
+    const next = Math.min(Math.max(0, index), Math.max(0, items.length - 1));
+    setReviewIndex(next);
+    setReviewId(items[next]?.id ?? null);
+  }
   const total = list.data?.total ?? 0;
   const waitingForPage = list.isLoading || (total > 0 && items.length === 0);
   const selectedIds = [...selected].filter((id) => items.some((item) => item.id === id));
@@ -320,6 +339,8 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
               setTagFilter(next === ALL_TAGS ? '' : next);
               setPage(0);
               setSelected(new Set());
+              setReviewIndex(0);
+              setReviewId(null);
             }}
           >
             <SelectTrigger id="review-tags" className="w-full">
@@ -342,9 +363,23 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
             setWorkerFilter(next);
             setPage(0);
             setSelected(new Set());
+            setReviewIndex(0);
+            setReviewId(null);
           }}
         />
       </div>
+      {reviewItem ? (
+        <QuickReview
+          eventId={reviewItem.id}
+          index={reviewAt}
+          count={items.length}
+          onPrevious={() => showReview(reviewAt - 1)}
+          onNext={() => showReview(reviewAt + 1)}
+          onMerged={() => {
+            setSelected(new Set());
+          }}
+        />
+      ) : null}
       {waitingForPage ? <LoadingRows /> : null}
       {!waitingForPage && items.length === 0 ? (
         <EmptyState
@@ -382,6 +417,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
                   <TableRow
                     key={item.id}
                     data-state={selected.has(item.id) ? 'selected' : undefined}
+                    className={item.id === reviewItem?.id ? 'bg-muted/40' : undefined}
                   >
                     <TableCell>
                       <Checkbox
@@ -440,6 +476,14 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
                             ) : null}
                             <DropdownMenuItem
                               disabled={busy}
+                              onClick={() =>
+                                showReview(items.findIndex((row) => row.id === item.id))
+                              }
+                            >
+                              {t('reviewThis')}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={busy}
                               onClick={() => decide.mutate({ id: item.id, action: 'approve' })}
                             >
                               {t('approve')}
@@ -486,6 +530,8 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
             disabled={page === 0}
             onClick={() => {
               setSelected(new Set());
+              setReviewIndex(0);
+              setReviewId(null);
               setPage(page - 1);
             }}
           >
@@ -499,6 +545,8 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
             disabled={page >= pageCount - 1}
             onClick={() => {
               setSelected(new Set());
+              setReviewIndex(0);
+              setReviewId(null);
               setPage(page + 1);
             }}
           >

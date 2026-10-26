@@ -450,7 +450,7 @@ export function registerAdminEventRoutes(
     },
     responses: {
       200: {
-        description: 'Checked duplicates hidden. Their occasions stay on those events.',
+        description: 'Checked duplicates hidden, or moved onto this event when occasions is move',
         content: { 'application/json': { schema: AdminEventDetail } },
       },
       400: {
@@ -470,10 +470,12 @@ export function registerAdminEventRoutes(
   app.openapi(mergeDuplicates, async (c) => {
     try {
       const session = await auth.requireSession(readAdminSessionToken(c));
+      const body = c.req.valid('json');
       const result = await events.mergeDuplicates(
         c.req.valid('param').id,
-        c.req.valid('json').eventIds,
+        body.eventIds,
         session.adminId,
+        body.occasions,
       );
       if (!result) {
         return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);

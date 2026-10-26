@@ -107,6 +107,34 @@ export function publicPosterUrl(
 
 const galleryRole = /^gallery-(\d+)$/;
 
+/**
+ * Hero URL for an event payload. The `main` role, or the lowest `gallery-N` when that role
+ * is missing. Null when neither exists or the public origin is unset.
+ */
+export function publicHeroUrl(
+  base: string | undefined,
+  images: readonly { role: string; s3Key: string }[],
+): string | null {
+  const main = images.find((image) => image.role === 'main')?.s3Key;
+  if (main) {
+    const url = publicAssetUrl(base, main);
+    if (url) return url;
+  }
+  return publicGalleryUrls(base, images)[0] ?? null;
+}
+
+/** Hero plus the gallery photos that follow it. The hero is not repeated in `imageUrls`. */
+export function publicEventImages(
+  base: string | undefined,
+  images: readonly { role: string; s3Key: string }[],
+): { imageUrl: string | null; imageUrls: string[] } {
+  const imageUrl = publicHeroUrl(base, images);
+  return {
+    imageUrl,
+    imageUrls: publicGalleryUrls(base, images).filter((url) => url !== imageUrl),
+  };
+}
+
 /** Public URLs for `gallery-N` rows, lowest N first. The hero role is ignored. */
 export function publicGalleryUrls(
   base: string | undefined,

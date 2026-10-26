@@ -26,7 +26,8 @@ sequenceDiagram
   API->>Queue: event.coming_cleared
   Worker->>API: PUT /stats remove 1 on each bucket
 
-  App->>API: GET /v1/events?sort=popular&lat&lng
+  App->>API: GET /v1/events?sort=popular&lat&lng&tagIds
+  Note over App: tagIds is the home tag filter. Empty means every tag.
   API->>DB: join lifetime numSaved + numComing
   Note over API: Sum at least 1, then soonest
   API-->>App: events with numSaved and numComing

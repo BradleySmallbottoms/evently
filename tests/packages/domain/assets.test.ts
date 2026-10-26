@@ -3,6 +3,7 @@ import {
   posterImageError,
   POSTER_MAX_BYTES,
   publicAssetUrl,
+  publicEventImages,
   publicGalleryUrls,
   publicPosterUrl,
   safeAssetKey,
@@ -63,6 +64,41 @@ describe('publicGalleryUrls', () => {
     expect(
       publicGalleryUrls(undefined, [{ role: 'gallery-1', s3Key: 'events/abc/gallery-1' }]),
     ).toEqual([]);
+  });
+});
+
+describe('publicEventImages', () => {
+  const base = 'https://d111.cloudfront.net';
+
+  it('keeps the main role as the hero and the gallery after it', () => {
+    expect(
+      publicEventImages(base, [
+        { role: 'gallery-1', s3Key: 'events/abc/gallery-1' },
+        { role: 'main', s3Key: 'events/abc/main' },
+      ]),
+    ).toEqual({
+      imageUrl: 'https://d111.cloudfront.net/events/abc/main',
+      imageUrls: ['https://d111.cloudfront.net/events/abc/gallery-1'],
+    });
+  });
+
+  it('uses the first gallery image when there is no main role', () => {
+    expect(
+      publicEventImages(base, [
+        { role: 'gallery-2', s3Key: 'events/abc/gallery-2' },
+        { role: 'poster', s3Key: 'events/abc/poster' },
+        { role: 'gallery-1', s3Key: 'events/abc/gallery-1' },
+      ]),
+    ).toEqual({
+      imageUrl: 'https://d111.cloudfront.net/events/abc/gallery-1',
+      imageUrls: ['https://d111.cloudfront.net/events/abc/gallery-2'],
+    });
+  });
+
+  it('returns no images when the public origin is unset', () => {
+    expect(
+      publicEventImages(undefined, [{ role: 'gallery-1', s3Key: 'events/abc/gallery-1' }]),
+    ).toEqual({ imageUrl: null, imageUrls: [] });
   });
 });
 

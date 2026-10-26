@@ -73,7 +73,7 @@ export function EventOccasions({
   possibleOccasionGroupId: string | undefined;
   timeZone: string;
   onCollapsed: () => void;
-  onMerged: () => void;
+  onMerged: (occasions: 'keep' | 'move') => void;
 }) {
   const t = useTranslations('EventEditor');
   const locale = useLocale();
@@ -83,7 +83,7 @@ export function EventOccasions({
   const [error, setError] = useState(false);
   const [done, setDone] = useState(false);
   const [mergeError, setMergeError] = useState(false);
-  const [merged, setMerged] = useState(false);
+  const [merged, setMerged] = useState<'keep' | 'move' | null>(null);
   const [showAllOccasions, setShowAllOccasions] = useState(false);
   const stored = occasions ?? [];
   const visibleOccasions = showAllOccasions ? stored : stored.slice(0, OCCASION_PREVIEW);
@@ -118,22 +118,23 @@ export function EventOccasions({
   });
 
   const merge = useMutation({
-    mutationFn: (eventIds: string[]) =>
+    mutationFn: (input: { eventIds: string[]; occasions: 'keep' | 'move' }) =>
       adminFetch(`/events/${eventId}/merge-duplicates`, {
         method: 'POST',
-        body: JSON.stringify({ eventIds }),
+        body: JSON.stringify(input),
       }),
-    onSuccess: async () => {
+    onSuccess: async (_result, input) => {
       setDuplicateSelected(new Set());
       setMergeError(false);
-      setMerged(true);
+      setMerged(input.occasions);
       await queryClient.invalidateQueries({ queryKey: ['admin-event', eventId] });
       await queryClient.invalidateQueries({
         queryKey: ['admin-event-possible-duplicates', eventId],
       });
+      await queryClient.invalidateQueries({ queryKey: ['admin-event-occasion-group', eventId] });
       await queryClient.invalidateQueries({ queryKey: ['admin-events-catalog'] });
       await queryClient.invalidateQueries({ queryKey: ['admin-events-in-review'] });
-      onMerged();
+      onMerged(input.occasions);
     },
     onError: () => setMergeError(true),
   });
@@ -166,7 +167,7 @@ export function EventOccasions({
 
   function toggleDuplicate(id: string) {
     setMergeError(false);
-    setMerged(false);
+    setMerged(null);
     setDuplicateSelected((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
@@ -177,7 +178,7 @@ export function EventOccasions({
 
   function toggleAllDuplicates() {
     setMergeError(false);
-    setMerged(false);
+    setMerged(null);
     setDuplicateSelected(
       allDuplicatesSelected ? new Set() : new Set(duplicateItems.map((item) => item.id)),
     );
@@ -233,7 +234,9 @@ export function EventOccasions({
       ) : null}
       {merged ? (
         <Alert>
-          <AlertDescription>{t('merged')}</AlertDescription>
+          <AlertDescription>
+            {merged === 'move' ? t('mergedOccasions') : t('merged')}
+          </AlertDescription>
         </Alert>
       ) : null}
       {duplicateItems.length > 0 ? (
@@ -242,20 +245,36 @@ export function EventOccasions({
             <h2 className="text-lg font-semibold">{t('possibleDuplicates')}</h2>
             <p className="text-sm text-muted-foreground">{t('duplicateHint')}</p>
           </div>
-          <div>
+          <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               size="sm"
               disabled={duplicateSelected.size === 0 || merge.isPending}
-              onClick={() => merge.mutate([...duplicateSelected])}
+              onClick={() => merge.mutate({ eventIds: [...duplicateSelected], occasions: 'keep' })}
             >
-              {merge.isPending ? <Spinner data-icon="inline-start" /> : null}
+              {merge.isPending && merge.variables?.occasions === 'keep' ? (
+                <Spinner data-icon="inline-start" />
+              ) : null}
               {t('mergeDuplicates')}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={duplicateSelected.size === 0 || merge.isPending}
+              onClick={() => merge.mutate({ eventIds: [...duplicateSelected], occasions: 'move' })}
+            >
+              {merge.isPending && merge.variables?.occasions === 'move' ? (
+                <Spinner data-icon="inline-start" />
+              ) : null}
+              {t('mergeDuplicateOccasions')}
             </Button>
           </div>
           {mergeError ? (
             <Alert variant="destructive">
-              <AlertDescription>{t('mergeError')}</AlertDescription>
+              <AlertDescription>
+                {merge.variables?.occasions === 'move' ? t('mergeOccasionsError') : t('mergeError')}
+              </AlertDescription>
             </Alert>
           ) : null}
           <div className="overflow-hidden rounded-lg border">

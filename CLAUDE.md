@@ -209,15 +209,19 @@ Product invariants (enforced in domain, tested)
   Admin can fold selected events into the open event (`POST /events/{id}/collapse`).
   Their occasion rows and child rows move onto it, and the checked events are deleted.
   A folded occasion with no venue takes the venue from the first target occasion that has one.
+  Any surviving event drops `meta.possibleDuplicate` when that note pointed at a folded event.
 - A lookalike within 500 m and 30 minutes is still inserted, then marked `in_review` by the scan
   job, with `meta.possibleDuplicate` pointing at the existing event. A duplicate ranked over 90 as
   another showing stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates.
   An existing `possibleOccasionGroupId` is reused; otherwise a new id is created. Public responses omit it.
   Admin uses that id to list events it can fold together.
   The occasion list also shows events this one flags, and events that flag this one, with their occasions.
-  Hiding a duplicate (`POST /events/{id}/merge-duplicates`) sets that event to `deleted` and `meta.duplicateOf`, and leaves its occasions.
+  Hiding a duplicate (`POST /events/{id}/merge-duplicates` with `occasions: keep`) sets that event to `deleted` and `meta.duplicateOf`, and leaves its occasions.
   The open event drops `meta.possibleDuplicate` when that note pointed at a hidden event, and stores the hidden events on `meta.mergedDuplicates`.
+  Merging a duplicate (`occasions: move`) moves its occasion rows and child rows onto the open event and deletes it.
+  Any surviving event drops `meta.possibleDuplicate` when that note pointed at the merged event.
   Public responses omit both fields. A later import skips a hidden source id.
+  Import review can merge from the current event: occasion-group events are folded in, and checked duplicates move their occasions onto it and are deleted. An event that is both is folded once.
   A link matches on host and path;
   protocol, query, and a trailing slash are ignored. A Citybreak product id matches with or
   without the `cbis:` prefix. The same source id updates its own row.
@@ -235,7 +239,7 @@ Product invariants (enforced in domain, tested)
   Anonymous users can score but not comment.
 - A save is the interested bookmark. "I'm coming" is a separate row. Popularity is `numSaved` +
   `numComing` on the event stats (a person who did both counts twice). Events with a total of 0 are
-  omitted from `sort=popular`.
+  omitted from `sort=popular`. The home popular grid uses the same tag filter as the home list.
 - No background location in v1. While the app is in use, location is read when it becomes active
   and watched until it backgrounds. Region suggestions run on the device and send nothing unless saved.
   The prompt stays hidden while onboarding covers home, including when location permission is

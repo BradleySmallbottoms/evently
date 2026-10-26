@@ -423,7 +423,10 @@ export const events = pgTable(
   'events',
   {
     id: id(),
-    /** Null only while `status` is `pending_scan`, before the scan job picks a publisher. */
+    /**
+     * Null while `status` is `pending_scan`, before the scan job picks a publisher.
+     * Stays null when that row is marked `deleted` before a publisher is chosen.
+     */
     publisherId: uuid('publisher_id').references(() => publishers.id),
     /** Lease for the import scan job. Null when the row is not claimed. */
     scanClaimedUntil: timestamp('scan_claimed_until', { withTimezone: true }),

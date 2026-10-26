@@ -915,9 +915,9 @@ export function EventEditor({ eventId }: { eventId: string }) {
                 setNotice(t('collapsed'));
                 setFormError(null);
               }}
-              onMerged={() => {
+              onMerged={(occasions) => {
                 setDraft(null);
-                setNotice(t('merged'));
+                setNotice(occasions === 'move' ? t('mergedOccasions') : t('merged'));
                 setFormError(null);
               }}
             />

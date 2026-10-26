@@ -638,6 +638,134 @@ describe('admin api', () => {
     expect(await after.json()).toMatchObject({ items: [] });
   });
 
+  it('drops duplicate notes that point at an event folded into the open event', async () => {
+    const { auth } = await seededAuth();
+    const hostId = '44444444-4444-4444-8444-444444444401';
+    const earlyId = '44444444-4444-4444-8444-444444444402';
+    const lateId = '44444444-4444-4444-8444-444444444403';
+    const watcherId = '44444444-4444-4444-8444-444444444405';
+    const keeperId = '44444444-4444-4444-8444-444444444406';
+    const publisherId = '22222222-2222-4222-8222-222222222201';
+    const duplicateOf = (eventId: string, title: string) => ({
+      eventId,
+      title,
+      startsAt: '2026-08-01T10:00:00.000Z',
+      refId: null,
+      workerId: null,
+      matchedOn: 'llm' as const,
+    });
+    const base = {
+      publisherId,
+      mode: 'physical' as const,
+      status: 'published' as const,
+      origin: 'imported' as const,
+      venueName: 'Hall',
+      sourceUrl: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const eventStore = {
+      publishers: new Map([[publisherId, { id: publisherId, name: 'Band' }]]),
+      events: new Map([
+        [
+          hostId,
+          {
+            ...base,
+            id: hostId,
+            title: 'Host',
+            startsAt: '2026-08-02T16:00:00.000Z',
+            endsAt: '2026-08-02T18:00:00.000Z',
+            meta: {
+              possibleOccasionGroupId: 'product-1',
+              freeEntry: true,
+              possibleDuplicate: duplicateOf(earlyId, 'Early'),
+            },
+          },
+        ],
+        [
+          earlyId,
+          {
+            ...base,
+            id: earlyId,
+            title: 'Early',
+            startsAt: '2026-08-01T10:00:00.000Z',
+            endsAt: '2026-08-01T12:00:00.000Z',
+            meta: { possibleOccasionGroupId: 'product-1' },
+          },
+        ],
+        [
+          lateId,
+          {
+            ...base,
+            id: lateId,
+            title: 'Late',
+            startsAt: '2026-08-04T19:00:00.000Z',
+            endsAt: '2026-08-04T21:00:00.000Z',
+            meta: { possibleOccasionGroupId: 'product-1' },
+          },
+        ],
+        [
+          watcherId,
+          {
+            ...base,
+            id: watcherId,
+            title: 'Watcher',
+            startsAt: '2026-08-06T10:00:00.000Z',
+            endsAt: '2026-08-06T12:00:00.000Z',
+            meta: { possibleDuplicate: duplicateOf(earlyId, 'Early'), freeEntry: true },
+          },
+        ],
+        [
+          keeperId,
+          {
+            ...base,
+            id: keeperId,
+            title: 'Keeper',
+            startsAt: '2026-08-07T10:00:00.000Z',
+            endsAt: '2026-08-07T12:00:00.000Z',
+            meta: { possibleDuplicate: duplicateOf(lateId, 'Late'), ageLimit: 18 },
+          },
+        ],
+      ]),
+    };
+    const { createMemoryAdminEventServices } =
+      await import('../../../apps/admin-api/src/services/events');
+    const app = createApp({
+      auth,
+      events: createMemoryAdminEventServices(eventStore),
+    });
+    const cookie = await loginSession(app);
+
+    const folded = await app.request(`/v1/events/${hostId}/collapse`, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ eventIds: [earlyId] }),
+    });
+    expect(folded.status).toBe(200);
+    const foldedBody = (await folded.json()) as { meta: Record<string, unknown> };
+    expect(foldedBody).toMatchObject({
+      meta: { freeEntry: true, possibleOccasionGroupId: 'product-1' },
+    });
+    expect(foldedBody.meta).not.toHaveProperty('possibleDuplicate');
+    expect(eventStore.events.get(hostId)?.meta).not.toHaveProperty('possibleDuplicate');
+    expect(eventStore.events.get(earlyId)).toBeUndefined();
+    expect(eventStore.events.get(watcherId)?.meta).toEqual({ freeEntry: true });
+    expect(eventStore.events.get(keeperId)?.meta).toMatchObject({
+      possibleDuplicate: { eventId: lateId },
+      ageLimit: 18,
+    });
+
+    const rest = await app.request(`/v1/events/${hostId}/collapse`, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ eventIds: [lateId] }),
+    });
+    expect(rest.status).toBe(200);
+    expect(eventStore.events.get(keeperId)?.meta).toEqual({ ageLimit: 18 });
+    expect(eventStore.events.get(hostId)?.meta).not.toHaveProperty('possibleOccasionGroupId');
+    expect(eventStore.events.get(hostId)?.meta).not.toHaveProperty('possibleDuplicate');
+  });
+
   it('hides a possible duplicate without moving its occasions', async () => {
     const { auth } = await seededAuth();
     const hostId = '44444444-4444-4444-8444-444444444401';
@@ -825,6 +953,160 @@ describe('admin api', () => {
       address: { address: 'Promenaden 5', zipCode: '82433', city: 'Hudiksvall' },
       duplicateOf: { eventId: hostId, title: 'Host' },
     });
+    expect(eventStore.events.get(incomingId)?.status).toBe('in_review');
+
+    const remaining = await app.request(`/v1/events/${hostId}/possible-duplicates`, {
+      headers: { cookie },
+    });
+    const left = (await remaining.json()) as { items: { id: string }[] };
+    expect(left.items.map((item) => item.id)).toEqual([incomingId]);
+  });
+
+  it('moves a duplicate’s occasions onto the open event and drops that duplicate note', async () => {
+    const { auth } = await seededAuth();
+    const hostId = '44444444-4444-4444-8444-444444444401';
+    const matchId = '44444444-4444-4444-8444-444444444402';
+    const incomingId = '44444444-4444-4444-8444-444444444403';
+    const watcherId = '44444444-4444-4444-8444-444444444405';
+    const otherId = '44444444-4444-4444-8444-444444444404';
+    const publisherId = '22222222-2222-4222-8222-222222222201';
+    const note = (eventId: string, title: string) => ({
+      eventId,
+      title,
+      startsAt: '2026-08-01T10:00:00.000Z',
+      refId: null,
+      workerId: null,
+      matchedOn: 'llm' as const,
+    });
+    const hostOccasion = {
+      id: '66666666-6666-4666-8666-666666666601',
+      startsAt: '2026-08-02T16:00:00.000Z',
+      endsAt: '2026-08-02T18:00:00.000Z',
+      venueName: 'Hall',
+      location: null,
+    };
+    const matchOccasions = [
+      {
+        id: '66666666-6666-4666-8666-666666666602',
+        startsAt: '2026-08-01T10:00:00.000Z',
+        endsAt: '2026-08-01T12:00:00.000Z',
+        venueName: 'Park',
+        location: null,
+      },
+      {
+        id: '66666666-6666-4666-8666-666666666603',
+        startsAt: '2026-08-03T10:00:00.000Z',
+        endsAt: '2026-08-03T12:00:00.000Z',
+        venueName: null,
+        location: null,
+      },
+    ];
+    const base = {
+      publisherId,
+      mode: 'physical' as const,
+      status: 'in_review' as const,
+      origin: 'imported' as const,
+      venueName: 'Hall',
+      sourceUrl: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const eventStore = {
+      publishers: new Map([[publisherId, { id: publisherId, name: 'Band' }]]),
+      events: new Map([
+        [
+          hostId,
+          {
+            ...base,
+            id: hostId,
+            title: 'Host',
+            startsAt: '2026-08-02T16:00:00.000Z',
+            endsAt: '2026-08-02T18:00:00.000Z',
+            occasions: [hostOccasion],
+            meta: { possibleDuplicate: note(matchId, 'Match'), freeEntry: true },
+          },
+        ],
+        [
+          matchId,
+          {
+            ...base,
+            id: matchId,
+            title: 'Match',
+            startsAt: '2026-08-01T10:00:00.000Z',
+            endsAt: '2026-08-03T12:00:00.000Z',
+            occasions: matchOccasions,
+            meta: { ageLimit: 18 },
+          },
+        ],
+        [
+          incomingId,
+          {
+            ...base,
+            id: incomingId,
+            title: 'Incoming',
+            startsAt: '2026-08-04T10:00:00.000Z',
+            endsAt: '2026-08-04T12:00:00.000Z',
+            meta: { possibleDuplicate: note(hostId, 'Host') },
+          },
+        ],
+        [
+          watcherId,
+          {
+            ...base,
+            id: watcherId,
+            title: 'Watcher',
+            startsAt: '2026-08-05T10:00:00.000Z',
+            endsAt: '2026-08-05T12:00:00.000Z',
+            meta: { possibleDuplicate: note(matchId, 'Match'), freeEntry: true },
+          },
+        ],
+        [
+          otherId,
+          {
+            ...base,
+            id: otherId,
+            title: 'Other',
+            startsAt: '2026-08-06T10:00:00.000Z',
+            endsAt: '2026-08-06T12:00:00.000Z',
+            meta: {},
+          },
+        ],
+      ]),
+    };
+    const { createMemoryAdminEventServices } =
+      await import('../../../apps/admin-api/src/services/events');
+    const app = createApp({
+      auth,
+      events: createMemoryAdminEventServices(eventStore),
+    });
+    const cookie = await loginSession(app);
+
+    const wrong = await app.request(`/v1/events/${hostId}/merge-duplicates`, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ eventIds: [otherId], occasions: 'move' }),
+    });
+    expect(wrong.status).toBe(400);
+
+    const merged = await app.request(`/v1/events/${hostId}/merge-duplicates`, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ eventIds: [matchId], occasions: 'move' }),
+    });
+    expect(merged.status).toBe(200);
+    expect(await merged.json()).toMatchObject({
+      id: hostId,
+      meta: { freeEntry: true },
+      occasions: [
+        { ...matchOccasions[0] },
+        hostOccasion,
+        { ...matchOccasions[1], venueName: 'Hall' },
+      ],
+    });
+    expect(eventStore.events.get(hostId)?.meta).not.toHaveProperty('possibleDuplicate');
+    expect(eventStore.events.get(hostId)?.meta).not.toHaveProperty('mergedDuplicates');
+    expect(eventStore.events.get(matchId)).toBeUndefined();
+    expect(eventStore.events.get(watcherId)?.meta).toEqual({ freeEntry: true });
     expect(eventStore.events.get(incomingId)?.status).toBe('in_review');
 
     const remaining = await app.request(`/v1/events/${hostId}/possible-duplicates`, {
@@ -1035,6 +1317,7 @@ describe('admin api', () => {
             publisherId: '22222222-2222-4222-8222-222222222201',
             title: 'Concert',
             description: 'Live',
+            summary: 'A summer concert',
             mode: 'physical' as const,
             status: 'published',
             origin: 'native' as const,
@@ -1099,6 +1382,7 @@ describe('admin api', () => {
     expect(await detail.json()).toMatchObject({
       title: 'Concert',
       description: 'Live',
+      summary: 'A summer concert',
       location: { lat: 61.3, lng: 17.05 },
       contentVerdict: 'spam',
       llmOutput: { contentVerdict: 'spam', possibleTags: [] },

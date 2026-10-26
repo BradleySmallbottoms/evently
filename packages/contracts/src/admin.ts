@@ -412,7 +412,13 @@ export const AdminPossibleDuplicateListResponse = z.object({
 });
 export type AdminPossibleDuplicateListResponse = z.infer<typeof AdminPossibleDuplicateListResponse>;
 
-export const AdminMergeDuplicatesRequest = AdminCollapseOccasionsRequest;
+export const AdminMergeDuplicatesRequest = AdminCollapseOccasionsRequest.extend({
+  /**
+   * `keep` hides the duplicate and leaves its occasions.
+   * `move` moves those occasions onto this event and deletes the duplicate.
+   */
+  occasions: z.enum(['keep', 'move']).optional().default('keep'),
+});
 export type AdminMergeDuplicatesRequest = z.infer<typeof AdminMergeDuplicatesRequest>;
 
 export const AdminEventListQuery = z.object({
@@ -445,6 +451,8 @@ export type AdminEventListResponse = z.infer<typeof AdminEventListResponse>;
 
 export const AdminEventDetail = AdminEventListItem.extend({
   description: z.string().nullable(),
+  /** Short list text from the scan. Null until one is written. */
+  summary: z.string().nullable(),
   timezone: z.string(),
   location: z
     .object({
@@ -462,9 +470,9 @@ export const AdminEventDetail = AdminEventListItem.extend({
   refId: z.string().nullable(),
   tagIds: z.array(Id),
   links: z.array(EventLink),
-  /** Hero image. Null when the event has none or the public asset host is unset. */
+  /** Hero image. The `main` role, or the first gallery image when `main` is missing. Null when the event has neither or the public asset host is unset. */
   imageUrl: z.url().nullable(),
-  /** Photos after the hero, `gallery-1` then `gallery-2`, and so on. */
+  /** Photos after the hero, lowest gallery number first. */
   imageUrls: z.array(z.url()),
   /** Sponsored poster. Null when the event has none or the public asset host is unset. */
   posterUrl: z.url().nullable(),

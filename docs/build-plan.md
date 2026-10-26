@@ -136,6 +136,11 @@ Closed beta around week 15, store launch around week 19.
       `event_occasions` and child rows to the open event, then the checked event rows are deleted.
 - [x] Hide a possible duplicate from the occasion list. The checked event stays, with its
       occasions, and is marked `deleted`. The open event records the merge and drops the warning.
+- [x] Merge a possible duplicate from the occasion list. `occasions: move` moves its
+      occasions and child rows onto the open event, deletes it, and drops duplicate notes that
+      pointed at it. Mark as duplicate still hides without moving occasions.
+- [x] Quick review on the import review page. Merge folds the occasion group into the open
+      event and hides possible duplicates.
 
 ## Parallel track — Data workers (from week 6)
 

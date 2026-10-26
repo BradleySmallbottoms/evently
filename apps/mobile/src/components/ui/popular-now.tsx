@@ -24,7 +24,7 @@ type Props = {
   onPress: (id: string) => void;
 };
 
-/** Photo-and-date grid of events people have saved or marked as coming. */
+/** Photo grid of events people have saved or marked as coming. Each tile shows the date and title. */
 export function PopularNow({ locale, items, onShowAll, onPress }: Props) {
   const { t } = useTranslation();
   const [width, setWidth] = useState(0);
@@ -78,9 +78,36 @@ export function PopularNow({ locale, items, onShowAll, onPress }: Props) {
                 }}
               >
                 <EventImage imageUrl={item.imageUrl} tags={item.tags} />
+                <View
+                  pointerEvents="none"
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 72,
+                    experimental_backgroundImage:
+                      'linear-gradient(to bottom, rgba(17,24,32,0) 0%, rgba(17,24,32,0.78) 100%)',
+                  }}
+                />
                 <View style={{ position: 'absolute', top: space.sm, left: space.sm }}>
                   <DateBox shadow={true} badge={dateBadge(item.startsAt, locale)} compact />
                 </View>
+                <AppText
+                  numberOfLines={2}
+                  style={{
+                    position: 'absolute',
+                    left: space.sm,
+                    right: space.sm,
+                    bottom: space.sm,
+                    color: '#FFFFFF',
+                    fontSize: 13,
+                    lineHeight: 16,
+                    fontWeight: '700',
+                  }}
+                >
+                  {item.title}
+                </AppText>
               </Pressable>
             ))
           : null}

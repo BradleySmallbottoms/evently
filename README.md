@@ -167,7 +167,7 @@ calls) in the same change as every new major feature.**
   `<img>` URLs. The Citybreak image stays the hero. When it is missing, the hero is the first
   og:image, then the first page image. Further crawled images are stored as `gallery-1`,
   `gallery-2`, and so on. Event payloads return the hero as `imageUrl` and the rest as
-  `imageUrls`, in that order. The event screen swipes through them when there is more than one.
+  `imageUrls`, in that order. A list uses the first gallery image when the event has no `main` image. The event screen swipes through them when there is more than one.
   After the first Garage start,
   allow anonymous reads once:
   `docker compose exec garage /garage bucket website --allow local-events-assets`.
@@ -348,7 +348,7 @@ calls) in the same change as every new major feature.**
   `PUT /v1/me/coming-events/{eventId}` and does not notify anyone. The first insert and a delete
   emit a domain event; the worker updates `numSaved` or `numComing` (lifetime plus calendar
   buckets). `GET /v1/events?sort=popular` orders by those two lifetime counts added together and
-  skips a total of 0. Event responses include both counts. Custom lists live at `/v1/me/lists`
+  skips a total of 0. The home popular grid uses the same tag filter as the home list. Event responses include both counts. Custom lists live at `/v1/me/lists`
   (20 lists, 100 events each). Saves, coming marks, and lists are deleted with the user.
 - Tickets and registration are links on the event (`type` `tickets`, `registration`, or `info`).
   Price is optional minor units: missing means unknown, `0` means free.
@@ -453,10 +453,13 @@ calls) in the same change as every new major feature.**
   A published event leaves the public list until that scan finishes.
   An event with several occasions, or one the scan grouped with `meta.possibleOccasionGroupId`, has a Tillfällen tab.
   That tab lists `event_occasions`. Collapse moves the checked events'
-  occasion rows and related child rows to the open event, then removes the checked event rows. Flow:
+  occasion rows and related child rows to the open event, then removes the checked event rows.
+  A duplicate note that pointed at a removed event is dropped. Flow:
   [docs/flows/admin-collapse-occasions.md](docs/flows/admin-collapse-occasions.md).
-  The same tab lists possible duplicates and their occasions. Hiding one marks it `deleted`, leaves its occasions, and records the merge on the open event. Flow:
-  [docs/flows/admin-merge-duplicates.md](docs/flows/admin-merge-duplicates.md). Publisher lists can select rows and verify them.
+  The same tab lists possible duplicates and their occasions. Hiding one marks it `deleted`, leaves its occasions, and records the merge on the open event. Merging one moves its occasions onto the open event and deletes it, and drops a duplicate note that pointed at it. Flow:
+  [docs/flows/admin-merge-duplicates.md](docs/flows/admin-merge-duplicates.md).
+  Import review has a quick review of the current event. Merge folds the same occasion group into it, and folds checked duplicates by moving their occasions onto it. Flow:
+  [docs/flows/admin-quick-review.md](docs/flows/admin-quick-review.md). Publisher lists can select rows and verify them.
   On `/events/manage`, Ta bort marks any selected event `deleted` and removes it from lists. A later import sees that status and skips the source id. Ta bort permanent removes the row and keeps
   the source id out of later imports, and leaves the row when someone has already
   checked in, saved, rated, or been notified. Import review still deletes or wipes an imported event in review

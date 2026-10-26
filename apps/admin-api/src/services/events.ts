@@ -37,13 +37,13 @@ import {
   eventsAreDuplicatePair,
   firstNamedVenue,
   hideMergedDuplicates,
+  metaWithoutFoldedDuplicate,
   canDeleteImportedEvent,
   canRejectImportedEvent,
   canRescanImportedEvent,
   POSTER_IMAGE_ROLE,
   posterImageError,
-  publicAssetUrl,
-  publicGalleryUrls,
+  publicEventImages,
   publicPosterUrl,
   shouldEnqueueNotifications,
   importPlanToSchedule,
@@ -115,11 +115,16 @@ export type AdminEventServices = {
   ) => Promise<AdminEventDetail | null>;
   /** Open events this one flags, and open events that flag this one. Null when the event is missing. */
   listPossibleDuplicates: (eventId: string) => Promise<AdminPossibleDuplicateItem[] | null>;
-  /** Hide the chosen duplicates. Their occasions stay. The target records the merge. */
+  /**
+   * `keep` hides the chosen duplicates and leaves their occasions.
+   * `move` moves those occasions onto this event, deletes the duplicates, and drops
+   * `possibleDuplicate` notes that pointed at them.
+   */
   mergeDuplicates: (
     eventId: string,
     eventIds: string[],
     actor: string,
+    occasions?: 'keep' | 'move',
   ) => Promise<AdminEventDetail | null>;
   /** Cancel an in-review import and leave the row, even when people have checked in. */
   softDelete: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
@@ -164,6 +169,7 @@ type MemoryEvent = {
   publisherId: string;
   title: string;
   description?: string | null;
+  summary?: string | null;
   mode: 'physical' | 'digital';
   status: string;
   origin: 'native' | 'imported';
@@ -423,6 +429,58 @@ function metaWithoutScanGroup(meta: EventMeta): EventMeta {
   return rest;
 }
 
+/** Move occasion rows onto the host in memory, delete the folded events, and drop notes that pointed at them. */
+function absorbMemoryEvents(
+  store: AdminEventMemoryStore,
+  host: MemoryEvent,
+  chosen: MemoryEvent[],
+  at: string,
+): void {
+  const hostRows = occasionRows(host);
+  const hostVenue = firstNamedVenue(hostRows);
+  const rows = [
+    hostRows,
+    ...chosen.map((event) =>
+      occasionRows(event).map((row) => ({
+        ...row,
+        venueName: collapsedVenueName(row.venueName, hostVenue),
+      })),
+    ),
+  ].flat();
+  applyOccasionBounds(host, rows);
+  const foldedIds = new Set(chosen.map((event) => event.id));
+  for (const event of chosen) store.events.delete(event.id);
+  for (const event of store.events.values()) {
+    if (!event.meta?.possibleDuplicate) continue;
+    const next = metaWithoutFoldedDuplicate(event.meta, foldedIds);
+    if (next === event.meta) continue;
+    event.meta = next;
+    event.updatedAt = at;
+  }
+}
+
+function dropMemoryOccasionGroupIfAlone(
+  store: AdminEventMemoryStore,
+  host: MemoryEvent,
+  groupId: string | undefined,
+  at: string,
+): void {
+  if (!groupId) {
+    host.updatedAt = at;
+    return;
+  }
+  const stillOpen = [...store.events.values()].some(
+    (event) =>
+      event.id !== host.id &&
+      readEventMeta(event.meta).possibleOccasionGroupId === groupId &&
+      event.status !== 'cancelled' &&
+      event.status !== 'ended' &&
+      event.status !== 'deleted',
+  );
+  if (!stillOpen) host.meta = metaWithoutScanGroup(readEventMeta(host.meta));
+  host.updatedAt = at;
+}
+
 function occasionRows(event: MemoryEvent): NonNullable<MemoryEvent['occasions']> {
   if (event.occasions && event.occasions.length > 0) {
     return event.occasions.map((row) => ({
@@ -597,10 +655,8 @@ function imageFields(
   images: readonly { role: string; s3Key: string }[],
   assetsPublicBaseUrl: string | undefined,
 ): Pick<AdminEventDetail, 'imageUrl' | 'imageUrls' | 'posterUrl'> {
-  const main = images.find((image) => image.role === 'main')?.s3Key ?? null;
   return {
-    imageUrl: publicAssetUrl(assetsPublicBaseUrl, main),
-    imageUrls: publicGalleryUrls(assetsPublicBaseUrl, images),
+    ...publicEventImages(assetsPublicBaseUrl, images),
     posterUrl: publicPosterUrl(assetsPublicBaseUrl, images),
   };
 }
@@ -613,6 +669,7 @@ function asDetail(
   return {
     ...asListItem(e, publisherName),
     description: e.description ?? null,
+    summary: e.summary ?? null,
     timezone: e.timezone ?? 'Europe/Stockholm',
     location: e.location ?? null,
     geofenceRadiusM: e.geofenceRadiusM ?? null,
@@ -877,32 +934,14 @@ export function createMemoryAdminEventServices(
         throw new AdminEventError('invalid_event');
       }
       const chosen = members.filter((event) => event != null);
-      const hostRows = occasionRows(host);
-      const hostVenue = firstNamedVenue(hostRows);
-      const rows = [
-        hostRows,
-        ...chosen.map((event) =>
-          occasionRows(event).map((row) => ({
-            ...row,
-            venueName: collapsedVenueName(row.venueName, hostVenue),
-          })),
-        ),
-      ].flat();
-      if (rows.length < 2) throw new AdminEventError('invalid_event');
+      const rowCount =
+        occasionRows(host).length +
+        chosen.reduce((count, event) => count + occasionRows(event).length, 0);
+      if (rowCount < 2) throw new AdminEventError('invalid_event');
       const at = now().toISOString();
       const groupId = hostMeta.possibleOccasionGroupId;
-      applyOccasionBounds(host, rows);
-      for (const event of chosen) store.events.delete(event.id);
-      const stillOpen = [...store.events.values()].some(
-        (event) =>
-          event.id !== host.id &&
-          readEventMeta(event.meta).possibleOccasionGroupId === groupId &&
-          event.status !== 'cancelled' &&
-          event.status !== 'ended' &&
-          event.status !== 'deleted',
-      );
-      if (!stillOpen) host.meta = metaWithoutScanGroup(hostMeta);
-      host.updatedAt = at;
+      absorbMemoryEvents(store, host, chosen, at);
+      dropMemoryOccasionGroupIfAlone(store, host, groupId, at);
       if (host.status === 'published') {
         await enqueueDomainEvent(domainEvents, {
           type: 'event.updated',
@@ -938,7 +977,7 @@ export function createMemoryAdminEventServices(
         })
         .map((event) => memoryDuplicateItem(event));
     },
-    async mergeDuplicates(eventId, eventIds, actor) {
+    async mergeDuplicates(eventId, eventIds, actor, occasions = 'keep') {
       const host = store.events.get(eventId);
       if (!host || !isOpenOccasionStatus(host.status)) return null;
       const unique = [...new Set(eventIds)];
@@ -954,6 +993,37 @@ export function createMemoryAdminEventServices(
         throw new AdminEventError('invalid_event');
       }
       const chosen = members.filter((event) => event != null);
+      if (occasions === 'move') {
+        const at = now().toISOString();
+        const beforeDuplicate = readEventMeta(host.meta).possibleDuplicate ?? null;
+        absorbMemoryEvents(store, host, chosen, at);
+        dropMemoryOccasionGroupIfAlone(
+          store,
+          host,
+          readEventMeta(host.meta).possibleOccasionGroupId,
+          at,
+        );
+        if (host.status === 'published') {
+          await enqueueDomainEvent(domainEvents, {
+            type: 'event.updated',
+            eventId,
+            changedFields: ['occasions'],
+          });
+        }
+        await audit.write({
+          actor,
+          action: 'event.merge_duplicate_occasions',
+          entityType: 'event',
+          entityId: eventId,
+          before: { possibleDuplicate: beforeDuplicate },
+          after: { mergedEventIds: unique },
+        });
+        return asDetail(
+          host,
+          store.publishers.get(host.publisherId)?.name ?? 'Unknown',
+          env.assetsPublicBaseUrl,
+        );
+      }
       const hostMeta = readEventMeta(host.meta);
       assertMergeFits(
         hostMeta.mergedDuplicates,
@@ -1098,6 +1168,273 @@ export function createMemoryAdminEventServices(
   };
 }
 
+type AdminTx = Parameters<Parameters<Db['transaction']>[0]>[0];
+
+async function absorbEventsInto(
+  tx: AdminTx,
+  eventId: string,
+  unique: string[],
+  at: Date,
+): Promise<void> {
+  const childIdsSql = sql.join(
+    unique.map((id) => sql`${id}`),
+    sql`, `,
+  );
+  await tx.execute(deleteLaterCopies(schema.eventOccasions, 'source_key', childIdsSql));
+  await tx.execute(deleteLaterCopies(schema.savedEvents, 'user_id', childIdsSql));
+  await tx.execute(deleteLaterCopies(schema.comingEvents, 'user_id', childIdsSql));
+  await tx.execute(deleteLaterCopies(schema.eventListItems, 'list_id', childIdsSql));
+  await tx.execute(deleteLaterCopies(schema.checkIns, 'user_id', childIdsSql));
+  await tx.execute(deleteLaterCopies(schema.ratings, 'user_id', childIdsSql));
+  await tx.execute(deleteLaterCopies(schema.eventReports, 'user_id', childIdsSql));
+  await tx.execute(deleteLaterCopies(schema.eventTags, 'tag_id', childIdsSql));
+  await tx.execute(deleteLaterCopies(schema.eventTranslations, 'language', childIdsSql));
+  await tx.execute(deleteLaterCopies(schema.eventImages, 'role', childIdsSql));
+  await tx.execute(sql`
+  delete from ${schema.subscriptions} drop_row
+  using ${schema.subscriptions} keep_row
+  where drop_row.target_type = 'event'
+    and keep_row.target_type = 'event'
+    and drop_row.target_id in (${childIdsSql})
+    and keep_row.target_id in (${childIdsSql})
+    and drop_row.user_id = keep_row.user_id
+    and drop_row.ctid > keep_row.ctid
+`);
+  await tx.execute(sql`
+  delete from ${schema.eventOccasions} child
+  using ${schema.eventOccasions} host_occ
+  where child.event_id in (${childIdsSql})
+    and host_occ.event_id = ${eventId}
+    and child.source_key is not null
+    and child.source_key = host_occ.source_key
+`);
+  const hostOccasions = await tx
+    .select({
+      id: schema.eventOccasions.id,
+      startsAt: schema.eventOccasions.startsAt,
+      venueName: schema.eventOccasions.venueName,
+    })
+    .from(schema.eventOccasions)
+    .where(eq(schema.eventOccasions.eventId, eventId));
+  const hostVenue = firstNamedVenue(hostOccasions);
+  if (hostVenue) {
+    await tx
+      .update(schema.eventOccasions)
+      .set({ venueName: hostVenue, updatedAt: at })
+      .where(
+        and(
+          inArray(schema.eventOccasions.eventId, unique),
+          or(
+            isNull(schema.eventOccasions.venueName),
+            sql`btrim(${schema.eventOccasions.venueName}) = ''`,
+          ),
+        ),
+      );
+  }
+  await tx
+    .update(schema.eventOccasions)
+    .set({ eventId, updatedAt: at })
+    .where(inArray(schema.eventOccasions.eventId, unique));
+  await tx.execute(sql`
+  delete from ${schema.savedEvents} child
+  using ${schema.savedEvents} host_row
+  where child.event_id in (${childIdsSql})
+    and host_row.event_id = ${eventId}
+    and child.user_id = host_row.user_id
+`);
+  await tx
+    .update(schema.savedEvents)
+    .set({ eventId })
+    .where(inArray(schema.savedEvents.eventId, unique));
+  await tx.execute(sql`
+  delete from ${schema.comingEvents} child
+  using ${schema.comingEvents} host_row
+  where child.event_id in (${childIdsSql})
+    and host_row.event_id = ${eventId}
+    and child.user_id = host_row.user_id
+`);
+  await tx
+    .update(schema.comingEvents)
+    .set({ eventId })
+    .where(inArray(schema.comingEvents.eventId, unique));
+  await tx.execute(sql`
+  delete from ${schema.eventListItems} child
+  using ${schema.eventListItems} host_row
+  where child.event_id in (${childIdsSql})
+    and host_row.event_id = ${eventId}
+    and child.list_id = host_row.list_id
+`);
+  await tx
+    .update(schema.eventListItems)
+    .set({ eventId })
+    .where(inArray(schema.eventListItems.eventId, unique));
+  await tx.execute(sql`
+  delete from ${schema.checkIns} child
+  using ${schema.checkIns} host_row
+  where child.event_id in (${childIdsSql})
+    and host_row.event_id = ${eventId}
+    and child.user_id = host_row.user_id
+`);
+  await tx.update(schema.checkIns).set({ eventId }).where(inArray(schema.checkIns.eventId, unique));
+  await tx.execute(sql`
+  delete from ${schema.ratings} child
+  using ${schema.ratings} host_row
+  where child.event_id in (${childIdsSql})
+    and host_row.event_id = ${eventId}
+    and child.user_id = host_row.user_id
+`);
+  await tx.update(schema.ratings).set({ eventId }).where(inArray(schema.ratings.eventId, unique));
+  await tx.execute(sql`
+  delete from ${schema.eventReports} child
+  using ${schema.eventReports} host_row
+  where child.event_id in (${childIdsSql})
+    and host_row.event_id = ${eventId}
+    and child.user_id = host_row.user_id
+`);
+  await tx
+    .update(schema.eventReports)
+    .set({ eventId })
+    .where(inArray(schema.eventReports.eventId, unique));
+  await tx.execute(sql`
+  delete from ${schema.eventTags} child
+  using ${schema.eventTags} host_row
+  where child.event_id in (${childIdsSql})
+    and host_row.event_id = ${eventId}
+    and child.tag_id = host_row.tag_id
+`);
+  await tx
+    .update(schema.eventTags)
+    .set({ eventId })
+    .where(inArray(schema.eventTags.eventId, unique));
+  await tx.execute(sql`
+  delete from ${schema.eventTranslations} child
+  using ${schema.eventTranslations} host_row
+  where child.event_id in (${childIdsSql})
+    and host_row.event_id = ${eventId}
+    and child.language = host_row.language
+`);
+  await tx
+    .update(schema.eventTranslations)
+    .set({ eventId })
+    .where(inArray(schema.eventTranslations.eventId, unique));
+  await tx.execute(sql`
+  delete from ${schema.subscriptions} child
+  using ${schema.subscriptions} host_row
+  where child.target_type = 'event'
+    and child.target_id in (${childIdsSql})
+    and host_row.target_type = 'event'
+    and host_row.target_id = ${eventId}
+    and child.user_id = host_row.user_id
+`);
+  await tx
+    .update(schema.subscriptions)
+    .set({ targetId: eventId })
+    .where(
+      and(
+        eq(schema.subscriptions.targetType, 'event'),
+        inArray(schema.subscriptions.targetId, unique),
+      ),
+    );
+  await tx.execute(sql`
+  delete from ${schema.eventImages} child
+  using ${schema.eventImages} host_row
+  where child.event_id in (${childIdsSql})
+    and host_row.event_id = ${eventId}
+    and child.role = host_row.role
+`);
+  await tx
+    .update(schema.eventImages)
+    .set({ eventId })
+    .where(inArray(schema.eventImages.eventId, unique));
+  await tx
+    .update(schema.eventLinks)
+    .set({ eventId })
+    .where(inArray(schema.eventLinks.eventId, unique));
+  await tx
+    .update(schema.eventContent)
+    .set({ eventId })
+    .where(inArray(schema.eventContent.eventId, unique));
+  await tx
+    .update(schema.pushMessages)
+    .set({ eventId, updatedAt: at })
+    .where(inArray(schema.pushMessages.eventId, unique));
+  await tx
+    .update(schema.notifications)
+    .set({ eventId })
+    .where(inArray(schema.notifications.eventId, unique));
+  await tx
+    .update(schema.eventTips)
+    .set({ eventId, updatedAt: at })
+    .where(inArray(schema.eventTips.eventId, unique));
+  await tx.execute(sql`
+  insert into ${schema.stats} ("source_type", "source_id", "key", "value", "created_at", "updated_at")
+  select 'event', ${eventId}, s."key", sum(s."value"), min(s."created_at"), max(s."updated_at")
+  from ${schema.stats} s
+  where s."source_type" = 'event'
+    and s."source_id" in (${childIdsSql})
+  group by s."key"
+  on conflict ("source_type", "source_id", "key")
+  do update set
+    "value" = ${schema.stats}.value + excluded.value,
+    "updated_at" = greatest(${schema.stats}.updated_at, excluded.updated_at)
+`);
+  await tx.execute(sql`
+  delete from ${schema.stats}
+  where "source_type" = 'event'
+    and "source_id" in (${childIdsSql})
+`);
+  await tx.execute(sql`
+  delete from ${schema.externalRefs} child
+  using ${schema.externalRefs} host_row
+  where child.event_id in (${childIdsSql})
+    and host_row.event_id = ${eventId}
+    and child.source_id = host_row.source_id
+    and child.external_id = host_row.external_id
+`);
+  await tx
+    .update(schema.externalRefs)
+    .set({ eventId, lastSeenAt: at })
+    .where(inArray(schema.externalRefs.eventId, unique));
+  await tx.delete(schema.events).where(inArray(schema.events.id, unique));
+  await tx
+    .update(schema.events)
+    .set({
+      meta: sql`${schema.events.meta} - 'possibleDuplicate'`,
+      updatedAt: at,
+    })
+    .where(sql`${schema.events.meta}->'possibleDuplicate'->>'eventId' in (${childIdsSql})`);
+}
+
+async function dropDbOccasionGroupIfAlone(
+  tx: AdminTx,
+  eventId: string,
+  groupId: string | undefined,
+  at: Date,
+): Promise<void> {
+  if (!groupId) {
+    await tx.update(schema.events).set({ updatedAt: at }).where(eq(schema.events.id, eventId));
+    return;
+  }
+  const [remaining] = await tx
+    .select({ id: schema.events.id })
+    .from(schema.events)
+    .where(
+      and(
+        sql`${schema.events.meta}->>'possibleOccasionGroupId' = ${groupId}`,
+        inArray(schema.events.status, [...OPEN_OCCASION_STATUSES]),
+        ne(schema.events.id, eventId),
+      ),
+    )
+    .limit(1);
+  await tx
+    .update(schema.events)
+    .set({
+      ...(remaining ? {} : { meta: sql`${schema.events.meta} - 'possibleOccasionGroupId'` }),
+      updatedAt: at,
+    })
+    .where(eq(schema.events.id, eventId));
+}
+
 export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): AdminEventServices {
   const now = env.now ?? (() => new Date());
   const domainEvents = env.domainEvents ?? createMemoryDomainEventPublisher();
@@ -1187,6 +1524,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         publisherName: schema.publishers.name,
         title: schema.events.title,
         description: schema.events.description,
+        summary: schema.events.summary,
         mode: schema.events.mode,
         status: schema.events.status,
         origin: schema.events.origin,
@@ -1252,6 +1590,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
       publisherName: row.publisherName ?? '',
       title: row.title,
       description: row.description,
+      summary: row.summary,
       mode: row.mode,
       status: row.status,
       origin: row.origin,
@@ -1826,10 +2165,6 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           throw new AdminEventError('invalid_event');
         }
       }
-      const childIdsSql = sql.join(
-        unique.map((id) => sql`${id}`),
-        sql`, `,
-      );
       await db.transaction(async (tx) => {
         const locked = await tx
           .select({
@@ -1858,246 +2193,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         ) {
           throw new AdminEventError('invalid_event');
         }
-        await tx.execute(deleteLaterCopies(schema.eventOccasions, 'source_key', childIdsSql));
-        await tx.execute(deleteLaterCopies(schema.savedEvents, 'user_id', childIdsSql));
-        await tx.execute(deleteLaterCopies(schema.comingEvents, 'user_id', childIdsSql));
-        await tx.execute(deleteLaterCopies(schema.eventListItems, 'list_id', childIdsSql));
-        await tx.execute(deleteLaterCopies(schema.checkIns, 'user_id', childIdsSql));
-        await tx.execute(deleteLaterCopies(schema.ratings, 'user_id', childIdsSql));
-        await tx.execute(deleteLaterCopies(schema.eventReports, 'user_id', childIdsSql));
-        await tx.execute(deleteLaterCopies(schema.eventTags, 'tag_id', childIdsSql));
-        await tx.execute(deleteLaterCopies(schema.eventTranslations, 'language', childIdsSql));
-        await tx.execute(deleteLaterCopies(schema.eventImages, 'role', childIdsSql));
-        await tx.execute(sql`
-          delete from ${schema.subscriptions} drop_row
-          using ${schema.subscriptions} keep_row
-          where drop_row.target_type = 'event'
-            and keep_row.target_type = 'event'
-            and drop_row.target_id in (${childIdsSql})
-            and keep_row.target_id in (${childIdsSql})
-            and drop_row.user_id = keep_row.user_id
-            and drop_row.ctid > keep_row.ctid
-        `);
-        await tx.execute(sql`
-          delete from ${schema.eventOccasions} child
-          using ${schema.eventOccasions} host_occ
-          where child.event_id in (${childIdsSql})
-            and host_occ.event_id = ${eventId}
-            and child.source_key is not null
-            and child.source_key = host_occ.source_key
-        `);
-        const hostOccasions = await tx
-          .select({
-            id: schema.eventOccasions.id,
-            startsAt: schema.eventOccasions.startsAt,
-            venueName: schema.eventOccasions.venueName,
-          })
-          .from(schema.eventOccasions)
-          .where(eq(schema.eventOccasions.eventId, eventId));
-        const hostVenue = firstNamedVenue(hostOccasions);
-        if (hostVenue) {
-          await tx
-            .update(schema.eventOccasions)
-            .set({ venueName: hostVenue, updatedAt: at })
-            .where(
-              and(
-                inArray(schema.eventOccasions.eventId, unique),
-                or(
-                  isNull(schema.eventOccasions.venueName),
-                  sql`btrim(${schema.eventOccasions.venueName}) = ''`,
-                ),
-              ),
-            );
-        }
-        await tx
-          .update(schema.eventOccasions)
-          .set({ eventId, updatedAt: at })
-          .where(inArray(schema.eventOccasions.eventId, unique));
-        await tx.execute(sql`
-          delete from ${schema.savedEvents} child
-          using ${schema.savedEvents} host_row
-          where child.event_id in (${childIdsSql})
-            and host_row.event_id = ${eventId}
-            and child.user_id = host_row.user_id
-        `);
-        await tx
-          .update(schema.savedEvents)
-          .set({ eventId })
-          .where(inArray(schema.savedEvents.eventId, unique));
-        await tx.execute(sql`
-          delete from ${schema.comingEvents} child
-          using ${schema.comingEvents} host_row
-          where child.event_id in (${childIdsSql})
-            and host_row.event_id = ${eventId}
-            and child.user_id = host_row.user_id
-        `);
-        await tx
-          .update(schema.comingEvents)
-          .set({ eventId })
-          .where(inArray(schema.comingEvents.eventId, unique));
-        await tx.execute(sql`
-          delete from ${schema.eventListItems} child
-          using ${schema.eventListItems} host_row
-          where child.event_id in (${childIdsSql})
-            and host_row.event_id = ${eventId}
-            and child.list_id = host_row.list_id
-        `);
-        await tx
-          .update(schema.eventListItems)
-          .set({ eventId })
-          .where(inArray(schema.eventListItems.eventId, unique));
-        await tx.execute(sql`
-          delete from ${schema.checkIns} child
-          using ${schema.checkIns} host_row
-          where child.event_id in (${childIdsSql})
-            and host_row.event_id = ${eventId}
-            and child.user_id = host_row.user_id
-        `);
-        await tx
-          .update(schema.checkIns)
-          .set({ eventId })
-          .where(inArray(schema.checkIns.eventId, unique));
-        await tx.execute(sql`
-          delete from ${schema.ratings} child
-          using ${schema.ratings} host_row
-          where child.event_id in (${childIdsSql})
-            and host_row.event_id = ${eventId}
-            and child.user_id = host_row.user_id
-        `);
-        await tx
-          .update(schema.ratings)
-          .set({ eventId })
-          .where(inArray(schema.ratings.eventId, unique));
-        await tx.execute(sql`
-          delete from ${schema.eventReports} child
-          using ${schema.eventReports} host_row
-          where child.event_id in (${childIdsSql})
-            and host_row.event_id = ${eventId}
-            and child.user_id = host_row.user_id
-        `);
-        await tx
-          .update(schema.eventReports)
-          .set({ eventId })
-          .where(inArray(schema.eventReports.eventId, unique));
-        await tx.execute(sql`
-          delete from ${schema.eventTags} child
-          using ${schema.eventTags} host_row
-          where child.event_id in (${childIdsSql})
-            and host_row.event_id = ${eventId}
-            and child.tag_id = host_row.tag_id
-        `);
-        await tx
-          .update(schema.eventTags)
-          .set({ eventId })
-          .where(inArray(schema.eventTags.eventId, unique));
-        await tx.execute(sql`
-          delete from ${schema.eventTranslations} child
-          using ${schema.eventTranslations} host_row
-          where child.event_id in (${childIdsSql})
-            and host_row.event_id = ${eventId}
-            and child.language = host_row.language
-        `);
-        await tx
-          .update(schema.eventTranslations)
-          .set({ eventId })
-          .where(inArray(schema.eventTranslations.eventId, unique));
-        await tx.execute(sql`
-          delete from ${schema.subscriptions} child
-          using ${schema.subscriptions} host_row
-          where child.target_type = 'event'
-            and child.target_id in (${childIdsSql})
-            and host_row.target_type = 'event'
-            and host_row.target_id = ${eventId}
-            and child.user_id = host_row.user_id
-        `);
-        await tx
-          .update(schema.subscriptions)
-          .set({ targetId: eventId })
-          .where(
-            and(
-              eq(schema.subscriptions.targetType, 'event'),
-              inArray(schema.subscriptions.targetId, unique),
-            ),
-          );
-        await tx.execute(sql`
-          delete from ${schema.eventImages} child
-          using ${schema.eventImages} host_row
-          where child.event_id in (${childIdsSql})
-            and host_row.event_id = ${eventId}
-            and child.role = host_row.role
-        `);
-        await tx
-          .update(schema.eventImages)
-          .set({ eventId })
-          .where(inArray(schema.eventImages.eventId, unique));
-        await tx
-          .update(schema.eventLinks)
-          .set({ eventId })
-          .where(inArray(schema.eventLinks.eventId, unique));
-        await tx
-          .update(schema.eventContent)
-          .set({ eventId })
-          .where(inArray(schema.eventContent.eventId, unique));
-        await tx
-          .update(schema.pushMessages)
-          .set({ eventId, updatedAt: at })
-          .where(inArray(schema.pushMessages.eventId, unique));
-        await tx
-          .update(schema.notifications)
-          .set({ eventId })
-          .where(inArray(schema.notifications.eventId, unique));
-        await tx
-          .update(schema.eventTips)
-          .set({ eventId, updatedAt: at })
-          .where(inArray(schema.eventTips.eventId, unique));
-        await tx.execute(sql`
-          insert into ${schema.stats} ("source_type", "source_id", "key", "value", "created_at", "updated_at")
-          select 'event', ${eventId}, s."key", sum(s."value"), min(s."created_at"), max(s."updated_at")
-          from ${schema.stats} s
-          where s."source_type" = 'event'
-            and s."source_id" in (${childIdsSql})
-          group by s."key"
-          on conflict ("source_type", "source_id", "key")
-          do update set
-            "value" = ${schema.stats}.value + excluded.value,
-            "updated_at" = greatest(${schema.stats}.updated_at, excluded.updated_at)
-        `);
-        await tx.execute(sql`
-          delete from ${schema.stats}
-          where "source_type" = 'event'
-            and "source_id" in (${childIdsSql})
-        `);
-        await tx.execute(sql`
-          delete from ${schema.externalRefs} child
-          using ${schema.externalRefs} host_row
-          where child.event_id in (${childIdsSql})
-            and host_row.event_id = ${eventId}
-            and child.source_id = host_row.source_id
-            and child.external_id = host_row.external_id
-        `);
-        await tx
-          .update(schema.externalRefs)
-          .set({ eventId, lastSeenAt: at })
-          .where(inArray(schema.externalRefs.eventId, unique));
-        await tx.delete(schema.events).where(inArray(schema.events.id, unique));
-        const [remaining] = await tx
-          .select({ id: schema.events.id })
-          .from(schema.events)
-          .where(
-            and(
-              sql`${schema.events.meta}->>'possibleOccasionGroupId' = ${groupId}`,
-              inArray(schema.events.status, [...OPEN_OCCASION_STATUSES]),
-              ne(schema.events.id, eventId),
-            ),
-          )
-          .limit(1);
-        await tx
-          .update(schema.events)
-          .set({
-            ...(remaining ? {} : { meta: sql`${schema.events.meta} - 'possibleOccasionGroupId'` }),
-            updatedAt: at,
-          })
-          .where(eq(schema.events.id, eventId));
+        await absorbEventsInto(tx, eventId, unique, at);
+        await dropDbOccasionGroupIfAlone(tx, eventId, groupId, at);
       });
       if (host.status === 'published') {
         await enqueueDomainEvent(domainEvents, {
@@ -2197,7 +2294,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           }),
       }));
     },
-    async mergeDuplicates(eventId, eventIds, actor) {
+    async mergeDuplicates(eventId, eventIds, actor, occasions = 'keep') {
       const [host] = await db
         .select({
           id: schema.events.id,
@@ -2252,6 +2349,16 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           throw new AdminEventError('invalid_event');
         }
         const chosen = members.filter((row) => row != null);
+        if (occasions === 'move') {
+          await absorbEventsInto(tx, eventId, unique, at);
+          await dropDbOccasionGroupIfAlone(
+            tx,
+            eventId,
+            readEventMeta(lockedHost.meta).possibleOccasionGroupId,
+            at,
+          );
+          return;
+        }
         assertMergeFits(
           readEventMeta(lockedHost.meta).mergedDuplicates,
           chosen.map((row) => row.id),
@@ -2279,6 +2386,25 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           .set({ meta: next.targetMeta, updatedAt: at })
           .where(eq(schema.events.id, eventId));
       });
+      if (occasions === 'move') {
+        if (host.status === 'published') {
+          await enqueueDomainEvent(domainEvents, {
+            type: 'event.updated',
+            eventId,
+            changedFields: ['occasions'],
+          });
+        }
+        const updated = await loadDetail(eventId);
+        await audit.write({
+          actor,
+          action: 'event.merge_duplicate_occasions',
+          entityType: 'event',
+          entityId: eventId,
+          before: { possibleDuplicate: readEventMeta(host.meta).possibleDuplicate ?? null },
+          after: { mergedEventIds: unique },
+        });
+        return updated;
+      }
       for (const id of unique) await cancelOpenPushMessages(db, id, at);
       const updated = await loadDetail(eventId);
       await audit.write({

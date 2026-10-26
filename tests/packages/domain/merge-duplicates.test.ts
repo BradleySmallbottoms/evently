@@ -2,11 +2,27 @@ import { describe, expect, it } from 'vitest';
 import {
   eventsAreDuplicatePair,
   hideMergedDuplicates,
+  metaWithoutFoldedDuplicate,
 } from '../../../packages/domain/src/merge-duplicates';
 
 const hostId = '44444444-4444-4444-8444-444444444401';
 const matchId = '44444444-4444-4444-8444-444444444402';
 const incomingId = '44444444-4444-4444-8444-444444444403';
+
+describe('metaWithoutFoldedDuplicate', () => {
+  it('drops a note that points at a folded event and keeps every other key', () => {
+    const meta = {
+      freeEntry: true,
+      possibleDuplicate: { eventId: matchId },
+      possibleOccasionGroupId: 'product-1',
+    };
+    expect(metaWithoutFoldedDuplicate(meta, new Set([matchId]))).toEqual({
+      freeEntry: true,
+      possibleOccasionGroupId: 'product-1',
+    });
+    expect(metaWithoutFoldedDuplicate(meta, new Set([incomingId]))).toBe(meta);
+  });
+});
 
 describe('hideMergedDuplicates', () => {
   it('clears the warning when the pointed-at event is hidden and records the merge', () => {

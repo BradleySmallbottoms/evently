@@ -421,6 +421,13 @@
       "when": 1794400000018,
       "tag": "0059_seed_tickster",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1794400000019,
+      "tag": "0060_allow-deleted-without-publisher",
+      "breakpoints": true
     }
   ]
 }

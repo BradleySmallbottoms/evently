@@ -213,10 +213,21 @@ export default function HomeScreen() {
     if (homeListReady) reportHomeReady();
   }, [homeListReady, reportHomeReady]);
   const popular = useQuery({
-    queryKey: ['popular-events', point.data?.lat, point.data?.lng, point.data?.radiusM],
+    queryKey: [
+      'popular-events',
+      point.data?.lat,
+      point.data?.lng,
+      point.data?.radiusM,
+      selectedTagKey,
+    ],
     ...eventListFreshness,
-    enabled: point.isSuccess,
-    queryFn: () => listPublicEvents(point.data!, { sort: 'popular', limit: 9 }),
+    enabled: point.isSuccess && storedTagIds.isSuccess && tagsSettled,
+    queryFn: () =>
+      listPublicEvents(point.data!, {
+        sort: 'popular',
+        limit: 9,
+        tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+      }),
   });
   const popularItems = (popular.data?.items ?? []).map((item) => ({
     id: item.id,
@@ -562,7 +573,7 @@ export default function HomeScreen() {
                 />
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                <CircleIconButton
+                {/* <CircleIconButton
                   plain
                   sf="scope"
                   md="gps-fixed"
@@ -572,7 +583,7 @@ export default function HomeScreen() {
                     void setDiscoveryPlaceId(NEARBY_PLACE_ID);
                     void refreshDeviceLocation();
                   }}
-                />
+                /> */}
                 <CircleIconButton
                   sf="plus"
                   md="add"
@@ -618,33 +629,37 @@ export default function HomeScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ gap: space.md, paddingHorizontal: space.xl }}
                 >
-                  {forYou.items.map((item) => (
-                    <View key={item.id} style={{ width: 280 }}>
-                      <EventCard
-                        title={item.title}
-                        when={
-                          isWholeDay(
-                            shownWhen(item, new Date()).startsAt,
-                            shownWhen(item, new Date()).endsAt,
-                          )
-                            ? t('events.wholeDay')
-                            : new Date(shownWhen(item, new Date()).startsAt).toLocaleString(locale)
-                        }
-                        where={
-                          item.mode === 'physical'
-                            ? (item.venueName ?? t('events.missingVenue'))
-                            : (item.onlineUrl ?? t('events.missingUrl'))
-                        }
-                        tags={namesForTagIds(item.tagIds, tags.data?.items)}
-                        imageUrl={item.imageUrl}
-                        priceAmount={item.priceAmount}
-                        dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
-                        saved={savedIds.has(item.id)}
-                        onSavePress={() => toggleSave(item.id)}
-                        onPress={() => router.push(`/events/${item.id}`)}
-                      />
-                    </View>
-                  ))}
+                  {forYou.items.map((item) => {
+                    return (
+                      <View key={item.id} style={{ width: 280 }}>
+                        <EventCard
+                          title={item.title}
+                          when={
+                            isWholeDay(
+                              shownWhen(item, new Date()).startsAt,
+                              shownWhen(item, new Date()).endsAt,
+                            )
+                              ? t('events.wholeDay')
+                              : new Date(shownWhen(item, new Date()).startsAt).toLocaleString(
+                                  locale,
+                                )
+                          }
+                          where={
+                            item.mode === 'physical'
+                              ? (item.venueName ?? t('events.missingVenue'))
+                              : (item.onlineUrl ?? t('events.missingUrl'))
+                          }
+                          tags={namesForTagIds(item.tagIds, tags.data?.items)}
+                          imageUrl={item.imageUrl}
+                          priceAmount={item.priceAmount}
+                          dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
+                          saved={savedIds.has(item.id)}
+                          onSavePress={() => toggleSave(item.id)}
+                          onPress={() => router.push(`/events/${item.id}`)}
+                        />
+                      </View>
+                    );
+                  })}
                 </ScrollView>
               </View>
             ) : null}

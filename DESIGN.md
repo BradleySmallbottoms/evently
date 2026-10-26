@@ -276,8 +276,8 @@ panel overlaps the bottom of the photo and shows the category, the title,
 a two-line description, the date span, and the place. The badge is the next
 occasion. The span line is the event's full range. 6. "Popular right now": a grid of three rows and two or
 three columns, filled from nearby events people have saved or marked
-coming (`sort=popular`, up to nine). Each tile is only a photo and
-a date, and opens that event. The section stays hidden when none
+coming (`sort=popular`, up to nine, using the same tag filter as the home list). Each tile is a photo, a date, and
+the title on a dark gradient at the bottom, and opens that event. The section stays hidden when none
 qualify. "See all" opens the wider list. 7. "This
 weekend" or date-based collections. 8. Optional personalized
 recommendations.

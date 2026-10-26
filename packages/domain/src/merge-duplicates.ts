@@ -11,6 +11,20 @@ export type StoredDuplicateMeta = {
   duplicateOf?: MergedDuplicate;
 };
 
+/**
+ * Drop a duplicate note that points at an event whose occasions were folded in.
+ * A note that points elsewhere stays. Other keys stay.
+ */
+export function metaWithoutFoldedDuplicate<T extends { possibleDuplicate?: { eventId: string } }>(
+  meta: T,
+  foldedEventIds: ReadonlySet<string>,
+): T {
+  const eventId = meta.possibleDuplicate?.eventId;
+  if (!eventId || !foldedEventIds.has(eventId)) return meta;
+  const { possibleDuplicate: _note, ...rest } = meta;
+  return rest as T;
+}
+
 /** True when either event's duplicate note points at the other. */
 export function eventsAreDuplicatePair(
   target: { id: string; possibleDuplicateEventId?: string },

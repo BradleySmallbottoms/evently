@@ -297,9 +297,9 @@ export const Event = z.object({
   meta: PublicEventMeta,
   publisherName: z.string(),
   links: z.array(EventLink),
-  /** Hero image. Null when the event has none or the public asset host is unset. */
+  /** Hero image. The `main` role, or the first gallery image when `main` is missing. Null when the event has neither or the public asset host is unset. */
   imageUrl: z.url().nullable(),
-  /** Photos after the hero, `gallery-1` then `gallery-2`, and so on. Empty when there are none. */
+  /** Photos after the hero, lowest gallery number first. Empty when there are none. */
   imageUrls: z.array(z.url()),
   /** Sponsored poster. Null when the event has none or the public asset host is unset. */
   posterUrl: z.url().nullable(),
