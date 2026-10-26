@@ -203,6 +203,7 @@ Product invariants (enforced in domain, tested)
   The same start and end is a whole day: the time reads “Whole Day”, and that occasion stays current through its calendar day.
   Admin can fold selected events into the open event (`POST /events/{id}/collapse`).
   Their occasion rows and child rows move onto it, and the checked events are deleted.
+  A folded occasion with no venue takes the venue from the first target occasion that has one.
 - A lookalike within 500 m and 30 minutes is still inserted, then marked `in_review` by the scan
   job, with `meta.possibleDuplicate` pointing at the existing event. A duplicate ranked over 90 as
   another showing stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates.

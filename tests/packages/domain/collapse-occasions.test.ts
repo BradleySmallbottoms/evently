@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { collapseOccasionSpan } from '../../../packages/domain/src/collapse-occasions';
+import {
+  collapsedVenueName,
+  collapseOccasionSpan,
+  firstNamedVenue,
+} from '../../../packages/domain/src/collapse-occasions';
 
 const host = {
   startsAt: '2026-08-02T16:00:00.000Z',
@@ -63,5 +67,39 @@ describe('collapseOccasionSpan', () => {
 
   it('refuses an empty selection', () => {
     expect(collapseOccasionSpan(host, [])).toBeNull();
+  });
+});
+
+describe('collapsed venue', () => {
+  const occasions = [
+    { id: 'b', startsAt: '2026-08-02T16:00:00.000Z', venueName: '  ' },
+    { id: 'a', startsAt: '2026-08-01T10:00:00.000Z', venueName: null },
+    { id: 'c', startsAt: '2026-08-03T19:00:00.000Z', venueName: ' Glysis ishall ' },
+  ];
+
+  it('uses the earliest target occasion that has a venue', () => {
+    expect(firstNamedVenue(occasions)).toBe('Glysis ishall');
+    expect(
+      firstNamedVenue([{ id: 'a', startsAt: '2026-08-01T10:00:00.000Z', venueName: null }]),
+    ).toBeNull();
+    expect(
+      firstNamedVenue([
+        { id: 'b', startsAt: '2026-08-02T16:00:00.000Z', venueName: 'Later' },
+        { id: 'a', startsAt: '2026-08-01T10:00:00.000Z', venueName: 'Earlier' },
+      ]),
+    ).toBe('Earlier');
+    expect(
+      firstNamedVenue([
+        { id: 'b', startsAt: '2026-08-01T10:00:00.000Z', venueName: 'Second' },
+        { id: 'a', startsAt: '2026-08-01T10:00:00.000Z', venueName: 'First' },
+      ]),
+    ).toBe('First');
+  });
+
+  it('fills only a folded occasion that has no venue', () => {
+    expect(collapsedVenueName(null, 'Glysis ishall')).toBe('Glysis ishall');
+    expect(collapsedVenueName('   ', 'Glysis ishall')).toBe('Glysis ishall');
+    expect(collapsedVenueName('Park', 'Glysis ishall')).toBe('Park');
+    expect(collapsedVenueName(null, null)).toBeNull();
   });
 });

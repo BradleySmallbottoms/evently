@@ -147,6 +147,17 @@ describe('occasionVenueOnImport', () => {
     ).toBe('Glysis ishall');
   });
 
+  it('uses the incoming name when a scanned event has no venue yet', () => {
+    expect(
+      occasionVenueOnImport({
+        scanned: true,
+        incoming: 'Helsingehus',
+        previousForKey: null,
+        previousAny: null,
+      }),
+    ).toBe('Helsingehus');
+  });
+
   it('uses the incoming showing name before the scan', () => {
     expect(
       occasionVenueOnImport({

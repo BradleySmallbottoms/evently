@@ -550,6 +550,7 @@ describe('admin api', () => {
             title: 'Late',
             startsAt: '2026-08-04T19:00:00.000Z',
             endsAt: '2026-08-04T21:00:00.000Z',
+            venueName: null,
             meta: { possibleOccasionGroupId: 'product-1' },
           },
         ],

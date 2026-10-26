@@ -32,6 +32,8 @@ import {
 } from '@local-events/db';
 import {
   canApproveImportedEvent,
+  collapsedVenueName,
+  firstNamedVenue,
   canDeleteImportedEvent,
   canRejectImportedEvent,
   canRescanImportedEvent,
@@ -45,7 +47,7 @@ import {
   reviewWarnings,
   validateEventFields,
 } from '@local-events/domain';
-import { and, asc, count, desc, eq, ilike, inArray, ne, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import type { AdminAuditServices } from './audit';
 import { noopAudit } from './audit';
 import { createMemoryDomainEventPublisher } from './domain-events/memory';
@@ -777,7 +779,17 @@ export function createMemoryAdminEventServices(
         throw new AdminEventError('invalid_event');
       }
       const chosen = members.filter((event) => event != null);
-      const rows = [occasionRows(host), ...chosen.map((event) => occasionRows(event))].flat();
+      const hostRows = occasionRows(host);
+      const hostVenue = firstNamedVenue(hostRows);
+      const rows = [
+        hostRows,
+        ...chosen.map((event) =>
+          occasionRows(event).map((row) => ({
+            ...row,
+            venueName: collapsedVenueName(row.venueName, hostVenue),
+          })),
+        ),
+      ].flat();
       if (rows.length < 2) throw new AdminEventError('invalid_event');
       const at = now().toISOString();
       const groupId = hostMeta.possibleOccasionGroupId;
@@ -1689,6 +1701,29 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
             and child.source_key is not null
             and child.source_key = host_occ.source_key
         `);
+        const hostOccasions = await tx
+          .select({
+            id: schema.eventOccasions.id,
+            startsAt: schema.eventOccasions.startsAt,
+            venueName: schema.eventOccasions.venueName,
+          })
+          .from(schema.eventOccasions)
+          .where(eq(schema.eventOccasions.eventId, eventId));
+        const hostVenue = firstNamedVenue(hostOccasions);
+        if (hostVenue) {
+          await tx
+            .update(schema.eventOccasions)
+            .set({ venueName: hostVenue, updatedAt: at })
+            .where(
+              and(
+                inArray(schema.eventOccasions.eventId, unique),
+                or(
+                  isNull(schema.eventOccasions.venueName),
+                  sql`btrim(${schema.eventOccasions.venueName}) = ''`,
+                ),
+              ),
+            );
+        }
         await tx
           .update(schema.eventOccasions)
           .set({ eventId, updatedAt: at })

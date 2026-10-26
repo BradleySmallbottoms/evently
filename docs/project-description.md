@@ -20,7 +20,7 @@ Core concepts:
   Tags and an online URL do not replace a missing point. Direct lookup by id still
   returns it, including after it has ended. It has no map pin and does not match nearby push. The detail page lists other times
   that have not ended from `event_occasions`. Admin can fold other events that share `meta.possibleOccasionGroupId` into the open event by
-  moving those occasion rows and related child rows onto it, then deleting the checked events. The same start and end is a
+  moving those occasion rows and related child rows onto it, then deleting the checked events. A folded occasion with no venue takes the venue from the first target occasion that has one. The same start and end is a
   whole day: the time reads “Whole Day”, and that day stays current until it is over. Has tags, a schedule, and optional attendee-only content (maps,
   schedules, info). Users can subscribe to an event and are notified when it changes.
 - **User** — anonymous by default: the app creates an identity on first launch, no registration.

@@ -86,3 +86,39 @@ export function collapseOccasionSpan(
   if (instant(endsAt) < instant(startsAt)) return null;
   return { startsAt, endsAt, occasions };
 }
+
+/**
+ * Venue already stored on the target event. Occasions are ordered by start,
+ * then id. The first non-blank name wins. Blank names are skipped.
+ */
+export function firstNamedVenue(
+  occasions: readonly {
+    id: string;
+    startsAt: string | Date;
+    venueName?: string | null;
+  }[],
+): string | null {
+  const sorted = [...occasions].sort((a, b) => {
+    const byStart = instant(startText(a.startsAt)) - instant(startText(b.startsAt));
+    if (byStart !== 0) return byStart;
+    return a.id.localeCompare(b.id);
+  });
+  for (const occasion of sorted) {
+    const name = occasion.venueName?.trim();
+    if (name) return name;
+  }
+  return null;
+}
+
+/** A folded showing keeps its own venue. A blank one takes the target's. */
+export function collapsedVenueName(
+  venueName: string | null | undefined,
+  hostVenue: string | null,
+): string | null {
+  if (venueName?.trim()) return venueName;
+  return hostVenue;
+}
+
+function startText(value: string | Date): string {
+  return value instanceof Date ? value.toISOString() : value;
+}
