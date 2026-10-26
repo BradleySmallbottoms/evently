@@ -131,22 +131,10 @@ export function PublishedTip({ tip, event }: { tip: Tip; event: ShownEvent | nul
           }}
         >
           <View style={{ flexDirection: 'row', gap: space.md }}>
-            {imageUrl ? (
-              <EventImage
-                imageUrl={imageUrl}
-                style={{ width: 84, height: 108, borderRadius: radius.sm }}
-              />
-            ) : (
-              <View
-                style={{
-                  width: 84,
-                  height: 108,
-                  borderRadius: radius.sm,
-                  borderCurve: 'continuous',
-                  backgroundColor: colors.accentSoft,
-                }}
-              />
-            )}
+            <EventImage
+              imageUrl={imageUrl}
+              style={{ width: 84, height: 108, borderRadius: radius.sm }}
+            />
             <View style={{ flex: 1, gap: space.sm, paddingTop: 2 }}>
               <View
                 style={{

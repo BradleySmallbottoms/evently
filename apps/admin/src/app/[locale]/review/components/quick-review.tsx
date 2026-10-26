@@ -200,6 +200,28 @@ export function QuickReview({
     },
   });
 
+  const markCurrent = useMutation({
+    mutationFn: async () => {
+      const [keeperId] = [...duplicateSelected];
+      if (duplicateSelected.size !== 1 || !keeperId) throw new Error('invalid_event');
+      await adminFetch(`/events/${keeperId}/merge-duplicates`, {
+        method: 'POST',
+        body: JSON.stringify({ eventIds: [eventId], occasions: 'keep' }),
+      });
+    },
+    onSuccess: async () => {
+      setError(false);
+      setDone(false);
+      setMarked(true);
+      await refreshMerged();
+      onMerged();
+    },
+    onError: async () => {
+      setError(true);
+      await refreshMerged();
+    },
+  });
+
   const event = detail.data;
   const timeZone = event?.timezone ?? 'Europe/Stockholm';
   const occasions = event?.occasions ?? [];
@@ -212,7 +234,8 @@ export function QuickReview({
   );
   const canMerge = groupSelected.size > 0 || duplicateSelected.size > 0;
 
-  const pending = merge.isPending || decide.isPending || markDuplicate.isPending;
+  const pending =
+    merge.isPending || decide.isPending || markDuplicate.isPending || markCurrent.isPending;
 
   function toggle(set: typeof setGroupSelected, id: string) {
     setError(false);
@@ -359,7 +382,9 @@ export function QuickReview({
           onToggle={(id) => toggle(setDuplicateSelected, id)}
           onToggleAll={() => {
             setError(false);
+            setDecideError(false);
             setDone(false);
+            setMarked(false);
             setDuplicateSelected(
               duplicateItems.length > 0 &&
                 duplicateItems.every((item) => duplicateSelected.has(item.id))
@@ -442,6 +467,15 @@ export function QuickReview({
         <Button type="button" disabled={!canMerge || pending} onClick={() => merge.mutate()}>
           {merge.isPending ? <Spinner data-icon="inline-start" /> : null}
           {t('merge')}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={duplicateSelected.size !== 1 || pending}
+          onClick={() => markCurrent.mutate()}
+        >
+          {markCurrent.isPending ? <Spinner data-icon="inline-start" /> : null}
+          {t('markAsDuplicate')}
         </Button>
       </CardFooter>
     </Card>

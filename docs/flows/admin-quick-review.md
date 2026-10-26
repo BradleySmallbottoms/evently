@@ -8,7 +8,9 @@ Merge folds the checked occasion-group events into the open event, then folds th
 duplicates the same way as Merge on the event page: their occasions move onto the open event and
 the duplicates are deleted. An event that is in both lists is folded once, through the duplicate
 merge. Each duplicate lists its occasions under the event row. Mark as duplicate on that row hides
-that one event: status `deleted`, `meta.duplicateOf`, and its occasions stay. A row still
+that one event: status `deleted`, `meta.duplicateOf`, and its occasions stay. Mark as duplicate
+beside Reject hides the open event instead, as a duplicate of the one checked possible duplicate,
+and its occasions stay. A row still
 waiting for a scan keeps its empty publisher.
 Publish and Reject use the same actions as the review list (`POST /events/{id}/approve` and
 `POST /events/{id}/reject`).
