@@ -5,6 +5,7 @@ import { CalendarIcon, MoreHorizontalIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { ContentVerdictChip, type ContentVerdict } from '@/components/content-verdict';
+import { WorkerFilter } from '@/components/worker-filter';
 import { EventTagCount, EventWarningMark, type EventWarning } from '@/components/event-warning';
 import { EmptyState, LoadingRows } from '@/components/list-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -55,6 +56,7 @@ type ReviewItem = {
   startsAt: string | null;
   venueName: string | null;
   sourceUrl: string | null;
+  workerId: string | null;
   origin: 'native' | 'imported';
   contentVerdict: ContentVerdict;
   tagCount: number;
@@ -92,6 +94,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   const [searchInput, setSearchInput] = useState('');
   const [q, setQ] = useState('');
   const [tagFilter, setTagFilter] = useState('');
+  const [workerFilter, setWorkerFilter] = useState('');
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -112,7 +115,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
   }, [searchInput]);
 
   const list = useQuery({
-    queryKey: ['admin-events-in-review', q, tagFilter, page],
+    queryKey: ['admin-events-in-review', q, tagFilter, workerFilter, page],
     queryFn: () => {
       const params = new URLSearchParams({
         status: 'in_review',
@@ -122,6 +125,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
       });
       if (q) params.set('q', q);
       if (tagFilter === NO_TAGS) params.set('untagged', 'true');
+      if (workerFilter) params.set('worker', workerFilter);
       return adminFetch<ReviewPage>(`/events?${params.toString()}`);
     },
     placeholderData: keepPreviousData,
@@ -329,12 +333,23 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
             </SelectContent>
           </Select>
         </Field>
+        <WorkerFilter
+          id="review-worker"
+          label={t('worker')}
+          allLabel={t('allWorkers')}
+          value={workerFilter}
+          onValueChange={(next) => {
+            setWorkerFilter(next);
+            setPage(0);
+            setSelected(new Set());
+          }}
+        />
       </div>
       {waitingForPage ? <LoadingRows /> : null}
       {!waitingForPage && items.length === 0 ? (
         <EmptyState
           icon={CalendarIcon}
-          title={q || tagFilter ? t('reviewNoMatch') : t('reviewEmpty')}
+          title={q || tagFilter || workerFilter ? t('reviewNoMatch') : t('reviewEmpty')}
         />
       ) : null}
       {items.length > 0 ? (
@@ -353,6 +368,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
                 <TableHead>{t('title')}</TableHead>
                 <TableHead>{t('tags')}</TableHead>
                 <TableHead>{t('publisher')}</TableHead>
+                <TableHead>{t('worker')}</TableHead>
                 <TableHead>{t('starts')}</TableHead>
                 <TableHead>{t('venue')}</TableHead>
                 <TableHead>{tVerdict('label')}</TableHead>
@@ -393,6 +409,7 @@ export function ReviewQueue({ embedded = false }: { embedded?: boolean }) {
                         {item.publisherName}
                       </Link>
                     </TableCell>
+                    <TableCell className="whitespace-nowrap">{item.workerId ?? '—'}</TableCell>
                     <TableCell>
                       {item.startsAt ? new Date(item.startsAt).toLocaleString() : '—'}
                     </TableCell>

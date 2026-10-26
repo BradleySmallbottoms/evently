@@ -113,6 +113,8 @@ export const AdminEventReviewItem = z.object({
     .optional(),
   occasions: z.array(EventOccasion).optional(),
   sourceUrl: z.string().nullable(),
+  /** Data-worker slug. Null on a native event. */
+  workerId: z.string().nullable(),
   contentVerdict: ContentVerdict,
   /** Rows in `event_tags` for this event. */
   tagCount: z.number().int().nonnegative(),
@@ -351,6 +353,8 @@ export const AdminEventListItem = z.object({
     .optional(),
   occasions: z.array(EventOccasion).optional(),
   sourceUrl: z.string().nullable(),
+  /** Data-worker slug. Null on a native event. */
+  workerId: z.string().nullable(),
   featured: z.boolean(),
   sponsored: z.boolean(),
   checkInEnabled: z.boolean(),
@@ -388,18 +392,48 @@ export const AdminCollapseOccasionsRequest = z.object({
 });
 export type AdminCollapseOccasionsRequest = z.infer<typeof AdminCollapseOccasionsRequest>;
 
+export const AdminPossibleDuplicateItem = z.object({
+  id: Id,
+  title: z.string(),
+  status: AdminEventListItem.shape.status,
+  startsAt: z.iso.datetime().nullable(),
+  endsAt: z.iso.datetime().nullable(),
+  venueName: z.string().nullable(),
+  /** Street, postcode, and city when the event has an address, otherwise the venue. */
+  location: z.string().nullable(),
+  /** Data-worker slug. Null on a native event. */
+  workerId: z.string().nullable(),
+  occasions: z.array(EventOccasion),
+});
+export type AdminPossibleDuplicateItem = z.infer<typeof AdminPossibleDuplicateItem>;
+
+export const AdminPossibleDuplicateListResponse = z.object({
+  items: z.array(AdminPossibleDuplicateItem),
+});
+export type AdminPossibleDuplicateListResponse = z.infer<typeof AdminPossibleDuplicateListResponse>;
+
+export const AdminMergeDuplicatesRequest = AdminCollapseOccasionsRequest;
+export type AdminMergeDuplicatesRequest = z.infer<typeof AdminMergeDuplicatesRequest>;
+
 export const AdminEventListQuery = z.object({
   status: AdminEventListItem.shape.status.optional(),
   /** `true` keeps events with no rows in `event_tags`. */
   untagged: z.literal('true').optional(),
   /** Matches title, venue, or publisher name. */
   q: z.string().trim().min(1).max(200).optional(),
+  /** Exact `events.worker_id`. */
+  worker: z.string().trim().min(1).max(80).optional(),
   /** `starts` is newest start time first. `created` is oldest created first. */
   sort: z.enum(['starts', 'created']).optional().default('starts'),
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
   offset: z.coerce.number().int().min(0).max(100_000).optional().default(0),
 });
 export type AdminEventListQuery = z.infer<typeof AdminEventListQuery>;
+
+export const AdminEventWorkerListResponse = z.object({
+  items: z.array(z.string()),
+});
+export type AdminEventWorkerListResponse = z.infer<typeof AdminEventWorkerListResponse>;
 
 export const AdminEventListResponse = z.object({
   items: z.array(AdminEventListItem),
@@ -426,8 +460,6 @@ export const AdminEventDetail = AdminEventListItem.extend({
   sourceUrl: z.string().nullable(),
   /** Source event id. Null on a native event. */
   refId: z.string().nullable(),
-  /** Data-worker slug. Null on a native event. */
-  workerId: z.string().nullable(),
   tagIds: z.array(Id),
   links: z.array(EventLink),
   /** Hero image. Null when the event has none or the public asset host is unset. */

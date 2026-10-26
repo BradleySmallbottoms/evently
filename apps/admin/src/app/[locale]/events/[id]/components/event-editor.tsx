@@ -32,7 +32,7 @@ import { EventImages } from './event-images';
 import { EventPoster } from './event-poster';
 import { EventLocationMap } from './event-location-map';
 import { EventNotifications } from './event-notifications';
-import { EventOccasions } from './event-occasions';
+import { EventOccasions, possibleDuplicatesQuery } from './event-occasions';
 import { EventScan } from './event-scan';
 import { EventTagsField } from './event-tags-field';
 
@@ -84,6 +84,8 @@ type EventDetail = {
       workerId: string | null;
       matchedOn: 'title' | 'event-link' | 'link' | 'id' | 'llm';
     };
+    mergedDuplicates?: { eventId: string; title: string }[];
+    duplicateOf?: { eventId: string; title: string };
   };
   tagIds: string[];
   featured: boolean;
@@ -206,6 +208,10 @@ export function EventEditor({ eventId }: { eventId: string }) {
   const eventQuery = useQuery({
     queryKey: ['admin-event', eventId],
     queryFn: () => adminFetch<EventDetail>(`/events/${eventId}`),
+    retry: false,
+  });
+  const duplicates = useQuery({
+    ...possibleDuplicatesQuery(eventId),
     retry: false,
   });
 
@@ -357,7 +363,12 @@ export function EventEditor({ eventId }: { eventId: string }) {
 
   const event = eventQuery.data;
   const showOccasions =
-    (event?.occasions?.length ?? 0) > 1 || Boolean(event?.meta.possibleOccasionGroupId);
+    (event?.occasions?.length ?? 0) > 1 ||
+    Boolean(event?.meta.possibleOccasionGroupId) ||
+    Boolean(event?.meta.possibleDuplicate) ||
+    Boolean(event?.meta.duplicateOf) ||
+    (event?.meta.mergedDuplicates?.length ?? 0) > 0 ||
+    (duplicates.data?.items.length ?? 0) > 0;
   const activeTab: EditorTab = tab === 'occasions' && !showOccasions ? 'info' : tab;
   const source = httpUrl(event?.sourceUrl ?? null);
   const saveError =
@@ -510,6 +521,34 @@ export function EventEditor({ eventId }: { eventId: string }) {
               className="underline underline-offset-4"
             >
               {event.meta.possibleDuplicate.title}
+            </Link>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {event?.meta.mergedDuplicates && event.meta.mergedDuplicates.length > 0 ? (
+        <Alert>
+          <AlertDescription>
+            {t('mergedWith')}{' '}
+            {event.meta.mergedDuplicates.map((item, index) => (
+              <span key={item.eventId}>
+                {index > 0 ? ', ' : null}
+                <Link href={`/events/${item.eventId}`} className="underline underline-offset-4">
+                  {item.title}
+                </Link>
+              </span>
+            ))}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {event?.meta.duplicateOf ? (
+        <Alert>
+          <AlertDescription>
+            {t('duplicateOf')}{' '}
+            <Link
+              href={`/events/${event.meta.duplicateOf.eventId}`}
+              className="underline underline-offset-4"
+            >
+              {event.meta.duplicateOf.title}
             </Link>
           </AlertDescription>
         </Alert>
@@ -874,6 +913,11 @@ export function EventEditor({ eventId }: { eventId: string }) {
               onCollapsed={() => {
                 setDraft(null);
                 setNotice(t('collapsed'));
+                setFormError(null);
+              }}
+              onMerged={() => {
+                setDraft(null);
+                setNotice(t('merged'));
                 setFormError(null);
               }}
             />

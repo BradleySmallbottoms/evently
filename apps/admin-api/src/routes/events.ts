@@ -9,7 +9,10 @@ import {
   AdminEventListResponse,
   AdminEventPatchRequest,
   AdminEventReviewListResponse,
+  AdminEventWorkerListResponse,
+  AdminMergeDuplicatesRequest,
   AdminOccasionGroupResponse,
+  AdminPossibleDuplicateListResponse,
   AdminPosterResponse,
   TagListResponse,
   ErrorResponse,
@@ -73,12 +76,38 @@ export function registerAdminEventRoutes(
       const paged =
         query.q !== undefined ||
         query.untagged === 'true' ||
+        query.worker !== undefined ||
         c.req.query('limit') !== undefined ||
         c.req.query('offset') !== undefined;
       if (query.status === 'in_review' && !paged) {
         return c.json({ items: await events.listInReview() }, 200);
       }
       return c.json(await events.list(query), 200);
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
+  const workers = createRoute({
+    method: 'get',
+    path: '/events/workers',
+    responses: {
+      200: {
+        description: 'Distinct worker ids on events that are still listed',
+        content: {
+          'application/json': { schema: AdminEventWorkerListResponse },
+        },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(workers, async (c) => {
+    try {
+      await auth.requireSession(readAdminSessionToken(c));
+      return c.json({ items: await events.listWorkerIds() }, 200);
     } catch (err) {
       return adminAuthErrorResponse(c, err);
     }
@@ -364,6 +393,84 @@ export function registerAdminEventRoutes(
     try {
       const session = await auth.requireSession(readAdminSessionToken(c));
       const result = await events.collapseOccasions(
+        c.req.valid('param').id,
+        c.req.valid('json').eventIds,
+        session.adminId,
+      );
+      if (!result) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json(result, 200);
+    } catch (err) {
+      return eventWriteError(c, err);
+    }
+  });
+
+  const possibleDuplicates = createRoute({
+    method: 'get',
+    path: '/events/{id}/possible-duplicates',
+    request: { params: z.object({ id: z.uuid() }) },
+    responses: {
+      200: {
+        description: 'Open events flagged as duplicates of this event, with their occasions',
+        content: { 'application/json': { schema: AdminPossibleDuplicateListResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(possibleDuplicates, async (c) => {
+    try {
+      await auth.requireSession(readAdminSessionToken(c));
+      const items = await events.listPossibleDuplicates(c.req.valid('param').id);
+      if (!items) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json({ items }, 200);
+    } catch (err) {
+      return adminAuthErrorResponse(c, err);
+    }
+  });
+
+  const mergeDuplicates = createRoute({
+    method: 'post',
+    path: '/events/{id}/merge-duplicates',
+    request: {
+      params: z.object({ id: z.uuid() }),
+      body: {
+        content: { 'application/json': { schema: AdminMergeDuplicatesRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Checked duplicates hidden. Their occasions stay on those events.',
+        content: { 'application/json': { schema: AdminEventDetail } },
+      },
+      400: {
+        description: 'The selection is not a possible duplicate of this event',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(mergeDuplicates, async (c) => {
+    try {
+      const session = await auth.requireSession(readAdminSessionToken(c));
+      const result = await events.mergeDuplicates(
         c.req.valid('param').id,
         c.req.valid('json').eventIds,
         session.adminId,

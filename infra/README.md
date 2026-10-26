@@ -25,7 +25,7 @@ Local object storage is Garage (`pnpm db:up`). Dev keys in Compose are local-onl
 Scheduled ingestion uses EventBridge Scheduler → `EcsRunFargateTask` on the shared ECS
 cluster. Each schedule passes `SOURCE_SLUG` via ECS `ContainerOverrides` (default: `visit-soderhamn`
 every 6 hours). Add slugs via `KNOWN_DATA_WORKER_SOURCE_SLUGS` / `sourceSchedules` in
-`DataWorkersStack`. Source API keys (e.g. `VISIT_SODERHAMN_API_KEY`) must live in Secrets Manager
+`DataWorkersStack`. Source API keys (e.g. `VISIT_SODERHAMN_API_KEY`, `TICKSTER_API_KEY`) must live in Secrets Manager
 (`local-events/<env>/app`) and be mapped in the task definition when you wire them.
 
 Non-prod API tasks set `CORS_ORIGINS=*` (reflect Origin; required with credentialed cookies) and

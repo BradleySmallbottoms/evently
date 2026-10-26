@@ -2,6 +2,7 @@ export * from './assets';
 export * from './auth';
 export * from './check-in';
 export * from './collapse-occasions';
+export * from './merge-duplicates';
 export * from './ratings';
 export * from './reports';
 export * from './publishing';

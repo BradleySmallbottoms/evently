@@ -1,0 +1,42 @@
+{
+  "id": "soderhamnconcert01",
+  "name": "Hälsinge konsert",
+  "description": {
+    "html": "<p>En kväll med musik.</p><p><a href=\"https://example.com/band\">Bandet</a></p>",
+    "markdown": "En kväll med musik."
+  },
+  "ageLimit": "18",
+  "startUtc": "2026-11-14T17:00:00Z",
+  "endUtc": "2026-11-14T19:30:00Z",
+  "state": "releasedForSale",
+  "imageUrl": "https://static.tickster.com/7b/108dec25ead1ac7b7bcb8e95a8951a68f9971e",
+  "infoUrl": "https://www.tickster.com/sv/events/soderhamnconcert01",
+  "shopUrl": "https://secure.tickster.com/soderhamnconcert01",
+  "eventHierarchyType": "event",
+  "organizer": { "id": "orghalsinge01", "name": "Hälsinge Konsert" },
+  "venue": {
+    "id": "venueberget01",
+    "name": "Kulturhuset Berget",
+    "address": "Köpmangatan 1",
+    "zipCode": "826 30",
+    "city": "Söderhamn",
+    "country": "SE",
+    "geo": { "latitude": 61.306, "longitude": 17.06 }
+  },
+  "tags": ["konsert", "musik"],
+  "webLinks": [],
+  "products": [
+    {
+      "name": "Biljett",
+      "productType": "ticket",
+      "price": { "amount": 250, "currency": "SEK" },
+      "variants": [{ "name": "Bänk", "price": { "amount": 200, "currency": "SEK" } }]
+    },
+    {
+      "name": "T-shirt",
+      "productType": "goods",
+      "price": { "amount": 40, "currency": "SEK" },
+      "variants": []
+    }
+  ]
+}

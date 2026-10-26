@@ -134,6 +134,8 @@ Closed beta around week 15, store launch around week 19.
 - [x] Audit log viewer
 - [x] Collapse occasions on the admin event page. Checked events move their
       `event_occasions` and child rows to the open event, then the checked event rows are deleted.
+- [x] Hide a possible duplicate from the occasion list. The checked event stays, with its
+      occasions, and is marked `deleted`. The open event records the merge and drops the warning.
 
 ## Parallel track — Data workers (from week 6)
 
@@ -158,7 +160,8 @@ Closed beta around week 15, store launch around week 19.
 - [x] Destination Hälsingland public calendar JSON (`destination-halsingland`, no API key). The worker reads the event list (`filter=c=4559`), then each product’s text and occasions, and saves that product before the next one is fetched. A missing coordinate stays missing. Gatuadress, Postadress, and the list coordinate are stored on `meta.address`. Later sources:
       `docs/event-sources.md`
 - [x] Söderhamns stadsbibliotek (`soderhamn-biblioteket`). Sitevision event pages. The worker reads the calendar list, then each event page, and saves that event before the next page is fetched. `robots.txt` disallows `jsessionid` URLs, so later pages use `skip` without a session id. A date that cannot be read is still saved, with empty start and end.
-- [x] Bollnäs kommun (`bollnas-kommun`). Soleil eventsCalendar JSON the calendar page already loads. The worker reads `/items?start=` and saves each row before the next page. `robots.txt` disallows `jsessionid` URLs. A `Z` time is that instant. The place is stored on `meta.address`. The import does not geocode. Tickster stays next once an API key exists.
+- [x] Bollnäs kommun (`bollnas-kommun`). Soleil eventsCalendar JSON the calendar page already loads. The worker reads `/items?start=` and saves each row before the next page. `robots.txt` disallows `jsessionid` URLs. A `Z` time is that instant. The place is stored on `meta.address`. The import does not geocode.
+- [x] Tickster (`tickster`). Event API v1.0. The key is `TICKSTER_API_KEY` and is not stored in config. The worker searches by city (Söderhamn, Bollnäs, Hudiksvall, Ljusdal), fetches each showing, and saves it before the next one. A production or collection parent is skipped. A UTC time is that instant. The venue point is stored when the API sends one. The import does not geocode.
 - **Exit:** sources run on schedule unattended, and an imported event notifies users exactly like a
   native one.
 

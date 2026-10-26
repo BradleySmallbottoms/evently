@@ -13,6 +13,7 @@ import {
   type AdminEventPatchRequest,
   type AdminEventReviewListResponse,
   type AdminOccasionGroupItem,
+  type AdminPossibleDuplicateItem,
   type ContentVerdict,
   type EventMeta,
   type Tag,
@@ -33,7 +34,9 @@ import {
 import {
   canApproveImportedEvent,
   collapsedVenueName,
+  eventsAreDuplicatePair,
   firstNamedVenue,
+  hideMergedDuplicates,
   canDeleteImportedEvent,
   canRejectImportedEvent,
   canRescanImportedEvent,
@@ -47,7 +50,20 @@ import {
   reviewWarnings,
   validateEventFields,
 } from '@local-events/domain';
-import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  or,
+  sql,
+} from 'drizzle-orm';
 import type { AdminAuditServices } from './audit';
 import { noopAudit } from './audit';
 import { createMemoryDomainEventPublisher } from './domain-events/memory';
@@ -82,6 +98,8 @@ export type AdminEventServices = {
   listInReview: () => Promise<AdminEventReviewListResponse['items']>;
   list: (query: AdminEventListQuery) => Promise<AdminEventListResponse>;
   listTags: () => Promise<Tag[]>;
+  /** Distinct worker ids on events that are still listed. */
+  listWorkerIds: () => Promise<string[]>;
   get: (eventId: string) => Promise<AdminEventDetail | null>;
   approve: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
   reject: (eventId: string, actor: string) => Promise<AdminEventDecisionResponse | null>;
@@ -91,6 +109,14 @@ export type AdminEventServices = {
   listOccasionGroup: (eventId: string) => Promise<AdminOccasionGroupItem[] | null>;
   /** Move the chosen events' occasion rows onto this event, then delete those events. */
   collapseOccasions: (
+    eventId: string,
+    eventIds: string[],
+    actor: string,
+  ) => Promise<AdminEventDetail | null>;
+  /** Open events this one flags, and open events that flag this one. Null when the event is missing. */
+  listPossibleDuplicates: (eventId: string) => Promise<AdminPossibleDuplicateItem[] | null>;
+  /** Hide the chosen duplicates. Their occasions stay. The target records the merge. */
+  mergeDuplicates: (
     eventId: string,
     eventIds: string[],
     actor: string,
@@ -466,6 +492,66 @@ const OPEN_OCCASION_STATUSES = [
   'published',
 ] as const;
 
+function isOpenOccasionStatus(status: string): boolean {
+  return (OPEN_OCCASION_STATUSES as readonly string[]).includes(status);
+}
+
+function assertMergeFits(
+  existing: { eventId: string }[] | undefined,
+  incomingIds: readonly string[],
+): void {
+  const seen = new Set(existing?.map((row) => row.eventId) ?? []);
+  let count = seen.size;
+  for (const id of incomingIds) {
+    if (seen.has(id)) continue;
+    count += 1;
+    if (count > 100) throw new AdminEventError('invalid_event');
+  }
+}
+
+function duplicatePair(
+  host: { id: string; meta?: unknown },
+  other: { id: string; meta?: unknown },
+): boolean {
+  const hostMeta = readEventMeta(host.meta);
+  const otherMeta = readEventMeta(other.meta);
+  return eventsAreDuplicatePair(
+    { id: host.id, possibleDuplicateEventId: hostMeta.possibleDuplicate?.eventId },
+    { id: other.id, possibleDuplicateEventId: otherMeta.possibleDuplicate?.eventId },
+  );
+}
+
+function duplicateLocation(meta: EventMeta, venueName: string | null): string | null {
+  const address = meta.address;
+  const parts = [address?.address, address?.zipCode, address?.city].filter((part): part is string =>
+    Boolean(part),
+  );
+  if (parts.length > 0) return parts.join(', ');
+  return venueName;
+}
+
+function memoryDuplicateItem(event: MemoryEvent): AdminPossibleDuplicateItem {
+  const times = listedTimes(event);
+  const meta = readEventMeta(event.meta);
+  return {
+    id: event.id,
+    title: event.title,
+    status: event.status as AdminPossibleDuplicateItem['status'],
+    startsAt: times.startsAt,
+    endsAt: times.endsAt,
+    venueName: times.venueName,
+    location: duplicateLocation(meta, times.venueName),
+    workerId: event.workerId ?? null,
+    occasions: (event.occasions ?? []).map((row) => ({
+      id: row.id,
+      startsAt: row.startsAt,
+      endsAt: row.endsAt,
+      venueName: row.venueName,
+      location: row.location,
+    })),
+  };
+}
+
 function contentVerdictOf(value: string | null | undefined): ContentVerdict {
   if (value === 'safe' || value === 'harmful' || value === 'spam' || value === 'unknown') {
     return value;
@@ -489,6 +575,7 @@ function asListItem(
     endsAt: e.endsAt,
     venueName: e.venueName,
     sourceUrl: e.sourceUrl,
+    workerId: e.workerId ?? null,
     featured: e.featured ?? false,
     sponsored: e.sponsored ?? false,
     checkInEnabled: e.checkInEnabled ?? false,
@@ -598,6 +685,7 @@ export function createMemoryAdminEventServices(
           endsAt: e.endsAt,
           venueName: e.venueName,
           sourceUrl: e.sourceUrl,
+          workerId: e.workerId ?? null,
           contentVerdict: contentVerdictOf(e.contentVerdict),
           tagCount: tagCountOf(e.tagIds),
           warnings: warningsFor(e.meta),
@@ -610,6 +698,7 @@ export function createMemoryAdminEventServices(
         .filter((e) => {
           if (e.status === 'deleted') return false;
           if (query.status && e.status !== query.status) return false;
+          if (query.worker && e.workerId !== query.worker) return false;
           if (query.untagged === 'true' && tagCountOf(e.tagIds) > 0) return false;
           if (!needle) return true;
           const publisherName = store.publishers.get(e.publisherId)?.name ?? 'Unknown';
@@ -632,6 +721,15 @@ export function createMemoryAdminEventServices(
     },
     async listTags() {
       return [...(store.tags?.values() ?? [])];
+    },
+    async listWorkerIds() {
+      return [
+        ...new Set(
+          [...store.events.values()].flatMap((event) =>
+            event.status !== 'deleted' && event.workerId ? [event.workerId] : [],
+          ),
+        ),
+      ].sort((a, b) => a.localeCompare(b));
     },
     async get(eventId) {
       const row = store.events.get(eventId);
@@ -819,6 +917,80 @@ export function createMemoryAdminEventServices(
         entityId: eventId,
         before: { possibleOccasionGroupId: groupId },
         after: { mergedEventIds: unique },
+      });
+      return asDetail(
+        host,
+        store.publishers.get(host.publisherId)?.name ?? 'Unknown',
+        env.assetsPublicBaseUrl,
+      );
+    },
+    async listPossibleDuplicates(eventId) {
+      const host = store.events.get(eventId);
+      if (!host) return null;
+      return [...store.events.values()]
+        .filter((event) => isOpenOccasionStatus(event.status) && duplicatePair(host, event))
+        .sort((a, b) => {
+          const left = listedTimes(a);
+          const right = listedTimes(b);
+          return (
+            (left.startsAt ?? '').localeCompare(right.startsAt ?? '') || a.id.localeCompare(b.id)
+          );
+        })
+        .map((event) => memoryDuplicateItem(event));
+    },
+    async mergeDuplicates(eventId, eventIds, actor) {
+      const host = store.events.get(eventId);
+      if (!host || !isOpenOccasionStatus(host.status)) return null;
+      const unique = [...new Set(eventIds)];
+      if (unique.length !== eventIds.length || unique.includes(eventId)) {
+        throw new AdminEventError('invalid_event');
+      }
+      const members = unique.map((id) => store.events.get(id));
+      if (
+        members.some(
+          (event) => !event || !isOpenOccasionStatus(event.status) || !duplicatePair(host, event),
+        )
+      ) {
+        throw new AdminEventError('invalid_event');
+      }
+      const chosen = members.filter((event) => event != null);
+      const hostMeta = readEventMeta(host.meta);
+      assertMergeFits(
+        hostMeta.mergedDuplicates,
+        chosen.map((event) => event.id),
+      );
+      const beforeDuplicate = hostMeta.possibleDuplicate ?? null;
+      const hostOccasions = host.occasions?.map((row) => ({ ...row }));
+      const keptOccasions = new Map(
+        chosen.map((event) => [event.id, event.occasions?.map((row) => ({ ...row }))]),
+      );
+      const next = hideMergedDuplicates({
+        target: { id: host.id, title: host.title, meta: hostMeta },
+        duplicates: chosen.map((event) => ({
+          id: event.id,
+          title: event.title,
+          meta: readEventMeta(event.meta),
+        })),
+      });
+      const at = now().toISOString();
+      host.meta = next.targetMeta;
+      host.updatedAt = at;
+      if (hostOccasions) host.occasions = hostOccasions;
+      for (const event of chosen) {
+        const written = next.duplicates.find((item) => item.id === event.id);
+        event.status = 'deleted';
+        event.meta = written?.meta ?? event.meta;
+        event.updatedAt = at;
+        const occasions = keptOccasions.get(event.id);
+        if (occasions) event.occasions = occasions;
+      }
+      await audit.write({
+        actor,
+        action: 'event.merge_duplicate',
+        entityType: 'event',
+        entityId: eventId,
+        before: { possibleDuplicate: beforeDuplicate },
+        after: { hiddenEventIds: unique },
       });
       return asDetail(
         host,
@@ -1223,6 +1395,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
             limit 1
           )`,
           sourceUrl: schema.events.sourceUrl,
+          workerId: schema.events.workerId,
           contentVerdict: schema.events.contentVerdict,
           tagCount: tagCountColumn(),
           meta: schema.events.meta,
@@ -1247,6 +1420,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           endsAt: isoDate(r.endsAt),
           venueName: r.venueName,
           sourceUrl: r.sourceUrl,
+          workerId: r.workerId,
           contentVerdict: r.contentVerdict,
           tagCount: Number(r.tagCount),
           warnings: warningsFor(r.meta),
@@ -1256,6 +1430,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
     async list(query) {
       const filters = [ne(schema.events.status, 'deleted')];
       if (query.status) filters.push(eq(schema.events.status, query.status));
+      if (query.worker) filters.push(eq(schema.events.workerId, query.worker));
       if (query.untagged === 'true') filters.push(untaggedEvents());
       if (query.q) {
         const pattern = `%${query.q.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
@@ -1298,6 +1473,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
             limit 1
           )`,
           sourceUrl: schema.events.sourceUrl,
+          workerId: schema.events.workerId,
           featured: schema.events.featured,
           sponsored: schema.events.sponsored,
           checkInEnabled: schema.events.checkInEnabled,
@@ -1343,6 +1519,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           endsAt: isoDate(r.endsAt),
           venueName: r.venueName,
           sourceUrl: r.sourceUrl,
+          workerId: r.workerId,
           featured: r.featured,
           sponsored: r.sponsored,
           checkInEnabled: r.checkInEnabled,
@@ -1354,6 +1531,14 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         total,
         nextOffset: next < total ? next : null,
       };
+    },
+    async listWorkerIds() {
+      const rows = await db
+        .selectDistinct({ workerId: schema.events.workerId })
+        .from(schema.events)
+        .where(and(isNotNull(schema.events.workerId), ne(schema.events.status, 'deleted')))
+        .orderBy(asc(schema.events.workerId));
+      return rows.flatMap((row) => (row.workerId ? [row.workerId] : []));
     },
     async listTags() {
       const rows = await db.select().from(schema.tags).orderBy(asc(schema.tags.slug));
@@ -1929,6 +2114,180 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         entityId: eventId,
         before: { possibleOccasionGroupId: groupId },
         after: { mergedEventIds: unique },
+      });
+      return updated;
+    },
+    async listPossibleDuplicates(eventId) {
+      const [host] = await db
+        .select({
+          id: schema.events.id,
+          meta: schema.events.meta,
+        })
+        .from(schema.events)
+        .where(eq(schema.events.id, eventId))
+        .limit(1);
+      if (!host) return null;
+      const pointedAt = readEventMeta(host.meta).possibleDuplicate?.eventId;
+      const rows = await db
+        .select({
+          id: schema.events.id,
+          title: schema.events.title,
+          status: schema.events.status,
+          startsAt: occasionStartsAtSql(),
+          endsAt: occasionEndsAtSql(),
+          venueName: occasionVenueNameSql(),
+          workerId: schema.events.workerId,
+          meta: schema.events.meta,
+        })
+        .from(schema.events)
+        .where(
+          and(
+            ne(schema.events.id, eventId),
+            inArray(schema.events.status, [...OPEN_OCCASION_STATUSES]),
+            or(
+              pointedAt ? eq(schema.events.id, pointedAt) : sql`false`,
+              sql`${schema.events.meta}->'possibleDuplicate'->>'eventId' = ${eventId}`,
+            ),
+          ),
+        )
+        .orderBy(occasionStartsAtSql(), asc(schema.events.id));
+      if (rows.length === 0) return [];
+      const occasionRows = await db
+        .select({
+          id: schema.eventOccasions.id,
+          eventId: schema.eventOccasions.eventId,
+          startsAt: schema.eventOccasions.startsAt,
+          endsAt: schema.eventOccasions.endsAt,
+          venueName: schema.eventOccasions.venueName,
+          lat: sql<number | null>`ST_Y(${schema.eventOccasions.location}::geometry)`,
+          lng: sql<number | null>`ST_X(${schema.eventOccasions.location}::geometry)`,
+        })
+        .from(schema.eventOccasions)
+        .where(
+          inArray(
+            schema.eventOccasions.eventId,
+            rows.map((row) => row.id),
+          ),
+        )
+        .orderBy(asc(schema.eventOccasions.startsAt), asc(schema.eventOccasions.id));
+      return rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        startsAt: isoDate(row.startsAt),
+        endsAt: isoDate(row.endsAt),
+        venueName: row.venueName,
+        location: duplicateLocation(readEventMeta(row.meta), row.venueName),
+        workerId: row.workerId,
+        occasions: occasionRows
+          .filter((occasion) => occasion.eventId === row.id)
+          .map((occasion) => {
+            const lat = occasion.lat == null ? null : Number(occasion.lat);
+            const lng = occasion.lng == null ? null : Number(occasion.lng);
+            return {
+              id: occasion.id,
+              startsAt: occasion.startsAt.toISOString(),
+              endsAt: occasion.endsAt.toISOString(),
+              venueName: occasion.venueName,
+              location:
+                lat != null && lng != null && !Number.isNaN(lat) && !Number.isNaN(lng)
+                  ? { lat, lng }
+                  : null,
+            };
+          }),
+      }));
+    },
+    async mergeDuplicates(eventId, eventIds, actor) {
+      const [host] = await db
+        .select({
+          id: schema.events.id,
+          title: schema.events.title,
+          status: schema.events.status,
+          meta: schema.events.meta,
+        })
+        .from(schema.events)
+        .where(eq(schema.events.id, eventId))
+        .limit(1);
+      if (!host || !isOpenOccasionStatus(host.status)) return null;
+      const unique = [...new Set(eventIds)];
+      if (unique.length !== eventIds.length || unique.includes(eventId)) {
+        throw new AdminEventError('invalid_event');
+      }
+      const rows = await db
+        .select({
+          id: schema.events.id,
+          title: schema.events.title,
+          status: schema.events.status,
+          meta: schema.events.meta,
+        })
+        .from(schema.events)
+        .where(inArray(schema.events.id, unique));
+      if (rows.length !== unique.length) throw new AdminEventError('invalid_event');
+      for (const row of rows) {
+        if (!isOpenOccasionStatus(row.status) || !duplicatePair(host, row)) {
+          throw new AdminEventError('invalid_event');
+        }
+      }
+      const at = now();
+      await db.transaction(async (tx) => {
+        const locked = await tx
+          .select({
+            id: schema.events.id,
+            title: schema.events.title,
+            status: schema.events.status,
+            meta: schema.events.meta,
+          })
+          .from(schema.events)
+          .where(inArray(schema.events.id, [eventId, ...unique]))
+          .for('update');
+        const lockedHost = locked.find((row) => row.id === eventId);
+        const members = unique.map((id) => locked.find((row) => row.id === id));
+        if (
+          !lockedHost ||
+          !isOpenOccasionStatus(lockedHost.status) ||
+          members.some(
+            (row) => !row || !isOpenOccasionStatus(row.status) || !duplicatePair(lockedHost, row),
+          )
+        ) {
+          throw new AdminEventError('invalid_event');
+        }
+        const chosen = members.filter((row) => row != null);
+        assertMergeFits(
+          readEventMeta(lockedHost.meta).mergedDuplicates,
+          chosen.map((row) => row.id),
+        );
+        const next = hideMergedDuplicates({
+          target: {
+            id: lockedHost.id,
+            title: lockedHost.title,
+            meta: readEventMeta(lockedHost.meta),
+          },
+          duplicates: chosen.map((row) => ({
+            id: row.id,
+            title: row.title,
+            meta: readEventMeta(row.meta),
+          })),
+        });
+        for (const row of next.duplicates) {
+          await tx
+            .update(schema.events)
+            .set({ status: 'deleted', meta: row.meta, updatedAt: at })
+            .where(eq(schema.events.id, row.id));
+        }
+        await tx
+          .update(schema.events)
+          .set({ meta: next.targetMeta, updatedAt: at })
+          .where(eq(schema.events.id, eventId));
+      });
+      for (const id of unique) await cancelOpenPushMessages(db, id, at);
+      const updated = await loadDetail(eventId);
+      await audit.write({
+        actor,
+        action: 'event.merge_duplicate',
+        entityType: 'event',
+        entityId: eventId,
+        before: { possibleDuplicate: readEventMeta(host.meta).possibleDuplicate ?? null },
+        after: { hiddenEventIds: unique },
       });
       return updated;
     },

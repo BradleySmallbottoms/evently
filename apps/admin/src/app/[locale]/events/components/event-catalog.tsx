@@ -6,6 +6,7 @@ import { CalendarIcon, MoreHorizontalIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { ContentVerdictChip, type ContentVerdict } from '@/components/content-verdict';
+import { WorkerFilter } from '@/components/worker-filter';
 import { EventTagCount, EventWarningMark, type EventWarning } from '@/components/event-warning';
 import { EmptyState, LoadingRows } from '@/components/list-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -60,6 +61,7 @@ type EventRow = {
   checkInEnabled: boolean;
   startsAt: string | null;
   venueName: string | null;
+  workerId: string | null;
   contentVerdict: ContentVerdict;
   tagCount: number;
   warnings: EventWarning[];
@@ -90,6 +92,7 @@ export function EventCatalog() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
   const [tagFilter, setTagFilter] = useState('');
+  const [workerFilter, setWorkerFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(0);
@@ -113,11 +116,12 @@ export function EventCatalog() {
   }, [searchInput]);
 
   const list = useQuery({
-    queryKey: ['admin-events-catalog', statusFilter, tagFilter, q, page],
+    queryKey: ['admin-events-catalog', statusFilter, tagFilter, workerFilter, q, page],
     queryFn: () => {
       const params = new URLSearchParams();
       if (statusFilter) params.set('status', statusFilter);
       if (tagFilter === NO_TAGS) params.set('untagged', 'true');
+      if (workerFilter) params.set('worker', workerFilter);
       if (q) params.set('q', q);
       params.set('limit', String(PAGE_SIZE));
       params.set('offset', String(page * PAGE_SIZE));
@@ -370,12 +374,23 @@ export function EventCatalog() {
             </SelectContent>
           </Select>
         </Field>
+        <WorkerFilter
+          id="event-catalog-worker"
+          label={t('worker')}
+          allLabel={t('allWorkers')}
+          value={workerFilter}
+          onValueChange={(next) => {
+            setWorkerFilter(next);
+            setPage(0);
+            setSelected(new Set());
+          }}
+        />
       </div>
       {list.isLoading ? <LoadingRows /> : null}
       {!list.isLoading && items.length === 0 ? (
         <EmptyState
           icon={CalendarIcon}
-          title={q || statusFilter || tagFilter ? t('emptyMatch') : t('empty')}
+          title={q || statusFilter || tagFilter || workerFilter ? t('emptyMatch') : t('empty')}
         />
       ) : null}
       {items.length > 0 ? (
@@ -394,6 +409,7 @@ export function EventCatalog() {
                 <TableHead>{t('titleCol')}</TableHead>
                 <TableHead>{t('tags')}</TableHead>
                 <TableHead>{t('publisher')}</TableHead>
+                <TableHead>{t('worker')}</TableHead>
                 <TableHead>{t('status')}</TableHead>
                 <TableHead>{tVerdict('label')}</TableHead>
                 <TableHead>{t('featured')}</TableHead>
@@ -439,6 +455,7 @@ export function EventCatalog() {
                       item.publisherName
                     )}
                   </TableCell>
+                  <TableCell className="whitespace-nowrap">{item.workerId ?? '—'}</TableCell>
                   <TableCell>{item.status}</TableCell>
                   <TableCell>
                     <ContentVerdictChip verdict={item.contentVerdict} />

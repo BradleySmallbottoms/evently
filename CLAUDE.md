@@ -159,6 +159,11 @@ Import adapters (every new source)
   includes the source site. Visit Söderhamn, Glada Hudik, and Destination Hälsingland store every
   showing of one product on that one event as `event_occasions` rows. A calendar that already
   lists one showing per row stores that row as one event. The page or item id is the external id.
+  Tickster uses Event API v1.0 (`TICKSTER_API_KEY`, never config). It searches by city — Söderhamn,
+  Bollnäs, Hudiksvall, Ljusdal — then fetches each showing and skips a production or collection
+  parent. Each showing is one event. A UTC time is that instant. The venue point is stored when
+  the API sends one. A point of 0, 0 is omitted. `X-RATELIMIT-REMAINING: 0`, or a 429, waits
+  five minutes and retries, for up to an hour.
 
 Product invariants (enforced in domain, tested)
 
@@ -209,6 +214,10 @@ Product invariants (enforced in domain, tested)
   another showing stores `meta.possibleOccasionGroupId` on the scanned event and those duplicates.
   An existing `possibleOccasionGroupId` is reused; otherwise a new id is created. Public responses omit it.
   Admin uses that id to list events it can fold together.
+  The occasion list also shows events this one flags, and events that flag this one, with their occasions.
+  Hiding a duplicate (`POST /events/{id}/merge-duplicates`) sets that event to `deleted` and `meta.duplicateOf`, and leaves its occasions.
+  The open event drops `meta.possibleDuplicate` when that note pointed at a hidden event, and stores the hidden events on `meta.mergedDuplicates`.
+  Public responses omit both fields. A later import skips a hidden source id.
   A link matches on host and path;
   protocol, query, and a trailing slash are ignored. A Citybreak product id matches with or
   without the `cbis:` prefix. The same source id updates its own row.

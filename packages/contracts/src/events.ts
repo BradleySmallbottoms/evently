@@ -157,6 +157,26 @@ export const EventMeta = z.object({
     })
     .optional(),
   /**
+   * Events an admin hid as duplicates of this one. Public responses omit it.
+   * Occasions stay on the hidden events.
+   */
+  mergedDuplicates: z
+    .array(
+      z.object({
+        eventId: z.uuid(),
+        title: z.string(),
+      }),
+    )
+    .max(100)
+    .optional(),
+  /** Set on an event an admin hid as a duplicate of another. Public responses omit it. */
+  duplicateOf: z
+    .object({
+      eventId: z.uuid(),
+      title: z.string(),
+    })
+    .optional(),
+  /**
    * Steps the import scan pulled from the description for the reader to follow.
    * Absent when the description has none.
    */
@@ -193,10 +213,12 @@ export const EventMeta = z.object({
 });
 export type EventMeta = z.infer<typeof EventMeta>;
 
-/** Public events omit the import duplicate note, the occasion group, the scan organizer keys, and the tip chat. */
+/** Public events omit import notes, the occasion group, duplicate marks, and the tip chat. */
 export const PublicEventMeta = EventMeta.omit({
   possibleDuplicate: true,
   possibleOccasionGroupId: true,
+  mergedDuplicates: true,
+  duplicateOf: true,
   import: true,
   tip: true,
 });
@@ -208,11 +230,13 @@ export function readEventMeta(value: unknown): EventMeta {
   return parsed.success ? parsed.data : {};
 }
 
-/** Same as {@link readEventMeta}, without the import duplicate note or the occasion group. */
+/** Same as {@link readEventMeta}, without import notes, the occasion group, or duplicate marks. */
 export function publicEventMeta(value: unknown): PublicEventMeta {
   const {
     possibleDuplicate: _flag,
     possibleOccasionGroupId: _group,
+    mergedDuplicates: _merged,
+    duplicateOf: _duplicate,
     import: _import,
     tip: _tip,
     ...meta

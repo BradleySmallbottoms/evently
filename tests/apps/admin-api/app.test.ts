@@ -72,6 +72,7 @@ describe('admin api', () => {
     expect(doc.paths['/publishers/{id}/events']).toBeDefined();
     expect((doc.paths['/publishers/{id}'] as { delete?: unknown }).delete).toBeDefined();
     expect(doc.paths['/events']).toBeDefined();
+    expect(doc.paths['/events/workers']).toBeDefined();
     expect(doc.paths['/events/{id}']).toBeDefined();
     expect(doc.paths['/tags']).toBeDefined();
     expect(doc.paths['/events/{id}/sent-notifications']).toBeDefined();
@@ -80,6 +81,8 @@ describe('admin api', () => {
     expect(doc.paths['/events/{id}/rescan']).toBeDefined();
     expect(doc.paths['/events/{id}/occasion-group']).toBeDefined();
     expect(doc.paths['/events/{id}/collapse']).toBeDefined();
+    expect(doc.paths['/events/{id}/possible-duplicates']).toBeDefined();
+    expect(doc.paths['/events/{id}/merge-duplicates']).toBeDefined();
     expect(doc.paths['/events/{id}/poster']).toBeDefined();
     expect((doc.paths['/events/{id}/poster'] as { delete?: unknown }).delete).toBeDefined();
     expect((doc.paths['/events/{id}'] as { delete?: unknown }).delete).toBeDefined();
@@ -633,6 +636,202 @@ describe('admin api', () => {
 
     const after = await app.request(`/v1/events/${hostId}/occasion-group`, { headers: { cookie } });
     expect(await after.json()).toMatchObject({ items: [] });
+  });
+
+  it('hides a possible duplicate without moving its occasions', async () => {
+    const { auth } = await seededAuth();
+    const hostId = '44444444-4444-4444-8444-444444444401';
+    const matchId = '44444444-4444-4444-8444-444444444402';
+    const incomingId = '44444444-4444-4444-8444-444444444403';
+    const otherId = '44444444-4444-4444-8444-444444444404';
+    const publisherId = '22222222-2222-4222-8222-222222222201';
+    const hostOccasion = {
+      id: '66666666-6666-4666-8666-666666666601',
+      startsAt: '2026-08-02T16:00:00.000Z',
+      endsAt: '2026-08-02T18:00:00.000Z',
+      venueName: 'Hall',
+      location: null,
+    };
+    const matchOccasions = [
+      {
+        id: '66666666-6666-4666-8666-666666666602',
+        startsAt: '2026-08-01T10:00:00.000Z',
+        endsAt: '2026-08-01T12:00:00.000Z',
+        venueName: 'Park',
+        location: null,
+      },
+      {
+        id: '66666666-6666-4666-8666-666666666603',
+        startsAt: '2026-08-03T10:00:00.000Z',
+        endsAt: '2026-08-03T12:00:00.000Z',
+        venueName: 'Square',
+        location: null,
+      },
+    ];
+    const base = {
+      publisherId,
+      mode: 'physical' as const,
+      status: 'in_review' as const,
+      origin: 'imported' as const,
+      venueName: 'Hall',
+      sourceUrl: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const duplicate = {
+      eventId: matchId,
+      title: 'Match',
+      startsAt: '2026-08-01T10:00:00.000Z',
+      refId: 'src-1',
+      workerId: 'visit-soderhamn',
+      matchedOn: 'title' as const,
+    };
+    const eventStore = {
+      publishers: new Map([[publisherId, { id: publisherId, name: 'Band' }]]),
+      events: new Map([
+        [
+          hostId,
+          {
+            ...base,
+            id: hostId,
+            title: 'Host',
+            startsAt: '2026-08-02T16:00:00.000Z',
+            endsAt: '2026-08-02T18:00:00.000Z',
+            occasions: [hostOccasion],
+            meta: { possibleDuplicate: duplicate, freeEntry: true },
+          },
+        ],
+        [
+          matchId,
+          {
+            ...base,
+            id: matchId,
+            title: 'Match',
+            status: 'published' as const,
+            startsAt: '2026-08-01T10:00:00.000Z',
+            endsAt: '2026-08-03T12:00:00.000Z',
+            venueName: 'Park',
+            workerId: 'visit-soderhamn',
+            occasions: matchOccasions,
+            meta: {
+              freeEntry: true,
+              address: { address: 'Promenaden 5', zipCode: '82433', city: 'Hudiksvall' },
+            },
+          },
+        ],
+        [
+          incomingId,
+          {
+            ...base,
+            id: incomingId,
+            title: 'Incoming',
+            startsAt: '2026-08-04T10:00:00.000Z',
+            endsAt: '2026-08-04T12:00:00.000Z',
+            occasions: [
+              {
+                id: '66666666-6666-4666-8666-666666666604',
+                startsAt: '2026-08-04T10:00:00.000Z',
+                endsAt: '2026-08-04T12:00:00.000Z',
+                venueName: 'Arena',
+                location: null,
+              },
+            ],
+            meta: {
+              possibleDuplicate: {
+                eventId: hostId,
+                title: 'Host',
+                startsAt: '2026-08-02T16:00:00.000Z',
+                refId: null,
+                workerId: null,
+                matchedOn: 'llm' as const,
+              },
+            },
+          },
+        ],
+        [
+          otherId,
+          {
+            ...base,
+            id: otherId,
+            title: 'Other',
+            startsAt: '2026-08-05T10:00:00.000Z',
+            endsAt: '2026-08-05T12:00:00.000Z',
+            meta: {},
+          },
+        ],
+      ]),
+    };
+    const { createMemoryAdminEventServices } =
+      await import('../../../apps/admin-api/src/services/events');
+    const app = createApp({
+      auth,
+      events: createMemoryAdminEventServices(eventStore),
+    });
+    const cookie = await loginSession(app);
+
+    const denied = await app.request(`/v1/events/${hostId}/possible-duplicates`);
+    expect(denied.status).toBe(401);
+
+    const listed = await app.request(`/v1/events/${hostId}/possible-duplicates`, {
+      headers: { cookie },
+    });
+    expect(listed.status).toBe(200);
+    const body = (await listed.json()) as {
+      items: {
+        id: string;
+        location: string | null;
+        workerId: string | null;
+        occasions: { venueName: string | null }[];
+      }[];
+    };
+    expect(body.items.map((item) => item.id)).toEqual([matchId, incomingId]);
+    expect(body.items[0]).toMatchObject({
+      location: 'Promenaden 5, 82433, Hudiksvall',
+      workerId: 'visit-soderhamn',
+    });
+    expect(body.items[0]?.occasions.map((occasion) => occasion.venueName)).toEqual([
+      'Park',
+      'Square',
+    ]);
+
+    const wrong = await app.request(`/v1/events/${hostId}/merge-duplicates`, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ eventIds: [otherId] }),
+    });
+    expect(wrong.status).toBe(400);
+
+    const merged = await app.request(`/v1/events/${hostId}/merge-duplicates`, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ eventIds: [matchId] }),
+    });
+    expect(merged.status).toBe(200);
+    expect(await merged.json()).toMatchObject({
+      id: hostId,
+      warnings: [],
+      occasions: [hostOccasion],
+      meta: {
+        freeEntry: true,
+        mergedDuplicates: [{ eventId: matchId, title: 'Match' }],
+      },
+    });
+    expect(eventStore.events.get(hostId)?.meta).not.toHaveProperty('possibleDuplicate');
+    expect(eventStore.events.get(hostId)?.occasions).toEqual([hostOccasion]);
+    expect(eventStore.events.get(matchId)?.status).toBe('deleted');
+    expect(eventStore.events.get(matchId)?.occasions).toEqual(matchOccasions);
+    expect(eventStore.events.get(matchId)?.meta).toEqual({
+      freeEntry: true,
+      address: { address: 'Promenaden 5', zipCode: '82433', city: 'Hudiksvall' },
+      duplicateOf: { eventId: hostId, title: 'Host' },
+    });
+    expect(eventStore.events.get(incomingId)?.status).toBe('in_review');
+
+    const remaining = await app.request(`/v1/events/${hostId}/possible-duplicates`, {
+      headers: { cookie },
+    });
+    const left = (await remaining.json()) as { items: { id: string }[] };
+    expect(left.items.map((item) => item.id)).toEqual([incomingId]);
   });
 
   it('cancels an imported review event and wipes any event that has no audience', async () => {
@@ -1695,6 +1894,8 @@ describe('admin api', () => {
               startsAt: '2026-08-01T18:00:00.000Z',
               endsAt: '2026-08-01T21:00:00.000Z',
               venueName,
+              workerId:
+                title === 'Oldest' ? 'visit-soderhamn' : title === 'Middle' ? 'glada-hudik' : null,
               sourceUrl: 'https://example.com/show',
               contentVerdict: 'harmful',
               tagIds: title === 'Oldest' ? ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'] : [],
@@ -1764,6 +1965,40 @@ describe('admin api', () => {
     expect(noTags.total).toBe(2);
     expect(noTags.items.map((item) => item.title)).toEqual(['Middle', 'Newest']);
     expect(noTags.items.every((item) => item.tagCount === 0)).toBe(true);
+
+    const byWorker = await app.request(
+      '/v1/events?status=in_review&sort=created&worker=visit-soderhamn&limit=100',
+      { headers: { cookie } },
+    );
+    const visit = (await byWorker.json()) as {
+      items: { title: string; workerId: string }[];
+      total: number;
+    };
+    expect(byWorker.status).toBe(200);
+    expect(visit.total).toBe(1);
+    expect(visit.items[0]?.title).toBe('Oldest');
+    expect(visit.items[0]?.workerId).toBe('visit-soderhamn');
+
+    const missing = await app.request(
+      '/v1/events?status=in_review&worker=missing-worker&limit=100',
+      { headers: { cookie } },
+    );
+    const empty = (await missing.json()) as { total: number };
+    expect(missing.status).toBe(200);
+    expect(empty.total).toBe(0);
+
+    const tooLong = await app.request(`/v1/events?worker=${'a'.repeat(81)}&limit=50`, {
+      headers: { cookie },
+    });
+    expect(tooLong.status).toBe(400);
+
+    const denied = await app.request('/v1/events/workers');
+    expect(denied.status).toBe(401);
+
+    const workers = await app.request('/v1/events/workers', { headers: { cookie } });
+    const listed = (await workers.json()) as { items: string[] };
+    expect(workers.status).toBe(200);
+    expect(listed.items).toEqual(['glada-hudik', 'visit-soderhamn']);
   });
 
   it('marks a possible duplicate on the review list', async () => {

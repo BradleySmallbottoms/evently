@@ -1,9 +1,10 @@
 'use client';
 
+import type { AdminPossibleDuplicateItem } from '@local-events/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarIcon } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { EmptyState, LoadingRows } from '@/components/list-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -46,25 +47,43 @@ type GroupItem = {
   venueName: string | null;
 };
 
+export type PossibleDuplicate = Pick<
+  AdminPossibleDuplicateItem,
+  'id' | 'title' | 'location' | 'workerId' | 'occasions'
+>;
+
+export function possibleDuplicatesQuery(eventId: string) {
+  return {
+    queryKey: ['admin-event-possible-duplicates', eventId] as const,
+    queryFn: () =>
+      adminFetch<{ items: PossibleDuplicate[] }>(`/events/${eventId}/possible-duplicates`),
+  };
+}
+
 export function EventOccasions({
   eventId,
   occasions,
   possibleOccasionGroupId,
   timeZone,
   onCollapsed,
+  onMerged,
 }: {
   eventId: string;
   occasions: Occasion[] | undefined;
   possibleOccasionGroupId: string | undefined;
   timeZone: string;
   onCollapsed: () => void;
+  onMerged: () => void;
 }) {
   const t = useTranslations('EventEditor');
   const locale = useLocale();
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [duplicateSelected, setDuplicateSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState(false);
   const [done, setDone] = useState(false);
+  const [mergeError, setMergeError] = useState(false);
+  const [merged, setMerged] = useState(false);
   const [showAllOccasions, setShowAllOccasions] = useState(false);
   const stored = occasions ?? [];
   const visibleOccasions = showAllOccasions ? stored : stored.slice(0, OCCASION_PREVIEW);
@@ -73,6 +92,10 @@ export function EventOccasions({
     queryKey: ['admin-event-occasion-group', eventId, possibleOccasionGroupId],
     queryFn: () => adminFetch<{ items: GroupItem[] }>(`/events/${eventId}/occasion-group`),
     enabled: Boolean(possibleOccasionGroupId),
+    retry: false,
+  });
+  const duplicates = useQuery({
+    ...possibleDuplicatesQuery(eventId),
     retry: false,
   });
 
@@ -94,6 +117,31 @@ export function EventOccasions({
     onError: () => setError(true),
   });
 
+  const merge = useMutation({
+    mutationFn: (eventIds: string[]) =>
+      adminFetch(`/events/${eventId}/merge-duplicates`, {
+        method: 'POST',
+        body: JSON.stringify({ eventIds }),
+      }),
+    onSuccess: async () => {
+      setDuplicateSelected(new Set());
+      setMergeError(false);
+      setMerged(true);
+      await queryClient.invalidateQueries({ queryKey: ['admin-event', eventId] });
+      await queryClient.invalidateQueries({
+        queryKey: ['admin-event-possible-duplicates', eventId],
+      });
+      await queryClient.invalidateQueries({ queryKey: ['admin-events-catalog'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-events-in-review'] });
+      onMerged();
+    },
+    onError: () => setMergeError(true),
+  });
+
+  const duplicateItems = duplicates.data?.items ?? [];
+  const allDuplicatesSelected =
+    duplicateItems.length > 0 && duplicateItems.every((item) => duplicateSelected.has(item.id));
+  const someDuplicatesSelected = duplicateSelected.size > 0 && !allDuplicatesSelected;
   const items = group.data?.items ?? [];
   const selectable = items.filter((item) => item.id !== eventId);
   const allSelected = selectable.length > 0 && selectable.every((item) => selected.has(item.id));
@@ -114,6 +162,25 @@ export function EventOccasions({
       else next.add(id);
       return next;
     });
+  }
+
+  function toggleDuplicate(id: string) {
+    setMergeError(false);
+    setMerged(false);
+    setDuplicateSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllDuplicates() {
+    setMergeError(false);
+    setMerged(false);
+    setDuplicateSelected(
+      allDuplicatesSelected ? new Set() : new Set(duplicateItems.map((item) => item.id)),
+    );
   }
 
   return (
@@ -156,6 +223,103 @@ export function EventOccasions({
               {t('showMoreOccasions')}
             </Button>
           ) : null}
+        </div>
+      ) : null}
+      {duplicates.isLoading ? <LoadingRows /> : null}
+      {duplicates.isError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{t('duplicatesError')}</AlertDescription>
+        </Alert>
+      ) : null}
+      {merged ? (
+        <Alert>
+          <AlertDescription>{t('merged')}</AlertDescription>
+        </Alert>
+      ) : null}
+      {duplicateItems.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-lg font-semibold">{t('possibleDuplicates')}</h2>
+            <p className="text-sm text-muted-foreground">{t('duplicateHint')}</p>
+          </div>
+          <div>
+            <Button
+              type="button"
+              size="sm"
+              disabled={duplicateSelected.size === 0 || merge.isPending}
+              onClick={() => merge.mutate([...duplicateSelected])}
+            >
+              {merge.isPending ? <Spinner data-icon="inline-start" /> : null}
+              {t('mergeDuplicates')}
+            </Button>
+          </div>
+          {mergeError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{t('mergeError')}</AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader className="rounded-t-lg border-b bg-muted">
+                <TableRow>
+                  <TableHead>
+                    <Checkbox
+                      checked={allDuplicatesSelected}
+                      indeterminate={someDuplicatesSelected}
+                      onCheckedChange={() => toggleAllDuplicates()}
+                      aria-label={t('selectAll')}
+                    />
+                  </TableHead>
+                  <TableHead>{t('name')}</TableHead>
+                  <TableHead>{t('location')}</TableHead>
+                  <TableHead>{t('importer')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {duplicateItems.map((item) => (
+                  <Fragment key={item.id}>
+                    <TableRow data-state={duplicateSelected.has(item.id) ? 'selected' : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={duplicateSelected.has(item.id)}
+                          onCheckedChange={() => toggleDuplicate(item.id)}
+                          aria-label={t('selectOccasion', { title: item.title })}
+                        />
+                      </TableCell>
+                      <TableCell className="whitespace-normal">
+                        <Link href={`/events/${item.id}`} className="underline underline-offset-4">
+                          {item.title}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{item.location ?? '—'}</TableCell>
+                      <TableCell>{item.workerId ?? '—'}</TableCell>
+                    </TableRow>
+                    {item.occasions.map((occasion) => (
+                      <TableRow key={occasion.id} className="bg-muted/40">
+                        <TableCell />
+                        <TableCell colSpan={3} className="pl-8">
+                          <div className="grid grid-cols-3 gap-4">
+                            <div>
+                              <div className="text-xs text-muted-foreground">{t('startsAt')}</div>
+                              {formatWhen(occasion.startsAt, timeZone, locale)}
+                            </div>
+                            <div>
+                              <div className="text-xs text-muted-foreground">{t('endsAt')}</div>
+                              {formatWhen(occasion.endsAt, timeZone, locale)}
+                            </div>
+                            <div>
+                              <div className="text-xs text-muted-foreground">{t('venueName')}</div>
+                              {occasion.venueName ?? '—'}
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       ) : null}
       {possibleOccasionGroupId ? (

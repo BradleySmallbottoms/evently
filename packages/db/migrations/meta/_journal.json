@@ -414,6 +414,13 @@
       "when": 1794400000017,
       "tag": "0058_hard_speedball",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1794400000018,
+      "tag": "0059_seed_tickster",
+      "breakpoints": true
     }
   ]
 }

@@ -322,6 +322,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
       VISIT_SODERHAMN_API_KEY: ${VISIT_SODERHAMN_API_KEY:-}
+      TICKSTER_API_KEY: ${TICKSTER_API_KEY:-}
       BRAVE_API_KEY: ${BRAVE_API_KEY:-}
 
   # Repeats import, event scan, and publisher scan. Off until you opt in.
@@ -355,6 +356,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
       VISIT_SODERHAMN_API_KEY: ${VISIT_SODERHAMN_API_KEY:-}
+      TICKSTER_API_KEY: ${TICKSTER_API_KEY:-}
       BRAVE_API_KEY: ${BRAVE_API_KEY:-}
     depends_on:
       migrate:

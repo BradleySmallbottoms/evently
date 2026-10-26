@@ -287,6 +287,18 @@ calls) in the same change as every new major feature.**
   `pending_scan` events. The seeded row stays disabled. Flow:
   [docs/flows/bollnas-kommun.md](docs/flows/bollnas-kommun.md).
 
+### Tickster import
+
+- Ticketed concerts and theatre from the Tickster Event API. Set `TICKSTER_API_KEY` before a live
+  run. The key is not stored in `data_sources.config`. The worker searches by city (Söderhamn,
+  Bollnäs, Hudiksvall, Ljusdal), fetches each showing, and saves it before the next one. A
+  production or collection parent is skipped. A UTC time is that instant. The venue address and
+  point are stored when the API sends them. A point of 0, 0 is omitted. The import does not geocode.
+  A response with `X-RATELIMIT-REMAINING: 0`, or a 429, waits five minutes and retries, for up to
+  an hour.
+  `pnpm --filter @local-events/data-workers dev -- --source tickster` writes `pending_scan`
+  events. The seeded row stays disabled. Flow: [docs/flows/tickster.md](docs/flows/tickster.md).
+
 ### Event share links
 
 - Mobile share uses the OS sheet with `EXPO_PUBLIC_WEB_URL/events/{id}` (default local web
@@ -442,7 +454,9 @@ calls) in the same change as every new major feature.**
   An event with several occasions, or one the scan grouped with `meta.possibleOccasionGroupId`, has a Tillfällen tab.
   That tab lists `event_occasions`. Collapse moves the checked events'
   occasion rows and related child rows to the open event, then removes the checked event rows. Flow:
-  [docs/flows/admin-collapse-occasions.md](docs/flows/admin-collapse-occasions.md). Publisher lists can select rows and verify them.
+  [docs/flows/admin-collapse-occasions.md](docs/flows/admin-collapse-occasions.md).
+  The same tab lists possible duplicates and their occasions. Hiding one marks it `deleted`, leaves its occasions, and records the merge on the open event. Flow:
+  [docs/flows/admin-merge-duplicates.md](docs/flows/admin-merge-duplicates.md). Publisher lists can select rows and verify them.
   On `/events/manage`, Ta bort marks any selected event `deleted` and removes it from lists. A later import sees that status and skips the source id. Ta bort permanent removes the row and keeps
   the source id out of later imports, and leaves the row when someone has already
   checked in, saved, rated, or been notified. Import review still deletes or wipes an imported event in review

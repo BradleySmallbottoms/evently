@@ -31,5 +31,12 @@ describe('publicEventMeta', () => {
     expect(publicEventMeta({ fromUserTip: true, tip: { text: 'price: free' } })).toEqual({
       fromUserTip: true,
     });
+    expect(
+      publicEventMeta({
+        fromUserTip: true,
+        mergedDuplicates: [{ eventId: '44444444-4444-4444-8444-444444444401', title: 'Other' }],
+        duplicateOf: { eventId: '44444444-4444-4444-8444-444444444402', title: 'Host' },
+      }),
+    ).toEqual({ fromUserTip: true });
   });
 });
