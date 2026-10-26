@@ -114,7 +114,8 @@ calls) in the same change as every new major feature.**
 
 - A release build checks EAS Update when the process starts. While that process stays alive it
   checks again at least once an hour, including as soon as the app returns to the foreground after
-  that hour. A downloaded bundle reloads in place. A development build attached to Metro does not
+  that hour. A downloaded bundle stays ready. A banner says a new version is available, and a tap
+  reloads it. A development build attached to Metro does not
   check. Publish with `pnpm --filter @local-events/mobile development:update`, `staging:update`, or
   `release:update`.
 

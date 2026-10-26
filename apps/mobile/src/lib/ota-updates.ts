@@ -20,7 +20,7 @@ export type OtaUpdatesPort = {
   reload: () => Promise<void>;
 };
 
-export type OtaCheckOutcome = 'skipped' | 'current' | 'reloaded' | 'failed';
+export type OtaCheckOutcome = 'skipped' | 'current' | 'ready' | 'failed';
 
 export type OtaAppState = {
   currentState: AppStateStatus;
@@ -32,12 +32,12 @@ export type OtaAppState = {
 
 /**
  * The native module already checks when the process starts. This session asks
- * again while that process stays alive, and reloads when a different bundle
- * has been downloaded so the user does not have to kill the app.
+ * again while that process stays alive. A downloaded bundle stays ready until
+ * the user reloads it.
  */
 export function createOtaUpdateSession(
   port: OtaUpdatesPort,
-  options?: { intervalMs?: number; now?: () => number },
+  options?: { intervalMs?: number; now?: () => number; onReady?: () => void },
 ) {
   const intervalMs = options?.intervalMs ?? OTA_CHECK_INTERVAL_MS;
   const now = options?.now ?? (() => Date.now());
@@ -70,8 +70,8 @@ export function createOtaUpdateSession(
         if (!update.isAvailable && !update.isRollBackToEmbedded) return 'current';
         const fetched = await port.fetch();
         if (!fetched.isNew && !fetched.isRollBackToEmbedded) return 'current';
-        await port.reload();
-        return 'reloaded';
+        options?.onReady?.();
+        return 'ready';
       } catch {
         return 'failed';
       } finally {

@@ -13,6 +13,7 @@ import { InboxPushSync } from '@/components/inbox-push-sync';
 import { NotificationEventLink } from '@/components/notification-event-link';
 import { IdentityResetAlert } from '@/components/native/identity-reset-alert';
 import { OnboardingCover } from '@/components/onboarding-cover';
+import { OtaUpdateBanner } from '@/components/ota-update-banner';
 import { PermissionReminder } from '@/components/onboarding/permission-reminder';
 import { AfterSplash, SplashCover } from '@/components/splash-cover';
 import {
@@ -261,6 +262,7 @@ export default function RootLayout() {
                   onHidden={closeOnboarding}
                 />
               ) : null}
+              <OtaUpdateBanner />
               <AfterSplash>
                 {!showOnboarding && reminder ? (
                   <PermissionReminder

@@ -66,33 +66,45 @@ describe('createOtaUpdateSession', () => {
     expect(updates.fetch).not.toHaveBeenCalled();
   });
 
-  it('downloads a new bundle and reloads without a process kill', async () => {
+  it('downloads a new bundle and leaves the reload to the user', async () => {
     let now = 0;
+    const onReady = vi.fn();
     const updates = port({
       check: vi.fn(async () => ({ isAvailable: true, isRollBackToEmbedded: false })),
       fetch: vi.fn(async () => ({ isNew: true, isRollBackToEmbedded: false })),
     });
-    const session = createOtaUpdateSession(updates, { intervalMs: HOUR, now: () => now });
+    const session = createOtaUpdateSession(updates, {
+      intervalMs: HOUR,
+      now: () => now,
+      onReady,
+    });
     session.noteLaunchCheck();
     now = HOUR;
 
-    await expect(session.checkIfDue()).resolves.toBe('reloaded');
+    await expect(session.checkIfDue()).resolves.toBe('ready');
     expect(updates.fetch).toHaveBeenCalledOnce();
-    expect(updates.reload).toHaveBeenCalledOnce();
+    expect(updates.reload).not.toHaveBeenCalled();
+    expect(onReady).toHaveBeenCalledOnce();
   });
 
-  it('downloads and reloads a rollback to the embedded bundle', async () => {
+  it('downloads a rollback and leaves the reload to the user', async () => {
     let now = 0;
+    const onReady = vi.fn();
     const updates = port({
       check: vi.fn(async () => ({ isAvailable: false, isRollBackToEmbedded: true })),
       fetch: vi.fn(async () => ({ isNew: false, isRollBackToEmbedded: true })),
     });
-    const session = createOtaUpdateSession(updates, { intervalMs: HOUR, now: () => now });
+    const session = createOtaUpdateSession(updates, {
+      intervalMs: HOUR,
+      now: () => now,
+      onReady,
+    });
     session.noteLaunchCheck();
     now = HOUR;
 
-    await expect(session.checkIfDue()).resolves.toBe('reloaded');
-    expect(updates.reload).toHaveBeenCalledOnce();
+    await expect(session.checkIfDue()).resolves.toBe('ready');
+    expect(updates.reload).not.toHaveBeenCalled();
+    expect(onReady).toHaveBeenCalledOnce();
   });
 
   it('leaves the running bundle when the download is not new', async () => {
@@ -187,7 +199,7 @@ describe('startOtaUpdateChecks', () => {
 
     await vi.advanceTimersByTimeAsync(1);
     expect(updates.check).toHaveBeenCalledOnce();
-    expect(updates.reload).toHaveBeenCalledOnce();
+    expect(updates.reload).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(OTA_CHECK_INTERVAL_MS);
     expect(updates.check).toHaveBeenCalledTimes(2);

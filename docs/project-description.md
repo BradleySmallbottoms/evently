@@ -516,7 +516,7 @@ the path for dev, staging, and prod.
 | Email             | SES                                                                      | Verification, recovery codes, invites                                |
 | Monitoring        | CloudWatch, X-Ray or OTel collector                                      | Alarms on 5xx, queue age, DB CPU, failed source runs                 |
 
-Mobile builds and store submissions run on EAS; EAS Update channels map to the three environments. A release build checks for an update when its process starts, and again while that process stays alive: at least once an hour in the foreground, and immediately when it returns to the foreground after that hour. A downloaded update reloads the JavaScript bundle in place.
+Mobile builds and store submissions run on EAS; EAS Update channels map to the three environments. A release build checks for an update when its process starts, and again while that process stays alive: at least once an hour in the foreground, and immediately when it returns to the foreground after that hour. A downloaded update stays ready. A banner says a new version is available, and a tap reloads the JavaScript bundle.
 
 ## Security, privacy and anti-abuse
 

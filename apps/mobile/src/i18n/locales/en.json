@@ -1,7 +1,9 @@
 {
   "app": {
     "name": "Evently",
-    "version": "Version {{version}}"
+    "version": "Version {{version}}",
+    "updateReady": "There's a new version",
+    "updateReadyAction": "Tap to update"
   },
   "home": {
     "title": "Evently",

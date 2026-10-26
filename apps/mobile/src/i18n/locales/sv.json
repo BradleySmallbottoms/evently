@@ -1,7 +1,9 @@
 {
   "app": {
     "name": "Evently",
-    "version": "Version {{version}}"
+    "version": "Version {{version}}",
+    "updateReady": "Det finns en ny version",
+    "updateReadyAction": "Tryck för att uppdatera"
   },
   "home": {
     "title": "Evently",
