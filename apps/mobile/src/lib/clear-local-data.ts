@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 import { ONBOARDING_STORAGE_KEY } from './onboarding';
+import { PARTICIPATE_BAR_HINT_SEEN_KEY } from './participate-bar-hint';
 import { REGION_PROMPT_STORAGE_KEYS } from './region-suggestion';
 
 /**
@@ -25,6 +26,7 @@ const KNOWN_KEYS = [
   'le.discoveryPlaceId',
   'le.discoveryRadiusM',
   'le.homeTagIds',
+  PARTICIPATE_BAR_HINT_SEEN_KEY,
 ] as const;
 
 async function removeItem(key: string): Promise<void> {

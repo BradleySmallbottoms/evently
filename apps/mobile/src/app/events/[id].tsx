@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmAction } from '@/components/native/confirm-action';
 import {
   ParticipateSheet,
+  PARTICIPATE_HINT_CLEARANCE,
   participatePeekHeight,
   type ParticipateBarAction,
   type ParticipateSheetLink,
@@ -740,7 +741,8 @@ export default function EventDetailScreen() {
       if (result === 'unavailable') {
         Alert.alert(t('events.detail.addToCalendar'), t('events.calendarUnavailable'));
       }
-    } catch {
+    } catch (e) {
+      console.error(e);
       Alert.alert(t('events.detail.addToCalendar'), t('events.calendarError'));
     }
   }
@@ -930,7 +932,10 @@ export default function EventDetailScreen() {
           }
           contentContainerStyle={{
             flexGrow: 1,
-            paddingBottom: participatePeekHeight(insets.bottom) + space.lg,
+            paddingBottom:
+              participatePeekHeight(insets.bottom) +
+              space.lg +
+              (sheetLinks.tickets.length > 0 ? PARTICIPATE_HINT_CLEARANCE : 0),
           }}
         >
           <View
@@ -1597,6 +1602,7 @@ export default function EventDetailScreen() {
         {event.isLoading ? <EventDetailBarSkeleton bottomInset={insets.bottom} /> : null}
         {event.data ? (
           <ParticipateSheet
+            key={event.data.id}
             title={event.data.title}
             when={whenTitle}
             imageUrl={event.data.imageUrl}

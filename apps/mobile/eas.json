@@ -28,6 +28,8 @@
     "staging": {
       "distribution": "internal",
       "channel": "staging",
+      "environment": "preview",
+      "autoIncrement": true,
       "env": {
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "SENTRY_CLI_EXECUTABLE": "true"
