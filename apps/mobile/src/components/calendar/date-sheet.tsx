@@ -22,6 +22,7 @@ import {
   stampKey,
   type DayStamp,
 } from '@/lib/calendar-range';
+import { monthIndex, monthOnNewDay, selectionOnNewDay } from '@/lib/calendar-today';
 import { listPublicEvents, type EventQueryPoint } from '@/lib/events';
 import { shownWhen } from '@/lib/span-occasions';
 import { colors } from '@/theme/colors';
@@ -32,6 +33,7 @@ type Mode = 'day' | 'range';
 
 type Props = {
   isPresented: boolean;
+  today: DayStamp;
   locale: string;
   point?: EventQueryPoint;
   tagIds: string[];
@@ -58,6 +60,7 @@ function weekdayLabels(locale: string): string[] {
 
 export function CalendarDateSheet({
   isPresented,
+  today,
   locale,
   point,
   tagIds,
@@ -69,26 +72,31 @@ export function CalendarDateSheet({
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const contentWidth = width - space.xl * 2;
-  const today = partsInZone(new Date());
+  const todayKey = stampKey(today);
   const [open, setOpen] = useState(false);
+  const [seenToday, setSeenToday] = useState(todayKey);
   const [mode, setMode] = useState<Mode>('day');
-  const [cursor, setCursor] = useState(() => {
-    const today = partsInZone(new Date());
-    return { y: today.y, m: today.m };
-  });
+  const [cursor, setCursor] = useState(() => ({ y: today.y, m: today.m }));
   const [from, setFrom] = useState<DayStamp | null>(null);
   const [to, setTo] = useState<DayStamp | null>(null);
 
   if (isPresented !== open) {
     setOpen(isPresented);
+    setSeenToday(todayKey);
     if (isPresented) {
-      const today = partsInZone(new Date());
-      const start = initial?.from ?? today;
-      setCursor({ y: start.y, m: start.m });
-      setFrom(initial?.from ?? null);
-      setTo(initial?.to ?? null);
-      setMode(initial && compareStamps(initial.from, initial.to) !== 0 ? 'range' : 'day');
+      const start = initial?.from && compareStamps(initial.from, today) >= 0 ? initial.from : today;
+      const next = selectionOnNewDay(initial?.from ?? null, initial?.to ?? null, today);
+      setCursor(monthOnNewDay({ y: start.y, m: start.m }, today));
+      setFrom(next.from);
+      setTo(next.to);
+      setMode(next.from && next.to && compareStamps(next.from, next.to) !== 0 ? 'range' : 'day');
     }
+  } else if (seenToday !== todayKey) {
+    setSeenToday(todayKey);
+    setCursor((current) => monthOnNewDay(current, today));
+    const next = selectionOnNewDay(from, to, today);
+    if (next.from !== from) setFrom(next.from);
+    if (next.to !== to) setTo(next.to);
   }
 
   const month = monthStamps(cursor.y, cursor.m);
@@ -158,8 +166,12 @@ export function CalendarDateSheet({
     setTo(day);
   }
 
+  const canGoBack = monthIndex(cursor) > monthIndex(today);
+
   function shiftMonth(delta: number) {
-    setCursor(addMonths(cursor.y, cursor.m, delta));
+    const next = addMonths(cursor.y, cursor.m, delta);
+    if (delta < 0 && monthIndex(next) < monthIndex(today)) return;
+    setCursor(next);
   }
 
   return (
@@ -265,10 +277,14 @@ export function CalendarDateSheet({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Previous month"
+                accessibilityState={{ disabled: !canGoBack }}
+                disabled={!canGoBack}
                 onPress={() => shiftMonth(-1)}
                 hitSlop={8}
               >
-                <AppText variant="subtitle">‹</AppText>
+                <AppText variant="subtitle" style={{ opacity: canGoBack ? 1 : 0.35 }}>
+                  ‹
+                </AppText>
               </Pressable>
               <AppText variant="subtitle">{formatMonthYear(cursor.y, cursor.m, locale)}</AppText>
               <Pressable

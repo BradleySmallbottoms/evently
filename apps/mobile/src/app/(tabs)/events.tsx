@@ -31,6 +31,8 @@ import {
   weekendStamps,
   type DayStamp,
 } from '@/lib/calendar-range';
+import { clampRangeToToday, monthOnNewDay } from '@/lib/calendar-today';
+import { useCalendarToday } from '@/lib/use-calendar-today';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { isWholeDay, shownWhen } from '@/lib/span-occasions';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
@@ -67,8 +69,11 @@ export default function EventsScreen() {
   const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
-  const today = useMemo(() => partsInZone(new Date()), []);
-  const [month, setMonth] = useState({ y: today.y, m: today.m });
+  const today = useCalendarToday();
+  const [month, setMonth] = useState(() => {
+    const stamp = partsInZone(new Date());
+    return { y: stamp.y, m: stamp.m };
+  });
   const [quick, setQuick] = useState<QuickDateId | null>(null);
   const [custom, setCustom] = useState<Range | null>(null);
   const [tagIds, setTagIds] = useState<string[]>([]);
@@ -80,6 +85,12 @@ export default function EventsScreen() {
     null,
   );
   const [refreshing, setRefreshing] = useState(false);
+  const shownMonth = monthOnNewDay(month, today);
+  if (shownMonth !== month) setMonth(shownMonth);
+  const shownCustom = clampRangeToToday(custom, today);
+  const shownQuick = shownCustom == null && quick === 'custom' ? null : quick;
+  if (shownCustom !== custom) setCustom(shownCustom);
+  if (shownQuick !== quick) setQuick(shownQuick);
 
   const { identity, preferences, point, placeId, radiusM, radiusMap, device } = useDiscoveryPoint();
   const nearbyName = useNearbyPlaceName(placeId === NEARBY_PLACE_ID ? device.fix : null);
@@ -103,15 +114,15 @@ export default function EventsScreen() {
   const savedIds = new Set((saved.data?.items ?? []).map((item) => item.id));
 
   const range = useMemo<Range>(() => {
-    if (quick === 'today') return { from: today, to: today };
-    if (quick === 'tomorrow') {
+    if (shownQuick === 'today') return { from: today, to: today };
+    if (shownQuick === 'tomorrow') {
       const day = addDays(today, 1);
       return { from: day, to: day };
     }
-    if (quick === 'weekend') return weekendStamps(today);
-    if (quick === 'custom' && custom) return custom;
-    return monthStamps(month.y, month.m);
-  }, [custom, month.m, month.y, quick, today]);
+    if (shownQuick === 'weekend') return weekendStamps(today);
+    if (shownQuick === 'custom' && shownCustom) return shownCustom;
+    return monthStamps(shownMonth.y, shownMonth.m);
+  }, [shownCustom, shownMonth.m, shownMonth.y, shownQuick, today]);
   const iso = boundsIso(range.from, range.to);
   const tagKey = [...listedTagIds].sort().join('\n');
   const locationPoint = useMemo(() => {
@@ -202,14 +213,16 @@ export default function EventsScreen() {
         labels.push(t(`events.tagGroup.${group.id}`));
       }
     }
-    if (quick === 'today') labels.push(t('events.calendar.today'));
-    if (quick === 'tomorrow') labels.push(t('events.calendar.tomorrow'));
-    if (quick === 'weekend') labels.push(t('events.calendar.weekend'));
-    if (quick === 'custom' && custom) labels.push(formatRangeShort(custom.from, custom.to, locale));
+    if (shownQuick === 'today') labels.push(t('events.calendar.today'));
+    if (shownQuick === 'tomorrow') labels.push(t('events.calendar.tomorrow'));
+    if (shownQuick === 'weekend') labels.push(t('events.calendar.weekend'));
+    if (shownQuick === 'custom' && shownCustom) {
+      labels.push(formatRangeShort(shownCustom.from, shownCustom.to, locale));
+    }
     if (price === 'free') labels.push(t('events.free'));
     if (price === 'paid') labels.push(t('events.pricePaid'));
     return labels;
-  }, [custom, listedTagIds, locale, price, quick, t, tags.data?.items]);
+  }, [listedTagIds, locale, price, shownCustom, shownQuick, t, tags.data?.items]);
 
   const weekend = weekendStamps(today);
   const quickChips = [
@@ -360,8 +373,8 @@ export default function EventsScreen() {
             </View>
             <View style={{ paddingHorizontal: space.xl }}>
               <MonthStrip
-                year={month.y}
-                month={month.m}
+                year={shownMonth.y}
+                month={shownMonth.m}
                 earliest={{ y: today.y, m: today.m }}
                 locale={locale}
                 yearLabel={t('events.calendar.year')}
@@ -379,7 +392,7 @@ export default function EventsScreen() {
               />
             </View>
             <View style={{ paddingHorizontal: space.xl }}>
-              <QuickDates chips={quickChips} selected={quick} onSelect={chooseQuick} />
+              <QuickDates chips={quickChips} selected={shownQuick} onSelect={chooseQuick} />
             </View>
           </View>
         }
@@ -479,11 +492,12 @@ export default function EventsScreen() {
       />
       <CalendarDateSheet
         isPresented={dateOpen}
+        today={today}
         locale={locale}
         point={point.data}
         tagIds={listedTagIds}
         price={price === 'any' ? undefined : price}
-        initial={quick === 'custom' ? custom : null}
+        initial={shownQuick === 'custom' ? shownCustom : null}
         onDismiss={() => setDateOpen(false)}
         onApply={(next) => {
           setCustom(next);

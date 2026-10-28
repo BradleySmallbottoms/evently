@@ -457,7 +457,7 @@ function buildScanPrompt(event: ScanInput): string {
     'Write a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.',
     'instructions are steps a visitor follows, taken only from the description or the event page, such as what to bring or how to sign up. Use an empty list when the text has no such steps.',
     'The Tip chat section is the chat with the person who submitted the event. Lines such as "place: ...", "link: ...", and "confirm: place" are that chat. Do not turn them into instructions. Do not write a step that asks anyone to confirm the place, the link, the description, or any other field.',
-    'Read the title, the description, and the event page and list every showing in possibleOccasions. A description can name more than one showing. Return each one you can read. Do not invent a showing.',
+    'Read the title, the description, and the event page and list every showing in possibleOccasions. A description can name more than one showing or a range of dates, a range of dates should be returned as a single showing. If a year is missing from the date or date range, assume this year unless the date is in the future, then assume next year. Return each one you can read. Do not invent a showing.',
     ...(eventPageUrl(event)
       ? [
           `Page: ${eventPageUrl(event)}`,
