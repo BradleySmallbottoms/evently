@@ -5,6 +5,7 @@ import { insertApprovedEventReminders, pointEwkt, schema } from '@local-events/d
 import {
   choosePublisher,
   occasionVenueOnImport,
+  occasionsToAdd,
   DUPLICATE_RADIUS_M,
   DUPLICATE_WINDOW_MINUTES,
   IMPORT_NOTIFICATION_AUDIENCE,
@@ -176,7 +177,7 @@ export function createDbIngestStore(db: Db): IngestStore {
       .where(and(eq(eventOccasions.eventId, eventId), isNull(eventOccasions.location)));
   }
 
-  /** The venue the scan chose, on every showing. `events` has no venue column. */
+  /** The venue the scan chose, on showings that still have none. `events` has no venue column. */
   async function writeScanVenue(
     tx: Pick<Db, 'update'>,
     eventId: string,
@@ -186,7 +187,36 @@ export function createDbIngestStore(db: Db): IngestStore {
     await tx
       .update(eventOccasions)
       .set({ venueName, updatedAt: new Date() })
+      .where(and(eq(eventOccasions.eventId, eventId), isNull(eventOccasions.venueName)));
+  }
+
+  /** Inserts scan showings whose start and end are not already stored. */
+  async function addScanOccasions(
+    tx: Pick<Db, 'insert' | 'select'>,
+    eventId: string,
+    incoming: { startsAt: Date; endsAt: Date; venueName: string | null }[] | undefined,
+    location: { lat: number; lng: number } | undefined,
+  ) {
+    if (!incoming || incoming.length === 0) return;
+    const previous = await tx
+      .select({
+        startsAt: eventOccasions.startsAt,
+        endsAt: eventOccasions.endsAt,
+      })
+      .from(eventOccasions)
       .where(eq(eventOccasions.eventId, eventId));
+    const missing = occasionsToAdd(previous, incoming);
+    if (missing.length === 0) return;
+    await tx.insert(eventOccasions).values(
+      missing.map((occasion) => ({
+        eventId,
+        startsAt: occasion.startsAt,
+        endsAt: occasion.endsAt,
+        venueName: occasion.venueName,
+        location: location ? pointEwkt(location) : null,
+        sourceKey: `${occasion.startsAt.toISOString()}:${occasion.endsAt.toISOString()}`,
+      })),
+    );
   }
 
   async function replaceOccasions(
@@ -1318,9 +1348,6 @@ export function createDbIngestStore(db: Db): IngestStore {
             contentVerdict: input.contentVerdict,
             summary: input.summary,
             language: input.language,
-            ...(input.startsAt && input.endsAt
-              ? { startsAt: input.startsAt, endsAt: input.endsAt }
-              : {}),
           })
           .where(
             and(
@@ -1331,6 +1358,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           )
           .returning({ id: events.id });
         if (updated.length === 0) return false;
+        await addScanOccasions(tx, input.eventId, input.occasions, input.location);
         await writeTags(tx, input.eventId, input.tagIds);
         await fillOccasionPoints(tx, input.eventId, input.location);
         await writeScanVenue(tx, input.eventId, input.venueName);
@@ -1352,9 +1380,6 @@ export function createDbIngestStore(db: Db): IngestStore {
             contentVerdict: input.contentVerdict,
             summary: input.summary,
             language: input.language,
-            ...(input.startsAt && input.endsAt
-              ? { startsAt: input.startsAt, endsAt: input.endsAt }
-              : {}),
           })
           .where(
             and(
@@ -1367,6 +1392,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           )
           .returning({ id: events.id });
         if (updated.length === 0) return false;
+        await addScanOccasions(tx, input.eventId, input.occasions, input.location);
         await writeTags(tx, input.eventId, input.tagIds);
         await fillOccasionPoints(tx, input.eventId, input.location);
         await writeScanVenue(tx, input.eventId, input.venueName);

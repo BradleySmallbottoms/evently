@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { readScanInstructions, readScanRange } from '@local-events/ingest';
+import { readScanInstructions } from '@local-events/ingest';
 import {
   choosePossibleOccasionGroupId,
   importedVenueName,
   importPlanToSchedule,
+  occasionsToAdd,
   OCCASION_GROUP_MIN_RANK,
   shouldEnqueueNotifications,
   statusAfterImportScan,
@@ -249,7 +250,7 @@ export async function applyOutcome(
     const kept = stored[0]?.possibleOccasionGroupId;
     if (kept) meta.possibleOccasionGroupId = kept;
   }
-  const dates = datesFromScan(row, outcome);
+  const occasions = occasionsFromScan(outcome);
   const place = await placeFromScan(row, outcome, fetchImpl);
   const location = place.location ?? row.location ?? undefined;
   const venueName = venueNameFromScan(outcome.possibleVenueNames, row.meta.import);
@@ -265,12 +266,12 @@ export async function applyOutcome(
     summary: eventSummary(outcome.summary),
     language: eventLanguage(outcome.language),
     claimedUntil: row.claimedUntil,
-    ...(dates ?? {}),
+    ...(occasions.length > 0 ? { occasions } : {}),
     ...(location ? { location } : {}),
     ...(venueName ? { venueName } : {}),
   });
   if (!saved) return 'skipped';
-  const startsAt = dates?.startsAt ?? row.startsAt;
+  const startsAt = row.startsAt ?? occasions[0]?.startsAt;
   if (store.scheduleImportNotifications && startsAt) {
     const planId = importPlanToSchedule({
       publisherStatus: publisher.status,
@@ -349,17 +350,29 @@ async function placeFromScan(
 }
 
 /**
- * Dates from the scan, used only when the stored event has neither start nor end
- * and the model returned both.
+ * Showings from the scan. `possibleOccasions` wins. An older outcome that only
+ * set `startsAt` and `endsAt` is one showing. A one-sided range is dropped.
+ * The earliest start is first, so a notification can use it when the event has none.
  */
-function datesFromScan(
-  row: PendingScanRow,
+function occasionsFromScan(
   outcome: Extract<ScanOutcome, { ok: true }>,
-): { startsAt: Date; endsAt: Date } | undefined {
-  if (row.startsAt || row.endsAt) return undefined;
-  const range = readScanRange({ startsAt: outcome.startsAt, endsAt: outcome.endsAt });
-  if (!range) return undefined;
-  return { startsAt: new Date(range.startsAt), endsAt: new Date(range.endsAt) };
+): { startsAt: Date; endsAt: Date; venueName: string | null }[] {
+  const listed =
+    outcome.possibleOccasions ??
+    (outcome.startsAt && outcome.endsAt
+      ? [{ startsAt: outcome.startsAt, endsAt: outcome.endsAt }]
+      : []);
+  const occasions: { startsAt: Date; endsAt: Date; venueName: string | null }[] = [];
+  for (const item of listed) {
+    const startsAt = new Date(item.startsAt);
+    const endsAt = new Date(item.endsAt);
+    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) continue;
+    if (endsAt.getTime() < startsAt.getTime()) continue;
+    const raw = 'venueName' in item ? item.venueName : undefined;
+    const venueName = typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim().slice(0, 500) : '';
+    occasions.push({ startsAt, endsAt, venueName: venueName || null });
+  }
+  return occasionsToAdd([], occasions).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 }
 
 /**

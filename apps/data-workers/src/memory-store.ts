@@ -6,6 +6,7 @@ import type { EventLinkKind, PublisherStatus } from '@local-events/domain';
 import {
   choosePublisher,
   mergeEventAddress,
+  occasionsToAdd,
   DUPLICATE_RADIUS_M,
   importNotificationMessages,
   PUBLISHER_NAME_RADIUS_M,
@@ -80,6 +81,7 @@ interface StoredEvent {
   summary?: string | null;
   language?: 'sv' | 'en';
   links?: { type: EventLinkKind; url: string; label?: string }[];
+  occasions: { startsAt: Date; endsAt: Date; venueName: string | null }[];
 }
 
 interface StoredRef {
@@ -161,7 +163,46 @@ function eventFromWrite(id: string, input: ImportedEventWrite): StoredEvent {
     contentVerdict: 'unknown',
     llmOutput: null,
     links: input.event.links?.map((link) => ({ ...link })),
+    occasions: storedOccasions(input),
   };
+}
+
+function applyScanOccasions(
+  event: StoredEvent,
+  incoming: ImportedScanWrite['occasions'],
+  venueName: string | undefined,
+) {
+  const existing = event.occasions ?? [];
+  const missing = occasionsToAdd(existing, incoming ?? []);
+  event.occasions = [...existing, ...missing];
+  if (!event.startsAt && missing.length > 0) {
+    const earliest = [...missing].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())[0]!;
+    event.startsAt = earliest.startsAt;
+    event.endsAt = earliest.endsAt;
+  }
+  if (!venueName) return;
+  event.venueName = venueName;
+  for (const occasion of event.occasions) {
+    if (!occasion.venueName) occasion.venueName = venueName;
+  }
+}
+
+function storedOccasions(
+  input: ImportedEventWrite,
+): { startsAt: Date; endsAt: Date; venueName: string | null }[] {
+  if (input.event.occasions && input.event.occasions.length > 0) {
+    return input.event.occasions.flatMap((occasion) => {
+      const startsAt = new Date(occasion.startsAt);
+      const endsAt = new Date(occasion.endsAt);
+      if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return [];
+      return [{ startsAt, endsAt, venueName: occasion.venueName ?? null }];
+    });
+  }
+  if (!input.event.startsAt || !input.endsAt) return [];
+  const startsAt = new Date(input.event.startsAt);
+  const endsAt = new Date(input.endsAt);
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return [];
+  return [{ startsAt, endsAt, venueName: input.event.venueName ?? null }];
 }
 
 export function createMemoryIngestStore(): MemoryIngestStore {
@@ -513,9 +554,10 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       }
       const address = mergeEventAddress(next.meta.address, event.meta.address);
       if (address) next.meta = { ...next.meta, address };
-      if (!input.event.startsAt) {
+      if (!input.event.startsAt && !(input.event.occasions && input.event.occasions.length > 0)) {
         next.startsAt = event.startsAt;
         next.endsAt = event.endsAt;
+        next.occasions = event.occasions;
       }
       if (!input.event.location) next.location = event.location;
       if (input.event.venueName === undefined) next.venueName = event.venueName;
@@ -858,12 +900,8 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       event.llmOutput = input.llmOutput;
       event.summary = input.summary;
       event.language = input.language;
-      if (input.startsAt && input.endsAt) {
-        event.startsAt = input.startsAt;
-        event.endsAt = input.endsAt;
-      }
+      applyScanOccasions(event, input.occasions, input.venueName);
       if (input.location) event.location = input.location;
-      if (input.venueName) event.venueName = input.venueName;
       event.scanClaimedUntil = null;
       return true;
     },
@@ -882,12 +920,8 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       event.llmOutput = input.llmOutput;
       event.summary = input.summary;
       event.language = input.language;
-      if (input.startsAt && input.endsAt) {
-        event.startsAt = input.startsAt;
-        event.endsAt = input.endsAt;
-      }
+      applyScanOccasions(event, input.occasions, input.venueName);
       if (input.location) event.location = input.location;
-      if (input.venueName) event.venueName = input.venueName;
       event.scanClaimedUntil = null;
       return true;
     },

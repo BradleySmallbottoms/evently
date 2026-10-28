@@ -15,6 +15,7 @@ import {
   ollamaModel,
   parseTagChoices,
   readScanInstructions,
+  readScanOccasions,
   readScanRange,
   titleSimilarity,
   type LLMOutput,
@@ -66,6 +67,7 @@ function parseResponse(content: string): LLMScanResult {
     language: parsed.language ?? '',
     instructions: readScanInstructions(parsed.instructions),
     possibleVenueNames: Array.isArray(parsed.possibleVenueNames) ? parsed.possibleVenueNames : [],
+    possibleOccasions: readScanOccasions(parsed),
     ...(readScanRange(parsed) ?? { startsAt: null, endsAt: null }),
   };
 }
@@ -80,6 +82,7 @@ function emptyScan(): LLMScanResult {
     language: '',
     instructions: [],
     possibleVenueNames: [],
+    possibleOccasions: [],
     startsAt: null,
     endsAt: null,
   };
@@ -272,6 +275,7 @@ export function createOllamaPromptRunner(
           summary: llmoutput?.summary ?? '',
           language: llmoutput?.language ?? '',
           instructions: llmoutput?.instructions ?? [],
+          possibleOccasions: llmoutput?.possibleOccasions ?? [],
           startsAt: llmoutput?.startsAt ?? null,
           endsAt: llmoutput?.endsAt ?? null,
           llmOutput: llmoutput?.output ?? {},

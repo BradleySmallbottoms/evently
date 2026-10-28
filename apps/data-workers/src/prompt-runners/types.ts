@@ -71,6 +71,11 @@ export type ScanOutcome =
       /** Both set when the model found a range for an undated event. */
       startsAt?: string | null;
       endsAt?: string | null;
+      /**
+       * Showings read from the description or the event page.
+       * Absent on an older outcome that only set `startsAt` and `endsAt`.
+       */
+      possibleOccasions?: { startsAt: string; endsAt: string; venueName?: string }[];
       /** Point geocoded from the address in the scan JSON. Set only when the event had none. */
       location?: { lat: number; lng: number };
       /** Address from the scan JSON, including the point when one was found. */

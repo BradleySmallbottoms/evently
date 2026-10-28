@@ -409,13 +409,15 @@ export interface ImportedScanWrite {
   summary: string | null;
   /** `en` when the scan says English. Anything else is `sv`. */
   language: 'sv' | 'en';
-  /** Set only when the scan found both and the row had neither. */
-  startsAt?: Date;
-  endsAt?: Date;
   /** The point nearby tools used. Written onto occasions that still have none. */
   location?: { lat: number; lng: number };
-  /** Chosen venue. Written on every occasion. Omitted when the scan found none. */
+  /** Chosen venue. Written on showings that still have no venue. */
   venueName?: string;
+  /**
+   * Showings the model read. Ones that match a stored start and end are left out.
+   * A new showing keeps its own venue name.
+   */
+  occasions?: { startsAt: Date; endsAt: Date; venueName: string | null }[];
 }
 
 /** One unscanned publisher plus the newest linked event, when one exists. */

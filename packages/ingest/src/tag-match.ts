@@ -181,6 +181,11 @@ export type LLMScanResult = {
   /** Both set when the model found a range. Null when it did not. */
   startsAt: string | null;
   endsAt: string | null;
+  /**
+   * Showings the model read from the description or the event page.
+   * A stored payload with no array falls back to one showing from `startsAt` and `endsAt`.
+   */
+  possibleOccasions: ScanOccasion[];
   /** Venue guesses. The scan writes the highest rank above 80 on every occasion. */
   possibleVenueNames: { name: string; rank: number }[];
   /** Street, postcode, and city from the description or the event page. Absent when the model found none. */
@@ -239,6 +244,58 @@ function scanInstant(value: unknown, end: boolean): string | null {
   } catch {
     return null;
   }
+}
+
+const OCCASION_LIMIT = 200;
+const OCCASION_VENUE_LIMIT = 500;
+
+export type ScanOccasion = {
+  startsAt: string;
+  endsAt: string;
+  venueName?: string;
+};
+
+/**
+ * Showings from the scan JSON. Each one needs a start and an end. `venueName` is
+ * kept when the model named a place. A payload with no `possibleOccasions` array
+ * becomes one showing from `startsAt` and `endsAt` when both are present.
+ * An empty array stays empty. At most 200 showings are kept.
+ */
+export function readScanOccasions(value: unknown): ScanOccasion[] {
+  if (!value || typeof value !== 'object') return [];
+  const record = value as { possibleOccasions?: unknown };
+  if (!('possibleOccasions' in record)) {
+    const range = readScanRange(value);
+    return range ? [range] : [];
+  }
+  if (!Array.isArray(record.possibleOccasions)) return [];
+  const occasions: ScanOccasion[] = [];
+  const seen = new Set<string>();
+  for (const item of record.possibleOccasions) {
+    const occasion = oneScanOccasion(item);
+    if (!occasion) continue;
+    const key = `${occasion.startsAt}:${occasion.endsAt}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    occasions.push(occasion);
+    if (occasions.length >= OCCASION_LIMIT) break;
+  }
+  return occasions;
+}
+
+function oneScanOccasion(value: unknown): ScanOccasion | null {
+  const range = readScanRange(value);
+  if (!range) return null;
+  const venueName = scanVenueName(value);
+  return venueName ? { ...range, venueName } : range;
+}
+
+function scanVenueName(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object' || !('venueName' in value)) return undefined;
+  const raw = value.venueName;
+  if (typeof raw !== 'string') return undefined;
+  const name = raw.replace(/\s+/g, ' ').trim().slice(0, OCCASION_VENUE_LIMIT);
+  return name || undefined;
 }
 
 /**

@@ -79,6 +79,43 @@ export function importedVenueName(
   return cleanVenueName(input?.arenaName) ?? cleanVenueName(input?.venueName);
 }
 
+export interface DatedOccasion {
+  startsAt: Date;
+  endsAt: Date;
+}
+
+/**
+ * Showings from the scan that are not already stored.
+ * A match is the same start and the same end. A later showing in the same list
+ * with those times is skipped too. A range with no end, or an end before the
+ * start, is skipped.
+ */
+export function occasionsToAdd<T extends DatedOccasion>(
+  existing: DatedOccasion[],
+  possible: T[],
+): T[] {
+  const seen = new Set<string>();
+  for (const occasion of existing) {
+    const key = occasionKey(occasion);
+    if (key) seen.add(key);
+  }
+  const added: T[] = [];
+  for (const occasion of possible) {
+    const key = occasionKey(occasion);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    added.push(occasion);
+  }
+  return added;
+}
+
+function occasionKey(occasion: DatedOccasion): string | null {
+  const start = occasion.startsAt.getTime();
+  const end = occasion.endsAt.getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return null;
+  return `${start}:${end}`;
+}
+
 /**
  * Venue to write after a scan. The highest rank over {@link VENUE_NAME_MIN_RANK}
  * wins. Otherwise {@link importedVenueName}.
