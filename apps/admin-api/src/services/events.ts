@@ -11,6 +11,7 @@ import {
   type AdminEventListQuery,
   type AdminEventListResponse,
   type AdminEventPatchRequest,
+  type AdminOccasionPatchRequest,
   type AdminEventReviewListResponse,
   type AdminOccasionGroupItem,
   type AdminPossibleDuplicateItem,
@@ -133,6 +134,13 @@ export type AdminEventServices = {
   patch: (
     eventId: string,
     body: AdminEventPatchRequest,
+    actor: string,
+  ) => Promise<AdminEventDetail | null>;
+  /** Change one showing's date, times, and venue. The map point and import key stay. */
+  patchOccasion: (
+    eventId: string,
+    occasionId: string,
+    body: AdminOccasionPatchRequest,
     actor: string,
   ) => Promise<AdminEventDetail | null>;
   /** Store the sponsored poster. Null when the event is missing. */
@@ -1095,6 +1103,43 @@ export function createMemoryAdminEventServices(
           type: 'event.updated',
           eventId: row.id,
           changedFields: changed,
+        });
+      }
+      const after = asDetail(row, publisherName, env.assetsPublicBaseUrl);
+      await audit.write({
+        actor,
+        action: 'event.patch',
+        entityType: 'event',
+        entityId: eventId,
+        before: auditSnapshot(before),
+        after: auditSnapshot(after),
+      });
+      return after;
+    },
+    async patchOccasion(eventId, occasionId, body, actor) {
+      const row = store.events.get(eventId);
+      if (!row?.occasions) return null;
+      const current = row.occasions.find((occasion) => occasion.id === occasionId);
+      if (!current) return null;
+      if (new Date(body.endsAt).getTime() < new Date(body.startsAt).getTime()) {
+        throw new AdminEventError('invalid_event');
+      }
+      const publisherName = store.publishers.get(row.publisherId)?.name ?? 'Unknown';
+      const before = asDetail(row, publisherName, env.assetsPublicBaseUrl);
+      const changed =
+        body.startsAt !== current.startsAt ||
+        body.endsAt !== current.endsAt ||
+        body.venueName !== current.venueName;
+      current.startsAt = body.startsAt;
+      current.endsAt = body.endsAt;
+      current.venueName = body.venueName;
+      applyOccasionBounds(row, row.occasions);
+      row.updatedAt = now().toISOString();
+      if (row.status === 'published' && changed) {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.updated',
+          eventId,
+          changedFields: ['occasions'],
         });
       }
       const after = asDetail(row, publisherName, env.assetsPublicBaseUrl);
@@ -2540,6 +2585,61 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         entityId: eventId,
         before: auditSnapshot(existing),
         after: updated ? auditSnapshot(updated) : null,
+      });
+      return updated;
+    },
+    async patchOccasion(eventId, occasionId, body, actor) {
+      const existing = await loadDetail(eventId);
+      if (!existing) return null;
+      const current = existing.occasions?.find((occasion) => occasion.id === occasionId);
+      if (!current) return null;
+      if (new Date(body.endsAt).getTime() < new Date(body.startsAt).getTime()) {
+        throw new AdminEventError('invalid_event');
+      }
+      const at = now();
+      const written = await db
+        .update(schema.eventOccasions)
+        .set({
+          startsAt: new Date(body.startsAt),
+          endsAt: new Date(body.endsAt),
+          venueName: body.venueName,
+          updatedAt: at,
+        })
+        .where(
+          and(eq(schema.eventOccasions.id, occasionId), eq(schema.eventOccasions.eventId, eventId)),
+        )
+        .returning({ id: schema.eventOccasions.id });
+      if (written.length === 0) return null;
+      await db.update(schema.events).set({ updatedAt: at }).where(eq(schema.events.id, eventId));
+      const changed =
+        body.startsAt !== current.startsAt ||
+        body.endsAt !== current.endsAt ||
+        body.venueName !== current.venueName;
+      if (existing.status === 'published' && changed) {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.updated',
+          eventId,
+          changedFields: ['occasions'],
+        });
+      }
+      const updated = await loadDetail(eventId);
+      await audit.write({
+        actor,
+        action: 'event.patch',
+        entityType: 'event',
+        entityId: eventId,
+        before: {
+          occasionId,
+          startsAt: current.startsAt,
+          endsAt: current.endsAt,
+          venueName: current.venueName,
+        },
+        after: {
+          occasionId,
+          startsAt: body.startsAt,
+          endsAt: body.endsAt,
+          venueName: body.venueName,
+        },
       });
       return updated;
     },

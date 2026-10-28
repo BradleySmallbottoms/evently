@@ -5,9 +5,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarIcon } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Fragment, useState } from 'react';
+import type { FormEvent } from 'react';
 import { EmptyState, LoadingRows } from '@/components/list-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -19,7 +30,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Link } from '@/i18n/navigation';
-import { adminFetch } from '@/lib/api';
+import { AdminApiError, adminFetch } from '@/lib/api';
+import { toDatetimeLocal, zonedLocalToIso } from '@/lib/zoned-datetime';
 
 const OCCASION_PREVIEW = 10;
 
@@ -60,6 +72,152 @@ export function possibleDuplicatesQuery(eventId: string) {
   };
 }
 
+function OccasionEditor({
+  eventId,
+  occasion,
+  timeZone,
+  onClose,
+  onSaved,
+}: {
+  eventId: string;
+  occasion: Occasion;
+  timeZone: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const t = useTranslations('EventEditor');
+  const queryClient = useQueryClient();
+  const startLocal = toDatetimeLocal(occasion.startsAt, timeZone);
+  const endLocal = toDatetimeLocal(occasion.endsAt, timeZone);
+  const [date, setDate] = useState(startLocal.slice(0, 10));
+  const [startTime, setStartTime] = useState(startLocal.slice(11, 16));
+  const [endTime, setEndTime] = useState(endLocal.slice(11, 16));
+  const [venueName, setVenueName] = useState(occasion.venueName ?? '');
+  const [error, setError] = useState<string | null>(null);
+
+  const save = useMutation({
+    mutationFn: (body: { startsAt: string; endsAt: string; venueName: string | null }) =>
+      adminFetch(`/events/${eventId}/occasions/${occasion.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: async () => {
+      setError(null);
+      await queryClient.invalidateQueries({ queryKey: ['admin-event', eventId] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-events-catalog'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-events-in-review'] });
+      onSaved();
+      onClose();
+    },
+    onError: (err) => {
+      setError(
+        err instanceof AdminApiError && err.code === 'invalid_event'
+          ? t('occasionTimeError')
+          : t('occasionSaveError'),
+      );
+    },
+  });
+
+  function onSubmit(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    setError(null);
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      !/^\d{2}:\d{2}$/.test(startTime) ||
+      !/^\d{2}:\d{2}$/.test(endTime)
+    ) {
+      setError(t('invalidTime'));
+      return;
+    }
+    let startsAt: string;
+    let endsAt: string;
+    try {
+      startsAt = zonedLocalToIso(`${date}T${startTime}`, timeZone);
+      endsAt = zonedLocalToIso(`${date}T${endTime}`, timeZone);
+    } catch {
+      setError(t('invalidTime'));
+      return;
+    }
+    if (new Date(endsAt).getTime() < new Date(startsAt).getTime()) {
+      setError(t('occasionTimeError'));
+      return;
+    }
+    save.mutate({ startsAt, endsAt, venueName: venueName.trim() || null });
+  }
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !save.isPending) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('editOccasion')}</DialogTitle>
+          <DialogDescription>{t('editOccasionHint')}</DialogDescription>
+        </DialogHeader>
+        <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <Field>
+            <FieldLabel htmlFor="occasion-date">{t('occasionDate')}</FieldLabel>
+            <Input
+              id="occasion-date"
+              type="date"
+              required
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+            />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="occasion-start">{t('occasionStart')}</FieldLabel>
+              <Input
+                id="occasion-start"
+                type="time"
+                required
+                value={startTime}
+                onChange={(event) => setStartTime(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="occasion-end">{t('occasionEnd')}</FieldLabel>
+              <Input
+                id="occasion-end"
+                type="time"
+                required
+                value={endTime}
+                onChange={(event) => setEndTime(event.target.value)}
+              />
+            </Field>
+          </div>
+          <Field>
+            <FieldLabel htmlFor="occasion-venue">{t('venueName')}</FieldLabel>
+            <Input
+              id="occasion-venue"
+              value={venueName}
+              onChange={(event) => setVenueName(event.target.value)}
+            />
+          </Field>
+          <DialogFooter>
+            <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
+              {t('cancel')}
+            </Button>
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? <Spinner data-icon="inline-start" /> : null}
+              {t('save')}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function EventOccasions({
   eventId,
   occasions,
@@ -67,6 +225,7 @@ export function EventOccasions({
   timeZone,
   onCollapsed,
   onMerged,
+  onSaved,
 }: {
   eventId: string;
   occasions: Occasion[] | undefined;
@@ -74,6 +233,7 @@ export function EventOccasions({
   timeZone: string;
   onCollapsed: () => void;
   onMerged: (occasions: 'keep' | 'move') => void;
+  onSaved: () => void;
 }) {
   const t = useTranslations('EventEditor');
   const locale = useLocale();
@@ -85,6 +245,7 @@ export function EventOccasions({
   const [mergeError, setMergeError] = useState(false);
   const [merged, setMerged] = useState<'keep' | 'move' | null>(null);
   const [showAllOccasions, setShowAllOccasions] = useState(false);
+  const [editing, setEditing] = useState<Occasion | null>(null);
   const stored = occasions ?? [];
   const visibleOccasions = showAllOccasions ? stored : stored.slice(0, OCCASION_PREVIEW);
 
@@ -201,6 +362,9 @@ export function EventOccasions({
                   <TableHead>{t('startsAt')}</TableHead>
                   <TableHead>{t('endsAt')}</TableHead>
                   <TableHead>{t('venueName')}</TableHead>
+                  <TableHead className="w-24">
+                    <span className="sr-only">{t('editOccasion')}</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -209,6 +373,16 @@ export function EventOccasions({
                     <TableCell>{formatWhen(occasion.startsAt, timeZone, locale)}</TableCell>
                     <TableCell>{formatWhen(occasion.endsAt, timeZone, locale)}</TableCell>
                     <TableCell>{occasion.venueName ?? '—'}</TableCell>
+                    <TableCell>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditing(occasion)}
+                      >
+                        {t('editOccasion')}
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -223,6 +397,16 @@ export function EventOccasions({
             >
               {t('showMoreOccasions')}
             </Button>
+          ) : null}
+          {editing ? (
+            <OccasionEditor
+              key={editing.id}
+              eventId={eventId}
+              occasion={editing}
+              timeZone={timeZone}
+              onClose={() => setEditing(null)}
+              onSaved={onSaved}
+            />
           ) : null}
         </div>
       ) : null}

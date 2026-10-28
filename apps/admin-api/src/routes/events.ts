@@ -8,6 +8,7 @@ import {
   AdminEventListQuery,
   AdminEventListResponse,
   AdminEventPatchRequest,
+  AdminOccasionPatchRequest,
   AdminEventReviewListResponse,
   AdminEventWorkerListResponse,
   AdminMergeDuplicatesRequest,
@@ -607,6 +608,54 @@ export function registerAdminEventRoutes(
       },
     },
   });
+  const patchOccasion = createRoute({
+    method: 'patch',
+    path: '/events/{id}/occasions/{occasionId}',
+    request: {
+      params: z.object({ id: z.uuid(), occasionId: z.uuid() }),
+      body: {
+        content: { 'application/json': { schema: AdminOccasionPatchRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Updated occasion',
+        content: { 'application/json': { schema: AdminEventDetail } },
+      },
+      400: {
+        description: 'End is before the start',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Event or occasion not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(patchOccasion, async (c) => {
+    try {
+      const session = await auth.requireSession(readAdminSessionToken(c));
+      const { id, occasionId } = c.req.valid('param');
+      const result = await events.patchOccasion(
+        id,
+        occasionId,
+        c.req.valid('json'),
+        session.adminId,
+      );
+      if (!result) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json(result, 200);
+    } catch (err) {
+      return eventWriteError(c, err);
+    }
+  });
+
   app.openapi(patch, async (c) => {
     try {
       const session = await auth.requireSession(readAdminSessionToken(c));

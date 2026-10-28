@@ -538,6 +538,19 @@ export const AdminEventPatchRequest = z
   );
 export type AdminEventPatchRequest = z.infer<typeof AdminEventPatchRequest>;
 
+/** One showing. The same start and end is a whole day. */
+export const AdminOccasionPatchRequest = z
+  .object({
+    startsAt: z.iso.datetime(),
+    endsAt: z.iso.datetime(),
+    venueName: z.string().trim().max(200).nullable(),
+  })
+  .refine((body) => new Date(body.endsAt).getTime() >= new Date(body.startsAt).getTime(), {
+    message: 'endsAt must be at or after startsAt',
+    path: ['endsAt'],
+  });
+export type AdminOccasionPatchRequest = z.infer<typeof AdminOccasionPatchRequest>;
+
 export const AdminPublisherPatchRequest = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   slug: z

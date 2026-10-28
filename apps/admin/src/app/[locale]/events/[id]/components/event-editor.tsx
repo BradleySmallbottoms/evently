@@ -298,23 +298,26 @@ export function EventEditor({ eventId }: { eventId: string }) {
       setFormError(t('invalidLink'));
       return;
     }
-    let startsAt: string;
-    let endsAt: string;
-    try {
-      startsAt = zonedLocalToIso(form.startsAt, form.timezone.trim() || 'Europe/Stockholm');
-      endsAt = zonedLocalToIso(form.endsAt, form.timezone.trim() || 'Europe/Stockholm');
-    } catch {
-      setFormError(t('invalidTime'));
-      return;
+    const manyOccasions = (eventQuery.data?.occasions?.length ?? 0) > 1;
+    let times: { startsAt: string; endsAt: string; venueName: string | null } | undefined;
+    if (!manyOccasions) {
+      try {
+        times = {
+          startsAt: zonedLocalToIso(form.startsAt, form.timezone.trim() || 'Europe/Stockholm'),
+          endsAt: zonedLocalToIso(form.endsAt, form.timezone.trim() || 'Europe/Stockholm'),
+          venueName: form.venueName.trim() || null,
+        };
+      } catch {
+        setFormError(t('invalidTime'));
+        return;
+      }
     }
     save.mutate({
       title: form.title.trim(),
       description: form.description.trim() || null,
       mode: form.mode,
-      startsAt,
-      endsAt,
+      ...times,
       timezone: form.timezone.trim() || 'Europe/Stockholm',
-      venueName: form.venueName.trim() || null,
       location,
       geofenceRadiusM: radiusRaw === '' ? null : Number(radiusRaw),
       onlineUrl: form.onlineUrl.trim() || null,
@@ -362,8 +365,9 @@ export function EventEditor({ eventId }: { eventId: string }) {
   }
 
   const event = eventQuery.data;
+  const manyOccasions = (event?.occasions?.length ?? 0) > 1;
   const showOccasions =
-    (event?.occasions?.length ?? 0) > 1 ||
+    (event?.occasions?.length ?? 0) > 0 ||
     Boolean(event?.meta.possibleOccasionGroupId) ||
     Boolean(event?.meta.possibleDuplicate) ||
     Boolean(event?.meta.duplicateOf) ||
@@ -666,25 +670,28 @@ export function EventEditor({ eventId }: { eventId: string }) {
               <FieldLabel htmlFor="event-check-in">{t('checkInEnabled')}</FieldLabel>
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
+              <Field data-disabled={manyOccasions || undefined}>
                 <FieldLabel htmlFor="event-starts">{t('startsAt')}</FieldLabel>
                 <Input
                   id="event-starts"
                   type="datetime-local"
-                  required
+                  required={!manyOccasions}
+                  disabled={manyOccasions}
                   value={form.startsAt}
                   onChange={(e) => update('startsAt', e.target.value)}
                 />
               </Field>
-              <Field>
+              <Field data-disabled={manyOccasions || undefined}>
                 <FieldLabel htmlFor="event-ends">{t('endsAt')}</FieldLabel>
                 <Input
                   id="event-ends"
                   type="datetime-local"
-                  required
+                  required={!manyOccasions}
+                  disabled={manyOccasions}
                   value={form.endsAt}
                   onChange={(e) => update('endsAt', e.target.value)}
                 />
+                {manyOccasions ? <FieldDescription>{t('editOnOccasions')}</FieldDescription> : null}
               </Field>
             </div>
             <Field>
@@ -835,13 +842,17 @@ export function EventEditor({ eventId }: { eventId: string }) {
                     radiusM={form.geofenceRadiusM}
                     onPlace={(lat, lng) => setDraft({ ...form, lat, lng })}
                   />
-                  <Field>
+                  <Field data-disabled={manyOccasions || undefined}>
                     <FieldLabel htmlFor="event-venue">{t('venueName')}</FieldLabel>
                     <Input
                       id="event-venue"
+                      disabled={manyOccasions}
                       value={form.venueName}
                       onChange={(e) => update('venueName', e.target.value)}
                     />
+                    {manyOccasions ? (
+                      <FieldDescription>{t('editOnOccasions')}</FieldDescription>
+                    ) : null}
                   </Field>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field>
@@ -910,6 +921,11 @@ export function EventEditor({ eventId }: { eventId: string }) {
               occasions={event.occasions}
               possibleOccasionGroupId={event.meta.possibleOccasionGroupId}
               timeZone={event.timezone}
+              onSaved={() => {
+                setDraft(null);
+                setNotice(t('occasionSaved'));
+                setFormError(null);
+              }}
               onCollapsed={() => {
                 setDraft(null);
                 setNotice(t('collapsed'));

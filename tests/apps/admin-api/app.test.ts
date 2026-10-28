@@ -81,6 +81,7 @@ describe('admin api', () => {
     expect(doc.paths['/events/{id}/rescan']).toBeDefined();
     expect(doc.paths['/events/{id}/occasion-group']).toBeDefined();
     expect(doc.paths['/events/{id}/collapse']).toBeDefined();
+    expect(doc.paths['/events/{id}/occasions/{occasionId}']).toBeDefined();
     expect(doc.paths['/events/{id}/possible-duplicates']).toBeDefined();
     expect(doc.paths['/events/{id}/merge-duplicates']).toBeDefined();
     expect(doc.paths['/events/{id}/poster']).toBeDefined();
@@ -2509,5 +2510,132 @@ describe('admin api', () => {
     });
     expect(limited.status).toBe(429);
     expect(await limited.json()).toMatchObject({ error: { code: 'otp_rate_limited' } });
+  });
+
+  it('updates one occasion and leaves the others', async () => {
+    const { auth } = await seededAuth();
+    const publisherId = '22222222-2222-4222-8222-222222222201';
+    const eventId = '44444444-4444-4444-8444-444444444401';
+    const firstId = '55555555-5555-4555-8555-555555555501';
+    const secondId = '55555555-5555-4555-8555-555555555502';
+    const eventStore = {
+      publishers: new Map([[publisherId, { id: publisherId, name: 'Hall' }]]),
+      events: new Map([
+        [
+          eventId,
+          {
+            id: eventId,
+            publisherId,
+            title: 'Exhibition',
+            mode: 'physical' as const,
+            status: 'published',
+            origin: 'imported' as const,
+            startsAt: '2026-08-01T08:00:00.000Z',
+            endsAt: '2026-08-02T16:00:00.000Z',
+            venueName: 'Museum',
+            sourceUrl: null,
+            occasions: [
+              {
+                id: firstId,
+                startsAt: '2026-08-01T08:00:00.000Z',
+                endsAt: '2026-08-01T14:00:00.000Z',
+                venueName: 'Museum',
+                location: { lat: 61.3, lng: 17.05 },
+              },
+              {
+                id: secondId,
+                startsAt: '2026-08-02T08:00:00.000Z',
+                endsAt: '2026-08-02T16:00:00.000Z',
+                venueName: 'Museum',
+                location: { lat: 61.3, lng: 17.05 },
+              },
+            ],
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+      ]),
+    };
+    const { createMemoryAdminEventServices } =
+      await import('../../../apps/admin-api/src/services/events');
+    const { createMemoryDomainEventPublisher } =
+      await import('../../../apps/admin-api/src/services/domain-events/memory');
+    const domainEvents = createMemoryDomainEventPublisher();
+    const app = createApp({
+      auth,
+      events: createMemoryAdminEventServices(eventStore, { domainEvents }),
+    });
+    const cookie = await loginSession(app);
+
+    const denied = await app.request(`/v1/events/${eventId}/occasions/${firstId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        startsAt: '2026-08-03T09:00:00.000Z',
+        endsAt: '2026-08-03T15:00:00.000Z',
+        venueName: 'Storan',
+      }),
+    });
+    expect(denied.status).toBe(401);
+
+    const earlier = await app.request(`/v1/events/${eventId}/occasions/${firstId}`, {
+      method: 'PATCH',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        startsAt: '2026-08-03T15:00:00.000Z',
+        endsAt: '2026-08-03T09:00:00.000Z',
+        venueName: 'Storan',
+      }),
+    });
+    expect(earlier.status).toBe(400);
+
+    const missing = await app.request(
+      `/v1/events/${eventId}/occasions/55555555-5555-4555-8555-555555555599`,
+      {
+        method: 'PATCH',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          startsAt: '2026-08-03T09:00:00.000Z',
+          endsAt: '2026-08-03T15:00:00.000Z',
+          venueName: 'Storan',
+        }),
+      },
+    );
+    expect(missing.status).toBe(404);
+
+    const saved = await app.request(`/v1/events/${eventId}/occasions/${firstId}`, {
+      method: 'PATCH',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        startsAt: '2026-08-03T09:00:00.000Z',
+        endsAt: '2026-08-03T15:00:00.000Z',
+        venueName: 'Storan',
+      }),
+    });
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toMatchObject({
+      startsAt: '2026-08-02T08:00:00.000Z',
+      endsAt: '2026-08-03T15:00:00.000Z',
+      venueName: 'Museum',
+      occasions: [
+        {
+          id: secondId,
+          startsAt: '2026-08-02T08:00:00.000Z',
+          endsAt: '2026-08-02T16:00:00.000Z',
+          venueName: 'Museum',
+          location: { lat: 61.3, lng: 17.05 },
+        },
+        {
+          id: firstId,
+          startsAt: '2026-08-03T09:00:00.000Z',
+          endsAt: '2026-08-03T15:00:00.000Z',
+          venueName: 'Storan',
+          location: { lat: 61.3, lng: 17.05 },
+        },
+      ],
+    });
+    expect(domainEvents.events).toEqual([
+      { type: 'event.updated', eventId, changedFields: ['occasions'] },
+    ]);
   });
 });
