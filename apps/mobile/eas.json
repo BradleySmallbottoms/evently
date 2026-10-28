@@ -35,6 +35,12 @@
         "SENTRY_CLI_EXECUTABLE": "true"
       }
     },
+    "staging-simulator": {
+      "extends": "staging",
+      "ios": {
+        "simulator": true
+      }
+    },
     "production": {
       "channel": "production",
       "autoIncrement": true,

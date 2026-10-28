@@ -12,12 +12,12 @@ import {
   hydrateDiscoveryRadius,
   subscribeDiscoveryRadius,
 } from './discovery-radius-store';
+import { NEARBY_PLACE_ID } from './discovery-place-id';
 import { ensureIdentity } from './identity';
 import { queryPointForArea } from './area-point';
 import { getPreferences } from './preferences';
 
-/** Menu id for the device location. Saved areas use their own ids. */
-export const NEARBY_PLACE_ID = 'nearby';
+export { NEARBY_PLACE_ID };
 
 /** Slider value for “Near you” and each saved area, including areas with no stored choice yet. */
 export function radiiForPlaces(

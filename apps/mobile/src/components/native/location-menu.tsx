@@ -26,6 +26,8 @@ export type LocationMenuOption = {
 type Props = {
   eyebrow?: string;
   locationLabel: string;
+  /** Place name under “Near you”. Omitted for a saved place. */
+  locationDetail?: string;
   title: string;
   message: string;
   /** First option is “near me”. The rest are saved places. */
@@ -79,6 +81,7 @@ function Glyph({
 export function LocationMenu({
   eyebrow,
   locationLabel,
+  locationDetail,
   title,
   message,
   options,
@@ -215,12 +218,36 @@ export function LocationMenu({
               {eyebrow}
             </AppText>
           ) : null}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
-            <MaterialIcons name="my-location" size={16} color={colors.ink} />
-            <AppText variant="subtitle" numberOfLines={1} style={{ flexShrink: 1 }}>
-              {locationLabel}
-            </AppText>
-            <MaterialIcons name="expand-more" size={16} color={colors.inkMuted} />
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: locationDetail ? 'flex-start' : 'center',
+              gap: 6,
+              maxWidth: '100%',
+            }}
+          >
+            <MaterialIcons
+              name="my-location"
+              size={16}
+              color={colors.ink}
+              style={locationDetail ? { marginTop: 4 } : undefined}
+            />
+            <View style={{ flexShrink: 1, minWidth: 0 }}>
+              <AppText variant="subtitle" numberOfLines={1}>
+                {locationLabel}
+              </AppText>
+              {locationDetail ? (
+                <AppText variant="caption" numberOfLines={1}>
+                  {locationDetail}
+                </AppText>
+              ) : null}
+            </View>
+            <MaterialIcons
+              name="expand-more"
+              size={16}
+              color={colors.inkMuted}
+              style={locationDetail ? { marginTop: 4 } : undefined}
+            />
           </View>
         </View>
       </Pressable>

@@ -46,8 +46,9 @@ sequenceDiagram
 - The device reads one foreground location when the app becomes active, then watches updates of
   about 100 m while it stays open. The watch stops on background. No background location.
 - A region prompt is evaluated on that foreground sample, and again after roughly 1 km of movement
-  while the app stays open. No saved region: the prompt is shown on open. Not now, closing the
-  sheet, or skipping the onboarding area step hides it for 7 days near that place
+  while the app stays open. No saved region: the prompt is shown on open, after the splash cover
+  has finished. The sheet is a native modal and draws above that cover.
+  Not now, closing the sheet, or skipping the onboarding area step hides it for 7 days near that place
   (`firstRegionDismissDays`). Farther than the profile
   setting “How far can you go” (default 25 km), including the same day, the prompt can show again.
 - Already has areas: still requires an active session and distance from saved areas. A nearby decline lasts 90 days.

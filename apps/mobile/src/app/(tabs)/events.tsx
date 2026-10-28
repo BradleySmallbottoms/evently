@@ -43,6 +43,8 @@ import {
   setDiscoveryPlaceId,
   useDiscoveryPoint,
 } from '@/lib/use-discovery-point';
+import { nearbyLocationDetail } from '@/lib/nearby-place-name';
+import { useNearbyPlaceName } from '@/lib/use-nearby-place-name';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
@@ -80,6 +82,7 @@ export default function EventsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const { identity, preferences, point, placeId, radiusM, radiusMap, device } = useDiscoveryPoint();
+  const nearbyName = useNearbyPlaceName(placeId === NEARBY_PLACE_ID ? device.fix : null);
   const saveDiscoveryRadius = useSaveDiscoveryRadius(identity.data);
   const areaTags = useAreaTagPrompt(identity.data);
   const tags = useQuery({
@@ -242,6 +245,7 @@ export default function EventsScreen() {
   ];
   const locationLabel =
     locationOptions.find((option) => option.id === placeId)?.label ?? t('events.locationNearby');
+  const locationDetail = nearbyLocationDetail(placeId, nearbyName.data);
 
   function toggleSave(eventId: string) {
     if (!identity.data) return;
@@ -309,6 +313,7 @@ export default function EventsScreen() {
                 <LocationMenu
                   eyebrow={t('tabs.events')}
                   locationLabel={locationLabel}
+                  locationDetail={locationDetail}
                   title={t('events.locationPickerTitle')}
                   message={t('events.locationPickerMessage')}
                   options={locationOptions}

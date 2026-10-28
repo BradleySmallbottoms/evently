@@ -145,6 +145,14 @@ export function shouldReevaluateRegionSuggestion(
 }
 
 /**
+ * The save-place sheet is a native modal and draws above the splash cover.
+ * Keep it closed until that cover has finished fading out.
+ */
+export function shouldPresentRegionSheet(splashDismissed: boolean, requested: boolean): boolean {
+  return splashDismissed && requested;
+}
+
+/**
  * Home stays mounted under onboarding. Granting location there is not a new
  * place: hold the prompt until onboarding is gone and the device has moved.
  */

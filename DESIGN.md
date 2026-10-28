@@ -266,7 +266,8 @@ the notification prompt.
 Purpose: make it easy to find something appealing with minimal effort.
 
 Recommended order: 1. Greeting or concise screen title. 2. Current
-location selector. 3. Search field. 4. Category circles: Music, Sports, Culture, Family,
+location selector. When “Near you” is selected, the locality name sits under
+that label. 3. Search field. 4. Category circles: Music, Sports, Culture, Family,
 Holidays, and Other, in one row. More stays pinned on the right and opens a
 sheet. The title and groups sit at the top. Each group opens so individual tags
 can be chosen. A button at the bottom shows the events.

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createForegroundLocationSession,
   shouldHoldRegionSuggestion,
+  shouldPresentRegionSheet,
   shouldReevaluateRegionSuggestion,
   type ForegroundLocationPort,
 } from '../../../apps/mobile/src/lib/foreground-location';
@@ -140,6 +141,14 @@ describe('shouldReevaluateRegionSuggestion', () => {
   it('waits for about a kilometre of movement while the app stays open', () => {
     expect(shouldReevaluateRegionSuggestion(here, { lat: 61.312, lng: 17.07 }, false)).toBe(false);
     expect(shouldReevaluateRegionSuggestion(here, { lat: 61.33, lng: 17.07 }, false)).toBe(true);
+  });
+});
+
+describe('shouldPresentRegionSheet', () => {
+  it('waits until the splash cover has finished', () => {
+    expect(shouldPresentRegionSheet(false, true)).toBe(false);
+    expect(shouldPresentRegionSheet(true, true)).toBe(true);
+    expect(shouldPresentRegionSheet(true, false)).toBe(false);
   });
 });
 

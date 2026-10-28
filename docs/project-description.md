@@ -386,6 +386,7 @@ visited region. The check runs on the device; the location only leaves the phone
    location each time the app becomes active, then subscribe to further updates (about 100 m).
    Stop that subscription when the app backgrounds. Never ask for permission just for this, and
    never use background location. “Near you” on home, search, and the map follows that fix.
+   The location selector shows that place’s name under the “Near you” label.
 2. With no saved region, ask as soon as the app opens (location permission already granted).
    Skipping the onboarding area step counts as a dismiss, so the prompt waits 7 days near that
    place instead of appearing as onboarding closes. Continuing that step stores the chosen

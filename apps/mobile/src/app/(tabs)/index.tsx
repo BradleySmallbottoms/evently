@@ -18,7 +18,7 @@ import { InboxTipSheet } from '@/components/native/inbox-tip-sheet';
 import { NotificationsSheet } from '@/components/native/notifications-sheet';
 import { PairingSheet, type PairingSheetTab } from '@/components/native/pairing-sheet';
 import { RegionSuggestionSheet } from '@/components/native/region-suggestion-sheet';
-import { useReportHomeReady } from '@/components/splash-cover';
+import { useReportHomeReady, useSplashDismissed } from '@/components/splash-cover';
 import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { FeaturedEventCard } from './_components/featured-event-card';
@@ -50,6 +50,8 @@ import {
   setDiscoveryPlaceId,
   useDiscoveryPoint,
 } from '@/lib/use-discovery-point';
+import { nearbyLocationDetail } from '@/lib/nearby-place-name';
+import { useNearbyPlaceName } from '@/lib/use-nearby-place-name';
 import {
   acceptRegionSuggestion,
   bumpRegionActivity,
@@ -59,6 +61,7 @@ import {
 } from '@/lib/region-suggestion';
 import {
   shouldHoldRegionSuggestion,
+  shouldPresentRegionSheet,
   shouldReevaluateRegionSuggestion,
 } from '@/lib/foreground-location';
 import { useOnboardingVisible } from '@/lib/onboarding-visibility';
@@ -77,6 +80,7 @@ export default function HomeScreen() {
   const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
   const onboardingVisible = useOnboardingVisible();
+  const splashDone = useSplashDismissed();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
 
   const [locationOpen, setLocationOpen] = useState(false);
@@ -131,6 +135,7 @@ export default function HomeScreen() {
   const [q, setQ] = useState('');
 
   const { identity, preferences, point, placeId, radiusM, radiusMap, device } = useDiscoveryPoint();
+  const nearbyName = useNearbyPlaceName(placeId === NEARBY_PLACE_ID ? device.fix : null);
   const saveDiscoveryRadius = useSaveDiscoveryRadius(identity.data);
   const areaTags = useAreaTagPrompt(identity.data);
   const tags = useQuery({
@@ -512,6 +517,7 @@ export default function HomeScreen() {
   ];
   const locationLabel =
     locationOptions.find((option) => option.id === placeId)?.label ?? t('events.locationNearby');
+  const locationDetail = nearbyLocationDetail(placeId, nearbyName.data);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
@@ -554,6 +560,7 @@ export default function HomeScreen() {
                 <LocationMenu
                   eyebrow={t('home.title')}
                   locationLabel={locationLabel}
+                  locationDetail={locationDetail}
                   title={t('events.locationPickerTitle')}
                   message={t('events.locationPickerMessage')}
                   options={locationOptions}
@@ -938,7 +945,7 @@ export default function HomeScreen() {
       />
 
       <RegionSuggestionSheet
-        isPresented={regionSheetOpen}
+        isPresented={shouldPresentRegionSheet(splashDone, regionSheetOpen)}
         onIsPresentedChange={setRegionSheetOpen}
         title={t('regions.suggestTitle', { name: regionSuggestion?.name ?? '' })}
         message={t('regions.suggestMessage')}

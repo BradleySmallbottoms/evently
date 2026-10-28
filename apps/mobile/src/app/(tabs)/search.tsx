@@ -29,6 +29,8 @@ import {
   setDiscoveryPlaceId,
   useDiscoveryPoint,
 } from '@/lib/use-discovery-point';
+import { nearbyLocationDetail } from '@/lib/nearby-place-name';
+import { useNearbyPlaceName } from '@/lib/use-nearby-place-name';
 import { useAreaTagPrompt } from '@/lib/use-area-tag-prompt';
 import { useSaveDiscoveryRadius } from '@/lib/save-discovery-radius';
 import { colors } from '@/theme/colors';
@@ -112,6 +114,7 @@ export default function SearchScreen() {
   }, [focus]);
 
   const { identity, preferences, point, placeId, radiusM, radiusMap, device } = useDiscoveryPoint();
+  const nearbyName = useNearbyPlaceName(placeId === NEARBY_PLACE_ID ? device.fix : null);
   const saveDiscoveryRadius = useSaveDiscoveryRadius(identity.data);
   const areaTags = useAreaTagPrompt(identity.data);
   const tags = useQuery({
@@ -195,6 +198,7 @@ export default function SearchScreen() {
   ];
   const locationLabel =
     locationOptions.find((option) => option.id === placeId)?.label ?? t('events.locationNearby');
+  const locationDetail = nearbyLocationDetail(placeId, nearbyName.data);
   const priceOptions = [
     { id: 'any', label: t('events.priceAny') },
     { id: 'free', label: t('events.free') },
@@ -258,6 +262,7 @@ export default function SearchScreen() {
               <View style={{ flexShrink: 1, minWidth: 0, marginLeft: 'auto', maxWidth: '58%' }}>
                 <LocationMenu
                   locationLabel={locationLabel}
+                  locationDetail={locationDetail}
                   title={t('events.locationPickerTitle')}
                   message={t('events.locationPickerMessage')}
                   options={locationOptions}
