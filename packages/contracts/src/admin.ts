@@ -522,10 +522,10 @@ export const AdminEventPatchRequest = z
   })
   .refine(
     (body) => {
-      if (body.startsAt && body.endsAt) return new Date(body.endsAt) > new Date(body.startsAt);
+      if (body.startsAt && body.endsAt) return new Date(body.endsAt) >= new Date(body.startsAt);
       return true;
     },
-    { message: 'endsAt must be after startsAt', path: ['endsAt'] },
+    { message: 'endsAt must be at or after startsAt', path: ['endsAt'] },
   )
   .refine(
     (body) => {

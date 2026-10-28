@@ -258,7 +258,7 @@ function assertEditable(
   if (!touchesContent(body) && !publishing) return;
   const startsAt = body.startsAt ?? existing.startsAt;
   const endsAt = body.endsAt ?? existing.endsAt;
-  if (!startsAt || !endsAt || new Date(endsAt) <= new Date(startsAt)) {
+  if (!startsAt || !endsAt || new Date(endsAt) < new Date(startsAt)) {
     throw new AdminEventError('invalid_event');
   }
   const check = validateEventFields({

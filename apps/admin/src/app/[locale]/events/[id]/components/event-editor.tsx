@@ -298,9 +298,9 @@ export function EventEditor({ eventId }: { eventId: string }) {
       setFormError(t('invalidLink'));
       return;
     }
-    const manyOccasions = (eventQuery.data?.occasions?.length ?? 0) > 1;
+    const timesOnOccasions = (eventQuery.data?.occasions?.length ?? 0) > 0;
     let times: { startsAt: string; endsAt: string; venueName: string | null } | undefined;
-    if (!manyOccasions) {
+    if (!timesOnOccasions) {
       try {
         times = {
           startsAt: zonedLocalToIso(form.startsAt, form.timezone.trim() || 'Europe/Stockholm'),
@@ -365,7 +365,7 @@ export function EventEditor({ eventId }: { eventId: string }) {
   }
 
   const event = eventQuery.data;
-  const manyOccasions = (event?.occasions?.length ?? 0) > 1;
+  const timesOnOccasions = (event?.occasions?.length ?? 0) > 0;
   const showOccasions =
     (event?.occasions?.length ?? 0) > 0 ||
     Boolean(event?.meta.possibleOccasionGroupId) ||
@@ -670,28 +670,30 @@ export function EventEditor({ eventId }: { eventId: string }) {
               <FieldLabel htmlFor="event-check-in">{t('checkInEnabled')}</FieldLabel>
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field data-disabled={manyOccasions || undefined}>
+              <Field data-disabled={timesOnOccasions || undefined}>
                 <FieldLabel htmlFor="event-starts">{t('startsAt')}</FieldLabel>
                 <Input
                   id="event-starts"
                   type="datetime-local"
-                  required={!manyOccasions}
-                  disabled={manyOccasions}
+                  required={!timesOnOccasions}
+                  disabled={timesOnOccasions}
                   value={form.startsAt}
                   onChange={(e) => update('startsAt', e.target.value)}
                 />
               </Field>
-              <Field data-disabled={manyOccasions || undefined}>
+              <Field data-disabled={timesOnOccasions || undefined}>
                 <FieldLabel htmlFor="event-ends">{t('endsAt')}</FieldLabel>
                 <Input
                   id="event-ends"
                   type="datetime-local"
-                  required={!manyOccasions}
-                  disabled={manyOccasions}
+                  required={!timesOnOccasions}
+                  disabled={timesOnOccasions}
                   value={form.endsAt}
                   onChange={(e) => update('endsAt', e.target.value)}
                 />
-                {manyOccasions ? <FieldDescription>{t('editOnOccasions')}</FieldDescription> : null}
+                {timesOnOccasions ? (
+                  <FieldDescription>{t('editOnOccasions')}</FieldDescription>
+                ) : null}
               </Field>
             </div>
             <Field>
@@ -842,15 +844,15 @@ export function EventEditor({ eventId }: { eventId: string }) {
                     radiusM={form.geofenceRadiusM}
                     onPlace={(lat, lng) => setDraft({ ...form, lat, lng })}
                   />
-                  <Field data-disabled={manyOccasions || undefined}>
+                  <Field data-disabled={timesOnOccasions || undefined}>
                     <FieldLabel htmlFor="event-venue">{t('venueName')}</FieldLabel>
                     <Input
                       id="event-venue"
-                      disabled={manyOccasions}
+                      disabled={timesOnOccasions}
                       value={form.venueName}
                       onChange={(e) => update('venueName', e.target.value)}
                     />
-                    {manyOccasions ? (
+                    {timesOnOccasions ? (
                       <FieldDescription>{t('editOnOccasions')}</FieldDescription>
                     ) : null}
                   </Field>

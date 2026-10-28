@@ -459,7 +459,7 @@ calls) in the same change as every new major feature.**
   reject, or delete them. Scan again sends an imported review or published event back to `pending_scan`.
   A published event leaves the public list until that scan finishes.
   An event with occasions, or one the scan grouped with `meta.possibleOccasionGroupId`, has a Tillfällen tab.
-  That tab lists `event_occasions`. Edit on a row changes that showing's date, start time, end time, and venue.
+  That tab lists `event_occasions`. Edit on a row changes that showing's start, end, and venue.
   The map point and the import key stay. Saving the rest of an event with several occasions leaves those rows in place.
   Collapse moves the checked events'
   occasion rows and related child rows to the open event, then removes the checked event rows.

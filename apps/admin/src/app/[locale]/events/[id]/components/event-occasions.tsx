@@ -89,8 +89,9 @@ function OccasionEditor({
   const queryClient = useQueryClient();
   const startLocal = toDatetimeLocal(occasion.startsAt, timeZone);
   const endLocal = toDatetimeLocal(occasion.endsAt, timeZone);
-  const [date, setDate] = useState(startLocal.slice(0, 10));
+  const [startDate, setStartDate] = useState(startLocal.slice(0, 10));
   const [startTime, setStartTime] = useState(startLocal.slice(11, 16));
+  const [endDate, setEndDate] = useState(endLocal.slice(0, 10));
   const [endTime, setEndTime] = useState(endLocal.slice(11, 16));
   const [venueName, setVenueName] = useState(occasion.venueName ?? '');
   const [error, setError] = useState<string | null>(null);
@@ -122,7 +123,8 @@ function OccasionEditor({
     formEvent.preventDefault();
     setError(null);
     if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(endDate) ||
       !/^\d{2}:\d{2}$/.test(startTime) ||
       !/^\d{2}:\d{2}$/.test(endTime)
     ) {
@@ -132,8 +134,8 @@ function OccasionEditor({
     let startsAt: string;
     let endsAt: string;
     try {
-      startsAt = zonedLocalToIso(`${date}T${startTime}`, timeZone);
-      endsAt = zonedLocalToIso(`${date}T${endTime}`, timeZone);
+      startsAt = zonedLocalToIso(`${startDate}T${startTime}`, timeZone);
+      endsAt = zonedLocalToIso(`${endDate}T${endTime}`, timeZone);
     } catch {
       setError(t('invalidTime'));
       return;
@@ -163,17 +165,17 @@ function OccasionEditor({
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : null}
-          <Field>
-            <FieldLabel htmlFor="occasion-date">{t('occasionDate')}</FieldLabel>
-            <Input
-              id="occasion-date"
-              type="date"
-              required
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-            />
-          </Field>
           <div className="grid gap-4 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="occasion-start-date">{t('occasionStartDate')}</FieldLabel>
+              <Input
+                id="occasion-start-date"
+                type="date"
+                required
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
+            </Field>
             <Field>
               <FieldLabel htmlFor="occasion-start">{t('occasionStart')}</FieldLabel>
               <Input
@@ -182,6 +184,16 @@ function OccasionEditor({
                 required
                 value={startTime}
                 onChange={(event) => setStartTime(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="occasion-end-date">{t('occasionEndDate')}</FieldLabel>
+              <Input
+                id="occasion-end-date"
+                type="date"
+                required
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
               />
             </Field>
             <Field>
