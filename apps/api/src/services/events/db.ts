@@ -394,10 +394,13 @@ export function createDbEventServices(
     const radiusM = query.radiusM ?? 50_000;
     const filters = [eq(events.status, 'published'), currentEventSql(env.now(), from)];
     if (to) {
+      // ISO text, not a Date. A Date beside AT TIME ZONE in this query makes
+      // postgres.js bind it as text and throw before the query runs.
+      const until = to.toISOString();
       filters.push(sql`exists (
         select 1 from ${schema.eventOccasions} eo
         where eo.event_id = ${events.id}
-          and eo.starts_at <= ${to}
+          and eo.starts_at <= ${until}::timestamptz
       )`);
     }
     if (query.q) {

@@ -32,7 +32,7 @@ FRAMES = [
         "01-home.png",
         {
             "sv": ("Se vad som händer nära dig", "Musik, kultur, idrott och familj, samlat för din stad."),
-            "en": ("See what's happening near you", "Music, culture, sports, and family, gathered for your town."),
+            "en": ("See what's happening\nnear you", "Music, culture, sports, and family, gathered for your town."),
         },
     ),
     (
@@ -40,7 +40,7 @@ FRAMES = [
         "03-event.png",
         {
             "sv": ("Allt du behöver innan du går", "Tid, plats, biljetter och en påminnelse."),
-            "en": ("Everything you need before you go", "Time, place, tickets, and a reminder."),
+            "en": ("Everything you need\nbefore you go", "Time, place, tickets, and a reminder."),
         },
     ),
     (
@@ -48,7 +48,7 @@ FRAMES = [
         "09-search.png",
         {
             "sv": ("Sök på det du är sugen på", "Filtrera på kategori, dag och pris."),
-            "en": ("Search for what you feel like", "Filter by category, day, and price."),
+            "en": ("Search for what\nyou feel like", "Filter by category, day, and price."),
         },
     ),
     (
@@ -161,8 +161,8 @@ def app_store_icon() -> None:
 def main() -> None:
     app_store_icon()
     for name, raw_name, copy in FRAMES:
-        raw = RAW / raw_name
         for locale, (headline, subhead) in copy.items():
+            raw = RAW / "en" / raw_name if locale == "en" else RAW / raw_name
             frame(raw, headline, subhead, OUT / locale / f"{name}.png")
 
 

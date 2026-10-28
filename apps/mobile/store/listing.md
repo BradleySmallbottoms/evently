@@ -107,7 +107,7 @@ Upload these, in order, for the **6.9-inch** iPhone display. Each file is 1320×
 | 3     | `screenshots/sv/03-search.png`   | `screenshots/en/03-search.png`   |
 | 4     | `screenshots/sv/04-map.png`      | `screenshots/en/04-map.png`      |
 
-The frames use real screens from the iPhone simulator. The English set uses the same Swedish interface with English headlines, because the simulator was set to Swedish. For the English localization, switch the simulator to English, recapture `raw/`, and run `python3 apps/mobile/store/compose.py` again so the interface matches the store language.
+The frames use real screens from the iPhone simulator. Swedish screenshots use the Swedish interface. English screenshots use the English interface. Recapture into `store/raw/` (Swedish) or `store/raw/en/` and run `python3 apps/mobile/store/compose.py` if the UI changes.
 
 Apple scales the 6.9-inch set down to smaller iPhones. iPad screenshots are not included. Set **iPhone** only in the Xcode / Expo target (`ios.supportsTablet` is unset) before you upload, and confirm the build is iPhone-only. If the binary supports iPad, App Store Connect will also require a 13-inch iPad set (2064×2752).
 
