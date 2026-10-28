@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { readScanInstructions, readScanRange } from '../../../packages/ingest/src/tag-match';
+import {
+  readScanInstructions,
+  readScanOccasions,
+  readScanRange,
+} from '../../../packages/ingest/src/tag-match';
 
 describe('readScanInstructions', () => {
   it('keeps visitor steps and drops tip-field confirmations', () => {
@@ -44,5 +48,62 @@ describe('readScanRange', () => {
         endsAt: '2026-11-14T19:00:00+01:00',
       }),
     ).toBeNull();
+  });
+});
+
+describe('readScanOccasions', () => {
+  it('keeps each showing and drops a duplicate time and a one-sided row', () => {
+    expect(
+      readScanOccasions({
+        possibleOccasions: [
+          {
+            startsAt: '2026-11-14T19:00:00+01:00',
+            endsAt: '2026-11-14T21:00:00+01:00',
+            venueName: ' Bygdegården ',
+          },
+          {
+            startsAt: '2026-11-21T19:00:00+01:00',
+            endsAt: '2026-11-21T20:30:00+01:00',
+          },
+          {
+            startsAt: '2026-11-14T19:00:00+01:00',
+            endsAt: '2026-11-14T21:00:00+01:00',
+            venueName: 'Again',
+          },
+          { startsAt: '2026-11-28T19:00:00+01:00' },
+        ],
+      }),
+    ).toEqual([
+      {
+        startsAt: '2026-11-14T18:00:00.000Z',
+        endsAt: '2026-11-14T20:00:00.000Z',
+        venueName: 'Bygdegården',
+      },
+      {
+        startsAt: '2026-11-21T18:00:00.000Z',
+        endsAt: '2026-11-21T19:30:00.000Z',
+      },
+    ]);
+  });
+
+  it('reads one showing from an older payload that has no array', () => {
+    expect(
+      readScanOccasions({
+        startsAt: '2026-11-14T19:00:00+01:00',
+        endsAt: '2026-11-14T21:00:00+01:00',
+      }),
+    ).toEqual([
+      {
+        startsAt: '2026-11-14T18:00:00.000Z',
+        endsAt: '2026-11-14T20:00:00.000Z',
+      },
+    ]);
+    expect(
+      readScanOccasions({
+        possibleOccasions: [],
+        startsAt: '2026-11-14T19:00:00+01:00',
+        endsAt: '2026-11-14T21:00:00+01:00',
+      }),
+    ).toEqual([]);
   });
 });

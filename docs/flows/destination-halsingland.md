@@ -14,7 +14,8 @@ count reaches `totalResults`. Each product then loads
 `GET /sv/product/productcontent?cbisProductId=` and
 `GET /sv/se-gora/todobookingcontrolcontext?cbisProductId=`. The booking response is every occasion
 at once. A product with no occasions is still saved, with empty start and end. The event scan
-fills both when it can read them from the text. That product is saved before the next product is
+adds each showing it can read when that showing is not already stored. A description can name
+more than one. That product is saved before the next product is
 fetched.
 
 List coordinates are `[longitude, latitude]`. A missing coordinate stays missing: the event can

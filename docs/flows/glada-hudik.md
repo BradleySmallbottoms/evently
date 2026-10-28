@@ -10,7 +10,7 @@ The list request sends only `nodeId` and `page`. `robots.txt` disallows filtered
 
 Each Citybreak product is one event. A concert, film week, or monthly circle keeps all showings on
 `event.occasions`. A page with no occasion is still saved, with empty start and end. The scan
-fills both when it can read them from the text.
+adds each showing it can read when that showing is not already stored.
 The hero is the event page `og:image`. `data-lat` and `data-lng` on the page map become the
 event point. A page without that map is saved without a point. The contact street, postcode, and city are stored on `meta.address`. The scan geocodes a missing point before nearby tools run and writes it on occasions that have none.
 A digital showing stays without a point.

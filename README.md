@@ -224,13 +224,15 @@ calls) in the same change as every new major feature.**
   The tool-calling scan opens one https page: the source URL, then a ticket
   link, then an info link, then a Facebook page. A page on visit.destinationhalsingland.se
   is fetched with curl over HTTP/1.1. The model uses that page for tags,
-  instructions, the summary, missing dates, and the address. Instructions are visitor
+  instructions, the summary, showings, and the address. The model returns `possibleOccasions`.
+  A showing that is not already stored is added, and a description can name more than one.
+  Instructions are visitor
   steps from that page or the description. Tip chat lines, and a step that only asks
   someone to confirm a field, are left out. The model returns that address
   in the scan JSON. A scraped point and address are kept. When the event has no point, the
   scraped address is geocoded, and the model address is used only when the import stored none.
   A street, or a postcode with a city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept.
-  The model does not supply coordinates. The model returns possible venue names. Importers leave `event_occasions.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written. When the model returns none, the arena name is written, then the imported venue name. A later import does not clear a venue the scan already wrote.
+  The model does not supply coordinates. The model returns possible venue names. Importers leave `event_occasions.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written on showings that still have no venue. A showing from `possibleOccasions` keeps its own venue name. When the model returns none, the arena name is written, then the imported venue name. A later import does not clear a venue the scan already wrote.
   The worker publishes the event only when the scan approves it, the publisher status is `published`,
   and the source trust is `auto_publish`. Anything else that finishes goes to `in_review`. A model
   failure leaves the row `pending_scan`. A new temporary publisher is `pending_scan`. The event scan does not look it up.
@@ -258,8 +260,8 @@ calls) in the same change as every new major feature.**
   page is not already a link. A product with no venue uses the city after the postcode in Postadress.
   When that line has no city, the town and the list coordinate stay as they are. Gatuadress,
   Postadress, and the list coordinate are stored on `meta.address`. A product
-  with no occasion is still saved as an event with no occasion rows. The event scan fills dates
-  when it can read them from the text. An event with no start stays off the public list.
+  with no occasion is still saved as an event with no occasion rows. The event scan adds each
+  showing it can read when that showing is not already stored. An event with no start stays off the public list.
   A lookalike within 200 m
   and 30 minutes is saved as its own review event and flagged in `meta`. That product
   is saved
@@ -483,7 +485,7 @@ calls) in the same change as every new major feature.**
 - **Data workers:** `pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn`
   (needs `data_sources` row + `VISIT_SODERHAMN_API_KEY`). Add `--limit 5` to stop after that many
   events. The same flag works for every source. Generic ICS calendars use slug
-  `ics-feed` with `config.feedUrl` (https). An import with no occasion or no date is still saved, with empty start and end. The event scan fills both when it can read them from the text. An event with no start stays off the public list. A physical import with no venue name stores the city from its scraped address on `meta.import.venueName`. When that address has no city, the point is reverse-geocoded for the nearest city within 25 km. Review-trust sources stay silent until an admin
+  `ics-feed` with `config.feedUrl` (https). An import with no occasion or no date is still saved, with empty start and end. The event scan adds each showing it can read when that showing is not already stored. An event with no start stays off the public list. A physical import with no venue name stores the city from its scraped address on `meta.import.venueName`. When that address has no city, the point is reverse-geocoded for the nearest city within 25 km. Review-trust sources stay silent until an admin
   publishes from the review queue.
 
 ### Preferences (areas)

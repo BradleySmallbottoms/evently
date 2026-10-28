@@ -41,13 +41,12 @@ For each event the Ollama runner:
    Those tags replace any the event already has.
    Steps the model lists from the description are stored on `meta.instructions`.
    Tip chat lines, and a step that only asks someone to confirm a field, are left out.
-   When the event has no start and no end, the model also returns both instants. Those
-   replace the empty dates. A range that is missing one side is ignored.
+   When the model returns showings, each one has a start, an end, and a venue. A showing that is not already stored is added. A description can name more than one. A range that is missing one side is ignored.
    The tool-calling scan may call `fetchEventPage`. That opens one https page:
    the source URL, then a ticket link, then an info link, then a Facebook page.
    A page on visit.destinationhalsingland.se is fetched with curl over HTTP/1.1.
-   The model uses the page text for tags, instructions, the summary, and
-   missing dates, and for the address. The model returns that address in the scan JSON.
+   The model uses the page text for tags, instructions, the summary,
+   showings, and the address. The model returns `possibleOccasions` and that address in the scan JSON.
    A scraped point is kept. A point already on the scraped address is used when the occasion
    has none. When the event still has no point, that address is geocoded before nearby tools
    run, and the address from that JSON is used only when the import stored none. The point is
@@ -56,7 +55,7 @@ For each event the Ollama runner:
    supply coordinates. The model also returns possible venue names. Importers leave
    `event_occasions.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn
    also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena
-   name, then that venue name, as the location. The highest rank above 80 is written. When
+   name, then that venue name, as the location. The highest rank above 80 is written on showings that still have no venue. A showing from `possibleOccasions` keeps its own venue name. When
    the model returns none, the arena name is written, then the imported venue name. A later
    import does not clear a venue the scan already wrote. A later import keeps that address,
    and keeps its point when the new address has none.

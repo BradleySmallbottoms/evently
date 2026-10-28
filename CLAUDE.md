@@ -192,7 +192,7 @@ Product invariants (enforced in domain, tested)
   address has no city, the nearest city within 25 km of its point is used. A name the adapter already set stays on that field.
 - Visit Söderhamn, Glada Hudik, and Destination Hälsingland store one product as one event, with each
   showing on `event_occasions`. An import with no occasion, and a library page or ICS event with no date, is still saved, with empty start and end.
-  The event scan fills both when it can read them from the text or from the ticket or info page.
+  The event scan returns `possibleOccasions`, each with a start, an end, and a venue. A showing that is not already stored is added. A description can name more than one showing.
   The model may read that page for tags, instructions, and the summary.
   A page on visit.destinationhalsingland.se is fetched with curl over HTTP/1.1.
   An event with no start stays off the public list.
@@ -202,7 +202,7 @@ Product invariants (enforced in domain, tested)
   it geocodes the scraped address before nearby tools run, or the model address when the import
   stored none, and writes that point on occasions that have none.
   A street, or a postcode and city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept. The model does not supply coordinates.
-  The model returns possible venue names. Importers leave `event_occasions.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written. When the model returns none, the arena name is written, then the imported venue name. A later import does not clear a venue the scan already wrote.
+  The model returns possible venue names. Importers leave `event_occasions.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written on showings that still have no venue. A showing from `possibleOccasions` keeps its own venue name. When the model returns none, the arena name is written, then the imported venue name. A later import does not clear a venue the scan already wrote.
   Showings stay on `event_occasions`. They are not copied onto `meta.occasions`. The mobile event page
   lists that event's occasion rows that have not ended.
   The same start and end is a whole day: the time reads “Whole Day”, and that occasion stays current through its calendar day.

@@ -6,7 +6,7 @@ saves. The `data_sources` row is seeded disabled (no timer yet), trust `review`,
 
 Saved events are `pending_scan` with `origin = imported`. The scan job chooses the publisher,
 including a temporary one for a new contact email (`publisher_aliases`), then sets `in_review`
-or `published`. A product with no occasion is still saved, with empty start and end. The scan fills both when it can read them from the text. Street, postcode, and city from the product are stored on `meta.address` with that event's point. Unchanged content hashes are skipped. A lookalike is flagged by the scan
+or `published`. A product with no occasion is still saved, with empty start and end. The scan adds each showing it can read when that showing is not already stored. Street, postcode, and city from the product are stored on `meta.address` with that event's point. Unchanged content hashes are skipped. A lookalike is flagged by the scan
 job, which sets `meta.possibleDuplicate` and leaves the row `in_review`. `in_review` rows
 are not sent to the notification queue. When `RAW_INGESTION_BUCKET` is set, the raw fetch is
 stored at `raw/<slug>/<runId>`. A main image is copied into the public assets bucket

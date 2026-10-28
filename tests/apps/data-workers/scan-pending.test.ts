@@ -841,6 +841,78 @@ describe('scanPendingEvents', () => {
 
     expect(store.events[0]?.startsAt?.toISOString()).toBe('2026-11-14T18:00:00.000Z');
     expect(store.events[0]?.endsAt?.toISOString()).toBe('2026-11-14T20:00:00.000Z');
+    expect(store.events[0]?.occasions).toEqual([
+      {
+        startsAt: new Date('2026-11-14T18:00:00.000Z'),
+        endsAt: new Date('2026-11-14T20:00:00.000Z'),
+        venueName: 'Helsingehus',
+      },
+    ]);
+  });
+
+  it('adds each showing from the description and skips a repeated time', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const { startsAt: _startsAt, endsAt: _endsAt, ...undated } = event;
+    await saveIncomingEvents(store, source, [undated]);
+    const runner: PromptRunner = {
+      id: 'occasions',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          possibleOccasions: [
+            {
+              startsAt: '2026-11-14T19:00:00+01:00',
+              endsAt: '2026-11-14T21:00:00+01:00',
+              venueName: 'Bygdegården',
+            },
+            {
+              startsAt: '2026-11-21T19:00:00+01:00',
+              endsAt: '2026-11-21T20:30:00+01:00',
+              venueName: 'Bygdegården',
+            },
+            {
+              startsAt: '2026-11-14T19:00:00+01:00',
+              endsAt: '2026-11-14T21:00:00+01:00',
+              venueName: 'Again',
+            },
+          ],
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner);
+
+    expect(store.events[0]?.startsAt?.toISOString()).toBe('2026-11-14T18:00:00.000Z');
+    expect(
+      store.events[0]?.occasions.map((occasion) => ({
+        startsAt: occasion.startsAt.toISOString(),
+        endsAt: occasion.endsAt.toISOString(),
+        venueName: occasion.venueName,
+      })),
+    ).toEqual([
+      {
+        startsAt: '2026-11-14T18:00:00.000Z',
+        endsAt: '2026-11-14T20:00:00.000Z',
+        venueName: 'Bygdegården',
+      },
+      {
+        startsAt: '2026-11-21T18:00:00.000Z',
+        endsAt: '2026-11-21T19:30:00.000Z',
+        venueName: 'Bygdegården',
+      },
+    ]);
   });
 
   it('leaves stored dates when the event already has them', async () => {
@@ -873,6 +945,10 @@ describe('scanPendingEvents', () => {
 
     expect(store.events[0]?.startsAt?.toISOString()).toBe('2027-06-01T18:00:00.000Z');
     expect(store.events[0]?.endsAt?.toISOString()).toBe('2027-06-01T21:00:00.000Z');
+    expect(store.events[0]?.occasions.map((occasion) => occasion.startsAt.toISOString())).toEqual([
+      '2027-06-01T18:00:00.000Z',
+      '2026-11-14T18:00:00.000Z',
+    ]);
   });
 
   it('leaves the dates empty when the scan finds only one', async () => {

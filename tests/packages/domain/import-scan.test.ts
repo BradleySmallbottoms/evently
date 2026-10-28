@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   choosePossibleOccasionGroupId,
+  occasionsToAdd,
   statusAfterImportScan,
   occasionVenueOnImport,
   venueNameFromScan,
@@ -121,6 +122,28 @@ describe('venueNameFromScan', () => {
   it('uses the imported venue when there is no arena', () => {
     expect(venueNameFromScan(undefined, { venueName: 'Hudiksvall' })).toBe('Hudiksvall');
     expect(venueNameFromScan([], { arenaName: '  ', venueName: '   ' })).toBeUndefined();
+  });
+});
+
+describe('occasionsToAdd', () => {
+  const first = {
+    startsAt: new Date('2026-11-14T18:00:00.000Z'),
+    endsAt: new Date('2026-11-14T20:00:00.000Z'),
+    venueName: 'Bygdegården',
+  };
+  const second = {
+    startsAt: new Date('2026-11-21T18:00:00.000Z'),
+    endsAt: new Date('2026-11-21T19:30:00.000Z'),
+    venueName: null,
+  };
+
+  it('adds every showing when the event has none, and skips a repeated time', () => {
+    expect(occasionsToAdd([], [first, second, first])).toEqual([first, second]);
+  });
+
+  it('adds only a showing that is not already stored', () => {
+    expect(occasionsToAdd([first], [first, second])).toEqual([second]);
+    expect(occasionsToAdd([first], [first])).toEqual([]);
   });
 });
 
