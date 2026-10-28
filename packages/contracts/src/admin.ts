@@ -526,15 +526,6 @@ export const AdminEventPatchRequest = z
       return true;
     },
     { message: 'endsAt must be at or after startsAt', path: ['endsAt'] },
-  )
-  .refine(
-    (body) => {
-      if (!body.status || body.status !== 'published') return true;
-      if (body.occasions && body.occasions.length > 0) return true;
-      if (body.startsAt && body.endsAt) return true;
-      return false;
-    },
-    { message: 'published events need occasions or startsAt/endsAt', path: ['occasions'] },
   );
 export type AdminEventPatchRequest = z.infer<typeof AdminEventPatchRequest>;
 

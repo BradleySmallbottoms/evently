@@ -72,6 +72,12 @@ export function possibleDuplicatesQuery(eventId: string) {
   };
 }
 
+function localParts(iso: string | undefined, timeZone: string) {
+  if (!iso) return { date: '', time: '' };
+  const local = toDatetimeLocal(iso, timeZone);
+  return { date: local.slice(0, 10), time: local.slice(11, 16) };
+}
+
 function OccasionEditor({
   eventId,
   occasion,
@@ -80,28 +86,31 @@ function OccasionEditor({
   onSaved,
 }: {
   eventId: string;
-  occasion: Occasion;
+  occasion: Occasion | null;
   timeZone: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const t = useTranslations('EventEditor');
   const queryClient = useQueryClient();
-  const startLocal = toDatetimeLocal(occasion.startsAt, timeZone);
-  const endLocal = toDatetimeLocal(occasion.endsAt, timeZone);
-  const [startDate, setStartDate] = useState(startLocal.slice(0, 10));
-  const [startTime, setStartTime] = useState(startLocal.slice(11, 16));
-  const [endDate, setEndDate] = useState(endLocal.slice(0, 10));
-  const [endTime, setEndTime] = useState(endLocal.slice(11, 16));
-  const [venueName, setVenueName] = useState(occasion.venueName ?? '');
+  const startLocal = localParts(occasion?.startsAt, timeZone);
+  const endLocal = localParts(occasion?.endsAt, timeZone);
+  const [startDate, setStartDate] = useState(startLocal.date);
+  const [startTime, setStartTime] = useState(startLocal.time);
+  const [endDate, setEndDate] = useState(endLocal.date);
+  const [endTime, setEndTime] = useState(endLocal.time);
+  const [venueName, setVenueName] = useState(occasion?.venueName ?? '');
   const [error, setError] = useState<string | null>(null);
 
   const save = useMutation({
     mutationFn: (body: { startsAt: string; endsAt: string; venueName: string | null }) =>
-      adminFetch(`/events/${eventId}/occasions/${occasion.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      }),
+      adminFetch(
+        occasion ? `/events/${eventId}/occasions/${occasion.id}` : `/events/${eventId}/occasions`,
+        {
+          method: occasion ? 'PATCH' : 'POST',
+          body: JSON.stringify(body),
+        },
+      ),
     onSuccess: async () => {
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['admin-event', eventId] });
@@ -156,7 +165,7 @@ function OccasionEditor({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('editOccasion')}</DialogTitle>
+          <DialogTitle>{occasion ? t('editOccasion') : t('addOccasion')}</DialogTitle>
           <DialogDescription>{t('editOccasionHint')}</DialogDescription>
         </DialogHeader>
         <form className="flex flex-col gap-4" onSubmit={onSubmit}>
@@ -245,7 +254,7 @@ export function EventOccasions({
   timeZone: string;
   onCollapsed: () => void;
   onMerged: (occasions: 'keep' | 'move') => void;
-  onSaved: () => void;
+  onSaved: (kind: 'saved' | 'added' | 'deleted') => void;
 }) {
   const t = useTranslations('EventEditor');
   const locale = useLocale();
@@ -258,6 +267,9 @@ export function EventOccasions({
   const [merged, setMerged] = useState<'keep' | 'move' | null>(null);
   const [showAllOccasions, setShowAllOccasions] = useState(false);
   const [editing, setEditing] = useState<Occasion | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Occasion | null>(null);
+  const [deleteError, setDeleteError] = useState(false);
   const stored = occasions ?? [];
   const visibleOccasions = showAllOccasions ? stored : stored.slice(0, OCCASION_PREVIEW);
 
@@ -312,6 +324,20 @@ export function EventOccasions({
     onError: () => setMergeError(true),
   });
 
+  const remove = useMutation({
+    mutationFn: (occasionId: string) =>
+      adminFetch(`/events/${eventId}/occasions/${occasionId}`, { method: 'DELETE' }),
+    onSuccess: async () => {
+      setDeleteError(false);
+      setPendingDelete(null);
+      await queryClient.invalidateQueries({ queryKey: ['admin-event', eventId] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-events-catalog'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-events-in-review'] });
+      onSaved('deleted');
+    },
+    onError: () => setDeleteError(true),
+  });
+
   const duplicateItems = duplicates.data?.items ?? [];
   const allDuplicatesSelected =
     duplicateItems.length > 0 && duplicateItems.every((item) => duplicateSelected.has(item.id));
@@ -364,9 +390,16 @@ export function EventOccasions({
           <AlertDescription>{t('collapsed')}</AlertDescription>
         </Alert>
       ) : null}
-      {stored.length > 0 ? (
-        <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">{t('occasionsTitle')}</h2>
+          <Button type="button" size="sm" onClick={() => setAdding(true)}>
+            {t('addOccasion')}
+          </Button>
+        </div>
+        {stored.length === 0 ? (
+          <EmptyState icon={CalendarIcon} title={t('noOccasions')} />
+        ) : (
           <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader className="rounded-t-lg border-b bg-muted">
@@ -374,7 +407,7 @@ export function EventOccasions({
                   <TableHead>{t('startsAt')}</TableHead>
                   <TableHead>{t('endsAt')}</TableHead>
                   <TableHead>{t('venueName')}</TableHead>
-                  <TableHead className="w-24">
+                  <TableHead className="w-40">
                     <span className="sr-only">{t('editOccasion')}</span>
                   </TableHead>
                 </TableRow>
@@ -386,42 +419,95 @@ export function EventOccasions({
                     <TableCell>{formatWhen(occasion.endsAt, timeZone, locale)}</TableCell>
                     <TableCell>{occasion.venueName ?? '—'}</TableCell>
                     <TableCell>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditing(occasion)}
-                      >
-                        {t('editOccasion')}
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditing(occasion)}
+                        >
+                          {t('editOccasion')}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setDeleteError(false);
+                            setPendingDelete(occasion);
+                          }}
+                        >
+                          {t('deleteOccasion')}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
-          {stored.length > OCCASION_PREVIEW && !showAllOccasions ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAllOccasions(true)}
-            >
-              {t('showMoreOccasions')}
-            </Button>
-          ) : null}
-          {editing ? (
-            <OccasionEditor
-              key={editing.id}
-              eventId={eventId}
-              occasion={editing}
-              timeZone={timeZone}
-              onClose={() => setEditing(null)}
-              onSaved={onSaved}
-            />
-          ) : null}
-        </div>
-      ) : null}
+        )}
+        {stored.length > OCCASION_PREVIEW && !showAllOccasions ? (
+          <Button type="button" variant="ghost" size="sm" onClick={() => setShowAllOccasions(true)}>
+            {t('showMoreOccasions')}
+          </Button>
+        ) : null}
+        {editing || adding ? (
+          <OccasionEditor
+            key={editing?.id ?? 'new'}
+            eventId={eventId}
+            occasion={editing}
+            timeZone={timeZone}
+            onClose={() => {
+              setEditing(null);
+              setAdding(false);
+            }}
+            onSaved={() => onSaved(adding ? 'added' : 'saved')}
+          />
+        ) : null}
+        <Dialog
+          open={pendingDelete !== null}
+          onOpenChange={(open) => {
+            if (!open && !remove.isPending) {
+              setPendingDelete(null);
+              setDeleteError(false);
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t('deleteOccasionTitle')}</DialogTitle>
+              <DialogDescription>{t('deleteOccasionBody')}</DialogDescription>
+            </DialogHeader>
+            {deleteError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{t('deleteOccasionError')}</AlertDescription>
+              </Alert>
+            ) : null}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={remove.isPending}
+                onClick={() => setPendingDelete(null)}
+              >
+                {t('cancel')}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={remove.isPending || !pendingDelete}
+                onClick={() => {
+                  if (pendingDelete) remove.mutate(pendingDelete.id);
+                }}
+              >
+                {remove.isPending ? <Spinner data-icon="inline-start" /> : null}
+                {t('deleteOccasion')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
       {duplicates.isLoading ? <LoadingRows /> : null}
       {duplicates.isError ? (
         <Alert variant="destructive">

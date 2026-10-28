@@ -608,6 +608,87 @@ export function registerAdminEventRoutes(
       },
     },
   });
+  const createOccasion = createRoute({
+    method: 'post',
+    path: '/events/{id}/occasions',
+    request: {
+      params: z.object({ id: z.uuid() }),
+      body: {
+        content: { 'application/json': { schema: AdminOccasionPatchRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Event with the new occasion',
+        content: { 'application/json': { schema: AdminEventDetail } },
+      },
+      400: {
+        description: 'End is before the start, or that showing already exists',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Event not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(createOccasion, async (c) => {
+    try {
+      const session = await auth.requireSession(readAdminSessionToken(c));
+      const result = await events.createOccasion(
+        c.req.valid('param').id,
+        c.req.valid('json'),
+        session.adminId,
+      );
+      if (!result) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json(result, 200);
+    } catch (err) {
+      return eventWriteError(c, err);
+    }
+  });
+
+  const deleteOccasion = createRoute({
+    method: 'delete',
+    path: '/events/{id}/occasions/{occasionId}',
+    request: {
+      params: z.object({ id: z.uuid(), occasionId: z.uuid() }),
+    },
+    responses: {
+      200: {
+        description: 'Event after the occasion was removed',
+        content: { 'application/json': { schema: AdminEventDetail } },
+      },
+      401: {
+        description: 'Admin session required',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Event or occasion not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(deleteOccasion, async (c) => {
+    try {
+      const session = await auth.requireSession(readAdminSessionToken(c));
+      const { id, occasionId } = c.req.valid('param');
+      const result = await events.deleteOccasion(id, occasionId, session.adminId);
+      if (!result) {
+        return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      }
+      return c.json(result, 200);
+    } catch (err) {
+      return eventWriteError(c, err);
+    }
+  });
+
   const patchOccasion = createRoute({
     method: 'patch',
     path: '/events/{id}/occasions/{occasionId}',

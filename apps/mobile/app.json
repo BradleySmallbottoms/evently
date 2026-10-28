@@ -44,7 +44,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Används för att checka in på evenemang och hitta evenemang nära dig."
+          "locationWhenInUsePermission": "Används för att hitta evenemang nära dig och för att checka in på evenemang."
         }
       ],
       [

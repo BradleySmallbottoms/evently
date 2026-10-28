@@ -136,6 +136,18 @@ export type AdminEventServices = {
     body: AdminEventPatchRequest,
     actor: string,
   ) => Promise<AdminEventDetail | null>;
+  /** Add one showing. The map point is copied from a showing that already has one. */
+  createOccasion: (
+    eventId: string,
+    body: AdminOccasionPatchRequest,
+    actor: string,
+  ) => Promise<AdminEventDetail | null>;
+  /** Remove one showing. */
+  deleteOccasion: (
+    eventId: string,
+    occasionId: string,
+    actor: string,
+  ) => Promise<AdminEventDetail | null>;
   /** Change one showing's date, times, and venue. The map point and import key stay. */
   patchOccasion: (
     eventId: string,
@@ -258,8 +270,10 @@ function assertEditable(
   if (!touchesContent(body) && !publishing) return;
   const startsAt = body.startsAt ?? existing.startsAt;
   const endsAt = body.endsAt ?? existing.endsAt;
-  if (!startsAt || !endsAt || new Date(endsAt) < new Date(startsAt)) {
-    throw new AdminEventError('invalid_event');
+  if (publishing || body.startsAt !== undefined || body.endsAt !== undefined) {
+    if (!startsAt || !endsAt || new Date(endsAt) < new Date(startsAt)) {
+      throw new AdminEventError('invalid_event');
+    }
   }
   const check = validateEventFields({
     mode: body.mode ?? existing.mode,
@@ -517,6 +531,7 @@ function applyOccasionBounds(
   const sorted = [...rows].sort(
     (a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id),
   );
+  event.occasions = sorted;
   const first = sorted[0];
   if (!first) return;
   let endsAt = first.endsAt;
@@ -1109,6 +1124,80 @@ export function createMemoryAdminEventServices(
       await audit.write({
         actor,
         action: 'event.patch',
+        entityType: 'event',
+        entityId: eventId,
+        before: auditSnapshot(before),
+        after: auditSnapshot(after),
+      });
+      return after;
+    },
+    async createOccasion(eventId, body, actor) {
+      const row = store.events.get(eventId);
+      if (!row) return null;
+      const startsAt = new Date(body.startsAt);
+      const endsAt = new Date(body.endsAt);
+      if (endsAt.getTime() < startsAt.getTime()) throw new AdminEventError('invalid_event');
+      const occasions = row.occasions ?? [];
+      if (occasions.length >= 2000) throw new AdminEventError('invalid_event');
+      const duplicate = occasions.some(
+        (occasion) =>
+          new Date(occasion.startsAt).getTime() === startsAt.getTime() &&
+          new Date(occasion.endsAt).getTime() === endsAt.getTime(),
+      );
+      if (duplicate) throw new AdminEventError('invalid_event');
+      const publisherName = store.publishers.get(row.publisherId)?.name ?? 'Unknown';
+      const before = asDetail(row, publisherName, env.assetsPublicBaseUrl);
+      const location =
+        occasions.find((occasion) => occasion.location)?.location ?? row.location ?? null;
+      const created = {
+        id: randomUUID(),
+        startsAt: body.startsAt,
+        endsAt: body.endsAt,
+        venueName: body.venueName,
+        location,
+      };
+      row.occasions = [...occasions, created];
+      applyOccasionBounds(row, row.occasions);
+      row.updatedAt = now().toISOString();
+      if (row.status === 'published') {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.updated',
+          eventId,
+          changedFields: ['occasions'],
+        });
+      }
+      const after = asDetail(row, publisherName, env.assetsPublicBaseUrl);
+      await audit.write({
+        actor,
+        action: 'event.occasion_create',
+        entityType: 'event',
+        entityId: eventId,
+        before: auditSnapshot(before),
+        after: auditSnapshot(after),
+      });
+      return after;
+    },
+    async deleteOccasion(eventId, occasionId, actor) {
+      const row = store.events.get(eventId);
+      if (!row?.occasions) return null;
+      const current = row.occasions.find((occasion) => occasion.id === occasionId);
+      if (!current) return null;
+      const publisherName = store.publishers.get(row.publisherId)?.name ?? 'Unknown';
+      const before = asDetail(row, publisherName, env.assetsPublicBaseUrl);
+      row.occasions = row.occasions.filter((occasion) => occasion.id !== occasionId);
+      applyOccasionBounds(row, row.occasions);
+      row.updatedAt = now().toISOString();
+      if (row.status === 'published') {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.updated',
+          eventId,
+          changedFields: ['occasions'],
+        });
+      }
+      const after = asDetail(row, publisherName, env.assetsPublicBaseUrl);
+      await audit.write({
+        actor,
+        action: 'event.occasion_delete',
         entityType: 'event',
         entityId: eventId,
         before: auditSnapshot(before),
@@ -2585,6 +2674,100 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         entityId: eventId,
         before: auditSnapshot(existing),
         after: updated ? auditSnapshot(updated) : null,
+      });
+      return updated;
+    },
+    async createOccasion(eventId, body, actor) {
+      const existing = await loadDetail(eventId);
+      if (!existing) return null;
+      const startsAt = new Date(body.startsAt);
+      const endsAt = new Date(body.endsAt);
+      if (endsAt.getTime() < startsAt.getTime()) throw new AdminEventError('invalid_event');
+      const occasions = existing.occasions ?? [];
+      if (occasions.length >= 2000) throw new AdminEventError('invalid_event');
+      const duplicate = occasions.some(
+        (occasion) =>
+          new Date(occasion.startsAt).getTime() === startsAt.getTime() &&
+          new Date(occasion.endsAt).getTime() === endsAt.getTime(),
+      );
+      if (duplicate) throw new AdminEventError('invalid_event');
+      const copied =
+        occasions.find((occasion) => occasion.location)?.location ?? existing.location ?? null;
+      const at = now();
+      try {
+        await db.insert(schema.eventOccasions).values({
+          eventId,
+          startsAt,
+          endsAt,
+          venueName: body.venueName,
+          location: copied ? pointEwkt(copied) : null,
+          sourceKey: `${startsAt.toISOString()}:${endsAt.toISOString()}`,
+          createdAt: at,
+          updatedAt: at,
+        });
+      } catch (err) {
+        const code =
+          (err as { code?: string }).code ?? (err as { cause?: { code?: string } }).cause?.code;
+        if (code === '23505') throw new AdminEventError('invalid_event');
+        throw err;
+      }
+      await db.update(schema.events).set({ updatedAt: at }).where(eq(schema.events.id, eventId));
+      if (existing.status === 'published') {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.updated',
+          eventId,
+          changedFields: ['occasions'],
+        });
+      }
+      const updated = await loadDetail(eventId);
+      await audit.write({
+        actor,
+        action: 'event.occasion_create',
+        entityType: 'event',
+        entityId: eventId,
+        before: { occasionCount: occasions.length },
+        after: {
+          startsAt: body.startsAt,
+          endsAt: body.endsAt,
+          venueName: body.venueName,
+        },
+      });
+      return updated;
+    },
+    async deleteOccasion(eventId, occasionId, actor) {
+      const existing = await loadDetail(eventId);
+      if (!existing) return null;
+      const current = existing.occasions?.find((occasion) => occasion.id === occasionId);
+      if (!current) return null;
+      const at = now();
+      const removed = await db
+        .delete(schema.eventOccasions)
+        .where(
+          and(eq(schema.eventOccasions.id, occasionId), eq(schema.eventOccasions.eventId, eventId)),
+        )
+        .returning({ id: schema.eventOccasions.id });
+      if (removed.length === 0) return null;
+      await db.update(schema.events).set({ updatedAt: at }).where(eq(schema.events.id, eventId));
+      if (existing.status === 'published') {
+        await enqueueDomainEvent(domainEvents, {
+          type: 'event.updated',
+          eventId,
+          changedFields: ['occasions'],
+        });
+      }
+      const updated = await loadDetail(eventId);
+      await audit.write({
+        actor,
+        action: 'event.occasion_delete',
+        entityType: 'event',
+        entityId: eventId,
+        before: {
+          occasionId,
+          startsAt: current.startsAt,
+          endsAt: current.endsAt,
+          venueName: current.venueName,
+        },
+        after: null,
       });
       return updated;
     },
