@@ -1,0 +1,50 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "copyright": "2026 Candy Banana AB",
+    "categories": ["LIFESTYLE", "ENTERTAINMENT"],
+    "info": {
+      "sv": {
+        "title": "Evently: Lokala evenemang",
+        "subtitle": "Nära dig. Spara. Checka in.",
+        "promoText": "Nytt i Söderhamn. Se konserter, kultur och familjeaktiviteter nära dig, spara det du vill gå på och checka in när du är där.",
+        "keywords": [
+          "konsert,kultur,kalender,museum,idrott,familj,festival,karta,söderhamn,påminnelse,barn,musik,teater"
+        ],
+        "releaseNotes": "Första versionen av Evently. Upptäck evenemang nära dig, sök och filtrera, se dem på kartan, spara, bli påmind och checka in på plats.",
+        "description": "Evently hjälper dig att se vad som händer nära dig. Konserter, kultur, idrott, familjeaktiviteter och det lilla som annars går att missa.\n\nÖppna appen och bläddra direkt. Välj ort och hur långt du vill söka, spara det du vill gå på och be om en påminnelse. När du är på plats checkar du in.\n\nUpptäck\n• Evenemang nära dig, med bild, tid och plats\n• Sök och filtrera på kategori, dag och pris\n• Kartan, med en nål för varje evenemang\n• Spara det du inte vill missa, eller säg att du kommer\n• Påminnelser innan det börjar\n• Lägg evenemanget i din kalender\n• Checka in när du är där\n• Tipsa om något som saknas i listan\n\nDin stad\nEvently börjar i Söderhamn och Hälsingland. Du väljer område och sökradie själv.\n\nInget konto\nAppen känner igen enheten, inte ditt namn. Ett visningsnamn är valfritt. Det syns bara om du själv lägger till det, till exempel när du betygsätter ett evenemang du har besökt.\n\nPlats\nPlats läses när appen är öppen, för att visa evenemang nära dig och för att checka in. Evently följer dig inte i bakgrunden.\n\nSvenska och engelska\nAppen följer språket på telefonen."
+      },
+      "en-US": {
+        "title": "Evently: Local Events",
+        "subtitle": "Nearby. Save. Check in.",
+        "promoText": "New in Söderhamn. See concerts, culture, and family activities near you, save what you want to attend, and check in when you arrive.",
+        "keywords": [
+          "concert,culture,calendar,museum,sports,family,festival,map,sweden,reminder,music,tickets,halsingland"
+        ],
+        "releaseNotes": "The first version of Evently. Discover events near you, search and filter, see them on the map, save them, get a reminder, and check in when you are there.",
+        "description": "Evently shows you what is happening near you. Concerts, culture, sports, family activities, and the smaller things that are easy to miss.\n\nOpen the app and browse straight away. Pick a place and how far you want to look, save what you want to attend, and ask for a reminder. When you are there, check in.\n\nDiscover\n• Events near you, with a photo, time, and place\n• Search and filter by category, day, and price\n• A map, with a pin for every event\n• Save what you do not want to miss, or say you are coming\n• Reminders before it starts\n• Add the event to your calendar\n• Check in when you are there\n• Tell us about something missing from the list\n\nYour town\nEvently starts in Söderhamn and Hälsingland, Sweden. You choose the area and the search distance.\n\nNo account\nThe app recognizes the device, not your name. A display name is optional. It is shown only if you add one yourself, for example when you rate an event you attended.\n\nLocation\nLocation is read while the app is open, to show events near you and to check in. Evently does not follow you in the background.\n\nSwedish and English\nThe app follows the language on your phone."
+      }
+    },
+    "advisory": {
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "gamblingSimulated": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "matureOrSuggestiveThemes": "NONE",
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "contests": "NONE",
+      "gambling": false,
+      "unrestrictedWebAccess": false,
+      "seventeenPlus": false
+    },
+    "release": {
+      "automaticRelease": false,
+      "phasedRelease": false
+    }
+  }
+}
