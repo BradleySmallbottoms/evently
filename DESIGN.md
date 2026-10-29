@@ -175,10 +175,11 @@ Photography is a core part of the product identity.
 
 Use a five-item bottom navigation on the main app:
 
-1.  **Home** --- personalized discovery and featured events.
-2.  **Search** --- search and filter events.
-3.  **Events** --- a broader browse/calendar view or event discovery
-    hub.
+1.  **Home** --- personalized discovery: a featured carousel, then one
+    row per category the person chose.
+2.  **Explore** --- full-screen event cards, swiped vertically, with
+    category chips along the top.
+3.  **Calendar** --- a date-based browse of events.
 4.  **Saved** --- saved events and user-created lists.
 5.  **Profile** --- preferences, tickets, notifications, and settings.
 
@@ -261,27 +262,34 @@ skipping both permissions at once. - Do not force account creation
 before users can explore. The anonymous device is created here, before
 the notification prompt.
 
-### 8.2 Home / Discover
+### 8.2 Home
 
 Purpose: make it easy to find something appealing with minimal effort.
 
-Recommended order: 1. Greeting or concise screen title. 2. Current
-location selector. When “Near you” is selected, the locality name sits under
-that label. 3. Search field. 4. Category circles: Music, Sports, Culture, Family,
-Holidays, and Other, in one row. More stays pinned on the right and opens a
-sheet. The title and groups sit at the top. Each group opens so individual tags
-can be chosen. A button at the bottom shows the events.
-A circle selects or clears that whole group. The chosen tags stay on the device. 5. Featured
-event cards. The photo keeps the date badge and the save control. A light
-panel overlaps the bottom of the photo and shows the category, the title,
-a two-line description, the date span, and the place. The badge is the next
-occasion. The span line is the event's full range. 6. "Popular right now": a grid of three rows and two or
-three columns, filled from nearby events people have saved or marked
-coming (`sort=popular`, up to nine, using the same tag filter as the home list). Each tile is a photo, a date, and
-the title on a dark gradient at the bottom, and opens that event. The section stays hidden when none
-qualify. "See all" opens the wider list. 7. "This
-weekend" or date-based collections. 8. Optional personalized
-recommendations.
+Order: 1. The wordmark, the current place, and the notification bell.
+When “Near you” is selected, the locality name sits under that label. 2. A featured carousel. One large photo at a time, with the featured
+label, the title, the date, and the place on the photo, and page dots
+under the card. Featured events fill it. When none are featured, the
+next events do. 3. "Your categories". Each category chosen in
+onboarding is a section: the group icon and name, "View all", then a
+horizontal row of event cards (photo, title, date, place, save). A
+control at the trailing end of that heading opens the category sheet
+so more groups can be shown. The chosen tags stay on the device, the
+same way onboarding stored them. An empty selection still shows every
+group. "View all" opens Explore with that group's tags already selected.
+
+### 8.2.1 Explore
+
+Purpose: browse events one at a time.
+
+The screen is a vertical pager of full-screen cards. Category chips sit
+over the top, with All first. One group is selected at a time. A filter
+control opens the same category sheet for a finer tag choice. Each card
+shows the date and time, the name, the place, and up to two tags. A
+rail on the trailing side shows the save count, add to calendar, save,
+and share. The photo fills the card. When an event carries a video URL
+and the build includes the video player, that clip plays muted in the
+same frame. Reduced motion keeps the still.
 
 Event card content: - Image thumbnail or image-led card. - Event
 title. - Date and time. - Venue or neighborhood. - Price or "Free", when

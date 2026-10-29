@@ -7,6 +7,10 @@
   },
   "home": {
     "title": "Evently",
+    "yourCategories": "Kategorier",
+    "chooseCategories": "Välj fler kategorier",
+    "chooseCategoriesShort": "Välj",
+    "categoryEmpty": "Inga evenemang i den här kategorin just nu.",
     "searchPlaceholder": "Vad vill du hitta?",
     "subtitle": "Hitta och checka in på evenemang nära dig.",
     "identityReady": "Enhet kopplad",
@@ -14,12 +18,22 @@
     "identityError": "Kunde inte skapa identitet. Kontrollera att API:t körs.",
     "userId": "Användar-id"
   },
+  "explore": {
+    "filters": "Filtrera kategorier",
+    "add": "Lägg till",
+    "save": "Spara",
+    "saved": "Sparad",
+    "share": "Dela",
+    "interested_one": "{{count}} intresserad",
+    "interested_other": "{{count}} intresserade"
+  },
   "splash": {
     "title": "Evently",
     "subtitle": "Upptäck vad som händer nära dig"
   },
   "tabs": {
     "list": "Hem",
+    "explore": "Upptäck",
     "search": "Sök",
     "events": "Kalender",
     "saved": "Sparat",

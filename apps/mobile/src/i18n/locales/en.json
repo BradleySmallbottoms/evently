@@ -7,6 +7,10 @@
   },
   "home": {
     "title": "Evently",
+    "yourCategories": "Your categories",
+    "chooseCategories": "Choose more categories",
+    "chooseCategoriesShort": "Choose",
+    "categoryEmpty": "No events in this category right now.",
     "searchPlaceholder": "What are you looking for?",
     "subtitle": "Discover and check in to events near you.",
     "identityReady": "Device linked",
@@ -14,12 +18,22 @@
     "identityError": "Could not create identity. Make sure the API is running.",
     "userId": "User id"
   },
+  "explore": {
+    "filters": "Filter categories",
+    "add": "Add",
+    "save": "Save",
+    "saved": "Saved",
+    "share": "Share",
+    "interested_one": "{{count}} interested",
+    "interested_other": "{{count}} interested"
+  },
   "splash": {
     "title": "Evently",
     "subtitle": "Discover what's happening near you"
   },
   "tabs": {
     "list": "Home",
+    "explore": "Explore",
     "search": "Search",
     "events": "Calendar",
     "saved": "Saved",

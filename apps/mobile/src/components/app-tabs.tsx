@@ -20,6 +20,10 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Label>{t('tabs.list')}</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="house" md="home" />
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="explore">
+        <NativeTabs.Trigger.Label>{t('tabs.explore')}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="safari" md="explore" />
+      </NativeTabs.Trigger>
       {/* <NativeTabs.Trigger name="search">
         <NativeTabs.Trigger.Label>{t('tabs.search')}</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="magnifyingglass" md="search" />

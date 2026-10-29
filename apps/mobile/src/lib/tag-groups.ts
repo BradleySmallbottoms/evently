@@ -142,6 +142,27 @@ export function toggleGroupSelection(
   return [...next];
 }
 
+/** Groups Home lists. An empty selection means every group, which is how a skipped onboarding reads. */
+export function groupsToShow<T extends { tags: readonly { id: string }[] }>(
+  groups: readonly T[],
+  selectedIds: readonly string[],
+): T[] {
+  if (selectedIds.length === 0) return [...groups];
+  const selected = new Set(selectedIds);
+  return groups.filter((group) => group.tags.some((tag) => selected.has(tag.id)));
+}
+
+/** Tag ids for one Home row. A partial selection keeps only the tags that are on. */
+export function tagIdsForGroup(
+  group: { tags: readonly { id: string }[] },
+  selectedIds: readonly string[],
+): string[] {
+  const ids = group.tags.map((tag) => tag.id);
+  if (selectedIds.length === 0) return ids;
+  const selected = new Set(selectedIds);
+  return ids.filter((id) => selected.has(id));
+}
+
 export function toggleTagSelection(selected: readonly string[], tagId: string): string[] {
   const next = new Set(selected);
   if (next.has(tagId)) next.delete(tagId);

@@ -48,6 +48,8 @@ type Props = {
   onCreatePlace?: (place: NamedPlace) => Promise<void>;
   /** Draft place and radius, so the caller can count that combination. */
   onDraftChange?: (draft: { placeId: string; radiusM: number }) => void;
+  /** Map pin instead of the target glyph. Home uses this. */
+  pin?: boolean;
   /** Events the draft place and radius will show. Omitted until the count arrives. */
   eventCount?: number;
 };
@@ -96,6 +98,7 @@ export function LocationMenu({
   onCreatePlace,
   onDraftChange,
   eventCount,
+  pin = false,
 }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -227,9 +230,9 @@ export function LocationMenu({
             }}
           >
             <MaterialIcons
-              name="my-location"
+              name={pin ? 'place' : 'my-location'}
               size={16}
-              color={colors.ink}
+              color={pin ? colors.accent : colors.ink}
               style={locationDetail ? { marginTop: 4 } : undefined}
             />
             <View style={{ flexShrink: 1, minWidth: 0 }}>

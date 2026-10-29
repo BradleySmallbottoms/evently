@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   groupHomeTags,
+  groupsToShow,
   homeGroupForTags,
   HOME_TAG_GROUPS,
+  tagIdsForGroup,
   parseHomeTagIds,
   retainedTagIds,
   toggleGroupSelection,
@@ -38,6 +40,21 @@ describe('groupHomeTags', () => {
     expect(byId.get('sport')).toEqual(['fotboll']);
     expect(byId.get('other')).toEqual(['mat-dryck', 'nagon-ny-tagg']);
     expect(byId.has('family')).toBe(false);
+  });
+});
+
+describe('groupsToShow', () => {
+  const music = { id: 'music' as const, tags: [tag('konsert', '1'), tag('fest', '2')] };
+  const sport = { id: 'sport' as const, tags: [tag('fotboll', '3')] };
+
+  it('lists every group when onboarding stored no tags', () => {
+    expect(groupsToShow([music, sport], [])).toEqual([music, sport]);
+  });
+
+  it('lists only groups that contain a chosen tag', () => {
+    expect(groupsToShow([music, sport], ['3'])).toEqual([sport]);
+    expect(tagIdsForGroup(music, [])).toEqual(['1', '2']);
+    expect(tagIdsForGroup(music, ['2', '3'])).toEqual(['2']);
   });
 });
 

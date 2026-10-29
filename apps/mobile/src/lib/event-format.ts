@@ -25,6 +25,33 @@ export function dateBadge(iso: string, locale: string, timeZone?: string) {
   };
 }
 
+/** "Fre 10 okt". The weekday keeps a leading capital. */
+export function shortDateLabel(iso: string, locale: string, timeZone?: string): string {
+  const badge = dateBadge(iso, locale, timeZone);
+  const weekday = badge.weekday
+    ? badge.weekday.charAt(0).toLocaleUpperCase(locale) + badge.weekday.slice(1)
+    : '';
+  return [weekday, badge.day, badge.month].filter(Boolean).join(' ');
+}
+
+/** Venue and city on one line. A digital event uses its link. */
+export function eventPlaceLabel(input: {
+  mode: string;
+  venueName?: string | null;
+  city?: string | null;
+  onlineUrl?: string | null;
+  missingVenue: string;
+  missingUrl: string;
+}): string {
+  if (input.mode !== 'physical') return input.onlineUrl?.trim() || input.missingUrl;
+  const venue = input.venueName?.trim() ?? '';
+  const city = input.city?.trim() ?? '';
+  if (venue && city && !venue.toLowerCase().includes(city.toLowerCase())) {
+    return `${venue}, ${city}`;
+  }
+  return venue || city || input.missingVenue;
+}
+
 /** Start time next to a venue. A whole day uses the translated label. */
 export function shownClock(
   startsAt: string,

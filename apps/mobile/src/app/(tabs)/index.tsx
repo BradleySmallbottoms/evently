@@ -3,14 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import { AreaTagGroupsSheet } from '@/components/native/area-tag-groups-sheet';
 import { LocationMenu } from '@/components/native/location-menu';
@@ -21,22 +14,15 @@ import { RegionSuggestionSheet } from '@/components/native/region-suggestion-she
 import { useReportHomeReady, useSplashDismissed } from '@/components/splash-cover';
 import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
-import { FeaturedEventCard } from './_components/featured-event-card';
-import { EventCard } from '@/components/ui/event-card';
-import { EventListItem } from '@/components/ui/event-list-item';
-import { SponsoredEventCard } from '@/components/ui/sponsored-event-card';
-import { SearchBar } from '@/components/ui/search-bar';
-import { TagFilters } from '@/components/ui/tag-filters';
-import { PopularNow } from '@/components/ui/popular-now';
+import { HomeCategories } from './_components/home-categories';
+import { HomeFeatured } from './_components/home-featured';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { api, throwIfError } from '@/lib/api';
-import { listPublicEvents, listTags, namesForTagIds } from '@/lib/events';
-import { useForYouEvents } from '@/lib/use-for-you';
-import { eventListFreshness } from '@/lib/query-client';
+import { listTags, namesForTagIds } from '@/lib/events';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { isHomeListReady } from '@/lib/home-splash';
 import { loadHomeTagIds, saveHomeTagIds } from '@/lib/home-tag-selection';
-import { homeGroupForTags, retainedTagIds } from '@/lib/tag-groups';
+import { retainedTagIds } from '@/lib/tag-groups';
 import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
 import { openInboxItem, type InboxTipTarget } from '@/lib/open-inbox-item';
@@ -65,9 +51,9 @@ import {
   shouldReevaluateRegionSuggestion,
 } from '@/lib/foreground-location';
 import { useOnboardingVisible } from '@/lib/onboarding-visibility';
-import { dateBadge, shownClock } from '@/lib/event-format';
-import { formatPeriod } from '@/lib/event-detail-format';
-import { isWholeDay, shownWhen } from '@/lib/span-occasions';
+import { eventPlaceLabel, shortDateLabel } from '@/lib/event-format';
+import { shownWhen } from '@/lib/span-occasions';
+import { useHasUnreadNotifications } from '@/lib/use-unread-notifications';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { updateAreaTags } from '@/lib/preferences';
 import { useSaveDiscoveryRadius } from '@/lib/save-discovery-radius';
@@ -132,7 +118,7 @@ export default function HomeScreen() {
   const [regionSuggestion, setRegionSuggestion] = useState<RegionSuggestion | null>(null);
   const [regionSheetOpen, setRegionSheetOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [q, setQ] = useState('');
+  const { hasUnread, numUnread } = useHasUnreadNotifications();
 
   const { identity, preferences, point, placeId, radiusM, radiusMap, device } = useDiscoveryPoint();
   const nearbyName = useNearbyPlaceName(placeId === NEARBY_PLACE_ID ? device.fix : null);
@@ -164,8 +150,6 @@ export default function HomeScreen() {
   const tagsSettled = tags.isSuccess || tags.isError;
   const selectedTagIds = tags.isSuccess ? retainedTagIds(rawTagIds, knownTagIds) : rawTagIds;
   const selectedTagKey = [...selectedTagIds].sort().join('\n');
-  const query = q.trim();
-  const searching = query.length > 0;
   const locationPoint = useMemo(() => {
     if (!locationOpen || !locationDraft) return undefined;
     return (
@@ -193,7 +177,6 @@ export default function HomeScreen() {
   const locationEventCount = useEventCount(
     locationPoint,
     {
-      q: searching ? query : undefined,
       tagIds: locationTagIds.length > 0 ? locationTagIds : undefined,
     },
     locationOpen,
@@ -201,11 +184,10 @@ export default function HomeScreen() {
   const events = useInfinitePublicEvents(
     storedTagIds.isSuccess && tagsSettled ? point.data : undefined,
     {
-      q: searching ? query : undefined,
       tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
       sort: 'soonest',
     },
-    ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM, selectedTagKey, query],
+    ['public-events', point.data?.lat, point.data?.lng, point.data?.radiusM, selectedTagKey],
   );
   const reportHomeReady = useReportHomeReady();
   const homeListReady = isHomeListReady({
@@ -217,40 +199,28 @@ export default function HomeScreen() {
   useEffect(() => {
     if (homeListReady) reportHomeReady();
   }, [homeListReady, reportHomeReady]);
-  const popular = useQuery({
-    queryKey: [
-      'popular-events',
-      point.data?.lat,
-      point.data?.lng,
-      point.data?.radiusM,
-      selectedTagKey,
-    ],
-    ...eventListFreshness,
-    enabled: point.isSuccess && storedTagIds.isSuccess && tagsSettled,
-    queryFn: () =>
-      listPublicEvents(point.data!, {
-        sort: 'popular',
-        limit: 9,
-        tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
-      }),
-  });
-  const popularItems = (popular.data?.items ?? []).map((item) => ({
-    id: item.id,
-    title: item.title,
-    startsAt: shownWhen(item, new Date()).startsAt,
-    imageUrl: item.imageUrl,
-    tags: namesForTagIds(item.tagIds, tags.data?.items),
-  }));
   const saved = useQuery({
     queryKey: ['saved-events', identity.data?.userId],
     enabled: identity.isSuccess,
     queryFn: () => listSavedEvents(identity.data!),
   });
-  const savedIds = new Set((saved.data?.items ?? []).map((item) => item.id));
-  const savedIdKey = useMemo(
-    () => (saved.data?.items ?? []).map((item) => item.id).join('\n'),
+  const savedIds = useMemo(
+    () => new Set((saved.data?.items ?? []).map((item) => item.id)),
     [saved.data],
   );
+  const [saveOverride, setSaveOverride] = useState<Record<string, boolean>>({});
+  const shownSavedIds = useMemo(() => {
+    const next = new Set(savedIds);
+    for (const [id, on] of Object.entries(saveOverride)) {
+      if (on) next.add(id);
+      else next.delete(id);
+    }
+    return next;
+  }, [saveOverride, savedIds]);
+  const savedIdKey = [...savedIds].sort().join('\n');
+  useEffect(() => {
+    setSaveOverride({});
+  }, [savedIdKey]);
   const inbox = useQuery({
     queryKey: ['notifications', identity.data?.userId],
     enabled: identity.isSuccess,
@@ -379,27 +349,30 @@ export default function HomeScreen() {
     t,
   ]);
 
-  const { featured, coming, matches } = useMemo(() => {
+  const heroItems = useMemo(() => {
     const items = events.data?.pages.flatMap((page) => page.items) ?? [];
-    return {
-      featured: items.filter((event) => event.featured),
-      coming: items.filter((event) => !event.featured),
-      matches: items,
-    };
-  }, [events.data]);
-  const featuredIds = useMemo(() => new Set(featured.map((event) => event.id)), [featured]);
-  const homeFeaturedIds = useRef(featuredIds);
-  if (!searching) homeFeaturedIds.current = featuredIds;
-  // A place change keeps the previous page visible. Those featured ids belong
-  // to the old place, so skip them only after this place's list has settled.
-  const forYouReady = (events.isSuccess && !events.isPlaceholderData) || events.isError;
-  const forYou = useForYouEvents({
-    point: point.data,
-    identity: identity.isSuccess ? identity.data : undefined,
-    tagsReady: storedTagIds.isSuccess && tagsSettled,
-    selectedTagIds,
-    featuredIds: searching ? homeFeaturedIds.current : forYouReady ? featuredIds : new Set(),
-  });
+    const featured = items.filter((event) => event.featured);
+    const source = featured.length > 0 ? featured : items;
+    return source.slice(0, 6).map((item) => {
+      const when = shownWhen(item, new Date());
+      return {
+        id: item.id,
+        title: item.title,
+        when: shortDateLabel(when.startsAt, locale, item.timezone),
+        where: eventPlaceLabel({
+          mode: item.mode,
+          venueName: item.venueName,
+          city: item.meta?.address?.city,
+          onlineUrl: item.onlineUrl,
+          missingVenue: t('events.missingVenue'),
+          missingUrl: t('events.missingUrl'),
+        }),
+        imageUrl: item.imageUrl,
+        tags: namesForTagIds(item.tagIds, tags.data?.items),
+        featured: item.featured && featured.length > 0,
+      };
+    });
+  }, [events.data, locale, t, tags.data]);
 
   async function generatePairingCode() {
     setPairingPending(true);
@@ -479,10 +452,18 @@ export default function HomeScreen() {
 
   function toggleSave(eventId: string) {
     if (!identity.data) return;
-    const next = savedIds.has(eventId)
-      ? unsaveEvent(identity.data, eventId)
-      : saveEvent(identity.data, eventId);
-    void next.then(() => queryClient.invalidateQueries({ queryKey: ['saved-events'] }));
+    const wasSaved = shownSavedIds.has(eventId);
+    setSaveOverride((prev) => ({ ...prev, [eventId]: !wasSaved }));
+    const next = wasSaved ? unsaveEvent(identity.data, eventId) : saveEvent(identity.data, eventId);
+    void next
+      .then(() => queryClient.invalidateQueries({ queryKey: ['saved-events'] }))
+      .catch(() => {
+        setSaveOverride((prev) => {
+          const copy = { ...prev };
+          delete copy[eventId];
+          return copy;
+        });
+      });
   }
 
   async function refreshHome() {
@@ -494,8 +475,7 @@ export default function HomeScreen() {
         point.refetch(),
         tags.refetch(),
         events.refetch(),
-        forYou.refetch(),
-        popular.refetch(),
+        queryClient.invalidateQueries({ queryKey: ['category-rail'] }),
       ]);
     } finally {
       setRefreshing(false);
@@ -521,16 +501,10 @@ export default function HomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
-      <FlatList
+      <ScrollView
         style={{ flex: 1, width: '100%', maxWidth: MaxContentWidth }}
-        data={searching ? matches : coming}
-        keyExtractor={(item) => item.id}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
-        onEndReached={() => {
-          if (events.hasNextPage && !events.isFetchingNextPage) void events.fetchNextPage();
-        }}
-        onEndReachedThreshold={0.4}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -543,313 +517,114 @@ export default function HomeScreen() {
         contentContainerStyle={{
           flexGrow: 1,
           paddingBottom: BottomTabInset + space.xxxl,
-          gap: space.lg,
+          gap: space.xxl,
+          paddingTop: space.sm,
         }}
-        ListHeaderComponent={
-          <View style={{ gap: space.lg, paddingTop: space.sm }}>
-            <View
-              style={{
-                paddingHorizontal: space.xl,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: space.md,
+      >
+        <View
+          style={{
+            paddingHorizontal: space.xl,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: space.md,
+          }}
+        >
+          <AppText style={{ fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -0.6 }}>
+            {t('home.title')}
+          </AppText>
+          <View style={{ flex: 1, minWidth: 0, alignItems: 'flex-end' }}>
+            <LocationMenu
+              pin
+              locationLabel={locationLabel}
+              locationDetail={locationDetail}
+              title={t('events.locationPickerTitle')}
+              message={t('events.locationPickerMessage')}
+              options={locationOptions}
+              selectedId={placeId}
+              radiusM={radiusM}
+              radiusByPlace={radiusByPlace}
+              onRadiusChange={saveDiscoveryRadius}
+              isPresented={locationOpen}
+              onIsPresentedChange={setLocationOpen}
+              canAdd={canAddSavedArea(preferences.data?.areas.length ?? 0)}
+              onCreatePlace={areaTags.createFromPlace}
+              onDraftChange={setLocationDraft}
+              eventCount={locationEventCount}
+              onSelect={(id) => {
+                setDiscoveryPlaceId(id);
               }}
-            >
-              <View style={{ maxWidth: '70%' }}>
-                <LocationMenu
-                  eyebrow={t('home.title')}
-                  locationLabel={locationLabel}
-                  locationDetail={locationDetail}
-                  title={t('events.locationPickerTitle')}
-                  message={t('events.locationPickerMessage')}
-                  options={locationOptions}
-                  selectedId={placeId}
-                  radiusM={radiusM}
-                  radiusByPlace={radiusByPlace}
-                  onRadiusChange={saveDiscoveryRadius}
-                  isPresented={locationOpen}
-                  onIsPresentedChange={setLocationOpen}
-                  canAdd={canAddSavedArea(preferences.data?.areas.length ?? 0)}
-                  onCreatePlace={areaTags.createFromPlace}
-                  onDraftChange={setLocationDraft}
-                  eventCount={locationEventCount}
-                  onSelect={(id) => {
-                    setDiscoveryPlaceId(id);
-                  }}
-                />
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                {/* <CircleIconButton
-                  plain
-                  sf="scope"
-                  md="gps-fixed"
-                  accessibilityLabel={t('events.currentLocation')}
-                  tintColor={colors.ink}
-                  onPress={() => {
-                    void setDiscoveryPlaceId(NEARBY_PLACE_ID);
-                    void refreshDeviceLocation();
-                  }}
-                /> */}
-                <CircleIconButton
-                  sf="plus"
-                  md="add"
-                  accessibilityLabel={t('tips.missing')}
-                  tintColor={colors.ink}
-                  onPress={() => router.push('/tips')}
-                />
-              </View>
-            </View>
+            />
+          </View>
+          <CircleIconButton
+            sf="bell"
+            md="notifications-none"
+            badge={hasUnread}
+            accessibilityLabel={
+              hasUnread
+                ? t('events.notificationsNew', { count: numUnread })
+                : t('events.notifications')
+            }
+            onPress={() => setNotificationsOpen(true)}
+          />
+        </View>
 
-            <View style={{ paddingHorizontal: space.xl }}>
-              <SearchBar value={q} onChangeText={setQ} placeholder={t('home.searchPlaceholder')} />
-            </View>
+        {identity.isPending ? (
+          <AppText variant="caption" style={{ paddingHorizontal: space.xl }}>
+            {t('home.identityLoading')}
+          </AppText>
+        ) : null}
+        {identity.isError ? (
+          <AppText variant="caption" style={{ paddingHorizontal: space.xl, color: colors.danger }}>
+            {t('home.identityError')}
+          </AppText>
+        ) : null}
+        {events.isError ? (
+          <AppText variant="caption" style={{ paddingHorizontal: space.xl, color: colors.danger }}>
+            {t('events.loadError')}
+          </AppText>
+        ) : null}
 
-            <TagFilters
+        {events.isPending && !events.data ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator accessibilityLabel={t('events.loading')} color={colors.ink} />
+          </View>
+        ) : (
+          <>
+            <HomeFeatured items={heroItems} onPress={(id) => router.push(`/events/${id}`)} />
+            <HomeCategories
               tags={tags.data?.items ?? []}
-              selectedIds={selectedTagIds}
+              selectedIds={rawTagIds}
               onChange={changeHomeTags}
               point={point.data}
-              query={searching ? query : undefined}
+              locale={locale}
+              savedIds={shownSavedIds}
+              onToggleSave={toggleSave}
+              onOpen={(id) => router.push(`/events/${id}`)}
+              onShowAll={(ids) =>
+                router.push({
+                  pathname: '/(tabs)/explore',
+                  params: { tagIds: ids.join(','), tagAt: String(Date.now()) },
+                })
+              }
             />
-
-            {!searching && forYou.items.length > 0 ? (
-              <View style={{ gap: space.md }}>
-                <View
-                  style={{
-                    paddingHorizontal: space.xl,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <AppText variant="subtitle">{t('events.forYou')}</AppText>
-                  <Pressable accessibilityRole="button" onPress={() => router.push('/for-you')}>
-                    <AppText variant="label" style={{ color: colors.info }}>
-                      {t('events.viewAll')}
-                    </AppText>
-                  </Pressable>
-                </View>
-                <ScrollView
-                  horizontal
-                  nestedScrollEnabled
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: space.md, paddingHorizontal: space.xl }}
-                >
-                  {forYou.items.map((item) => {
-                    return (
-                      <View key={item.id} style={{ width: 280 }}>
-                        <EventCard
-                          title={item.title}
-                          when={
-                            isWholeDay(
-                              shownWhen(item, new Date()).startsAt,
-                              shownWhen(item, new Date()).endsAt,
-                            )
-                              ? t('events.wholeDay')
-                              : new Date(shownWhen(item, new Date()).startsAt).toLocaleString(
-                                  locale,
-                                )
-                          }
-                          where={
-                            item.mode === 'physical'
-                              ? (item.venueName ?? t('events.missingVenue'))
-                              : (item.onlineUrl ?? t('events.missingUrl'))
-                          }
-                          tags={namesForTagIds(item.tagIds, tags.data?.items)}
-                          imageUrl={item.imageUrl}
-                          priceAmount={item.priceAmount}
-                          dateBadge={dateBadge(shownWhen(item, new Date()).startsAt, locale)}
-                          saved={savedIds.has(item.id)}
-                          onSavePress={() => toggleSave(item.id)}
-                          onPress={() => router.push(`/events/${item.id}`)}
-                        />
-                      </View>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            ) : null}
-
-            {!searching && featured.length > 0 ? (
-              <View style={{ gap: space.md }}>
-                <View
-                  style={{
-                    paddingHorizontal: space.xl,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <AppText variant="subtitle">{t('events.featuredSection')}</AppText>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => router.push('/(tabs)/events')}
-                  >
-                    <AppText variant="label" style={{ color: colors.info }}>
-                      {t('events.seeAll')}
-                    </AppText>
-                  </Pressable>
-                </View>
-                {featured.map((item) => {
-                  const shown = shownWhen(item, new Date());
-                  const categoryId = homeGroupForTags(tags.data?.items ?? [], item.tagIds);
-                  return (
-                    <View key={item.id} style={{ paddingHorizontal: space.xl }}>
-                      <FeaturedEventCard
-                        title={item.title}
-                        description={item.description}
-                        period={formatPeriod(item.startsAt, item.endsAt, locale, item.timezone)}
-                        where={
-                          item.mode === 'physical'
-                            ? (item.venueName ?? t('events.missingVenue'))
-                            : (item.onlineUrl ?? t('events.missingUrl'))
-                        }
-                        categoryId={categoryId}
-                        categoryLabel={categoryId ? t(`events.tagGroup.${categoryId}`) : undefined}
-                        tags={namesForTagIds(item.tagIds, tags.data?.items)}
-                        imageUrl={item.imageUrl}
-                        dateBadge={dateBadge(shown.startsAt, locale, item.timezone)}
-                        saved={savedIds.has(item.id)}
-                        onSavePress={() => toggleSave(item.id)}
-                        onPress={() => router.push(`/events/${item.id}`)}
-                      />
-                    </View>
-                  );
-                })}
-              </View>
-            ) : null}
-
-            {searching ? null : (
-              <PopularNow
-                locale={locale}
-                items={popularItems}
-                onShowAll={() => router.push('/(tabs)/events')}
-                onPress={(id) => router.push(`/events/${id}`)}
-              />
-            )}
-
-            {!searching && coming.length > 0 ? (
-              <AppText variant="subtitle" style={{ paddingHorizontal: space.xl }}>
-                {t('events.coming')}
-              </AppText>
-            ) : null}
-
-            {identity.isPending && (
-              <AppText variant="caption" style={{ paddingHorizontal: space.xl }}>
-                {t('home.identityLoading')}
-              </AppText>
-            )}
-
-            {identity.isError && (
-              <AppText
-                variant="caption"
-                style={{ paddingHorizontal: space.xl, color: colors.danger }}
-              >
-                {t('home.identityError')}
-              </AppText>
-            )}
-
-            {events.isError && (
-              <AppText
-                variant="caption"
-                style={{ paddingHorizontal: space.xl, color: colors.danger }}
-              >
-                {t('events.loadError')}
-              </AppText>
-            )}
-          </View>
-        }
-        extraData={savedIdKey}
-        ListFooterComponent={
-          <View style={{ gap: space.md, paddingBottom: space.lg }}>
-            {events.isFetchingNextPage ? (
-              <AppText
-                variant="caption"
-                style={{ paddingHorizontal: space.xl, textAlign: 'center' }}
-              >
-                {t('events.loadingMore')}
-              </AppText>
-            ) : null}
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.push('/tips')}
-              style={{ paddingHorizontal: space.xl, paddingVertical: space.md }}
-            >
-              <AppText variant="label" style={{ textAlign: 'center' }}>
-                {t('tips.missing')}
-              </AppText>
-            </Pressable>
-          </View>
-        }
-        ListEmptyComponent={
-          events.isPending && !events.data ? (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <ActivityIndicator accessibilityLabel={t('events.loading')} color={colors.ink} />
-            </View>
-          ) : events.isSuccess &&
-            !events.isPlaceholderData &&
-            (searching ? matches.length === 0 : featured.length === 0) ? (
-            <View style={{ gap: space.md }}>
+            {events.isSuccess && !events.isPlaceholderData && heroItems.length === 0 ? (
               <AppText variant="body" style={{ paddingHorizontal: space.xl }}>
-                {searching ? t('events.searchEmpty') : t('events.empty')}
+                {t('events.empty')}
               </AppText>
-              {searching ? null : (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => router.push('/tips')}
-                  style={{ paddingHorizontal: space.xl }}
-                >
-                  <AppText variant="label">{t('tips.missing')}</AppText>
-                </Pressable>
-              )}
-            </View>
-          ) : undefined
-        }
-        renderItem={({ item }) => {
-          const when = shownWhen(item, new Date());
-          const where =
-            item.mode === 'physical'
-              ? (item.venueName ?? t('events.missingVenue'))
-              : (item.onlineUrl ?? t('events.missingUrl'));
-          const time = shownClock(
-            when.startsAt,
-            when.endsAt,
-            locale,
-            t('events.wholeDay'),
-            item.timezone,
-          );
-          const tagNames = namesForTagIds(item.tagIds, tags.data?.items);
-          const poster = !searching && item.sponsored && item.posterUrl;
-          return (
-            <View style={{ paddingHorizontal: space.xl }}>
-              {poster ? (
-                <SponsoredEventCard
-                  title={item.title}
-                  posterUrl={item.posterUrl ?? ''}
-                  saved={savedIds.has(item.id)}
-                  onSavePress={() => toggleSave(item.id)}
-                  onPress={() => router.push(`/events/${item.id}`)}
-                />
-              ) : (
-                <EventListItem
-                  title={item.title}
-                  where={where}
-                  tags={tagNames}
-                  imageUrl={item.imageUrl}
-                  sponsoredLabel={!searching && item.sponsored ? t('events.sponsored') : undefined}
-                  priceAmount={item.priceAmount}
-                  time={time}
-                  dateBadge={dateBadge(when.startsAt, locale)}
-                  saved={savedIds.has(item.id)}
-                  onSavePress={() => toggleSave(item.id)}
-                  onPress={() => router.push(`/events/${item.id}`)}
-                />
-              )}
-            </View>
-          );
-        }}
-      />
+            ) : null}
+          </>
+        )}
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/tips')}
+          style={{ paddingHorizontal: space.xl, paddingVertical: space.md }}
+        >
+          <AppText variant="label" style={{ textAlign: 'center' }}>
+            {t('tips.missing')}
+          </AppText>
+        </Pressable>
+      </ScrollView>
 
       <NotificationsSheet
         isPresented={notificationsOpen}

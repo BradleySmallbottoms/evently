@@ -25,6 +25,9 @@ export default function AppTabs() {
           <TabTrigger name="index" href="/" asChild>
             <TabButton>{t('tabs.list')}</TabButton>
           </TabTrigger>
+          <TabTrigger name="explore" href="/explore" asChild>
+            <TabButton>{t('tabs.explore')}</TabButton>
+          </TabTrigger>
           <TabTrigger name="search" href="/search" asChild>
             <TabButton>{t('tabs.search')}</TabButton>
           </TabTrigger>
