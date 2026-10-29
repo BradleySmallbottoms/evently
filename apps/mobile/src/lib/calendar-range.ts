@@ -184,6 +184,21 @@ export function formatRangeShort(from: DayStamp, to: DayStamp, locale: string): 
   return `${formatDayShort(start, locale)} – ${formatDayShort(end, locale)}`;
 }
 
+/**
+ * One calendar row. Two showings of the same event can share a start and end,
+ * so the occasion id is what keeps those rows apart.
+ */
+export function calendarShowingKey(showing: {
+  eventId: string;
+  occasionId?: string | null;
+  startsAt: string;
+  endsAt: string;
+}): string {
+  return showing.occasionId
+    ? `${showing.eventId}:${showing.occasionId}`
+    : `${showing.eventId}:${showing.startsAt}:${showing.endsAt}`;
+}
+
 export function formatSectionTitle(stamp: DayStamp, locale: string): string {
   const text = new Intl.DateTimeFormat(locale, {
     weekday: 'short',

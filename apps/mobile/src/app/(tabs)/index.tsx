@@ -526,13 +526,21 @@ export default function HomeScreen() {
             paddingHorizontal: space.xl,
             flexDirection: 'row',
             alignItems: 'center',
+            justifyContent: 'space-between',
             gap: space.md,
           }}
         >
-          <AppText style={{ fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -0.6 }}>
+          {/* <AppText style={{ fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -0.6 }}>
             {t('home.title')}
-          </AppText>
-          <View style={{ flex: 1, minWidth: 0, alignItems: 'flex-end' }}>
+          </AppText> */}
+          {/* <View style={{ flex: 1, minWidth: 0, alignItems: 'flex-end' }}> */}
+          <View style={{ flex: 1, minWidth: 0, alignItems: 'flex-start' }}>
+            <AppText
+              variant="label"
+              style={{ fontSize: 12, lineHeight: 20, fontWeight: '400', letterSpacing: -0.6 }}
+            >
+              {t('home.title')}
+            </AppText>
             <LocationMenu
               pin
               locationLabel={locationLabel}
@@ -555,6 +563,7 @@ export default function HomeScreen() {
               }}
             />
           </View>
+          {/* </View> */}
           <CircleIconButton
             sf="bell"
             md="notifications-none"

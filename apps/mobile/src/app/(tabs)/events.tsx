@@ -23,6 +23,7 @@ import { useEventCount } from '@/lib/use-event-count';
 import {
   addDays,
   boundsIso,
+  calendarShowingKey,
   formatDayShort,
   formatRangeShort,
   formatSectionTitle,
@@ -54,6 +55,7 @@ import { radius, space } from '@/theme/tokens';
 type Range = { from: DayStamp; to: DayStamp };
 type Price = 'any' | 'free' | 'paid';
 type EventOccasion = {
+  id: string;
   startsAt: string;
   endsAt: string;
   venueName?: string | null;
@@ -163,27 +165,44 @@ export default function EventsScreen() {
     const now = new Date();
     const rangeStart = new Date(iso.from);
     const rangeEnd = new Date(iso.to);
+    type Showing = (typeof items)[number] & { rowKey: string };
     const groups = new Map<
       string,
-      { key: string; title: string; count: number; data: typeof items }
+      { key: string; title: string; count: number; data: Showing[] }
     >();
     for (const event of items) {
-      const showingRows =
-        ((event as { occasions?: EventOccasion[] }).occasions?.length ?? 0) > 0
-          ? ((event as { occasions?: EventOccasion[] }).occasions ?? [])
-              .filter((occasion: EventOccasion) => {
+      const occasions = (event as { occasions?: EventOccasion[] }).occasions ?? [];
+      const showingRows: Showing[] =
+        occasions.length > 0
+          ? occasions
+              .filter((occasion) => {
                 const start = new Date(occasion.startsAt);
                 const end = new Date(occasion.endsAt);
                 return end >= rangeStart && start <= rangeEnd;
               })
-              .map((occasion: EventOccasion) => ({
+              .map((occasion) => ({
                 ...event,
+                rowKey: calendarShowingKey({
+                  eventId: event.id,
+                  occasionId: occasion.id,
+                  startsAt: occasion.startsAt,
+                  endsAt: occasion.endsAt,
+                }),
                 startsAt: occasion.startsAt,
                 endsAt: occasion.endsAt,
                 venueName: occasion.venueName ?? event.venueName,
                 location: occasion.location ?? event.location,
               }))
-          : [event];
+          : [
+              {
+                ...event,
+                rowKey: calendarShowingKey({
+                  eventId: event.id,
+                  startsAt: event.startsAt,
+                  endsAt: event.endsAt,
+                }),
+              },
+            ];
       for (const showing of showingRows) {
         const when = shownWhen(showing, now);
         const stamp = partsInZone(new Date(when.startsAt), showing.timezone);
@@ -295,7 +314,7 @@ export default function EventsScreen() {
         style={{ width: '100%', maxWidth: MaxContentWidth }}
         contentInsetAdjustmentBehavior="automatic"
         sections={sections}
-        keyExtractor={(item) => `${item.id}:${item.startsAt}:${item.endsAt}`}
+        keyExtractor={(item) => item.rowKey}
         stickySectionHeadersEnabled={false}
         onEndReached={() => {
           if (events.hasNextPage && !events.isFetchingNextPage) void events.fetchNextPage();

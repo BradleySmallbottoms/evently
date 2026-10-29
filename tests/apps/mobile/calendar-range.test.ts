@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addDays,
   boundsIso,
+  calendarShowingKey,
   formatRangeShort,
   monthGrid,
   monthStamps,
@@ -42,6 +43,27 @@ describe('calendar range', () => {
     expect(cells[0]).toEqual({ y: 2026, m: 9, d: 28 });
     expect(cells[3]).toEqual({ y: 2026, m: 10, d: 1 });
     expect(monthStamps(2026, 10).to).toEqual({ y: 2026, m: 10, d: 31 });
+  });
+
+  it('keeps two showings that share a start and end apart', () => {
+    const startsAt = '2026-10-28T12:00:00.000Z';
+    const endsAt = '2026-10-28T15:00:00.000Z';
+    const first = calendarShowingKey({
+      eventId: 'event',
+      occasionId: 'showing-a',
+      startsAt,
+      endsAt,
+    });
+    const second = calendarShowingKey({
+      eventId: 'event',
+      occasionId: 'showing-b',
+      startsAt,
+      endsAt,
+    });
+    expect(first).not.toBe(second);
+    expect(calendarShowingKey({ eventId: 'event', startsAt, endsAt })).toBe(
+      `event:${startsAt}:${endsAt}`,
+    );
   });
 
   it('shortens a range inside one month', () => {
