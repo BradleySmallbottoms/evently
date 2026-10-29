@@ -1308,6 +1308,11 @@ describe('scanPendingEvents', () => {
     const saved = store.events.find((item) => item.id === eventId);
     expect(saved?.venueName).toBe('Söderhamn');
     expect(saved?.occasions[0]?.venueName).toBe('Söderhamn');
+    saved!.occasions.push({
+      startsAt: new Date('2027-06-08T18:00:00.000Z'),
+      endsAt: new Date('2027-06-08T21:00:00.000Z'),
+      venueName: 'Bygdegården',
+    });
 
     saved!.status = 'pending_scan';
     saved!.scanClaimedUntil = null;
@@ -1315,6 +1320,9 @@ describe('scanPendingEvents', () => {
     await scanPendingEvents(store, runner, undefined, { eventId });
 
     expect(saved?.venueName).toBe('Söderhamns Teater');
-    expect(saved?.occasions[0]?.venueName).toBe('Söderhamns Teater');
+    expect(saved?.occasions.map((occasion) => occasion.venueName)).toEqual([
+      'Söderhamns Teater',
+      'Bygdegården',
+    ]);
   });
 });

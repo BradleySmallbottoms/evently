@@ -462,7 +462,7 @@ export default function EventsScreen() {
             <AppText variant="caption" style={{ textAlign: 'center', padding: space.md }}>
               {t('events.loadingMore')}
             </AppText>
-          ) : null
+          ) : undefined
         }
         ListEmptyComponent={
           events.isPending ? (

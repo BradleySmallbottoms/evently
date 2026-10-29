@@ -1,9 +1,9 @@
 import { resolveTravelDistanceM } from '@local-events/domain';
 import { useQueryClient } from '@tanstack/react-query';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Image } from 'expo-image';
+import { Image, type ImageProps } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import {
   Dimensions,
   NativeScrollEvent,
@@ -12,7 +12,6 @@ import {
   ScrollView,
   StyleSheet,
   View,
-  type ImageSourcePropType,
   type StyleProp,
   type TextStyle,
 } from 'react-native';
@@ -89,7 +88,7 @@ const LEAVE_COPY: Record<CelebrateId, { title: string; message: string }> = {
   },
 };
 
-const STEPS: { id: StepId; image: ImageSourcePropType }[] = [
+const STEPS: { id: StepId; image: ImageProps['source'] }[] = [
   { id: 'welcome', image: require('@/assets/images/onboarding_1.png') },
   { id: 'notifications', image: require('@/assets/images/onboarding_2.png') },
   { id: 'location', image: require('@/assets/images/onboarding_3.png') },
@@ -106,7 +105,7 @@ export function OnboardingCarousel({ onFinished }: Props) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
   const insets = useSafeAreaInsets();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const indexRef = useRef(0);
   const reachedRef = useRef(0);
   const pendingScroll = useRef<number | null>(null);
@@ -598,7 +597,7 @@ function StepFrame({
   liftForKeyboard,
   children,
 }: {
-  image: ImageSourcePropType;
+  image: ImageProps['source'];
   hero?: ButtonIcon;
   title: string;
   body: string;

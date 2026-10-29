@@ -5,7 +5,7 @@ import { Host, Slider } from '@expo/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -202,7 +202,7 @@ function AreaEditor({
   const { t } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const nameRef = useRef<TextInput>(null);
+  const nameRef = useRef<ComponentRef<typeof TextInput>>(null);
   const nameBeforeEdit = useRef(area.name);
   const nameAction = useRef<'commit' | 'cancel' | null>(null);
   const [name, setName] = useState(area.name);

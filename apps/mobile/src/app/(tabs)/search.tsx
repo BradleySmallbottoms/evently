@@ -1,7 +1,7 @@
 import { canAddSavedArea } from '@local-events/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -86,7 +86,7 @@ export default function SearchScreen() {
     tagId?: string;
     tagAt?: string;
   }>();
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<ComponentRef<typeof TextInput>>(null);
   const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
@@ -324,7 +324,7 @@ export default function SearchScreen() {
             <AppText variant="caption" style={{ textAlign: 'center' }}>
               {t('events.loadingMore')}
             </AppText>
-          ) : null
+          ) : undefined
         }
         ListEmptyComponent={
           events.isSuccess ? (
@@ -334,7 +334,7 @@ export default function SearchScreen() {
               actionLabel={t('events.resetFilters')}
               onAction={resetFilters}
             />
-          ) : null
+          ) : undefined
         }
         renderItem={({ item }) => (
           <View style={{ paddingHorizontal: space.xl }}>

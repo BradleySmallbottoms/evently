@@ -4,7 +4,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type ComponentRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -172,7 +172,7 @@ export default function EventDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [occasionOpenToken, setOccasionOpenToken] = useState(0);
   const [occasionSectionY, setOccasionSectionY] = useState<number | null>(null);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   /** Local on/off until the saved and coming lists catch up. */
   const [savedOverride, setSavedOverride] = useState<boolean | null>(null);
   const [comingOverride, setComingOverride] = useState<boolean | null>(null);

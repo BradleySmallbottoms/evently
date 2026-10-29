@@ -6,7 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AppState, Platform, type AppStateStatus } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { InboxPushSync } from '@/components/inbox-push-sync';
@@ -50,7 +50,7 @@ export default function RootLayout() {
   const [splashSeen, setSplashSeen] = useState(false);
   const [reminder, setReminder] = useState<PermissionKind | null>(null);
   const [identityLost, setIdentityLost] = useState(false);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const appStateRef = useRef(AppState.currentState);
   const onboardingRef = useRef<OnboardingState | null>(null);
   const identityLostRef = useRef(false);
   /** True after the app has been in the background, until the next active verify. */

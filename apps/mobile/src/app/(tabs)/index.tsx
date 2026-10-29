@@ -804,7 +804,7 @@ export default function HomeScreen() {
                 </Pressable>
               )}
             </View>
-          ) : null
+          ) : undefined
         }
         renderItem={({ item }) => {
           const when = shownWhen(item, new Date());

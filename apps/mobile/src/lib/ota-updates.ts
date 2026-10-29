@@ -23,7 +23,7 @@ export type OtaUpdatesPort = {
 export type OtaCheckOutcome = 'skipped' | 'current' | 'ready' | 'failed';
 
 export type OtaAppState = {
-  currentState: AppStateStatus;
+  currentState: string | null | undefined;
   addEventListener: (
     type: 'change',
     listener: (status: AppStateStatus) => void,

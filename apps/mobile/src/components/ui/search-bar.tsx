@@ -1,4 +1,4 @@
-import type { Ref } from 'react';
+import type { ComponentRef, Ref } from 'react';
 import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 import { Pressable, TextInput, View } from 'react-native';
@@ -12,7 +12,7 @@ type Props = {
   onChangeText: (value: string) => void;
   placeholder: string;
   autoFocus?: boolean;
-  inputRef?: Ref<TextInput>;
+  inputRef?: Ref<ComponentRef<typeof TextInput>>;
   /** When set, the field is a button and does not take keyboard focus itself. */
   onPress?: () => void;
 };

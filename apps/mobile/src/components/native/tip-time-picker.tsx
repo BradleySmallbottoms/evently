@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -24,7 +24,7 @@ function Wheel({
   label: string;
   onSelect: (value: string) => void;
 }) {
-  const ref = useRef<ScrollView>(null);
+  const ref = useRef<ComponentRef<typeof ScrollView>>(null);
   const index = Math.max(0, values.indexOf(selected));
   const [offset, setOffset] = useState(index * ITEM);
 

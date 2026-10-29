@@ -14,7 +14,7 @@ slug when you need a fetch: `pnpm --filter @local-events/data-workers dev -- --s
 | `admin/` | Scaffolded (Next.js) | 13200 | admin API only |
 
 The three frontends are created with their official scaffolders so they start on current
-framework defaults. The steps below were tested inside this monorepo (Expo SDK 57, Next.js 16.4,
+framework defaults. The steps below were tested inside this monorepo (Expo SDK 58, Next.js 16.4,
 pnpm 12). Run every command from the **repo root** unless a step says otherwise.
 
 Rules that apply to all three:
