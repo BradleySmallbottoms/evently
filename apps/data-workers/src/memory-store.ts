@@ -14,6 +14,7 @@ import {
   sharedOrganizerKeyKind,
   slugifyPublisherName,
   tagSlug,
+  venueNamesMatch,
   withinDuplicateWindow,
   type MarketingPushPlanId,
 } from '@local-events/domain';
@@ -171,6 +172,7 @@ function applyScanOccasions(
   event: StoredEvent,
   incoming: ImportedScanWrite['occasions'],
   venueName: string | undefined,
+  city: string | undefined,
 ) {
   const existing = event.occasions ?? [];
   const missing = occasionsToAdd(existing, incoming ?? []);
@@ -183,7 +185,9 @@ function applyScanOccasions(
   if (!venueName) return;
   event.venueName = venueName;
   for (const occasion of event.occasions) {
-    if (!occasion.venueName) occasion.venueName = venueName;
+    if (!occasion.venueName || venueNamesMatch(occasion.venueName, city)) {
+      occasion.venueName = venueName;
+    }
   }
 }
 
@@ -900,7 +904,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       event.llmOutput = input.llmOutput;
       event.summary = input.summary;
       event.language = input.language;
-      applyScanOccasions(event, input.occasions, input.venueName);
+      applyScanOccasions(event, input.occasions, input.venueName, input.venueCity);
       if (input.location) event.location = input.location;
       event.scanClaimedUntil = null;
       return true;
@@ -920,7 +924,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       event.llmOutput = input.llmOutput;
       event.summary = input.summary;
       event.language = input.language;
-      applyScanOccasions(event, input.occasions, input.venueName);
+      applyScanOccasions(event, input.occasions, input.venueName, input.venueCity);
       if (input.location) event.location = input.location;
       event.scanClaimedUntil = null;
       return true;

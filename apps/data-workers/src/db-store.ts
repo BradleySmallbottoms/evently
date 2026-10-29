@@ -177,17 +177,32 @@ export function createDbIngestStore(db: Db): IngestStore {
       .where(and(eq(eventOccasions.eventId, eventId), isNull(eventOccasions.location)));
   }
 
-  /** The venue the scan chose, on showings that still have none. `events` has no venue column. */
+  /**
+   * The venue the scan chose, on showings that still have none and on a showing
+   * whose name is only the address city. `events` has no venue column.
+   */
   async function writeScanVenue(
     tx: Pick<Db, 'update'>,
     eventId: string,
     venueName: string | undefined,
+    city: string | undefined,
   ) {
     if (!venueName) return;
+    const cityName = city?.replace(/\s+/g, ' ').trim();
     await tx
       .update(eventOccasions)
       .set({ venueName, updatedAt: new Date() })
-      .where(and(eq(eventOccasions.eventId, eventId), isNull(eventOccasions.venueName)));
+      .where(
+        and(
+          eq(eventOccasions.eventId, eventId),
+          cityName
+            ? or(
+                isNull(eventOccasions.venueName),
+                sql`lower(btrim(${eventOccasions.venueName})) = lower(${cityName})`,
+              )
+            : isNull(eventOccasions.venueName),
+        ),
+      );
   }
 
   /** Inserts scan showings whose start and end are not already stored. */
@@ -1361,7 +1376,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         await addScanOccasions(tx, input.eventId, input.occasions, input.location);
         await writeTags(tx, input.eventId, input.tagIds);
         await fillOccasionPoints(tx, input.eventId, input.location);
-        await writeScanVenue(tx, input.eventId, input.venueName);
+        await writeScanVenue(tx, input.eventId, input.venueName, input.venueCity);
         return true;
       });
     },
@@ -1395,7 +1410,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         await addScanOccasions(tx, input.eventId, input.occasions, input.location);
         await writeTags(tx, input.eventId, input.tagIds);
         await fillOccasionPoints(tx, input.eventId, input.location);
-        await writeScanVenue(tx, input.eventId, input.venueName);
+        await writeScanVenue(tx, input.eventId, input.venueName, input.venueCity);
         return true;
       });
     },

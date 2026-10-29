@@ -186,7 +186,7 @@ export type LLMScanResult = {
    * A stored payload with no array falls back to one showing from `startsAt` and `endsAt`.
    */
   possibleOccasions: ScanOccasion[];
-  /** Venue guesses. The scan writes the highest rank above 80 on every occasion. */
+  /** Venue guesses. The scan writes the highest rank above 80, or above 50 when the only other name is the city or none is set. */
   possibleVenueNames: { name: string; rank: number }[];
   /** Street, postcode, and city from the description or the event page. Absent when the model found none. */
   address?: {

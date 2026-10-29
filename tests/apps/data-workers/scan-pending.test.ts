@@ -1265,6 +1265,56 @@ describe('scanPendingEvents', () => {
     expect(venueOf('cbis:1')).toBe('Svea Bio');
     expect(venueOf('cbis:arena')).toBe('Café Carlsson');
     expect(venueOf('cbis:city')).toBe('Hudiksvall');
-    expect(venueOf('cbis:none')).toBeNull();
+    expect(venueOf('cbis:none')).toBe('Torget');
+  });
+
+  it('writes a rank above 50 when the imported venue is only the city', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [
+      {
+        ...event,
+        externalId: 'cbis:city-only',
+        title: 'Requiem',
+        venueName: 'Söderhamn',
+        meta: { address: { city: 'Söderhamn' } },
+      },
+    ]);
+    let rank = 40;
+    const runner: PromptRunner = {
+      id: 'city-venue',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          possibleVenueNames: [{ name: 'Söderhamns Teater', rank }],
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner);
+
+    const eventId = store.refs.find((item) => item.externalId === 'cbis:city-only')?.eventId;
+    const saved = store.events.find((item) => item.id === eventId);
+    expect(saved?.venueName).toBe('Söderhamn');
+    expect(saved?.occasions[0]?.venueName).toBe('Söderhamn');
+
+    saved!.status = 'pending_scan';
+    saved!.scanClaimedUntil = null;
+    rank = 55;
+    await scanPendingEvents(store, runner, undefined, { eventId });
+
+    expect(saved?.venueName).toBe('Söderhamns Teater');
+    expect(saved?.occasions[0]?.venueName).toBe('Söderhamns Teater');
   });
 });

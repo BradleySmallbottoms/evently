@@ -411,8 +411,10 @@ export interface ImportedScanWrite {
   language: 'sv' | 'en';
   /** The point nearby tools used. Written onto occasions that still have none. */
   location?: { lat: number; lng: number };
-  /** Chosen venue. Written on showings that still have no venue. */
+  /** Chosen venue. Written on showings that still have no venue, and on a city name already written. */
   venueName?: string;
+  /** Address city. A showing whose venue is only this city can take {@link venueName}. */
+  venueCity?: string;
   /**
    * Showings the model read. Ones that match a stored start and end are left out.
    * A new showing keeps its own venue name.

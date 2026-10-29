@@ -56,7 +56,7 @@ For each event the Ollama runner:
    `event_occasions.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn
    also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena
    name, then that venue name, as the location. The highest rank above 80 is written on showings that still have no venue. A showing from `possibleOccasions` keeps its own venue name. When
-   the model returns none, the arena name is written, then the imported venue name. A later
+   no rank is above 80, the arena name is written, then an imported venue name that is not only the city. When neither of those is set, the highest rank above 50 is written. The city is used when the model returns none. A later scan replaces a city name already written. A later
    import does not clear a venue the scan already wrote. A later import keeps that address,
    and keeps its point when the new address has none.
 

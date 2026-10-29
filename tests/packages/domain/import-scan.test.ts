@@ -123,6 +123,56 @@ describe('venueNameFromScan', () => {
     expect(venueNameFromScan(undefined, { venueName: 'Hudiksvall' })).toBe('Hudiksvall');
     expect(venueNameFromScan([], { arenaName: '  ', venueName: '   ' })).toBeUndefined();
   });
+
+  it('uses the highest rank above 50 when no other venue name is set', () => {
+    expect(
+      venueNameFromScan(
+        [
+          { name: 'Torget', rank: 51 },
+          { name: 'Folkets hus', rank: 70 },
+          { name: 'Staden', rank: 50 },
+        ],
+        { arenaName: '  ', venueName: null },
+      ),
+    ).toBe('Folkets hus');
+  });
+
+  it('keeps an imported name ahead of a rank that is only above 50', () => {
+    expect(
+      venueNameFromScan([{ name: 'Torget', rank: 70 }], {
+        arenaName: 'Helsingehus',
+        venueName: 'Hudiksvall',
+      }),
+    ).toBe('Helsingehus');
+    expect(venueNameFromScan([{ name: 'Torget', rank: 50 }])).toBeUndefined();
+  });
+
+  it('uses a rank above 50 when the imported name is only the city', () => {
+    expect(
+      venueNameFromScan(
+        [{ name: 'Söderhamns Teater', rank: 55 }],
+        { venueName: 'Söderhamn' },
+        'Söderhamn',
+      ),
+    ).toBe('Söderhamns Teater');
+    expect(
+      venueNameFromScan(
+        [{ name: 'Söderhamns Teater', rank: 55 }],
+        { venueName: 'söderhamn' },
+        'Söderhamn',
+      ),
+    ).toBe('Söderhamns Teater');
+  });
+
+  it('keeps the city when no rank is above 50', () => {
+    expect(
+      venueNameFromScan(
+        [{ name: 'Söderhamns Teater', rank: 50 }],
+        { venueName: 'Söderhamn' },
+        'Söderhamn',
+      ),
+    ).toBe('Söderhamn');
+  });
 });
 
 describe('occasionsToAdd', () => {

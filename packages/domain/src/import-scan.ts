@@ -54,8 +54,11 @@ export function choosePossibleOccasionGroupId(input: {
   return firstGroupId(members, 'possibleOccasionGroupId') ?? input.newId;
 }
 
-/** A venue guess counts only when its rank is over this. Same cutoff as a publisher match. */
+/** A venue guess beats an imported name only when its rank is over this. */
 export const VENUE_NAME_MIN_RANK = 80;
+
+/** When no imported name exists, a guess over this rank is still written. */
+export const VENUE_NAME_FALLBACK_MIN_RANK = 50;
 const VENUE_NAME_LIMIT = 200;
 
 export interface PossibleVenueName {
@@ -116,21 +119,49 @@ function occasionKey(occasion: DatedOccasion): string | null {
   return `${start}:${end}`;
 }
 
-/**
- * Venue to write after a scan. The highest rank over {@link VENUE_NAME_MIN_RANK}
- * wins. Otherwise {@link importedVenueName}.
- */
-export function venueNameFromScan(
+function bestVenueName(
   possible: PossibleVenueName[] | undefined,
-  imported?: { arenaName?: string | null; venueName?: string | null } | null,
+  minRank: number,
 ): string | undefined {
   let best: { name: string; rank: number } | undefined;
   for (const item of possible ?? []) {
     const name = cleanVenueName(item.name);
-    if (!name || !Number.isFinite(item.rank) || item.rank <= VENUE_NAME_MIN_RANK) continue;
+    if (!name || !Number.isFinite(item.rank) || item.rank <= minRank) continue;
     if (!best || item.rank > best.rank) best = { name, rank: item.rank };
   }
-  return best?.name ?? importedVenueName(imported);
+  return best?.name;
+}
+
+/** Same place after trimming. Case differs; accents do not. */
+export function venueNamesMatch(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): boolean {
+  const a = cleanVenueName(left);
+  const b = cleanVenueName(right);
+  if (!a || !b) return false;
+  return a.localeCompare(b, 'sv', { sensitivity: 'accent' }) === 0;
+}
+
+/**
+ * Venue to write after a scan. The highest rank over {@link VENUE_NAME_MIN_RANK}
+ * wins, then an arena name, then an imported venue that is not only `city`.
+ * The highest rank over {@link VENUE_NAME_FALLBACK_MIN_RANK} wins over that
+ * city. The city is used when the model returns none.
+ */
+export function venueNameFromScan(
+  possible: PossibleVenueName[] | undefined,
+  imported?: { arenaName?: string | null; venueName?: string | null } | null,
+  city?: string | null,
+): string | undefined {
+  const strong = bestVenueName(possible, VENUE_NAME_MIN_RANK);
+  if (strong) return strong;
+  const arena = cleanVenueName(imported?.arenaName);
+  if (arena) return arena;
+  const importedName = cleanVenueName(imported?.venueName);
+  const fallback = bestVenueName(possible, VENUE_NAME_FALLBACK_MIN_RANK);
+  if (importedName && !venueNamesMatch(importedName, city)) return importedName;
+  return fallback ?? importedName;
 }
 
 /**

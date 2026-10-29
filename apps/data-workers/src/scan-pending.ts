@@ -253,7 +253,8 @@ export async function applyOutcome(
   const occasions = occasionsFromScan(outcome);
   const place = await placeFromScan(row, outcome, fetchImpl);
   const location = place.location ?? row.location ?? undefined;
-  const venueName = venueNameFromScan(outcome.possibleVenueNames, row.meta.import);
+  const venueCity = row.meta.address?.city;
+  const venueName = venueNameFromScan(outcome.possibleVenueNames, row.meta.import, venueCity);
   if (place.address) meta.address = place.address;
   const saved = await persist({
     eventId: row.eventId,
@@ -269,6 +270,7 @@ export async function applyOutcome(
     ...(occasions.length > 0 ? { occasions } : {}),
     ...(location ? { location } : {}),
     ...(venueName ? { venueName } : {}),
+    ...(venueCity ? { venueCity } : {}),
   });
   if (!saved) return 'skipped';
   const startsAt = row.startsAt ?? occasions[0]?.startsAt;

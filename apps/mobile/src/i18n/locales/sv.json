@@ -158,6 +158,8 @@
     },
     "mapTitle": "Utforska kartan",
     "mapSubtitle": "Tryck på en markör för detaljer.",
+    "mapGroup_one": "{{count}} evenemang",
+    "mapGroup_other": "{{count}} evenemang",
     "mapWebFallback": "Kartmarkörer är inte tillgängliga på webben i denna build.",
     "locationLoading": "Hämtar din position…",
     "loading": "Laddar evenemang…",

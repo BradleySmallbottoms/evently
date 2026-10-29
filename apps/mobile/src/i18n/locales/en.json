@@ -158,6 +158,8 @@
     },
     "mapTitle": "Explore map",
     "mapSubtitle": "Tap a pin for details.",
+    "mapGroup_one": "{{count}} event",
+    "mapGroup_other": "{{count}} events",
     "mapWebFallback": "Map markers are not available on web in this build.",
     "locationLoading": "Getting your location…",
     "loading": "Loading events…",
