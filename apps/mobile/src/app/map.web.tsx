@@ -90,7 +90,9 @@ export default function MapWebScreen() {
         style={{
           position: 'absolute',
           top: insets.top + space.sm,
-          left: space.lg,
+          left: 0,
+          width: '100%',
+          paddingHorizontal: space.xl,
         }}
       >
         <BackPill />

@@ -9,12 +9,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapEventSheet, type MapEventSelection } from '@/components/native/map-event-sheet';
 import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
-import { listPublicEvents } from '@/lib/events';
+import { FALLBACK_CENTER, listPublicEvents } from '@/lib/events';
 import { isWholeDay, shownWhen } from '@/lib/span-occasions';
 import { eventListFreshness } from '@/lib/query-client';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
 import { colors } from '@/theme/colors';
-import { space } from '@/theme/tokens';
+import { radius, space } from '@/theme/tokens';
 
 export default function MapScreen() {
   const { t, i18n } = useTranslation();
@@ -31,14 +31,14 @@ export default function MapScreen() {
     enabled: point.isSuccess,
   });
 
-  const center = point.data ?? { lat: 61.3037, lng: 17.0592, radiusM: 50_000 };
+  const center = point.data ?? FALLBACK_CENTER;
   const failed = point.isError || events.isError;
   const loading = !failed && (point.isLoading || events.isLoading);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+    <View collapsable={false} style={{ flex: 1, backgroundColor: colors.canvas }}>
       <MapView
-        style={{ flex: 1 }}
+        style={StyleSheet.absoluteFill}
         initialRegion={{
           latitude: center.lat,
           longitude: center.lng,
@@ -74,12 +74,32 @@ export default function MapScreen() {
       </MapView>
 
       {loading ? (
-        <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: insets.top + space.sm,
+            right: space.xl,
+            height: 44,
+            justifyContent: 'center',
+          }}
+        >
           <ActivityIndicator accessibilityLabel={t('events.loading')} color={colors.ink} />
         </View>
       ) : null}
       {failed ? (
-        <View style={[StyleSheet.absoluteFill, styles.overlay, { padding: space.xl }]}>
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: insets.top + space.sm + 44 + space.md,
+            left: space.xl,
+            right: space.xl,
+            backgroundColor: colors.card,
+            borderRadius: radius.lg,
+            padding: space.md,
+          }}
+        >
           <AppText variant="body" style={{ color: colors.danger, textAlign: 'center' }}>
             {t('events.loadError')}
           </AppText>
@@ -91,7 +111,9 @@ export default function MapScreen() {
         style={{
           position: 'absolute',
           top: insets.top + space.sm,
-          left: space.lg,
+          left: 0,
+          width: '100%',
+          paddingHorizontal: space.xl,
         }}
       >
         <BackPill />
@@ -106,11 +128,3 @@ export default function MapScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.canvas,
-  },
-});
