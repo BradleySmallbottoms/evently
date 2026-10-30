@@ -1319,6 +1319,64 @@ export function createDbIngestStore(db: Db): IngestStore {
         .sort((a, b) => a.distanceM - b.distanceM)
         .slice(0, NEARBY_RESULT_LIMIT);
     },
+    /**
+     * Events whose title matches a wildcard and that have a showing starting in
+     * the window, within 50 km. One row per event, from its earliest showing.
+     */
+    async eventsByName(point, names, window, excludeEventId) {
+      const likes = names.flatMap((name) => {
+        const matcher = publisherNameMatcher(name);
+        return 'error' in matcher ? [] : [matcher.like];
+      });
+      if (likes.length !== names.length || likes.length === 0) return [];
+      const { events, eventOccasions, publishers } = schema;
+      const titleMatch = or(...likes.map((like) => sql`${events.title} ILIKE ${like} ESCAPE '!'`));
+      if (!titleMatch) return [];
+      const ewkt = pointEwkt(point);
+      const distance = sql<number>`ST_Distance(${eventOccasions.location}, ST_GeogFromText(${ewkt}))`;
+      const rows = await db
+        .selectDistinctOn([events.id], {
+          id: events.id,
+          title: events.title,
+          startsAt: eventOccasions.startsAt,
+          endsAt: eventOccasions.endsAt,
+          venue: eventOccasions.venueName,
+          publisherName: publishers.name,
+          distanceM: distance,
+        })
+        .from(events)
+        .innerJoin(eventOccasions, eq(eventOccasions.eventId, events.id))
+        .leftJoin(publishers, eq(publishers.id, events.publisherId))
+        .where(
+          and(
+            isNotNull(eventOccasions.location),
+            sql`ST_DWithin(${eventOccasions.location}, ST_GeogFromText(${ewkt}), ${PUBLISHER_NAME_SEARCH_RADIUS_M})`,
+            gte(eventOccasions.startsAt, window.from),
+            lte(eventOccasions.startsAt, window.to),
+            titleMatch,
+            notInArray(events.status, ['cancelled', 'ended', 'deleted']),
+            ne(events.id, excludeEventId),
+          ),
+        )
+        .orderBy(events.id, asc(eventOccasions.startsAt));
+      return rows
+        .flatMap((row) => {
+          if (!row.startsAt) return [];
+          return [
+            {
+              id: row.id,
+              title: row.title,
+              startsAt: row.startsAt.toISOString(),
+              endsAt: row.endsAt ? row.endsAt.toISOString() : null,
+              venue: row.venue,
+              publisherName: row.publisherName,
+              distanceM: Math.round(Number(row.distanceM)),
+            },
+          ];
+        })
+        .sort((a, b) => a.distanceM - b.distanceM)
+        .slice(0, NEARBY_RESULT_LIMIT);
+    },
     async markTipScanned(input) {
       const [tip] = await db
         .select({ id: schema.eventTips.id })

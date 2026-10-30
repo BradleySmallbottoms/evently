@@ -34,7 +34,11 @@ For each event the Ollama runner:
    asks the worker to create a temporary publisher. A new temporary publisher is `pending_scan`.
    The event scan does not look it up. The publisher scan does that later.
 2. Loads nearby events and looks for a duplicate (distance, 30 minutes, then id, event link, any
-   link, or title).
+   link, or title). When that list has no duplicate the model would rank over 90, and the
+   publisher and showings are already decided, the model may call `getEventsByName`. It chooses
+   wildcard title patterns from the event name (`*` any text, `?` one character) and a date range
+   that covers the showings. The lookup returns events within 50 km that have a showing starting
+   in that range.
 3. Approves the content. This step always approves until a later prompt can reject harmful, spam,
    or adult content.
 4. Asks the configured chat model for up to five catalog tags.

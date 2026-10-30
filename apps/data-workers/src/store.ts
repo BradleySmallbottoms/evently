@@ -66,6 +66,10 @@ export interface NearbyEventHit {
   startsAt: string;
   venue: string | null;
   distanceM: number;
+  /** Set by the title search. Nearby results leave it out. */
+  endsAt?: string | null;
+  /** Set by the title search. Nearby results leave it out. */
+  publisherName?: string | null;
 }
 
 export interface NearbyPublisherHit {
@@ -207,6 +211,17 @@ export interface IngestStore {
     name: string,
     excludeEventId: string,
   ): Promise<NearbyPublisherHit[]>;
+  /**
+   * Events whose title matches one of `names` (`*` any text, `?` one character)
+   * and that have a showing starting inside `window`, within
+   * {@link PUBLISHER_NAME_SEARCH_RADIUS_M} of `point`. The scanned event is left out.
+   */
+  eventsByName(
+    point: GeoPoint,
+    names: string[],
+    window: NearbyWindow,
+    excludeEventId: string,
+  ): Promise<NearbyEventHit[]>;
   /**
    * This source's alias wins. Otherwise an email or website from any source.
    * A name or slug matches only when that publisher has an event near `location`.

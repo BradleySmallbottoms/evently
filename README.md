@@ -208,7 +208,9 @@ calls) in the same change as every new major feature.**
 - A scheduled data-worker job claims `pending_scan` events in a batch and hands the event text
   and organizer keys to the prompt runner. The runner loads publisher and duplicate candidates,
   picks the publisher, looks for a duplicate, and asks the configured chat model for up to five
-  existing tags. With no `CHAT_PROVIDER`, that is a local
+  existing tags. When nearby events show no duplicate, the model may call `getEventsByName`
+  with title wildcards it chooses and a date range covering the showings. That lookup returns
+  events within 50 km that have a showing starting in the range. With no `CHAT_PROVIDER`, that is a local
   [Ollama](https://ollama.com) model (`ollama serve`, default `qwen3:8b`). `CHAT_PROVIDER=chatgpt`
   uses `OPENAI_API_KEY` (default `gpt-4.1-mini`). `CHAT_PROVIDER=claude` uses `ANTHROPIC_API_KEY`
   (default `claude-sonnet-5-5`). `CHAT_PROVIDER=runpod` starts a GPU pod

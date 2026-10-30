@@ -835,6 +835,41 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         .sort((a, b) => a.distanceM - b.distanceM)
         .slice(0, NEARBY_RESULT_LIMIT);
     },
+    /**
+     * Events whose title matches a wildcard and that start inside the window,
+     * within 50 km. The event being scanned is left out.
+     */
+    async eventsByName(point, names, window, excludeEventId) {
+      const matchers = names.flatMap((name) => {
+        const matcher = publisherNameMatcher(name);
+        return 'error' in matcher ? [] : [matcher];
+      });
+      if (matchers.length !== names.length || matchers.length === 0) return [];
+      const hits: NearbyEventHit[] = [];
+      for (const event of events) {
+        if (event.id === excludeEventId || !event.location || !event.startsAt) continue;
+        if (event.status === 'cancelled' || event.status === 'ended' || event.status === 'deleted')
+          continue;
+        const starts = event.startsAt.getTime();
+        if (starts < window.from.getTime() || starts > window.to.getTime()) continue;
+        if (!matchers.some((matcher) => matcher.matches(event.title))) continue;
+        const distanceM = Math.round(distanceMeters(point, event.location));
+        if (distanceM > PUBLISHER_NAME_SEARCH_RADIUS_M) continue;
+        const publisher = event.publisherId
+          ? publishers.find((item) => item.id === event.publisherId)
+          : undefined;
+        hits.push({
+          id: event.id,
+          title: event.title,
+          startsAt: event.startsAt.toISOString(),
+          endsAt: event.endsAt ? event.endsAt.toISOString() : null,
+          venue: event.venueName,
+          publisherName: publisher?.name ?? null,
+          distanceM,
+        });
+      }
+      return hits.sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
+    },
     /** Publisher row plus the organizer keys stored as aliases. */
     async getPublisher(publisherId): Promise<PublisherRecord | null> {
       const publisher = publishers.find((item) => item.id === publisherId);

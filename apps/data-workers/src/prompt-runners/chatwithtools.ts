@@ -50,15 +50,19 @@ import type {
 
 /** How long one chat request may run before the scan gives up on it. */
 const CHAT_TIMEOUT_MS = 3 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 /** Tool rounds for one event. The last round still has to be a text answer, or the scan is unavailable. */
-const MAX_TOOL_ROUNDS = 8;
+const MAX_TOOL_ROUNDS = 10;
+/** Title patterns one getEventsByName call may send. */
+const EVENT_NAME_PATTERN_LIMIT = 5;
+/** Longest date range getEventsByName accepts. */
+const EVENT_NAME_RANGE_MS = 366 * DAY_MS;
 /**
  * How many tool calls from one model reply are run. The scan prompt asks for all
- * five tools in one turn. Claude rejects the next request when a `tool_use` has
+ * tools one at a time. Claude rejects the next request when a `tool_use` has
  * no `tool_result`, so a call past this cap still gets an error result.
  */
 const MAX_TOOL_CALLS_PER_ROUND = 8;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface OllamaWithToolsRunnerOptions {
   /**
@@ -143,6 +147,36 @@ function chatToolDefinitions(event: ScanInput): object[] {
         description:
           'Events within 500 m of the event being scanned. Their start is from 1 day before that event through 1 day after. Cancelled and ended events are left out. Takes no arguments; the event point is used.',
         parameters: noArguments,
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'getEventsByName',
+        description:
+          'Events whose title matches a wildcard and that have a showing starting between from and to, within 50 km of the event being scanned. * matches any text and ? matches one character. Cancelled, ended, and deleted events are left out. Call this only after the publisher and the showings are decided, and only when getNearbyEvents found no duplicate.',
+        parameters: {
+          type: 'object',
+          properties: {
+            names: {
+              type: 'array',
+              items: { type: 'string' },
+              description:
+                'Title patterns taken from the event name. Use * for any text and ? for one character, for example Julmarknad* or Konsert i *.',
+            },
+            from: {
+              type: 'string',
+              description:
+                'Start of the date range, ISO-8601. A showing must start at or after this instant.',
+            },
+            to: {
+              type: 'string',
+              description:
+                'End of the date range, ISO-8601. A showing must start at or before this instant.',
+            },
+          },
+          required: ['names', 'from', 'to'],
+        },
       },
     },
     {
@@ -450,9 +484,6 @@ function buildScanPrompt(event: ScanInput): string {
     '4. If the name list also has no reasonable match, call getNearbyPublishers().',
     '5. If the nearby list also has no reasonable match, possiblePublishers is []. That is allowed. A made-up publisher is not.',
     'Stop the publisher search at the first list that has a reasonable match. Include a publisher only when its rank is over 90. A empty list is allowed.',
-    '6. Call getNearbyEvents() before you decide a duplicate. This call is required. Compare the scanned event with each event in the result.',
-    'Rank the match from 0 to 100 and return only a duplicate if the rank is over 90.',
-    'For every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.',
     'Use the title, location, and description for the content verdict: "spam", "harmful", or "safe". When the event has a Tip chat section, use those chat lines as well.',
     'Write a short and brief summary in the language of the event. Do not include the city name. A venue is fine when it matters.',
     'instructions are steps a visitor follows, taken only from the description or the event page, such as what to bring or how to sign up. Use an empty list when the text has no such steps.',
@@ -474,6 +505,13 @@ function buildScanPrompt(event: ScanInput): string {
     'Return both times as ISO-8601 datetimes with a numeric offset. When the text names no time zone, use Europe/Stockholm.',
     'A date with no clock is that whole day: start at 00:00:00 and end at 23:59:59.',
     'Use an empty possibleOccasions list when you cannot find both a start and an end for any showing. When Starts and Ends are already set, include that showing too when the text confirms it.',
+    'After the publisher and the showings are decided, call getNearbyEvents(). This call is required. Compare the scanned event with each event in the result.',
+    'Rank the match from 0 to 100 and return only a duplicate if the rank is over 90.',
+    'For every possible duplicate, rank how likely it is another occasion of the same event from 0 to 100. Another occasion is when the title, location, and description are similar but dates are different.',
+    'If getNearbyEvents has no duplicate you would rank over 90, call getEventsByName. Do not call it when a duplicate was already found.',
+    'Choose the names yourself from this event title. * matches any text and ? matches one character. Each pattern needs a letter or number. Pass at most 5 patterns.',
+    'Pass from and to as ISO-8601 datetimes that cover the showings you found. When you found no showing, cover this event start and end. The range may not be longer than one year.',
+    'Use those events the same way. Add one to possibleDuplicates only when its rank is over 90.',
     'contentVerdict is "spam", "harmful", or "safe". language is the event language, such as "sv" or "en". rank and score are numbers from 0 to 100.',
     'Include a explanation of why tags where chosed and why the publisher and duplicate were chosen etc. in the JSON object.',
     'When you are finished, return only the JSON object. Do not explain it and do not wrap it in markdown:',
@@ -972,6 +1010,7 @@ async function executeToolCall(call: ParsedToolCall, context: LookupContext): Pr
     if (call.name === 'getNearbyEvents') return lookupNearbyEvents(context);
     if (call.name === 'getNearbyPublishers') return lookupNearbyPublishers(context);
     if (call.name === 'getPublishersByName') return lookupPublishersByName(call.arguments, context);
+    if (call.name === 'getEventsByName') return lookupEventsByName(call.arguments, context);
     if (call.name === 'getPossiblePublishers') return lookupPossiblePublishers(context);
     if (call.name === 'fetchEventPage') return fetchEventPage(context);
     return { error: `Unknown tool ${call.name}.` };
@@ -1073,6 +1112,61 @@ async function lookupPublishersByName(
   if ('error' in matcher) return matcher;
   const publishers = await context.store.publishersByName(point, name, context.event.eventId);
   return { publishers };
+}
+
+/**
+ * Events whose title matches the model's wildcards and whose showing starts in
+ * the model's date range, within 50 km. A pattern with no letter or number,
+ * or a range longer than a year, is an error.
+ */
+async function lookupEventsByName(
+  args: Record<string, unknown>,
+  context: LookupContext,
+): Promise<ToolResult> {
+  console.log('lookupEventsByName', args);
+  const point = eventPoint(context);
+  if ('error' in point) return point;
+  const names = readEventNamePatterns(args.names);
+  if ('error' in names) return names;
+  const window = readEventNameRange(args.from, args.to);
+  if ('error' in window) return window;
+  const events = await context.store.eventsByName(point, names, window, context.event.eventId);
+  console.log('events', events);
+  return { events };
+}
+
+/** Wildcard title patterns. A string is accepted as one pattern. */
+function readEventNamePatterns(raw: unknown): string[] | { error: string } {
+  const values = Array.isArray(raw) ? raw : typeof raw === 'string' ? [raw] : [];
+  const names = values.flatMap((item) =>
+    typeof item === 'string' && item.trim() ? [item.trim()] : [],
+  );
+  if (names.length === 0) return { error: 'names is required.' };
+  if (names.length > EVENT_NAME_PATTERN_LIMIT) {
+    return { error: `names accepts at most ${EVENT_NAME_PATTERN_LIMIT} patterns.` };
+  }
+  for (const name of names) {
+    const matcher = publisherNameMatcher(name);
+    if ('error' in matcher) return matcher;
+  }
+  return names;
+}
+
+/** Inclusive start window. `from` must be before `to`, and the span at most a year. */
+function readEventNameRange(
+  fromRaw: unknown,
+  toRaw: unknown,
+): { from: Date; to: Date } | { error: string } {
+  const from = typeof fromRaw === 'string' ? new Date(fromRaw) : new Date(NaN);
+  const to = typeof toRaw === 'string' ? new Date(toRaw) : new Date(NaN);
+  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) {
+    return { error: 'from and to must be ISO-8601 datetimes.' };
+  }
+  if (from.getTime() > to.getTime()) return { error: 'from must be before to.' };
+  if (to.getTime() - from.getTime() > EVENT_NAME_RANGE_MS) {
+    return { error: 'date range must be at most one year.' };
+  }
+  return { from, to };
 }
 
 /**

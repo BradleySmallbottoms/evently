@@ -213,6 +213,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(bodies[0]?.format).toBeUndefined();
     expect(bodies[0]?.tools?.map((tool) => tool.function.name)).toEqual([
       'getNearbyEvents',
+      'getEventsByName',
       'getNearbyPublishers',
       'getPublishersByName',
       'getPossiblePublishers',
@@ -223,6 +224,10 @@ describe('createOllamaWithToolsPromptRunner', () => {
       bodies[0]?.tools?.find((tool) => tool.function.name === 'getNearbyEvents')?.function,
     ).not.toHaveProperty('parameters.required');
     expect(bodies[0]?.messages[0]?.content).toContain('getNearbyEvents');
+    expect(bodies[0]?.messages[0]?.content).toContain('getEventsByName');
+    expect(bodies[0]?.messages[0]?.content).toContain(
+      'Do not call it when a duplicate was already found.',
+    );
     const toolMessage = bodies[1]?.messages.find((message) => message.role === 'tool');
     expect(toolMessage?.content).toContain('Marknad på torget');
     expect(toolMessage?.content).not.toContain('En kilometer bort');
@@ -240,6 +245,111 @@ describe('createOllamaWithToolsPromptRunner', () => {
       duplicate: null,
       instructions: ['Ta med matsäck'],
     });
+  });
+
+  it('returns events whose title matches a wildcard and whose start is in the date range', async () => {
+    const store = storeWithNearbyRows();
+    const inRange = new Date('2027-06-02T18:00:00.000Z');
+    store.events.push(
+      {
+        id: '33333333-3333-4333-8333-333333333311',
+        publisherId: nearPublisherId,
+        title: 'Bibliotekskväll',
+        description: null,
+        status: 'published',
+        origin: 'imported',
+        sourceUrl: 'https://example.com/bibliotek',
+        startsAt: inRange,
+        endsAt: inRange,
+        venueName: 'Biblioteket',
+        location: { lat: 61.301, lng: 17.07 },
+        tagIds: [],
+        meta: {},
+      },
+      {
+        id: '33333333-3333-4333-8333-333333333312',
+        publisherId: nearPublisherId,
+        title: 'Biblioteket stängt',
+        description: null,
+        status: 'published',
+        origin: 'imported',
+        sourceUrl: 'https://example.com/stangt',
+        startsAt: new Date('2020-01-02T18:00:00.000Z'),
+        endsAt: new Date('2020-01-02T20:00:00.000Z'),
+        venueName: 'Biblioteket',
+        location: { lat: 61.301, lng: 17.07 },
+        tagIds: [],
+        meta: {},
+      },
+      {
+        id: '33333333-3333-4333-8333-333333333313',
+        publisherId: farPublisherId,
+        title: 'Bibliotek i Stockholm',
+        description: null,
+        status: 'published',
+        origin: 'imported',
+        sourceUrl: 'https://example.com/stockholm',
+        startsAt: inRange,
+        endsAt: inRange,
+        venueName: 'Stadsbiblioteket',
+        location: { lat: 59.33, lng: 18.06 },
+        tagIds: [],
+        meta: {},
+      },
+      {
+        id: '33333333-3333-4333-8333-333333333314',
+        publisherId: nearPublisherId,
+        title: 'Skatehallen öppnar',
+        description: null,
+        status: 'published',
+        origin: 'imported',
+        sourceUrl: 'https://example.com/skate',
+        startsAt: inRange,
+        endsAt: inRange,
+        venueName: 'Skatehallen',
+        location: { lat: 61.302, lng: 17.07 },
+        tagIds: [],
+        meta: {},
+      },
+    );
+    const { fetchImpl, bodies } = scriptedFetch([
+      toolCall('getEventsByName', {
+        names: ['Bibliotek*', 'Skatehall*'],
+        from: '2027-06-01T00:00:00.000Z',
+        to: '2027-06-03T00:00:00.000Z',
+      }),
+      finalAnswer,
+    ]);
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+
+    await runner.scan([scanInput]);
+
+    const toolMessage = bodies[1]?.messages.find((message) => message.role === 'tool');
+    expect(toolMessage?.content).toContain('Bibliotekskväll');
+    expect(toolMessage?.content).toContain('Skatehallen öppnar');
+    expect(toolMessage?.content).toContain('Hälsinglands museum');
+    expect(toolMessage?.content).not.toContain('Biblioteket stängt');
+    expect(toolMessage?.content).not.toContain('Bibliotek i Stockholm');
+    expect(toolMessage?.content).not.toContain('Marknad på torget');
+    expect(toolMessage?.content).not.toContain(eventId);
+  });
+
+  it('rejects a title pattern that has no letter or number', async () => {
+    const store = storeWithNearbyRows();
+    const { fetchImpl, bodies } = scriptedFetch([
+      toolCall('getEventsByName', {
+        names: ['*'],
+        from: '2027-06-01T00:00:00.000Z',
+        to: '2027-06-03T00:00:00.000Z',
+      }),
+      finalAnswer,
+    ]);
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+
+    await runner.scan([scanInput]);
+
+    const toolMessage = bodies[1]?.messages.find((message) => message.role === 'tool');
+    expect(toolMessage?.content).toContain('letter or number');
   });
 
   it('reads the scan object when the model wraps it in prose and a markdown fence', async () => {
