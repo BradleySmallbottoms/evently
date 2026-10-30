@@ -20,6 +20,7 @@ import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { api, throwIfError } from '@/lib/api';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
+import { pickHomeFeaturedEvents } from '@/lib/home-featured';
 import { isHomeListReady } from '@/lib/home-splash';
 import { loadHomeTagIds, saveHomeTagIds } from '@/lib/home-tag-selection';
 import { retainedTagIds } from '@/lib/tag-groups';
@@ -349,11 +350,12 @@ export default function HomeScreen() {
     t,
   ]);
 
+  const listedEvents = useMemo(
+    () => events.data?.pages.flatMap((page) => page.items) ?? [],
+    [events.data],
+  );
   const heroItems = useMemo(() => {
-    const items = events.data?.pages.flatMap((page) => page.items) ?? [];
-    const featured = items.filter((event) => event.featured);
-    const source = featured.length > 0 ? featured : items;
-    return source.slice(0, 6).map((item) => {
+    return pickHomeFeaturedEvents(listedEvents).map((item) => {
       const when = shownWhen(item, new Date());
       return {
         id: item.id,
@@ -369,10 +371,10 @@ export default function HomeScreen() {
         }),
         imageUrl: item.imageUrl,
         tags: namesForTagIds(item.tagIds, tags.data?.items),
-        featured: item.featured && featured.length > 0,
+        featured: true,
       };
     });
-  }, [events.data, locale, t, tags.data]);
+  }, [listedEvents, locale, t, tags.data]);
 
   async function generatePairingCode() {
     setPairingPending(true);
@@ -616,7 +618,7 @@ export default function HomeScreen() {
                 })
               }
             />
-            {events.isSuccess && !events.isPlaceholderData && heroItems.length === 0 ? (
+            {events.isSuccess && !events.isPlaceholderData && listedEvents.length === 0 ? (
               <AppText variant="body" style={{ paddingHorizontal: space.xl }}>
                 {t('events.empty')}
               </AppText>

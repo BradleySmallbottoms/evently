@@ -270,7 +270,7 @@ Order: 1. The wordmark, the current place, and the notification bell.
 When “Near you” is selected, the locality name sits under that label. 2. A featured carousel. One large photo at a time, with the featured
 label, the title, the date, and the place on the photo, and page dots
 under the card. Featured events fill it. When none are featured, the
-next events do. 3. "Your categories". Each category chosen in
+carousel is hidden. 3. "Your categories". Each category chosen in
 onboarding is a section: the group icon and name, "View all", then a
 horizontal row of event cards (photo, title, date, place, save). A
 control at the trailing end of that heading opens the category sheet

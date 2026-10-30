@@ -95,7 +95,8 @@ How it is built:
 - **Billing later:** Stripe Billing with its customer portal, sold on the web workspace only.
   Confirm current app-store guidelines before launch.
 - **Featured events (v1):** admins set `events.featured`. Published featured events sort first
-  on the home page. For you never shows an event from that featured row. This is separate from the later paid placement record (slot, date range, plan
+  on the public list. The home carousel shows only those events and stays hidden when that page
+  has none. For you never shows an event from that featured row. This is separate from the later paid placement record (slot, date range, plan
   quota), which labels promoted items.
 - **Sponsored events (v1):** admins set `events.sponsored` and upload a poster. The poster is an
   `event_images` row with role `poster`. Upcoming lists on the home page and the events screen show
