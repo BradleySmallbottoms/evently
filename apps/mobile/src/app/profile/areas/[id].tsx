@@ -3,7 +3,7 @@ import { areaNotificationsEnabled } from '@local-events/domain';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Host, Slider } from '@expo/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, usePreventRemove, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +24,7 @@ import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TagGroupList } from '@/components/ui/tag-group-list';
+import { areaDraftIsDirty } from '@/lib/area-draft';
 import { setDiscoveryRadiusForPlace } from '@/lib/discovery-radius-store';
 import { DISCOVERY_RADIUS_STOPS_M, resolveDiscoveryRadiusM } from '@/lib/discovery-radius';
 import { listTags } from '@/lib/events';
@@ -202,6 +203,8 @@ function AreaEditor({
   const { t } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const prompting = useRef(false);
+  const [confirmedLeave, setConfirmedLeave] = useState(false);
   const nameRef = useRef<ComponentRef<typeof TextInput>>(null);
   const nameBeforeEdit = useRef(area.name);
   const nameAction = useRef<'commit' | 'cancel' | null>(null);
@@ -246,6 +249,8 @@ function AreaEditor({
       if (updated.searchRadiusM != null) {
         void setDiscoveryRadiusForPlace(updated.id, updated.searchRadiusM);
       }
+      setConfirmedLeave(true);
+      disableLeaveGuard();
       router.back();
     },
   });
@@ -256,6 +261,8 @@ function AreaEditor({
     },
     onSuccess: async () => {
       if (getDiscoveryPlaceId() === area.id) setDiscoveryPlaceId(NEARBY_PLACE_ID);
+      setConfirmedLeave(true);
+      disableLeaveGuard();
       router.back();
       await queryClient.invalidateQueries({ queryKey: ['preferences'] });
     },
@@ -309,6 +316,71 @@ function AreaEditor({
 
   const busy = save.isPending || remove.isPending;
   const canSave = name.trim().length > 0 && name.trim().length <= 80 && !busy;
+  const searchRadiusM = DISCOVERY_RADIUS_STOPS_M[searchIndex] ?? DISCOVERY_RADIUS_STOPS_M[0]!;
+  const notifyRadiusM = DISCOVERY_RADIUS_STOPS_M[notifyIndex] ?? DISCOVERY_RADIUS_STOPS_M[0]!;
+  const savedNotify = areaNotificationsEnabled(area);
+  const dirty = areaDraftIsDirty(
+    {
+      name,
+      tagIds,
+      searchRadiusM,
+      notify: notificationsOn,
+      active,
+      notifyRadiusM: notificationsOn && circle ? notifyRadiusM : null,
+    },
+    {
+      name: area.name,
+      tagIds: area.tagIds,
+      searchRadiusM: resolveDiscoveryRadiusM(area.searchRadiusM ?? area.radiusM),
+      notify: savedNotify,
+      active: area.active,
+      notifyRadiusM: savedNotify && circle ? resolveDiscoveryRadiusM(area.radiusM) : null,
+    },
+  );
+
+  const disableLeaveGuard = usePreventRemove(dirty && !confirmedLeave && !busy, ({ repeat }) => {
+    if (prompting.current) return;
+    prompting.current = true;
+    Alert.alert(
+      t('profile.areaUnsavedTitle'),
+      t('profile.areaUnsavedMessage'),
+      [
+        {
+          text: t('preferences.resetCancel'),
+          style: 'cancel',
+          onPress: () => {
+            prompting.current = false;
+          },
+        },
+        {
+          text: t('profile.areaUnsavedDiscard'),
+          style: 'destructive',
+          onPress: () => {
+            prompting.current = false;
+            setConfirmedLeave(true);
+            repeat();
+          },
+        },
+        ...(canSave
+          ? [
+              {
+                text: t('profile.areaSave'),
+                onPress: () => {
+                  prompting.current = false;
+                  save.mutate();
+                },
+              },
+            ]
+          : []),
+      ],
+      {
+        cancelable: true,
+        onDismiss: () => {
+          prompting.current = false;
+        },
+      },
+    );
+  });
 
   return (
     <>
