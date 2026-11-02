@@ -162,6 +162,7 @@ export function HomeCategories({
       return {
         queryKey: [
           'category-rail',
+          'primary-tag',
           point?.lat,
           point?.lng,
           point?.radiusM,
@@ -172,6 +173,7 @@ export function HomeCategories({
         queryFn: () =>
           listPublicEvents(point!, {
             tagIds,
+            primaryTag: true,
             sort: 'soonest',
             limit: 12,
           }),
@@ -223,32 +225,40 @@ export function HomeCategories({
       {shown.map((group, index) => {
         const query = rails[index];
         const tagIds = tagIdsForGroup(group, selectedIds);
+        const groupTagIds = new Set(tagIds);
         const now = new Date();
-        const items: RailEvent[] = (query?.data?.items ?? []).map((item) => {
-          const when = shownWhen(item, now);
-          return {
-            id: item.id,
-            title: item.title,
-            when: relativeDateLabel(
-              when.startsAt,
-              locale,
-              { today: t('events.dateToday'), tomorrow: t('events.dateTomorrow') },
-              now,
-              item.timezone,
-            ),
-            where: eventPlaceLabel({
-              mode: item.mode,
-              venueName: item.venueName,
-              city: item.meta?.address?.city,
-              onlineUrl: item.onlineUrl,
-              missingVenue: t('events.missingVenue'),
-              missingUrl: t('events.missingUrl'),
-            }),
-            imageUrl: item.imageUrl,
-            tags: namesForTagIds(item.tagIds, tags),
-            saved: savedIds.has(item.id),
-          };
-        });
+        // The list is already limited to the first tag. This drops a card whose
+        // first tag still belongs to another row.
+        const items: RailEvent[] = (query?.data?.items ?? [])
+          .filter((item) => {
+            const first = item.tagIds[0];
+            return first != null && groupTagIds.has(first);
+          })
+          .map((item) => {
+            const when = shownWhen(item, now);
+            return {
+              id: item.id,
+              title: item.title,
+              when: relativeDateLabel(
+                when.startsAt,
+                locale,
+                { today: t('events.dateToday'), tomorrow: t('events.dateTomorrow') },
+                now,
+                item.timezone,
+              ),
+              where: eventPlaceLabel({
+                mode: item.mode,
+                venueName: item.venueName,
+                city: item.meta?.address?.city,
+                onlineUrl: item.onlineUrl,
+                missingVenue: t('events.missingVenue'),
+                missingUrl: t('events.missingUrl'),
+              }),
+              imageUrl: item.imageUrl,
+              tags: namesForTagIds(item.tagIds, tags),
+              saved: savedIds.has(item.id),
+            };
+          });
         return (
           <CategoryRow
             key={group.id}

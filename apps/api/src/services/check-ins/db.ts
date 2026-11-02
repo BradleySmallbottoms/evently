@@ -15,7 +15,7 @@ import {
   validateCodeCheckIn,
   validateGeoCheckIn,
 } from '@local-events/domain';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { AuthServices } from '../auth/types';
 import { AuthError } from '../auth/types';
 import { requirePublisherId } from '../publisher-id';
@@ -180,7 +180,8 @@ export function createDbCheckInServices(
             schema.eventTags.eventId,
             rows.map((row) => row.eventId),
           ),
-        );
+        )
+        .orderBy(asc(schema.eventTags.position), asc(schema.eventTags.tagId));
       const tagsByEvent = new Map<string, string[]>();
       for (const tag of tagRows) {
         const list = tagsByEvent.get(tag.eventId) ?? [];

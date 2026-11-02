@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppLink } from '@/components/app-link';
 import { PageMain } from '@/components/page-main';
+import { PublicFooter } from '@/components/public-footer';
 import { serverApiUrl } from '@/lib/server-api-url';
 import { PublicEventCard, type PublicEventCardData } from './components/public-event-card';
 
@@ -56,6 +57,7 @@ export default async function PublicEventsPage({
           ))}
         </ul>
       )}
+      <PublicFooter />
     </PageMain>
   );
 }

@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buttonVariants } from '@/components/ui/button';
 import { AppLink } from '@/components/app-link';
 import { PageMain } from '@/components/page-main';
+import { PublicFooter } from '@/components/public-footer';
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -29,6 +30,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           {nav('publisherRegister')}
         </AppLink>
       </div>
+      <PublicFooter />
     </PageMain>
   );
 }

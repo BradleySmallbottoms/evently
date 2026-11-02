@@ -4133,6 +4133,7 @@ export interface paths {
           q?: string;
           tagId?: string;
           tagIds?: string;
+          primaryTag?: 'true';
           sort?: 'soonest' | 'distance' | 'popular';
           price?: 'free' | 'paid';
           limit?: number;
@@ -4299,6 +4300,7 @@ export interface paths {
           q?: string;
           tagId?: string;
           tagIds?: string;
+          primaryTag?: 'true';
           price?: 'free' | 'paid';
         };
         header?: never;

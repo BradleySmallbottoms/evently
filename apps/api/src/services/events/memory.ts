@@ -19,6 +19,7 @@ import {
   eventIsCurrent,
   eventEngagement,
   isPopularEvent,
+  eventMatchesTagIds,
   isPubliclyListedEvent,
   matchesListPrice,
   releaseOnVerification,
@@ -185,10 +186,13 @@ export function createMemoryEventServices(
         }),
       )
       .filter((e) => !to || e.startsAtDate <= to)
-      .filter((e) => {
-        const tagIds = publicEventTagIds(query);
-        return tagIds.length === 0 || e.tagIds.some((id) => tagIds.includes(id));
-      })
+      .filter((e) =>
+        eventMatchesTagIds(
+          e.tagIds,
+          publicEventTagIds(query),
+          query.primaryTag === 'true' ? 'primary' : 'any',
+        ),
+      )
       .filter((e) => {
         if (query.price === 'free' || query.price === 'paid') {
           return matchesListPrice(e.priceAmount, query.price);

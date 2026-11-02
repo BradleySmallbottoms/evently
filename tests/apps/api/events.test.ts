@@ -967,6 +967,21 @@ describe('events', () => {
     expect(await count('&q=market')).toBe(1);
     expect(await count(`&tagIds=${music}&price=paid`)).toBe(0);
 
+    store.events.set(
+      '11111111-1111-4111-8111-111111111606',
+      row(
+        '11111111-1111-4111-8111-111111111606',
+        'Concert and match',
+        '2026-10-23T15:00:00.000Z',
+        '2026-10-23T18:00:00.000Z',
+        { tagIds: [music, sport] },
+      ),
+    );
+    expect(await count(`&tagIds=${sport}`)).toBe(2);
+    expect(await count(`&tagIds=${sport}&primaryTag=true`)).toBe(1);
+    expect(await count(`&tagIds=${music}&primaryTag=true`)).toBe(2);
+    expect(await listed(`&tagIds=${sport}&primaryTag=true`)).toBe(1);
+
     const missing = await app.request('/v1/events/count');
     expect(missing.status).toBe(200);
     const missingList = await app.request('/v1/events');

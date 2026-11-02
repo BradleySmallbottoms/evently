@@ -758,20 +758,20 @@ async function postChat(
           thinks: round > 0,
           stream: false,
           options: { temperature: 0 },
-          tools,
+          ...(tools.length > 0 ? { tools } : {}),
           messages,
         }
       : endpoint.protocol === 'anthropic'
         ? {
             model: endpoint.model,
             max_tokens: 4096,
-            tools: anthropicToolDefinitions(tools),
+            ...(tools.length > 0 ? { tools: anthropicToolDefinitions(tools) } : {}),
             messages,
           }
         : {
             model: endpoint.model,
             stream: false,
-            tools,
+            ...(tools.length > 0 ? { tools } : {}),
             messages,
             ...openAiSampling(endpoint.model),
           };
@@ -796,6 +796,74 @@ async function postChat(
     }
     return null;
   }
+}
+
+export interface ChatImage {
+  mediaType: string;
+  base64: string;
+}
+
+/**
+ * One chat turn that includes a photo. Uses the same endpoint as the import scan.
+ * A missing endpoint, a disabled local model, or an empty answer returns null.
+ */
+export async function completeChatImage(
+  config: Record<string, unknown>,
+  prompt: string,
+  image: ChatImage,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ text: string; output: object } | 'timeout' | null> {
+  const endpoint = resolveChatEndpoint(config);
+  if (!endpoint) return null;
+  if (endpoint.protocol === 'ollama' && ollamaDisabled()) return null;
+  const payload = await postChat(
+    endpoint,
+    [imageUserMessage(endpoint.protocol, prompt, image)],
+    0,
+    fetchImpl,
+    [],
+  );
+  if (payload === 'timeout' || !payload) return payload;
+  const turn = readAssistantTurn(endpoint.protocol, payload);
+  if (!turn || turn.text.length === 0) return null;
+  return { text: turn.text, output: payload };
+}
+
+/** True when the scan chat endpoint can be called. A named provider still needs its key. */
+export function hasChatEndpoint(config: Record<string, unknown> = {}): boolean {
+  const endpoint = resolveChatEndpoint(config);
+  if (!endpoint) return false;
+  return endpoint.protocol !== 'ollama' || !ollamaDisabled();
+}
+
+function imageUserMessage(
+  protocol: ChatProtocol,
+  prompt: string,
+  image: ChatImage,
+): Record<string, unknown> {
+  if (protocol === 'anthropic') {
+    return {
+      role: 'user',
+      content: [
+        {
+          type: 'image',
+          source: { type: 'base64', media_type: image.mediaType, data: image.base64 },
+        },
+        { type: 'text', text: prompt },
+      ],
+    };
+  }
+  if (protocol === 'ollama') return { role: 'user', content: prompt, images: [image.base64] };
+  return {
+    role: 'user',
+    content: [
+      { type: 'text', text: prompt },
+      {
+        type: 'image_url',
+        image_url: { url: `data:${image.mediaType};base64,${image.base64}` },
+      },
+    ],
+  };
 }
 
 function chatTimedOut(error: unknown): boolean {

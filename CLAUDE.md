@@ -181,6 +181,8 @@ Product invariants (enforced in domain, tested)
   The list also leaves out an event that has ended. A whole day, the same start and end, stays
   through that calendar day. The Show events buttons count that list with `GET /events/count` for the current place, tags, date, price, and search text. Caching is planned in `docs/flows/event-counts.md`. Home, calendar, and search category buttons are tags on a current
   published event inside the selected place. An event without a point does not add a category.
+  A home category row lists an event only when its first saved tag is one of that row's tags
+  (`primaryTag=true` on `GET /events`). Search, the calendar, and view all still match any selected tag.
 - A new data-worker import is `pending_scan` until the scan job finishes. It becomes `published`
   only when the scan approves it, the publisher status is `published` and the publisher is not temporary, and the source
   trust is `auto_publish`. A temporary publisher, a publisher that is not `published`, or a review-trust
@@ -188,6 +190,10 @@ Product invariants (enforced in domain, tested)
   A new temporary publisher is `pending_scan`. A separate publisher scan looks that organizer up on the
   web. The profile is stored on `publishers.meta.lookup`. A website from a fetched page is also stored as an organizer key. A finished lookup sets `in_review`. A failed lookup leaves the
   publisher `pending_scan`.
+- An event image stores `focal_x` and `focal_y`, fractions from the left and the top. A new image is
+  `pending`. `JOB=image-focal` claims those rows, except posters, and asks the scan chat model for
+  one point. A point is `done`. An answer that is not a point is `failed`. A transport failure
+  releases the lease. Replacing the image clears the point. The scan model has to accept images.
 - An imported physical event with no venue name stores the city from its scraped address on `meta.import.venueName`. When that
   address has no city, the nearest city within 25 km of its point is used. A name the adapter already set stays on that field.
 - Visit Söderhamn, Glada Hudik, and Destination Hälsingland store one product as one event, with each

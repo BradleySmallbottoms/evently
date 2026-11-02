@@ -6,6 +6,7 @@ export * from './merge-duplicates';
 export * from './ratings';
 export * from './reports';
 export * from './publishing';
+export * from './image-focal';
 export * from './import-scan';
 export * from './entitlements';
 export * from './events';

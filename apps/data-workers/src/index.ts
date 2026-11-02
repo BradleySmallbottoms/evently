@@ -6,6 +6,12 @@ import { persistSource } from './persist';
 import { promptRunnerFromEnv } from './prompt-runners';
 import { replayStoredScans } from './replay-scan';
 import { scanWithChatPod } from './scan-with-pod';
+import {
+  imageFocalChatReady,
+  parseImageFocalSelection,
+  scanImageFocalsWithChatPod,
+  scanPendingImageFocals,
+} from './image-focal';
 import { parseScanSelection, scanPendingEvents } from './scan-pending';
 import { scanPendingPublishers } from './scan-publishers';
 import { scanPublishersWithChatPod } from './scan-with-pod';
@@ -36,6 +42,11 @@ initSentry('data-workers');
  *   pnpm --filter @local-events/data-workers dev -- --job replay-scan --limit 20
  *   pnpm --filter @local-events/data-workers dev -- --job replay-scan --dry-run
  *
+ * The image focal job asks the scan chat model where to crop a photo.
+ *   pnpm --filter @local-events/data-workers dev -- --job image-focal
+ *   pnpm --filter @local-events/data-workers dev -- --job image-focal --image <image-id>
+ *   pnpm --filter @local-events/data-workers dev -- --job image-focal --limit 1
+ *
 
  * `CHAT_PROVIDER=runpod` starts the named GPU pod, drains pending rows in batches,
  * and stops the pod when the run ends.
@@ -61,7 +72,14 @@ const slug = argValue('--source', 'SOURCE_SLUG');
 
 /** `--limit` for a source import. Scan jobs parse their own limit. */
 function importLimit(): number | undefined {
-  if (job === 'event-scan' || job === 'publisher-scan' || job === 'replay-scan') return undefined;
+  if (
+    job === 'event-scan' ||
+    job === 'publisher-scan' ||
+    job === 'replay-scan' ||
+    job === 'image-focal'
+  ) {
+    return undefined;
+  }
   const i = process.argv.indexOf('--limit');
   if (i < 0) return undefined;
   const raw = process.argv[i + 1];
@@ -73,7 +91,13 @@ function importLimit(): number | undefined {
 }
 
 const sourceLimit = importLimit();
-if (job !== 'event-scan' && job !== 'publisher-scan' && job !== 'replay-scan' && !slug) {
+if (
+  job !== 'event-scan' &&
+  job !== 'publisher-scan' &&
+  job !== 'replay-scan' &&
+  job !== 'image-focal' &&
+  !slug
+) {
   console.error('Missing source: pass --source <slug> or set SOURCE_SLUG');
   process.exit(2);
 }
@@ -132,6 +156,48 @@ async function main(): Promise<number> {
       process.env.CHAT_PROVIDER?.trim().toLowerCase() === 'runpod'
         ? await scanPublishersWithChatPod({ store, databaseUrl, selection })
         : await scanPendingPublishers(store, promptRunnerFromEnv(store), selection);
+    console.log(JSON.stringify(summary, null, 2));
+    return 0;
+  }
+
+  if (job === 'image-focal') {
+    const databaseUrl = resolveDatabaseUrl();
+    if (!databaseUrl) {
+      console.error('DATABASE_URL is required for --job image-focal');
+      return 1;
+    }
+    const db = createDb(databaseUrl);
+    const store = createDbIngestStore(db);
+    const selection = parseImageFocalSelection({
+      imageId: argValue('--image', 'IMAGE_ID'),
+      limit: argValue('--limit', 'SCAN_LIMIT'),
+    });
+    if (!selection.ok) {
+      console.error(selection.message);
+      return 2;
+    }
+    if (!process.env.PUBLIC_ASSETS_BUCKET?.trim()) {
+      console.error('PUBLIC_ASSETS_BUCKET is required for --job image-focal');
+      return 1;
+    }
+    const scanOptions = {
+      ...(selection.imageId ? { imageId: selection.imageId } : {}),
+      ...(selection.limit != null ? { limit: selection.limit } : {}),
+    };
+    if (process.env.CHAT_PROVIDER?.trim().toLowerCase() === 'runpod') {
+      const summary = await scanImageFocalsWithChatPod({
+        store,
+        databaseUrl,
+        selection: scanOptions,
+      });
+      console.log(JSON.stringify(summary, null, 2));
+      return 0;
+    }
+    if (!imageFocalChatReady()) {
+      console.error('The scan chat model is not configured');
+      return 1;
+    }
+    const summary = await scanPendingImageFocals(store, scanOptions);
     console.log(JSON.stringify(summary, null, 2));
     return 0;
   }

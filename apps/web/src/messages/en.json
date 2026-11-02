@@ -190,5 +190,67 @@
     "invalidCode": "Invalid or expired code.",
     "loginError": "Could not sign in with this code.",
     "loginSuccess": "Signed in as user {userId}."
+  },
+  "Legal": {
+    "privacyLink": "Privacy",
+    "supportLink": "Support",
+    "updated": "Last updated {date}",
+    "privacyTitle": "Privacy policy",
+    "privacyDescription": "How Evently handles information about you.",
+    "supportTitle": "Support",
+    "supportDescription": "Contact Candy Banana AB about Evently.",
+    "supportIntro": "Need help with Evently? Write or call, and we will reply.",
+    "emailLabel": "Email",
+    "phoneLabel": "Phone",
+    "addressLabel": "Address",
+    "privacyCta": "Read the privacy policy",
+    "privacy": {
+      "who": {
+        "title": "Who is responsible",
+        "body": "Evently is an app from {name}. The controller is {name}, company number {orgNumber}, {street}, {postalCode} {city}, Sweden. You can reach us at <mail>{email}</mail>."
+      },
+      "identity": {
+        "title": "No registration",
+        "body": "No account is required. On first launch the app creates an anonymous identity on the device. That identity is used to store saved events, places, notifications, and check-ins. The app recognizes the device, not your name."
+      },
+      "optional": {
+        "title": "Name and email",
+        "body": "If you add a display name or an email address, we store them. The name can be shown if you rate an event. The email address is not shown publicly."
+      },
+      "location": {
+        "title": "Location",
+        "body": "While the app is open it can read your location, to show events near you and to check in. We do not read location in the background, and we do not follow you while the app is closed."
+      },
+      "content": {
+        "title": "Tips, ratings, and saved events",
+        "body": "If you submit a tip we store the text and any photos you choose to send. If you check in you can leave a rating and a comment. Saved events, “I’m coming”, and check-ins are tied to the anonymous identity. We do not sell the data, and we do not use it to track you across apps or for advertising."
+      },
+      "calendar": {
+        "title": "Calendar",
+        "body": "If you add an event to the calendar, the app only writes that event. We do not read the other entries in your calendar."
+      },
+      "crash": {
+        "title": "Crash reports",
+        "body": "We use Sentry for crash reports, so we can fix failures. A report can be tied to the device identity. It is not used for advertising."
+      },
+      "deletion": {
+        "title": "Deletion",
+        "body": "Resetting the app removes the identity from the phone. It does not by itself delete the anonymous record on our side. Email <mail>{email}</mail> if you want that record deleted, or if you want a copy of the data. Tell us roughly when you used the app, so we can find the right record."
+      },
+      "rights": {
+        "title": "Your rights",
+        "body": "You can ask for access, correction, or deletion. You can also lodge a complaint with the Swedish Authority for Privacy Protection, Integritetsskyddsmyndigheten, at imy.se."
+      }
+    },
+    "support": {
+      "how": {
+        "title": "How the app works",
+        "body": "No account is required. On first launch the app creates an anonymous identity on the device. Allow location if the phone asks. It is used only while the app is open, to show events near you and to check in. Push notifications are optional."
+      },
+      "deletion": {
+        "title": "Delete your data",
+        "body": "Resetting the app from the profile removes the identity from the phone. Email <mail>{email}</mail> if you also want us to delete the anonymous record on our side."
+      }
+    }
   }
 }

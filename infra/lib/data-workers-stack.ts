@@ -148,6 +148,26 @@ export class DataWorkersStack extends Stack {
       }),
     });
 
+    new Schedule(this, 'ImageFocal', {
+      scheduleName: `local-events-${props.envName}-image-focal`.slice(0, 64),
+      description: 'Ask the scan model for a focal point on pending images',
+      schedule: ScheduleExpression.rate(Duration.minutes(5)),
+      target: new EcsRunFargateTask(props.cluster, {
+        taskDefinition: this.taskDefinition,
+        vpcSubnets: privateSubnets,
+        securityGroups: [tasksSecurityGroup],
+        assignPublicIp: false,
+        input: ScheduleTargetInput.fromObject({
+          ContainerOverrides: [
+            {
+              Name: DATA_WORKERS_CONTAINER_NAME,
+              Environment: [{ Name: 'JOB', Value: 'image-focal' }],
+            },
+          ],
+        }),
+      }),
+    });
+
     new Schedule(this, 'ImportScan', {
       scheduleName: `local-events-${props.envName}-import-scan`.slice(0, 64),
       description: 'Scan pending_scan imports with the prompt runner',

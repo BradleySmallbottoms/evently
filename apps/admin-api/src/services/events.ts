@@ -1436,10 +1436,39 @@ async function absorbEventsInto(
     and host_row.event_id = ${eventId}
     and child.tag_id = host_row.tag_id
 `);
+  await tx.execute(sql`
+  update ${schema.eventTags} child
+  set position = child.position + bases.base
+  from (
+    select event_id,
+           coalesce((
+             select max(host.position) + 1
+             from ${schema.eventTags} host
+             where host.event_id = ${eventId}
+           ), 0)
+           + (row_number() over (order by event_id) - 1) * 1000 as base
+    from ${schema.eventTags}
+    where event_id in (${childIdsSql})
+    group by event_id
+  ) bases
+  where child.event_id = bases.event_id
+`);
   await tx
     .update(schema.eventTags)
     .set({ eventId })
     .where(inArray(schema.eventTags.eventId, unique));
+  await tx.execute(sql`
+  update ${schema.eventTags} et
+  set position = ranked.pos
+  from (
+    select tag_id,
+           (row_number() over (order by position asc, tag_id asc) - 1)::int as pos
+    from ${schema.eventTags}
+    where event_id = ${eventId}
+  ) ranked
+  where et.event_id = ${eventId}
+    and et.tag_id = ranked.tag_id
+`);
   await tx.execute(sql`
   delete from ${schema.eventTranslations} child
   using ${schema.eventTranslations} host_row
@@ -1590,7 +1619,8 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
     const rows = await db
       .select({ tagId: schema.eventTags.tagId })
       .from(schema.eventTags)
-      .where(eq(schema.eventTags.eventId, eventId));
+      .where(eq(schema.eventTags.eventId, eventId))
+      .orderBy(asc(schema.eventTags.position), asc(schema.eventTags.tagId));
     return rows.map((row) => row.tagId);
   }
 
@@ -1771,7 +1801,9 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
     }
     await db.delete(schema.eventTags).where(eq(schema.eventTags.eventId, eventId));
     if (unique.length > 0) {
-      await db.insert(schema.eventTags).values(unique.map((tagId) => ({ eventId, tagId })));
+      await db
+        .insert(schema.eventTags)
+        .values(unique.map((tagId, position) => ({ eventId, tagId, position })));
     }
   }
 
@@ -2857,7 +2889,15 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         })
         .onConflictDoUpdate({
           target: [schema.eventImages.eventId, schema.eventImages.role],
-          set: { s3Key: key, contentType: type },
+          set: {
+            s3Key: key,
+            contentType: type,
+            focalX: null,
+            focalY: null,
+            focalStatus: 'pending',
+            focalClaimedUntil: null,
+            focalOutput: null,
+          },
         });
       if (previous && previous.s3Key !== key) {
         await env.posterStore.delete(previous.s3Key);

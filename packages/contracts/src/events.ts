@@ -434,6 +434,11 @@ const PublicEventQueryFields = {
       (value) => tagIdList(value).every((id) => z.uuid().safeParse(id).success),
       'tagIds must be uuids',
     ),
+  /**
+   * With tag ids, keep an event only when its first saved tag is one of them.
+   * Home category rows use this. Other lists still match any selected tag.
+   */
+  primaryTag: z.enum(['true']).optional(),
   sort: z.enum(['soonest', 'distance', 'popular']).optional().default('soonest'),
   /** `free` is amount 0 or unknown; `paid` is amount > 0. */
   price: z.enum(['free', 'paid']).optional(),

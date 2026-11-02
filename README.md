@@ -125,6 +125,12 @@ calls) in the same change as every new major feature.**
   check. Publish with `pnpm --filter @local-events/mobile development:update`, `staging:update`, or
   `release:update`.
 
+### Store pages
+
+- The public web app serves the privacy policy at `/integritet` and support at `/support`.
+  Swedish is the default locale, so those paths have no prefix. English is `/en/integritet`
+  and `/en/support`. App Store Connect needs the https web host in front of those paths.
+
 ### Test server
 
 - One EC2 instance can run the web app, admin, both APIs, the worker, Postgres, Valkey,
@@ -252,6 +258,17 @@ calls) in the same change as every new major feature.**
   without calling a model again. It accepts `--event` and `--limit` too.
   Flow: [docs/flows/event-scan.md](docs/flows/event-scan.md). Publisher lookup: [docs/flows/publisher-scan.md](docs/flows/publisher-scan.md).
 
+### Image focal point
+
+- Each event photo stores a focal point, `focal_x` and `focal_y`, as fractions from the left and
+  the top. A new image is `pending`. Posters stay pending because they are shown whole.
+  `pnpm --filter @local-events/data-workers dev -- --job image-focal` claims the next batch and
+  asks the scan chat model for one point. A point is `done`. An answer that is not a point is
+  `failed` and is not retried. A transport failure releases the lease. Replacing the image clears
+  the point. `CHAT_PROVIDER=runpod` uses the scan pod and holds the scan lock. The model has to
+  accept images. Add `--image <image-id>` or `--limit 1` to scan less than a batch.
+  Flow: [docs/flows/image-focal.md](docs/flows/image-focal.md).
+
 ### Destination Hälsingland import
 
 - Hälsingland’s public calendar, with no Citybreak API key. The worker calls the JSON the calendar
@@ -331,7 +348,9 @@ calls) in the same change as every new major feature.**
 
 - Admins set `featured` on an event in the catalog editor. `GET /v1/events` sorts featured events
   first, then by start time. `tagId` or comma-separated `tagIds` keeps events that have any of
-  those tags, and `offset` plus `nextOffset` page the list. The mobile home, search, and events
+  those tags. Home category rows also pass `primaryTag=true`, so an event appears only in the row
+  for its first saved tag (`event_tags.position` 0). Search, the calendar, and view all still match
+  any selected tag. `offset` plus `nextOffset` page the list. The mobile home, search, and events
   lists pass the selected tag and load the next page at the end of the scroll. When the user has
   preferred tags, the home page shows a For you carousel of nearby events with any of those tags,
   leaving out events already shown in the featured row. The For you screen still includes them.

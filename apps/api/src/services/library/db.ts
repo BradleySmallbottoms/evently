@@ -210,7 +210,8 @@ export function createDbLibraryServices(
       db
         .select({ eventId: eventTags.eventId, tagId: eventTags.tagId })
         .from(eventTags)
-        .where(inArray(eventTags.eventId, ids)),
+        .where(inArray(eventTags.eventId, ids))
+        .orderBy(asc(eventTags.position), asc(eventTags.tagId)),
       db
         .select({
           eventId: eventImages.eventId,

@@ -121,8 +121,8 @@ Do not round the corners yourself. Apple applies the mask.
 
 App Store Connect will not accept the version until these exist. They are not invented here.
 
-- **Privacy policy URL.** A draft is below. Publish it on a page you control, then paste the URL. Also add it to `store.config.json` as `privacyPolicyUrl` on both `sv` and `en-US` before `eas metadata:push`.
-- **Support URL.** A page or mailto is not enough for Apple unless it is a working http(s) page with a way to reach you. Add `supportUrl` the same way.
+- **Privacy policy URL.** The public web app serves it at `/integritet` (English: `/en/integritet`). Paste `https://<web host>/integritet` for Swedish and `https://<web host>/en/integritet` for English (U.S.) into App Store Connect, and the same values into `store.config.json` as `privacyPolicyUrl`, before `eas metadata:push`.
+- **Support URL.** `/support` (English: `/en/support`) is a page with email, phone, and the company address. Paste `https://<web host>/support` and `https://<web host>/en/support` as `supportUrl` the same way. A mailto link alone is not enough for Apple.
 - **Review contact.** First name, last name, phone, and email of a person who answers App Review. Sign-in is not required: the app creates an anonymous device identity on first launch. Notes you can paste:
 
   > No account is required. On first launch the app creates an anonymous device identity. Allow location if prompted; it is used only while the app is open, to list nearby events and to check in. Browse events for Söderhamn from the Home tab. Open an event for time, place, save, reminder, and calendar. The map is opened from the calendar screen’s map button. Check-in only succeeds at the venue during the event, or with a code the organizer shows. Push notifications are optional.
@@ -152,7 +152,7 @@ Resetting app data on the profile screen removes the credential from the phone. 
 
 ## Privacy policy draft
 
-Publish this, then put the URL in App Store Connect. Have it read by whoever signs for the company. Replace the bracketed lines.
+The published copy is the web app, in `apps/web/src/messages/sv.json` and `en.json` under `Legal`. Swedish is the default locale, so `/integritet` and `/support` have no prefix. Edit the messages, not the text below. The draft stays here so the store notes and the page stay easy to compare.
 
 ### Swedish
 
@@ -168,9 +168,9 @@ Om du tipsar om ett evenemang sparar vi texten och de bilder du väljer att skic
 
 Vi använder Sentry för kraschrapporter, så att vi kan rätta fel. Vi säljer inte uppgifterna och använder dem inte för spårning mellan appar.
 
-Återställning i appen tar bort identiteten från telefonen. Den tar inte automatiskt bort den anonyma posten hos oss. Skriv till [supportadress] om du vill att vi raderar den.
+Återställning i appen tar bort identiteten från telefonen. Den tar inte automatiskt bort den anonyma posten hos oss. Skriv till info@candybanana.se om du vill att vi raderar den.
 
-Personuppgiftsansvarig: Candy Banana AB, [adress], [e-post].
+Personuppgiftsansvarig: Candy Banana AB, org.nr 556999-5813, Pinnarviken 319, 826 91 Söderhamn, info@candybanana.se.
 
 ### English
 
@@ -186,9 +186,9 @@ If you submit a tip we store the text and any photos you choose to send. If you 
 
 We use Sentry for crash reports, so we can fix failures. We do not sell the data and we do not use it to track you across apps.
 
-Resetting the app removes the identity from the phone. It does not by itself delete the anonymous record on our side. Email [support address] if you want that record deleted.
+Resetting the app removes the identity from the phone. It does not by itself delete the anonymous record on our side. Email info@candybanana.se if you want that record deleted.
 
-Controller: Candy Banana AB, [address], [email].
+Controller: Candy Banana AB, company number 556999-5813, Pinnarviken 319, 826 91 Söderhamn, Sweden, info@candybanana.se.
 
 ## Before review, from this pass
 

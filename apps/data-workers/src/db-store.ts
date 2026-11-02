@@ -161,7 +161,9 @@ export function createDbIngestStore(db: Db): IngestStore {
   async function writeTags(tx: Pick<Db, 'insert' | 'delete'>, eventId: string, tagIds: string[]) {
     await tx.delete(eventTags).where(eq(eventTags.eventId, eventId));
     if (tagIds.length === 0) return;
-    await tx.insert(eventTags).values(tagIds.map((tagId) => ({ eventId, tagId })));
+    await tx
+      .insert(eventTags)
+      .values(tagIds.map((tagId, position) => ({ eventId, tagId, position })));
   }
 
   /** Occasions that still have no point take the point the scan resolved. */
@@ -811,8 +813,120 @@ export function createDbIngestStore(db: Db): IngestStore {
             s3Key: input.s3Key,
             sourceUrl: input.sourceUrl,
             contentType: input.contentType,
+            focalX: null,
+            focalY: null,
+            focalStatus: 'pending',
+            focalClaimedUntil: null,
+            focalOutput: null,
           },
         });
+    },
+    async countPendingImageFocals(imageId) {
+      const now = new Date();
+      const [row] = await db
+        .select({ n: count() })
+        .from(eventImages)
+        .where(
+          and(
+            eq(eventImages.focalStatus, 'pending'),
+            ne(eventImages.role, 'poster'),
+            or(isNull(eventImages.focalClaimedUntil), lt(eventImages.focalClaimedUntil, now)),
+            ...(imageId ? [eq(eventImages.id, imageId)] : []),
+          ),
+        );
+      return Number(row?.n ?? 0);
+    },
+    async claimPendingImageFocals(limit, leaseMs, imageId, skipImageIds) {
+      const now = new Date();
+      const until = new Date(now.getTime() + leaseMs);
+      const skip = skipImageIds?.filter((id) => id.length > 0) ?? [];
+      return db.transaction(async (tx) => {
+        const ids = await tx
+          .select({ id: eventImages.id })
+          .from(eventImages)
+          .where(
+            and(
+              eq(eventImages.focalStatus, 'pending'),
+              ne(eventImages.role, 'poster'),
+              or(isNull(eventImages.focalClaimedUntil), lt(eventImages.focalClaimedUntil, now)),
+              ...(imageId ? [eq(eventImages.id, imageId)] : []),
+              ...(skip.length > 0 ? [notInArray(eventImages.id, skip)] : []),
+            ),
+          )
+          .orderBy(asc(eventImages.createdAt), asc(eventImages.id))
+          .limit(imageId ? 1 : limit)
+          .for('update', { skipLocked: true });
+        if (ids.length === 0) return [];
+        const idList = ids.map((row) => row.id);
+        await tx
+          .update(eventImages)
+          .set({ focalClaimedUntil: until })
+          .where(inArray(eventImages.id, idList));
+        const rows = await tx
+          .select({
+            imageId: eventImages.id,
+            eventId: eventImages.eventId,
+            role: eventImages.role,
+            s3Key: eventImages.s3Key,
+            contentType: eventImages.contentType,
+          })
+          .from(eventImages)
+          .where(inArray(eventImages.id, idList));
+        return idList.flatMap((id) => {
+          const row = rows.find((item) => item.imageId === id);
+          return row ? [{ ...row, claimedUntil: until }] : [];
+        });
+      });
+    },
+    async releaseImageFocalClaim(imageId, claimedUntil) {
+      await db
+        .update(eventImages)
+        .set({ focalClaimedUntil: null })
+        .where(
+          and(
+            eq(eventImages.id, imageId),
+            eq(eventImages.focalStatus, 'pending'),
+            eq(eventImages.focalClaimedUntil, claimedUntil),
+          ),
+        );
+    },
+    async finishImageFocal(input) {
+      const updated = await db
+        .update(eventImages)
+        .set({
+          focalX: input.x,
+          focalY: input.y,
+          focalStatus: 'done',
+          focalClaimedUntil: null,
+          focalOutput: input.output,
+        })
+        .where(
+          and(
+            eq(eventImages.id, input.imageId),
+            eq(eventImages.focalStatus, 'pending'),
+            eq(eventImages.focalClaimedUntil, input.claimedUntil),
+          ),
+        )
+        .returning({ id: eventImages.id });
+      return updated.length > 0;
+    },
+    async failImageFocal(input) {
+      const updated = await db
+        .update(eventImages)
+        .set({
+          focalStatus: 'failed',
+          focalClaimedUntil: null,
+          focalOutput: input.output,
+        })
+        .where(
+          and(
+            eq(eventImages.id, input.imageId),
+            eq(eventImages.focalStatus, 'pending'),
+            eq(eventImages.focalClaimedUntil, input.claimedUntil),
+          ),
+        )
+        .returning({ id: eventImages.id });
+      return updated.length > 0;
     },
     async deleteEventImages(eventId, roles) {
       const gallery = roles.filter((role) => role.startsWith('gallery-'));
@@ -920,7 +1034,8 @@ export function createDbIngestStore(db: Db): IngestStore {
           })
           .from(eventTags)
           .innerJoin(tags, eq(tags.id, eventTags.tagId))
-          .where(inArray(eventTags.eventId, idList));
+          .where(inArray(eventTags.eventId, idList))
+          .orderBy(asc(eventTags.position), asc(eventTags.tagId));
         const pending: PendingScanRow[] = [];
         for (const id of idList) {
           const row = rows.find((item) => item.eventId === id);
@@ -1036,7 +1151,8 @@ export function createDbIngestStore(db: Db): IngestStore {
         })
         .from(eventTags)
         .innerJoin(tags, eq(tags.id, eventTags.tagId))
-        .where(inArray(eventTags.eventId, idList));
+        .where(inArray(eventTags.eventId, idList))
+        .orderBy(asc(eventTags.position), asc(eventTags.tagId));
       const replayable: StoredScanRow[] = [];
       for (const row of rows) {
         const eventTagsForRow = tagRows.filter((tag) => tag.eventId === row.eventId);

@@ -7,6 +7,7 @@
 import { sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   doublePrecision,
   index,
   integer,
@@ -141,6 +142,12 @@ export const checkInMethod = pgEnum('check_in_method', ['geo', 'code']);
 export const eventLinkAudience = pgEnum('event_link_audience', ['public', 'attendees']);
 export const eventContentKind = pgEnum('event_content_kind', ['map', 'schedule', 'info', 'file']);
 export const eventContentVisibility = pgEnum('event_content_visibility', ['public', 'attendees']);
+/** `pending` has not been read. `done` has a point. `failed` will not be retried. */
+export const eventImageFocalStatus = pgEnum('event_image_focal_status', [
+  'pending',
+  'done',
+  'failed',
+]);
 /** Outbound action on an event: buy tickets, register, read more, or open a social page. */
 export const eventLinkType = pgEnum('event_link_type', [
   'tickets',
@@ -528,10 +535,13 @@ export const eventTags = pgTable(
     tagId: uuid('tag_id')
       .notNull()
       .references(() => tags.id, { onDelete: 'cascade' }),
+    /** Saved order. 0 is the first tag, the one a home category row uses. */
+    position: integer('position').notNull().default(0),
   },
   (t) => [
     primaryKey({ columns: [t.eventId, t.tagId] }),
     index('event_tags_tag_id_idx').on(t.tagId),
+    index('event_tags_event_position_idx').on(t.eventId, t.position),
   ],
 );
 
@@ -770,9 +780,30 @@ export const eventImages = pgTable(
     s3Key: text('s3_key').notNull(),
     sourceUrl: text('source_url'),
     contentType: text('content_type').notNull(),
+    /**
+     * Fraction across the photo, 0 at the left and 1 at the right. Null until the
+     * image job writes a point. Paired with `focal_y`.
+     */
+    focalX: doublePrecision('focal_x'),
+    /** Fraction down the photo, 0 at the top and 1 at the bottom. */
+    focalY: doublePrecision('focal_y'),
+    focalStatus: eventImageFocalStatus('focal_status').notNull().default('pending'),
+    /** Lease for the image job. A free lease is null or in the past. */
+    focalClaimedUntil: timestamp('focal_claimed_until', { withTimezone: true }),
+    /** Raw model JSON. Null until a scan finishes or fails. */
+    focalOutput: jsonb('focal_output'),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex('event_images_event_role_idx').on(t.eventId, t.role)],
+  (t) => [
+    uniqueIndex('event_images_event_role_idx').on(t.eventId, t.role),
+    index('event_images_focal_pending_idx')
+      .on(t.createdAt)
+      .where(sql`${t.focalStatus} = 'pending' and ${t.role} <> 'poster'`),
+    check(
+      'event_images_focal_pair',
+      sql`(${t.focalX} is null and ${t.focalY} is null) or (${t.focalX} >= 0 and ${t.focalX} <= 1 and ${t.focalY} >= 0 and ${t.focalY} <= 1)`,
+    ),
+  ],
 );
 
 /**

@@ -7623,6 +7623,15 @@
           {
             "schema": {
               "type": "string",
+              "enum": ["true"]
+            },
+            "required": false,
+            "name": "primaryTag",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
               "enum": ["soonest", "distance", "popular"],
               "default": "soonest"
             },
@@ -8158,6 +8167,15 @@
             },
             "required": false,
             "name": "tagIds",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true"]
+            },
+            "required": false,
+            "name": "primaryTag",
             "in": "query"
           },
           {

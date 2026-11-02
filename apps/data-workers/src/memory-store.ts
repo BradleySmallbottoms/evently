@@ -105,11 +105,18 @@ interface StoredRun {
 }
 
 interface StoredImage {
+  id: string;
   eventId: string;
   role: string;
   s3Key: string;
   sourceUrl: string | null;
   contentType: string;
+  focalX: number | null;
+  focalY: number | null;
+  focalStatus: 'pending' | 'done' | 'failed';
+  focalClaimedUntil: Date | null;
+  focalOutput: object | null;
+  createdAt: Date;
 }
 
 export interface MemoryIngestStore extends IngestStore {
@@ -207,6 +214,12 @@ function storedOccasions(
   const endsAt = new Date(input.endsAt);
   if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return [];
   return [{ startsAt, endsAt, venueName: input.event.venueName ?? null }];
+}
+
+function imageFocalDue(image: StoredImage, now: number, imageId?: string): boolean {
+  if (image.role === 'poster' || image.focalStatus !== 'pending') return false;
+  if (image.focalClaimedUntil != null && image.focalClaimedUntil.getTime() >= now) return false;
+  return imageId == null || image.id === imageId;
 }
 
 export function createMemoryIngestStore(): MemoryIngestStore {
@@ -605,15 +618,75 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         image.s3Key = input.s3Key;
         image.sourceUrl = input.sourceUrl;
         image.contentType = input.contentType;
+        image.focalX = null;
+        image.focalY = null;
+        image.focalStatus = 'pending';
+        image.focalClaimedUntil = null;
+        image.focalOutput = null;
         return;
       }
       images.push({
+        id: randomUUID(),
         eventId: input.eventId,
         role,
         s3Key: input.s3Key,
         sourceUrl: input.sourceUrl,
         contentType: input.contentType,
+        focalX: null,
+        focalY: null,
+        focalStatus: 'pending',
+        focalClaimedUntil: null,
+        focalOutput: null,
+        createdAt: new Date(),
       });
+    },
+    async countPendingImageFocals(imageId) {
+      const now = Date.now();
+      return images.filter((image) => imageFocalDue(image, now, imageId)).length;
+    },
+    async claimPendingImageFocals(limit, leaseMs, imageId, skipImageIds) {
+      const now = Date.now();
+      const until = new Date(now + leaseMs);
+      const skip = new Set(skipImageIds ?? []);
+      const due = images
+        .filter((image) => imageFocalDue(image, now, imageId) && !skip.has(image.id))
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))
+        .slice(0, imageId ? 1 : limit);
+      for (const image of due) image.focalClaimedUntil = until;
+      return due.map((image) => ({
+        imageId: image.id,
+        eventId: image.eventId,
+        role: image.role,
+        s3Key: image.s3Key,
+        contentType: image.contentType,
+        claimedUntil: until,
+      }));
+    },
+    async releaseImageFocalClaim(imageId, claimedUntil) {
+      const image = images.find((item) => item.id === imageId);
+      if (!image || image.focalStatus !== 'pending') return;
+      if (image.focalClaimedUntil?.getTime() !== claimedUntil.getTime()) return;
+      image.focalClaimedUntil = null;
+    },
+    async finishImageFocal(input) {
+      const image = images.find((item) => item.id === input.imageId);
+      if (!image || image.focalStatus !== 'pending') return false;
+      if (image.focalClaimedUntil?.getTime() !== input.claimedUntil.getTime()) return false;
+      image.focalX = input.x;
+      image.focalY = input.y;
+      image.focalStatus = 'done';
+      image.focalClaimedUntil = null;
+      image.focalOutput = input.output;
+      return true;
+    },
+    async failImageFocal(input) {
+      const image = images.find((item) => item.id === input.imageId);
+      if (!image || image.focalStatus !== 'pending') return false;
+      if (image.focalClaimedUntil?.getTime() !== input.claimedUntil.getTime()) return false;
+      image.focalStatus = 'failed';
+      image.focalClaimedUntil = null;
+      image.focalOutput = input.output;
+      return true;
     },
     async countPendingScans(eventId) {
       const now = Date.now();

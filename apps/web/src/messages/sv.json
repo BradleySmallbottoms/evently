@@ -190,5 +190,67 @@
     "invalidCode": "Ogiltig eller utgangen kod.",
     "loginError": "Kunde inte logga in med denna kod.",
     "loginSuccess": "Inloggad som anvandare {userId}."
+  },
+  "Legal": {
+    "privacyLink": "Integritet",
+    "supportLink": "Support",
+    "updated": "Senast uppdaterad {date}",
+    "privacyTitle": "Integritetspolicy",
+    "privacyDescription": "Hur Evently hanterar uppgifter om dig.",
+    "supportTitle": "Support",
+    "supportDescription": "Kontakta Candy Banana AB om Evently.",
+    "supportIntro": "Behöver du hjälp med Evently? Skriv eller ring så svarar vi.",
+    "emailLabel": "E-post",
+    "phoneLabel": "Telefon",
+    "addressLabel": "Adress",
+    "privacyCta": "Läs integritetspolicyn",
+    "privacy": {
+      "who": {
+        "title": "Vem som ansvarar",
+        "body": "Evently är en app från {name}. Personuppgiftsansvarig är {name}, org.nr {orgNumber}, {street}, {postalCode} {city}. Du når oss på <mail>{email}</mail>."
+      },
+      "identity": {
+        "title": "Ingen registrering",
+        "body": "Vi behöver inget konto. Vid första starten skapas en anonym identitet på enheten. Den används för att spara evenemang, områden, notiser och incheckningar. Appen känner igen enheten, inte ditt namn."
+      },
+      "optional": {
+        "title": "Namn och e-post",
+        "body": "Om du själv lägger till ett visningsnamn eller en e-postadress sparar vi dem. Namnet kan visas om du betygsätter ett evenemang. E-postadressen visas inte offentligt."
+      },
+      "location": {
+        "title": "Plats",
+        "body": "När appen är öppen kan den läsa din plats, för att visa evenemang nära dig och för att checka in. Vi läser inte plats i bakgrunden och följer dig inte när appen är stängd."
+      },
+      "content": {
+        "title": "Tips, betyg och sparade evenemang",
+        "body": "Om du tipsar om ett evenemang sparar vi texten och de bilder du väljer att skicka. Om du checkar in kan du lämna ett betyg och en kommentar. Sparade evenemang, markeringen att du kommer och incheckningar kopplas till den anonyma identiteten. Vi säljer inte uppgifterna och använder dem inte för spårning mellan appar eller för reklam."
+      },
+      "calendar": {
+        "title": "Kalender",
+        "body": "Om du lägger ett evenemang i kalendern skriver appen bara in det evenemanget. Vi läser inte övriga händelser i din kalender."
+      },
+      "crash": {
+        "title": "Kraschrapporter",
+        "body": "Vi använder Sentry för kraschrapporter, så att vi kan rätta fel. En rapport kan kopplas till enhetsidentiteten. Den används inte för reklam."
+      },
+      "deletion": {
+        "title": "Radering",
+        "body": "Återställning i appen tar bort identiteten från telefonen. Den tar inte automatiskt bort den anonyma posten hos oss. Skriv till <mail>{email}</mail> om du vill att vi raderar den, eller om du vill ha en kopia av uppgifterna. Berätta ungefär när du använde appen, så att vi kan hitta rätt post."
+      },
+      "rights": {
+        "title": "Dina rättigheter",
+        "body": "Du kan begära tillgång, rättelse eller radering av uppgifterna. Du kan också lämna ett klagomål till Integritetsskyddsmyndigheten, imy.se."
+      }
+    },
+    "support": {
+      "how": {
+        "title": "Hur appen fungerar",
+        "body": "Inget konto krävs. Vid första starten skapas en anonym identitet på enheten. Tillåt plats om telefonen frågar. Den används bara medan appen är öppen, för att visa evenemang nära dig och för att checka in. Pushnotiser är valfria."
+      },
+      "deletion": {
+        "title": "Radera dina uppgifter",
+        "body": "Återställning i profilen tar bort identiteten från telefonen. Skriv till <mail>{email}</mail> om du vill att vi även raderar den anonyma posten hos oss."
+      }
+    }
   }
 }

@@ -94,4 +94,27 @@ describe('public event date range', () => {
     expect(text).toContain(until);
     expect(text).toContain('::timestamptz');
   });
+
+  it('keeps a tagged event only when its first tag is requested', async () => {
+    const captured: unknown[] = [];
+    const events = createDbEventServices(recordingDb(captured), {} as AuthServices, {
+      now: () => new Date('2026-10-28T22:00:00.000Z'),
+    });
+    const tagId = '11111111-1111-4111-8111-111111111601';
+
+    await events.listPublicEvents({
+      lat: 61.303,
+      lng: 17.058,
+      radiusM: 25_000,
+      tagIds: tagId,
+      primaryTag: 'true',
+      sort: 'soonest',
+      limit: 12,
+      offset: 0,
+    });
+
+    const text = collectStrings(captured).join('\n');
+    expect(text).toContain('first.position');
+    expect(text).toContain(tagId);
+  });
 });

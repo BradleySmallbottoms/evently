@@ -10,6 +10,16 @@ import type { IncomingEvent, TagChoice } from '@local-events/ingest';
 import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
 
 /** Nearby event and publisher tools. The model cannot widen it. */
+/** One `event_images` row waiting for a focal point. */
+export interface PendingImageFocalRow {
+  imageId: string;
+  eventId: string;
+  role: string;
+  s3Key: string;
+  contentType: string;
+  claimedUntil: Date;
+}
+
 export const NEARBY_RADIUS_M = 500;
 /** Name search only returns publishers that have an event inside this radius. */
 export const PUBLISHER_NAME_SEARCH_RADIUS_M = 50_000;
@@ -314,6 +324,33 @@ export interface IngestStore {
   }): Promise<void>;
   /** Removes gallery rows. Never removes the hero (`main`). */
   deleteEventImages(eventId: string, roles: string[]): Promise<void>;
+  /** Pending focal rows whose lease is free. A poster is not counted. `imageId` counts that one row. */
+  countPendingImageFocals(imageId?: string): Promise<number>;
+  /**
+   * Claims up to `limit` images with no focal point whose lease is free.
+   * A poster is left out. `imageId` claims that one row when it is still pending.
+   */
+  claimPendingImageFocals(
+    limit: number,
+    leaseMs: number,
+    imageId?: string,
+    skipImageIds?: readonly string[],
+  ): Promise<PendingImageFocalRow[]>;
+  /** Drops this claim so a later run can take the image again. */
+  releaseImageFocalClaim(imageId: string, claimedUntil: Date): Promise<void>;
+  /**
+   * Writes the focal point while this claim still holds the row.
+   * Returns false when a newer claim owns it.
+   */
+  finishImageFocal(input: {
+    imageId: string;
+    claimedUntil: Date;
+    x: number;
+    y: number;
+    output: object;
+  }): Promise<boolean>;
+  /** Stores a finished answer that is not a point, so the image is not claimed again. */
+  failImageFocal(input: { imageId: string; claimedUntil: Date; output: object }): Promise<boolean>;
   /** `pending_scan` rows whose lease is free. `eventId` counts that one row. */
   countPendingScans(eventId?: string): Promise<number>;
   /**

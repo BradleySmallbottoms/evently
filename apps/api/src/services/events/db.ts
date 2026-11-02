@@ -418,14 +418,30 @@ export function createDbEventServices(
     }
     const tagIds = publicEventTagIds(query);
     if (tagIds.length > 0) {
-      filters.push(sql`exists (
-        select 1 from ${eventTags}
-        where ${eventTags.eventId} = ${events.id}
-          and ${eventTags.tagId} in (${sql.join(
-            tagIds.map((id) => sql`${id}`),
-            sql`, `,
-          )})
-      )`);
+      const idList = sql.join(
+        tagIds.map((id) => sql`${id}`),
+        sql`, `,
+      );
+      filters.push(
+        query.primaryTag === 'true'
+          ? sql`exists (
+              select 1 from ${eventTags} et
+              where et.event_id = ${events.id}
+                and et.tag_id in (${idList})
+                and et.tag_id = (
+                  select first.tag_id
+                  from ${eventTags} first
+                  where first.event_id = ${events.id}
+                  order by first.position asc, first.tag_id asc
+                  limit 1
+                )
+            )`
+          : sql`exists (
+              select 1 from ${eventTags}
+              where ${eventTags.eventId} = ${events.id}
+                and ${eventTags.tagId} in (${idList})
+            )`,
+      );
     }
     if (query.price === 'free') {
       const free = or(isNull(events.priceAmount), eq(events.priceAmount, 0));
@@ -469,7 +485,8 @@ export function createDbEventServices(
     const rows = await db
       .select({ tagId: eventTags.tagId })
       .from(eventTags)
-      .where(eq(eventTags.eventId, eventId));
+      .where(eq(eventTags.eventId, eventId))
+      .orderBy(asc(eventTags.position), asc(eventTags.tagId));
     return rows.map((r) => r.tagId);
   }
 
@@ -663,7 +680,9 @@ export function createDbEventServices(
     }
     await db.delete(eventTags).where(eq(eventTags.eventId, eventId));
     if (tagIds.length > 0) {
-      await db.insert(eventTags).values(tagIds.map((tagId) => ({ eventId, tagId })));
+      await db
+        .insert(eventTags)
+        .values(tagIds.map((tagId, position) => ({ eventId, tagId, position })));
     }
   }
 
