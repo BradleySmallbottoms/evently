@@ -162,7 +162,6 @@ export async function scanPendingImageFocals(
           });
     if (!wrote) {
       summary.unavailable += 1;
-      summary.released.push(row.imageId);
       continue;
     }
     if (outcome.kind === 'done') summary.done += 1;
@@ -183,7 +182,12 @@ async function scanOne(
 ): Promise<One> {
   const type = mediaType(row.contentType);
   if (!type) return { kind: 'fail', output: { error: 'unsupported_type' } };
-  const bytes = await readImage(row);
+  let bytes: Uint8Array | null;
+  try {
+    bytes = await readImage(row);
+  } catch {
+    return { kind: 'release', timeout: false };
+  }
   if (!bytes || bytes.byteLength === 0) return { kind: 'fail', output: { error: 'missing' } };
   if (bytes.byteLength > IMAGE_FOCAL_MAX_BYTES)
     return { kind: 'fail', output: { error: 'too_large' } };

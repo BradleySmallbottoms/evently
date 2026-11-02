@@ -30,7 +30,7 @@ the crop prompt. The model returns JSON `{"x": number, "y": number}`.
 | ----------------------------------------------------------------------------------------- | ------------------------------- |
 | A point from 0 to 1                                                                       | `done`                          |
 | An answer that is not a point, a missing file, an unsupported type, or a file over 4.5 MB | `failed`                        |
-| The chat request times out or the model is unreachable                                    | stays `pending`, lease released |
+| The chat request times out, the model is unreachable, or the asset store errors           | stays `pending`, lease released |
 
 `focal_output` keeps the model JSON, or a short error such as `missing`.
 

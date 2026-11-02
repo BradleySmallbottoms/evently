@@ -46,6 +46,20 @@ describe('scanPendingImageFocals', () => {
     expect(store.images.find((image) => image.role === 'poster')?.focalStatus).toBe('pending');
   });
 
+  it('releases the lease when the asset store or the model fails', async () => {
+    const store = createMemoryIngestStore();
+    await save(store);
+    const storage = await scanPendingImageFocals(store, {
+      readImage: async () => {
+        throw new Error('storage');
+      },
+      ask: async () => ({ text: '{"x":0.1,"y":0.1}', output: {} }),
+    });
+    expect(storage.unavailable).toBe(1);
+    expect(storage.released).toEqual([store.images[0]!.id]);
+    expect(store.images[0]).toMatchObject({ focalStatus: 'pending', focalClaimedUntil: null });
+  });
+
   it('releases the lease when the model does not answer', async () => {
     const store = createMemoryIngestStore();
     await save(store);
