@@ -5,7 +5,10 @@ point that should stay in frame. `focal_x` is the fraction from the left. `focal
 from the top. Both are empty until this job writes them.
 
 A new `event_images` row is `pending`. Replacing the file clears any point and returns the row to
-`pending`. A poster is left `pending` because that image is shown whole.
+`pending`. A poster is left `pending` because that image is shown whole. The job only claims a photo
+whose event still has a showing, soonest start first. A timed showing stays until it ends. A whole
+day, the same start and end, stays through that calendar day. An event with no remaining showing
+is left `pending`.
 
 EventBridge runs the data-workers task every 5 minutes with `JOB=image-focal`. Locally:
 
@@ -15,8 +18,9 @@ pnpm --filter @local-events/data-workers dev -- --job image-focal --image <image
 pnpm --filter @local-events/data-workers dev -- --job image-focal --limit 1
 ```
 
-`--image` claims that one pending row when its lease is free. `--limit` claims that many rows
-instead of the default five. The scheduled task sets neither, so it keeps the batch of five.
+`--image` claims that one pending row when its lease is free and the event still has a showing.
+`--limit` claims that many rows instead of the default five. The scheduled task sets neither, so it
+keeps the batch of five.
 
 The job uses the same chat settings as the import scan. With no `CHAT_PROVIDER` it calls local
 Ollama. `CHAT_PROVIDER=chatgpt` uses `OPENAI_API_KEY`. `CHAT_PROVIDER=claude` uses
@@ -40,7 +44,7 @@ sequenceDiagram
   participant DB as Postgres
   participant Bucket as Public assets
   participant Model as Scan chat model
-  Job->>DB: claim pending event_images (not poster)
+  Job->>DB: claim pending event_images with a future showing, soonest first
   Job->>Bucket: GetObject s3_key
   Job->>Model: photo plus crop prompt
   Model-->>Job: {"x","y"}

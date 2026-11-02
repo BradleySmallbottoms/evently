@@ -14,6 +14,7 @@ import { RegionSuggestionSheet } from '@/components/native/region-suggestion-she
 import { useReportHomeReady, useSplashDismissed } from '@/components/splash-cover';
 import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
+import { SearchBar } from '@/components/ui/search-bar';
 import { HomeCategories } from './_components/home-categories';
 import { HomeFeatured } from './_components/home-featured';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
@@ -609,6 +610,19 @@ export default function HomeScreen() {
         ) : (
           <>
             <HomeFeatured items={heroItems} onPress={(id) => router.push(`/events/${id}`)} />
+            <View style={{ paddingHorizontal: space.xl }}>
+              <SearchBar
+                value=""
+                onChangeText={() => {}}
+                placeholder={t('home.searchPlaceholder')}
+                onPress={() =>
+                  router.push({
+                    pathname: '/event-search',
+                    params: { focus: '1' },
+                  })
+                }
+              />
+            </View>
             <HomeCategories
               tags={tags.data?.items ?? []}
               selectedIds={rawTagIds}

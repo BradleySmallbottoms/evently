@@ -15,6 +15,7 @@ import {
   slugifyPublisherName,
   tagSlug,
   venueNamesMatch,
+  eventIsCurrent,
   withinDuplicateWindow,
   type MarketingPushPlanId,
 } from '@local-events/domain';
@@ -76,6 +77,7 @@ interface StoredEvent {
   onlineUrl?: string;
   priceAmount?: number;
   currency?: string;
+  timezone?: string;
   meta: EventMeta;
   contentVerdict?: 'spam' | 'harmful' | 'safe' | 'unknown';
   llmOutput?: object | null;
@@ -167,6 +169,7 @@ function eventFromWrite(id: string, input: ImportedEventWrite): StoredEvent {
     onlineUrl: input.event.onlineUrl,
     priceAmount: input.event.priceAmount,
     currency: input.event.currency,
+    timezone: input.event.timezone,
     meta: input.event.meta ?? {},
     contentVerdict: 'unknown',
     llmOutput: null,
@@ -216,9 +219,40 @@ function storedOccasions(
   return [{ startsAt, endsAt, venueName: input.event.venueName ?? null }];
 }
 
-function imageFocalDue(image: StoredImage, now: number, imageId?: string): boolean {
+/** Earliest start among showings that have not ended. A whole day stays through that calendar day. */
+function upcomingImageStart(events: StoredEvent[], eventId: string, now: Date): number | null {
+  const event = events.find((item) => item.id === eventId);
+  if (!event) return null;
+  let best: number | null = null;
+  for (const occasion of event.occasions) {
+    if (
+      !eventIsCurrent({
+        startsAt: occasion.startsAt,
+        endsAt: occasion.endsAt,
+        now,
+        timeZone: event.timezone,
+      })
+    ) {
+      continue;
+    }
+    const start = occasion.startsAt.getTime();
+    if (!Number.isFinite(start)) continue;
+    if (best == null || start < best) best = start;
+  }
+  return best;
+}
+
+function imageFocalDue(
+  image: StoredImage,
+  events: StoredEvent[],
+  now: Date,
+  imageId?: string,
+): boolean {
   if (image.role === 'poster' || image.focalStatus !== 'pending') return false;
-  if (image.focalClaimedUntil != null && image.focalClaimedUntil.getTime() >= now) return false;
+  if (image.focalClaimedUntil != null && image.focalClaimedUntil.getTime() >= now.getTime()) {
+    return false;
+  }
+  if (upcomingImageStart(events, image.eventId, now) == null) return false;
   return imageId == null || image.id === imageId;
 }
 
@@ -641,16 +675,20 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       });
     },
     async countPendingImageFocals(imageId) {
-      const now = Date.now();
-      return images.filter((image) => imageFocalDue(image, now, imageId)).length;
+      const now = new Date();
+      return images.filter((image) => imageFocalDue(image, events, now, imageId)).length;
     },
     async claimPendingImageFocals(limit, leaseMs, imageId, skipImageIds) {
-      const now = Date.now();
-      const until = new Date(now + leaseMs);
+      const now = new Date();
+      const until = new Date(now.getTime() + leaseMs);
       const skip = new Set(skipImageIds ?? []);
       const due = images
-        .filter((image) => imageFocalDue(image, now, imageId) && !skip.has(image.id))
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))
+        .filter((image) => imageFocalDue(image, events, now, imageId) && !skip.has(image.id))
+        .sort((a, b) => {
+          const startA = upcomingImageStart(events, a.eventId, now) ?? Number.POSITIVE_INFINITY;
+          const startB = upcomingImageStart(events, b.eventId, now) ?? Number.POSITIVE_INFINITY;
+          return startA - startB || a.id.localeCompare(b.id);
+        })
         .slice(0, imageId ? 1 : limit);
       for (const image of due) image.focalClaimedUntil = until;
       return due.map((image) => ({

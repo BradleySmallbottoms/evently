@@ -16,6 +16,7 @@ import { MonthStrip } from '@/components/calendar/month-strip';
 import { QuickDates, type QuickDateId } from '@/components/calendar/quick-dates';
 import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
+import { SearchBar } from '@/components/ui/search-bar';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { queryPointForArea } from '@/lib/area-point';
 import { pointForPlace } from '@/lib/location-draft';
@@ -373,6 +374,19 @@ export default function EventsScreen() {
                   style={{ backgroundColor: colors.accentSoft, borderRadius: radius.pill }}
                 />
               </View>
+            </View>
+            <View style={{ paddingHorizontal: space.xl }}>
+              <SearchBar
+                value=""
+                onChangeText={() => {}}
+                placeholder={t('home.searchPlaceholder')}
+                onPress={() =>
+                  router.push({
+                    pathname: '/event-search',
+                    params: { focus: '1' },
+                  })
+                }
+              />
             </View>
             <View style={{ paddingHorizontal: space.xl }}>
               <CalendarFilterBar

@@ -191,7 +191,7 @@ Product invariants (enforced in domain, tested)
   web. The profile is stored on `publishers.meta.lookup`. A website from a fetched page is also stored as an organizer key. A finished lookup sets `in_review`. A failed lookup leaves the
   publisher `pending_scan`.
 - An event image stores `focal_x` and `focal_y`, fractions from the left and the top. A new image is
-  `pending`. `JOB=image-focal` claims those rows, except posters, and asks the scan chat model for
+  `pending`. `JOB=image-focal` claims those rows when the event still has a showing, soonest start first, except posters, and asks the scan chat model for
   one point. A point is `done`. An answer that is not a point is `failed`. A transport failure
   releases the lease. Replacing the image clears the point. The scan model has to accept images.
 - An imported physical event with no venue name stores the city from its scraped address on `meta.import.venueName`. When that

@@ -324,11 +324,14 @@ export interface IngestStore {
   }): Promise<void>;
   /** Removes gallery rows. Never removes the hero (`main`). */
   deleteEventImages(eventId: string, roles: string[]): Promise<void>;
-  /** Pending focal rows whose lease is free. A poster is not counted. `imageId` counts that one row. */
+  /**
+   * Pending focal rows whose event still has a showing and whose lease is free.
+   * A poster is not counted. `imageId` counts that one row.
+   */
   countPendingImageFocals(imageId?: string): Promise<number>;
   /**
-   * Claims up to `limit` images with no focal point whose lease is free.
-   * A poster is left out. `imageId` claims that one row when it is still pending.
+   * Claims up to `limit` images with no focal point, on events that still have a showing,
+   * soonest start first. A poster is left out. `imageId` claims that one row when it is still pending.
    */
   claimPendingImageFocals(
     limit: number,

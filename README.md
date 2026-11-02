@@ -262,8 +262,9 @@ calls) in the same change as every new major feature.**
 
 - Each event photo stores a focal point, `focal_x` and `focal_y`, as fractions from the left and
   the top. A new image is `pending`. Posters stay pending because they are shown whole.
-  `pnpm --filter @local-events/data-workers dev -- --job image-focal` claims the next batch and
-  asks the scan chat model for one point. A point is `done`. An answer that is not a point is
+  `pnpm --filter @local-events/data-workers dev -- --job image-focal` claims the next batch of
+  photos on events that still have a showing, soonest start first, and asks the scan chat model
+  for one point. A point is `done`. An answer that is not a point is
   `failed` and is not retried. A transport failure releases the lease. Replacing the image clears
   the point. `CHAT_PROVIDER=runpod` uses the scan pod and holds the scan lock. The model has to
   accept images. Add `--image <image-id>` or `--limit 1` to scan less than a batch.

@@ -7,16 +7,49 @@ import {
 } from '../../../apps/data-workers/src/image-focal';
 import { createMemoryIngestStore } from '../../../apps/data-workers/src/memory-store';
 
-const EVENT_ID = '11111111-1111-4111-8111-111111111111';
+function isoFromNow(hours: number): string {
+  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+}
 
-async function save(store: ReturnType<typeof createMemoryIngestStore>, role = 'main') {
+async function save(
+  store: ReturnType<typeof createMemoryIngestStore>,
+  role = 'main',
+  when?: { startsAt: string; endsAt: string },
+) {
+  const startsAt = when?.startsAt ?? isoFromNow(48);
+  const endsAt = when?.endsAt ?? isoFromNow(50);
+  const externalId = `${role}-${startsAt}-${endsAt}`;
+  const eventId = await store.insertImported({
+    sourceId: '33333333-3333-4333-8333-333333333301',
+    externalId,
+    contentHash: 'hash',
+    publisherId: null,
+    status: 'published',
+    endsAt,
+    tagIds: [],
+    refId: externalId,
+    workerId: 'test',
+    event: {
+      externalId,
+      title: 'Later',
+      mode: 'physical',
+      startsAt,
+      endsAt,
+      timezone: 'Europe/Stockholm',
+      sourceUrl: 'https://example.com/event',
+      organizerKeys: ['example'],
+      categoryHints: [],
+      tags: [],
+    },
+  });
   await store.saveEventImage({
-    eventId: EVENT_ID,
+    eventId,
     role,
-    s3Key: `events/${EVENT_ID}/${role}`,
+    s3Key: `events/${eventId}/${role}`,
     sourceUrl: `https://images.example/${role}.jpg`,
     contentType: 'image/jpeg',
   });
+  return eventId;
 }
 
 describe('focalFromModelText', () => {
@@ -106,14 +139,14 @@ describe('scanPendingImageFocals', () => {
 
   it('clears a stored point when the image is replaced', async () => {
     const store = createMemoryIngestStore();
-    await save(store);
+    const eventId = await save(store);
     await scanPendingImageFocals(store, {
       readImage: async () => new Uint8Array([1]),
       ask: async () => ({ text: '{"x":0.2,"y":0.2}', output: {} }),
     });
     await store.saveEventImage({
-      eventId: EVENT_ID,
-      s3Key: `events/${EVENT_ID}/main`,
+      eventId,
+      s3Key: `events/${eventId}/main`,
       sourceUrl: 'https://images.example/replaced.jpg',
       contentType: 'image/jpeg',
     });
@@ -122,5 +155,26 @@ describe('scanPendingImageFocals', () => {
       focalX: null,
       focalY: null,
     });
+  });
+
+  it('claims the soonest showing that has not ended and skips a past event', async () => {
+    const store = createMemoryIngestStore();
+    const past = await save(store, 'main', { startsAt: isoFromNow(-48), endsAt: isoFromNow(-46) });
+    const pastDay = isoFromNow(-72);
+    const pastWholeDay = await save(store, 'main', { startsAt: pastDay, endsAt: pastDay });
+    const later = await save(store, 'main', { startsAt: isoFromNow(72), endsAt: isoFromNow(74) });
+    const whole = isoFromNow(1);
+    const sooner = await save(store, 'main', { startsAt: whole, endsAt: whole });
+    const summary = await scanPendingImageFocals(store, {
+      limit: 1,
+      readImage: async () => new Uint8Array([1]),
+      ask: async () => ({ text: '{"x":0.2,"y":0.3}', output: {} }),
+    });
+    const soonerImage = store.images.find((image) => image.eventId === sooner);
+    expect(summary.imageIds).toEqual([soonerImage?.id]);
+    expect(soonerImage?.focalStatus).toBe('done');
+    for (const eventId of [past, pastWholeDay, later]) {
+      expect(store.images.find((image) => image.eventId === eventId)?.focalStatus).toBe('pending');
+    }
   });
 });

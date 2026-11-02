@@ -53,6 +53,31 @@ import {
 } from './store';
 import { type GeoPoint, type NearbyWindow } from '@local-events/geo';
 
+/**
+ * Earliest start among showings that have not ended. A whole day stays through that calendar day.
+ * Same rule as the public event list. An empty timezone is Europe/Stockholm.
+ */
+function upcomingImageStart(now: Date) {
+  const bound = now.toISOString();
+  const zone = `COALESCE(NULLIF(btrim(e.timezone), ''), 'Europe/Stockholm')`;
+  return sql`(
+    select min(eo.starts_at)
+    from event_occasions eo
+    inner join events e on e.id = eo.event_id
+    where eo.event_id = event_images.event_id
+      and (
+        eo.ends_at >= ${bound}::timestamptz
+        or (
+          eo.starts_at = eo.ends_at
+          and eo.starts_at >= (
+            date_trunc('day', ${bound}::timestamptz AT TIME ZONE ${sql.raw(zone)})
+            AT TIME ZONE ${sql.raw(zone)}
+          )
+        )
+      )
+  )`;
+}
+
 function eventValues(input: ImportedEventWrite) {
   return {
     publisherId: input.publisherId,
@@ -823,6 +848,7 @@ export function createDbIngestStore(db: Db): IngestStore {
     },
     async countPendingImageFocals(imageId) {
       const now = new Date();
+      const start = upcomingImageStart(now);
       const [row] = await db
         .select({ n: count() })
         .from(eventImages)
@@ -831,6 +857,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             eq(eventImages.focalStatus, 'pending'),
             ne(eventImages.role, 'poster'),
             or(isNull(eventImages.focalClaimedUntil), lt(eventImages.focalClaimedUntil, now)),
+            sql`${start} is not null`,
             ...(imageId ? [eq(eventImages.id, imageId)] : []),
           ),
         );
@@ -840,6 +867,7 @@ export function createDbIngestStore(db: Db): IngestStore {
       const now = new Date();
       const until = new Date(now.getTime() + leaseMs);
       const skip = skipImageIds?.filter((id) => id.length > 0) ?? [];
+      const start = upcomingImageStart(now);
       return db.transaction(async (tx) => {
         const ids = await tx
           .select({ id: eventImages.id })
@@ -849,11 +877,12 @@ export function createDbIngestStore(db: Db): IngestStore {
               eq(eventImages.focalStatus, 'pending'),
               ne(eventImages.role, 'poster'),
               or(isNull(eventImages.focalClaimedUntil), lt(eventImages.focalClaimedUntil, now)),
+              sql`${start} is not null`,
               ...(imageId ? [eq(eventImages.id, imageId)] : []),
               ...(skip.length > 0 ? [notInArray(eventImages.id, skip)] : []),
             ),
           )
-          .orderBy(asc(eventImages.createdAt), asc(eventImages.id))
+          .orderBy(asc(start), asc(eventImages.id))
           .limit(imageId ? 1 : limit)
           .for('update', { skipLocked: true });
         if (ids.length === 0) return [];
