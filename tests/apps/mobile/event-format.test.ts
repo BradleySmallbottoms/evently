@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   featuredTicketLink,
   participateSheetLinks,
+  relativeDateLabel,
+  shortDateLabel,
   ticketLink,
 } from '../../../apps/mobile/src/lib/event-format';
 
@@ -82,6 +84,34 @@ describe('featuredTicketLink', () => {
         null,
       )?.url,
     ).toBe('https://example.com/b');
+  });
+});
+
+describe('relativeDateLabel', () => {
+  const labels = { today: 'Today', tomorrow: 'Tomorrow' };
+  const now = new Date('2026-11-02T12:00:00.000Z');
+  const zone = 'Europe/Stockholm';
+
+  it('uses today and tomorrow for those calendar days in the event zone', () => {
+    expect(relativeDateLabel('2026-11-02T08:00:00.000Z', 'en', labels, now, zone)).toBe('Today');
+    expect(relativeDateLabel('2026-11-03T08:00:00.000Z', 'en', labels, now, zone)).toBe('Tomorrow');
+    // 23:30 UTC is 00:30 the next day in Stockholm.
+    expect(relativeDateLabel('2026-11-02T23:30:00.000Z', 'en', labels, now, zone)).toBe('Tomorrow');
+  });
+
+  it('keeps the short date once the occasion is past tomorrow', () => {
+    const later = '2026-11-10T08:00:00.000Z';
+    expect(relativeDateLabel(later, 'sv', labels, now, zone)).toBe(
+      shortDateLabel(later, 'sv', zone),
+    );
+    const yesterday = '2026-11-01T08:00:00.000Z';
+    expect(relativeDateLabel(yesterday, 'sv', labels, now, zone)).toBe(
+      shortDateLabel(yesterday, 'sv', zone),
+    );
+  });
+
+  it('returns nothing when the start is missing', () => {
+    expect(relativeDateLabel('', 'sv', labels, now, zone)).toBe('');
   });
 });
 

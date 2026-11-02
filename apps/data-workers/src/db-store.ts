@@ -1334,7 +1334,7 @@ export function createDbIngestStore(db: Db): IngestStore {
       if (!titleMatch) return [];
       const ewkt = pointEwkt(point);
       const distance = sql<number>`ST_Distance(${eventOccasions.location}, ST_GeogFromText(${ewkt}))`;
-      const rows = await db
+      const query = db
         .selectDistinctOn([events.id], {
           id: events.id,
           title: events.title,
@@ -1359,6 +1359,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           ),
         )
         .orderBy(events.id, asc(eventOccasions.startsAt));
+      const rows = await query;
       return rows
         .flatMap((row) => {
           if (!row.startsAt) return [];

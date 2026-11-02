@@ -10,7 +10,7 @@ import { CategoryFiltersSheet } from '@/components/native/category-filters-sheet
 import { AppText } from '@/components/ui/app-text';
 import { EventImage } from '@/components/ui/event-image';
 import { TAG_GROUP_STYLE, TagGroupIcon, TagGroupList } from '@/components/ui/tag-group-list';
-import { eventPlaceLabel, shortDateLabel } from '@/lib/event-format';
+import { eventPlaceLabel, relativeDateLabel } from '@/lib/event-format';
 import { listPublicEvents, namesForTagIds, type EventQueryPoint } from '@/lib/events';
 import { eventListFreshness } from '@/lib/query-client';
 import { shownWhen } from '@/lib/span-occasions';
@@ -24,6 +24,8 @@ import {
 import { useEventCount } from '@/lib/use-event-count';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
+
+import { DatePill } from './date-pill';
 
 type RailEvent = {
   id: string;
@@ -67,7 +69,7 @@ function CategoryCard({
     <View style={{ width: CARD_WIDTH, gap: space.sm }}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={item.title}
+        accessibilityLabel={`${item.title}, ${item.when}`}
         onPress={onOpen}
         style={{
           height: 168,
@@ -82,6 +84,12 @@ function CategoryCard({
           tags={item.tags}
           style={{ width: '100%', height: '100%' }}
         />
+        <View
+          pointerEvents="none"
+          style={{ position: 'absolute', bottom: space.sm, left: space.sm, right: 40 }}
+        >
+          <DatePill label={item.when} />
+        </View>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -119,9 +127,6 @@ function CategoryCard({
       <Pressable accessibilityRole="button" onPress={onOpen} style={{ gap: 2 }}>
         <AppText numberOfLines={2} style={{ fontSize: 15, lineHeight: 19, fontWeight: '700' }}>
           {item.title}
-        </AppText>
-        <AppText variant="caption" numberOfLines={1}>
-          {item.when}
         </AppText>
         <AppText variant="caption" numberOfLines={1}>
           {item.where}
@@ -218,12 +223,19 @@ export function HomeCategories({
       {shown.map((group, index) => {
         const query = rails[index];
         const tagIds = tagIdsForGroup(group, selectedIds);
+        const now = new Date();
         const items: RailEvent[] = (query?.data?.items ?? []).map((item) => {
-          const when = shownWhen(item, new Date());
+          const when = shownWhen(item, now);
           return {
             id: item.id,
             title: item.title,
-            when: shortDateLabel(when.startsAt, locale, item.timezone),
+            when: relativeDateLabel(
+              when.startsAt,
+              locale,
+              { today: t('events.dateToday'), tomorrow: t('events.dateTomorrow') },
+              now,
+              item.timezone,
+            ),
             where: eventPlaceLabel({
               mode: item.mode,
               venueName: item.venueName,

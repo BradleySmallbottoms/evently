@@ -8,6 +8,8 @@ import { MaxContentWidth } from '@/constants/theme';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
+import { DatePill } from './date-pill';
+
 export type HomeFeaturedItem = {
   id: string;
   title: string;
@@ -55,7 +57,7 @@ export function HomeFeatured({ items, onPress }: Props) {
           <View style={{ width: pageWidth, paddingHorizontal: space.xl }}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={item.title}
+              accessibilityLabel={`${item.title}, ${item.when}`}
               onPress={() => onPress(item.id)}
               style={{
                 height: CARD_HEIGHT,
@@ -82,31 +84,41 @@ export function HomeFeatured({ items, onPress }: Props) {
                     'linear-gradient(to bottom, rgba(17,24,32,0) 0%, rgba(17,24,32,0.82) 100%)',
                 }}
               />
-              {item.featured ? (
-                <View
-                  style={{
-                    position: 'absolute',
-                    left: space.lg,
-                    top: space.lg,
-                    backgroundColor: 'rgba(17,24,32,0.72)',
-                    borderRadius: radius.xs,
-                    paddingHorizontal: space.sm,
-                    paddingVertical: 3,
-                  }}
-                >
-                  <AppText
-                    variant="label"
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: space.lg,
+                  top: space.lg,
+                  right: space.lg,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: space.sm,
+                }}
+              >
+                {item.featured ? (
+                  <View
                     style={{
-                      color: '#FFFFFF',
-                      fontSize: 11,
-                      letterSpacing: 0.6,
-                      fontWeight: '700',
+                      backgroundColor: 'rgba(17,24,32,0.72)',
+                      borderRadius: radius.xs,
+                      paddingHorizontal: space.sm,
+                      paddingVertical: 3,
                     }}
                   >
-                    {t('events.featured').toLocaleUpperCase()}
-                  </AppText>
-                </View>
-              ) : null}
+                    <AppText
+                      variant="label"
+                      style={{
+                        color: '#FFFFFF',
+                        fontSize: 11,
+                        letterSpacing: 0.6,
+                        fontWeight: '700',
+                      }}
+                    >
+                      {t('events.featured').toLocaleUpperCase()}
+                    </AppText>
+                  </View>
+                ) : null}
+              </View>
               <View
                 style={{
                   position: 'absolute',
@@ -122,12 +134,15 @@ export function HomeFeatured({ items, onPress }: Props) {
                 >
                   {item.title}
                 </AppText>
-                <AppText
-                  numberOfLines={1}
-                  style={{ color: 'rgba(255,255,255,0.92)', fontSize: 14 }}
-                >
-                  {item.when} • {item.where}
-                </AppText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                  <DatePill label={item.when} />
+                  <AppText
+                    numberOfLines={1}
+                    style={{ color: 'rgba(255,255,255,0.92)', fontSize: 14 }}
+                  >
+                    {item.where}
+                  </AppText>
+                </View>
               </View>
             </Pressable>
           </View>

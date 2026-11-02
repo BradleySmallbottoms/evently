@@ -52,7 +52,7 @@ import {
   shouldReevaluateRegionSuggestion,
 } from '@/lib/foreground-location';
 import { useOnboardingVisible } from '@/lib/onboarding-visibility';
-import { eventPlaceLabel, shortDateLabel } from '@/lib/event-format';
+import { eventPlaceLabel, relativeDateLabel } from '@/lib/event-format';
 import { shownWhen } from '@/lib/span-occasions';
 import { useHasUnreadNotifications } from '@/lib/use-unread-notifications';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
@@ -355,12 +355,19 @@ export default function HomeScreen() {
     [events.data],
   );
   const heroItems = useMemo(() => {
+    const now = new Date();
     return pickHomeFeaturedEvents(listedEvents).map((item) => {
-      const when = shownWhen(item, new Date());
+      const when = shownWhen(item, now);
       return {
         id: item.id,
         title: item.title,
-        when: shortDateLabel(when.startsAt, locale, item.timezone),
+        when: relativeDateLabel(
+          when.startsAt,
+          locale,
+          { today: t('events.dateToday'), tomorrow: t('events.dateTomorrow') },
+          now,
+          item.timezone,
+        ),
         where: eventPlaceLabel({
           mode: item.mode,
           venueName: item.venueName,

@@ -1123,7 +1123,6 @@ async function lookupEventsByName(
   args: Record<string, unknown>,
   context: LookupContext,
 ): Promise<ToolResult> {
-  console.log('lookupEventsByName', args);
   const point = eventPoint(context);
   if ('error' in point) return point;
   const names = readEventNamePatterns(args.names);
@@ -1131,7 +1130,6 @@ async function lookupEventsByName(
   const window = readEventNameRange(args.from, args.to);
   if ('error' in window) return window;
   const events = await context.store.eventsByName(point, names, window, context.event.eventId);
-  console.log('events', events);
   return { events };
 }
 

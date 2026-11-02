@@ -34,6 +34,55 @@ export function shortDateLabel(iso: string, locale: string, timeZone?: string): 
   return [weekday, badge.day, badge.month].filter(Boolean).join(' ');
 }
 
+function calendarDay(instant: Date, timeZone: string): string {
+  const zone = timeZone || DEFAULT_TIME_ZONE;
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: zone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(instant);
+  } catch {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: DEFAULT_TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(instant);
+  }
+}
+
+function nextCalendarDay(day: string): string {
+  const [year, month, date] = day.split('-').map(Number);
+  const utc = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, (date ?? 1) + 1));
+  const y = utc.getUTCFullYear();
+  const m = String(utc.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(utc.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * "Today" or "Tomorrow" when the occasion falls on that calendar day in the
+ * event zone. Any other day keeps the short date ("Fre 10 okt").
+ */
+export function relativeDateLabel(
+  iso: string,
+  locale: string,
+  labels: { today: string; tomorrow: string },
+  now = new Date(),
+  timeZone?: string,
+): string {
+  const zone = timeZone || DEFAULT_TIME_ZONE;
+  const start = new Date(iso);
+  if (!Number.isFinite(start.getTime())) return '';
+  const day = calendarDay(start, zone);
+  const today = calendarDay(now, zone);
+  if (day === today) return labels.today;
+  if (day === nextCalendarDay(today)) return labels.tomorrow;
+  return shortDateLabel(iso, locale, zone);
+}
+
 /** Venue and city on one line. A digital event uses its link. */
 export function eventPlaceLabel(input: {
   mode: string;
