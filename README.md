@@ -93,7 +93,8 @@ pnpm api-client:generate   # after public API OpenAPI changes
 
 - The Show events button on home categories, calendar filters, and the location menu shows how many
   events that combination will list. `GET /v1/events/count` uses the same filters as the public
-  list. The count is a database query for now. The cache plan is in
+  list. Home categories pass `primaryTag=true`, so the number only includes events whose first
+  saved tag is selected. The count is a database query for now. The cache plan is in
   [docs/flows/event-counts.md](docs/flows/event-counts.md).
 
 ### Publisher import notifications

@@ -14,6 +14,7 @@ function countKey(point: EventQueryPoint, filter: PublicEventCountFilter | undef
     q: filter?.q ?? null,
     tagId: filter?.tagId ?? null,
     tagIds: [...(filter?.tagIds ?? [])].sort(),
+    primaryTag: filter?.primaryTag === true,
     from: filter?.from ?? null,
     to: filter?.to ?? null,
     price: filter?.price ?? null,

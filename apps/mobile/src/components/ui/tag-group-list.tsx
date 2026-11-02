@@ -8,6 +8,7 @@ import { Pressable, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import {
   groupHomeTags,
+  toggleGroupSelection,
   toggleTagSelection,
   type HomeTag,
   type HomeTagGroupId,
@@ -38,6 +39,10 @@ type Props = {
   onChange: (ids: string[]) => void;
   /** Home shows the “Categories” heading. The settings screen uses its own title. */
   showHeading?: boolean;
+  /** Group to open when this list is shown. */
+  initialExpandedId?: HomeTagGroupId | null;
+  /** Home hides Clear once every tag is on, because that selection is already empty. */
+  showClear?: boolean;
 };
 
 function tap() {
@@ -54,10 +59,18 @@ export function TagGroupIcon({ id, size }: { id: HomeTagGroupId; size: number })
   );
 }
 
-/** Expandable category groups, the list Home shows after “Show all categories”. */
-export function TagGroupList({ title, tags, selectedIds, onChange, showHeading = true }: Props) {
+/** Category groups. A tap selects or clears every tag. More opens the individual tags. */
+export function TagGroupList({
+  title,
+  tags,
+  selectedIds,
+  onChange,
+  showHeading = true,
+  initialExpandedId = null,
+  showClear = true,
+}: Props) {
   const { t } = useTranslation();
-  const [expandedId, setExpandedId] = useState<HomeTagGroupId | null>(null);
+  const [expandedId, setExpandedId] = useState<HomeTagGroupId | null>(initialExpandedId);
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
   const groups = useMemo(() => groupHomeTags(tags), [tags]);
 
@@ -74,7 +87,7 @@ export function TagGroupList({ title, tags, selectedIds, onChange, showHeading =
           ) : (
             <View />
           )}
-          {selectedIds.length > 0 ? (
+          {showClear && selectedIds.length > 0 ? (
             <Pressable
               accessibilityRole="button"
               onPress={() => {
@@ -93,76 +106,103 @@ export function TagGroupList({ title, tags, selectedIds, onChange, showHeading =
       {groups.map((group) => {
         const style = TAG_GROUP_STYLE[group.id];
         const open = expandedId === group.id;
-        const chosen = group.tags.filter((tag) => selected.has(tag.id)).length;
+        const ids = group.tags.map((tag) => tag.id);
+        const chosen = ids.filter((id) => selected.has(id)).length;
+        const allOn = chosen === ids.length;
+        const name = t(`events.tagGroup.${group.id}`);
         return (
           <View
             key={group.id}
             style={{
-              backgroundColor: colors.card,
+              backgroundColor: allOn ? style.fill : colors.card,
               borderRadius: radius.lg,
               borderWidth: 1,
-              borderColor: colors.line,
+              borderColor: allOn ? style.icon : colors.line,
               padding: space.md,
               gap: space.md,
             }}
           >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ expanded: open }}
-              onPress={() => {
-                tap();
-                setExpandedId(open ? null : group.id);
-              }}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}
-            >
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: style.fill,
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: allOn }}
+                accessibilityLabel={name}
+                onPress={() => {
+                  tap();
+                  onChange(toggleGroupSelection(selectedIds, ids));
                 }}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md }}
               >
-                <TagGroupIcon id={group.id} size={40} />
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <AppText style={{ fontSize: 16, lineHeight: 20, fontWeight: '700' }}>
-                  {t(`events.tagGroup.${group.id}`)}
-                </AppText>
-                <AppText variant="caption">
-                  {t('events.tagGroupCount', { count: group.tags.length })}
-                </AppText>
-              </View>
-              {chosen > 0 ? (
                 <View
                   style={{
-                    backgroundColor: style.fill,
-                    borderRadius: radius.pill,
-                    paddingHorizontal: space.sm,
-                    paddingVertical: 4,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: allOn ? colors.card : style.fill,
                   }}
                 >
-                  <AppText variant="label" style={{ color: style.icon }}>
-                    {t('events.tagGroupSelected', { count: chosen })}
+                  <TagGroupIcon id={group.id} size={40} />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <AppText style={{ fontSize: 16, lineHeight: 20, fontWeight: '700' }}>
+                    {name}
+                  </AppText>
+                  <AppText variant="caption">
+                    {t('events.tagGroupCount', { count: group.tags.length })}
                   </AppText>
                 </View>
-              ) : null}
-              {process.env.EXPO_OS === 'ios' ? (
-                <SymbolView
-                  name={open ? 'chevron.up' : 'chevron.down'}
-                  size={16}
-                  tintColor={colors.inkMuted}
-                />
-              ) : (
-                <MaterialIcons
-                  name={open ? 'expand-less' : 'expand-more'}
-                  size={22}
-                  color={colors.inkMuted}
-                />
-              )}
-            </Pressable>
+                {chosen > 0 ? (
+                  <View
+                    style={{
+                      backgroundColor: allOn ? colors.card : style.fill,
+                      borderRadius: radius.pill,
+                      paddingHorizontal: space.sm,
+                      paddingVertical: 4,
+                    }}
+                  >
+                    <AppText variant="label" style={{ color: style.icon }}>
+                      {t('events.tagGroupSelected', { count: chosen, total: ids.length })}
+                    </AppText>
+                  </View>
+                ) : null}
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: open }}
+                accessibilityLabel={`${open ? t('events.categoriesFewer') : t('events.categoriesMore')}, ${name}`}
+                onPress={() => {
+                  tap();
+                  setExpandedId(open ? null : group.id);
+                }}
+                hitSlop={8}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: colors.card,
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                }}
+              >
+                {process.env.EXPO_OS === 'ios' ? (
+                  <SymbolView
+                    name={open ? 'chevron.up' : 'chevron.down'}
+                    size={14}
+                    tintColor={colors.ink}
+                  />
+                ) : (
+                  <MaterialIcons
+                    name={open ? 'expand-less' : 'expand-more'}
+                    size={18}
+                    color={colors.ink}
+                  />
+                )}
+              </Pressable>
+            </View>
             {open ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
                 {group.tags.map((tag) => {
@@ -186,7 +226,7 @@ export function TagGroupList({ title, tags, selectedIds, onChange, showHeading =
                         borderRadius: radius.pill,
                         borderWidth: 1,
                         borderColor: on ? style.icon : colors.line,
-                        backgroundColor: on ? style.fill : colors.card,
+                        backgroundColor: on && !allOn ? style.fill : colors.card,
                       }}
                     >
                       {on ? (

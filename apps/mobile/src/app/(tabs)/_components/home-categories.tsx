@@ -17,6 +17,9 @@ import { shownWhen } from '@/lib/span-occasions';
 import {
   groupHomeTags,
   groupsToShow,
+  homeTagSelectionForEdit,
+  homeTagSelectionIsEveryTag,
+  homeTagSelectionToStore,
   tagIdsForGroup,
   type HomeTag,
   type HomeTagGroupId,
@@ -148,13 +151,24 @@ export function HomeCategories({
   onShowAll,
 }: Props) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [editor, setEditor] = useState<{ group: HomeTagGroupId | null; token: number } | null>(
+    null,
+  );
   const groups = useMemo(() => groupHomeTags(tags), [tags]);
   const shown = useMemo(() => groupsToShow(groups, selectedIds), [groups, selectedIds]);
+  const allTagIds = useMemo(() => tags.map((tag) => tag.id), [tags]);
+  const sheetSelection = useMemo(
+    () => homeTagSelectionForEdit(allTagIds, selectedIds),
+    [allTagIds, selectedIds],
+  );
   const eventCount = useEventCount(
     point,
-    { tagIds: selectedIds.length > 0 ? [...selectedIds] : undefined },
-    open && point != null,
+    {
+      tagIds: selectedIds.length > 0 ? [...selectedIds] : undefined,
+      // A home row keeps an event only when its first tag is selected.
+      primaryTag: selectedIds.length > 0,
+    },
+    editor != null && point != null,
   );
   const rails = useQueries({
     queries: shown.map((group) => {
@@ -182,46 +196,13 @@ export function HomeCategories({
     }),
   });
 
+  function openEditor(group: HomeTagGroupId | null) {
+    tap();
+    setEditor({ group, token: Date.now() });
+  }
+
   return (
     <View style={{ gap: space.xl }}>
-      {/* <View
-        style={{
-          paddingHorizontal: space.xl,
-          flexDirection: 'row',
-          alignItems: 'flex-end',
-          justifyContent: 'space-between',
-          gap: space.md,
-        }}
-      >
-        <AppText style={{ fontSize: 22, lineHeight: 28, fontWeight: '700' }}>
-          {t('home.yourCategories')}
-        </AppText>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('home.chooseCategories')}
-          onPress={() => {
-            tap();
-            setOpen(true);
-          }}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: 4,
-            paddingLeft: space.sm,
-          }}
-        >
-          <AppText variant="label" style={{ color: '#8A5A3A', fontWeight: '700' }}>
-            {t('home.chooseCategoriesShort')}
-          </AppText>
-          {process.env.EXPO_OS === 'ios' ? (
-            <SymbolView name="plus.circle" size={22} tintColor="#8A5A3A" />
-          ) : (
-            <MaterialIcons name="add-circle-outline" size={22} color="#8A5A3A" />
-          )}
-        </Pressable>
-      </View> */}
-
       {shown.map((group, index) => {
         const query = rails[index];
         const tagIds = tagIdsForGroup(group, selectedIds);
@@ -267,18 +248,50 @@ export function HomeCategories({
             failed={query?.isError === true}
             items={items}
             onShowAll={() => onShowAll(tagIds)}
+            onEdit={() => openEditor(group.id)}
             onOpen={onOpen}
             onToggleSave={onToggleSave}
           />
         );
       })}
 
+      {shown.length < groups.length ? (
+        <View style={{ alignItems: 'center' }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('home.addCategories')}
+            onPress={() => openEditor(null)}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: colors.ink,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {process.env.EXPO_OS === 'ios' ? (
+              <SymbolView name="plus" size={22} tintColor={colors.card} />
+            ) : (
+              <MaterialIcons name="add" size={24} color={colors.card} />
+            )}
+          </Pressable>
+        </View>
+      ) : null}
+
       <CategoryFiltersSheet
-        isPresented={open}
-        onDismiss={() => setOpen(false)}
+        isPresented={editor != null}
+        onDismiss={() => setEditor(null)}
         eventCount={eventCount}
       >
-        <TagGroupList tags={tags} selectedIds={selectedIds} onChange={onChange} />
+        <TagGroupList
+          key={editor?.token ?? 0}
+          tags={tags}
+          selectedIds={sheetSelection}
+          initialExpandedId={editor?.group ?? null}
+          showClear={!homeTagSelectionIsEveryTag(allTagIds, sheetSelection)}
+          onChange={(ids) => onChange(homeTagSelectionToStore(allTagIds, ids))}
+        />
       </CategoryFiltersSheet>
     </View>
   );
@@ -290,6 +303,7 @@ function CategoryRow({
   failed,
   items,
   onShowAll,
+  onEdit,
   onOpen,
   onToggleSave,
 }: {
@@ -298,6 +312,7 @@ function CategoryRow({
   failed: boolean;
   items: RailEvent[];
   onShowAll: () => void;
+  onEdit: () => void;
   onOpen: (eventId: string) => void;
   onToggleSave: (eventId: string) => void;
 }) {
@@ -326,9 +341,26 @@ function CategoryRow({
         >
           <TagGroupIcon id={id} size={36} />
         </View>
-        <AppText style={{ flex: 1, fontSize: 18, lineHeight: 24, fontWeight: '700' }}>
-          {label}
-        </AppText>
+        <AppText style={{ fontSize: 18, lineHeight: 24, fontWeight: '700' }}>{label}</AppText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('home.editCategory', { category: label })}
+          onPress={onEdit}
+          hitSlop={8}
+          style={{
+            width: 32,
+            height: 32,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {process.env.EXPO_OS === 'ios' ? (
+            <SymbolView name="pencil" size={16} tintColor={colors.inkMuted} />
+          ) : (
+            <MaterialIcons name="edit" size={16} color={colors.inkMuted} />
+          )}
+        </Pressable>
+        <View style={{ flex: 1 }} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${t('events.viewAll')}, ${label}`}

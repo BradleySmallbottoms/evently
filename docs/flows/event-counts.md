@@ -2,8 +2,10 @@
 
 The Show events button on home categories, calendar filters, and the location menu shows how many
 events that combination will list. The number uses the same rules as `GET /events`: published, a
-point inside the radius, and not ended. A whole day stays through that calendar day. Tags match
-when the event has any of the selected ones.
+point inside the radius, and not ended. A whole day stays through that calendar day. Calendar
+filters and the location menu match an event that has any selected tag. The home category sheet
+passes `primaryTag=true`, so it counts an event only when its first saved tag is one of the
+selected tags, the same rule as the home rows.
 
 ```mermaid
 sequenceDiagram
@@ -24,7 +26,7 @@ query.
 
 Each button counts the list it will reveal:
 
-- Home categories: the current place, the search text, and the tags selected in the sheet.
+- Home categories: the current place and the tags selected in the sheet. An event counts only when its first saved tag is one of those tags.
 - Calendar filters: the current place and date range, plus the tags and price still in the sheet.
 - Location: the place and radius still in the menu, plus the tags, date, price, and search text of
   the screen that opened it. On home, another place uses that place's saved tags.

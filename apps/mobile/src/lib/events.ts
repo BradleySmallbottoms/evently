@@ -133,6 +133,8 @@ export type PublicEventCountFilter = {
   q?: string;
   tagId?: string;
   tagIds?: string[];
+  /** Count an event only when its first tag is one of `tagIds`. */
+  primaryTag?: boolean;
   from?: string;
   to?: string;
   price?: 'free' | 'paid';
@@ -150,6 +152,7 @@ export async function countPublicEvents(point: EventQueryPoint, filter?: PublicE
           ...(filter?.q ? { q: filter.q } : {}),
           ...(filter?.tagId ? { tagId: filter.tagId } : {}),
           ...(filter?.tagIds?.length ? { tagIds: filter.tagIds.join(',') } : {}),
+          ...(filter?.primaryTag ? { primaryTag: 'true' as const } : {}),
           ...(filter?.from ? { from: filter.from } : {}),
           ...(filter?.to ? { to: filter.to } : {}),
           ...(filter?.price ? { price: filter.price } : {}),

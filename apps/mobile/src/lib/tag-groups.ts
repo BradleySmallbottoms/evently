@@ -142,6 +142,37 @@ export function toggleGroupSelection(
   return [...next];
 }
 
+/**
+ * Tags the category sheet should show as on. An empty selection means every tag,
+ * which is how Home shows every category.
+ */
+export function homeTagSelectionForEdit(
+  allTagIds: readonly string[],
+  selectedIds: readonly string[],
+): string[] {
+  if (selectedIds.length === 0) return [...allTagIds];
+  return [...selectedIds];
+}
+
+/** True when the sheet is showing every tag, which Home stores as an empty selection. */
+export function homeTagSelectionIsEveryTag(
+  allTagIds: readonly string[],
+  editedIds: readonly string[],
+): boolean {
+  if (allTagIds.length === 0) return editedIds.length === 0;
+  const edited = new Set(editedIds);
+  return allTagIds.every((id) => edited.has(id));
+}
+
+/** Store an edited selection. Every tag on is the empty selection Home already treats as all. */
+export function homeTagSelectionToStore(
+  allTagIds: readonly string[],
+  editedIds: readonly string[],
+): string[] {
+  if (allTagIds.length === 0 || homeTagSelectionIsEveryTag(allTagIds, editedIds)) return [];
+  return [...editedIds];
+}
+
 /** Groups Home lists. An empty selection means every group, which is how a skipped onboarding reads. */
 export function groupsToShow<T extends { tags: readonly { id: string }[] }>(
   groups: readonly T[],

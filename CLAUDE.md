@@ -179,7 +179,7 @@ Product invariants (enforced in domain, tested)
 - An event without a point is omitted from the public event list. Tags do not replace a missing
   point. It has no map pin and does not match nearby push. Direct lookup by id still returns it.
   The list also leaves out an event that has ended. A whole day, the same start and end, stays
-  through that calendar day. The Show events buttons count that list with `GET /events/count` for the current place, tags, date, price, and search text. Caching is planned in `docs/flows/event-counts.md`. Home, calendar, and search category buttons are tags on a current
+  through that calendar day. The Show events buttons count that list with `GET /events/count` for the current place, tags, date, price, and search text. The home category button passes `primaryTag=true`, so it counts an event only when its first saved tag is selected. Caching is planned in `docs/flows/event-counts.md`. Home, calendar, and search category buttons are tags on a current
   published event inside the selected place. An event without a point does not add a category.
   A home category row lists an event only when its first saved tag is one of that row's tags
   (`primaryTag=true` on `GET /events`). Search, the calendar, and view all still match any selected tag.

@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   groupHomeTags,
   groupsToShow,
+  homeTagSelectionForEdit,
+  homeTagSelectionIsEveryTag,
+  homeTagSelectionToStore,
   homeGroupForTags,
   HOME_TAG_GROUPS,
   tagIdsForGroup,
@@ -40,6 +43,20 @@ describe('groupHomeTags', () => {
     expect(byId.get('sport')).toEqual(['fotboll']);
     expect(byId.get('other')).toEqual(['mat-dryck', 'nagon-ny-tagg']);
     expect(byId.has('family')).toBe(false);
+  });
+});
+
+describe('homeTagSelectionForEdit', () => {
+  it('spells out every tag when the stored selection is empty', () => {
+    expect(homeTagSelectionForEdit(['a', 'b'], [])).toEqual(['a', 'b']);
+    expect(homeTagSelectionForEdit(['a', 'b'], ['b'])).toEqual(['b']);
+  });
+
+  it('stores an empty selection when every tag stays on', () => {
+    expect(homeTagSelectionToStore(['a', 'b'], ['a', 'b'])).toEqual([]);
+    expect(homeTagSelectionToStore(['a', 'b'], ['a'])).toEqual(['a']);
+    expect(homeTagSelectionIsEveryTag(['a', 'b'], ['a', 'b'])).toBe(true);
+    expect(homeTagSelectionIsEveryTag(['a', 'b'], ['a'])).toBe(false);
   });
 });
 
