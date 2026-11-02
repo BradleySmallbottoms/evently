@@ -1,4 +1,4 @@
-import { deviceAssetUrl } from '@local-events/domain';
+import { deviceAssetUrl, imageContentPosition, type ImageFocal } from '@local-events/domain';
 import { Image, type ImageProps } from 'expo-image';
 import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -22,6 +22,8 @@ const FADE_MS = 180;
 
 type Props = {
   imageUrl?: string | null;
+  /** Point that should stay in frame. A missing point stays centered. */
+  focal?: ImageFocal | null;
   /** Tag names. Used to choose a placeholder when the event has no photo. */
   tags?: readonly string[];
   style?: ImageProps['style'];
@@ -37,7 +39,7 @@ function imageUri(imageUrl: string): string {
  * Event photo. A missing photo uses the tag placeholder. A photo that is still
  * downloading keeps a gray field with a light sweep, then fades in.
  */
-export function EventImage({ imageUrl, tags, style }: Props) {
+export function EventImage({ imageUrl, focal, tags, style }: Props) {
   const uri = imageUrl ? imageUri(imageUrl) : null;
   const reduced = useReducedMotion();
   const [loadedUri, setLoadedUri] = useState<string | null>(null);
@@ -57,6 +59,7 @@ export function EventImage({ imageUrl, tags, style }: Props) {
           source={{ uri }}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
+          contentPosition={imageContentPosition(focal)}
           transition={reduced ? 0 : FADE_MS}
           onDisplay={() => setLoadedUri(uri)}
           onError={() => setFailedUri(uri)}

@@ -40,6 +40,7 @@ function publishedEvent() {
     imageUrl: null,
     imageUrls: [],
     posterUrl: null,
+    imageFocal: null,
     tagIds: [],
     featured: false,
     sponsored: false,

@@ -1,9 +1,9 @@
 import { canAddSavedArea, krPriceLabel } from '@local-events/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, RefreshControl, SectionList, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, SectionList, TextInput, View } from 'react-native';
 
 import { AreaTagGroupsSheet } from '@/components/native/area-tag-groups-sheet';
 import { LocationMenu } from '@/components/native/location-menu';
@@ -69,6 +69,10 @@ function clock(iso: string, locale: string) {
 
 export default function EventsScreen() {
   const router = useRouter();
+  const { focusAt: focusAtParam } = useLocalSearchParams<{ focusAt?: string }>();
+  const focusAt = typeof focusAtParam === 'string' ? focusAtParam : undefined;
+  const listRef = useRef<SectionList>(null);
+  const searchRef = useRef<ComponentRef<typeof TextInput>>(null);
   const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
@@ -88,12 +92,21 @@ export default function EventsScreen() {
     null,
   );
   const [refreshing, setRefreshing] = useState(false);
+  const [q, setQ] = useState('');
+  const search = q.trim();
   const shownMonth = monthOnNewDay(month, today);
   if (shownMonth !== month) setMonth(shownMonth);
   const shownCustom = clampRangeToToday(custom, today);
   const shownQuick = shownCustom == null && quick === 'custom' ? null : quick;
   if (shownCustom !== custom) setCustom(shownCustom);
   if (shownQuick !== quick) setQuick(shownQuick);
+
+  useEffect(() => {
+    if (!focusAt) return;
+    listRef.current?.getScrollResponder()?.scrollTo({ y: 0, animated: false });
+    const timer = setTimeout(() => searchRef.current?.focus(), 300);
+    return () => clearTimeout(timer);
+  }, [focusAt]);
 
   const { identity, preferences, point, placeId, radiusM, radiusMap, device } = useDiscoveryPoint();
   const nearbyName = useNearbyPlaceName(placeId === NEARBY_PLACE_ID ? device.fix : null);
@@ -143,6 +156,7 @@ export default function EventsScreen() {
   const locationEventCount = useEventCount(
     locationPoint,
     {
+      q: search.length > 0 ? search : undefined,
       from: iso.from,
       to: iso.to,
       tagIds: listedTagIds.length > 0 ? listedTagIds : undefined,
@@ -153,13 +167,14 @@ export default function EventsScreen() {
   const events = useInfinitePublicEvents(
     point.data,
     {
+      q: search.length > 0 ? search : undefined,
       from: iso.from,
       to: iso.to,
       tagIds: listedTagIds.length > 0 ? listedTagIds : undefined,
       price: price === 'any' ? undefined : price,
       sort: 'soonest',
     },
-    ['browse-events', point.data, iso.from, iso.to, tagKey, price],
+    ['browse-events', point.data, iso.from, iso.to, tagKey, price, search],
   );
   const sections = useMemo(() => {
     const items = events.data?.pages.flatMap((page) => page.items) ?? [];
@@ -312,8 +327,10 @@ export default function EventsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
       <SectionList
+        ref={listRef}
         style={{ width: '100%', maxWidth: MaxContentWidth }}
         contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
         sections={sections}
         keyExtractor={(item) => item.rowKey}
         stickySectionHeadersEnabled={false}
@@ -377,15 +394,10 @@ export default function EventsScreen() {
             </View>
             <View style={{ paddingHorizontal: space.xl }}>
               <SearchBar
-                value=""
-                onChangeText={() => {}}
-                placeholder={t('home.searchPlaceholder')}
-                onPress={() =>
-                  router.push({
-                    pathname: '/event-search',
-                    params: { focus: '1' },
-                  })
-                }
+                inputRef={searchRef}
+                value={q}
+                onChangeText={setQ}
+                placeholder={t('events.searchPlaceholder')}
               />
             </View>
             <View style={{ paddingHorizontal: space.xl }}>
@@ -516,6 +528,7 @@ export default function EventsScreen() {
         point={point.data}
         from={iso.from}
         to={iso.to}
+        q={search.length > 0 ? search : undefined}
         onDismiss={() => setFiltersOpen(false)}
         onApply={(nextTags, nextPrice) => {
           setTagIds(nextTags);
@@ -530,6 +543,7 @@ export default function EventsScreen() {
         point={point.data}
         tagIds={listedTagIds}
         price={price === 'any' ? undefined : price}
+        q={search.length > 0 ? search : undefined}
         initial={shownQuick === 'custom' ? shownCustom : null}
         onDismiss={() => setDateOpen(false)}
         onApply={(next) => {

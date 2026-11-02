@@ -3,12 +3,15 @@ import { useEffect, useState, type ComponentType } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
+import type { ImageFocal } from '@local-events/domain';
+
 import { EventImage } from '@/components/ui/event-image';
 
 type PlayerProps = { url: string };
 
 type Props = {
   imageUrl?: string | null;
+  focal?: ImageFocal | null;
   tags?: readonly string[];
   /** http(s) clip. The still stays up until the player is in this build. */
   videoUrl?: string | null;
@@ -43,7 +46,7 @@ export function readEventVideoUrl(event: object): string | null {
  * Full-bleed still, with a video player in the same frame when a clip exists
  * and this build includes expo-video. Reduced motion keeps the still.
  */
-export function ExploreMedia({ imageUrl, tags, videoUrl, active = false }: Props) {
+export function ExploreMedia({ imageUrl, focal, tags, videoUrl, active = false }: Props) {
   const reducedMotion = useReducedMotion();
   const [Player, setPlayer] = useState<ComponentType<PlayerProps> | null>(null);
   const canPlay = Boolean(videoUrl) && active && reducedMotion !== true && videoModuleInstalled();
@@ -65,7 +68,7 @@ export function ExploreMedia({ imageUrl, tags, videoUrl, active = false }: Props
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      <EventImage imageUrl={imageUrl} tags={tags} style={StyleSheet.absoluteFill} />
+      <EventImage imageUrl={imageUrl} focal={focal} tags={tags} style={StyleSheet.absoluteFill} />
       {canPlay && Player && videoUrl ? <Player url={videoUrl} /> : null}
     </View>
   );

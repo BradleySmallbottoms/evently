@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "se.candybanana.lcly",
+      "appleTeamId": "ZH65MUF6D9",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

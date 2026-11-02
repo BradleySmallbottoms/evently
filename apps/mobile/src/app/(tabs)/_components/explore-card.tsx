@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import type { ImageFocal } from '@local-events/domain';
+
 import { AppText } from '@/components/ui/app-text';
 import { BottomTabInset } from '@/constants/theme';
 import { colors } from '@/theme/colors';
@@ -19,6 +21,7 @@ type Props = {
   where: string;
   tags: string[];
   imageUrl?: string | null;
+  focal?: ImageFocal | null;
   videoUrl?: string | null;
   saved: boolean;
   interestCount: number;
@@ -100,6 +103,7 @@ export function ExploreCard({
   where,
   tags,
   imageUrl,
+  focal,
   videoUrl,
   saved,
   interestCount,
@@ -122,7 +126,13 @@ export function ExploreCard({
         onPress={onOpen}
         style={StyleSheet.absoluteFill}
       >
-        <ExploreMedia imageUrl={imageUrl} tags={tags} videoUrl={videoUrl} active={active} />
+        <ExploreMedia
+          imageUrl={imageUrl}
+          focal={focal}
+          tags={tags}
+          videoUrl={videoUrl}
+          active={active}
+        />
         <View
           pointerEvents="none"
           style={{

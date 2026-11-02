@@ -38,6 +38,7 @@ type Props = {
   point?: EventQueryPoint;
   tagIds: string[];
   price?: 'free' | 'paid';
+  q?: string;
   initial: Range | null;
   onDismiss: () => void;
   onApply: (range: Range) => void;
@@ -65,6 +66,7 @@ export function CalendarDateSheet({
   point,
   tagIds,
   price,
+  q,
   initial,
   onDismiss,
   onApply,
@@ -104,10 +106,11 @@ export function CalendarDateSheet({
   const coverTo = to && compareStamps(to, month.to) > 0 ? to : month.to;
   const iso = boundsIso(coverFrom, coverTo);
   const dots = useQuery({
-    queryKey: ['calendar-dots', point, iso.from, iso.to, tagIds.join('\n'), price],
+    queryKey: ['calendar-dots', point, iso.from, iso.to, tagIds.join('\n'), price, q],
     enabled: isPresented && point != null,
     queryFn: () =>
       listPublicEvents(point!, {
+        q,
         from: iso.from,
         to: iso.to,
         tagIds: tagIds.length > 0 ? tagIds : undefined,

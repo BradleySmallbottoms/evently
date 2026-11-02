@@ -3752,6 +3752,23 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "imageFocal": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "x": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "y": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              }
+                            },
+                            "required": ["x", "y"]
+                          },
                           "imageUrls": {
                             "type": "array",
                             "items": {
@@ -3861,6 +3878,7 @@
                           "publisherName",
                           "links",
                           "imageUrl",
+                          "imageFocal",
                           "imageUrls",
                           "posterUrl",
                           "tagIds",
@@ -4329,6 +4347,23 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "imageFocal": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "x": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "y": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              }
+                            },
+                            "required": ["x", "y"]
+                          },
                           "imageUrls": {
                             "type": "array",
                             "items": {
@@ -4438,6 +4473,7 @@
                           "publisherName",
                           "links",
                           "imageUrl",
+                          "imageFocal",
                           "imageUrls",
                           "posterUrl",
                           "tagIds",
@@ -4922,6 +4958,23 @@
                                   "nullable": true,
                                   "format": "uri"
                                 },
+                                "imageFocal": {
+                                  "type": "object",
+                                  "nullable": true,
+                                  "properties": {
+                                    "x": {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
+                                    },
+                                    "y": {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
+                                    }
+                                  },
+                                  "required": ["x", "y"]
+                                },
                                 "imageUrls": {
                                   "type": "array",
                                   "items": {
@@ -5037,6 +5090,7 @@
                                 "publisherName",
                                 "links",
                                 "imageUrl",
+                                "imageFocal",
                                 "imageUrls",
                                 "posterUrl",
                                 "tagIds",
@@ -5398,6 +5452,23 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "imageFocal": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "x": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "y": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              }
+                            },
+                            "required": ["x", "y"]
+                          },
                           "imageUrls": {
                             "type": "array",
                             "items": {
@@ -5507,6 +5578,7 @@
                           "publisherName",
                           "links",
                           "imageUrl",
+                          "imageFocal",
                           "imageUrls",
                           "posterUrl",
                           "tagIds",
@@ -5902,6 +5974,23 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "imageFocal": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "x": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "y": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              }
+                            },
+                            "required": ["x", "y"]
+                          },
                           "imageUrls": {
                             "type": "array",
                             "items": {
@@ -6011,6 +6100,7 @@
                           "publisherName",
                           "links",
                           "imageUrl",
+                          "imageFocal",
                           "imageUrls",
                           "posterUrl",
                           "tagIds",
@@ -6771,6 +6861,23 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "imageFocal": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "x": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "y": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              }
+                            },
+                            "required": ["x", "y"]
+                          },
                           "imageUrls": {
                             "type": "array",
                             "items": {
@@ -6880,6 +6987,7 @@
                           "publisherName",
                           "links",
                           "imageUrl",
+                          "imageFocal",
                           "imageUrls",
                           "posterUrl",
                           "tagIds",
@@ -7363,6 +7471,23 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "imageFocal": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "required": ["x", "y"]
+                    },
                     "imageUrls": {
                       "type": "array",
                       "items": {
@@ -7472,6 +7597,7 @@
                     "publisherName",
                     "links",
                     "imageUrl",
+                    "imageFocal",
                     "imageUrls",
                     "posterUrl",
                     "tagIds",
@@ -7953,6 +8079,23 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "imageFocal": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "x": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "y": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              }
+                            },
+                            "required": ["x", "y"]
+                          },
                           "imageUrls": {
                             "type": "array",
                             "items": {
@@ -8062,6 +8205,7 @@
                           "publisherName",
                           "links",
                           "imageUrl",
+                          "imageFocal",
                           "imageUrls",
                           "posterUrl",
                           "tagIds",
@@ -8503,6 +8647,23 @@
                             "nullable": true,
                             "format": "uri"
                           },
+                          "imageFocal": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "x": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "y": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              }
+                            },
+                            "required": ["x", "y"]
+                          },
                           "imageUrls": {
                             "type": "array",
                             "items": {
@@ -8612,6 +8773,7 @@
                           "publisherName",
                           "links",
                           "imageUrl",
+                          "imageFocal",
                           "imageUrls",
                           "posterUrl",
                           "tagIds",
@@ -8917,6 +9079,23 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "imageFocal": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "required": ["x", "y"]
+                    },
                     "imageUrls": {
                       "type": "array",
                       "items": {
@@ -9026,6 +9205,7 @@
                     "publisherName",
                     "links",
                     "imageUrl",
+                    "imageFocal",
                     "imageUrls",
                     "posterUrl",
                     "tagIds",
@@ -9352,6 +9532,23 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "imageFocal": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "required": ["x", "y"]
+                    },
                     "imageUrls": {
                       "type": "array",
                       "items": {
@@ -9486,6 +9683,7 @@
                     "publisherName",
                     "links",
                     "imageUrl",
+                    "imageFocal",
                     "imageUrls",
                     "posterUrl",
                     "tagIds",
@@ -10016,6 +10214,23 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "imageFocal": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "required": ["x", "y"]
+                    },
                     "imageUrls": {
                       "type": "array",
                       "items": {
@@ -10150,6 +10365,7 @@
                     "publisherName",
                     "links",
                     "imageUrl",
+                    "imageFocal",
                     "imageUrls",
                     "posterUrl",
                     "tagIds",
@@ -10503,6 +10719,23 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "imageFocal": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "required": ["x", "y"]
+                    },
                     "imageUrls": {
                       "type": "array",
                       "items": {
@@ -10612,6 +10845,7 @@
                     "publisherName",
                     "links",
                     "imageUrl",
+                    "imageFocal",
                     "imageUrls",
                     "posterUrl",
                     "tagIds",
@@ -10963,6 +11197,23 @@
                       "nullable": true,
                       "format": "uri"
                     },
+                    "imageFocal": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "required": ["x", "y"]
+                    },
                     "imageUrls": {
                       "type": "array",
                       "items": {
@@ -11072,6 +11323,7 @@
                     "publisherName",
                     "links",
                     "imageUrl",
+                    "imageFocal",
                     "imageUrls",
                     "posterUrl",
                     "tagIds",

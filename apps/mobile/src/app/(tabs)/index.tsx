@@ -617,8 +617,8 @@ export default function HomeScreen() {
                 placeholder={t('home.searchPlaceholder')}
                 onPress={() =>
                   router.push({
-                    pathname: '/event-search',
-                    params: { focus: '1' },
+                    pathname: '/(tabs)/events',
+                    params: { focusAt: String(Date.now()) },
                   })
                 }
               />

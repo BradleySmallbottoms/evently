@@ -79,7 +79,27 @@ describe('publicEventImages', () => {
     ).toEqual({
       imageUrl: 'https://d111.cloudfront.net/events/abc/main',
       imageUrls: ['https://d111.cloudfront.net/events/abc/gallery-1'],
+      imageFocal: null,
     });
+  });
+
+  it('returns the focal point of the hero photo', () => {
+    expect(
+      publicEventImages(base, [
+        { role: 'main', s3Key: 'events/abc/main', focalX: 0.2, focalY: 0.8 },
+        { role: 'gallery-1', s3Key: 'events/abc/gallery-1', focalX: 0.9, focalY: 0.1 },
+        { role: 'poster', s3Key: 'events/abc/poster', focalX: 0.5, focalY: 0.5 },
+      ]),
+    ).toEqual({
+      imageUrl: 'https://d111.cloudfront.net/events/abc/main',
+      imageUrls: ['https://d111.cloudfront.net/events/abc/gallery-1'],
+      imageFocal: { x: 0.2, y: 0.8 },
+    });
+    expect(
+      publicEventImages(base, [
+        { role: 'gallery-1', s3Key: 'events/abc/gallery-1', focalX: 0.1, focalY: 0.2 },
+      ]).imageFocal,
+    ).toEqual({ x: 0.1, y: 0.2 });
   });
 
   it('uses the first gallery image when there is no main role', () => {
@@ -92,13 +112,14 @@ describe('publicEventImages', () => {
     ).toEqual({
       imageUrl: 'https://d111.cloudfront.net/events/abc/gallery-1',
       imageUrls: ['https://d111.cloudfront.net/events/abc/gallery-2'],
+      imageFocal: null,
     });
   });
 
   it('returns no images when the public origin is unset', () => {
     expect(
       publicEventImages(undefined, [{ role: 'gallery-1', s3Key: 'events/abc/gallery-1' }]),
-    ).toEqual({ imageUrl: null, imageUrls: [] });
+    ).toEqual({ imageUrl: null, imageUrls: [], imageFocal: null });
   });
 });
 

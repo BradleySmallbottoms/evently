@@ -58,6 +58,7 @@ describe('notification inbox', () => {
       featured: false,
       sponsored: false,
       posterUrl: null,
+      imageFocal: null,
       imageUrl: null,
       imageUrls: [],
       checkInEnabled: false,

@@ -23,6 +23,7 @@ type Props = {
   point?: EventQueryPoint;
   from?: string;
   to?: string;
+  q?: string;
   onDismiss: () => void;
   onApply: (tagIds: string[], price: Price) => void;
 };
@@ -65,6 +66,7 @@ export function CalendarFilterSheet({
   point,
   from,
   to,
+  q,
   onDismiss,
   onApply,
 }: Props) {
@@ -85,6 +87,7 @@ export function CalendarFilterSheet({
   const eventCount = useEventCount(
     point,
     {
+      q,
       tagIds: draftTags.length > 0 ? draftTags : undefined,
       price: draftPrice === 'any' ? undefined : draftPrice,
       from,

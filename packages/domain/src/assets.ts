@@ -1,3 +1,5 @@
+import { imageFocalPoint, type ImageFocal } from './image-focal';
+
 /** True for loopback and `*.localhost`, which a phone cannot open. */
 export function isLocalAssetHost(hostname: string): boolean {
   const host = hostname.replace(/^\[|\]$/g, '').toLowerCase();
@@ -107,6 +109,39 @@ export function publicPosterUrl(
 
 const galleryRole = /^gallery-(\d+)$/;
 
+type PublicImage = {
+  role: string;
+  s3Key: string;
+  focalX?: number | null;
+  focalY?: number | null;
+};
+
+function focalOf(image: PublicImage | undefined): ImageFocal | null {
+  if (!image) return null;
+  return imageFocalPoint({ x: image.focalX, y: image.focalY });
+}
+
+/**
+ * Hero for an event payload. The `main` role, or the lowest `gallery-N` when that role
+ * is missing. Null when neither exists or the public origin is unset.
+ * `focal` belongs to that same photo.
+ */
+export function publicHeroImage(
+  base: string | undefined,
+  images: readonly PublicImage[],
+): { url: string; focal: ImageFocal | null } | null {
+  const main = images.find((image) => image.role === 'main');
+  if (main) {
+    const url = publicAssetUrl(base, main.s3Key);
+    if (url) return { url, focal: focalOf(main) };
+  }
+  const first = galleryImages(images)[0];
+  if (!first) return null;
+  const url = publicAssetUrl(base, first.s3Key);
+  if (!url) return null;
+  return { url, focal: focalOf(first) };
+}
+
 /**
  * Hero URL for an event payload. The `main` role, or the lowest `gallery-N` when that role
  * is missing. Null when neither exists or the public origin is unset.
@@ -115,24 +150,31 @@ export function publicHeroUrl(
   base: string | undefined,
   images: readonly { role: string; s3Key: string }[],
 ): string | null {
-  const main = images.find((image) => image.role === 'main')?.s3Key;
-  if (main) {
-    const url = publicAssetUrl(base, main);
-    if (url) return url;
-  }
-  return publicGalleryUrls(base, images)[0] ?? null;
+  return publicHeroImage(base, images)?.url ?? null;
 }
 
 /** Hero plus the gallery photos that follow it. The hero is not repeated in `imageUrls`. */
 export function publicEventImages(
   base: string | undefined,
-  images: readonly { role: string; s3Key: string }[],
-): { imageUrl: string | null; imageUrls: string[] } {
-  const imageUrl = publicHeroUrl(base, images);
+  images: readonly PublicImage[],
+): { imageUrl: string | null; imageUrls: string[]; imageFocal: ImageFocal | null } {
+  const hero = publicHeroImage(base, images);
   return {
-    imageUrl,
-    imageUrls: publicGalleryUrls(base, images).filter((url) => url !== imageUrl),
+    imageUrl: hero?.url ?? null,
+    imageUrls: publicGalleryUrls(base, images).filter((url) => url !== hero?.url),
+    imageFocal: hero?.focal ?? null,
   };
+}
+
+function galleryImages(images: readonly PublicImage[]): PublicImage[] {
+  return images
+    .flatMap((image) => {
+      const match = galleryRole.exec(image.role);
+      if (!match) return [];
+      return [{ image, index: Number(match[1]) }];
+    })
+    .sort((a, b) => a.index - b.index)
+    .map((entry) => entry.image);
 }
 
 /** Public URLs for `gallery-N` rows, lowest N first. The hero role is ignored. */
@@ -140,14 +182,8 @@ export function publicGalleryUrls(
   base: string | undefined,
   images: readonly { role: string; s3Key: string }[],
 ): string[] {
-  return images
-    .flatMap((image) => {
-      const match = galleryRole.exec(image.role);
-      if (!match) return [];
-      const url = publicAssetUrl(base, image.s3Key);
-      if (!url) return [];
-      return [{ index: Number(match[1]), url }];
-    })
-    .sort((a, b) => a.index - b.index)
-    .map((image) => image.url);
+  return galleryImages(images).flatMap((image) => {
+    const url = publicAssetUrl(base, image.s3Key);
+    return url ? [url] : [];
+  });
 }

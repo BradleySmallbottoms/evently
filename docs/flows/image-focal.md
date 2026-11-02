@@ -2,7 +2,8 @@
 
 An event photo is stored whole. Explore crops it to fill a tall phone screen, so the app needs a
 point that should stay in frame. `focal_x` is the fraction from the left. `focal_y` is the fraction
-from the top. Both are empty until this job writes them.
+from the top. Both are empty until this job writes them. The public event returns that hero point
+as `imageFocal`. Explore places the crop on it. A missing point stays centered.
 
 A new `event_images` row is `pending`. Replacing the file clears any point and returns the row to
 `pending`. A poster is left `pending` because that image is shown whole. The job only claims a photo

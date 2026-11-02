@@ -5,6 +5,7 @@ import { schema } from '@local-events/db';
 import {
   canAddListItem,
   canCreateAnotherList,
+  imageFocalPoint,
   publicAssetUrl,
   publicGalleryUrls,
 } from '@local-events/domain';
@@ -51,6 +52,7 @@ function mapRow(
   row: LocRow,
   tagIds: string[],
   imageUrl: string | null,
+  imageFocal: Event['imageFocal'],
   imageUrls: string[],
   posterUrl: string | null,
   links: EventLink[],
@@ -80,6 +82,7 @@ function mapRow(
     publisherName: row.publisherName,
     links,
     imageUrl,
+    imageFocal,
     imageUrls,
     posterUrl,
     tagIds,
@@ -217,6 +220,8 @@ export function createDbLibraryServices(
           eventId: eventImages.eventId,
           role: eventImages.role,
           s3Key: eventImages.s3Key,
+          focalX: eventImages.focalX,
+          focalY: eventImages.focalY,
         })
         .from(eventImages)
         .where(inArray(eventImages.eventId, ids)),
@@ -229,14 +234,14 @@ export function createDbLibraryServices(
     return rows.flatMap((row) => {
       if (!row.startsAt || !row.endsAt) return [];
       const pictures = images.filter((item) => item.eventId === row.id);
+      const main = pictures.find((item) => item.role === 'main');
+      const imageUrl = publicAssetUrl(env.assetsPublicBaseUrl, main?.s3Key ?? null);
       return [
         mapRow(
           row,
           categories.filter((item) => item.eventId === row.id).map((item) => item.tagId),
-          publicAssetUrl(
-            env.assetsPublicBaseUrl,
-            pictures.find((item) => item.role === 'main')?.s3Key ?? null,
-          ),
+          imageUrl,
+          imageUrl ? imageFocalPoint({ x: main?.focalX, y: main?.focalY }) : null,
           publicGalleryUrls(env.assetsPublicBaseUrl, pictures),
           publicAssetUrl(
             env.assetsPublicBaseUrl,

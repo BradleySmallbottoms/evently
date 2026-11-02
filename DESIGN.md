@@ -180,7 +180,8 @@ Use a five-item bottom navigation on the main app:
 2.  **Explore** --- full-screen event cards, swiped vertically, with
     category chips along the top.
 3.  **Calendar** --- a date-based browse of events. A search field under the
-    place header opens search.
+    place header filters the events on this screen, keeping the selected
+    place, dates, tags, and price.
 4.  **Saved** --- saved events and user-created lists.
 5.  **Profile** --- preferences, tickets, notifications, and settings.
 
@@ -272,8 +273,8 @@ When “Near you” is selected, the locality name sits under that label. 2. A f
 label, the title, the date, and the place on the photo, and page dots
 under the card. Featured events fill it. When none are featured, the
 carousel is hidden. 3. A search field under that carousel. Tapping it
-opens search with the keyboard ready. When the carousel is hidden, the
-field stays, above the categories. 4. "Your categories". Each category chosen in
+opens the calendar and focuses that screen's search field. When the
+carousel is hidden, the field stays, above the categories. 4. "Your categories". Each category chosen in
 onboarding is a section: the group icon and name, "View all", then a
 horizontal row of event cards (photo, title, date, place, save). A
 control at the trailing end of that heading opens the category sheet

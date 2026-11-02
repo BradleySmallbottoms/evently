@@ -194,6 +194,7 @@ Product invariants (enforced in domain, tested)
   `pending`. `JOB=image-focal` claims those rows when the event still has a showing, soonest start first, except posters, and asks the scan chat model for
   one point. A point is `done`. An answer that is not a point is `failed`. A transport failure
   releases the lease. Replacing the image clears the point. The scan model has to accept images.
+  The public event returns the hero point as `imageFocal`. Explore uses it to place the crop. A missing point stays centered.
 - An imported physical event with no venue name stores the city from its scraped address on `meta.import.venueName`. When that
   address has no city, the nearest city within 25 km of its point is used. A name the adapter already set stays on that field.
 - Visit Söderhamn, Glada Hudik, and Destination Hälsingland store one product as one event, with each

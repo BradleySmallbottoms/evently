@@ -293,6 +293,7 @@ export function createMemoryEventServices(
         publisherName: publishers.get(publisherId)?.name ?? '',
         links: linksFromInput(body.links),
         imageUrl: null,
+        imageFocal: null,
         imageUrls: [],
         posterUrl: null,
         tagIds: [...body.tagIds],

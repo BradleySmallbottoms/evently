@@ -299,6 +299,13 @@ export const Event = z.object({
   links: z.array(EventLink),
   /** Hero image. The `main` role, or the first gallery image when `main` is missing. Null when the event has neither or the public asset host is unset. */
   imageUrl: z.url().nullable(),
+  /** Focal point of `imageUrl`. Fractions from the left and the top. Null when that photo has no point. */
+  imageFocal: z
+    .object({
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+    })
+    .nullable(),
   /** Photos after the hero, lowest gallery number first. Empty when there are none. */
   imageUrls: z.array(z.url()),
   /** Sponsored poster. Null when the event has none or the public asset host is unset. */

@@ -160,7 +160,7 @@ Closed beta around week 15, store launch around week 19.
       `event_images`. Visit Söderhamn fills a missing hero from a linked page (`og:image`, then
       `<img>`) and stores the other crawled images as gallery roles
 - [x] Image focal point: `event_images.focal_x` and `focal_y`. `JOB=image-focal` asks the scan chat
-      model for a point on each pending image for an event that still has a showing, soonest first, except posters. EventBridge runs it every 5 minutes.
+      model for a point on each pending image for an event that still has a showing, soonest first, except posters. Explore uses the hero point. EventBridge runs it every 5 minutes.
 - [x] Remaining launch-area sources (generic `ics-feed` adapter + seed; configure `feedUrl` per
       calendar — Visit Gävle has no public ICS yet)
 - [x] Glada Hudik public calendar (`glada-hudik`, no API key). The import saves each event before the next page is fetched and does not attach tags. A page without a map point is saved without a point. The scan geocodes a missing point later.

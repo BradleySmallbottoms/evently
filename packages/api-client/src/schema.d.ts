@@ -2488,6 +2488,10 @@ export interface paths {
                 }[];
                 /** Format: uri */
                 imageUrl: string | null;
+                imageFocal: {
+                  x: number;
+                  y: number;
+                } | null;
                 imageUrls: string[];
                 /** Format: uri */
                 posterUrl: string | null;
@@ -2764,6 +2768,10 @@ export interface paths {
                 }[];
                 /** Format: uri */
                 imageUrl: string | null;
+                imageFocal: {
+                  x: number;
+                  y: number;
+                } | null;
                 imageUrls: string[];
                 /** Format: uri */
                 posterUrl: string | null;
@@ -3046,6 +3054,10 @@ export interface paths {
                   }[];
                   /** Format: uri */
                   imageUrl: string | null;
+                  imageFocal: {
+                    x: number;
+                    y: number;
+                  } | null;
                   imageUrls: string[];
                   /** Format: uri */
                   posterUrl: string | null;
@@ -3210,6 +3222,10 @@ export interface paths {
                 }[];
                 /** Format: uri */
                 imageUrl: string | null;
+                imageFocal: {
+                  x: number;
+                  y: number;
+                } | null;
                 imageUrls: string[];
                 /** Format: uri */
                 posterUrl: string | null;
@@ -3454,6 +3470,10 @@ export interface paths {
                 }[];
                 /** Format: uri */
                 imageUrl: string | null;
+                imageFocal: {
+                  x: number;
+                  y: number;
+                } | null;
                 imageUrls: string[];
                 /** Format: uri */
                 posterUrl: string | null;
@@ -3850,6 +3870,10 @@ export interface paths {
                 }[];
                 /** Format: uri */
                 imageUrl: string | null;
+                imageFocal: {
+                  x: number;
+                  y: number;
+                } | null;
                 imageUrls: string[];
                 /** Format: uri */
                 posterUrl: string | null;
@@ -4050,6 +4074,10 @@ export interface paths {
               }[];
               /** Format: uri */
               imageUrl: string | null;
+              imageFocal: {
+                x: number;
+                y: number;
+              } | null;
               imageUrls: string[];
               /** Format: uri */
               posterUrl: string | null;
@@ -4241,6 +4269,10 @@ export interface paths {
                 }[];
                 /** Format: uri */
                 imageUrl: string | null;
+                imageFocal: {
+                  x: number;
+                  y: number;
+                } | null;
                 imageUrls: string[];
                 /** Format: uri */
                 posterUrl: string | null;
@@ -4444,6 +4476,10 @@ export interface paths {
                 }[];
                 /** Format: uri */
                 imageUrl: string | null;
+                imageFocal: {
+                  x: number;
+                  y: number;
+                } | null;
                 imageUrls: string[];
                 /** Format: uri */
                 posterUrl: string | null;
@@ -4597,6 +4633,10 @@ export interface paths {
               }[];
               /** Format: uri */
               imageUrl: string | null;
+              imageFocal: {
+                x: number;
+                y: number;
+              } | null;
               imageUrls: string[];
               /** Format: uri */
               posterUrl: string | null;
@@ -4763,6 +4803,10 @@ export interface paths {
               }[];
               /** Format: uri */
               imageUrl: string | null;
+              imageFocal: {
+                x: number;
+                y: number;
+              } | null;
               imageUrls: string[];
               /** Format: uri */
               posterUrl: string | null;
@@ -4990,6 +5034,10 @@ export interface paths {
               }[];
               /** Format: uri */
               imageUrl: string | null;
+              imageFocal: {
+                x: number;
+                y: number;
+              } | null;
               imageUrls: string[];
               /** Format: uri */
               posterUrl: string | null;
@@ -5174,6 +5222,10 @@ export interface paths {
               }[];
               /** Format: uri */
               imageUrl: string | null;
+              imageFocal: {
+                x: number;
+                y: number;
+              } | null;
               imageUrls: string[];
               /** Format: uri */
               posterUrl: string | null;
@@ -5354,6 +5406,10 @@ export interface paths {
               }[];
               /** Format: uri */
               imageUrl: string | null;
+              imageFocal: {
+                x: number;
+                y: number;
+              } | null;
               imageUrls: string[];
               /** Format: uri */
               posterUrl: string | null;

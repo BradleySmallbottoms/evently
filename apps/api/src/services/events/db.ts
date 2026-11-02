@@ -200,7 +200,12 @@ function mapEvent(
   tagIds: string[],
   imageKey: string | null,
   posterKey: string | null,
-  gallery: readonly { role: string; s3Key: string }[],
+  gallery: readonly {
+    role: string;
+    s3Key: string;
+    focalX?: number | null;
+    focalY?: number | null;
+  }[],
   links: EventLink[],
   occasions: {
     id: string;
@@ -233,7 +238,16 @@ function mapEvent(
     publisherName: row.publisherName,
     links,
     ...publicEventImages(baseUrl, [
-      ...(imageKey ? [{ role: 'main', s3Key: imageKey }] : []),
+      ...(imageKey
+        ? [
+            {
+              role: 'main',
+              s3Key: imageKey,
+              focalX: gallery.find((image) => image.role === 'main')?.focalX ?? null,
+              focalY: gallery.find((image) => image.role === 'main')?.focalY ?? null,
+            },
+          ]
+        : []),
       ...gallery,
     ]),
     posterUrl: publicAssetUrl(baseUrl, posterKey),
@@ -493,7 +507,16 @@ export function createDbEventServices(
   async function imagesFor(eventIds: string[]) {
     const grouped = new Map<
       string,
-      { main: string | null; poster: string | null; gallery: { role: string; s3Key: string }[] }
+      {
+        main: string | null;
+        poster: string | null;
+        gallery: {
+          role: string;
+          s3Key: string;
+          focalX: number | null;
+          focalY: number | null;
+        }[];
+      }
     >();
     for (const id of eventIds) grouped.set(id, { main: null, poster: null, gallery: [] });
     if (eventIds.length === 0) return grouped;
@@ -502,6 +525,8 @@ export function createDbEventServices(
         eventId: eventImages.eventId,
         role: eventImages.role,
         s3Key: eventImages.s3Key,
+        focalX: eventImages.focalX,
+        focalY: eventImages.focalY,
       })
       .from(eventImages)
       .where(inArray(eventImages.eventId, eventIds));
@@ -509,7 +534,12 @@ export function createDbEventServices(
       const entry = grouped.get(row.eventId) ?? { main: null, poster: null, gallery: [] };
       if (row.role === 'main') entry.main = row.s3Key;
       if (row.role === 'poster') entry.poster = row.s3Key;
-      entry.gallery.push({ role: row.role, s3Key: row.s3Key });
+      entry.gallery.push({
+        role: row.role,
+        s3Key: row.s3Key,
+        focalX: row.focalX,
+        focalY: row.focalY,
+      });
       grouped.set(row.eventId, entry);
     }
     return grouped;
@@ -564,7 +594,12 @@ export function createDbEventServices(
     images: {
       main: string | null;
       poster: string | null;
-      gallery: { role: string; s3Key: string }[];
+      gallery: {
+        role: string;
+        s3Key: string;
+        focalX?: number | null;
+        focalY?: number | null;
+      }[];
     },
     links: EventLink[],
     occasions: {

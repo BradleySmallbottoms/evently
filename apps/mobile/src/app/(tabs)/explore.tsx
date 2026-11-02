@@ -259,6 +259,7 @@ export default function ExploreScreen() {
                 })}
                 tags={namesForTagIds(item.tagIds, tags.data?.items)}
                 imageUrl={item.imageUrl}
+                focal={item.imageFocal}
                 videoUrl={readEventVideoUrl(item)}
                 saved={shownSavedIds.has(item.id)}
                 interestCount={interest}
