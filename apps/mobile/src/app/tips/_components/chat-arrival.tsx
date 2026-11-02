@@ -81,7 +81,8 @@ function GrowFade({
     () => height.value,
     (current, previous) => {
       if (!scrollRef || previous == null || current === previous) return;
-      scrollTo(scrollRef, 0, 1_000_000, false);
+      // Without the type argument, scrollTo widens the ref and the call fails to typecheck.
+      scrollTo<Animated.ScrollView>(scrollRef, 0, 1_000_000, false);
     },
   );
 
