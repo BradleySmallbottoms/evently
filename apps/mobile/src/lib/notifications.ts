@@ -25,4 +25,26 @@ export async function deleteNotification(
   );
 }
 
+export async function setNotificationRead(
+  identity: StoredIdentity,
+  notificationId: string,
+  read: boolean,
+): Promise<void> {
+  throwIfError(
+    await api.PATCH('/me/notifications/{id}', {
+      headers: { Authorization: `Bearer ${identity.sessionToken}` },
+      params: { path: { id: notificationId } },
+      body: { read },
+    }),
+  );
+}
+
+export async function markAllNotificationsRead(identity: StoredIdentity): Promise<void> {
+  throwIfError(
+    await api.POST('/me/notifications/read', {
+      headers: { Authorization: `Bearer ${identity.sessionToken}` },
+    }),
+  );
+}
+
 export type { NotificationItem };

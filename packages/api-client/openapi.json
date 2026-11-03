@@ -2694,6 +2694,27 @@
                             "type": "string",
                             "nullable": true,
                             "format": "date-time"
+                          },
+                          "titleSv": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "titleEn": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "bodySv": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "bodyEn": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "tipStatus": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": ["published", "in_review", "failed", "needs_input", null]
                           }
                         },
                         "required": [
@@ -2704,7 +2725,12 @@
                           "pushState",
                           "createdAt",
                           "pushedAt",
-                          "readAt"
+                          "readAt",
+                          "titleSv",
+                          "titleEn",
+                          "bodySv",
+                          "bodyEn",
+                          "tipStatus"
                         ]
                       }
                     },
@@ -2746,7 +2772,153 @@
         }
       }
     },
+    "/me/notifications/read": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Unread inbox rows marked read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["ok"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/notifications/{id}": {
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "read": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["read"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Read state updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["ok"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid user session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Notification not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "parameters": [
           {
@@ -2760,8 +2932,22 @@
           }
         ],
         "responses": {
-          "204": {
-            "description": "Notification removed from the inbox"
+          "200": {
+            "description": "Notification removed from the inbox",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["ok"]
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid user session",
@@ -11721,7 +11907,8 @@
                               "everyone",
                               "tag_interest",
                               "area",
-                              "area_and_tag"
+                              "area_and_tag",
+                              "user"
                             ]
                           },
                           "audienceTagName": {

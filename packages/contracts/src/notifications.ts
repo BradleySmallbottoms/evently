@@ -8,6 +8,10 @@ export type NotificationPushState = z.infer<typeof NotificationPushState>;
 export const NotificationReason = z.enum(['nearby', 'publisher', 'event', 'broadcast', 'tip']);
 export type NotificationReason = z.infer<typeof NotificationReason>;
 
+/** Tip notice state copied from the push message. Null for other inbox rows. */
+export const NotificationTipStatus = z.enum(['published', 'in_review', 'failed', 'needs_input']);
+export type NotificationTipStatus = z.infer<typeof NotificationTipStatus>;
+
 export const NotificationItem = z.object({
   id: Id,
   /** Null for admin broadcasts with no linked event. */
@@ -18,6 +22,12 @@ export const NotificationItem = z.object({
   createdAt: z.iso.datetime(),
   pushedAt: z.iso.datetime().nullable(),
   readAt: z.iso.datetime().nullable(),
+  /** Push headline and body. Null when the inbox row has no message. */
+  titleSv: z.string().nullable(),
+  titleEn: z.string().nullable(),
+  bodySv: z.string().nullable(),
+  bodyEn: z.string().nullable(),
+  tipStatus: NotificationTipStatus.nullable(),
 });
 export type NotificationItem = z.infer<typeof NotificationItem>;
 
@@ -36,6 +46,20 @@ export const QuietHoursPrefs = z.object({
   timezone: z.string().min(1).max(64),
 });
 export type QuietHoursPrefs = z.infer<typeof QuietHoursPrefs>;
+
+export const UpdateNotificationReadRequest = z.object({
+  read: z.boolean(),
+});
+export type UpdateNotificationReadRequest = z.infer<typeof UpdateNotificationReadRequest>;
+
+/**
+ * Inbox writes return this instead of an empty 204. iOS fetch rejects a body-less
+ * 204, so the phone would show a failure after the row was already updated.
+ */
+export const NotificationAckResponse = z.object({
+  ok: z.literal(true),
+});
+export type NotificationAckResponse = z.infer<typeof NotificationAckResponse>;
 
 export const UpdateQuietHoursRequest = z.object({
   enabled: z.boolean(),

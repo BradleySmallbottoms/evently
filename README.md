@@ -565,7 +565,11 @@ calls) in the same change as every new major feature.**
   Tapping a notification that carries an event id opens that event. iOS needs
   `enableBackgroundRemoteNotifications` (a new native build) or the background task never runs
   and a banner appears only while the app is open. Inbox list/badge via
-  `GET /me/notifications` (`unreadCount`). Rows older than 90 days are purged. Toggle quiet hours
+  `GET /me/notifications` (`unreadCount`). The home bell opens that list in a sheet about 90% tall,
+  grouped into today, yesterday, and earlier. Opening a row, or Mark all as read
+  (`POST /me/notifications/read`), sets `read_at`. `PATCH /me/notifications/{id}` with
+  `{ "read": true }` or `false` sets one row. A left swipe can also delete it. Those writes
+  return `{ "ok": true }` with status 200; an empty 204 makes the iOS client report a failure. Rows older than 90 days are purged. Toggle quiet hours
   with `PUT /me/quiet-hours`. Follow via `POST /v1/me/subscriptions`. Needs `DATABASE_URL` on the
   worker. Set `PUSH_DRY_RUN=1` on the worker to keep writing inbox rows and
   `push_message_deliveries` (`status = dry_run`) without POSTing to Expo.

@@ -1802,6 +1802,12 @@ export interface paths {
                 pushedAt: string | null;
                 /** Format: date-time */
                 readAt: string | null;
+                titleSv: string | null;
+                titleEn: string | null;
+                bodySv: string | null;
+                bodyEn: string | null;
+                /** @enum {string|null} */
+                tipStatus: 'published' | 'in_review' | 'failed' | 'needs_input' | null;
               }[];
               unreadCount: number;
             };
@@ -1831,6 +1837,58 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/me/notifications/read': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Unread inbox rows marked read */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @enum {boolean} */
+              ok: true;
+            };
+          };
+        };
+        /** @description Missing or invalid user session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/me/notifications/{id}': {
     parameters: {
       query?: never;
@@ -1853,11 +1911,16 @@ export interface paths {
       requestBody?: never;
       responses: {
         /** @description Notification removed from the inbox */
-        204: {
+        200: {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': {
+              /** @enum {boolean} */
+              ok: true;
+            };
+          };
         };
         /** @description Missing or invalid user session */
         401: {
@@ -1891,7 +1954,65 @@ export interface paths {
     };
     options?: never;
     head?: never;
-    patch?: never;
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            read: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description Read state updated */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @enum {boolean} */
+              ok: true;
+            };
+          };
+        };
+        /** @description Missing or invalid user session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+        /** @description Notification not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
     trace?: never;
   };
   '/me/quiet-hours': {
@@ -5655,7 +5776,8 @@ export interface paths {
                 /** @enum {string} */
                 status: 'sending' | 'sent';
                 /** @enum {string} */
-                audience: 'event_match' | 'everyone' | 'tag_interest' | 'area' | 'area_and_tag';
+                audience:
+                  'event_match' | 'everyone' | 'tag_interest' | 'area' | 'area_and_tag' | 'user';
                 audienceTagName: string | null;
                 titleSv: string;
                 bodySv: string;

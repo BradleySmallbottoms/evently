@@ -2,8 +2,10 @@ import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
   CreateUserAreaRequest,
   ErrorResponse,
+  NotificationAckResponse,
   NotificationListResponse,
   QuietHoursPrefs,
+  UpdateNotificationReadRequest,
   RegisterPushTokenRequest,
   RegisterPushTokenResponse,
   UpdateDiscoveryRadiusRequest,
@@ -237,12 +239,77 @@ export function registerMeRoutes(
     }
   });
 
+  const markNotificationsRead = createRoute({
+    method: 'post',
+    path: '/me/notifications/read',
+    responses: {
+      200: {
+        description: 'Unread inbox rows marked read',
+        content: { 'application/json': { schema: NotificationAckResponse } },
+      },
+      401: {
+        description: 'Missing or invalid user session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(markNotificationsRead, async (c) => {
+    try {
+      await notifications.markAllNotificationsRead(readUserSessionToken(c));
+      return c.json({ ok: true as const }, 200);
+    } catch (err) {
+      return notificationErrorResponse(c, err);
+    }
+  });
+
+  const updateNotificationRead = createRoute({
+    method: 'patch',
+    path: '/me/notifications/{id}',
+    request: {
+      params: NotificationIdParam,
+      body: {
+        content: { 'application/json': { schema: UpdateNotificationReadRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Read state updated',
+        content: { 'application/json': { schema: NotificationAckResponse } },
+      },
+      401: {
+        description: 'Missing or invalid user session',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      404: {
+        description: 'Notification not found',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(updateNotificationRead, async (c) => {
+    try {
+      const body = c.req.valid('json');
+      await notifications.setNotificationRead(
+        readUserSessionToken(c),
+        c.req.valid('param').id,
+        body.read,
+      );
+      return c.json({ ok: true as const }, 200);
+    } catch (err) {
+      return notificationErrorResponse(c, err);
+    }
+  });
+
   const deleteNotification = createRoute({
     method: 'delete',
     path: '/me/notifications/{id}',
     request: { params: NotificationIdParam },
     responses: {
-      204: { description: 'Notification removed from the inbox' },
+      200: {
+        description: 'Notification removed from the inbox',
+        content: { 'application/json': { schema: NotificationAckResponse } },
+      },
       401: {
         description: 'Missing or invalid user session',
         content: { 'application/json': { schema: ErrorResponse } },
@@ -256,7 +323,7 @@ export function registerMeRoutes(
   app.openapi(deleteNotification, async (c) => {
     try {
       await notifications.deleteNotification(readUserSessionToken(c), c.req.valid('param').id);
-      return c.body(null, 204);
+      return c.json({ ok: true as const }, 200);
     } catch (err) {
       return notificationErrorResponse(c, err);
     }

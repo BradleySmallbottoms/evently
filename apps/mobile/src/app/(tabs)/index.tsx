@@ -28,6 +28,7 @@ import { retainedTagIds } from '@/lib/tag-groups';
 import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { markNotificationsSeenNow } from '@/lib/notification-badge';
 import { listNotifications } from '@/lib/notifications';
+import { useNotificationActions } from '@/lib/use-notification-actions';
 import { openInboxItem, type InboxTipTarget } from '@/lib/open-inbox-item';
 import { queryPointForArea } from '@/lib/area-point';
 import { pointForPlace, tagsForLocationDraft } from '@/lib/location-draft';
@@ -232,6 +233,7 @@ export default function HomeScreen() {
     refetchInterval: notificationsOpen ? 15_000 : false,
   });
   const inboxUnread = inbox.data?.unreadCount;
+  const notificationActions = useNotificationActions(identity.data);
 
   useEffect(() => {
     if (!notificationsOpen || inboxUnread == null) return;
@@ -679,26 +681,13 @@ export default function HomeScreen() {
           setNotificationsOpen(false);
           openInboxFollowUp();
         }}
-        title={t('events.notifications')}
-        emptyMessage={t('events.notificationsEmpty')}
-        loadingMessage={t('events.notificationsLoading')}
         loading={inbox.isLoading}
-        items={(inbox.data?.items ?? []).map((n) => ({
-          id: n.id,
-          title: n.eventTitle,
-          subtitle:
-            n.reason === 'publisher'
-              ? t('events.notificationReasonPublisher')
-              : n.reason === 'event'
-                ? t('events.notificationReasonEvent')
-                : n.reason === 'broadcast'
-                  ? t('events.notificationReasonBroadcast')
-                  : n.reason === 'tip'
-                    ? t('events.notificationReasonTip')
-                    : t('events.notificationReasonNearby'),
-          eventId: n.eventId,
-          reason: n.reason,
-        }))}
+        items={inbox.data?.items ?? []}
+        unreadCount={inboxUnread ?? 0}
+        actionError={notificationActions.actionError}
+        onMarkRead={notificationActions.markRead}
+        onMarkAllRead={notificationActions.markAllRead}
+        onDelete={notificationActions.remove}
         onOpen={(item) => {
           if (item.reason !== 'tip') {
             notificationsOpenRef.current = false;

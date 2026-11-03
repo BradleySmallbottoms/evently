@@ -110,6 +110,14 @@ Selection is per user. A push token is not required to be selected: the inbox ro
 stored either way. The push then goes to that user’s devices that are not revoked
 and have an Expo token. Outside quiet hours it is a visible alert.
 
+The home bell lists the inbox in a sheet. Rows are grouped into today, yesterday, and earlier.
+Opening a row sets `read_at`, and so does Mark all as read (`POST /me/notifications/read`).
+`PATCH /me/notifications/{id}` with `{ "read": true }` or `false` sets one row. A left swipe
+can delete the row (`DELETE /me/notifications/{id}`). Those three writes respond `200`
+with `{ "ok": true }`. An empty `204` makes iOS fetch fail after the row is already saved,
+and the sheet then says the update failed. `unreadCount` is the number of rows
+with `read_at` null.
+
 The same user is not given a second inbox row for the same message and reason
 (`notifications` is unique on user, push message, and reason). A delivery already marked
 `sent` or `dry_run` is skipped. If another approved message for that same user is due

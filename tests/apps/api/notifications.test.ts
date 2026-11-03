@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../../apps/api/src/app';
 import { createMemoryAuthServices } from '../../../apps/api/src/services/auth/memory';
+import { notificationMessageFields } from '../../../apps/api/src/services/notifications/copy';
 import { createMemoryNotificationServices } from '../../../apps/api/src/services/notifications/memory';
 import { createMemoryPreferenceServices } from '../../../apps/api/src/services/preferences/memory';
 import { createMemoryStore } from '../../../apps/api/src/services/memory-store';
@@ -16,10 +17,35 @@ async function createUserSession(app: ReturnType<typeof createApp>) {
 }
 
 describe('notification inbox', () => {
+  it('copies the push headline and keeps tip status on tip notices', () => {
+    const message = {
+      titleSv: 'Ditt tips har publicerats',
+      titleEn: 'Your tip was published',
+      bodySv: 'Ditt evenemang är nu synligt.',
+      bodyEn: 'Your event is now visible.',
+      kind: 'tip',
+      tipStatus: 'published',
+    };
+    expect(notificationMessageFields(message)).toMatchObject({
+      titleSv: 'Ditt tips har publicerats',
+      bodyEn: 'Your event is now visible.',
+      tipStatus: 'published',
+    });
+    expect(notificationMessageFields({ ...message, kind: 'event' }).tipStatus).toBeNull();
+    expect(notificationMessageFields(null)).toEqual({
+      titleSv: null,
+      titleEn: null,
+      bodySv: null,
+      bodyEn: null,
+      tipStatus: null,
+    });
+  });
+
   it('documents OpenAPI paths', async () => {
     const res = await createApp().request('/v1/openapi.json');
     const doc = (await res.json()) as { paths: Record<string, unknown> };
     expect(doc.paths['/me/notifications']).toBeDefined();
+    expect(doc.paths['/me/notifications/read']).toBeDefined();
     expect(doc.paths['/me/quiet-hours']).toBeDefined();
   });
 
@@ -90,13 +116,12 @@ describe('notification inbox', () => {
     expect(body.items[0]).toMatchObject({
       eventTitle: 'Quiet show',
       pushState: 'pending',
+      titleSv: null,
+      bodySv: null,
+      tipStatus: null,
+      readAt: null,
     });
 
-    const quiet = await app.request('/v1/me/quiet-hours', {
-      method: 'PUT',
-      headers: { ...authHeader, 'content-type': 'application/json' },
-      body: JSON.stringify({ enabled: false, startMin: 23 * 60, endMin: 7 * 60 }),
-    });
     const notificationId = '11111111-1111-4111-8111-111111111401';
     store.notifications.set(notificationId, {
       id: notificationId,
@@ -109,6 +134,64 @@ describe('notification inbox', () => {
       readAt: null,
     });
     const stranger = await createUserSession(app);
+    const unreadBefore = await app.request('/v1/me/notifications/read', { method: 'POST' });
+    expect(unreadBefore.status).toBe(401);
+    const deniedRead = await app.request(`/v1/me/notifications/${notificationId}`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${stranger.sessionToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ read: true }),
+    });
+    expect(deniedRead.status).toBe(404);
+    const marked = await app.request(`/v1/me/notifications/${notificationId}`, {
+      method: 'PATCH',
+      headers: { ...authHeader, 'content-type': 'application/json' },
+      body: JSON.stringify({ read: true }),
+    });
+    expect(marked.status).toBe(200);
+    expect(await marked.json()).toEqual({ ok: true });
+    const afterRead = (await (
+      await app.request('/v1/me/notifications', { headers: authHeader })
+    ).json()) as { items: Array<{ id: string; readAt: string | null }>; unreadCount: number };
+    expect(afterRead.unreadCount).toBe(1);
+    expect(afterRead.items.find((item) => item.id === notificationId)?.readAt).toEqual(
+      expect.any(String),
+    );
+    const unreadAgain = await app.request(`/v1/me/notifications/${notificationId}`, {
+      method: 'PATCH',
+      headers: { ...authHeader, 'content-type': 'application/json' },
+      body: JSON.stringify({ read: false }),
+    });
+    expect(unreadAgain.status).toBe(200);
+    expect(await unreadAgain.json()).toEqual({ ok: true });
+    const allRead = await app.request('/v1/me/notifications/read', {
+      method: 'POST',
+      headers: authHeader,
+    });
+    expect(allRead.status).toBe(200);
+    expect(await allRead.json()).toEqual({ ok: true });
+    const cleared = (await (
+      await app.request('/v1/me/notifications', { headers: authHeader })
+    ).json()) as { unreadCount: number };
+    expect(cleared.unreadCount).toBe(0);
+
+    const quiet = await app.request('/v1/me/quiet-hours', {
+      method: 'PUT',
+      headers: { ...authHeader, 'content-type': 'application/json' },
+      body: JSON.stringify({ enabled: false, startMin: 23 * 60, endMin: 7 * 60 }),
+    });
+    store.notifications.set(notificationId, {
+      id: notificationId,
+      userId: session.userId,
+      eventId,
+      reason: 'nearby',
+      pushState: 'sent',
+      sentAt: new Date('2026-06-15T22:00:00.000Z'),
+      pushedAt: null,
+      readAt: null,
+    });
     const denied = await app.request(`/v1/me/notifications/${notificationId}`, {
       method: 'DELETE',
       headers: { authorization: `Bearer ${stranger.sessionToken}` },
@@ -118,7 +201,8 @@ describe('notification inbox', () => {
       method: 'DELETE',
       headers: authHeader,
     });
-    expect(deleted.status).toBe(204);
+    expect(deleted.status).toBe(200);
+    expect(await deleted.json()).toEqual({ ok: true });
     const after = (await (
       await app.request('/v1/me/notifications', { headers: authHeader })
     ).json()) as { items: Array<{ id: string }> };
