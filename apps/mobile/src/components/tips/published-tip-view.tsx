@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Redirect } from 'expo-router';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, View } from 'react-native';
 
@@ -20,22 +21,36 @@ export function PublishedTipView({ id }: { id: string }) {
     queryKey: ['identity', locale],
     queryFn: () => ensureIdentity(locale),
   });
+  const openedAt = useRef(Date.now());
   const tip = useQuery({
     queryKey: ['tip', id],
     enabled: identity.isSuccess && Boolean(id),
     queryFn: () => getTip(identity.data!, id),
+    refetchOnMount: 'always',
   });
-  const eventId = tip.data?.eventId ?? null;
+  // A tip opened while it was still in review stays in the cache. Wait for this
+  // visit's fetch before leaving the thank-you screen.
+  const fresh = tip.dataUpdatedAt > openedAt.current;
+  const eventId = fresh ? (tip.data?.eventId ?? null) : null;
   const event = useQuery({
     queryKey: ['event', eventId],
     enabled: Boolean(eventId) && tip.data?.phase === 'published',
     queryFn: () => getPublicEvent(eventId!),
   });
 
-  if (tip.isSuccess && tip.data.phase !== 'published') {
+  if (identity.isError) return <TipMessage message={t('tips.error')} />;
+  if (!fresh) {
+    if (tip.isError && !tip.isFetching) return <TipMessage message={t('tips.error')} />;
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={colors.inkMuted} />
+      </View>
+    );
+  }
+  if (tip.data && tip.data.phase !== 'published') {
     return <Redirect href={`/tips/${id}`} />;
   }
-  if (identity.isError || tip.isError || (!identity.isPending && !tip.isPending && !tip.data)) {
+  if (tip.isError || (!identity.isPending && !tip.isPending && !tip.data)) {
     return <TipMessage message={t('tips.error')} />;
   }
   if (identity.isPending || tip.isPending || event.isLoading) {

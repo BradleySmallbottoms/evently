@@ -1,9 +1,28 @@
 import { ensureIdentity } from './identity';
-import { listTips } from './tips';
+import { getTip, listTips } from './tips';
 
 type InboxRouter = {
   push: (href: `/events/${string}` | `/tips/published/${string}` | '/profile/tips') => void;
 };
+
+/**
+ * Screen for a tip notification. A payload that already says published stays on
+ * the thank-you screen. An older notice still opens there once the tip is published.
+ */
+export async function tipNotificationScreen(
+  locale: 'sv' | 'en',
+  target: { tipId: string; screen: 'published' | 'status' },
+): Promise<'published' | 'status'> {
+  if (target.screen === 'published') return 'published';
+  try {
+    const identity = await ensureIdentity(locale);
+    const tip = await getTip(identity, target.tipId);
+    if (tip.phase === 'published') return 'published';
+  } catch {
+    // The payload status remains the choice when the tip cannot be loaded.
+  }
+  return target.screen;
+}
 
 /** A tip from the notification list that is not the thank-you screen. That screen is a route. */
 export type InboxTipTarget = {
