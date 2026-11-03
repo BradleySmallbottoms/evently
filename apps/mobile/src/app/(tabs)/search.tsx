@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { FlatList, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ThemedScreen } from '@/components/themed-screen';
 import { AreaTagGroupsSheet } from '@/components/native/area-tag-groups-sheet';
 import { LocationMenu } from '@/components/native/location-menu';
 import { AppText } from '@/components/ui/app-text';
@@ -222,10 +223,8 @@ export default function SearchScreen() {
   }
 
   return (
-    <View
+    <ThemedScreen
       style={{
-        flex: 1,
-        backgroundColor: colors.canvas,
         alignItems: 'center',
         paddingTop: stacked ? insets.top : 0,
       }}
@@ -371,6 +370,6 @@ export default function SearchScreen() {
         }}
         onDismiss={areaTags.dismiss}
       />
-    </View>
+    </ThemedScreen>
   );
 }

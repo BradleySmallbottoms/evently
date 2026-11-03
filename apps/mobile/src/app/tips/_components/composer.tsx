@@ -2,6 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { TextInput, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
+import { manrope } from '@/theme/type';
 import { radius, space } from '@/theme/tokens';
 
 export function Composer({
@@ -48,6 +49,7 @@ export function Composer({
         paddingHorizontal: space.lg,
         paddingVertical: space.md,
         color: colors.ink,
+        fontFamily: manrope.regular,
         fontSize: 16,
         textAlignVertical: single || icon ? 'center' : 'top',
         opacity: editable ? 1 : 0.6,

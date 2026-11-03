@@ -1,11 +1,19 @@
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
+import { Manrope } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { ColorScheme } from '@/components/color-scheme';
 import { SentryProvider } from '@/components/sentry-provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { routing } from '@/i18n/routing';
 import './globals.css';
+
+const manrope = Manrope({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-manrope',
+  display: 'swap',
+});
 
 export const instant = false;
 
@@ -28,7 +36,7 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className="h-full" suppressHydrationWarning>
+    <html lang={locale} className={`${manrope.variable} h-full`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: colorSchemeScript }} />
       </head>

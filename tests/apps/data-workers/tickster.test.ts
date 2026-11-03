@@ -344,6 +344,80 @@ describe('tickster fetch', () => {
     }
   });
 
+  it('stops on the first 403 when the test ingest asks it to', async () => {
+    process.env.TICKSTER_API_KEY = 'test-key';
+    process.env.TICKSTER_STOP_ON_403 = '1';
+    let calls = 0;
+    try {
+      const raw = await tickster.fetchRaw(
+        ctx(
+          async (input) => {
+            calls += 1;
+            const url = new URL(String(input));
+            if (url.pathname.endsWith('/events/soderhamnconcert01')) {
+              return jsonResponse({ title: 'Forbidden' }, 403);
+            }
+            return jsonResponse({ totalItems: 1, items: [fixture] }, 200, undefined, {
+              'x-ratelimit-remaining': '2',
+            });
+          },
+          { rateLimitWaitMs: 60_000 },
+        ),
+      );
+      expect(calls).toBe(2);
+      expect(raw.events).toEqual([]);
+    } finally {
+      restoreKey();
+      delete process.env.TICKSTER_STOP_ON_403;
+    }
+  });
+
+  it('stops on the first rate limit when the test ingest asks it to', async () => {
+    process.env.TICKSTER_API_KEY = 'test-key';
+    process.env.TICKSTER_STOP_ON_403 = '1';
+    let calls = 0;
+    try {
+      const raw = await tickster.fetchRaw(
+        ctx(
+          async () => {
+            calls += 1;
+            return jsonResponse({}, 429, undefined, { 'x-ratelimit-remaining': '0' });
+          },
+          { rateLimitWaitMs: 60_000 },
+        ),
+      );
+      expect(calls).toBe(1);
+      expect(raw.events).toEqual([]);
+    } finally {
+      restoreKey();
+      delete process.env.TICKSTER_STOP_ON_403;
+    }
+  });
+
+  it('stops before the next request when the rate limit is already spent', async () => {
+    process.env.TICKSTER_API_KEY = 'test-key';
+    process.env.TICKSTER_STOP_ON_403 = '1';
+    let calls = 0;
+    try {
+      const raw = await tickster.fetchRaw(
+        ctx(
+          async () => {
+            calls += 1;
+            return jsonResponse({ totalItems: 1, items: [fixture] }, 200, undefined, {
+              'x-ratelimit-remaining': '0',
+            });
+          },
+          { rateLimitWaitMs: 60_000 },
+        ),
+      );
+      expect(calls).toBe(1);
+      expect(raw.events).toEqual([]);
+    } finally {
+      restoreKey();
+      delete process.env.TICKSTER_STOP_ON_403;
+    }
+  });
+
   it('stops after an hour of rate limits', async () => {
     process.env.TICKSTER_API_KEY = 'test-key';
     let calls = 0;

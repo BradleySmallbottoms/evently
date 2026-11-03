@@ -519,14 +519,14 @@ function TicketButton({
           backgroundColor: colors.accent,
         }}
       >
-        <Glyph sf="ticket" md="confirmation-number" size={20} color={colors.primary as string} />
+        <Glyph sf="ticket" md="confirmation-number" size={20} color={colors.onFill} />
         <AppText
           numberOfLines={1}
           style={{
             fontSize: 16,
             lineHeight: 20,
             fontWeight: '700',
-            color: colors.primary,
+            color: colors.onFill,
           }}
         >
           {label}

@@ -385,6 +385,11 @@
   "profile": {
     "guest": "Gäst",
     "guestHint": "Du kan bläddra utan konto. Logga in på webben för att synka den här enheten.",
+    "appearance": "Utseende",
+    "appearanceHint": "Följer enheten tills du väljer ljust eller mörkt.",
+    "appearanceSystem": "System",
+    "appearanceLight": "Ljust",
+    "appearanceDark": "Mörkt",
     "tickets": "Biljetter och anmälan",
     "categories": "Taggar",
     "categoriesHint": "Välj taggarna du vill ha notiser om i närheten.",

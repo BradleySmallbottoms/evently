@@ -24,6 +24,7 @@ import { ensureIdentity } from '@/lib/identity';
 import { foundTipClock, foundTipDay } from '@/lib/tip-clock';
 import { confirmTip } from '@/lib/tips';
 import { colors } from '@/theme/colors';
+import { manrope } from '@/theme/type';
 import { radius, space } from '@/theme/tokens';
 
 export function TipSummary({
@@ -397,7 +398,7 @@ function StatusList({ tip, locale }: { tip: Tip; locale: string }) {
                   borderColor: colors.line,
                 }}
               >
-                {done ? <MaterialIcons name="check" size={14} color={colors.card} /> : null}
+                {done ? <MaterialIcons name="check" size={14} color={colors.onFill} /> : null}
               </View>
             )}
             <View style={{ flex: 1, gap: 2 }}>
@@ -448,7 +449,13 @@ function GatheredRow({
           multiline
           placeholder="—"
           placeholderTextColor={colors.inkMuted}
-          style={{ flex: 1, color: colors.ink, fontSize: 15, paddingVertical: 0 }}
+          style={{
+            flex: 1,
+            color: colors.ink,
+            fontFamily: manrope.regular,
+            fontSize: 15,
+            paddingVertical: 0,
+          }}
         />
       ) : (
         <AppText style={{ flex: 1, fontSize: 15, color: colors.ink }}>

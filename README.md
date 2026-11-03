@@ -59,6 +59,11 @@ pnpm api-client:generate   # after public API OpenAPI changes
 
 ## Need to know
 
+### Appearance
+
+- The mobile app follows the device appearance until the profile screen sets light or dark. The
+  choice is stored on the device as `le.appearance` and is cleared with the other device data.
+
 ### Event tips
 
 - Home “Saknar du ett evenemang?” and profile “Mina tips” let a person send a photo or a short
@@ -81,7 +86,8 @@ pnpm api-client:generate   # after public API OpenAPI changes
   event marks the tip published. The event
   description is the written description. The chat lines are stored on `meta.tip`, which public
   responses omit. The scan prompt receives those lines along with the written description.
-- The user gets a visible push (`kind` `tip_scan`) that ignores quiet hours and the daily cap.
+- The user gets a visible push (`kind` `tip_scan`) on the next worker tick. The notice is an
+  approved `push_messages` row (`kind` `tip`) and ignores quiet hours and the daily cap.
   The wording says the event was added only when the scan published it. An open app hides the
   banner. A published tip opens the thank-you screen, and any other result opens the tip status.
   A lock-screen tap does the same. The inbox row opens the thank-you screen when the tip is published, and the tip status in a bottom sheet otherwise. Public event pages show “Från användartips” from

@@ -192,7 +192,10 @@ export function TipTimePicker({
             paddingVertical: space.sm + 2,
           }}
         >
-          <AppText variant="label" style={{ color: colors.ink, textAlign: 'center' }}>
+          <AppText
+            variant="label"
+            style={{ color: option.selected ? colors.onFill : colors.ink, textAlign: 'center' }}
+          >
             {option.label}
           </AppText>
         </Pressable>

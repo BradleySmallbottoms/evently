@@ -8,6 +8,7 @@ import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import { and, asc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { isPushDryRun, type ExpoPushClient, type ExpoPushMessage } from './expo-push';
+import { visibleTipPush } from './handle-tip';
 import {
   clearExpoPushToken,
   countUnreadNotifications,
@@ -40,16 +41,22 @@ function tokenHint(token: string): string {
   return `${token.slice(0, 10)}…${token.slice(-6)}`;
 }
 
-type NotifyReason = 'nearby' | 'publisher' | 'broadcast';
+type NotifyReason = 'nearby' | 'publisher' | 'broadcast' | 'tip';
 
-type PushAudienceKind = 'event_match' | 'everyone' | 'tag_interest' | 'area' | 'area_and_tag';
+type PushAudienceKind =
+  'event_match' | 'everyone' | 'tag_interest' | 'area' | 'area_and_tag' | 'user';
+
+type TipNoticeStatus = 'published' | 'in_review' | 'failed' | 'needs_input';
 
 type DueMessage = {
   id: string;
   eventId: string | null;
-  kind: 'event' | 'broadcast';
+  kind: 'event' | 'broadcast' | 'tip';
   audience: PushAudienceKind;
   audienceTagId: string | null;
+  audienceUserId: string | null;
+  tipId: string | null;
+  tipStatus: string | null;
   titleSv: string;
   bodySv: string;
   titleEn: string;
@@ -89,6 +96,7 @@ async function claimDueMessages(db: Db, now: Date): Promise<DueMessage[]> {
         AND (pm2.send_at IS NULL OR pm2.send_at <= ${nowIso})
         AND (
           pm2.kind = 'broadcast'
+          OR pm2.kind = 'tip'
           OR (pm2.kind = 'event' AND e.status = 'published')
         )
       ORDER BY pm2.send_at ASC NULLS FIRST, pm2.id ASC
@@ -96,15 +104,19 @@ async function claimDueMessages(db: Db, now: Date): Promise<DueMessage[]> {
       FOR UPDATE OF pm2 SKIP LOCKED
     )
     RETURNING pm.id, pm.event_id, pm.kind, pm.audience, pm.audience_tag_id,
+      pm.audience_user_id, pm.tip_id, pm.tip_status,
       pm.title_sv, pm.body_sv, pm.title_en, pm.body_en, pm.send_at
   `);
 
   const rows = (Array.isArray(claimed) ? claimed : []) as Array<{
     id: string;
     event_id: string | null;
-    kind: 'event' | 'broadcast';
+    kind: 'event' | 'broadcast' | 'tip';
     audience: PushAudienceKind;
     audience_tag_id: string | null;
+    audience_user_id: string | null;
+    tip_id: string | null;
+    tip_status: string | null;
     title_sv: string;
     body_sv: string;
     title_en: string;
@@ -118,6 +130,9 @@ async function claimDueMessages(db: Db, now: Date): Promise<DueMessage[]> {
     kind: r.kind,
     audience: r.audience,
     audienceTagId: r.audience_tag_id,
+    audienceUserId: r.audience_user_id ?? null,
+    tipId: r.tip_id ?? null,
+    tipStatus: r.tip_status ?? null,
     titleSv: r.title_sv,
     bodySv: r.body_sv,
     titleEn: r.title_en,
@@ -187,6 +202,10 @@ async function audienceForAdminEvent(
 }
 
 async function audienceForMessage(db: Db, message: DueMessage): Promise<Map<string, NotifyReason>> {
+  if (message.kind === 'tip') {
+    if (!message.audienceUserId) return new Map();
+    return new Map([[message.audienceUserId, 'tip']]);
+  }
   if (message.kind === 'broadcast') return audienceForBroadcast(db, message);
   if (!message.eventId) return new Map();
   if (message.audience === 'area' || message.audience === 'area_and_tag') {
@@ -235,6 +254,9 @@ async function loadWindowCandidates(db: Db, now: Date, excludeId: string): Promi
       kind: r.kind,
       audience: r.audience,
       audienceTagId: r.audienceTagId,
+      audienceUserId: null,
+      tipId: null,
+      tipStatus: null,
       titleSv: r.titleSv,
       bodySv: r.bodySv,
       titleEn: r.titleEn,
@@ -315,6 +337,9 @@ async function loadDeferredWaitingFor(
         kind: r.kind,
         audience: r.audience,
         audienceTagId: r.audienceTagId,
+        audienceUserId: null,
+        tipId: null,
+        tipStatus: null,
         titleSv: r.titleSv,
         bodySv: r.bodySv,
         titleEn: r.titleEn,
@@ -525,6 +550,133 @@ async function deliverBundleToUser(
   return ok ? 1 : 0;
 }
 
+function asTipStatus(value: string | null): TipNoticeStatus {
+  if (
+    value === 'published' ||
+    value === 'in_review' ||
+    value === 'failed' ||
+    value === 'needs_input'
+  ) {
+    return value;
+  }
+  return 'in_review';
+}
+
+/**
+ * A tip notice is one person, sent on this tick, and is not bundled.
+ * The Expo payload is a visible `tip_scan` alert, not a silent inbox push.
+ */
+async function processTipMessage(
+  deps: HandleDuePushDeps,
+  message: DueMessage,
+  now: Date,
+): Promise<{ matched: number; sent: number; deferred: number }> {
+  const userId = message.audienceUserId;
+  if (!userId || !message.tipId) {
+    await deps.db
+      .update(schema.pushMessages)
+      .set({ status: 'sent', sentAt: now, updatedAt: now })
+      .where(eq(schema.pushMessages.id, message.id));
+    return { matched: 0, sent: 0, deferred: 0 };
+  }
+
+  const [existing] = await deps.db
+    .select({ status: schema.pushMessageDeliveries.status })
+    .from(schema.pushMessageDeliveries)
+    .where(
+      and(
+        eq(schema.pushMessageDeliveries.pushMessageId, message.id),
+        eq(schema.pushMessageDeliveries.userId, userId),
+      ),
+    )
+    .limit(1);
+  if (existing?.status === 'sent' || existing?.status === 'dry_run') {
+    await deps.db
+      .update(schema.pushMessages)
+      .set({ status: 'sent', sentAt: now, updatedAt: now })
+      .where(eq(schema.pushMessages.id, message.id));
+    return { matched: 1, sent: 0, deferred: 0 };
+  }
+
+  const sent = await deliverTip(deps, { userId, message, now });
+  await deps.db
+    .update(schema.pushMessages)
+    .set({ status: 'sent', sentAt: now, updatedAt: now })
+    .where(eq(schema.pushMessages.id, message.id));
+  return { matched: 1, sent, deferred: 0 };
+}
+
+async function deliverTip(
+  deps: HandleDuePushDeps,
+  input: { userId: string; message: DueMessage; now: Date },
+): Promise<number> {
+  const { message } = input;
+  const dryRun = isPushDryRun();
+  const notificationId = await claimInbox(deps.db, {
+    userId: input.userId,
+    eventId: message.eventId,
+    pushMessageId: message.id,
+    reason: 'tip',
+    now: input.now,
+  });
+  await upsertDelivery(deps.db, {
+    pushMessageId: message.id,
+    userId: input.userId,
+    status: dryRun ? 'dry_run' : 'sent',
+    deferredUntilMessageId: null,
+    sentAt: input.now,
+  });
+
+  const devices = await loadPushDevicesForUsers(deps.db, [input.userId]);
+  if (devices.length === 0) {
+    if (notificationId) await markNotificationsPushed(deps.db, [notificationId], input.now);
+    return 0;
+  }
+  if (dryRun) return 1;
+
+  const unread = await countUnreadNotifications(deps.db, input.userId);
+  const messages: ExpoPushMessage[] = devices.map((device) => {
+    const english = device.locale === 'en';
+    const [messageForDevice] = visibleTipPush({
+      tokens: [device.expoPushToken],
+      title: english ? message.titleEn : message.titleSv,
+      body: english ? message.bodyEn : message.bodySv,
+      status: asTipStatus(message.tipStatus),
+      tipId: message.tipId ?? '',
+      eventId: message.eventId,
+      badge: unread,
+    });
+    return messageForDevice!;
+  });
+
+  let tickets;
+  try {
+    tickets = await deps.expo.send(messages);
+  } catch (err) {
+    console.error('expo tip push failed; inbox row kept', err);
+    return 0;
+  }
+
+  let ok = false;
+  for (let i = 0; i < tickets.length; i++) {
+    const ticket = tickets[i];
+    const device = devices[i];
+    if (!ticket || !device) continue;
+    if (ticket.status === 'ok') {
+      ok = true;
+      continue;
+    }
+    const err = ticket.details?.error ?? ticket.message ?? '';
+    if (err.includes('DeviceNotRegistered') || err.includes('InvalidCredentials')) {
+      await clearExpoPushToken(deps.db, device.deviceId);
+    }
+  }
+  if (ok && notificationId) {
+    await markNotificationsPushed(deps.db, [notificationId], input.now);
+  }
+  return ok ? 1 : 0;
+}
+
 async function processMessage(
   deps: HandleDuePushDeps,
   message: DueMessage,
@@ -540,6 +692,8 @@ async function processMessage(
     sendAt: message.sendAt?.toISOString() ?? null,
     titleSv: message.titleSv,
   });
+
+  if (message.kind === 'tip') return processTipMessage(deps, message, now);
 
   const audience = await audienceForMessage(deps.db, message);
   pushDebug({
@@ -697,12 +851,19 @@ async function flushOrphanDeferred(deps: HandleDuePushDeps, now: Date): Promise<
       kind: msg.kind,
       audience: msg.audience,
       audienceTagId: msg.audienceTagId,
+      audienceUserId: msg.audienceUserId,
+      tipId: msg.tipId,
+      tipStatus: msg.tipStatus,
       titleSv: msg.titleSv,
       bodySv: msg.bodySv,
       titleEn: msg.titleEn,
       bodyEn: msg.bodyEn,
       sendAt: msg.sendAt,
     };
+    if (due.kind === 'tip') {
+      flushed += (await processTipMessage(deps, due, now)).sent;
+      continue;
+    }
     if (due.kind === 'event') {
       if (!due.eventId) continue;
       const event = await loadPublishedEvent(deps.db, due.eventId);
@@ -721,8 +882,9 @@ async function flushOrphanDeferred(deps: HandleDuePushDeps, now: Date): Promise<
 }
 
 /**
- * Poll due approved push messages, aggregate per user within 10 minutes,
- * write inbox rows and send silent Expo pushes.
+ * Poll due approved push messages. Event and broadcast messages aggregate per
+ * user within 10 minutes, then write inbox rows and send a silent Expo push.
+ * A tip message goes to one user on this tick as a visible `tip_scan` alert.
  */
 export async function handleDuePushMessages(
   deps: HandleDuePushDeps,

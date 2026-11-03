@@ -139,7 +139,10 @@ export default function NotificationsScreen() {
                   borderColor: colors.line,
                 }}
               >
-                <AppText variant="label" style={{ color: colors.ink, fontWeight: '600' }}>
+                <AppText
+                  variant="label"
+                  style={{ color: selected ? colors.onFill : colors.ink, fontWeight: '600' }}
+                >
                   {opt.label}
                 </AppText>
               </Pressable>

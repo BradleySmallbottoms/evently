@@ -13,24 +13,45 @@ import {
   type HomeTag,
   type HomeTagGroupId,
 } from '@/lib/tag-groups';
-import { colors } from '@/theme/colors';
+import { categoryColors, colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
 type Icon = { sf: SFSymbol; md: keyof typeof MaterialIcons.glyphMap };
 
-export const TAG_GROUP_STYLE: Record<HomeTagGroupId, Icon & { fill: string; icon: string }> = {
-  music: { sf: 'music.note', md: 'music-note', fill: '#F8E6D8', icon: '#8A5A3A' },
-  sport: { sf: 'figure.run', md: 'directions-run', fill: '#E4EFEA', icon: '#3E6B58' },
-  culture: { sf: 'building.columns', md: 'museum', fill: '#E3EBF3', icon: '#3E5F78' },
-  family: {
-    sf: 'figure.and.child.holdinghands',
-    md: 'child-care',
-    fill: '#F6E4E2',
-    icon: '#8A4E48',
-  },
-  holiday: { sf: 'gift', md: 'card-giftcard', fill: '#F3EBD4', icon: '#7A6840' },
-  other: { sf: 'tag', md: 'label', fill: '#E7E4F2', icon: '#5C5278' },
+const TAG_GROUP_CATEGORY = {
+  music: 'music',
+  sport: 'sports',
+  culture: 'culture',
+  family: 'family',
+  holiday: 'holidays',
+  other: 'other',
+} as const satisfies Record<HomeTagGroupId, keyof typeof categoryColors>;
+
+const TAG_GROUP_ICON: Record<HomeTagGroupId, Icon> = {
+  music: { sf: 'music.note', md: 'music-note' },
+  sport: { sf: 'figure.run', md: 'directions-run' },
+  culture: { sf: 'building.columns', md: 'museum' },
+  family: { sf: 'figure.and.child.holdinghands', md: 'child-care' },
+  holiday: { sf: 'gift', md: 'card-giftcard' },
+  other: { sf: 'tag', md: 'label' },
 };
+
+/** Icon plus the live category tint. `fill` and `icon` follow the appearance. */
+export const TAG_GROUP_STYLE: Record<HomeTagGroupId, Icon & { fill: string; icon: string }> =
+  Object.fromEntries(
+    (Object.keys(TAG_GROUP_ICON) as HomeTagGroupId[]).map((id) => [
+      id,
+      {
+        ...TAG_GROUP_ICON[id],
+        get fill() {
+          return categoryColors[TAG_GROUP_CATEGORY[id]].fill;
+        },
+        get icon() {
+          return categoryColors[TAG_GROUP_CATEGORY[id]].icon;
+        },
+      },
+    ]),
+  ) as Record<HomeTagGroupId, Icon & { fill: string; icon: string }>;
 
 type Props = {
   title?: string;

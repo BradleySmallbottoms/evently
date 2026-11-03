@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, TextInput, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import { searchPlaces, type NamedPlace } from '@/lib/place-lookup';
 import { colors } from '@/theme/colors';
+import { manrope } from '@/theme/type';
 import { radius, space } from '@/theme/tokens';
 
 type Props = {
@@ -82,7 +83,13 @@ export function PlaceSearchField({ onPick, editable = true, autoFocus = false }:
           placeholderTextColor={colors.inkFaint}
           returnKeyType="search"
           autoCorrect={false}
-          style={{ flex: 1, fontSize: 16, color: colors.ink, paddingVertical: space.md }}
+          style={{
+            flex: 1,
+            fontFamily: manrope.regular,
+            fontSize: 16,
+            color: colors.ink,
+            paddingVertical: space.md,
+          }}
         />
         {searching ? <ActivityIndicator color={colors.ink} /> : null}
         {text.length > 0 && !searching ? (

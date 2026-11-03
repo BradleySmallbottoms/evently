@@ -34,6 +34,7 @@ function audienceLabel(
   row: SentNotification,
   t: ReturnType<typeof useTranslations<'EventEditor'>>,
 ): string {
+  if (row.audience === 'user') return t('audienceUser');
   if (row.audience === 'area') return t('audienceArea');
   if (row.audience === 'area_and_tag') return t('audienceAreaAndTag');
   if (row.audience === 'everyone') return t('audienceEveryone');

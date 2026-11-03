@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
+import { manrope } from '@/theme/type';
 import { radius, space } from '@/theme/tokens';
 
 type Props = {
@@ -80,7 +81,7 @@ export function ProfilePromptSheet({
               opacity: saving || name.trim().length < 2 ? 0.5 : 1,
             }}
           >
-            <Text textStyle={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>
+            <Text textStyle={{ fontSize: 16, fontWeight: '700', color: colors.onFill }}>
               {saveNamedLabel}
             </Text>
           </Pressable>
@@ -109,5 +110,6 @@ const inputStyle = {
   paddingHorizontal: space.lg,
   paddingVertical: space.md,
   fontSize: 16,
+  fontFamily: manrope.regular,
   color: colors.ink as string,
 };

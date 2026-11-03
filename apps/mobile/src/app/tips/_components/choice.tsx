@@ -18,7 +18,10 @@ export function Choice({
   onPress?: () => void;
 }) {
   const content = (
-    <AppText variant="label" style={{ color: colors.ink, textAlign: 'center' }}>
+    <AppText
+      variant="label"
+      style={{ color: selected ? colors.onFill : colors.ink, textAlign: 'center' }}
+    >
       {label}
     </AppText>
   );

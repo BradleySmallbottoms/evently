@@ -37,6 +37,7 @@ import {
   setDiscoveryPlaceId,
 } from '@/lib/use-discovery-point';
 import { colors } from '@/theme/colors';
+import { manrope } from '@/theme/type';
 import { radius, space } from '@/theme/tokens';
 
 const STOPS_KM = DISCOVERY_RADIUS_STOPS_M.map((meters) => meters / 1_000);
@@ -416,6 +417,7 @@ function AreaEditor({
               paddingVertical: 0,
               textAlignVertical: 'center',
               fontSize: 16,
+              fontFamily: manrope.regular,
               color: colors.ink,
             }}
           />
@@ -447,7 +449,7 @@ function AreaEditor({
               label={t('profile.areaNameDone')}
               sf="checkmark"
               md="check"
-              tint={colors.primary}
+              tint={colors.onFill}
               backgroundColor={colors.accent}
               onPressIn={() => {
                 nameAction.current = 'commit';

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, View } from 'react-native';
 
+import { ThemedScreen } from '@/components/themed-screen';
 import { AppText } from '@/components/ui/app-text';
 import { CategoryChips } from '@/components/ui/category-chips';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -54,7 +55,7 @@ export default function SavedScreen() {
     ) ?? [];
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
+    <ThemedScreen style={{ alignItems: 'center' }}>
       <FlatList
         style={{ flex: 1, width: '100%', maxWidth: MaxContentWidth }}
         contentInsetAdjustmentBehavior="automatic"
@@ -123,6 +124,6 @@ export default function SavedScreen() {
           </View>
         )}
       />
-    </View>
+    </ThemedScreen>
   );
 }

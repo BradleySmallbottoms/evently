@@ -13,6 +13,7 @@ import {
   type FlatListProps,
 } from 'react-native';
 
+import { ThemedScreen } from '@/components/themed-screen';
 import { CategoryFiltersSheet } from '@/components/native/category-filters-sheet';
 import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
@@ -206,8 +207,8 @@ export default function ExploreScreen() {
   const empty = events.isSuccess && !events.isPlaceholderData && items.length === 0;
 
   return (
-    <View
-      style={{ flex: 1, backgroundColor: colors.overlay }}
+    <ThemedScreen
+      background="overlay"
       onLayout={(event) => {
         const next = Math.round(event.nativeEvent.layout.height);
         if (next > 0 && next !== pageHeight) setPageHeight(next);
@@ -359,7 +360,7 @@ export default function ExploreScreen() {
       >
         <TagGroupList tags={tags.data?.items ?? []} selectedIds={tagIds} onChange={setTagIds} />
       </CategoryFiltersSheet>
-    </View>
+    </ThemedScreen>
   );
 }
 
@@ -389,7 +390,7 @@ function FilterChip({
     >
       <AppText
         style={{
-          color: selected ? colors.ink : '#FFFFFF',
+          color: '#FFFFFF',
           fontSize: 15,
           fontWeight: '700',
         }}

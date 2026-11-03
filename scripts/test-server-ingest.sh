@@ -7,6 +7,15 @@
 #   sh scripts/test-server-ingest.sh --skip-import
 #   sh scripts/test-server-ingest.sh --skip-scan
 #
+# Tickster stops on the first 403 or rate-limit response. Saved events stay, and the
+# next source runs. A scheduled import still waits out the Tickster rate limit.
+#
+# --limit caps how many events each source imports. The scan does not use it.
+# It claims every pending_scan event whose lease is free. The worker still
+# takes at most 999 in one process, so a larger queue is scanned in passes.
+# A pass that leaves the same number pending stops, so a failed row is not
+# claimed again in a loop. RunPod drains that queue in one process.
+#
 # TEST_SSH_HOST defaults to evently. TEST_REMOTE_DIR overrides ~/evently on that host.
 # This writes to the test database. Chat keys come from the server env when they are set.
 
@@ -27,6 +36,7 @@ SKIP_SCAN=0
 
 usage() {
   echo "Usage: sh scripts/test-server-ingest.sh [--source <slug>]... [--limit <n>] [--skip-import] [--skip-scan]" >&2
+  echo "--limit caps each source import. The scan claims every pending_scan event." >&2
 }
 
 while [ $# -gt 0 ]; do
@@ -147,20 +157,46 @@ if [ -z "$GARAGE_IP" ] || [ -z "$SQS_IP" ]; then
 fi
 
 echo "Opening SSH tunnel"
-ssh -N \
+# -n and a closed stdin are required for a background ssh. A background ssh
+# also ignores SIGINT, and macOS bash skips the EXIT trap when Ctrl+C kills
+# this script, so the watcher closes the forward if this process disappears.
+ssh -n -N \
   -o ExitOnForwardFailure=yes \
   -o ServerAliveInterval=30 \
   -o ServerAliveCountMax=3 \
   -L "127.0.0.1:${LOCAL_PG_PORT}:127.0.0.1:5432" \
   -L "127.0.0.1:${LOCAL_S3_PORT}:${GARAGE_IP}:3900" \
   -L "127.0.0.1:${LOCAL_SQS_PORT}:${SQS_IP}:9324" \
-  "$SSH_HOST" &
+  "$SSH_HOST" </dev/null &
 TUNNEL_PID=$!
+SCRIPT_PID=$$
+(
+  trap '' INT HUP
+  while kill -0 "$SCRIPT_PID" 2>/dev/null; do
+    state=$(ps -o state= -p "$SCRIPT_PID" 2>/dev/null | tr -d '[:space:]')
+    case "$state" in
+      Z*) break ;;
+    esac
+    sleep 0.5
+  done
+  kill "$TUNNEL_PID" 2>/dev/null || true
+) >/dev/null 2>&1 &
+TUNNEL_WATCH_PID=$!
 cleanup() {
-  kill "$TUNNEL_PID" >/dev/null 2>&1 || true
-  wait "$TUNNEL_PID" 2>/dev/null || true
+  trap - EXIT INT TERM HUP
+  if [ -n "${TUNNEL_PID:-}" ]; then
+    kill "$TUNNEL_PID" >/dev/null 2>&1 || true
+    wait "$TUNNEL_PID" 2>/dev/null || true
+  fi
+  if [ -n "${TUNNEL_WATCH_PID:-}" ]; then
+    kill "$TUNNEL_WATCH_PID" >/dev/null 2>&1 || true
+    wait "$TUNNEL_WATCH_PID" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT
+trap 'cleanup; exit 130' INT
+trap 'cleanup; exit 143' TERM
+trap 'cleanup; exit 129' HUP
 
 wait_port "$LOCAL_PG_PORT"
 wait_port "$LOCAL_S3_PORT"
@@ -190,12 +226,15 @@ export DOMAIN_EVENTS_QUEUE_URL="http://127.0.0.1:${LOCAL_SQS_PORT}/000000000000/
 export OLLAMA_DISABLED=1
 unset POSTGRES_PASSWORD ENCODED_PASSWORD
 
+# example-fixture is the local sample. ics-feed is the placeholder calendar.
+# user-tips has no fetcher; the API writes tip events onto that source.
 if [ -z "$SOURCE_LIST" ] && [ "$SKIP_IMPORT" -eq 0 ]; then
   SOURCE_LIST=$(
     pnpm --filter @local-events/db exec node --input-type=module -e '
       import postgres from "postgres";
       const sql = postgres(process.env.DATABASE_URL, { max: 1 });
-      const rows = await sql`select slug from data_sources where slug <> ${"example-fixture"} order by slug`;
+      const skip = ["example-fixture", "ics-feed", "user-tips"];
+      const rows = await sql`select slug from data_sources where slug not in ${sql(skip)} order by slug`;
       process.stdout.write(rows.map((row) => row.slug).join("\n"));
       await sql.end();
     '
@@ -210,6 +249,12 @@ if [ "$SKIP_IMPORT" -eq 0 ]; then
   while IFS= read -r slug; do
     [ -n "$slug" ] || continue
     echo "Importing ${slug}"
+    if [ "$slug" = "tickster" ]; then
+      TICKSTER_STOP_ON_403=1
+      export TICKSTER_STOP_ON_403
+    else
+      unset TICKSTER_STOP_ON_403
+    fi
     # shellcheck disable=SC2086
     if ! pnpm --filter @local-events/data-workers dev -- --source "$slug" $LIMIT_ARGS; then
       FAILED=1
@@ -217,11 +262,62 @@ if [ "$SKIP_IMPORT" -eq 0 ]; then
   done <<<"$SOURCE_LIST"
 fi
 
+count_pending_scans() {
+  pnpm --filter @local-events/db exec node --input-type=module -e '
+    import postgres from "postgres";
+    const sql = postgres(process.env.DATABASE_URL, { max: 1 });
+    const [row] = await sql`
+      select count(*)::int as n
+      from events
+      where status = ${"pending_scan"}
+        and (scan_claimed_until is null or scan_claimed_until < now())
+    `;
+    process.stdout.write(String(Number(row?.n ?? 0)));
+    await sql.end();
+  '
+}
+
 if [ "$SKIP_SCAN" -eq 0 ]; then
   echo "Scanning events"
-  # shellcheck disable=SC2086
-  if ! pnpm --filter @local-events/data-workers dev -- --job event-scan $LIMIT_ARGS; then
-    FAILED=1
+  chat_provider=$(printf '%s' "${CHAT_PROVIDER:-}" | tr '[:upper:]' '[:lower:]')
+  if [ "$chat_provider" = "runpod" ]; then
+    # No --limit: the pod stays up and drains the queue, skipping rows it already tried.
+    if ! pnpm --filter @local-events/data-workers dev -- --job event-scan; then
+      FAILED=1
+    fi
+  else
+    previous=-1
+    while true; do
+      pending=$(count_pending_scans) || {
+        FAILED=1
+        break
+      }
+      case "$pending" in
+        '' | *[!0-9]*)
+          echo "Could not count pending_scan events." >&2
+          FAILED=1
+          break
+          ;;
+      esac
+      if [ "$pending" -eq 0 ]; then
+        echo "No pending scans left"
+        break
+      fi
+      if [ "$pending" -eq "$previous" ]; then
+        echo "${pending} events are still pending_scan. Stopping so they are not claimed again."
+        break
+      fi
+      previous=$pending
+      limit=$pending
+      if [ "$limit" -gt 999 ]; then
+        limit=999
+      fi
+      echo "Scanning ${limit} of ${pending} pending events"
+      if ! pnpm --filter @local-events/data-workers dev -- --job event-scan --limit "$limit"; then
+        FAILED=1
+        break
+      fi
+    done
   fi
 fi
 

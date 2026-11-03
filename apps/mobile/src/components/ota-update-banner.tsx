@@ -38,10 +38,16 @@ export function OtaUpdateBanner() {
         onPress={() => {
           void reloadOtaUpdate();
         }}
-        style={({ pressed }) => [styles.banner, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.banner,
+          { backgroundColor: colors.primary },
+          pressed && styles.pressed,
+        ]}
       >
-        <AppText style={styles.title}>{t('app.updateReady')}</AppText>
-        <AppText style={styles.action}>{t('app.updateReadyAction')}</AppText>
+        <AppText style={[styles.title, { color: colors.onFill }]}>{t('app.updateReady')}</AppText>
+        <AppText style={[styles.action, { color: colors.onFill }]}>
+          {t('app.updateReadyAction')}
+        </AppText>
       </Pressable>
     </View>
   );
@@ -62,20 +68,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
     borderRadius: radius.pill,
-    backgroundColor: colors.primary,
     boxShadow: shadow.hard,
   },
   pressed: {
     opacity: 0.85,
   },
   title: {
-    color: colors.card,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '600',
   },
   action: {
-    color: colors.accent,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '600',

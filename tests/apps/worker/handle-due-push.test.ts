@@ -193,4 +193,70 @@ describe('PUSH_DRY_RUN', () => {
       ]),
     );
   });
+
+  it('sends a due tip notice as a visible tip_scan push', async () => {
+    delete process.env.PUSH_DRY_RUN;
+    const sent: unknown[] = [];
+    const { db, inserts } = duePushDb([[], [], [deviceRow], [{ count: 1 }]]);
+    let calls = 0;
+    db.execute = async () => {
+      calls += 1;
+      if (calls === 1) {
+        return [
+          {
+            id: MESSAGE_ID,
+            event_id: '44444444-4444-4444-8444-444444444444',
+            kind: 'tip',
+            audience: 'user',
+            audience_tag_id: null,
+            audience_user_id: USER_ID,
+            tip_id: '55555555-5555-4555-8555-555555555555',
+            tip_status: 'in_review',
+            title_sv: 'Vi tittar på ditt tips',
+            body_sv: 'Sommarkonsert',
+            title_en: 'We are looking at your tip',
+            body_en: 'Summer concert',
+            send_at: null,
+          },
+        ];
+      }
+      return [];
+    };
+
+    await handleDuePushMessages({
+      db,
+      expo: {
+        send: async (messages) => {
+          sent.push(messages);
+          return messages.map(() => ({ status: 'ok' as const, id: 'ticket' }));
+        },
+      },
+      now: () => new Date('2026-10-14T08:00:00.000Z'),
+    });
+
+    expect(sent).toEqual([
+      [
+        expect.objectContaining({
+          title: 'Vi tittar på ditt tips',
+          body: 'Sommarkonsert',
+          sound: 'default',
+          data: expect.objectContaining({
+            kind: 'tip_scan',
+            status: 'in_review',
+            tipId: '55555555-5555-4555-8555-555555555555',
+          }),
+        }),
+      ],
+    ]);
+    expect(inserts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId: USER_ID,
+          eventId: '44444444-4444-4444-8444-444444444444',
+          reason: 'tip',
+          pushState: 'pending',
+        }),
+      ]),
+    );
+  });
 });

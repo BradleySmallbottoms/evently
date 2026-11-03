@@ -43,6 +43,8 @@ sequenceDiagram
   API->>DB: create pending_scan event on source user-tips
   Scan->>DB: claim pending_scan, set in_review or published
   Scan->>Worker: tip.scanned
+  Worker->>DB: approved push_messages row, kind tip, send_at null
+  Note over Worker: Next notification tick
   Worker->>DB: inbox row reason tip
   Worker->>App: visible Expo push kind tip_scan
   App->>API: GET /v1/me/tips/{id}

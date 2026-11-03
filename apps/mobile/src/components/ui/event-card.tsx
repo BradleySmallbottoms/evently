@@ -107,7 +107,7 @@ export function EventCard({
                   paddingVertical: 2,
                 }}
               >
-                <AppText variant="label" style={{ color: colors.ink, fontWeight: '700' }}>
+                <AppText variant="label" style={{ color: colors.onFill, fontWeight: '700' }}>
                   {t('events.featured')}
                 </AppText>
               </View>

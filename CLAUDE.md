@@ -163,7 +163,8 @@ Import adapters (every new source)
   Bollnäs, Hudiksvall, Ljusdal — then fetches each showing and skips a production or collection
   parent. Each showing is one event. A UTC time is that instant. The venue point is stored when
   the API sends one. A point of 0, 0 is omitted. `X-RATELIMIT-REMAINING: 0`, or a 429, waits
-  five minutes and retries, for up to an hour.
+  five minutes and retries, for up to an hour. The test ingest script sets `TICKSTER_STOP_ON_403`,
+  so the first 403 or rate limit stops that source and the script continues.
 
 Product invariants (enforced in domain, tested)
 
@@ -270,7 +271,8 @@ Product invariants (enforced in domain, tested)
   `user-tips` source. Trust stays `review`, so the scan leaves the event and the tip `in_review`
   until an admin publishes the event. That sets the tip's scan status to `published`. `meta.fromUserTip` is public and does not name the submitter. The event
   description is the written description. The chat lines are stored on `meta.tip`, which public
-  responses omit. The scan prompt receives those lines along with the written description. The tip push is
+  responses omit. The scan prompt receives those lines along with the written description. The tip
+  notice is an approved `push_messages` row sent on the next worker tick. The push is
   visible, ignores quiet hours and the daily cap, and says the event was added only when it is
   published. A published tip opens the thank-you screen. Any other result opens the tip status. A
   lock-screen tap does the same. The inbox row opens the thank-you screen when the tip is published, and the tip status in a bottom sheet otherwise. Tip text and photos cascade with the user. The event stays.

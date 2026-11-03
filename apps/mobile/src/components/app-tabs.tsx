@@ -1,20 +1,22 @@
 import { NativeTabs } from 'expo-router/native-tabs';
 import { useTranslation } from 'react-i18next';
 
-import { brand } from '@/constants/theme';
+import { useAppearance } from '@/lib/appearance-context';
+import { colors } from '@/theme/colors';
 import { useHasUnreadNotifications } from '@/lib/use-unread-notifications';
 
 export default function AppTabs() {
   const { t } = useTranslation();
+  useAppearance();
   const { hasUnread, numUnread } = useHasUnreadNotifications();
 
   return (
     <NativeTabs
-      backgroundColor={brand.background}
-      badgeBackgroundColor={brand.error}
-      indicatorColor={brand.accentSoft}
-      tintColor={brand.primary}
-      labelStyle={{ selected: { color: brand.primary }, default: { color: brand.textSecondary } }}
+      backgroundColor={colors.canvas}
+      badgeBackgroundColor={colors.danger}
+      indicatorColor={colors.accentSoft}
+      tintColor={colors.ink}
+      labelStyle={{ selected: { color: colors.ink }, default: { color: colors.inkMuted } }}
     >
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>{t('tabs.list')}</NativeTabs.Trigger.Label>

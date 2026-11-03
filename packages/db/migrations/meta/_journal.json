@@ -442,6 +442,13 @@
       "when": 1794400000021,
       "tag": "0062_dazzling_timeslip",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1794400000022,
+      "tag": "0063_robust_power_man",
+      "breakpoints": true
     }
   ]
 }

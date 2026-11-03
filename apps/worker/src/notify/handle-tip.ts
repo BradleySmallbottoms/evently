@@ -1,9 +1,8 @@
 import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import { tipScanNotification, type TipExtraction } from '@local-events/domain';
-import { and, eq, isNull } from 'drizzle-orm';
-import { isPushDryRun, type ExpoPushClient, type ExpoPushMessage } from './expo-push';
-import { countUnreadNotifications, loadPushDevicesForUsers } from './match';
+import { and, eq, isNull, notInArray } from 'drizzle-orm';
+import type { ExpoPushClient, ExpoPushMessage } from './expo-push';
 
 export function tipPushMessages(input: {
   tokens: string[];
@@ -16,10 +15,31 @@ export function tipPushMessages(input: {
   badge: number;
 }): ExpoPushMessage[] {
   const copy = tipScanNotification(input);
-  return input.tokens.map((to) => ({
-    to,
+  return visibleTipPush({
+    tokens: input.tokens,
     title: copy.title,
     body: copy.body,
+    status: input.status,
+    tipId: input.tipId,
+    eventId: input.eventId,
+    badge: input.badge,
+  });
+}
+
+/** Visible tip alert from copy already stored on the push_messages row. */
+export function visibleTipPush(input: {
+  tokens: string[];
+  title: string;
+  body: string;
+  status: string;
+  tipId: string;
+  eventId: string | null;
+  badge: number;
+}): ExpoPushMessage[] {
+  return input.tokens.map((to) => ({
+    to,
+    title: input.title,
+    body: input.body,
     sound: 'default' as const,
     priority: 'high' as const,
     badge: input.badge,
@@ -28,8 +48,8 @@ export function tipPushMessages(input: {
       tipId: input.tipId,
       eventId: input.eventId ?? '',
       status: input.status,
-      title: copy.title,
-      body: copy.body,
+      title: input.title,
+      body: input.body,
       badge: String(input.badge),
     },
   }));
@@ -40,8 +60,25 @@ async function alreadyNotified(db: Db, userId: string, eventId: string | null): 
   return (await tipNoticeCount(db, userId, eventId)) >= 1;
 }
 
+/**
+ * One notice is either a tip push_messages row or an older inbox row that was
+ * inserted directly (no push_message_id). Counting both keeps a published
+ * follow-up working for tips that were notified before they were scheduled.
+ */
 async function tipNoticeCount(db: Db, userId: string, eventId: string): Promise<number> {
-  const rows = await db
+  const scheduled = await db
+    .select({ id: schema.pushMessages.id })
+    .from(schema.pushMessages)
+    .where(
+      and(
+        eq(schema.pushMessages.eventId, eventId),
+        eq(schema.pushMessages.kind, 'tip'),
+        eq(schema.pushMessages.audienceUserId, userId),
+        notInArray(schema.pushMessages.status, ['cancelled', 'rejected']),
+      ),
+    )
+    .limit(2);
+  const legacy = await db
     .select({ id: schema.notifications.id })
     .from(schema.notifications)
     .where(
@@ -49,10 +86,11 @@ async function tipNoticeCount(db: Db, userId: string, eventId: string): Promise<
         eq(schema.notifications.userId, userId),
         eq(schema.notifications.eventId, eventId),
         eq(schema.notifications.reason, 'tip'),
+        isNull(schema.notifications.pushMessageId),
       ),
     )
     .limit(2);
-  return rows.length;
+  return scheduled.length + legacy.length;
 }
 
 export async function handleTipScanned(
@@ -83,7 +121,6 @@ export async function handleTipScanned(
     .limit(1);
   await sendTipPush(deps, {
     userId: tip.userId,
-    locale: tip.locale,
     status: input.status,
     title: event?.title ?? 'Event',
     place: event?.venueName ?? null,
@@ -104,6 +141,19 @@ export async function handleTipNeedsInput(
     .where(eq(schema.eventTips.id, input.tipId))
     .limit(1);
   if (!tip || tip.userId !== input.userId) return;
+  const [scheduled] = await deps.db
+    .select({ id: schema.pushMessages.id })
+    .from(schema.pushMessages)
+    .where(
+      and(
+        eq(schema.pushMessages.tipId, tip.id),
+        eq(schema.pushMessages.kind, 'tip'),
+        isNull(schema.pushMessages.eventId),
+        notInArray(schema.pushMessages.status, ['cancelled', 'rejected']),
+      ),
+    )
+    .limit(1);
+  if (scheduled) return;
   const [existing] = await deps.db
     .select({ id: schema.notifications.id })
     .from(schema.notifications)
@@ -112,6 +162,7 @@ export async function handleTipNeedsInput(
         eq(schema.notifications.userId, tip.userId),
         isNull(schema.notifications.eventId),
         eq(schema.notifications.reason, 'tip'),
+        isNull(schema.notifications.pushMessageId),
       ),
     )
     .limit(1);
@@ -119,7 +170,6 @@ export async function handleTipNeedsInput(
   const extracted = (tip.extracted ?? {}) as TipExtraction;
   await sendTipPush(deps, {
     userId: tip.userId,
-    locale: tip.locale,
     status: 'needs_input',
     title: extracted.title?.trim() || (tip.locale === 'en' ? 'Your tip' : 'Ditt tips'),
     place: extracted.place ?? null,
@@ -129,11 +179,11 @@ export async function handleTipNeedsInput(
   });
 }
 
+/** Approved tip row with send_at null. The next due-push tick delivers it. */
 async function sendTipPush(
-  deps: { db: Db; expo: ExpoPushClient },
+  deps: { db: Db },
   input: {
     userId: string;
-    locale: 'sv' | 'en';
     status: 'published' | 'in_review' | 'failed' | 'needs_input';
     title: string;
     place: string | null;
@@ -142,21 +192,21 @@ async function sendTipPush(
     now: Date;
   },
 ) {
-  await deps.db.insert(schema.notifications).values({
-    userId: input.userId,
+  const sv = tipScanNotification({ ...input, locale: 'sv' });
+  const en = tipScanNotification({ ...input, locale: 'en' });
+  await deps.db.insert(schema.pushMessages).values({
     eventId: input.eventId,
-    reason: 'tip',
-    sentAt: input.now,
-    pushState: 'sent',
-    pushedAt: input.now,
+    kind: 'tip',
+    audience: 'user',
+    audienceUserId: input.userId,
+    tipId: input.tipId,
+    tipStatus: input.status,
+    status: 'approved',
+    approvedAt: input.now,
+    titleSv: sv.title,
+    bodySv: sv.body,
+    titleEn: en.title,
+    bodyEn: en.body,
+    sendAt: null,
   });
-  const unread = await countUnreadNotifications(deps.db, input.userId);
-  const devices = await loadPushDevicesForUsers(deps.db, [input.userId]);
-  const messages = tipPushMessages({
-    ...input,
-    badge: unread,
-    tokens: devices.map((device) => device.expoPushToken),
-  });
-  if (messages.length === 0 || isPushDryRun()) return;
-  await deps.expo.send(messages);
 }

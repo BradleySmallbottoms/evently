@@ -1,26 +1,26 @@
-import { brand, colors } from '@/theme/colors';
+import { colors, palette } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
 export const Colors = {
   light: {
-    text: brand.text,
-    background: brand.background,
-    backgroundElement: brand.surface,
-    backgroundSelected: brand.accentSoft,
-    textSecondary: brand.textSecondary,
+    text: palette.light.text,
+    background: palette.light.background,
+    backgroundElement: palette.light.surface,
+    backgroundSelected: palette.brand.berrySubtle,
+    textSecondary: palette.light.textSecondary,
   },
   dark: {
-    text: brand.text,
-    background: brand.background,
-    backgroundElement: brand.surface,
-    backgroundSelected: brand.accentSoft,
-    textSecondary: brand.textSecondary,
+    text: palette.dark.text,
+    background: palette.dark.background,
+    backgroundElement: palette.dark.surface,
+    backgroundSelected: palette.categories.music.dark,
+    textSecondary: palette.dark.textSecondary,
   },
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
-export { colors, brand };
+export { colors, palette };
 export const Spacing = {
   half: space.xs / 2,
   one: space.xs,

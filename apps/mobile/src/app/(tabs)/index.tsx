@@ -60,6 +60,7 @@ import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { updateAreaTags } from '@/lib/preferences';
 import { useSaveDiscoveryRadius } from '@/lib/save-discovery-radius';
 import { cacheAreaTags, useAreaTagPrompt } from '@/lib/use-area-tag-prompt';
+import { ThemedScreen } from '@/components/themed-screen';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 
@@ -510,7 +511,7 @@ export default function HomeScreen() {
   const locationDetail = nearbyLocationDetail(placeId, nearbyName.data);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
+    <ThemedScreen style={{ alignItems: 'center' }}>
       <ScrollView
         style={{ flex: 1, width: '100%', maxWidth: MaxContentWidth }}
         contentInsetAdjustmentBehavior="automatic"
@@ -800,6 +801,6 @@ export default function HomeScreen() {
         }}
         onDismiss={areaTags.dismiss}
       />
-    </View>
+    </ThemedScreen>
   );
 }

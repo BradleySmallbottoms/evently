@@ -102,7 +102,7 @@ export function ReminderPicker({
                         justifyContent: 'center',
                       }}
                     >
-                      {on ? <MaterialIcons name="check" size={16} color={colors.primary} /> : null}
+                      {on ? <MaterialIcons name="check" size={16} color={colors.onFill} /> : null}
                     </View>
                     <AppText>{option.label}</AppText>
                   </Pressable>
@@ -123,7 +123,7 @@ export function ReminderPicker({
                 opacity: canSave ? 1 : 0.5,
               }}
             >
-              <AppText variant="subtitle" style={{ fontWeight: '700', color: colors.primary }}>
+              <AppText variant="subtitle" style={{ fontWeight: '700', color: colors.onFill }}>
                 {saveLabel}
               </AppText>
             </Pressable>

@@ -16,6 +16,7 @@ import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local
  * A production or collection is the parent of its showings, so it is skipped.
  * Each showing is one event. A UTC time is that instant. The import does not geocode.
  * A 429, or `X-RATELIMIT-REMAINING: 0`, waits one five-minute slot and retries.
+ * `TICKSTER_STOP_ON_403` stops on the first 403 or rate limit instead of waiting.
  */
 
 const API_ORIGIN = 'https://event.api.tickster.com';
@@ -238,6 +239,22 @@ function failedRequest(status: number): Error & { status?: number } {
   return error;
 }
 
+/** The test ingest script sets this so a blocked Tickster run does not hold the next source. */
+function stopOn403(): boolean {
+  const value = process.env.TICKSTER_STOP_ON_403?.trim().toLowerCase();
+  return value === '1' || value === 'true' || value === 'yes';
+}
+
+class TicksterStop extends Error {
+  readonly status: number | undefined;
+
+  constructor(status?: number) {
+    super(status == null ? 'Tickster stopped' : `Tickster stopped (${status})`);
+    this.name = 'TicksterStop';
+    this.status = status;
+  }
+}
+
 async function readJson(
   ctx: SourceRunContext,
   url: URL,
@@ -253,6 +270,9 @@ async function readJson(
       throw new Error('tickster request redirected off event.api.tickster.com');
     }
     const remaining = rateLimitRemaining(response);
+    if (stopOn403() && (response.status === 403 || response.status === 429)) {
+      throw new TicksterStop(response.status);
+    }
     if (response.status === 429) {
       if (attempt >= MAX_RATE_LIMIT_RETRIES) throw failedRequest(429);
       ctx.log('tickster rate limit', { remaining: remaining ?? null, retry: attempt + 1 });
@@ -689,6 +709,7 @@ async function* eachEvent(ctx: SourceRunContext): AsyncGenerator<TicksterRaw> {
   let remaining: number | undefined;
 
   const load = async (url: URL): Promise<unknown> => {
+    if (stopOn403() && requests > 0 && remaining === 0) throw new TicksterStop();
     const pause = ticksterRequestPauseMs({
       requests,
       remaining,
@@ -725,29 +746,51 @@ async function* eachEvent(ctx: SourceRunContext): AsyncGenerator<TicksterRaw> {
     return { events: [{ event, ...(organizer ? { organizer } : {}) }] };
   };
 
-  for (const city of settings.cities) {
-    let skip = 0;
-    for (let page = 0; page < MAX_PAGES; page += 1) {
-      if (ctx.limit != null && yielded >= ctx.limit) return;
-      const body = recordOf(
-        await load(
-          apiUrl(settings.language, '/events', {
-            query: `city:${city}`,
-            take: String(settings.pageSize),
-            skip: String(skip),
-          }),
-        ),
-      );
-      const items = Array.isArray(body?.items) ? body.items : [];
-      const total = numberOf(body?.totalItems);
-      if (items.length === 0) break;
-      for (const item of items) {
+  try {
+    for (const city of settings.cities) {
+      let skip = 0;
+      for (let page = 0; page < MAX_PAGES; page += 1) {
         if (ctx.limit != null && yielded >= ctx.limit) return;
-        const summary = parseTicksterEvent(item);
-        if (!summary || seen.has(summary.id)) continue;
-        const hierarchy = summary.eventHierarchyType?.toLocaleLowerCase('sv');
-        if (hierarchy && SKIP_HIERARCHY.has(hierarchy)) {
-          seen.add(summary.id);
+        const body = recordOf(
+          await load(
+            apiUrl(settings.language, '/events', {
+              query: `city:${city}`,
+              take: String(settings.pageSize),
+              skip: String(skip),
+            }),
+          ),
+        );
+        const items = Array.isArray(body?.items) ? body.items : [];
+        const total = numberOf(body?.totalItems);
+        if (items.length === 0) break;
+        for (const item of items) {
+          if (ctx.limit != null && yielded >= ctx.limit) return;
+          const summary = parseTicksterEvent(item);
+          if (!summary || seen.has(summary.id)) continue;
+          const hierarchy = summary.eventHierarchyType?.toLocaleLowerCase('sv');
+          if (hierarchy && SKIP_HIERARCHY.has(hierarchy)) {
+            seen.add(summary.id);
+            let payload: unknown;
+            try {
+              payload = await load(apiUrl(settings.language, `/events/${summary.id}`));
+            } catch (error) {
+              if (httpStatus(error) === 404) {
+                ctx.log('tickster skipped a missing event', { id: summary.id });
+                continue;
+              }
+              throw error;
+            }
+            const parent = parseTicksterEvent(payload) ?? summary;
+            for (const child of childEventsOf(payload)) {
+              if (ctx.limit != null && yielded >= ctx.limit) return;
+              const showing = parseTicksterEvent(child);
+              if (!showing) continue;
+              const raw = await emit(withParentCopy(showing, parent));
+              if (raw) yield raw;
+            }
+            continue;
+          }
+          if (!ticksterShowing(summary, settings.cities)) continue;
           let payload: unknown;
           try {
             payload = await load(apiUrl(settings.language, `/events/${summary.id}`));
@@ -758,46 +801,30 @@ async function* eachEvent(ctx: SourceRunContext): AsyncGenerator<TicksterRaw> {
             }
             throw error;
           }
-          const parent = parseTicksterEvent(payload) ?? summary;
-          for (const child of childEventsOf(payload)) {
-            if (ctx.limit != null && yielded >= ctx.limit) return;
-            const showing = parseTicksterEvent(child);
-            if (!showing) continue;
-            const raw = await emit(withParentCopy(showing, parent));
-            if (raw) yield raw;
-          }
-          continue;
-        }
-        if (!ticksterShowing(summary, settings.cities)) continue;
-        let payload: unknown;
-        try {
-          payload = await load(apiUrl(settings.language, `/events/${summary.id}`));
-        } catch (error) {
-          if (httpStatus(error) === 404) {
-            ctx.log('tickster skipped a missing event', { id: summary.id });
+          const detail = parseTicksterEvent(payload) ?? summary;
+          const detailHierarchy = detail.eventHierarchyType?.toLocaleLowerCase('sv');
+          if (detailHierarchy && SKIP_HIERARCHY.has(detailHierarchy)) {
+            seen.add(detail.id);
+            for (const child of childEventsOf(payload)) {
+              if (ctx.limit != null && yielded >= ctx.limit) return;
+              const showing = parseTicksterEvent(child);
+              if (!showing) continue;
+              const raw = await emit(withParentCopy(showing, detail));
+              if (raw) yield raw;
+            }
             continue;
           }
-          throw error;
+          const raw = await emit(detail);
+          if (raw) yield raw;
         }
-        const detail = parseTicksterEvent(payload) ?? summary;
-        const detailHierarchy = detail.eventHierarchyType?.toLocaleLowerCase('sv');
-        if (detailHierarchy && SKIP_HIERARCHY.has(detailHierarchy)) {
-          seen.add(detail.id);
-          for (const child of childEventsOf(payload)) {
-            if (ctx.limit != null && yielded >= ctx.limit) return;
-            const showing = parseTicksterEvent(child);
-            if (!showing) continue;
-            const raw = await emit(withParentCopy(showing, detail));
-            if (raw) yield raw;
-          }
-          continue;
-        }
-        const raw = await emit(detail);
-        if (raw) yield raw;
+        skip += items.length;
+        if ((total != null && skip >= total) || items.length < settings.pageSize) break;
       }
-      skip += items.length;
-      if ((total != null && skip >= total) || items.length < settings.pageSize) break;
     }
+  } catch (error) {
+    if (!(error instanceof TicksterStop)) throw error;
+    ctx.log('tickster stopped', error.status == null ? { remaining: 0 } : { status: error.status });
+    return;
   }
   if (yielded === 0) throw new Error('tickster found no usable events');
 }

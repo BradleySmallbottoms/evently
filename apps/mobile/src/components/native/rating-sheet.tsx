@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
+import { manrope } from '@/theme/type';
 import { radius, space } from '@/theme/tokens';
 
 type Props = {
@@ -55,7 +56,7 @@ export function RatingSheet({
                   textStyle={{
                     fontSize: 16,
                     fontWeight: '700',
-                    color: n <= score ? colors.primary : (colors.ink as string),
+                    color: n <= score ? colors.onFill : (colors.ink as string),
                   }}
                 >
                   {String(n)}
@@ -76,6 +77,7 @@ export function RatingSheet({
               padding: space.md,
               minHeight: 72,
               fontSize: 16,
+              fontFamily: manrope.regular,
               color: colors.ink as string,
             }}
           />
@@ -90,7 +92,7 @@ export function RatingSheet({
               opacity: saving ? 0.5 : 1,
             }}
           >
-            <Text textStyle={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>
+            <Text textStyle={{ fontSize: 16, fontWeight: '700', color: colors.onFill }}>
               {submitLabel}
             </Text>
           </Pressable>

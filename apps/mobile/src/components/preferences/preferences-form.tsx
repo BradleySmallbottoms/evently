@@ -105,7 +105,10 @@ export function PreferencesForm() {
                   borderColor: colors.line,
                 }}
               >
-                <AppText variant="label" style={{ color: colors.ink, fontWeight: '600' }}>
+                <AppText
+                  variant="label"
+                  style={{ color: on ? colors.onFill : colors.ink, fontWeight: '600' }}
+                >
                   {t('preferences.radiusKm', { km: r / 1000 })}
                 </AppText>
               </Pressable>

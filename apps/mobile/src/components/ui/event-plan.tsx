@@ -31,7 +31,7 @@ function PlanGlyph({
   sf: string;
   md: keyof typeof MaterialIcons.glyphMap;
 }) {
-  const tint = selected ? colors.card : colors.ink;
+  const tint = selected ? colors.onFill : colors.ink;
   if (process.env.EXPO_OS === 'ios') {
     return <SymbolView name={sf as never} size={16} tintColor={tint} />;
   }
@@ -78,7 +78,7 @@ function PlanButton({
       <PlanGlyph selected={selected} sf={sf} md={md} />
       <AppText
         variant="label"
-        style={{ color: selected ? colors.card : colors.ink, fontSize: 15, lineHeight: 20 }}
+        style={{ color: selected ? colors.onFill : colors.ink, fontSize: 15, lineHeight: 20 }}
       >
         {label}
       </AppText>

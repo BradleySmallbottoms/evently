@@ -385,6 +385,11 @@
   "profile": {
     "guest": "Guest",
     "guestHint": "Browsing works without an account. Sign in on the web to keep this device in sync.",
+    "appearance": "Appearance",
+    "appearanceHint": "Follows this device until you choose light or dark.",
+    "appearanceSystem": "System",
+    "appearanceLight": "Light",
+    "appearanceDark": "Dark",
     "tickets": "Tickets and registration",
     "categories": "Tags",
     "categoriesHint": "Choose the tags you want nearby notifications for.",

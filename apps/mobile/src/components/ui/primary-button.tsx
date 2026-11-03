@@ -47,7 +47,7 @@ type Props = {
   disabled?: boolean;
   /** Override the default brand accent (e.g. per-step onboarding colors). */
   color?: string;
-  /** Label and icon color. Defaults to the dark primary, which sits on the accent. */
+  /** Label and icon color. Defaults to white, which sits on the berry fill. */
   labelColor?: string;
   /** Icon on the left of the label. */
   icon?: ButtonIcon;
@@ -82,7 +82,7 @@ export function PrimaryButton({
   style,
 }: Props) {
   const backgroundColor = color ?? colors.accent;
-  const textColor = labelColor ?? colors.primary;
+  const textColor = labelColor ?? colors.onFill;
   const reduced = useReducedMotion();
   const [pressed, setPressed] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
@@ -153,6 +153,7 @@ export function PrimaryButton({
             style={[
               reduced ? washReducedStyle : washStyle,
               styles.washConfirm,
+              { backgroundColor: colors.secondary },
               confirmed && washOnStyle,
             ]}
           />
@@ -162,6 +163,7 @@ export function PrimaryButton({
             style={[
               reduced ? washReducedStyle : washStyle,
               styles.washReject,
+              { backgroundColor: colors.dangerSoft },
               showCross && washOnStyle,
             ]}
           />

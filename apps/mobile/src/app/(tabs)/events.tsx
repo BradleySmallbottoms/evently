@@ -17,6 +17,7 @@ import { QuickDates, type QuickDateId } from '@/components/calendar/quick-dates'
 import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { SearchBar } from '@/components/ui/search-bar';
+import { ThemedScreen } from '@/components/themed-screen';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { queryPointForArea } from '@/lib/area-point';
 import { pointForPlace } from '@/lib/location-draft';
@@ -325,7 +326,7 @@ export default function EventsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
+    <ThemedScreen style={{ alignItems: 'center' }}>
       <SectionList
         ref={listRef}
         style={{ width: '100%', maxWidth: MaxContentWidth }}
@@ -565,6 +566,6 @@ export default function EventsScreen() {
         }}
         onDismiss={areaTags.dismiss}
       />
-    </View>
+    </ThemedScreen>
   );
 }

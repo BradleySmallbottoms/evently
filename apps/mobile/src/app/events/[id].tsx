@@ -101,6 +101,7 @@ import { OccasionPeriod } from './_components/occasion-period';
 import { RelatedEvents } from './_components/related-events';
 import { ShareRow } from './_components/share-row';
 import { colors } from '@/theme/colors';
+import { manrope } from '@/theme/type';
 import { radius, shadow, space } from '@/theme/tokens';
 
 type Occasion = {
@@ -1733,6 +1734,7 @@ function CodeCheckInFields({
           paddingHorizontal: space.lg,
           paddingVertical: space.md,
           fontSize: 18,
+          fontFamily: manrope.bold,
           letterSpacing: 4,
           color: colors.ink,
           textAlign: 'center',

@@ -6,7 +6,9 @@ approval. An optional `send_at` schedules delivery. The worker polls due approve
 resolves audience at send time, writes inbox rows, and sends a **silent/data Expo push**.
 Per-user aggregation defers when another matching message is due within 10 minutes, then
 combines copy (“And N more…”). Quiet hours and the daily OS-notification cap stay on the
-client. The in-app list is API-backed.
+client. A tip notice is the same table (`kind` `tip`, `audience` `user`, `send_at` null) and
+goes out on the next tick as a visible `tip_scan` push, including while the event is in review.
+The in-app list is API-backed.
 
 ```mermaid
 sequenceDiagram

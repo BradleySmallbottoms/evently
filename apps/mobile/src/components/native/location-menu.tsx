@@ -551,7 +551,7 @@ export function LocationMenu({
                       opacity: pressed ? 0.9 : 1,
                     }}
                   >
-                    <AppText variant="subtitle" style={{ color: colors.card, fontWeight: '700' }}>
+                    <AppText variant="subtitle" style={{ color: colors.onFill, fontWeight: '700' }}>
                       {eventCount == null
                         ? t('events.showEvents')
                         : t('events.showEventsCount', { count: eventCount })}

@@ -44,84 +44,85 @@ Render all UI text as real text.
 
 ## 3. Color Tokens
 
-Use these exact base tokens unless a documented accessibility or
-platform constraint requires a small adjustment.
+The brand color is berry. Light and dark each have their own surfaces,
+text, and primary. Use these exact values.
 
----
+### Brand
 
-Token Hex Primary use
+`berry` `#963B50` · `berryLight` `#B85B72` · `berryDark` `#702C3B` ·
+`berrySubtle` `#F2E2E6` · `berryMuted` `#D9A8B4`
 
----
+### Light
 
-`primary` `#252D35` Primary buttons,
-navigation emphasis,
-dark panels
+`background` `#F5F0E8` · `surface` `#FFFFFF` · `surfaceSecondary` `#EEE8DF` ·
+`surfaceElevated` `#FFFFFF`
 
-`accent` `#EAA16F` Primary CTA highlights,
-selected emphasis,
-event accents
+`text` `#282423` · `textSecondary` `#77716D` · `textTertiary` `#A39B94`
 
-`secondary` `#729A8B` Activity/category
-accents, secondary
-states
+`border` `#E5DED5` · `divider` `#EAE4DC`
 
-`info` `#7095B5` Informational accents,
-links, culture or
-general information
+`primary` `#963B50` · `primaryPressed` `#702C3B`
 
-`background` `#F6F1E8` Main app background
+`icon` `#282423` · `overlay` `#00000066`
 
-`surface` `#FFFFFF` Cards, sheets, dialogs,
-elevated surfaces
+### Dark
 
-`text` `#283533` Main text on light
-backgrounds
+`background` `#19191B` · `surface` `#242427` · `surfaceSecondary` `#2E2E32` ·
+`surfaceElevated` `#343438`
 
-`textSecondary` `#64736C` Supporting text and
-metadata
+`text` `#F5F0E8` · `textSecondary` `#B8B1AC` · `textTertiary` `#89827E`
 
-`border` `#E5E0D8` Subtle dividers, card
-outlines, input borders
+`border` `#414044` · `divider` `#343438`
 
-`overlay` `#111820` Image overlays and dark
-gradients
+`primary` `#B85B72` · `primaryPressed` `#963B50`
 
-`success` `#477B65` Success states,
-confirmation
+`icon` `#F5F0E8` · `overlay` `#00000099`
 
-`error` `#B84C43` Errors and destructive
-actions
------------------------------------------------------------------------
+### Categories
+
+Each category has a `primary`, a `light` tint, and a `dark` tint.
+
+Music `#963B50` / `#F2E2E6` / `#482631`. Sports `#245D54` / `#DFECE6` /
+`#203C34`. Culture `#7656A6` / `#E9E2F2` / `#392B4B`. Family `#C47745` /
+`#F4E5D8` / `#493326`. Holidays `#B18B39` / `#F2E9D2` / `#493B20`. Other
+`#607D91` / `#E1E9EF` / `#293943`.
+
+### Status
+
+Success `#287A58` / `#65BD91`. Warning `#A87524` / `#E5B85E`. Error
+`#B83D42` / `#F0787D`. Info `#356DAA` / `#79A9E0`. The first value is
+light mode and the second is dark mode.
 
 ### Color rules
 
-- The overall interface should be **neutral first**. Use `primary`,
-  `background`, and `surface` for most of the UI.
-- Use `accent` intentionally for the most important action on a
-  screen; do not turn every icon or label orange.
-- Use `secondary` and `info` as accents, not as large competing brand
-  colors.
-- Category chips may use lightly tinted backgrounds derived from the
-  category color with dark readable text.
-- Use `primary` or `text` for text on the accent color. Never assume
-  white text on `accent` will have sufficient contrast.
+- The overall interface should be **neutral first**. Use `background`,
+  `surface`, and `text` for most of the UI.
+- Use `primary` for the most important action on a screen. Do not turn
+  every icon or label berry.
+- Text and icons on a `primary` fill are white.
+- Category chips use the category `light` tint in light mode and the
+  `dark` tint in dark mode. The icon is the category `primary` on a
+  light tint, and the category `light` tint on a dark fill.
 - Do not use `textSecondary` for small text if contrast is
-  insufficient; use `text` or a darker variant.
-- Dark image overlays may use a vertical gradient from transparent to
-  `overlay` to support white text.
+  insufficient; use `text`.
+- Image scrims use `overlay`.
 
 ## 4. Typography
 
-Use the platform's native sans-serif system font by default (SF Pro on
-iOS, Roboto on Android) unless the project already has a defined
-typeface.
+Use **Manrope** for interface text.
 
-Suggested type scale: - **Large hero title:** 32--36 px, bold,
-line-height 1.05--1.15 - **Screen title:** 26--30 px, semibold/bold -
-**Section heading:** 18--22 px, semibold - **Card title:** 16--18 px,
-semibold - **Body:** 15--17 px, regular, line-height 1.35--1.5 -
-**Supporting text:** 13--14 px - **Metadata / labels:** 12--13 px,
-medium
+| Use                        | Weight |
+| -------------------------- | ------ |
+| Display and large headings | 800    |
+| Page headings              | 800    |
+| Card titles                | 700    |
+| Body                       | 400    |
+| Secondary text             | 500    |
+| Buttons                    | 700    |
+| Labels                     | 600    |
+
+Sizes stay on the existing scale: large headings 32 px, page headings 28 px,
+card titles 17 px, body 16 px, secondary text and labels 13 px.
 
 Rules: - Keep titles short and specific. - Avoid overly tight line
 spacing in body copy. - Use sentence case, not all caps, for ordinary UI
@@ -506,9 +507,8 @@ duplicated styles.
 ## 17. Design Summary
 
 The app should look like a modern local discovery product:
-photography-led, warm, calm, and easy to use. Use **Midnight Slate
-`#252D35`** as the main dark neutral, **Sunset Coral `#EAA16F`** as the
-key action accent, **Warm Sand `#F6F1E8`** as the primary background,
-and muted sage and lake blue for secondary accents. Let authentic event
+photography-led, warm, calm, and easy to use. Use **berry `#963B50`**
+as the action color, **warm sand `#F5F0E8`** as the light background,
+and **charcoal `#19191B`** as the dark background. Let authentic event
 photography create the emotional appeal; keep the interface itself
 simple, readable, and consistent.

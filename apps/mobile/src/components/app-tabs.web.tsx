@@ -11,7 +11,7 @@ import { Pressable, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { useHasUnreadNotifications } from '@/lib/use-unread-notifications';
-import { brand } from '@/theme/colors';
+import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
 
 export default function AppTabs() {
@@ -52,7 +52,7 @@ export default function AppTabs() {
                     width: 4,
                     height: 4,
                     borderRadius: radius.pill,
-                    backgroundColor: brand.error,
+                    backgroundColor: colors.danger,
                   }}
                 />
               ) : null}
@@ -82,13 +82,13 @@ function TabButton({
         paddingVertical: space.sm,
         borderRadius: radius.pill,
         borderCurve: 'continuous',
-        backgroundColor: isFocused ? brand.accentSoft : 'transparent',
+        backgroundColor: isFocused ? colors.accentSoft : 'transparent',
       }}
     >
       <View>
         <AppText
           variant="label"
-          style={{ color: isFocused ? brand.primary : brand.ink, fontWeight: '700' }}
+          style={{ color: isFocused ? colors.ink : colors.inkMuted, fontWeight: '700' }}
         >
           {children}
         </AppText>
@@ -103,7 +103,7 @@ function TabButton({
               width: 4,
               height: 4,
               borderRadius: radius.pill,
-              backgroundColor: brand.error,
+              backgroundColor: colors.danger,
             }}
           />
         ) : null}
@@ -133,7 +133,7 @@ function CustomTabList(props: TabListProps) {
           alignItems: 'center',
           borderRadius: radius.xl,
           borderCurve: 'continuous',
-          backgroundColor: 'rgba(255,255,255,0.96)',
+          backgroundColor: colors.card,
           paddingHorizontal: space.xl,
           paddingVertical: space.md,
           gap: space.sm,

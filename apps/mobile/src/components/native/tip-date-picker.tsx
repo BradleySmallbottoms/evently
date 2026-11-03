@@ -105,7 +105,7 @@ export function TipDatePicker({
                   variant="body"
                   style={{
                     fontWeight: selected ? '700' : '400',
-                    color: selected ? colors.primary : outside ? colors.inkMuted : colors.ink,
+                    color: selected ? colors.onFill : outside ? colors.inkMuted : colors.ink,
                   }}
                 >
                   {day.d}

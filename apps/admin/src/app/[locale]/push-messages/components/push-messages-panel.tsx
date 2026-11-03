@@ -28,6 +28,7 @@ type PushMessage = {
   audience: string;
   audienceTagName?: string | null;
   status: string;
+  titleSv: string;
   sendAt: string | null;
   createdAt: string;
 };
@@ -40,6 +41,7 @@ export function PushMessagesPanel() {
   });
 
   function audienceLabel(row: PushMessage): string {
+    if (row.audience === 'user') return t('audienceUser');
     if (row.audience === 'area') return t('audienceArea');
     if (row.audience === 'area_and_tag') return t('audienceAreaAndTag');
     if (row.kind === 'broadcast') {
@@ -92,11 +94,19 @@ export function PushMessagesPanel() {
                 <TableRow key={row.id}>
                   <TableCell>
                     <Badge variant="secondary">
-                      {row.kind === 'broadcast' ? t('kindBroadcast') : t('kindEvent')}
+                      {row.kind === 'broadcast'
+                        ? t('kindBroadcast')
+                        : row.kind === 'tip'
+                          ? t('kindTip')
+                          : t('kindEvent')}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {row.kind === 'broadcast' ? t('broadcastTarget') : (row.eventTitle ?? '—')}
+                    {row.kind === 'broadcast'
+                      ? t('broadcastTarget')
+                      : row.kind === 'tip'
+                        ? (row.eventTitle ?? row.titleSv)
+                        : (row.eventTitle ?? '—')}
                     {row.publisherName ? (
                       <span className="block text-xs text-muted-foreground">
                         {row.publisherName}

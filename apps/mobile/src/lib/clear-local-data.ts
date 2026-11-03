@@ -26,6 +26,7 @@ const KNOWN_KEYS = [
   'le.discoveryPlaceId',
   'le.discoveryRadiusM',
   'le.homeTagIds',
+  'le.appearance',
   PARTICIPATE_BAR_HINT_SEEN_KEY,
 ] as const;
 

@@ -74,12 +74,18 @@ export default function MapWebScreen() {
         )}
       />
       {loading ? (
-        <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+        <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.canvas }]}>
           <ActivityIndicator accessibilityLabel={t('events.loading')} color={colors.ink} />
         </View>
       ) : null}
       {failed ? (
-        <View style={[StyleSheet.absoluteFill, styles.overlay, { padding: space.xl }]}>
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            styles.overlay,
+            { padding: space.xl, backgroundColor: colors.canvas },
+          ]}
+        >
           <AppText variant="body" style={{ color: colors.danger, textAlign: 'center' }}>
             {t('events.loadError')}
           </AppText>

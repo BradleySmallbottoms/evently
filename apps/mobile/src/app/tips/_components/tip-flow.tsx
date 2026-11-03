@@ -9,6 +9,7 @@ import { TipChrome } from '@/components/ui/tip-chrome';
 import { ensureIdentity } from '@/lib/identity';
 import { confirmTip, getTip } from '@/lib/tips';
 import { colors } from '@/theme/colors';
+import { manrope } from '@/theme/type';
 import { radius, space } from '@/theme/tokens';
 import type { Tip } from '@local-events/contracts';
 
@@ -154,6 +155,7 @@ function FollowUp({ tip, onDone }: { tip: Tip; onDone: (tip: Tip) => Promise<voi
             borderColor: colors.line,
             padding: space.md,
             color: colors.ink,
+            fontFamily: manrope.regular,
           }}
         />
       ) : null}

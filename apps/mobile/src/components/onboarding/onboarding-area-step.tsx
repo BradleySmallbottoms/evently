@@ -10,6 +10,7 @@ import { readBalancedForegroundPosition } from '@/lib/events';
 import { matchingPlace } from '@/lib/place-name';
 import { placeNameAt, searchPlaces, type NamedPlace } from '@/lib/place-lookup';
 import { colors } from '@/theme/colors';
+import { manrope } from '@/theme/type';
 import { radius, space } from '@/theme/tokens';
 
 type Props = {
@@ -134,7 +135,13 @@ export function OnboardingAreaStep({
             placeholderTextColor={colors.inkFaint}
             returnKeyType="done"
             autoCorrect={false}
-            style={{ flex: 1, fontSize: 16, color: colors.ink, paddingVertical: space.md }}
+            style={{
+              flex: 1,
+              fontFamily: manrope.regular,
+              fontSize: 16,
+              color: colors.ink,
+              paddingVertical: space.md,
+            }}
           />
           {text.length > 0 && !locating ? (
             <Pressable
@@ -245,7 +252,10 @@ export function OnboardingAreaStep({
                   backgroundColor: selected ? colors.accent : 'rgba(255,255,255,0.94)',
                 }}
               >
-                <AppText variant="label" style={{ color: colors.ink, fontWeight: '600' }}>
+                <AppText
+                  variant="label"
+                  style={{ color: selected ? colors.onFill : colors.ink, fontWeight: '600' }}
+                >
                   {t('preferences.radiusKm', { km: preset / 1000 })}
                 </AppText>
               </Pressable>

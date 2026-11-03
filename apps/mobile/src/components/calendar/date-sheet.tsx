@@ -244,7 +244,7 @@ export function CalendarDateSheet({
                   >
                     <AppText
                       variant="label"
-                      style={{ color: selected ? colors.primary : colors.ink }}
+                      style={{ color: selected ? colors.onFill : colors.ink }}
                     >
                       {value === 'day' ? t('events.calendar.oneDay') : t('events.calendar.range')}
                     </AppText>
@@ -346,7 +346,7 @@ export function CalendarDateSheet({
                         variant="label"
                         style={{
                           color: chosen
-                            ? colors.primary
+                            ? colors.onFill
                             : past || outside
                               ? colors.inkMuted
                               : colors.ink,
@@ -363,7 +363,7 @@ export function CalendarDateSheet({
                           marginTop: 2,
                           backgroundColor: marked.has(stampKey(day))
                             ? chosen
-                              ? colors.primary
+                              ? colors.onFill
                               : colors.secondary
                             : 'transparent',
                         }}

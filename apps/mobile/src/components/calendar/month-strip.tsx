@@ -47,14 +47,14 @@ export function formatMonthChip(
     <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }}>
       <AppText
         variant="label"
-        style={{ color: selected ? colors.accentDeep : colors.ink, fontSize: 14 }}
+        style={{ color: selected ? colors.onFill : colors.ink, fontSize: 14 }}
       >
         {label}
       </AppText>
       {year !== selectedYear && (
         <AppText
           variant="caption"
-          style={{ color: selected ? colors.ink : colors.inkMuted, fontSize: 10 }}
+          style={{ color: selected ? colors.onFill : colors.inkMuted, fontSize: 10 }}
         >
           {year}
         </AppText>

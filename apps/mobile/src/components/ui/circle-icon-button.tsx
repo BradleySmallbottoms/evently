@@ -3,6 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { useSchemeKey } from '@/lib/appearance-context';
 import { colors } from '@/theme/colors';
 import { radius, shadow } from '@/theme/tokens';
 
@@ -33,55 +34,56 @@ export function CircleIconButton({
   style,
   accessibilityLabel,
 }: Props) {
-  const tint = tintColor ?? (plain ? '#FFFFFF' : (colors.ink as string));
+  const paint = useSchemeKey();
+  const tint = tintColor ?? (plain ? '#FFFFFF' : colors.icon);
+  const circle = plain
+    ? {
+        width: 44,
+        height: 44,
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+      }
+    : {
+        width: 46,
+        height: 46,
+        borderRadius: radius.pill,
+        backgroundColor: colors.card,
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+        boxShadow: shadow.soft,
+        borderCurve: 'continuous' as const,
+      };
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      onPress={() => {
-        if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
-        onPress?.();
-      }}
-      style={[
-        plain
-          ? {
-              width: 44,
-              height: 44,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }
-          : {
-              width: 46,
-              height: 46,
-              borderRadius: radius.pill,
-              backgroundColor: 'rgba(255,255,255,0.96)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: shadow.soft,
-              borderCurve: 'continuous' as const,
-            },
-        style,
-      ]}
-    >
-      {process.env.EXPO_OS === 'ios' ? (
-        <SymbolView name={sf as never} size={iconSize ?? 20} tintColor={tint} />
-      ) : (
-        <MaterialIcons name={md} size={iconSize ?? 22} color={tint} />
-      )}
-      {badge ? (
-        <View
-          style={{
-            position: 'absolute',
-            top: 10,
-            right: 11,
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: colors.accent,
-          }}
-        />
-      ) : null}
-    </Pressable>
+    <View key={paint} collapsable={false}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        onPress={() => {
+          if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
+          onPress?.();
+        }}
+        style={[circle, style]}
+      >
+        {process.env.EXPO_OS === 'ios' ? (
+          <SymbolView name={sf as never} size={iconSize ?? 20} tintColor={tint} />
+        ) : (
+          <MaterialIcons name={md} size={iconSize ?? 22} color={tint} />
+        )}
+        {badge ? (
+          <View
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 11,
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: colors.accent,
+            }}
+          />
+        ) : null}
+      </Pressable>
+    </View>
   );
 }

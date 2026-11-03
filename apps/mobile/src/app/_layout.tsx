@@ -1,7 +1,16 @@
 import '@/i18n';
 import '@/lib/inbox-push-task';
 
-import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { useFonts } from 'expo-font';
+import {
+  Manrope_400Regular,
+  Manrope_500Medium,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
+} from '@expo-google-fonts/manrope';
+import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -36,14 +45,32 @@ import { installOtaUpdateChecks } from '@/lib/ota-update-check';
 import { clearAppIconBadge } from '@/lib/push-notifications';
 import { refreshDeviceLocation, startDeviceLocation } from '@/lib/device-location';
 import { createAppQueryClient, subscribeQueryFocus } from '@/lib/query-client';
+import { AppearanceProvider, useAppearance } from '@/lib/appearance-context';
 import { initSentry } from '@/lib/sentry';
-import { brand } from '@/theme/colors';
+import { colors } from '@/theme/colors';
 
 initSentry();
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
+  });
+  if (!fontsLoaded && !fontError) return null;
+  return (
+    <AppearanceProvider>
+      <RootLayoutBody />
+    </AppearanceProvider>
+  );
+}
+
+function RootLayoutBody() {
   const { t } = useTranslation();
+  const { scheme } = useAppearance();
   const [queryClient] = useState(() => createAppQueryClient());
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -203,27 +230,31 @@ export default function RootLayout() {
     return (
       <GestureHandlerRootView
         onLayout={hideNativeSplash}
-        style={{ flex: 1, backgroundColor: brand.canvas }}
+        style={{ flex: 1, backgroundColor: colors.canvas }}
       >
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
         {resetAlert}
       </GestureHandlerRootView>
     );
   }
 
+  const navigationTheme = scheme === 'dark' ? DarkTheme : DefaultTheme;
   const navTheme = {
-    ...DefaultTheme,
+    ...navigationTheme,
     colors: {
-      ...DefaultTheme.colors,
-      primary: brand.primary,
-      background: brand.canvas,
-      card: brand.card,
-      text: brand.ink,
-      border: brand.line,
+      ...navigationTheme.colors,
+      primary: colors.ink,
+      background: colors.canvas,
+      card: colors.card,
+      text: colors.ink,
+      border: colors.line,
+      notification: colors.danger,
     },
   };
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.canvas }}>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <QueryClientProvider client={queryClient}>
         <ThemeProvider value={navTheme}>
           <SplashCover

@@ -8,7 +8,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
+import { ThemedScreen } from '@/components/themed-screen';
 import { PairingSheet, type PairingSheetTab } from '@/components/native/pairing-sheet';
+import { AppearanceSetting } from '@/components/preferences/appearance-setting';
 import { TravelDistanceSetting } from '@/components/preferences/travel-distance-setting';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -247,7 +249,7 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+    <ThemedScreen>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         alwaysBounceVertical
@@ -358,6 +360,7 @@ export default function ProfileScreen() {
             <AppText variant="body">{t('events.pairingTitle')}</AppText>
           </Pressable>
         </View>
+        <AppearanceSetting />
         <TravelDistanceSetting
           value={travelDistanceM}
           disabled={!identity.data || preferences.isPending}
@@ -432,6 +435,6 @@ export default function ProfileScreen() {
         onConfirm={() => void confirmDeviceLink()}
         confirmHint={t('events.pairingConfirmHint')}
       />
-    </View>
+    </ThemedScreen>
   );
 }

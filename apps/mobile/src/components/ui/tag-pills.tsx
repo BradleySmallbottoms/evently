@@ -4,7 +4,10 @@ import { AppText } from '@/components/ui/app-text';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
-const CHIP_COLORS = [colors.secondarySoft, colors.accentSoft, colors.infoSoft] as const;
+function chipColor(index: number): string {
+  const chips = [colors.secondarySoft, colors.accentSoft, colors.infoSoft];
+  return chips[index % chips.length] ?? colors.accentSoft;
+}
 
 /** Small colored labels, matching the reference event cards and detail chips. */
 export function TagPills({
@@ -26,7 +29,7 @@ export function TagPills({
           key={`${tag}-${index}`}
           style={{
             flexShrink: 1,
-            backgroundColor: CHIP_COLORS[index % CHIP_COLORS.length],
+            backgroundColor: chipColor(index),
             borderRadius: radius.pill,
             paddingHorizontal: small ? 8 : space.sm,
             paddingVertical: small ? 2 : space.xs,

@@ -53,6 +53,7 @@ describe('published tip notice', () => {
       select: selects(
         [{ id: TIP_ID, userId: USER_ID, locale: 'sv' }],
         [{ id: 'notice' }],
+        [],
         [{ title: 'Krusmyntanätterna', venueName: 'Krusmyntagården' }],
       ),
       insert: () => ({
@@ -66,7 +67,18 @@ describe('published tip notice', () => {
       { db: db as never, expo: { send: vi.fn() } },
       { followUp: true },
     );
-    expect(inserted).toHaveLength(1);
+    expect(inserted).toEqual([
+      expect.objectContaining({
+        kind: 'tip',
+        audience: 'user',
+        audienceUserId: USER_ID,
+        tipId: TIP_ID,
+        eventId: EVENT_ID,
+        tipStatus: 'published',
+        status: 'approved',
+        sendAt: null,
+      }),
+    ]);
   });
 
   it('does not send the follow-up twice', async () => {

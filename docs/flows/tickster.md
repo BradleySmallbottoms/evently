@@ -11,8 +11,9 @@ For each configured city (Söderhamn, Bollnäs, Hudiksvall, Ljusdal) the worker 
 `GET https://event.api.tickster.com/api/v1.0/sv/events?query=city:{city}`. The key goes in the
 `x-api-key` header. A redirect off `event.api.tickster.com` fails that request. Each response
 includes `X-RATELIMIT-REMAINING`. When that is 0, the next request waits five minutes, which is
-one rate-limit slot. A 429 is retried the same way, for up to an hour. Each showing is fetched
-and saved before the next one.
+one rate-limit slot. A 429 is retried the same way, for up to an hour. The test ingest script sets
+`TICKSTER_STOP_ON_403`, so the first 403 or rate limit stops this source and the script continues.
+Each showing is fetched and saved before the next one.
 
 A production or collection is the parent of its nights. The parent is not saved. Each child whose
 venue city is one of the configured cities is saved as its own event. A cancelled showing is

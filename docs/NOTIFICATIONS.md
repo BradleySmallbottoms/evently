@@ -26,6 +26,7 @@ the saved area (`user_area_tags`).
 | `area_and_tag`           | Covering area has a matching tag, **or** a follow of the publisher.                                   | `nearby` or `publisher` |
 | `everyone`               | Every user who is not banned.                                                                         | `broadcast`             |
 | `tag_interest`           | Users who are not banned and have `audience_tag_id` on any saved area.                                | `broadcast`             |
+| `user`                   | The one person on `audience_user_id`. Used by a tip notice (`kind` `tip`).                            | `tip`                   |
 
 Publisher drafts (“notify on publish”, “Notify again”) use `event_match`. Admin reminders
 and a publisher’s import plan use `area` or `area_and_tag`. Import plans always use
@@ -34,6 +35,11 @@ and a publisher’s import plan use `area` or `area_and_tag`. Import plans alway
 A follow of the publisher is included on every event notification (`event_match`, `area`,
 and `area_and_tag`), including when the event has no point. Broadcasts are not tied to a
 publisher, so a follow does not add anyone there.
+
+A tip notice is `kind` `tip` and `audience` `user`. The worker claims it on the next tick even
+when the linked event is still `in_review` (or when there is no event yet). It is not aggregated
+with other messages. The tick writes one inbox row and sends a visible `tip_scan` push, so quiet
+hours and the daily cap on the phone do not hide it. Event and broadcast messages stay silent.
 
 ```mermaid
 flowchart TD

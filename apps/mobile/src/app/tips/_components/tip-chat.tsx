@@ -508,9 +508,9 @@ export function TipChat({
                       backgroundColor: 'rgba(0,0,0,0.28)',
                     }}
                   >
-                    <ActivityIndicator color={colors.card} />
+                    <ActivityIndicator color={colors.onFill} />
                     {reading ? (
-                      <AppText variant="body" style={{ color: colors.card, textAlign: 'center' }}>
+                      <AppText variant="body" style={{ color: colors.onFill, textAlign: 'center' }}>
                         {reading}
                       </AppText>
                     ) : null}
@@ -757,7 +757,7 @@ function PhotoBubble({ uri, busy }: { uri: string; busy: boolean }) {
             backgroundColor: 'rgba(0,0,0,0.28)',
           }}
         >
-          <ActivityIndicator color={colors.card} />
+          <ActivityIndicator color={colors.onFill} />
         </View>
       ) : null}
     </View>

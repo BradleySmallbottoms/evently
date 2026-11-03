@@ -12,7 +12,7 @@ export const PushMessageStatus = z.enum([
 ]);
 export type PushMessageStatus = z.infer<typeof PushMessageStatus>;
 
-export const PushMessageKind = z.enum(['event', 'broadcast']);
+export const PushMessageKind = z.enum(['event', 'broadcast', 'tip']);
 export type PushMessageKind = z.infer<typeof PushMessageKind>;
 
 export const PushAudience = z.enum([
@@ -21,6 +21,7 @@ export const PushAudience = z.enum([
   'tag_interest',
   'area',
   'area_and_tag',
+  'user',
 ]);
 export type PushAudience = z.infer<typeof PushAudience>;
 

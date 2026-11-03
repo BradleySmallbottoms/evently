@@ -118,7 +118,7 @@ export const pushMessageStatus = pgEnum('push_message_status', [
   'cancelled',
 ]);
 /** Event-tied fan-out vs admin broadcast. */
-export const pushMessageKind = pgEnum('push_message_kind', ['event', 'broadcast']);
+export const pushMessageKind = pgEnum('push_message_kind', ['event', 'broadcast', 'tip']);
 /** Who should receive the push when it is sent. */
 export const pushAudience = pgEnum('push_audience', [
   'event_match',
@@ -128,6 +128,8 @@ export const pushAudience = pgEnum('push_audience', [
   'area',
   /** Covering area has a tag in common with the event. Followers are still included. */
   'area_and_tag',
+  /** One person. Used for a tip notice (`audience_user_id`). */
+  'user',
 ]);
 /** Per-user delivery of a push message (supports deferral / aggregation). */
 export const pushDeliveryStatus = pgEnum('push_delivery_status', [
@@ -894,8 +896,10 @@ export const eventContent = pgTable(
 );
 
 /**
- * Outbound push draft — approved (or auto-approved) before the worker fans out.
+ * Outbound push — approved (or auto-approved) before the worker fans out.
  * Inbox rows are created only when the message is actually sent.
+ * A tip notice is kind `tip`, audience `user`, approved with `send_at` null,
+ * and the next worker tick sends it.
  */
 export const pushMessages = pgTable(
   'push_messages',
@@ -907,6 +911,12 @@ export const pushMessages = pgTable(
     audience: pushAudience('audience').notNull().default('event_match'),
     /** Required when audience = tag_interest. */
     audienceTagId: uuid('audience_tag_id').references(() => tags.id, { onDelete: 'set null' }),
+    /** Set when audience = user (a tip notice for one person). */
+    audienceUserId: uuid('audience_user_id').references(() => users.id, { onDelete: 'cascade' }),
+    /** The tip this notice is about. Null for event and broadcast messages. */
+    tipId: uuid('tip_id').references(() => eventTips.id, { onDelete: 'cascade' }),
+    /** published, in_review, failed, or needs_input. Set only for kind = tip. */
+    tipStatus: text('tip_status'),
     status: pushMessageStatus('status').notNull().default('pending'),
     titleSv: text('title_sv').notNull(),
     bodySv: text('body_sv').notNull(),
@@ -928,6 +938,8 @@ export const pushMessages = pgTable(
     index('push_messages_event_id_idx').on(t.eventId),
     index('push_messages_status_send_at_idx').on(t.status, t.sendAt),
     index('push_messages_kind_idx').on(t.kind),
+    index('push_messages_audience_user_id_idx').on(t.audienceUserId),
+    index('push_messages_tip_id_idx').on(t.tipId),
   ],
 );
 
