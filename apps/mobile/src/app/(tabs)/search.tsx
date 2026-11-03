@@ -18,6 +18,7 @@ import { SearchBar } from '@/components/ui/search-bar';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { dateBadge, shownClock } from '@/lib/event-format';
 import { shownWhen } from '@/lib/span-occasions';
+import { placeholderSlotsByEvent } from '@/lib/event-placeholder';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
@@ -166,6 +167,16 @@ export default function SearchScreen() {
   const eventItems = useMemo(
     () => events.data?.pages.flatMap((page) => page.items) ?? [],
     [events.data],
+  );
+  const placeholderSlots = useMemo(
+    () =>
+      placeholderSlotsByEvent(
+        eventItems.map((item) => ({
+          id: item.id,
+          tags: namesForTagIds(item.tagIds, tags.data?.items),
+        })),
+      ),
+    [eventItems, tags.data?.items],
   );
   const saved = useQuery({
     queryKey: ['saved-events', identity.data?.userId],
@@ -343,6 +354,7 @@ export default function SearchScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               eventId={item.id}
+              placeholderSlot={placeholderSlots.get(item.id)}
               priceAmount={item.priceAmount}
               time={shownClock(
                 shownWhen(item, new Date()).startsAt,

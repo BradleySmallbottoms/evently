@@ -20,6 +20,7 @@ type Props = {
   priceLabel?: string | null;
   imageUrl?: string | null;
   eventId?: string | null;
+  placeholderSlot?: number;
   /** Shown on the thumbnail when this row is sponsored and has no poster. */
   sponsoredLabel?: string;
   saved?: boolean;
@@ -79,6 +80,7 @@ export function CalendarEventRow({
   priceLabel,
   imageUrl,
   eventId,
+  placeholderSlot,
   sponsoredLabel,
   saved,
   saveLabel,
@@ -119,6 +121,7 @@ export function CalendarEventRow({
                 imageUrl={imageUrl}
                 tags={tags}
                 eventId={eventId}
+                placeholderSlot={placeholderSlot}
                 style={{ width: THUMB, height: THUMB }}
               />
             </View>

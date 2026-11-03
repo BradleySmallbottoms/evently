@@ -8,6 +8,10 @@
     "scheme": "localevents",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "icon": {
+        "light": "./assets/images/icon.png",
+        "dark": "./assets/images/icon-dark.png"
+      },
       "bundleIdentifier": "se.candybanana.lcly",
       "appleTeamId": "ZH65MUF6D9",
       "infoPlist": {

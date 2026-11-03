@@ -22,6 +22,7 @@ import { presentAddToCalendar } from '@/lib/add-to-calendar';
 import { calendarDraft } from '@/lib/calendar-draft';
 import { eventPlaceLabel, shortDateLabel, shownClock } from '@/lib/event-format';
 import { buildEventWebUrl, shareEventLink } from '@/lib/event-share';
+import { placeholderSlotsByEvent } from '@/lib/event-placeholder';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { isWholeDay, shownWhen } from '@/lib/span-occasions';
@@ -112,6 +113,16 @@ export default function ExploreScreen() {
   const items = useMemo(
     () => events.data?.pages.flatMap((page) => page.items) ?? [],
     [events.data],
+  );
+  const placeholderSlots = useMemo(
+    () =>
+      placeholderSlotsByEvent(
+        items.map((item) => ({
+          id: item.id,
+          tags: namesForTagIds(item.tagIds, tags.data?.items),
+        })),
+      ),
+    [items, tags.data?.items],
   );
 
   const listRef = useRef<FlatList<(typeof items)[number]>>(null);
@@ -261,6 +272,7 @@ export default function ExploreScreen() {
                 tags={namesForTagIds(item.tagIds, tags.data?.items)}
                 imageUrl={item.imageUrl}
                 eventId={item.id}
+                placeholderSlot={placeholderSlots.get(item.id)}
                 focal={item.imageFocal}
                 videoUrl={readEventVideoUrl(item)}
                 saved={shownSavedIds.has(item.id)}

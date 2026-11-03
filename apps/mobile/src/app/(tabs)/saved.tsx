@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, View } from 'react-native';
 
@@ -12,6 +12,7 @@ import { EventListItem } from '@/components/ui/event-list-item';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { dateBadge, shownClock } from '@/lib/event-format';
 import { shownWhen } from '@/lib/span-occasions';
+import { placeholderSlotsByEvent } from '@/lib/event-placeholder';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { ensureIdentity } from '@/lib/identity';
 import { listEventLists, listSavedEvents, unsaveEvent } from '@/lib/library';
@@ -53,6 +54,16 @@ export default function SavedScreen() {
         key: `${list.id}:${event.id}`,
       })),
     ) ?? [];
+  const placeholderSlots = useMemo(
+    () =>
+      placeholderSlotsByEvent(
+        (segment === 'events' ? events : listRows).map((item) => ({
+          id: item.id,
+          tags: namesForTagIds(item.tagIds, tags.data?.items),
+        })),
+      ),
+    [segment, events, listRows, tags.data?.items],
+  );
 
   return (
     <ThemedScreen style={{ alignItems: 'center' }}>
@@ -101,6 +112,7 @@ export default function SavedScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               eventId={item.id}
+              placeholderSlot={placeholderSlots.get(item.id)}
               priceAmount={item.priceAmount}
               time={shownClock(
                 shownWhen(item, new Date()).startsAt,

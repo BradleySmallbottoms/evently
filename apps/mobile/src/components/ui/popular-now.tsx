@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { DateBox } from '@/components/ui/date-box';
 import { EventImage } from '@/components/ui/event-image';
+import { placeholderSlotsByEvent } from '@/lib/event-placeholder';
 import { dateBadge } from '@/lib/event-format';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
@@ -32,6 +33,10 @@ export function PopularNow({ locale, items, onShowAll, onPress }: Props) {
   const gap = space.sm;
   const tile = width > 0 ? (width - gap * (columns - 1)) / columns : 0;
   const shown = items.slice(0, columns * 3);
+  const placeholderSlots = useMemo(
+    () => placeholderSlotsByEvent(items.slice(0, columns * 3)),
+    [items, columns],
+  );
 
   if (items.length === 0) return null;
 
@@ -77,7 +82,12 @@ export function PopularNow({ locale, items, onShowAll, onPress }: Props) {
                   backgroundColor: colors.accentSoft,
                 }}
               >
-                <EventImage imageUrl={item.imageUrl} tags={item.tags} eventId={item.id} />
+                <EventImage
+                  imageUrl={item.imageUrl}
+                  tags={item.tags}
+                  eventId={item.id}
+                  placeholderSlot={placeholderSlots.get(item.id)}
+                />
                 <View
                   pointerEvents="none"
                   style={{

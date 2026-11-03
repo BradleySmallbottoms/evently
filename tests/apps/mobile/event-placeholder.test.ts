@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   eventPlaceholderKind,
   eventPlaceholderSlot,
+  placeholderSlotsByEvent,
 } from '../../../apps/mobile/src/lib/event-placeholder';
 
 describe('eventPlaceholderKind', () => {
@@ -42,6 +43,18 @@ describe('eventPlaceholderKind', () => {
   it('follows tag order when an event has both a concert and a sport', () => {
     expect(eventPlaceholderKind(['Konsert', 'Fotboll'])).toBe('music');
     expect(eventPlaceholderKind(['Fotboll', 'Konsert'])).toBe('workout');
+  });
+
+  it('gives neighbors in one scene different pictures even when their ids match', () => {
+    const slots = placeholderSlotsByEvent([
+      { id: '82b904ea-72ef-44d7-90b7-0e15d23610c5', tags: ['Mässor & Utställningar'] },
+      { id: '856d8d4e-9a05-412e-a634-094e89a5f645', tags: ['Mässor & Utställningar'] },
+    ]);
+    expect(eventPlaceholderSlot('82b904ea-72ef-44d7-90b7-0e15d23610c5', 3)).toBe(
+      eventPlaceholderSlot('856d8d4e-9a05-412e-a634-094e89a5f645', 3),
+    );
+    expect(slots.get('82b904ea-72ef-44d7-90b7-0e15d23610c5')).toBe(0);
+    expect(slots.get('856d8d4e-9a05-412e-a634-094e89a5f645')).toBe(1);
   });
 
   it('keeps one event on the same picture and spreads two events apart', () => {

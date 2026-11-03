@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
@@ -11,6 +12,7 @@ import { EventListItem } from '@/components/ui/event-list-item';
 import { dateBadge, shownClock } from '@/lib/event-format';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { shownWhen } from '@/lib/span-occasions';
+import { placeholderSlotsByEvent } from '@/lib/event-placeholder';
 import { listPublicEvents, listTags, namesForTagIds } from '@/lib/events';
 import { eventListFreshness } from '@/lib/query-client';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
@@ -50,6 +52,16 @@ export default function TicketsScreen() {
   const tickets = (nearby.data?.items ?? []).filter((event) =>
     event.links.some((link) => link.type === 'tickets' || link.type === 'registration'),
   );
+  const placeholderSlots = useMemo(
+    () =>
+      placeholderSlotsByEvent(
+        tickets.map((item) => ({
+          id: item.id,
+          tags: namesForTagIds(item.tagIds, tags.data?.items),
+        })),
+      ),
+    [tickets, tags.data?.items],
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas, paddingTop: insets.top }}>
@@ -76,6 +88,7 @@ export default function TicketsScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               eventId={item.id}
+              placeholderSlot={placeholderSlots.get(item.id)}
               priceAmount={item.priceAmount}
               time={shownClock(
                 shownWhen(item, new Date()).startsAt,

@@ -22,6 +22,7 @@ type Props = {
   tags: string[];
   imageUrl?: string | null;
   eventId?: string | null;
+  placeholderSlot?: number;
   focal?: ImageFocal | null;
   videoUrl?: string | null;
   saved: boolean;
@@ -105,6 +106,7 @@ export function ExploreCard({
   tags,
   imageUrl,
   eventId,
+  placeholderSlot,
   focal,
   videoUrl,
   saved,
@@ -133,6 +135,7 @@ export function ExploreCard({
           focal={focal}
           tags={tags}
           eventId={eventId}
+          placeholderSlot={placeholderSlot}
           videoUrl={videoUrl}
           active={active}
         />

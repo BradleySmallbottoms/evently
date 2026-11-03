@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +13,7 @@ import { MaxContentWidth } from '@/constants/theme';
 import { dateBadge, shownClock } from '@/lib/event-format';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { shownWhen } from '@/lib/span-occasions';
+import { placeholderSlotsByEvent } from '@/lib/event-placeholder';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { loadHomeTagIds } from '@/lib/home-tag-selection';
 import { useDiscoveryPoint } from '@/lib/use-discovery-point';
@@ -56,6 +58,17 @@ export default function ForYouScreen() {
     featuredIds: new Set(),
     limit: 100,
   });
+
+  const placeholderSlots = useMemo(
+    () =>
+      placeholderSlotsByEvent(
+        forYou.items.map((item) => ({
+          id: item.id,
+          tags: namesForTagIds(item.tagIds, tags.data?.items),
+        })),
+      ),
+    [forYou.items, tags.data?.items],
+  );
 
   return (
     <View
@@ -103,6 +116,7 @@ export default function ForYouScreen() {
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
               eventId={item.id}
+              placeholderSlot={placeholderSlots.get(item.id)}
               priceAmount={item.priceAmount}
               time={shownClock(
                 shownWhen(item, new Date()).startsAt,

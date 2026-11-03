@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { EventImage } from '@/components/ui/event-image';
+import { placeholderSlotsByEvent } from '@/lib/event-placeholder';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
 
@@ -36,6 +38,7 @@ export function RelatedEvents({
   onPress: (id: string) => void;
   onSave: (id: string, saved: boolean) => void;
 }) {
+  const placeholderSlots = useMemo(() => placeholderSlotsByEvent(items), [items]);
   if (items.length === 0) return null;
   return (
     <View style={{ gap: space.md }}>
@@ -98,7 +101,12 @@ export function RelatedEvents({
                   backgroundColor: colors.accentSoft,
                 }}
               >
-                <EventImage imageUrl={item.imageUrl} tags={item.tags} eventId={item.id} />
+                <EventImage
+                  imageUrl={item.imageUrl}
+                  tags={item.tags}
+                  eventId={item.id}
+                  placeholderSlot={placeholderSlots.get(item.id)}
+                />
               </View>
               <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
                 <AppText

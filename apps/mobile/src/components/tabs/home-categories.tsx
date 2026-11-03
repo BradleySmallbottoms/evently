@@ -11,6 +11,7 @@ import { AppText } from '@/components/ui/app-text';
 import { EventImage } from '@/components/ui/event-image';
 import { TAG_GROUP_STYLE, TagGroupIcon, TagGroupList } from '@/components/ui/tag-group-list';
 import { eventPlaceLabel, relativeDateLabel } from '@/lib/event-format';
+import { placeholderSlotsByEvent } from '@/lib/event-placeholder';
 import { listPublicEvents, namesForTagIds, type EventQueryPoint } from '@/lib/events';
 import { eventListFreshness } from '@/lib/query-client';
 import { shownWhen } from '@/lib/span-occasions';
@@ -24,6 +25,7 @@ import {
   type HomeTag,
   type HomeTagGroupId,
 } from '@/lib/tag-groups';
+import { useSchemeKey } from '@/lib/appearance-context';
 import { useEventCount } from '@/lib/use-event-count';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
@@ -38,6 +40,7 @@ type RailEvent = {
   imageUrl?: string | null;
   tags: string[];
   saved: boolean;
+  placeholderSlot: number;
 };
 
 type Props = {
@@ -68,6 +71,7 @@ function CategoryCard({
   onToggleSave: () => void;
 }) {
   const { t } = useTranslation();
+  const paint = useSchemeKey();
   return (
     <View style={{ width: CARD_WIDTH, gap: space.sm }}>
       <Pressable
@@ -86,6 +90,7 @@ function CategoryCard({
           imageUrl={item.imageUrl}
           tags={item.tags}
           eventId={item.id}
+          placeholderSlot={item.placeholderSlot}
           style={{ width: '100%', height: '100%' }}
         />
         <View
@@ -96,6 +101,7 @@ function CategoryCard({
         </View>
       </Pressable>
       <Pressable
+        key={paint}
         accessibilityRole="button"
         accessibilityLabel={item.saved ? t('explore.saved') : t('explore.save')}
         onPress={() => {
@@ -109,7 +115,7 @@ function CategoryCard({
           width: 32,
           height: 32,
           borderRadius: radius.pill,
-          backgroundColor: 'rgba(255,255,255,0.92)',
+          backgroundColor: colors.card,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -118,13 +124,13 @@ function CategoryCard({
           <SymbolView
             name={item.saved ? 'heart.fill' : 'heart'}
             size={16}
-            tintColor={item.saved ? colors.danger : colors.ink}
+            tintColor={item.saved ? colors.danger : colors.icon}
           />
         ) : (
           <MaterialIcons
             name={item.saved ? 'favorite' : 'favorite-border'}
             size={16}
-            color={item.saved ? colors.danger : colors.ink}
+            color={item.saved ? colors.danger : colors.icon}
           />
         )}
       </Pressable>
@@ -211,7 +217,7 @@ export function HomeCategories({
         const now = new Date();
         // The list is already limited to the first tag. This drops a card whose
         // first tag still belongs to another row.
-        const items: RailEvent[] = (query?.data?.items ?? [])
+        const items = (query?.data?.items ?? [])
           .filter((item) => {
             const first = item.tagIds[0];
             return first != null && groupTagIds.has(first);
@@ -241,13 +247,18 @@ export function HomeCategories({
               saved: savedIds.has(item.id),
             };
           });
+        const slots = placeholderSlotsByEvent(items);
+        const row = items.map((item) => ({
+          ...item,
+          placeholderSlot: slots.get(item.id) ?? 0,
+        }));
         return (
           <CategoryRow
             key={group.id}
             id={group.id}
             loading={query?.isPending === true && items.length === 0}
             failed={query?.isError === true}
-            items={items}
+            items={row}
             onShowAll={() => onShowAll(tagIds)}
             onEdit={() => openEditor(group.id)}
             onOpen={onOpen}

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, View, useWindowDimensions } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { EventImage } from '@/components/ui/event-image';
 import { MaxContentWidth } from '@/constants/theme';
+import { placeholderSlotsByEvent } from '@/lib/event-placeholder';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
@@ -32,6 +33,7 @@ export function HomeFeatured({ items, onPress }: Props) {
   const { width } = useWindowDimensions();
   const pageWidth = Math.min(width, MaxContentWidth);
   const [index, setIndex] = useState(0);
+  const placeholderSlots = useMemo(() => placeholderSlotsByEvent(items), [items]);
   if (items.length === 0) return null;
 
   return (
@@ -71,6 +73,7 @@ export function HomeFeatured({ items, onPress }: Props) {
                 imageUrl={item.imageUrl}
                 tags={item.tags}
                 eventId={item.id}
+                placeholderSlot={placeholderSlots.get(item.id)}
                 style={{ width: '100%', height: '100%' }}
               />
               <View

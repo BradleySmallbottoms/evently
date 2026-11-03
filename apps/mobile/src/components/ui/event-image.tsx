@@ -50,8 +50,10 @@ type Props = {
   focal?: ImageFocal | null;
   /** Tag names. Used to choose a placeholder scene when the event has no photo. */
   tags?: readonly string[];
-  /** Picks which picture in that scene this event keeps. */
+  /** Picks which picture in that scene this event keeps when it is shown alone. */
   eventId?: string | null;
+  /** Position among the same scene in the list that is on screen. */
+  placeholderSlot?: number;
   style?: ImageProps['style'];
 };
 
@@ -65,7 +67,7 @@ function imageUri(imageUrl: string): string {
  * Event photo. A missing photo uses one picture from the tag's scene. A photo that is still
  * downloading keeps a gray field with a light sweep, then fades in.
  */
-export function EventImage({ imageUrl, focal, tags, eventId, style }: Props) {
+export function EventImage({ imageUrl, focal, tags, eventId, placeholderSlot, style }: Props) {
   const uri = imageUrl ? imageUri(imageUrl) : null;
   const reduced = useReducedMotion();
   const [loadedUri, setLoadedUri] = useState<string | null>(null);
@@ -73,7 +75,12 @@ export function EventImage({ imageUrl, focal, tags, eventId, style }: Props) {
   const failed = uri != null && failedUri === uri;
   const ready = uri != null && loadedUri === uri && !failed;
   const scenes = placeholders[eventPlaceholderKind(tags)];
-  const placeholder = scenes[eventPlaceholderSlot(eventId, scenes.length)] ?? scenes[0];
+  const hashed = eventPlaceholderSlot(eventId, scenes.length);
+  const index =
+    placeholderSlot == null
+      ? hashed
+      : ((placeholderSlot % scenes.length) + scenes.length) % scenes.length;
+  const placeholder = scenes[index] ?? scenes[0];
   const showPhoto = uri != null && !failed;
 
   return (

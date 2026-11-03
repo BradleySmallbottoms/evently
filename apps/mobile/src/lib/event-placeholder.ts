@@ -83,7 +83,25 @@ export function eventPlaceholderKind(tags: readonly string[] | undefined): Event
   return culture ? 'culture' : 'generic';
 }
 
-/** Stable pick among the scenes for one category. The same event keeps the same picture. */
+/**
+ * Picture order for one list. Events that share a scene take 0, then 1, then 2,
+ * so two neighbors do not land on the same fallback when their ids hash together.
+ */
+export function placeholderSlotsByEvent(
+  items: readonly { id: string; tags?: readonly string[] }[],
+): Map<string, number> {
+  const next = new Map<EventPlaceholderKind, number>();
+  const slots = new Map<string, number>();
+  for (const item of items) {
+    const kind = eventPlaceholderKind(item.tags);
+    const slot = next.get(kind) ?? 0;
+    slots.set(item.id, slot);
+    next.set(kind, slot + 1);
+  }
+  return slots;
+}
+
+/** Stable pick among the scenes for one event opened on its own. */
 export function eventPlaceholderSlot(eventId: string | null | undefined, count: number): number {
   if (!eventId || count <= 1) return 0;
   let hash = 2166136261;

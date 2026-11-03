@@ -36,6 +36,7 @@ import {
 } from '@/lib/calendar-range';
 import { clampRangeToToday, monthOnNewDay } from '@/lib/calendar-today';
 import { useCalendarToday } from '@/lib/use-calendar-today';
+import { placeholderSlotsByEvent } from '@/lib/event-placeholder';
 import { listTags, namesForTagIds } from '@/lib/events';
 import { isWholeDay, shownWhen } from '@/lib/span-occasions';
 import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
@@ -176,6 +177,16 @@ export default function EventsScreen() {
       sort: 'soonest',
     },
     ['browse-events', point.data, iso.from, iso.to, tagKey, price, search],
+  );
+  const placeholderSlots = useMemo(
+    () =>
+      placeholderSlotsByEvent(
+        (events.data?.pages.flatMap((page) => page.items) ?? []).map((item) => ({
+          id: item.id,
+          tags: namesForTagIds(item.tagIds, tags.data?.items),
+        })),
+      ),
+    [events.data, tags.data?.items],
   );
   const sections = useMemo(() => {
     const items = events.data?.pages.flatMap((page) => page.items) ?? [];
@@ -494,6 +505,7 @@ export default function EventsScreen() {
                   priceLabel={priceLabel}
                   imageUrl={item.imageUrl}
                   eventId={item.id}
+                  placeholderSlot={placeholderSlots.get(item.id)}
                   sponsoredLabel={item.sponsored ? t('events.sponsored') : undefined}
                   saved={savedIds.has(item.id)}
                   saveLabel={savedIds.has(item.id) ? t('events.unfavorite') : t('events.favorite')}
