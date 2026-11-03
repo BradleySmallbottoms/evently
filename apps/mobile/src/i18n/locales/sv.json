@@ -98,6 +98,7 @@
     "notificationMarkRead": "Läst",
     "notificationMarkUnread": "Oläst",
     "notificationOpenHint": "Tryck på en notis för att öppna innehållet.",
+    "notificationSwipeHint": "Svep för att markera som läst. Svep längre för att ta bort.",
     "notificationUnreadRow": "{{title}}, oläst",
     "notificationGroupToday": "Idag",
     "notificationGroupYesterday": "Igår",

@@ -3,12 +3,19 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NotificationItem } from '@local-events/contracts';
 import * as Haptics from 'expo-haptics';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { useRef } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
-import ReanimatedSwipeable, {
-  type SwipeableMethods,
-} from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  interpolateColor,
+  runOnJS,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { SheetBody } from '@/components/native/sheet-body';
 import { AppText } from '@/components/ui/app-text';
@@ -16,10 +23,14 @@ import { useAppearance } from '@/lib/appearance-context';
 import {
   groupNotifications,
   notificationPresentation,
+  notificationSwipePhase,
+  notificationSwipeProjected,
+  notificationSwipeRelease,
   notificationText,
   notificationWhen,
   type NotificationGroupId,
   type NotificationPresentation,
+  type NotificationSwipeAction,
   type NotificationWhen,
 } from '@/lib/notification-sheet';
 import { colors, palette, type CategoryId } from '@/theme/colors';
@@ -38,7 +49,7 @@ type Props = {
   onDelete: (id: string) => void;
 };
 
-const ACTION_WIDTH = 76;
+const SWIPE_SPRING = { damping: 26, stiffness: 320, mass: 0.7, overshootClamping: true };
 
 export function NotificationsSheet({
   isPresented,
@@ -184,7 +195,7 @@ export function NotificationsSheet({
                     size={16}
                   />
                   <AppText variant="caption" style={{ color: colors.inkFaint, flexShrink: 1 }}>
-                    {t('events.notificationOpenHint')}
+                    {t('events.notificationSwipeHint')}
                   </AppText>
                 </View>
               </ScrollView>
@@ -262,7 +273,7 @@ function NotificationCard({
 }) {
   const { t } = useTranslation();
   const { scheme } = useAppearance();
-  const swipe = useRef<SwipeableMethods>(null);
+  const reducedMotion = useReducedMotion();
   const presentation = notificationPresentation(item);
   const tone = presentationTone(presentation, scheme);
   const copy = notificationText(item, locale);
@@ -276,9 +287,139 @@ function NotificationCard({
   const unread = item.readAt == null;
   const canOpen = Boolean(item.eventId) || item.reason === 'tip';
   const readLabel = unread ? t('events.notificationMarkRead') : t('events.notificationMarkUnread');
+  const deleteLabel = t('lists.delete');
+  const readColor = unread ? colors.accent : palette.categories.holidays.primary;
+  const deleteColor = colors.danger;
+
+  const translateX = useSharedValue(0);
+  const rowWidth = useSharedValue(0);
+  const phase = useSharedValue(0);
+  const destructive = useSharedValue(0);
+  const dragged = useSharedValue(false);
+  const reduced = useSharedValue(reducedMotion === true);
+  reduced.value = reducedMotion === true;
+
+  const gesture = useMemo(() => {
+    function openCard() {
+      if (canOpen) onOpen();
+    }
+    function markCard() {
+      onToggleRead();
+    }
+    function removeCard() {
+      onDelete();
+    }
+    function crossed() {
+      if (process.env.EXPO_OS !== 'ios') return;
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    function settle(action: NotificationSwipeAction) {
+      'worklet';
+      if (action === 'delete') {
+        // Shared values are written from the gesture worklet.
+        // eslint-disable-next-line react-hooks/immutability -- reanimated shared value
+        phase.value = 1;
+        // eslint-disable-next-line react-hooks/immutability -- reanimated shared value
+        destructive.value = reduced.value ? 1 : withTiming(1, { duration: 80 });
+        const width = Math.max(rowWidth.value, 1);
+        // eslint-disable-next-line react-hooks/immutability -- reanimated shared value
+        translateX.value = withTiming(-width, { duration: reduced.value ? 1 : 180 }, (finished) => {
+          if (finished) runOnJS(removeCard)();
+        });
+        return;
+      }
+      phase.value = 0;
+      destructive.value = reduced.value ? 0 : withTiming(0, { duration: 140 });
+      translateX.value = reduced.value
+        ? withTiming(0, { duration: 1 })
+        : withSpring(0, SWIPE_SPRING);
+      if (action === 'read') runOnJS(markCard)();
+    }
+
+    const pan = Gesture.Pan()
+      .activeOffsetX(-12)
+      .failOffsetY([-18, 18])
+      .onStart(() => {
+        // eslint-disable-next-line react-hooks/immutability -- reanimated shared value
+        dragged.value = true;
+      })
+      .onUpdate((event) => {
+        const nextX = Math.min(0, Math.max(-rowWidth.value, event.translationX));
+        // eslint-disable-next-line react-hooks/immutability -- reanimated shared value
+        translateX.value = nextX;
+        const projected = notificationSwipeProjected(-nextX, event.velocityX);
+        const nextPhase =
+          notificationSwipePhase(projected, rowWidth.value, phase.value === 1) === 'delete' ? 1 : 0;
+        if (nextPhase === phase.value) return;
+        // eslint-disable-next-line react-hooks/immutability -- reanimated shared value
+        phase.value = nextPhase;
+        // eslint-disable-next-line react-hooks/immutability -- reanimated shared value
+        destructive.value = withTiming(nextPhase, { duration: reduced.value ? 1 : 140 });
+        runOnJS(crossed)();
+      })
+      .onEnd((event, success) => {
+        // eslint-disable-next-line react-hooks/immutability -- reanimated shared value
+        dragged.value = false;
+        if (!success) {
+          settle('none');
+          return;
+        }
+        const action = notificationSwipeRelease(
+          -translateX.value,
+          event.velocityX,
+          rowWidth.value,
+          phase.value === 1,
+        );
+        settle(action);
+      })
+      .onFinalize((_event, success) => {
+        if (success || !dragged.value) return;
+        // eslint-disable-next-line react-hooks/immutability -- reanimated shared value
+        dragged.value = false;
+        settle('none');
+      });
+
+    const tap = Gesture.Tap()
+      .maxDistance(10)
+      .onEnd((_event, success) => {
+        if (success) runOnJS(openCard)();
+      });
+
+    // The pan wins when the finger moves, so a swipe release does not open the card.
+    return Gesture.Exclusive(pan, tap);
+  }, [
+    canOpen,
+    destructive,
+    dragged,
+    onDelete,
+    onOpen,
+    onToggleRead,
+    phase,
+    reduced,
+    rowWidth,
+    translateX,
+  ]);
+
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const actionStyle = useAnimatedStyle(() => ({
+    width: Math.max(0, -translateX.value),
+    backgroundColor: interpolateColor(destructive.value, [0, 1], [readColor, deleteColor]),
+  }));
+
+  const readStyle = useAnimatedStyle(() => ({ opacity: 1 - destructive.value }));
+  const deleteStyle = useAnimatedStyle(() => ({ opacity: destructive.value }));
 
   return (
     <View
+      onLayout={(event) => {
+        // The swipe distance is measured from this layout, on the UI thread.
+        // eslint-disable-next-line react-hooks/immutability -- reanimated shared value
+        rowWidth.value = event.nativeEvent.layout.width;
+      }}
       style={{
         borderRadius: radius.lg,
         borderCurve: 'continuous',
@@ -286,48 +427,76 @@ function NotificationCard({
         boxShadow: shadow.soft,
       }}
     >
-      <ReanimatedSwipeable
-        ref={swipe}
-        friction={2}
-        overshootRight={false}
-        renderRightActions={() => (
-          <View style={{ flexDirection: 'row', height: '100%' }}>
-            <SwipeButton
-              label={readLabel}
-              color={unread ? colors.accent : palette.categories.holidays.primary}
-              icon={unread ? 'done' : 'mark-email-unread'}
-              onPress={() => {
-                swipe.current?.close();
-                onToggleRead();
-              }}
-            />
-            <SwipeButton
-              label={t('lists.delete')}
-              color={colors.danger}
-              icon="delete"
-              onPress={() => {
-                swipe.current?.close();
-                onDelete();
-              }}
-            />
-          </View>
-        )}
+      <Animated.View
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={[
+          {
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            overflow: 'hidden',
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+          actionStyle,
+        ]}
       >
-        <Pressable
+        <View style={{ alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+          <View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
+            <Animated.View style={[{ position: 'absolute' }, readStyle]}>
+              <SheetIcon
+                name={unread ? 'checkmark' : 'envelope.badge'}
+                md={unread ? 'done' : 'mark-email-unread'}
+                color={colors.onFill}
+                size={20}
+              />
+            </Animated.View>
+            <Animated.View style={[{ position: 'absolute' }, deleteStyle]}>
+              <SheetIcon name="trash" md="delete" color={colors.onFill} size={20} />
+            </Animated.View>
+          </View>
+          <View
+            style={{ height: 28, minWidth: 64, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Animated.View style={[{ position: 'absolute', width: 72 }, readStyle]}>
+              <SwipeLabel label={readLabel} />
+            </Animated.View>
+            <Animated.View style={[{ position: 'absolute', width: 72 }, deleteStyle]}>
+              <SwipeLabel label={deleteLabel} />
+            </Animated.View>
+          </View>
+        </View>
+      </Animated.View>
+      <GestureDetector gesture={gesture}>
+        <Animated.View
+          accessible
           accessibilityRole={canOpen ? 'button' : 'text'}
           accessibilityLabel={unread ? t('events.notificationUnreadRow', { title }) : title}
           accessibilityHint={canOpen ? t('events.notificationOpenHint') : undefined}
-          disabled={!canOpen}
-          onPress={onOpen}
-          style={{
-            position: 'relative',
-            backgroundColor: colors.card,
-            paddingHorizontal: space.lg,
-            paddingVertical: space.md,
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            gap: space.md,
+          accessibilityActions={[
+            { name: 'mark-read', label: readLabel },
+            { name: 'delete', label: deleteLabel },
+          ]}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === 'mark-read') onToggleRead();
+            if (event.nativeEvent.actionName === 'delete') onDelete();
           }}
+          onAccessibilityTap={canOpen ? onOpen : undefined}
+          style={[
+            {
+              position: 'relative',
+              backgroundColor: colors.card,
+              paddingHorizontal: space.lg,
+              paddingVertical: space.md,
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              gap: space.md,
+            },
+            cardStyle,
+          ]}
         >
           <View
             style={{
@@ -343,13 +512,13 @@ function NotificationCard({
             <SheetIcon name={tone.sf} md={tone.md} color={tone.icon} size={28} />
           </View>
           <View style={{ flex: 1, gap: 2, paddingRight: unread ? space.md : 0 }}>
-            <AppText style={{ fontSize: 16, lineHeight: 21, fontWeight: '700' }}>{title}</AppText>
+            <AppText style={{ fontSize: 16, lineHeight: 21, fontWeight: '800' }}>{title}</AppText>
             {eventName ? (
               <AppText variant="caption" style={{ color: colors.inkMuted }}>
                 {eventName}
               </AppText>
             ) : null}
-            <AppText style={{ fontSize: 15, lineHeight: 21, color: colors.ink }}>{message}</AppText>
+            <AppText style={{ fontSize: 13, lineHeight: 21, color: colors.ink }}>{message}</AppText>
             {when ? (
               <AppText variant="caption" style={{ color: colors.inkFaint, marginTop: 2 }}>
                 {when}
@@ -377,52 +546,26 @@ function NotificationCard({
               }}
             />
           ) : null}
-        </Pressable>
-      </ReanimatedSwipeable>
+        </Animated.View>
+      </GestureDetector>
     </View>
   );
 }
 
-function SwipeButton({
-  label,
-  color,
-  icon,
-  onPress,
-}: {
-  label: string;
-  color: string;
-  icon: keyof typeof MaterialIcons.glyphMap;
-  onPress: () => void;
-}) {
+function SwipeLabel({ label }: { label: string }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
+    <AppText
+      numberOfLines={2}
       style={{
-        width: ACTION_WIDTH,
-        height: '100%',
-        backgroundColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 4,
-        paddingHorizontal: 4,
+        color: colors.onFill,
+        fontSize: 11,
+        lineHeight: 13,
+        fontWeight: '700',
+        textAlign: 'center',
       }}
     >
-      <MaterialIcons name={icon} size={20} color="#FFFFFF" />
-      <AppText
-        numberOfLines={2}
-        style={{
-          color: '#FFFFFF',
-          fontSize: 11,
-          lineHeight: 13,
-          fontWeight: '700',
-          textAlign: 'center',
-        }}
-      >
-        {label}
-      </AppText>
-    </Pressable>
+      {label}
+    </AppText>
   );
 }
 

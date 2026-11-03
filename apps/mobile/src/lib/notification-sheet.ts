@@ -133,6 +133,55 @@ export function groupNotifications<T extends { createdAt: string }>(
     .map((id) => ({ id, items: buckets.get(id) ?? [] }));
 }
 
+/** A left swipe shorter than this snaps closed and does not open the notification. */
+export const NOTIFICATION_SWIPE_COMMIT = 56;
+
+const SWIPE_DELETE_MIN = 128;
+const SWIPE_DELETE_RATIO = 0.42;
+const SWIPE_DELETE_HYSTERESIS = 24;
+
+export type NotificationSwipeAction = 'none' | 'read' | 'delete';
+
+/** Distance where a left swipe turns from mark-as-read into delete. */
+export function notificationSwipeDeleteAt(rowWidth: number): number {
+  'worklet';
+  return Math.max(SWIPE_DELETE_MIN, Math.round(rowWidth * SWIPE_DELETE_RATIO));
+}
+
+/** Finger travel plus a little of the release velocity, so a flick counts. */
+export function notificationSwipeProjected(distance: number, velocityX: number): number {
+  'worklet';
+  return distance - velocityX * 0.12;
+}
+
+/**
+ * The action showing under the card. Once it has turned into delete, it stays
+ * delete until the finger comes back past the threshold.
+ */
+export function notificationSwipePhase(
+  projected: number,
+  rowWidth: number,
+  currentlyDelete: boolean,
+): 'read' | 'delete' {
+  'worklet';
+  const at = notificationSwipeDeleteAt(rowWidth);
+  const limit = currentlyDelete ? at - SWIPE_DELETE_HYSTERESIS : at;
+  return projected >= limit ? 'delete' : 'read';
+}
+
+/** What a released left swipe does. `distance` is how far the card moved left. */
+export function notificationSwipeRelease(
+  distance: number,
+  velocityX: number,
+  rowWidth: number,
+  currentlyDelete: boolean,
+): NotificationSwipeAction {
+  'worklet';
+  const projected = notificationSwipeProjected(distance, velocityX);
+  if (projected < NOTIFICATION_SWIPE_COMMIT) return 'none';
+  return notificationSwipePhase(projected, rowWidth, currentlyDelete);
+}
+
 export function notificationText(
   item: {
     titleSv: string | null;

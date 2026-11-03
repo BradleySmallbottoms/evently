@@ -98,6 +98,7 @@
     "notificationMarkRead": "Read",
     "notificationMarkUnread": "Unread",
     "notificationOpenHint": "Tap a notification to open it.",
+    "notificationSwipeHint": "Swipe to mark as read. Swipe further to delete.",
     "notificationUnreadRow": "{{title}}, unread",
     "notificationGroupToday": "Today",
     "notificationGroupYesterday": "Yesterday",
