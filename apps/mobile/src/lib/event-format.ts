@@ -187,6 +187,22 @@ export function ticketLink(
   return { url: found.url, label: found.label };
 }
 
+/**
+ * The detail bar: a ticket link, otherwise the info page, otherwise a reminder.
+ * Registration, Facebook, and Instagram do not take the place of those.
+ */
+export function detailBarLink(
+  links: readonly EventLink[],
+  priceLabel?: string | null,
+): { kind: 'tickets' | 'info'; url: string } | { kind: 'remind' } {
+  const ticket = ticketLink(links, priceLabel);
+  if (ticket) return { kind: 'tickets', url: ticket.url };
+  const info = links.find((link) => link.type === 'info');
+  const url = info ? safeHttpUrl(info.url) : null;
+  if (url) return { kind: 'info', url };
+  return { kind: 'remind' };
+}
+
 export type ParticipateLink = {
   type: EventLink['type'] | 'online';
   url: string;

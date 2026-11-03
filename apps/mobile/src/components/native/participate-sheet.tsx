@@ -1,30 +1,22 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-  cancelAnimation,
-  Easing,
   runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withRepeat,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/ui/app-text';
-import { featuredTicketLink } from '@/lib/event-format';
-import {
-  loadParticipateBarHintSeen,
-  saveParticipateBarHintSeen,
-} from '@/lib/participate-bar-hint-store';
 import { EventImage } from '@/components/ui/event-image';
-import { PrimaryButton } from '@/components/ui/primary-button';
+import { PrimaryButton, type ButtonIcon } from '@/components/ui/primary-button';
 import { colors } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
 import { t } from 'i18next';
@@ -34,9 +26,6 @@ import { t } from 'i18next';
  * so the visible height is this plus the inset.
  */
 export const PARTICIPATE_PEEK_DETENT = 88;
-
-/** Room for the bouncing ticket hint that sits just above the collapsed bar. */
-export const PARTICIPATE_HINT_CLEARANCE = 36;
 
 const HANDLE = 20;
 
@@ -69,12 +58,11 @@ export function ParticipateSheet({
   imageUrl,
   eventId,
   tags,
-  joinLabel,
-  joined,
-  onJoin,
-  tickets,
+  actionLabel,
+  actionIcon,
+  actionDetail,
+  onAction,
   eventLinks,
-  priceLabel,
   shares,
   reportLabel,
   onReport,
@@ -85,13 +73,12 @@ export function ParticipateSheet({
   imageUrl?: string | null;
   eventId?: string | null;
   tags?: string[];
-  joinLabel: string;
-  joined: boolean;
-  onJoin: () => void;
-  tickets: ParticipateSheetLink[];
+  actionLabel: string;
+  actionIcon: ButtonIcon;
+  /** Shown inside the action button, such as a ticket price. */
+  actionDetail?: string | null;
+  onAction: () => void;
   eventLinks: ParticipateSheetLink[];
-  /** Known price, such as `100kr`. Omitted when the event is free or the price is unknown. */
-  priceLabel?: string | null;
   shares: ParticipateBarAction[];
   reportLabel: string;
   onReport: () => void;
@@ -104,8 +91,6 @@ export function ParticipateSheet({
   const reduced = useReducedMotion();
   const [linksHeight, setLinksHeight] = useState(0);
   const [open, setOpen] = useState(false);
-  const [hintSeen, setHintSeen] = useState(false);
-  const [hintReady, setHintReady] = useState(false);
   const collapsed = participatePeekHeight(insets.bottom);
   const span = Math.max(0, Math.min(linksHeight, Math.round(windowHeight * 0.75) - collapsed));
   const collapsedSv = useSharedValue(collapsed);
@@ -117,26 +102,8 @@ export function ParticipateSheet({
   spanSv.value = span;
   reducedSv.value = reduced === true;
 
-  useEffect(() => {
-    let cancelled = false;
-    void loadParticipateBarHintSeen()
-      .then((seen) => {
-        if (!cancelled && seen) setHintSeen(true);
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setHintReady(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   function markOpen(next: boolean) {
     setOpen(next);
-    if (!next) return;
-    setHintSeen(true);
-    void saveParticipateBarHintSeen().catch(() => undefined);
   }
 
   function settle(next: boolean) {
@@ -180,212 +147,120 @@ export function ParticipateSheet({
     height: collapsedSv.value + spanSv.value * offset.value,
   }));
 
-  function openLink(url: string) {
-    if (Platform.OS === 'ios') void Haptics.selectionAsync();
-    void Linking.openURL(url);
-  }
-
-  const featuredTicket = featuredTicketLink(tickets, priceLabel);
-  const showHint = hintReady && featuredTicket != null && !hintSeen;
-  const bounce = useSharedValue(0);
-  useEffect(() => {
-    if (!showHint || reduced) {
-      cancelAnimation(bounce);
-      bounce.value = 0;
-      return;
-    }
-    bounce.value = withRepeat(
-      withTiming(-8, { duration: 700, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true,
-    );
-    return () => cancelAnimation(bounce);
-  }, [bounce, reduced, showHint]);
-
-  const hintStyle = useAnimatedStyle(() => ({
-    bottom: collapsedSv.value + spanSv.value * offset.value + space.sm,
-    opacity: 1 - offset.value,
-    transform: [{ translateY: bounce.value }],
-  }));
-
   return (
-    <>
-      {showHint ? (
-        <Animated.View
-          pointerEvents="none"
-          accessibilityRole="text"
-          accessibilityLabel={t('events.detail.barHint')}
-          style={[
-            {
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              zIndex: 3,
-              alignItems: 'center',
-            },
-            hintStyle,
-          ]}
+    <GestureDetector gesture={pan}>
+      <Animated.View
+        pointerEvents={paused ? 'none' : 'auto'}
+        style={[
+          {
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 2,
+            backgroundColor: colors.card,
+            borderTopLeftRadius: radius.lg,
+            borderTopRightRadius: radius.lg,
+            boxShadow: shadow.hardTop,
+            overflow: 'hidden',
+          },
+          heightStyle,
+        ]}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={open ? t('events.detail.sheetClose') : t('events.detail.sheetOpen')}
+          accessibilityState={{ expanded: open }}
+          onPress={() => settle(!open)}
+          style={{
+            height: HANDLE,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
+          <View
+            style={{
+              width: 36,
+              height: 4,
+              borderRadius: radius.pill,
+              backgroundColor: colors.line,
+            }}
+          />
+        </Pressable>
+        <View style={{ flex: 1, overflow: 'hidden', justifyContent: 'flex-end' }}>
+          <View
+            pointerEvents={open ? 'auto' : 'none'}
+            onLayout={(e) => {
+              const next = Math.ceil(e.nativeEvent.layout.height);
+              setLinksHeight((current) => (current === next ? current : next));
+            }}
+            style={{ paddingTop: space.xs }}
+          >
+            <View style={{ gap: space.md, paddingBottom: space.md, paddingHorizontal: space.lg }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.xs }}>
+                <View style={{ flex: 1 }}>
+                  {shares.length > 0 ? <ShareActions links={eventLinks} actions={shares} /> : null}
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={reportLabel}
+                  onPress={onReport}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Glyph sf="flag" md="flag" size={20} color={colors.inkMuted as string} />
+                </Pressable>
+              </View>
+              <View style={{ height: 1, backgroundColor: colors.line }} />
+            </View>
+          </View>
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: space.xs,
-              maxWidth: '90%',
-              paddingHorizontal: space.md,
-              paddingVertical: space.xs,
-              borderRadius: radius.pill,
-              backgroundColor: colors.card,
-              borderWidth: 1,
-              borderColor: colors.line,
-              boxShadow: shadow.soft,
-            }}
-          >
-            <Glyph
-              sf="chevron.up"
-              md="keyboard-arrow-up"
-              size={16}
-              color={colors.accent as string}
-            />
-            <AppText
-              numberOfLines={1}
-              variant="caption"
-              style={{ fontWeight: '600', color: colors.ink }}
-            >
-              {t('events.detail.barHint')}
-            </AppText>
-          </View>
-        </Animated.View>
-      ) : null}
-      <GestureDetector gesture={pan}>
-        <Animated.View
-          pointerEvents={paused ? 'none' : 'auto'}
-          style={[
-            {
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 2,
-              backgroundColor: colors.card,
-              borderTopLeftRadius: radius.lg,
-              borderTopRightRadius: radius.lg,
-              boxShadow: shadow.hardTop,
-              overflow: 'hidden',
-            },
-            heightStyle,
-          ]}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={open ? t('events.detail.sheetClose') : t('events.detail.sheetOpen')}
-            accessibilityState={{ expanded: open }}
-            onPress={() => settle(!open)}
-            style={{
-              height: HANDLE,
-              alignItems: 'center',
-              justifyContent: 'center',
+              gap: space.md,
+              height: PARTICIPATE_PEEK_DETENT - HANDLE,
+              paddingHorizontal: space.lg,
             }}
           >
             <View
               style={{
-                width: 36,
-                height: 4,
-                borderRadius: radius.pill,
-                backgroundColor: colors.line,
+                width: 64,
+                height: 64,
+                borderRadius: radius.sm,
+                overflow: 'hidden',
+                backgroundColor: colors.accentSoft,
               }}
-            />
-          </Pressable>
-          <View style={{ flex: 1, overflow: 'hidden', justifyContent: 'flex-end' }}>
-            <View
-              pointerEvents={open ? 'auto' : 'none'}
-              onLayout={(e) => {
-                const next = Math.ceil(e.nativeEvent.layout.height);
-                setLinksHeight((current) => (current === next ? current : next));
-              }}
-              style={{ paddingTop: space.xs }}
             >
-              <View style={{ gap: space.md, paddingBottom: space.md, paddingHorizontal: space.lg }}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.xs }}>
-                  <View style={{ flex: 1 }}>
-                    {shares.length > 0 ? (
-                      <ShareActions links={eventLinks} actions={shares} />
-                    ) : null}
-                  </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={reportLabel}
-                    onPress={onReport}
-                    style={{
-                      width: 44,
-                      height: 44,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Glyph sf="flag" md="flag" size={20} color={colors.inkMuted as string} />
-                  </Pressable>
-                </View>
-                {featuredTicket ? (
-                  <TicketButton
-                    key={featuredTicket.key}
-                    vendor={featuredTicket.detail}
-                    label={t('events.detail.buyTickets')}
-                    price={priceLabel}
-                    onPress={() => openLink(featuredTicket.url)}
-                  />
-                ) : null}
-                <View style={{ height: 1, backgroundColor: colors.line }} />
-              </View>
+              <EventImage imageUrl={imageUrl} tags={tags} eventId={eventId} />
             </View>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: space.md,
-                height: PARTICIPATE_PEEK_DETENT - HANDLE,
-                paddingHorizontal: space.lg,
-              }}
-            >
-              <View
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: radius.sm,
-                  overflow: 'hidden',
-                  backgroundColor: colors.accentSoft,
-                }}
+            <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
+              <AppText
+                numberOfLines={1}
+                style={{ fontSize: 14, lineHeight: 18, fontWeight: '700' }}
               >
-                <EventImage imageUrl={imageUrl} tags={tags} eventId={eventId} />
-              </View>
-              <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
-                <AppText
-                  numberOfLines={1}
-                  style={{ fontSize: 14, lineHeight: 18, fontWeight: '700' }}
-                >
-                  {title}
-                </AppText>
-                <AppText variant="caption" numberOfLines={1}>
-                  {when}
-                </AppText>
-              </View>
-              <PrimaryButton
-                label={joinLabel}
-                onPress={onJoin}
-                color={joined ? (colors.primary as string) : undefined}
-                labelColor="#FFFFFF"
-                icon={{
-                  sf: joined ? 'checkmark.circle.fill' : 'checkmark.circle',
-                  md: joined ? 'check-circle' : 'check-circle-outline',
-                }}
-                style={{ height: 44, paddingHorizontal: space.md }}
-              />
+                {title}
+              </AppText>
+              <AppText variant="caption" numberOfLines={1}>
+                {when}
+              </AppText>
             </View>
+            <PrimaryButton
+              label={actionLabel}
+              detail={actionDetail}
+              onPress={onAction}
+              icon={actionIcon}
+              style={{ paddingHorizontal: space.md }}
+            />
           </View>
-          <View style={{ height: insets.bottom }} />
-        </Animated.View>
-      </GestureDetector>
-    </>
+        </View>
+        <View style={{ height: insets.bottom }} />
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -463,77 +338,6 @@ function ShareActions({
           </AppText>
         </Pressable>
       ))}
-    </View>
-  );
-}
-
-function TicketButton({
-  vendor,
-  label,
-  price,
-  onPress,
-}: {
-  label: string;
-  price?: string | null;
-  vendor?: string | null;
-  onPress: () => void;
-}) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: space.md,
-      }}
-    >
-      {price ? (
-        <View style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-          <AppText style={{ fontSize: 16, lineHeight: 20, fontWeight: '700' }}>
-            {t('events.detail.price')}: {price}
-          </AppText>
-          {vendor ? (
-            <AppText variant="caption" numberOfLines={1}>
-              {vendor}
-            </AppText>
-          ) : null}
-        </View>
-      ) : (
-        <View>
-          <AppText variant="caption" numberOfLines={2}>
-            {t('events.detail.buyTicketsFrom')}
-            {'\n'}
-            {vendor}
-          </AppText>
-        </View>
-      )}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={price ? `${label}, ${price}` : label}
-        onPress={onPress}
-        style={{
-          minHeight: 48,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: space.sm,
-          paddingHorizontal: space.md,
-          borderRadius: radius.md,
-          backgroundColor: colors.accent,
-        }}
-      >
-        <Glyph sf="ticket" md="confirmation-number" size={20} color={colors.onFill} />
-        <AppText
-          numberOfLines={1}
-          style={{
-            fontSize: 16,
-            lineHeight: 20,
-            fontWeight: '700',
-            color: colors.onFill,
-          }}
-        >
-          {label}
-        </AppText>
-      </Pressable>
     </View>
   );
 }

@@ -2,6 +2,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Platform, Share } from 'react-native';
 
 import { buildEventWebUrl, eventShareContent } from './event-share-url';
+import { armShareTouchShield, releaseShareTouchShield } from './share-touch-shield';
 
 export {
   buildEventWebUrl,
@@ -35,6 +36,7 @@ export async function shareEventLink(input: {
   const content = eventShareContent(input.title, url, platform);
 
   if (platform === 'web') {
+    // The browser share sheet does not deliver its dismiss tap into the page.
     const nav = typeof navigator !== 'undefined' ? navigator : undefined;
     if (nav && typeof nav.share === 'function') {
       try {
@@ -60,14 +62,19 @@ export async function shareEventLink(input: {
       { subject: input.title, dialogTitle: input.title },
     );
 
+  armShareTouchShield();
   try {
-    const result = await present();
-    return result.action === Share.dismissedAction ? 'dismissed' : 'shared';
-  } catch (error) {
-    if (isAbortError(error)) return 'dismissed';
-    // The overflow menu can still be dismissing when the sheet is requested.
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    const result = await present();
-    return result.action === Share.dismissedAction ? 'dismissed' : 'shared';
+    try {
+      const result = await present();
+      return result.action === Share.dismissedAction ? 'dismissed' : 'shared';
+    } catch (error) {
+      if (isAbortError(error)) return 'dismissed';
+      // The overflow menu can still be dismissing when the sheet is requested.
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      const result = await present();
+      return result.action === Share.dismissedAction ? 'dismissed' : 'shared';
+    }
+  } finally {
+    releaseShareTouchShield();
   }
 }

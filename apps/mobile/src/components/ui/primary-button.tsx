@@ -51,6 +51,8 @@ type Props = {
   labelColor?: string;
   /** Icon on the left of the label. */
   icon?: ButtonIcon;
+  /** Second line inside the button, such as a ticket price. */
+  detail?: string | null;
   /** Trailing arrow, used by the onboarding interest step. */
   arrow?: boolean;
   /** Checkmark, used by the onboarding interest step. */
@@ -74,6 +76,7 @@ export function PrimaryButton({
   color,
   labelColor,
   icon,
+  detail,
   arrow,
   checkmark,
   confirmed = false,
@@ -172,9 +175,23 @@ export function PrimaryButton({
             {pending ? (
               <ActivityIndicator color={textColor} />
             ) : !confirmed && !rejected ? (
-              <AppText variant="subtitle" style={{ color: textColor, fontWeight: '700' }}>
-                {label}
-              </AppText>
+              <View style={{ alignItems: 'center' }}>
+                <AppText
+                  numberOfLines={1}
+                  variant="subtitle"
+                  style={{ color: textColor, fontWeight: '700' }}
+                >
+                  {label}
+                </AppText>
+                {detail ? (
+                  <AppText
+                    numberOfLines={1}
+                    style={{ color: textColor, fontSize: 12, lineHeight: 14, fontWeight: '600' }}
+                  >
+                    {detail}
+                  </AppText>
+                ) : null}
+              </View>
             ) : null}
             {arrow && !pending ? (
               process.env.EXPO_OS === 'ios' ? (

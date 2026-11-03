@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  detailBarLink,
   featuredTicketLink,
   participateSheetLinks,
   relativeDateLabel,
@@ -44,6 +45,38 @@ describe('ticketLink', () => {
         '150kr',
       ),
     ).toEqual({ url: 'https://secure.tickster.com/abc', label: 'Tickster' });
+  });
+});
+
+describe('detailBarLink', () => {
+  it('opens tickets ahead of an info page', () => {
+    expect(
+      detailBarLink([
+        { type: 'info', url: 'https://example.com/about' },
+        { type: 'tickets', url: 'https://tickster.com/e/2', label: 'Tickster' },
+      ]),
+    ).toEqual({ kind: 'tickets', url: 'https://tickster.com/e/2' });
+  });
+
+  it('opens the info page when the event has no ticket link', () => {
+    expect(
+      detailBarLink([
+        { type: 'registration', url: 'https://forms.example/join' },
+        { type: 'info', url: 'https://example.com/about' },
+        { type: 'facebook', url: 'https://facebook.com/event' },
+      ]),
+    ).toEqual({ kind: 'info', url: 'https://example.com/about' });
+  });
+
+  it('asks for a reminder when there is no ticket or info page', () => {
+    expect(detailBarLink([])).toEqual({ kind: 'remind' });
+    expect(
+      detailBarLink([
+        { type: 'registration', url: 'https://forms.example/join' },
+        { type: 'instagram', url: 'https://instagram.com/place' },
+        { type: 'info', url: 'javascript:alert(1)' },
+      ]),
+    ).toEqual({ kind: 'remind' });
   });
 });
 

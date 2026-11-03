@@ -477,7 +477,7 @@ export function LocationMenu({
                         borderRadius: radius.pill,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: nearbySelected ? colors.accent : colors.secondarySoftAlpha,
+                        backgroundColor: nearbySelected ? colors.secondarySoft : colors.secondary,
                         opacity: creating || (!canAdd && !adding) ? 0.4 : 1,
                       }}
                     >
@@ -486,7 +486,7 @@ export function LocationMenu({
                         md={adding ? 'close' : 'add'}
                         color={
                           nearbySelected
-                            ? (colors.accent as string)
+                            ? (colors.secondary as string)
                             : (colors.secondarySoft as string)
                         }
                       />

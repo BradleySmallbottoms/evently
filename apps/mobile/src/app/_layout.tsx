@@ -23,6 +23,7 @@ import { NotificationEventLink } from '@/components/notification-event-link';
 import { IdentityResetAlert } from '@/components/native/identity-reset-alert';
 import { OnboardingCover } from '@/components/onboarding-cover';
 import { OtaUpdateBanner } from '@/components/ota-update-banner';
+import { ShareTouchShield } from '@/components/share-touch-shield';
 import { PermissionReminder } from '@/components/onboarding/permission-reminder';
 import { AfterSplash, SplashCover } from '@/components/splash-cover';
 import {
@@ -324,6 +325,7 @@ function RootLayoutBody() {
           </SplashCover>
         </ThemeProvider>
       </QueryClientProvider>
+      <ShareTouchShield />
     </GestureHandlerRootView>
   );
 }

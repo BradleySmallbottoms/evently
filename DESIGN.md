@@ -334,10 +334,7 @@ tapping it opens that URL. 3. Date row. A single day shows that day and its time
 "Join whenever it suits you". 4. Place row. A physical event shows the
 venue, then the organizer and "Show map" when a point exists. The row
 and the map preview open directions. 5. Interest count (`numSaved`), only
-when it is above zero. "I want to join" toggles coming. "Interested"
-toggles the save. The heart in the header is the same save. Both can be
-on at once, and each tap updates the count immediately. Pull down to
-reload. 6. "About" with the rest of the description and "Read more" when
+when it is above zero. "Interested" toggles the save. The heart in the header is the same save. A tap updates the count immediately. Pull down to reload. 6. "About" with the rest of the description and "Read more" when
 it is long. 7. "How it works" lists `meta.instructions` when the scan stored
 steps. The section is omitted when that list is empty. 8. Map preview when the event has a point. 9. Organizer name, with follow. 10. "Good to know": type, place, cost
 when the price is known, a tickets link when the event has one, a
@@ -347,10 +344,12 @@ information. 11. "All dates"
 when the event spans days or has other occasions. The period card can
 expand to the individual dates. 12. Similar events that share a tag. 13. Share: copy link, Facebook, Instagram, and the system share sheet.
 A sheet rests on the bottom in two stops. The short stop repeats the title,
-the period, and "I want to join". Dragging it up shows share actions, a
-buy-tickets button when the event has a ticket link, the price beside that
-button when one is known, the event's other links, and a report icon in the
-upper right. The sheet does not dismiss.
+the period, and one action. That action is "Buy tickets" when the event has
+a ticket link, "More info" when it has no ticket link but has an info page,
+and "Remind me" when it has neither. Buy tickets and More info open that
+page. A known price sits inside the Buy tickets button. Remind me opens the
+reminder picker. Dragging the sheet up shows share actions, the event's other
+links, and a report icon in the upper right. The sheet does not dismiss.
 
 The page background is the canvas. The title block (through About), How it
 works when steps exist, the organizer, Good to know, All dates, and Share
@@ -360,13 +359,13 @@ join sheet is fixed over the bottom of the page.
 Check-in, attendee content, and rating stay on the page when that event
 supports them.
 
-Rules: - The join action stays reachable while scrolling. -
-A tickets link opens from the title icon and from Good to know. Registration
-and info links stay in "More information", separate from "I want to join". -
+Rules: - The bar action stays reachable while scrolling. -
+A tickets link opens from the bar, the title icon, and Good to know. An info
+page opens from the bar when the event has no ticket link. Registration
+links stay in the sheet, separate from that bar. -
 Do not fabricate availability, prices, venue
 details, audience, organizer blurbs, or participant photos. - Show the
-event's local date and time clearly. - Saving and marking coming are
-immediate and reversible.
+event's local date and time clearly. - Saving is immediate and reversible.
 
 ### 8.5 Saved Events
 

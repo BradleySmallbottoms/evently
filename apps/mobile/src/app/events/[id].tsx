@@ -21,7 +21,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmAction } from '@/components/native/confirm-action';
 import {
   ParticipateSheet,
-  PARTICIPATE_HINT_CLEARANCE,
   participatePeekHeight,
   type ParticipateBarAction,
   type ParticipateSheetLink,
@@ -32,7 +31,7 @@ import { ReminderPicker } from '@/components/native/reminder-picker';
 import { AppText } from '@/components/ui/app-text';
 import { EventHeroGallery } from '@/components/ui/event-hero-gallery';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
-import { PrimaryButton } from '@/components/ui/primary-button';
+import { PrimaryButton, type ButtonIcon } from '@/components/ui/primary-button';
 import { MaxContentWidth } from '@/constants/theme';
 import {
   FALLBACK_CENTER,
@@ -54,6 +53,7 @@ import {
   periodStatus,
 } from '@/lib/event-detail-format';
 import {
+  detailBarLink,
   participateSheetLinks,
   primaryAction,
   safeHttpUrl,
@@ -61,14 +61,7 @@ import {
   type ParticipateLink,
 } from '@/lib/event-format';
 import { ensureIdentity } from '@/lib/identity';
-import {
-  clearComing,
-  listComingEvents,
-  listSavedEvents,
-  markComing,
-  saveEvent,
-  unsaveEvent,
-} from '@/lib/library';
+import { listSavedEvents, saveEvent, unsaveEvent } from '@/lib/library';
 import { fetchProfile, updateProfile } from '@/lib/profile';
 import { fetchRatingStatus, submitRating } from '@/lib/ratings';
 import { cancelEventReminder, eventReminderSlots, scheduleEventReminders } from '@/lib/reminders';
@@ -174,12 +167,10 @@ export default function EventDetailScreen() {
   const [occasionOpenToken, setOccasionOpenToken] = useState(0);
   const [occasionSectionY, setOccasionSectionY] = useState<number | null>(null);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
-  /** Local on/off until the saved and coming lists catch up. */
+  /** Local on/off until the saved list catches up. */
   const [savedOverride, setSavedOverride] = useState<boolean | null>(null);
-  const [comingOverride, setComingOverride] = useState<boolean | null>(null);
-  /** Added to the server totals until that query returns a new count. */
+  /** Added to the server total until that query returns a new count. */
   const [savedDelta, setSavedDelta] = useState(0);
-  const [comingDelta, setComingDelta] = useState(0);
   /** Save state for similar events until the saved list catches up. */
   const [relatedSaved, setRelatedSaved] = useState<Record<string, boolean>>({});
 
@@ -195,16 +186,10 @@ export default function EventDetailScreen() {
     enabled: typeof id === 'string' && id.length > 0,
   });
   const serverSaved = event.data?.numSaved;
-  const serverComing = event.data?.numComing;
   const [countedSaved, setCountedSaved] = useState(serverSaved);
-  const [countedComing, setCountedComing] = useState(serverComing);
   if (serverSaved !== countedSaved) {
     setCountedSaved(serverSaved);
     setSavedDelta(0);
-  }
-  if (serverComing !== countedComing) {
-    setCountedComing(serverComing);
-    setComingDelta(0);
   }
   const occasionFacts = useMemo(() => {
     const occasions = (event.data as { occasions?: Occasion[] } | undefined)?.occasions ?? [];
@@ -322,13 +307,6 @@ export default function EventDetailScreen() {
   });
   const isSaved = saved.data?.items.some((item) => item.id === id) ?? false;
   const interestedOn = savedOverride ?? isSaved;
-  const coming = useQuery({
-    queryKey: ['coming-events', identity.data?.userId],
-    enabled: identity.isSuccess,
-    queryFn: () => listComingEvents(identity.data!),
-  });
-  const isComing = coming.data?.items.some((item) => item.id === id) ?? false;
-  const comingOn = comingOverride ?? isComing;
   const subscriptions = useQuery({
     queryKey: ['subscriptions', identity.data?.userId],
     enabled: identity.isSuccess,
@@ -503,21 +481,6 @@ export default function EventDetailScreen() {
       });
   }
 
-  function toggleComing() {
-    if (!identity.data || typeof id !== 'string') return;
-    const on = comingOverride ?? isComing;
-    const next = !on;
-    setComingOverride(next);
-    setComingDelta((count) => count + (next ? 1 : -1));
-    void (on ? clearComing(identity.data, id) : markComing(identity.data, id))
-      .then(() => queryClient.invalidateQueries({ queryKey: ['coming-events'] }))
-      .catch(() => {
-        setComingOverride(on);
-        setComingDelta((count) => count + (next ? -1 : 1));
-        Alert.alert(t('events.planTitle'), t('events.planError'));
-      });
-  }
-
   async function refreshDetail() {
     setRefreshing(true);
     try {
@@ -530,16 +493,14 @@ export default function EventDetailScreen() {
         ...(event.data?.tagIds[0] ? [related.refetch()] : []),
       ];
       if (identity.isSuccess) {
-        jobs.push(identity.refetch(), saved.refetch(), coming.refetch(), subscriptions.refetch());
+        jobs.push(identity.refetch(), saved.refetch(), subscriptions.refetch());
       }
       if (event.data?.checkInEnabled) {
         jobs.push(checkInStatus.refetch(), content.refetch());
       }
       await Promise.all(jobs);
       setSavedOverride(null);
-      setComingOverride(null);
       setSavedDelta(0);
-      setComingDelta(0);
       setRelatedSaved({});
     } finally {
       setRefreshing(false);
@@ -638,7 +599,7 @@ export default function EventDetailScreen() {
   const copy = descriptionParts(event.data?.description, event.data?.summary);
   const tagNames = namesForTagIds(event.data?.tagIds ?? [], tags.data?.items);
   const interestCount = Math.max(0, (event.data?.numSaved ?? 0) + savedDelta);
-  const comingCount = Math.max(0, (event.data?.numComing ?? 0) + comingDelta);
+  const comingCount = event.data?.numComing ?? 0;
   const mapPoints = useMemo(() => {
     if (!event.data) return [];
     const points: { lat: number; lng: number }[] = [];
@@ -760,6 +721,45 @@ export default function EventDetailScreen() {
         ? t('events.detail.comingCount', { count: comingCount })
         : null;
   const priceLabel = event.data ? krPriceLabel(event.data.priceAmount) : null;
+  const barLink = event.data ? detailBarLink(event.data.links, priceLabel) : null;
+  const barAction: {
+    label: string;
+    detail: string | null;
+    icon: ButtonIcon;
+    onPress: () => void;
+  } = !barLink
+    ? {
+        label: '',
+        detail: null,
+        icon: { sf: 'bell', md: 'notifications-none' },
+        onPress: () => undefined,
+      }
+    : barLink.kind === 'tickets'
+      ? {
+          label: t('events.detail.buyTickets'),
+          detail: priceLabel,
+          icon: { sf: 'ticket', md: 'confirmation-number' },
+          onPress: () => {
+            if (Platform.OS === 'ios') void Haptics.selectionAsync();
+            void Linking.openURL(barLink.url);
+          },
+        }
+      : barLink.kind === 'info'
+        ? {
+            label: t('events.detail.moreInfo'),
+            detail: null,
+            icon: { sf: 'info.circle', md: 'info-outline' },
+            onPress: () => {
+              if (Platform.OS === 'ios') void Haptics.selectionAsync();
+              void Linking.openURL(barLink.url);
+            },
+          }
+        : {
+            label: t('events.remindMe'),
+            detail: null,
+            icon: { sf: 'bell', md: 'notifications-none' },
+            onPress: openReminderPicker,
+          };
   const tickets = event.data ? ticketLink(event.data.links, priceLabel) : null;
   const sheetLinks = event.data
     ? participateSheetLinks(event.data.links, event.data.onlineUrl)
@@ -933,10 +933,7 @@ export default function EventDetailScreen() {
           }
           contentContainerStyle={{
             flexGrow: 1,
-            paddingBottom:
-              participatePeekHeight(insets.bottom) +
-              space.lg +
-              (sheetLinks.tickets.length > 0 ? PARTICIPATE_HINT_CLEARANCE : 0),
+            paddingBottom: participatePeekHeight(insets.bottom) + space.lg,
           }}
         >
           <View
@@ -1235,52 +1232,6 @@ export default function EventDetailScreen() {
               </View>
             ) : null}
 
-            {/* <View style={{ gap: space.lg, paddingHorizontal: space.lg }}>
-              <PrimaryButton
-                label={comingOn ? t('events.detail.joined') : t('events.detail.join')}
-                onPress={toggleComing}
-                color={comingOn ? (colors.primary as string) : undefined}
-                labelColor={comingOn ? '#FFFFFF' : undefined}
-                icon={{
-                  sf: comingOn ? 'checkmark.circle.fill' : 'checkmark.circle',
-                  md: comingOn ? 'check-circle' : 'check-circle-outline',
-                }}
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: interestedOn }}
-                onPress={toggleSaved}
-                style={{
-                  minHeight: 44,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: space.sm,
-                  borderWidth: 1,
-                  borderColor: interestedOn ? colors.accent : colors.ink,
-                  borderRadius: radius.md,
-                  paddingHorizontal: space.md,
-                  paddingVertical: space.sm,
-                }}
-              >
-                <DetailGlyph
-                  sf={interestedOn ? 'heart.fill' : 'heart'}
-                  md={interestedOn ? 'favorite' : 'favorite-border'}
-                  color={interestedOn ? (colors.accent as string) : (colors.ink as string)}
-                />
-                <AppText
-                  style={{
-                    fontSize: 16,
-                    lineHeight: 22,
-                    fontWeight: '700',
-                    color: interestedOn ? colors.accent : colors.ink,
-                  }}
-                >
-                  {t('events.planInterested')}
-                </AppText>
-              </Pressable>
-            </View> */}
-
             {event.data ? (
               <View
                 style={{
@@ -1288,6 +1239,7 @@ export default function EventDetailScreen() {
                   gap: space.lg,
                   backgroundColor: colors.cardDarkest,
                   paddingTop: space.lg,
+                  paddingBottom: space.lg,
                 }}
               >
                 {copy.about ? (
@@ -1610,12 +1562,11 @@ export default function EventDetailScreen() {
             imageUrl={event.data.imageUrl}
             eventId={event.data.id}
             tags={tagNames}
-            joinLabel={comingOn ? t('events.detail.joined') : t('events.detail.join')}
-            joined={comingOn}
-            onJoin={toggleComing}
-            tickets={sheetLinks.tickets.map(toSheetLink)}
+            actionLabel={barAction.label}
+            actionIcon={barAction.icon}
+            actionDetail={barAction.detail}
+            onAction={barAction.onPress}
             eventLinks={sheetLinks.event.map(toSheetLink)}
-            priceLabel={priceLabel}
             shares={shareActions}
             reportLabel={t('events.report')}
             onReport={() => setReportOpen(true)}
