@@ -20,7 +20,6 @@ import { api, throwIfError } from '@/lib/api';
 import { appVersion, otaUpdateId } from '@/lib/app-version';
 import { clearLocalAppData, clearStoredPromptState } from '@/lib/clear-local-data';
 import { ensureIdentity, loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
-import { listNotifications } from '@/lib/notifications';
 import { listTips } from '@/lib/tips';
 import { useHasUnreadNotifications } from '@/lib/use-unread-notifications';
 import { getPreferences, updateTravelDistance } from '@/lib/preferences';
@@ -70,11 +69,6 @@ export default function ProfileScreen() {
     enabled: identity.isSuccess,
     queryFn: () => getPreferences(identity.data!),
   });
-  const inbox = useQuery({
-    queryKey: ['notifications', identity.data?.userId],
-    enabled: identity.isSuccess,
-    queryFn: () => listNotifications(identity.data!),
-  });
   const tips = useQuery({
     queryKey: ['tips', identity.data?.userId],
     enabled: identity.isSuccess,
@@ -111,7 +105,7 @@ export default function ProfileScreen() {
       await Promise.all([
         preferences.refetch(),
         tips.refetch(),
-        inbox.refetch(),
+        queryClient.refetchQueries({ queryKey: ['notifications'] }),
         queryClient.refetchQueries({ queryKey: ['notifications-seen'] }),
       ]);
     } finally {
@@ -246,7 +240,7 @@ export default function ProfileScreen() {
     },
     {
       label: t('events.notifications'),
-      count: inbox.data?.unreadCount ?? 0,
+      count: null,
       href: '/profile/notifications' as const,
       sf: 'bell',
       md: 'notifications-none' as const,
@@ -298,8 +292,10 @@ export default function ProfileScreen() {
               accessibilityRole="button"
               accessibilityLabel={
                 row.alert
-                  ? t('events.notificationsNew', { count: row.count })
-                  : `${row.label} ${row.count}`
+                  ? t('events.notificationsNew', { count: numUnread })
+                  : row.count == null
+                    ? row.label
+                    : `${row.label} ${row.count}`
               }
               onPress={() => router.push(row.href)}
               style={{
@@ -334,21 +330,23 @@ export default function ProfileScreen() {
               <AppText variant="body" style={{ flex: 1 }}>
                 {row.label}
               </AppText>
-              <View
-                style={{
-                  minWidth: 28,
-                  height: 28,
-                  paddingHorizontal: space.sm,
-                  borderRadius: radius.pill,
-                  backgroundColor: colors.accentSoft,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <AppText variant="label" style={{ color: colors.ink }}>
-                  {row.count}
-                </AppText>
-              </View>
+              {row.count != null ? (
+                <View
+                  style={{
+                    minWidth: 28,
+                    height: 28,
+                    paddingHorizontal: space.sm,
+                    borderRadius: radius.pill,
+                    backgroundColor: colors.accentSoft,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <AppText variant="label" style={{ color: colors.ink }}>
+                    {row.count}
+                  </AppText>
+                </View>
+              ) : null}
             </Pressable>
           ))}
           <Pressable
