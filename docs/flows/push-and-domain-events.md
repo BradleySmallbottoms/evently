@@ -83,7 +83,9 @@ with the earliest copy plus “And N more…”.
 - Tapping a notification whose payload has an event id opens that event. Broadcasts have no
   event id and stay on the current screen.
 - The client sets the app icon badge from the push count when the notification arrives, and
-  clears it when the app becomes active. A push with no count adds one. The local banner does
+  clears it when the app becomes active. Delivered notifications are removed at the same
+  time, because iOS otherwise keeps the icon number from a notification that is still in
+  Notification Center. A push with no count adds one. The local banner does
   not change the count again.
 
 ## Retention

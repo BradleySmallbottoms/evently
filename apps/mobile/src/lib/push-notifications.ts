@@ -284,7 +284,10 @@ export async function applyReceivedAppIconBadge(input: AppIconBadgeInput): Promi
   if (Platform.OS === 'web') return;
   const epoch = badgeEpoch;
   const allowWhileActive = input.allowWhileActive === true;
-  if (AppState.currentState === 'active' && !allowWhileActive) return;
+  // 'inactive' is the app opening. A badge write then puts the number back
+  // after the clear. Only a background delivery may set the icon.
+  const away = AppState.currentState === 'background';
+  if (!away && !allowWhileActive) return;
   const key = input.key ?? null;
   if (key) {
     if (appliedBadgeKeys.has(key)) return;
@@ -295,7 +298,7 @@ export async function applyReceivedAppIconBadge(input: AppIconBadgeInput): Promi
   try {
     await enqueueBadgeWrite(async () => {
       if (epoch !== badgeEpoch) return;
-      if (AppState.currentState === 'active' && !allowWhileActive) return;
+      if (AppState.currentState !== 'background' && !allowWhileActive) return;
       const current = input.count == null ? await Notifications.getBadgeCountAsync() : 0;
       if (epoch !== badgeEpoch) return;
       const next = resolveAppIconBadge({
@@ -343,7 +346,7 @@ export function subscribeSilentPushHandlers(handlers: SilentPushHandlers): () =>
           });
       // The icon number is for when the app is away. A notification delivered as
       // the app opens must not put that number back.
-      if (AppState.currentState !== 'active' && !isLocalInboxPush(data)) {
+      if (AppState.currentState === 'background' && !isLocalInboxPush(data)) {
         await applyReceivedAppIconBadge({
           count: badge,
           key: badgeApplyKey(data, notification.request.identifier),

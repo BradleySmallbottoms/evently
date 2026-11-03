@@ -153,16 +153,23 @@ function RootLayoutBody() {
   }, [countActivation]);
 
   useEffect(() => {
-    if (Platform.OS !== 'web' && AppState.currentState === 'active') {
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    function clearIconBadge() {
+      if (Platform.OS === 'web') return;
       void clearAppIconBadge();
+      if (retry) clearTimeout(retry);
+      // The notification that woke the app can set the icon number after the
+      // first clear. A second pass removes it once that delivery has finished.
+      retry = setTimeout(() => {
+        if (AppState.currentState === 'active') void clearAppIconBadge();
+      }, 700);
     }
+    if (AppState.currentState === 'active') clearIconBadge();
     const sub = AppState.addEventListener('change', (next) => {
       const prev = appStateRef.current;
       appStateRef.current = next;
 
-      if (Platform.OS !== 'web' && next === 'active' && prev !== 'active') {
-        void clearAppIconBadge();
-      }
+      if (next === 'active' && prev !== 'active') clearIconBadge();
 
       if (next === 'background') {
         countedThisForegroundRef.current = false;
@@ -187,7 +194,10 @@ function RootLayoutBody() {
         if (current) void countActivation(current);
       })();
     });
-    return () => sub.remove();
+    return () => {
+      if (retry) clearTimeout(retry);
+      sub.remove();
+    };
   }, [countActivation]);
 
   const confirmIdentityReset = useCallback(async () => {
