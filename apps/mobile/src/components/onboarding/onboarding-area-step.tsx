@@ -192,9 +192,7 @@ export function OnboardingAreaStep({
                 borderTopColor: 'rgba(26, 26, 26, 0.08)',
               }}
             >
-              <AppText variant="caption" style={{ color: '#ff0000' }}>
-                {t('onboarding.areaSearchEmpty')}
-              </AppText>
+              <AppText variant="caption">{t('onboarding.areaSearchEmpty')}</AppText>
             </View>
           ) : null}
           {results.map((result, index) => {
