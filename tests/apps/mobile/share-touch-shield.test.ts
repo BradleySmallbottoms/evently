@@ -6,6 +6,7 @@ import {
   resetShareTouchShield,
   SHARE_TOUCH_SHIELD_RELEASE_MS,
   shareTouchShieldActive,
+  subscribeShareTouchShield,
 } from '../../../apps/mobile/src/lib/share-touch-shield';
 
 afterEach(() => {
@@ -29,6 +30,23 @@ describe('share touch shield', () => {
     expect(shareTouchShieldActive()).toBe(true);
     vi.advanceTimersByTime(1);
     expect(shareTouchShieldActive()).toBe(false);
+  });
+
+  it('tells the cover when to show and when to drop', () => {
+    vi.useFakeTimers();
+    const listener = vi.fn();
+    const unsubscribe = subscribeShareTouchShield(listener);
+    expect(listener).toHaveBeenLastCalledWith(false);
+
+    armShareTouchShield();
+    expect(listener).toHaveBeenLastCalledWith(true);
+
+    releaseShareTouchShield();
+    expect(listener).toHaveBeenLastCalledWith(true);
+    vi.advanceTimersByTime(SHARE_TOUCH_SHIELD_RELEASE_MS);
+    expect(listener).toHaveBeenLastCalledWith(false);
+
+    unsubscribe();
   });
 
   it('stays up when another share starts during the release delay', () => {
