@@ -24,6 +24,7 @@ import {
 
 const LAST_TOKEN_KEY = 'le.expoPushToken';
 const ANDROID_CHANNEL = 'inbox';
+const BADGE_CLEAR = 'badge-clear';
 const presentedInboxIds = new Set<string>();
 const appliedBadgeKeys = new Set<string>();
 /** Bumped when the icon badge is cleared so a late push cannot restore it. */
@@ -57,6 +58,15 @@ async function writeLastToken(token: string): Promise<void> {
   await SecureStore.setItemAsync(LAST_TOKEN_KEY, token);
 }
 
+/** Our local clear. A remote push that copies this kind must not set the icon. */
+function isLocalBadgeClear(notification: Notifications.Notification): boolean {
+  const data = notification.request.content.data ?? {};
+  const trigger = notification.request.trigger;
+  const remote =
+    trigger != null && typeof trigger === 'object' && 'type' in trigger && trigger.type === 'push';
+  return data.kind === 'badge_clear' && !remote && notification.request.identifier === BADGE_CLEAR;
+}
+
 /**
  * Reminders and notifications that already have alert text are shown, including
  * while the app is open. Silent inbox pushes have no title; a local notification
@@ -65,8 +75,10 @@ async function writeLastToken(token: string): Promise<void> {
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const data = notification.request.content.data ?? {};
+    const clearOnly = isLocalBadgeClear(notification);
     const tipWhileOpen = data.kind === 'tip_scan' && AppState.currentState === 'active';
     const show =
+      !clearOnly &&
       !tipWhileOpen &&
       (data.kind === 'reminder' ||
         data.kind === 'local_inbox' ||
@@ -84,9 +96,9 @@ Notifications.setNotificationHandler({
       shouldShowBanner: show,
       shouldShowList: show,
       shouldPlaySound: show,
-      // The push payload sets the icon while the app is away. Opening the app clears it,
-      // so a notification presented in the foreground must not write the number back.
-      shouldSetBadge: false,
+      // A badge of 0 is the clear. Any other foreground notification must not
+      // write the icon number back.
+      shouldSetBadge: clearOnly,
     };
   },
 });
@@ -251,20 +263,48 @@ export async function presentSilentInboxNotification(
 }
 
 async function writeAppIconBadge(count: number): Promise<void> {
-  await Notifications.setBadgeCountAsync(count);
+  const cleared = await Notifications.setBadgeCountAsync(count);
+  if (!cleared && count === 0) {
+    console.warn('clear notification badge rejected by the OS');
+  }
+}
+
+/**
+ * iOS 16+ ignores setBadgeCount(0) while the app is open if a delivered
+ * notification still carries a badge. A local notification whose badge is 0
+ * is the update the system does apply.
+ */
+async function forceIconBadgeZero(): Promise<void> {
+  if (Platform.OS !== 'ios') return;
+  const id = await Notifications.scheduleNotificationAsync({
+    identifier: BADGE_CLEAR,
+    content: {
+      badge: 0,
+      sound: false,
+      data: { kind: 'badge_clear' },
+    },
+    trigger: null,
+  });
+  await Notifications.dismissNotificationAsync(id);
 }
 
 /** Clears the app icon badge. No-op on web and when the OS rejects the update. */
-export async function clearAppIconBadge(): Promise<void> {
+export async function clearAppIconBadge(options?: { dismissDelivered?: boolean }): Promise<void> {
   if (Platform.OS === 'web') return;
   badgeEpoch += 1;
   const epoch = badgeEpoch;
+  const dismissDelivered = options?.dismissDelivered === true;
   try {
     await enqueueBadgeWrite(async () => {
       if (epoch !== badgeEpoch) return;
       // iOS keeps the icon number from a delivered notification that still
-      // carries a badge. Removing those notifications lets the clear stick.
-      if (Platform.OS === 'ios') await Notifications.dismissAllNotificationsAsync();
+      // carries a badge. Opening the app removes those. A banner that arrives
+      // while the app is already open stays in Notification Center.
+      if (dismissDelivered && Platform.OS === 'ios') {
+        await Notifications.dismissAllNotificationsAsync();
+      }
+      await writeAppIconBadge(0);
+      await forceIconBadgeZero();
       await writeAppIconBadge(0);
     });
   } catch (err) {
@@ -332,6 +372,7 @@ export function subscribeSilentPushHandlers(handlers: SilentPushHandlers): () =>
   const sub = Notifications.addNotificationReceivedListener((notification) => {
     void (async () => {
       const data = (notification.request.content.data ?? {}) as InboxPushData;
+      if (isLocalBadgeClear(notification)) return;
       pushDebug('listener', {
         kind: data.kind ?? null,
         title: data.title ?? data.eventTitle ?? null,

@@ -249,7 +249,9 @@ export function OnboardingAreaStep({
                   paddingVertical: space.sm + 2,
                   borderRadius: radius.pill,
                   borderCurve: 'continuous',
-                  backgroundColor: selected ? colors.accent : 'rgba(255,255,255,0.94)',
+                  backgroundColor: selected ? colors.accent : colors.card,
+                  borderWidth: selected ? 0 : 1,
+                  borderColor: colors.line,
                 }}
               >
                 <AppText

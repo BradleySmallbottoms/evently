@@ -156,12 +156,14 @@ function RootLayoutBody() {
     let retry: ReturnType<typeof setTimeout> | undefined;
     function clearIconBadge() {
       if (Platform.OS === 'web') return;
-      void clearAppIconBadge();
+      void clearAppIconBadge({ dismissDelivered: true });
       if (retry) clearTimeout(retry);
       // The notification that woke the app can set the icon number after the
       // first clear. A second pass removes it once that delivery has finished.
       retry = setTimeout(() => {
-        if (AppState.currentState === 'active') void clearAppIconBadge();
+        if (AppState.currentState === 'active') {
+          void clearAppIconBadge({ dismissDelivered: true });
+        }
       }, 700);
     }
     if (AppState.currentState === 'active') clearIconBadge();
@@ -172,6 +174,7 @@ function RootLayoutBody() {
       if (next === 'active' && prev !== 'active') clearIconBadge();
 
       if (next === 'background') {
+        void clearAppIconBadge();
         countedThisForegroundRef.current = false;
         sawBackgroundRef.current = true;
         return;
