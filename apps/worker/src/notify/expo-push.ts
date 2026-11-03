@@ -6,6 +6,8 @@ export type ExpoPushMessage = {
   data?: Record<string, string>;
   sound?: 'default' | null;
   badge?: number;
+  /** Android notification channel. The app creates `inbox` at high importance. */
+  channelId?: string;
   /** iOS content-available / background delivery. */
   _contentAvailable?: boolean;
   priority?: 'default' | 'normal' | 'high';

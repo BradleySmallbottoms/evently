@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { InboxTipSheet } from '@/components/native/inbox-tip-sheet';
@@ -12,7 +12,7 @@ import { AppText } from '@/components/ui/app-text';
 import { BackPill } from '@/components/ui/back-pill';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ensureIdentity } from '@/lib/identity';
-import { markNotificationsSeen } from '@/lib/notification-badge';
+import { markNotificationsSeenNow } from '@/lib/notification-badge';
 import { deleteNotification, listNotifications } from '@/lib/notifications';
 import { openInboxItem, type InboxTipTarget } from '@/lib/open-inbox-item';
 import { getPreferences, updateQuietHours } from '@/lib/preferences';
@@ -28,6 +28,7 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inboxTip, setInboxTip] = useState<InboxTipTarget | null>(null);
   const identity = useQuery({
@@ -50,7 +51,7 @@ export default function NotificationsScreen() {
   useEffect(() => {
     if (unreadCount == null) return;
     let cancelled = false;
-    void markNotificationsSeen(unreadCount).then(() => {
+    void markNotificationsSeenNow().then(() => {
       if (!cancelled) void queryClient.invalidateQueries({ queryKey: ['notifications-seen'] });
     });
     return () => {
@@ -85,6 +86,16 @@ export default function NotificationsScreen() {
       void queryClient.invalidateQueries({ queryKey: ['notifications', identity.data?.userId] });
     },
   });
+  async function refreshInbox() {
+    if (!identity.data) return;
+    setRefreshing(true);
+    try {
+      await inbox.refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   const quietHours = useMutation({
     mutationFn: async (enabled: boolean) => {
       const id = identity.data;
@@ -160,18 +171,32 @@ export default function NotificationsScreen() {
           </AppText>
         ) : null}
       </View>
-      {inbox.isPending ? (
-        <AppText variant="caption" style={{ paddingHorizontal: space.xl }}>
-          {t('events.notificationsLoading')}
-        </AppText>
-      ) : items.length === 0 ? (
-        <View style={{ paddingHorizontal: space.xl }}>
-          <EmptyState title={t('events.notifications')} body={t('events.notificationsEmpty')} />
-        </View>
+      {inbox.isPending || items.length === 0 ? (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: space.xl }}
+          alwaysBounceVertical
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                void refreshInbox();
+              }}
+              tintColor={colors.accent}
+            />
+          }
+        >
+          {inbox.isPending ? (
+            <AppText variant="caption">{t('events.notificationsLoading')}</AppText>
+          ) : (
+            <EmptyState title={t('events.notifications')} body={t('events.notificationsEmpty')} />
+          )}
+        </ScrollView>
       ) : (
         <ActionList
           editLabel={t('lists.edit')}
           deleteLabel={t('lists.delete')}
+          onRefresh={refreshInbox}
           items={items.map((item) => {
             const reason =
               item.reason === 'publisher'

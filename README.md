@@ -560,9 +560,8 @@ calls) in the same change as every new major feature.**
   `DOMAIN_EVENTS_QUEUE_URL`, APIs keep events in-process and the worker idles.
 - Worker fan-out: nearby (covering area ∩ that area’s tags) plus publisher followers on every
   event notification → always insert. Rules: [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md).
-  `notifications` inbox row → silent Expo push (data + badge, no alert). The client sets the
-  icon badge from that count when the push arrives and clears it when the app becomes active. A banner is a local notification
-  the app posts (including while it is open), only outside quiet hours and under the 5/day cap.
+  `notifications` inbox row → Expo push (visible alert outside quiet hours, badge and data only during quiet hours). The client sets the
+  icon badge from that count when the push arrives and clears it when the app becomes active. The phone shows the banner from the alert. A banner the app itself posts stays outside quiet hours and under the 5/day cap.
   Tapping a notification that carries an event id opens that event. iOS needs
   `enableBackgroundRemoteNotifications` (a new native build) or the background task never runs
   and a banner appears only while the app is open. Inbox list/badge via

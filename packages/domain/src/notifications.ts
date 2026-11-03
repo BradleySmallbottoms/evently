@@ -95,7 +95,8 @@ export function localDayKey(now: Date, timezone: string): string {
 
 /**
  * Whether the mobile app should post a local OS notification after a silent push.
- * Cap + quiet hours are client-only. Foreground still presents the banner.
+ * Cap + quiet hours decide a banner the app posts itself. A visible alert from the worker
+ * shows on the phone without that step. Foreground still presents the banner.
  */
 export function shouldPresentOsNotification(input: {
   now: Date;

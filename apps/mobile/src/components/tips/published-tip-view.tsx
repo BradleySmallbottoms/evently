@@ -57,7 +57,7 @@ function TipMessage({ message }: { message: string }) {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: colors.background,
+        backgroundColor: colors.canvas,
         padding: space.xl,
       }}
     >

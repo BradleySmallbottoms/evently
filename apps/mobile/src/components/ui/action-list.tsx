@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Pressable, ScrollView, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { AppText } from '@/components/ui/app-text';
@@ -19,16 +20,32 @@ export function ActionList({
   items,
   editLabel,
   deleteLabel,
+  onRefresh,
 }: {
   items: readonly ActionListItem[];
   editLabel: string;
   deleteLabel: string;
+  onRefresh?: () => Promise<void>;
 }) {
+  const [refreshing, setRefreshing] = useState(false);
   if (items.length === 0) return null;
   return (
     <ScrollView
       style={{ flex: 1 }}
       contentInsetAdjustmentBehavior="automatic"
+      alwaysBounceVertical
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              void onRefresh().finally(() => setRefreshing(false));
+            }}
+            tintColor={colors.accent}
+          />
+        ) : undefined
+      }
       contentContainerStyle={{
         paddingHorizontal: space.xl,
         paddingTop: space.md,

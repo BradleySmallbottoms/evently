@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { AppState } from 'react-native';
 
 import { ensureIdentity } from '@/lib/identity';
-import { loadNotificationsSeenCount } from '@/lib/notification-badge';
+import { loadNotificationsSeenAt } from '@/lib/notification-badge';
+import { unreadSince } from '@/lib/unread-since';
 import { listNotifications } from '@/lib/notifications';
 
-/** True when the inbox has notifications the user has not opened yet. */
+/** True when an unread inbox row arrived after the list was last opened. */
 export function useHasUnreadNotifications(): { hasUnread: boolean; numUnread: number } {
   const { i18n } = useTranslation();
   const locale = i18n.language === 'en' ? 'en' : 'sv';
@@ -20,10 +21,11 @@ export function useHasUnreadNotifications(): { hasUnread: boolean; numUnread: nu
     queryKey: ['notifications', identity.data?.userId],
     enabled: identity.isSuccess,
     queryFn: () => listNotifications(identity.data!),
+    refetchInterval: 15_000,
   });
   const seen = useQuery({
     queryKey: ['notifications-seen'],
-    queryFn: loadNotificationsSeenCount,
+    queryFn: loadNotificationsSeenAt,
   });
 
   useEffect(() => {
@@ -34,10 +36,9 @@ export function useHasUnreadNotifications(): { hasUnread: boolean; numUnread: nu
     return () => sub.remove();
   }, [queryClient]);
 
-  const unread = inbox.data?.unreadCount ?? 0;
-  const seenCount = seen.data ?? 0;
+  const numUnread = unreadSince(inbox.data?.items ?? [], seen.data ?? null);
   return {
-    hasUnread: inbox.isSuccess && seen.isSuccess && unread > seenCount,
-    numUnread: unread - seenCount,
+    hasUnread: inbox.isSuccess && seen.isSuccess && numUnread > 0,
+    numUnread,
   };
 }

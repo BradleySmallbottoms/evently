@@ -2,8 +2,9 @@
 
 The worker picks recipients when it sends an approved `push_messages` row, not when the
 event is published. It re-reads areas, area tags, and follows at that moment, writes one
-inbox row per selected user, then sends a silent Expo push to that user’s devices that
-have a token.
+inbox row per selected user, then sends an Expo push to that user’s devices that
+have a token. Outside quiet hours the push is a visible alert. During quiet hours it
+carries the badge and the inbox data only.
 
 Publishing only creates the draft. `event.published` updates publisher stats. A message
 is sent only when it is `approved`, its `send_at` is due (or empty), and — for an event
@@ -11,8 +12,8 @@ message — the event is `published`. `pending`, `rejected`, and `cancelled` mes
 not sent. A user who changes areas, area tags, or follows after the draft was created is
 included or left out based on the data at send time.
 
-Quiet hours and the 5-per-day cap do not change this set. They only decide whether the
-phone shows a banner after the push arrives.
+Quiet hours decide whether that push includes an alert. The 5-per-day cap does not change
+who is selected. It only limits a banner the phone posts itself.
 
 There is no account-wide interest list. Tags that decide a nearby notification live on
 the saved area (`user_area_tags`).
@@ -39,7 +40,8 @@ publisher, so a follow does not add anyone there.
 A tip notice is `kind` `tip` and `audience` `user`. The worker claims it on the next tick even
 when the linked event is still `in_review` (or when there is no event yet). It is not aggregated
 with other messages. The tick writes one inbox row and sends a visible `tip_scan` push, so quiet
-hours and the daily cap on the phone do not hide it. Event and broadcast messages stay silent.
+hours and the daily cap on the phone do not hide it. Event and broadcast messages are a visible alert outside quiet hours, and badge-only during
+quiet hours.
 
 ```mermaid
 flowchart TD
@@ -105,8 +107,8 @@ queries have no ordering, so a path that hits the cap drops an arbitrary remaind
 Broadcasts return at most **5,000** users.
 
 Selection is per user. A push token is not required to be selected: the inbox row is
-stored either way. The silent push then goes to that user’s devices that are not revoked
-and have an Expo token.
+stored either way. The push then goes to that user’s devices that are not revoked
+and have an Expo token. Outside quiet hours it is a visible alert.
 
 The same user is not given a second inbox row for the same message and reason
 (`notifications` is unique on user, push message, and reason). A delivery already marked

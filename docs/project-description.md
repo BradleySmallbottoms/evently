@@ -352,10 +352,11 @@ Any linked device can be revoked.
    same area. Events without a point skip nearby. Publisher followers are added on every event
    notification (nearby wins when both match). Cap 500 per path.
 4. Per-user aggregation: if another matching approved message is due within 10 minutes, defer
-   and later send one silent push with the earliest copy plus “And N more…”.
+   and later send one push with the earliest copy plus “And N more…”.
 5. Insert `notifications` inbox rows only at send time (unique user + push_message + reason).
-   Silent Expo push to devices with tokens; quiet hours and the 5/day OS cap stay on the client.
-   The client posts the banner in the foreground as well as the background. A tap that carries
+   Outside quiet hours the Expo push is a visible alert, so the phone shows a banner without
+   the app running. During quiet hours the push carries the badge and the inbox data only.
+   The 5/day cap still limits a banner the app itself posts. A tap that carries
    an event id opens that event. The push sets the app icon badge; opening the app clears it.
 6. After a message is sent, a publisher may create a new draft for an update. An admin may schedule
    reminders for a draft, in-review, awaiting-verification, or published event

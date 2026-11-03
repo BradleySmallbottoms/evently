@@ -22,6 +22,7 @@ import {
   listRowInsets,
   listRowSeparatorTint,
   listStyle,
+  refreshable,
   scrollContentBackground,
   tint,
 } from '@expo/ui/swift-ui/modifiers';
@@ -39,10 +40,12 @@ export function ActionList({
   items,
   editLabel,
   deleteLabel,
+  onRefresh,
 }: {
   items: readonly ActionListItem[];
   editLabel: string;
   deleteLabel: string;
+  onRefresh?: () => Promise<void>;
 }) {
   if (items.length === 0) return null;
   return (
@@ -53,6 +56,7 @@ export function ActionList({
           scrollContentBackground('hidden'),
           background(colors.canvas),
           ignoreSafeArea({ edges: 'top' }),
+          ...(onRefresh ? [refreshable(onRefresh)] : []),
         ]}
       >
         <Section>

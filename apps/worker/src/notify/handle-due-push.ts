@@ -1,6 +1,7 @@
 import {
   BROADCAST_MATCH_LIMIT,
   bundledPushPresentation,
+  isWithinQuietHours,
   PUSH_AGGREGATION_WINDOW_MS,
   type PushBundleItem,
 } from '@local-events/domain';
@@ -8,6 +9,7 @@ import type { Db } from '@local-events/db';
 import { schema } from '@local-events/db';
 import { and, asc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { isPushDryRun, type ExpoPushClient, type ExpoPushMessage } from './expo-push';
+import { inboxExpoMessage } from './inbox-push';
 import { visibleTipPush } from './handle-tip';
 import {
   clearExpoPushToken,
@@ -451,6 +453,24 @@ async function deliverBundleToUser(
   }
 
   const unread = await countUnreadNotifications(deps.db, input.userId);
+  const [quiet] = await deps.db
+    .select({
+      timezone: schema.users.timezone,
+      enabled: schema.users.quietHoursEnabled,
+      startMin: schema.users.quietHoursStartMin,
+      endMin: schema.users.quietHoursEndMin,
+    })
+    .from(schema.users)
+    .where(eq(schema.users.id, input.userId))
+    .limit(1);
+  const alert = quiet
+    ? !isWithinQuietHours(input.now, {
+        enabled: quiet.enabled,
+        timezone: quiet.timezone,
+        startMin: quiet.startMin,
+        endMin: quiet.endMin,
+      })
+    : true;
   const bundleItems: PushBundleItem[] = input.bundle.map((m) => ({
     id: m.id,
     sendAt: m.sendAt,
@@ -462,8 +482,12 @@ async function deliverBundleToUser(
   const primary = input.bundle[0]!;
   const messages: ExpoPushMessage[] = devices.map((d) => {
     const presentation = bundledPushPresentation(d.locale, bundleItems);
-    return {
+    return inboxExpoMessage({
       to: d.expoPushToken,
+      title: presentation.title,
+      body: presentation.body,
+      badge: unread,
+      alert,
       data: {
         kind: 'inbox',
         notificationId: notificationIds[0] ?? '',
@@ -472,22 +496,18 @@ async function deliverBundleToUser(
         eventTitle: presentation.title,
         moreCount: String(presentation.moreCount),
         eventIds: input.bundle.flatMap((b) => (b.eventId ? [b.eventId] : [])).join(','),
-        // Client may use title/body from data when presenting local OS notification.
         title: presentation.title,
         body: presentation.body,
         badge: String(unread),
       },
-      badge: unread,
-      _contentAvailable: true,
-      priority: 'normal',
-    };
+    });
   });
 
   pushDebug({
     step: 'expo_send',
     userId: input.userId,
     messageCount: messages.length,
-    silent: true,
+    silent: !alert,
     title: messages[0]?.data?.title,
     body: messages[0]?.data?.body,
   });
@@ -544,7 +564,9 @@ async function deliverBundleToUser(
     userId: input.userId,
     expoOk: ok,
     note: ok
-      ? 'silent/data push accepted by Expo; OS banner only if mobile presents a local notification'
+      ? alert
+        ? 'visible alert accepted by Expo; the phone shows the banner'
+        : 'quiet hours: badge and data only, no banner'
       : 'no successful Expo tickets',
   });
   return ok ? 1 : 0;
@@ -883,7 +905,9 @@ async function flushOrphanDeferred(deps: HandleDuePushDeps, now: Date): Promise<
 
 /**
  * Poll due approved push messages. Event and broadcast messages aggregate per
- * user within 10 minutes, then write inbox rows and send a silent Expo push.
+ * user within 10 minutes, then write inbox rows and send an Expo push. Outside
+ * quiet hours that push is a visible alert. During quiet hours it is the badge
+ * and the inbox data only.
  * A tip message goes to one user on this tick as a visible `tip_scan` alert.
  */
 export async function handleDuePushMessages(

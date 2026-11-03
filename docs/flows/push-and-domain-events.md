@@ -3,7 +3,9 @@
 Mobile registers an Expo push token on the device row. Publishing (or submitting) an event
 creates a **`push_messages` draft**. Trusted publishers auto-approve; others wait for admin
 approval. An optional `send_at` schedules delivery. The worker polls due approved messages,
-resolves audience at send time, writes inbox rows, and sends a **silent/data Expo push**.
+resolves audience at send time, writes inbox rows, and sends an **Expo push**. Outside
+quiet hours that push is a visible alert. During quiet hours it is the badge and the inbox
+data only.
 Per-user aggregation defers when another matching message is due within 10 minutes, then
 combines copy (“And N more…”). Quiet hours and the daily OS-notification cap stay on the
 client. A tip notice is the same table (`kind` `tip`, `audience` `user`, `send_at` null) and
@@ -32,7 +34,7 @@ sequenceDiagram
     Worker->>DB: claim due approved messages
     Worker->>DB: match users; defer if another due ≤10m
     Worker->>DB: insert notifications inbox rows
-    Worker->>Worker: Silent Expo push (data + badge)
+    Worker->>Worker: Expo push (alert, or badge only in quiet hours)
   end
 
   Note over Mobile: Cap + quiet hours on device, including in the foreground
@@ -54,7 +56,7 @@ sequenceDiagram
 | Admin event notification | `POST /push-messages/event` creates a reminder for a draft, in-review, awaiting-verification, or published event. It is `approved` when the event is already published and `pending` until then. Publishing the event approves those pending rows. The worker sends only an `approved` message whose event is `published`. Audience is `area` (saved notify area covers the point) or `area_and_tag` (that covering area has a shared tag). Publisher followers are included in both. Several may be scheduled for one event. Optional `send_at` and copy. `POST /push-messages/event-plan` creates the whole reviewed plan at once. The publisher's single open draft stays `event_match` and is not replaced by these reminders. |
 | Admin broadcast          | `POST /push-messages/broadcast` creates an approved row (`everyone` or `tag_interest`); optional `send_at`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | Event cancelled          | Cancel open draft; cancel undelivered deliveries.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Worker send              | Inbox + silent push; status `sent`. Broadcast inbox rows have `event_id` null and reason `broadcast`. With `PUSH_DRY_RUN=1` the worker still writes the inbox row and `push_message_deliveries` (`status = dry_run`) and does not call Expo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Worker send              | Inbox + Expo push; status `sent`. Outside quiet hours the push is a visible alert. During quiet hours it is the badge and the inbox data only. Broadcast inbox rows have `event_id` null and reason `broadcast`. With `PUSH_DRY_RUN=1` the worker still writes the inbox row and `push_message_deliveries` (`status = dry_run`) and does not call Expo.                                                                                                                                                                                                                                                                                                                                                                            |
 | Sent history             | Admin `GET /events/{id}/sent-notifications` and publisher `GET /manage/events/{id}/sent-notifications` list messages in `sending` or `sent` for that event, with a distinct inbox-recipient count. Open drafts stay on the draft endpoints.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ## Aggregation (per user)
@@ -64,13 +66,15 @@ When delivering message **M** to user **U**, if another approved message matchin
 re-check the window; if clear, deliver the bundle: one inbox row per message, one Expo push
 with the earliest copy plus “And N more…”.
 
-## Quiet hours and daily cap (client-only)
+## Quiet hours and daily cap
 
 - Defaults: enabled, 22:00–08:00 in the user’s timezone (`Europe/Stockholm` at launch).
-- Backend always stores the inbox row at send time and attempts a silent Expo push (when a
-  token exists).
-- Mobile may post a local OS notification only outside quiet hours and under the 5/day cap.
-  That includes while the app is in the foreground.
+- Backend always stores the inbox row at send time and attempts an Expo push (when a
+  token exists). Outside quiet hours the payload is a visible alert, so the phone shows a
+  banner without the app running. During quiet hours the payload is the badge and the data
+  only.
+- A banner the app itself posts, for a push that has no alert text, stays outside quiet hours
+  and under the 5/day cap. That includes while the app is in the foreground.
 - That local banner is posted from the foreground listener, or from a headless task
   (`expo-task-manager`) when the app is backgrounded or terminated, because a data-only
   push does not show a system banner. iOS delivers the task only when `UIBackgroundModes` includes

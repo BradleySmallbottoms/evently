@@ -2,6 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { type ReactNode } from 'react';
 import Animated, { useReducedMotion, withSpring } from 'react-native-reanimated';
 
+import { useSchemeKey } from '@/lib/appearance-context';
 import { colors } from '@/theme/colors';
 
 import { PublishedTipView } from '@/components/tips/published-tip-view';
@@ -31,10 +32,12 @@ export default function PublishedTipScreen() {
 
 function ThankYouModal({ children }: { children: ReactNode }) {
   const reduced = useReducedMotion();
+  const paint = useSchemeKey();
   return (
     <Animated.View
+      key={paint}
       entering={reduced ? undefined : thankYouBounce}
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1, backgroundColor: colors.canvas }}
     >
       {children}
     </Animated.View>

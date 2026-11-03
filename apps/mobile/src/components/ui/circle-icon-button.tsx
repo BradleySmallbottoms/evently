@@ -70,20 +70,23 @@ export function CircleIconButton({
         ) : (
           <MaterialIcons name={md} size={iconSize ?? 22} color={tint} />
         )}
-        {badge ? (
-          <View
-            style={{
-              position: 'absolute',
-              top: 10,
-              right: 11,
-              width: 8,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: colors.accent,
-            }}
-          />
-        ) : null}
       </Pressable>
+      {badge ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 6,
+            right: 6,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: colors.danger,
+            borderWidth: 2,
+            borderColor: colors.card,
+          }}
+        />
+      ) : null}
     </View>
   );
 }

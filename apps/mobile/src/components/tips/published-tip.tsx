@@ -11,14 +11,11 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { EventImage } from '@/components/ui/event-image';
+import { useAppearance } from '@/lib/appearance-context';
 import { shareEventLink } from '@/lib/event-share';
 import { foundTipClock, foundTipDay } from '@/lib/tip-clock';
-import { colors } from '@/theme/colors';
+import { colors, palette } from '@/theme/colors';
 import { radius, shadow, space } from '@/theme/tokens';
-
-/** Filled button on the thank-you screen. Darker than the peach accent so the white label stays readable. */
-const TERRACOTTA = '#C47848';
-const TERRACOTTA_LINE = '#E7D4C4';
 
 type ShownEvent = {
   title: string;
@@ -57,7 +54,7 @@ export function PublishedTip({ tip, event }: { tip: Tip; event: ShownEvent | nul
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.canvas }}>
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + space.sm,
@@ -204,7 +201,7 @@ export function PublishedTip({ tip, event }: { tip: Tip; event: ShownEvent | nul
           style={{
             flexDirection: 'row',
             gap: space.md,
-            backgroundColor: '#FBF6F1',
+            backgroundColor: colors.accentSoft,
             borderRadius: radius.lg,
             borderCurve: 'continuous',
             padding: space.lg,
@@ -267,7 +264,7 @@ function ActionButton({
   disabled?: boolean;
   onPress: () => void;
 }) {
-  const color = filled ? '#FFFFFF' : TERRACOTTA;
+  const color = filled ? colors.onFill : colors.primary;
   const icon = <Glyph sf={sf} md={md} color={color} size={18} />;
   return (
     <Pressable
@@ -281,9 +278,9 @@ function ActionButton({
         minHeight: 52,
         borderRadius: radius.xl,
         borderCurve: 'continuous',
-        backgroundColor: filled ? TERRACOTTA : colors.card,
+        backgroundColor: filled ? colors.primary : colors.card,
         borderWidth: filled ? 0 : 1.5,
-        borderColor: TERRACOTTA_LINE,
+        borderColor: colors.line,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -316,21 +313,41 @@ function Glyph({
 }
 
 function PaperPlane() {
+  const { scheme } = useAppearance();
+  const brand = palette.brand;
+  const plane =
+    scheme === 'dark'
+      ? {
+          sparkle: brand.berryMuted,
+          sparkleDeep: brand.berryLight,
+          wing: brand.berryLight,
+          fold: brand.berry,
+          tail: brand.berryDark,
+          inner: brand.berryMuted,
+        }
+      : {
+          sparkle: brand.berryMuted,
+          sparkleDeep: brand.berry,
+          wing: brand.berrySubtle,
+          fold: brand.berryLight,
+          tail: brand.berry,
+          inner: brand.berryMuted,
+        };
   return (
     <View style={{ height: 132, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={176} height={132} viewBox="0 0 176 132">
-        <Path d={sparkle(34, 42, 8)} fill="#F0C27A" />
-        <Path d={sparkle(52, 86, 5)} fill="#E8B56A" />
-        <Path d={sparkle(138, 24, 7)} fill="#F0C27A" />
-        <Path d={sparkle(156, 58, 4)} fill="#E8B56A" />
-        <Path d="M42 84 L138 36 L90 102 Z" fill="#F6C98A" />
-        <Path d="M90 102 L114 64 L138 36 Z" fill="#E7A15C" />
-        <Path d="M90 102 L76 118 L114 64 Z" fill="#D08A4C" />
-        <Path d="M72 74 L114 64 L90 102 Z" fill="#F3B56A" />
+        <Path d={sparkle(34, 42, 8)} fill={plane.sparkle} />
+        <Path d={sparkle(52, 86, 5)} fill={plane.sparkleDeep} />
+        <Path d={sparkle(138, 24, 7)} fill={plane.sparkle} />
+        <Path d={sparkle(156, 58, 4)} fill={plane.sparkleDeep} />
+        <Path d="M42 84 L138 36 L90 102 Z" fill={plane.wing} />
+        <Path d="M90 102 L114 64 L138 36 Z" fill={plane.fold} />
+        <Path d="M90 102 L76 118 L114 64 Z" fill={plane.tail} />
+        <Path d="M72 74 L114 64 L90 102 Z" fill={plane.inner} />
         <Circle cx="132" cy="98" r="16" fill={colors.success} />
         <Path
           d="M124 98.5 L129.5 104 L141 91"
-          stroke="#FFFFFF"
+          stroke={colors.onFill}
           strokeWidth={2.6}
           fill="none"
           strokeLinecap="round"

@@ -1,10 +1,11 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-/** Highest unread count the user has already opened the inbox for. */
-export const NOTIFICATIONS_SEEN_KEY = 'le.notificationsSeenCount';
+/** When the user last opened the notification list. */
+export const NOTIFICATIONS_SEEN_AT_KEY = 'le.notificationsSeenAt';
 
 async function readItem(key: string): Promise<string | null> {
+  // A UI timestamp, not a credential. On web it lives in localStorage.
   if (Platform.OS === 'web') return globalThis.localStorage?.getItem(key) ?? null;
   return SecureStore.getItemAsync(key);
 }
@@ -17,16 +18,13 @@ async function writeItem(key: string, value: string): Promise<void> {
   await SecureStore.setItemAsync(key, value);
 }
 
-export async function loadNotificationsSeenCount(): Promise<number> {
-  const raw = await readItem(NOTIFICATIONS_SEEN_KEY);
-  const count = Number(raw);
-  return Number.isFinite(count) && count >= 0 ? count : 0;
+export async function loadNotificationsSeenAt(): Promise<string | null> {
+  const raw = await readItem(NOTIFICATIONS_SEEN_AT_KEY);
+  if (!raw || Number.isNaN(Date.parse(raw))) return null;
+  return raw;
 }
 
-/** Remember the inbox unread count so the profile-tab dot can clear. */
-export async function markNotificationsSeen(unreadCount: number): Promise<void> {
-  const next = Math.max(0, unreadCount);
-  const current = await loadNotificationsSeenCount();
-  if (next < current) return;
-  await writeItem(NOTIFICATIONS_SEEN_KEY, String(next));
+/** The list is open, so notifications already in it are not new. */
+export async function markNotificationsSeenNow(at: Date = new Date()): Promise<void> {
+  await writeItem(NOTIFICATIONS_SEEN_AT_KEY, at.toISOString());
 }

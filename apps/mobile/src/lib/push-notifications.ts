@@ -65,7 +65,6 @@ async function writeLastToken(token: string): Promise<void> {
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const data = notification.request.content.data ?? {};
-    const localInbox = data.kind === 'local_inbox';
     const tipWhileOpen = data.kind === 'tip_scan' && AppState.currentState === 'active';
     const show =
       !tipWhileOpen &&
@@ -81,15 +80,13 @@ Notifications.setNotificationHandler({
       showBanner: show,
     });
 
-    const badge = notification.request.content.badge;
     return {
       shouldShowBanner: show,
       shouldShowList: show,
       shouldPlaySound: show,
-      // The silent push already set the count. The local banner must not write it again
-      // after the app has opened and cleared the icon.
-      shouldSetBadge:
-        !localInbox && typeof badge === 'number' && Number.isFinite(badge) && badge >= 0,
+      // The push payload sets the icon while the app is away. Opening the app clears it,
+      // so a notification presented in the foreground must not write the number back.
+      shouldSetBadge: false,
     };
   },
 });
@@ -226,13 +223,11 @@ export async function presentSilentInboxNotification(
     const copy = bodyFromPush
       ? { title, body: bodyFromPush }
       : localNotificationCopy(locale, title, data.reason ?? 'nearby');
-    const badge = finiteContentBadge(overrides?.badge);
     await Notifications.scheduleNotificationAsync({
       content: {
         title: copy.title,
         body: copy.body,
         sound: true,
-        ...(badge != null ? { badge } : {}),
         data: {
           kind: 'local_inbox',
           notificationId: data.notificationId ?? '',
@@ -255,12 +250,6 @@ export async function presentSilentInboxNotification(
   }
 }
 
-function finiteContentBadge(value: number | null | undefined): number | null {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0
-    ? Math.floor(value)
-    : null;
-}
-
 async function writeAppIconBadge(count: number): Promise<void> {
   await Notifications.setBadgeCountAsync(count);
 }
@@ -273,6 +262,9 @@ export async function clearAppIconBadge(): Promise<void> {
   try {
     await enqueueBadgeWrite(async () => {
       if (epoch !== badgeEpoch) return;
+      // iOS keeps the icon number from a delivered notification that still
+      // carries a badge. Removing those notifications lets the clear stick.
+      if (Platform.OS === 'ios') await Notifications.dismissAllNotificationsAsync();
       await writeAppIconBadge(0);
     });
   } catch (err) {
@@ -327,8 +319,9 @@ export async function applyReceivedAppIconBadge(input: AppIconBadgeInput): Promi
 }
 
 /**
- * Foreground listener for silent inbox pushes. Refreshes callers and may post
- * a local banner. Background and terminated delivery is handled by the headless task.
+ * Foreground listener for inbox pushes. Refreshes the list and may post a local
+ * banner. While the app is open the icon badge stays clear. Background and
+ * terminated delivery is handled by the headless task.
  */
 export function subscribeSilentPushHandlers(handlers: SilentPushHandlers): () => void {
   if (Platform.OS === 'web') return () => {};
@@ -348,28 +341,33 @@ export function subscribeSilentPushHandlers(handlers: SilentPushHandlers): () =>
             contentBadge: notification.request.content.badge,
             data,
           });
-      if (!isLocalInboxPush(data)) {
+      // The icon number is for when the app is away. A notification delivered as
+      // the app opens must not put that number back.
+      if (AppState.currentState !== 'active' && !isLocalInboxPush(data)) {
         await applyReceivedAppIconBadge({
           count: badge,
           key: badgeApplyKey(data, notification.request.identifier),
-          allowWhileActive: true,
         });
       }
-      if (data.kind !== 'inbox') {
+      try {
+        if (data.kind !== 'inbox') {
+          handlers.onInboxPing(data);
+          return;
+        }
         handlers.onInboxPing(data);
-        return;
-      }
-      handlers.onInboxPing(data);
 
-      if (notification.request.content.title) {
-        pushDebug('present', { present: false, reason: 'remote_alert' });
-        return;
-      }
+        if (notification.request.content.title) {
+          pushDebug('present', { present: false, reason: 'remote_alert' });
+          return;
+        }
 
-      const quietHours = handlers.getQuietHours();
-      const locale = handlers.getLocale();
-      await cacheNotificationPresentationPrefs({ locale, quietHours });
-      await presentSilentInboxNotification(data, { quietHours, locale, badge });
+        const quietHours = handlers.getQuietHours();
+        const locale = handlers.getLocale();
+        await cacheNotificationPresentationPrefs({ locale, quietHours });
+        await presentSilentInboxNotification(data, { quietHours, locale, badge });
+      } finally {
+        if (AppState.currentState === 'active') await clearAppIconBadge();
+      }
     })();
   });
 

@@ -26,6 +26,7 @@ import { isHomeListReady } from '@/lib/home-splash';
 import { loadHomeTagIds, saveHomeTagIds } from '@/lib/home-tag-selection';
 import { retainedTagIds } from '@/lib/tag-groups';
 import { loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
+import { markNotificationsSeenNow } from '@/lib/notification-badge';
 import { listNotifications } from '@/lib/notifications';
 import { openInboxItem, type InboxTipTarget } from '@/lib/open-inbox-item';
 import { queryPointForArea } from '@/lib/area-point';
@@ -230,6 +231,18 @@ export default function HomeScreen() {
     queryFn: () => listNotifications(identity.data!),
     refetchInterval: notificationsOpen ? 15_000 : false,
   });
+  const inboxUnread = inbox.data?.unreadCount;
+
+  useEffect(() => {
+    if (!notificationsOpen || inboxUnread == null) return;
+    let cancelled = false;
+    void markNotificationsSeenNow().then(() => {
+      if (!cancelled) void queryClient.invalidateQueries({ queryKey: ['notifications-seen'] });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [inboxUnread, notificationsOpen, queryClient]);
 
   useEffect(() => {
     void bumpRegionActivity();
