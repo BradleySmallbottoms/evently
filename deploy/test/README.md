@@ -92,6 +92,12 @@ call Expo.
 Run the commands from `deploy/test`, or pass `-f deploy/test/docker-compose.yml` from the
 repo root. `up.sh` already does the first.
 
+From a checkout, `pnpm ingest:test` opens an SSH tunnel to `evently` (override with
+`TEST_SSH_HOST`) and runs the local importers, then the event scan,
+against this database. Images go to this server's Garage and domain events go to its queue.
+`--source <slug>` limits the import. `--limit <n>` limits each run. `--skip-import` and
+`--skip-scan` run only one half. The server repo is `~/evently` unless `TEST_REMOTE_DIR` is set.
+
 ## Updates
 
 ```bash

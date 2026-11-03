@@ -23,6 +23,7 @@
     "db:generate": "pnpm --filter @local-events/db db:generate",
     "db:migrate": "pnpm --filter @local-events/db db:migrate",
     "api-client:generate": "tsx apps/api/scripts/export-openapi.ts && pnpm --filter @local-events/api-client generate",
+    "ingest:test": "sh scripts/test-server-ingest.sh",
     "development:update": "pnpm --filter @local-events/mobile development:update",
     "staging:update": "pnpm --filter @local-events/mobile staging:update",
     "release:update": "pnpm --filter @local-events/mobile release:update"

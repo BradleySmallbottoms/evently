@@ -53,6 +53,7 @@ pnpm --filter @local-events/data-workers dev -- --job event-scan
 pnpm --filter @local-events/data-workers dev -- --job replay-scan --dry-run
 pnpm --filter @local-events/data-workers dev -- --job replay-scan --limit 20
 pnpm --filter @local-events/data-workers dev -- --job publisher-scan
+pnpm ingest:test   # SSH tunnel, then import and scan the test database
 pnpm api-client:generate   # after public API OpenAPI changes
 ```
 
