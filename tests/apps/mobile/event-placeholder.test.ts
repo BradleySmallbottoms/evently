@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { eventPlaceholderKind } from '../../../apps/mobile/src/lib/event-placeholder';
+import {
+  eventPlaceholderKind,
+  eventPlaceholderSlot,
+} from '../../../apps/mobile/src/lib/event-placeholder';
 
 describe('eventPlaceholderKind', () => {
   it('uses the concert image for music and performance tags', () => {
@@ -39,6 +42,15 @@ describe('eventPlaceholderKind', () => {
   it('follows tag order when an event has both a concert and a sport', () => {
     expect(eventPlaceholderKind(['Konsert', 'Fotboll'])).toBe('music');
     expect(eventPlaceholderKind(['Fotboll', 'Konsert'])).toBe('workout');
+  });
+
+  it('keeps one event on the same picture and spreads two events apart', () => {
+    const first = '11111111-1111-4111-8111-111111111111';
+    const second = '22222222-2222-4222-8222-222222222222';
+    expect(eventPlaceholderSlot(first, 3)).toBe(eventPlaceholderSlot(first, 3));
+    expect(eventPlaceholderSlot(first, 3)).not.toBe(eventPlaceholderSlot(second, 3));
+    expect(eventPlaceholderSlot(undefined, 3)).toBe(0);
+    expect(eventPlaceholderSlot(first, 1)).toBe(0);
   });
 
   it('lets a talk win over a broader exhibition tag', () => {

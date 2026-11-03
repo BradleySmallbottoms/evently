@@ -5,14 +5,38 @@ import { Platform, StyleSheet, View } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 
 import { API_URL } from '@/lib/api';
-import { eventPlaceholderKind, type EventPlaceholderKind } from '@/lib/event-placeholder';
+import {
+  eventPlaceholderKind,
+  eventPlaceholderSlot,
+  type EventPlaceholderKind,
+} from '@/lib/event-placeholder';
 
-const placeholders: Record<EventPlaceholderKind, number> = {
-  music: require('@/assets/images/placeholder-music.png'),
-  workout: require('@/assets/images/placeholder-workout.png'),
-  lecture: require('@/assets/images/placeholder-lecture.png'),
-  culture: require('@/assets/images/placeholder-culture.png'),
-  generic: require('@/assets/images/placeholder-generic.png'),
+const placeholders: Record<EventPlaceholderKind, number[]> = {
+  music: [
+    require('@/assets/images/placeholder-music.png'),
+    require('@/assets/images/placeholder-music-2.jpg'),
+    require('@/assets/images/placeholder-music-3.jpg'),
+  ],
+  workout: [
+    require('@/assets/images/placeholder-workout.png'),
+    require('@/assets/images/placeholder-workout-2.jpg'),
+    require('@/assets/images/placeholder-workout-3.jpg'),
+  ],
+  lecture: [
+    require('@/assets/images/placeholder-lecture.png'),
+    require('@/assets/images/placeholder-lecture-2.jpg'),
+    require('@/assets/images/placeholder-lecture-3.jpg'),
+  ],
+  culture: [
+    require('@/assets/images/placeholder-culture.png'),
+    require('@/assets/images/placeholder-culture-2.jpg'),
+    require('@/assets/images/placeholder-culture-3.jpg'),
+  ],
+  generic: [
+    require('@/assets/images/placeholder-generic.png'),
+    require('@/assets/images/placeholder-generic-2.jpg'),
+    require('@/assets/images/placeholder-generic-3.jpg'),
+  ],
 };
 
 /** Warm gray held until the photo is painted. A cold gray would flash against the canvas. */
@@ -24,8 +48,10 @@ type Props = {
   imageUrl?: string | null;
   /** Point that should stay in frame. A missing point stays centered. */
   focal?: ImageFocal | null;
-  /** Tag names. Used to choose a placeholder when the event has no photo. */
+  /** Tag names. Used to choose a placeholder scene when the event has no photo. */
   tags?: readonly string[];
+  /** Picks which picture in that scene this event keeps. */
+  eventId?: string | null;
   style?: ImageProps['style'];
 };
 
@@ -36,17 +62,18 @@ function imageUri(imageUrl: string): string {
 }
 
 /**
- * Event photo. A missing photo uses the tag placeholder. A photo that is still
+ * Event photo. A missing photo uses one picture from the tag's scene. A photo that is still
  * downloading keeps a gray field with a light sweep, then fades in.
  */
-export function EventImage({ imageUrl, focal, tags, style }: Props) {
+export function EventImage({ imageUrl, focal, tags, eventId, style }: Props) {
   const uri = imageUrl ? imageUri(imageUrl) : null;
   const reduced = useReducedMotion();
   const [loadedUri, setLoadedUri] = useState<string | null>(null);
   const [failedUri, setFailedUri] = useState<string | null>(null);
   const failed = uri != null && failedUri === uri;
   const ready = uri != null && loadedUri === uri && !failed;
-  const placeholder = placeholders[eventPlaceholderKind(tags)];
+  const scenes = placeholders[eventPlaceholderKind(tags)];
+  const placeholder = scenes[eventPlaceholderSlot(eventId, scenes.length)] ?? scenes[0];
   const showPhoto = uri != null && !failed;
 
   return (

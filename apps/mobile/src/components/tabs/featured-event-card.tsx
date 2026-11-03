@@ -20,6 +20,7 @@ type Props = {
   categoryId?: HomeTagGroupId;
   categoryLabel?: string;
   imageUrl?: string | null;
+  eventId?: string | null;
   tags?: string[];
   dateBadge?: { weekday: string; day: string; month: string } | null;
   saved?: boolean;
@@ -44,6 +45,7 @@ export function FeaturedEventCard({
   categoryId,
   categoryLabel,
   imageUrl,
+  eventId,
   tags = [],
   dateBadge,
   saved,
@@ -56,7 +58,7 @@ export function FeaturedEventCard({
     <View style={{ gap: 0 }}>
       <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress}>
         <View style={{ height: 210, borderRadius: radius.lg, overflow: 'hidden' }}>
-          <EventImage imageUrl={imageUrl} tags={tags} />
+          <EventImage imageUrl={imageUrl} tags={tags} eventId={eventId} />
           {dateBadge ? (
             <View style={{ position: 'absolute', left: space.md, top: space.md }}>
               <DateBox shadow badge={dateBadge} />

@@ -15,8 +15,8 @@ import { useReportHomeReady, useSplashDismissed } from '@/components/splash-cove
 import { AppText } from '@/components/ui/app-text';
 import { CircleIconButton } from '@/components/ui/circle-icon-button';
 import { SearchBar } from '@/components/ui/search-bar';
-import { HomeCategories } from './_components/home-categories';
-import { HomeFeatured } from './_components/home-featured';
+import { HomeCategories } from '@/components/tabs/home-categories';
+import { HomeFeatured } from '@/components/tabs/home-featured';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { api, throwIfError } from '@/lib/api';
 import { listTags, namesForTagIds } from '@/lib/events';

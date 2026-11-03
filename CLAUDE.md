@@ -363,9 +363,9 @@ Keep UI colocated by reuse scope. Apply the same idea on web, admin, and mobile.
 
 **Mobile (Expo Router)** under `apps/mobile/src/`:
 
+- Every file under `app/` is a route. Do not put components, helpers, or types there.
 - Reusable across screens → `components/` (`components/ui/`, chrome such as tabs/splash).
-- Unique to one screen → that route’s `_components/` folder (Expo private folder so it is not
-  a route; same role as Next `components/`), e.g. `app/events/[id]/_components/…`.
+- Unique to one screen → `components/<screen>/`, for example `components/event-detail/`.
 - `@expo/ui` / SwiftUI overlays stay in `components/native/**` (including `*.ios.tsx`), never
   under `app/`, even when only one screen uses them.
 
@@ -374,8 +374,8 @@ Keep UI colocated by reuse scope. Apply the same idea on web, admin, and mobile.
 1. Search the same app for an existing component that already does the job (or close enough).
 2. If it can be reused from another route, move/refactor it into `src/components` (or
    `components/ui` / `components/native` on mobile) and update imports.
-3. Do not leave a second copy under a route `components/` / `_components/` folder.
-4. Do not put route-only widgets in the shared `components/` tree.
+3. Do not leave a second copy under a route `components/` folder (web/admin) or a second screen folder (mobile).
+4. Do not put a widget used by one screen into `components/ui/`.
 
 ### Quality gates
 

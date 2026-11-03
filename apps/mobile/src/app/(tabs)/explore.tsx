@@ -32,8 +32,8 @@ import { useInfinitePublicEvents } from '@/lib/use-public-events';
 import { colors } from '@/theme/colors';
 import { radius, space } from '@/theme/tokens';
 
-import { ExploreCard } from './_components/explore-card';
-import { readEventVideoUrl } from './_components/explore-media';
+import { ExploreCard } from '@/components/tabs/explore-card';
+import { readEventVideoUrl } from '@/components/tabs/explore-media';
 
 function tagIdsFromParam(value: string | string[] | undefined): string[] {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -260,6 +260,7 @@ export default function ExploreScreen() {
                 })}
                 tags={namesForTagIds(item.tagIds, tags.data?.items)}
                 imageUrl={item.imageUrl}
+                eventId={item.id}
                 focal={item.imageFocal}
                 videoUrl={readEventVideoUrl(item)}
                 saved={shownSavedIds.has(item.id)}

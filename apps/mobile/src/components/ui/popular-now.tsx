@@ -77,7 +77,7 @@ export function PopularNow({ locale, items, onShowAll, onPress }: Props) {
                   backgroundColor: colors.accentSoft,
                 }}
               >
-                <EventImage imageUrl={item.imageUrl} tags={item.tags} />
+                <EventImage imageUrl={item.imageUrl} tags={item.tags} eventId={item.id} />
                 <View
                   pointerEvents="none"
                   style={{

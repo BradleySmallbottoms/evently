@@ -67,6 +67,7 @@ export function ParticipateSheet({
   title,
   when,
   imageUrl,
+  eventId,
   tags,
   joinLabel,
   joined,
@@ -82,6 +83,7 @@ export function ParticipateSheet({
   title: string;
   when: string;
   imageUrl?: string | null;
+  eventId?: string | null;
   tags?: string[];
   joinLabel: string;
   joined: boolean;
@@ -354,7 +356,7 @@ export function ParticipateSheet({
                   backgroundColor: colors.accentSoft,
                 }}
               >
-                <EventImage imageUrl={imageUrl} tags={tags} />
+                <EventImage imageUrl={imageUrl} tags={tags} eventId={eventId} />
               </View>
               <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
                 <AppText

@@ -85,6 +85,7 @@ function CategoryCard({
         <EventImage
           imageUrl={item.imageUrl}
           tags={item.tags}
+          eventId={item.id}
           style={{ width: '100%', height: '100%' }}
         />
         <View

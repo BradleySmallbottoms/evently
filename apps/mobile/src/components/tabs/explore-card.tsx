@@ -21,6 +21,7 @@ type Props = {
   where: string;
   tags: string[];
   imageUrl?: string | null;
+  eventId?: string | null;
   focal?: ImageFocal | null;
   videoUrl?: string | null;
   saved: boolean;
@@ -103,6 +104,7 @@ export function ExploreCard({
   where,
   tags,
   imageUrl,
+  eventId,
   focal,
   videoUrl,
   saved,
@@ -130,6 +132,7 @@ export function ExploreCard({
           imageUrl={imageUrl}
           focal={focal}
           tags={tags}
+          eventId={eventId}
           videoUrl={videoUrl}
           active={active}
         />

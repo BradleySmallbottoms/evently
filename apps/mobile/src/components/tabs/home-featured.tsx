@@ -70,6 +70,7 @@ export function HomeFeatured({ items, onPress }: Props) {
               <EventImage
                 imageUrl={item.imageUrl}
                 tags={item.tags}
+                eventId={item.id}
                 style={{ width: '100%', height: '100%' }}
               />
               <View

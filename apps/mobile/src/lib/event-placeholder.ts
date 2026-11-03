@@ -82,3 +82,14 @@ export function eventPlaceholderKind(tags: readonly string[] | undefined): Event
   }
   return culture ? 'culture' : 'generic';
 }
+
+/** Stable pick among the scenes for one category. The same event keeps the same picture. */
+export function eventPlaceholderSlot(eventId: string | null | undefined, count: number): number {
+  if (!eventId || count <= 1) return 0;
+  let hash = 2166136261;
+  for (let i = 0; i < eventId.length; i++) {
+    hash ^= eventId.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % count;
+}

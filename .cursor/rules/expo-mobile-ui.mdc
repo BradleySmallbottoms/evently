@@ -17,4 +17,5 @@ When building or changing UI in `apps/mobile`, always read and follow
   only in `src/components/**/*.ios.tsx` (never under `app/`)
 - Custom RN components for cards, search, chips, screens — not React Native Paper or shadcn
 - Component placement (see CLAUDE.md): shared → `src/components/` (`ui/`, chrome);
-  route-only → `app/<route>/_components/`; native overlays stay in `src/components/native/`
+  one screen → `src/components/<screen>/`. Every file under `app/` is a route.
+  Native overlays stay in `src/components/native/`

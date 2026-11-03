@@ -4,7 +4,7 @@ import Animated, { useReducedMotion, withSpring } from 'react-native-reanimated'
 
 import { colors } from '@/theme/colors';
 
-import { PublishedTipView } from '../_components/published-tip-view';
+import { PublishedTipView } from '@/components/tips/published-tip-view';
 
 /** Scale settle on top of the navigator fade. Reduced motion keeps that fade only. */
 function thankYouBounce() {

@@ -12,16 +12,17 @@ type Props = {
   imageUrl?: string | null;
   imageUrls?: readonly string[];
   tags?: readonly string[];
+  eventId?: string | null;
 };
 
-export function EventHeroGallery({ imageUrl, imageUrls, tags }: Props) {
+export function EventHeroGallery({ imageUrl, imageUrls, tags, eventId }: Props) {
   const { t } = useTranslation();
   const urls = heroImageUrls(imageUrl, imageUrls);
   const [frame, setFrame] = useState({ width: 0, height: 0 });
   const [index, setIndex] = useState(0);
 
   if (urls.length < 2) {
-    return <EventImage imageUrl={urls[0] ?? null} tags={tags} />;
+    return <EventImage imageUrl={urls[0] ?? null} tags={tags} eventId={eventId} />;
   }
 
   const page = Math.min(index, urls.length - 1);
@@ -64,12 +65,12 @@ export function EventHeroGallery({ imageUrl, imageUrls, tags }: Props) {
               })}
               style={{ width: frame.width, height: frame.height }}
             >
-              <EventImage imageUrl={url} tags={tags} />
+              <EventImage imageUrl={url} tags={tags} eventId={eventId} />
             </View>
           ))}
         </ScrollView>
       ) : (
-        <EventImage imageUrl={urls[0]} tags={tags} />
+        <EventImage imageUrl={urls[0]} tags={tags} eventId={eventId} />
       )}
       <View
         pointerEvents="none"

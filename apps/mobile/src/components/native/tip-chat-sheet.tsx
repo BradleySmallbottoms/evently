@@ -2,7 +2,7 @@ import { BottomSheet, Host } from '@expo/ui';
 import { useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { TipFlow } from '@/app/tips/_components/tip-flow';
+import { TipFlow } from '@/components/tips/tip-flow';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/tokens';
 

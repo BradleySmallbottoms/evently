@@ -13,6 +13,7 @@ type Props = {
   imageUrl?: string | null;
   focal?: ImageFocal | null;
   tags?: readonly string[];
+  eventId?: string | null;
   /** http(s) clip. The still stays up until the player is in this build. */
   videoUrl?: string | null;
   /** Only the visible card mounts a player. */
@@ -46,7 +47,7 @@ export function readEventVideoUrl(event: object): string | null {
  * Full-bleed still, with a video player in the same frame when a clip exists
  * and this build includes expo-video. Reduced motion keeps the still.
  */
-export function ExploreMedia({ imageUrl, focal, tags, videoUrl, active = false }: Props) {
+export function ExploreMedia({ imageUrl, focal, tags, eventId, videoUrl, active = false }: Props) {
   const reducedMotion = useReducedMotion();
   const [Player, setPlayer] = useState<ComponentType<PlayerProps> | null>(null);
   const canPlay = Boolean(videoUrl) && active && reducedMotion !== true && videoModuleInstalled();
@@ -68,7 +69,13 @@ export function ExploreMedia({ imageUrl, focal, tags, videoUrl, active = false }
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      <EventImage imageUrl={imageUrl} focal={focal} tags={tags} style={StyleSheet.absoluteFill} />
+      <EventImage
+        imageUrl={imageUrl}
+        focal={focal}
+        tags={tags}
+        eventId={eventId}
+        style={StyleSheet.absoluteFill}
+      />
       {canPlay && Player && videoUrl ? <Player url={videoUrl} /> : null}
     </View>
   );

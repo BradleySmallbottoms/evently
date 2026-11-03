@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 
-import { TipFlow } from './_components/tip-flow';
+import { TipFlow } from '@/components/tips/tip-flow';
 
 export default function TipScreen() {
   const { id, photo } = useLocalSearchParams<{ id: string; photo?: string }>();

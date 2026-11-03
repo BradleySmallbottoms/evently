@@ -86,20 +86,20 @@ import { buildEventWebUrl } from '@/lib/event-share-url';
 import { reportEvent } from '@/lib/reports';
 import { followTarget, listSubscriptions, unfollowTarget } from '@/lib/subscriptions';
 import { fetchEventStats } from '@/lib/stats';
-import { DetailCard } from './_components/detail-card';
-import { EventQuickActions } from './_components/event-quick-actions';
+import { DetailCard } from '@/components/event-detail/detail-card';
+import { EventQuickActions } from '@/components/event-detail/event-quick-actions';
 import {
   EventDetailBarSkeleton,
   EventDetailHeroSkeleton,
   EventDetailSkeleton,
-} from './_components/event-detail-skeleton';
-import { DetailGlyph, IconTile } from './_components/detail-glyph';
-import { DetailMap } from './_components/detail-map';
-import { GoodToKnow, type FactRow } from './_components/good-to-know';
-import { HowItWorks } from './_components/how-it-works';
-import { OccasionPeriod } from './_components/occasion-period';
-import { RelatedEvents } from './_components/related-events';
-import { ShareRow } from './_components/share-row';
+} from '@/components/event-detail/event-detail-skeleton';
+import { DetailGlyph, IconTile } from '@/components/event-detail/detail-glyph';
+import { DetailMap } from '@/components/event-detail/detail-map';
+import { GoodToKnow, type FactRow } from '@/components/event-detail/good-to-know';
+import { HowItWorks } from '@/components/event-detail/how-it-works';
+import { OccasionPeriod } from '@/components/event-detail/occasion-period';
+import { RelatedEvents } from '@/components/event-detail/related-events';
+import { ShareRow } from '@/components/event-detail/share-row';
 import { colors } from '@/theme/colors';
 import { manrope } from '@/theme/type';
 import { radius, shadow, space } from '@/theme/tokens';
@@ -952,6 +952,7 @@ export default function EventDetailScreen() {
                 imageUrl={event.data.imageUrl}
                 imageUrls={event.data.imageUrls}
                 tags={tagNames}
+                eventId={event.data.id}
               />
             ) : null}
             {event.data ? (
@@ -1607,6 +1608,7 @@ export default function EventDetailScreen() {
             title={event.data.title}
             when={whenTitle}
             imageUrl={event.data.imageUrl}
+            eventId={event.data.id}
             tags={tagNames}
             joinLabel={comingOn ? t('events.detail.joined') : t('events.detail.join')}
             joined={comingOn}

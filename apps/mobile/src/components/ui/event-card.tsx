@@ -17,6 +17,7 @@ type Props = {
   where: string;
   tags?: string[];
   imageUrl?: string | null;
+  eventId?: string | null;
   priceAmount?: number | null;
   dateBadge?: { weekday: string; day: string; month: string } | null;
   featured?: boolean;
@@ -30,6 +31,7 @@ export function EventCard({
   where,
   tags = [],
   imageUrl,
+  eventId,
   priceAmount,
   dateBadge,
   featured = false,
@@ -57,7 +59,7 @@ export function EventCard({
         onPress={onPress}
         style={{ flex: 1 }}
       >
-        <EventImage imageUrl={imageUrl} tags={tags} />
+        <EventImage imageUrl={imageUrl} tags={tags} eventId={eventId} />
         <View
           pointerEvents="none"
           style={{

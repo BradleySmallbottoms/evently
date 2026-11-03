@@ -21,6 +21,7 @@ type Props = {
   time?: string;
   tags?: string[];
   imageUrl?: string | null;
+  eventId?: string | null;
   /** Shown on the thumbnail when this row is sponsored and has no poster. */
   sponsoredLabel?: string;
   priceAmount?: number | null;
@@ -36,6 +37,7 @@ export function EventListItem({
   time,
   tags = [],
   imageUrl,
+  eventId,
   sponsoredLabel,
   priceAmount,
   dateBadge,
@@ -73,7 +75,7 @@ export function EventListItem({
                 backgroundColor: colors.accentSoft,
               }}
             >
-              <EventImage imageUrl={imageUrl} tags={tags} />
+              <EventImage imageUrl={imageUrl} tags={tags} eventId={eventId} />
             </View>
             {sponsoredLabel ? (
               <View style={{ position: 'absolute', left: 4, top: 4, right: 4 }}>

@@ -575,8 +575,9 @@ calls) in the same change as every new major feature.**
 ### Frontend structure
 
 - Admin/web: **shadcn/ui** only. Mobile: custom UI + `@expo/ui` / SwiftUI overlays (not Paper).
-- Shared components → `src/components/`. Route-only → Next `app/.../components/`, Expo
-  `app/.../_components/`. Native/SwiftUI overlays stay under `apps/mobile/src/components/native/`.
+- Shared components → `src/components/`. Route-only → Next `app/.../components/`. On
+  mobile, every file under `app/` is a route, so screen pieces live in `src/components/<screen>/`.
+  Native/SwiftUI overlays stay under `apps/mobile/src/components/native/`.
   Details in `CLAUDE.md`.
 
 ### Ports (local)

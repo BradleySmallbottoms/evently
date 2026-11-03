@@ -41,7 +41,8 @@ Web / Admin (Next.js):
 - [ ] Admin: shadcn/ui; talks **only** to the admin API (`NEXT_PUBLIC_ADMIN_API_URL`)
 - [ ] Web: shadcn/ui; mobile: custom UI + `@expo/ui` / SwiftUI overlays (not Paper)
 - [ ] Component placement: shared in `src/components/`; route-only in
-      `app/.../components/` (Next) or `app/.../_components/` (Expo); see `CLAUDE.md`
+      `app/.../components/` (Next) or `src/components/<screen>/` (Expo). Every file under
+      the Expo `app/` directory is a route. See `CLAUDE.md`
 
 ## Afterwards
 

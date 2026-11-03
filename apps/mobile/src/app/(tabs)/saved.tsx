@@ -100,6 +100,7 @@ export default function SavedScreen() {
               where={item.venueName ?? item.publisherName}
               tags={namesForTagIds(item.tagIds, tags.data?.items)}
               imageUrl={item.imageUrl}
+              eventId={item.id}
               priceAmount={item.priceAmount}
               time={shownClock(
                 shownWhen(item, new Date()).startsAt,

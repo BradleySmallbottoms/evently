@@ -98,7 +98,7 @@ export function RelatedEvents({
                   backgroundColor: colors.accentSoft,
                 }}
               >
-                <EventImage imageUrl={item.imageUrl} tags={item.tags} />
+                <EventImage imageUrl={item.imageUrl} tags={item.tags} eventId={item.id} />
               </View>
               <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
                 <AppText

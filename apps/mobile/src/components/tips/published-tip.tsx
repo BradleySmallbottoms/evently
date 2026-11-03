@@ -133,6 +133,7 @@ export function PublishedTip({ tip, event }: { tip: Tip; event: ShownEvent | nul
           <View style={{ flexDirection: 'row', gap: space.md }}>
             <EventImage
               imageUrl={imageUrl}
+              eventId={tip.eventId}
               style={{ width: 84, height: 108, borderRadius: radius.sm }}
             />
             <View style={{ flex: 1, gap: space.sm, paddingTop: 2 }}>

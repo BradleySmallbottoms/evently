@@ -237,7 +237,8 @@ Paper to the wrong apps. Follow `.agents/skills/expo-ui/SKILL.md` for mobile.
 Component placement (also in `CLAUDE.md`):
 
 - Shared across routes/screens → `src/components/`
-- Unique to one route → Next: `app/.../<route>/components/`; Expo: `app/<route>/_components/`
+- Unique to one route → Next: `app/.../<route>/components/`; Expo: `src/components/<screen>/`
+  (every file under `app/` is a route)
 - Before adding a component, reuse or promote an existing one into `src/components/` when it fits
   more than one view. Native/SwiftUI overlays on mobile stay under `src/components/native/`.
 

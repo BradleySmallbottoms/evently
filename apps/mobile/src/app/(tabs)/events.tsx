@@ -493,6 +493,7 @@ export default function EventsScreen() {
                   tags={tagNames}
                   priceLabel={priceLabel}
                   imageUrl={item.imageUrl}
+                  eventId={item.id}
                   sponsoredLabel={item.sponsored ? t('events.sponsored') : undefined}
                   saved={savedIds.has(item.id)}
                   saveLabel={savedIds.has(item.id) ? t('events.unfavorite') : t('events.favorite')}
