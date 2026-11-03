@@ -103,7 +103,33 @@ export const palette = {
 
 export const brand = palette.brand;
 
+/** Splash artwork for light and dark. */
+export const splashPalette = {
+  light: {
+    background: '#FFF8F0',
+    logo: '#963B50',
+    text: '#282423',
+    subtitle: '#877B74',
+    wave1: '#F2D0D0',
+    wave2: '#CF8C9D',
+    wave3: '#963B50',
+  },
+  dark: {
+    background: '#19191B',
+    logo: '#B85B72',
+    text: '#F5F0E8',
+    subtitle: '#B8B1AC',
+    wave1: '#343438',
+    wave2: '#702C3B',
+    wave3: '#963B50',
+  },
+} as const;
+
 type Scheme = 'light' | 'dark';
+
+export function splashColors(scheme: Scheme) {
+  return splashPalette[scheme];
+}
 
 function schemeColors(scheme: Scheme) {
   const mode = palette[scheme];

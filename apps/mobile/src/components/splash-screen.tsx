@@ -1,13 +1,13 @@
-import Constants from 'expo-constants';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, LinearGradient as SvgGradient, Stop, Path } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 
-import { appVersion } from '@/lib/app-version';
-import { colors } from '@/theme/colors';
+import { useLiveScheme } from '@/lib/appearance-context';
+import { splashColors } from '@/theme/colors';
+
+type SplashPaint = ReturnType<typeof splashColors>;
 
 type AppSplashProps = {
   /** Called once the intro has settled. The cover stays up until home data is ready. */
@@ -17,36 +17,21 @@ type AppSplashProps = {
 const AnimatedView = Animated.View;
 const AnimatedSvg = Animated.createAnimatedComponent(Svg);
 
-function EventlyLandscape() {
+function EventlyLandscape({ paint }: { paint: SplashPaint }) {
   return (
     <View pointerEvents="none" style={styles.landscape}>
       <Svg width="100%" height="100%" viewBox="0 0 400 240" preserveAspectRatio="xMidYMax slice">
-        <Defs>
-          <SvgGradient id="hillPeach" x1="0" y1="0" x2="0.8" y2="1">
-            <Stop offset="0%" stopColor="#FFE4CA" />
-            <Stop offset="100%" stopColor="#FFC69E" />
-          </SvgGradient>
-          <SvgGradient id="hillOrange" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0%" stopColor="#FFB17E" />
-            <Stop offset="100%" stopColor="#F9825B" />
-          </SvgGradient>
-          <SvgGradient id="hillGreen" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0%" stopColor="#9AAA91" />
-            <Stop offset="100%" stopColor="#506F65" />
-          </SvgGradient>
-        </Defs>
-
         <Path
           d="M0 65 C65 82 95 128 160 135 C230 142 290 80 400 75 L400 240 L0 240 Z"
-          fill="url(#hillPeach)"
+          fill={paint.wave1}
         />
         <Path
           d="M0 145 C70 115 105 165 170 178 C245 195 300 130 400 145 L400 240 L0 240 Z"
-          fill="url(#hillOrange)"
+          fill={paint.wave2}
         />
         <Path
           d="M0 178 C75 170 125 205 205 220 C285 235 335 185 400 180 L400 240 L0 240 Z"
-          fill="url(#hillGreen)"
+          fill={paint.wave3}
         />
       </Svg>
     </View>
@@ -55,9 +40,9 @@ function EventlyLandscape() {
 
 export default function AppSplash({ onIntroEnd }: AppSplashProps) {
   const { t } = useTranslation();
+  const paint = splashColors(useLiveScheme());
+  const calendar = splashColors('light');
   const reduced = useReducedMotion();
-  const insets = useSafeAreaInsets();
-  const version = appVersion(Constants.expoConfig?.version);
   const onIntroEndRef = useRef(onIntroEnd);
   useEffect(() => {
     onIntroEndRef.current = onIntroEnd;
@@ -171,8 +156,8 @@ export default function AppSplash({ onIntroEnd }: AppSplashProps) {
   ]);
 
   return (
-    <View pointerEvents="none" style={styles.container}>
-      <EventlyLandscape />
+    <View pointerEvents="none" style={[styles.container, { backgroundColor: paint.background }]}>
+      <EventlyLandscape paint={paint} />
       <View style={styles.content}>
         <AnimatedView
           style={[
@@ -184,31 +169,25 @@ export default function AppSplash({ onIntroEnd }: AppSplashProps) {
           ]}
         >
           <AnimatedSvg width={190} height={190} viewBox="0 0 100 100" style={styles.pin}>
-            <Defs>
-              <SvgGradient id="pinGradient" x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0%" stopColor="#FF9463" />
-                <Stop offset="55%" stopColor="#F65352" />
-                <Stop offset="100%" stopColor="#D82D4C" />
-              </SvgGradient>
-            </Defs>
             <Path
               d="M50 98 C43 88 8 58 8 38 C8 17 26 3 50 3 C74 3 92 17 92 38 C92 58 57 88 50 98 Z"
-              fill="url(#pinGradient)"
+              fill={paint.logo}
             />
           </AnimatedSvg>
 
           <AnimatedView
             style={[
               styles.calendar,
+              { backgroundColor: calendar.background, shadowColor: calendar.logo },
               {
                 opacity: calendarOpacity,
                 transform: [{ scale: calendarScale }],
               },
             ]}
           >
-            <View style={styles.calendarHeader}>
-              <View style={styles.ring} />
-              <View style={styles.ring} />
+            <View style={[styles.calendarHeader, { backgroundColor: calendar.wave1 }]}>
+              <View style={[styles.ring, { backgroundColor: calendar.text }]} />
+              <View style={[styles.ring, { backgroundColor: calendar.text }]} />
             </View>
 
             <View style={styles.dateGrid}>
@@ -217,7 +196,7 @@ export default function AppSplash({ onIntroEnd }: AppSplashProps) {
                   key={index}
                   style={[
                     styles.date,
-                    index === 4 && styles.selectedDate,
+                    { backgroundColor: index === 4 ? calendar.logo : calendar.wave1 },
                     {
                       opacity: value,
                       transform: [
@@ -245,15 +224,10 @@ export default function AppSplash({ onIntroEnd }: AppSplashProps) {
             },
           ]}
         >
-          <Text style={styles.title}>{t('splash.title')}</Text>
-          <Text style={styles.subtitle}>{t('splash.subtitle')}</Text>
+          <Text style={[styles.title, { color: paint.text }]}>{t('splash.title')}</Text>
+          <Text style={[styles.subtitle, { color: paint.subtitle }]}>{t('splash.subtitle')}</Text>
         </AnimatedView>
       </View>
-      {version ? (
-        <AnimatedView style={[styles.version, { bottom: Math.max(insets.bottom, 16) }]}>
-          <Text style={styles.versionText}>{t('app.version', { version })}</Text>
-        </AnimatedView>
-      ) : null}
     </View>
   );
 }
@@ -261,7 +235,6 @@ export default function AppSplash({ onIntroEnd }: AppSplashProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF8F0',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -296,17 +269,14 @@ const styles = StyleSheet.create({
     width: 116,
     height: 102,
     borderRadius: 15,
-    backgroundColor: '#FFF8F0',
     overflow: 'hidden',
     elevation: 5,
-    shadowColor: '#9D293D',
     shadowOpacity: 0.16,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
   },
   calendarHeader: {
     height: 32,
-    backgroundColor: '#FFE0C9',
     flexDirection: 'row',
     justifyContent: 'space-evenly',
     alignItems: 'center',
@@ -315,7 +285,6 @@ const styles = StyleSheet.create({
     width: 9,
     height: 23,
     borderRadius: 6,
-    backgroundColor: '#302F31',
     marginTop: -12,
   },
   dateGrid: {
@@ -330,11 +299,7 @@ const styles = StyleSheet.create({
     width: 23,
     height: 21,
     borderRadius: 6,
-    backgroundColor: '#E8D5C5',
     margin: 2,
-  },
-  selectedDate: {
-    backgroundColor: '#FF6959',
   },
   brand: {
     alignItems: 'center',
@@ -343,23 +308,9 @@ const styles = StyleSheet.create({
     fontSize: 38,
     fontWeight: '800',
     letterSpacing: -1.5,
-    color: '#302B2A',
   },
   subtitle: {
     fontSize: 13,
     marginTop: 7,
-    color: '#84766E',
-  },
-  version: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    zIndex: 2,
-    alignItems: 'center',
-  },
-  versionText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.accentSoft,
   },
 });

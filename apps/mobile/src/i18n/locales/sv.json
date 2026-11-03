@@ -2,6 +2,7 @@
   "app": {
     "name": "Evently",
     "version": "Version {{version}}",
+    "update": "Uppdatering {{id}}",
     "updateReady": "Det finns en ny version",
     "updateReadyAction": "Tryck för att uppdatera"
   },

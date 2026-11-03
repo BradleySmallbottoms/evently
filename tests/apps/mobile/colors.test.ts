@@ -5,6 +5,7 @@ import {
   applyColorScheme,
   categoryColors,
   colors,
+  splashColors,
 } from '../../../apps/mobile/src/theme/colors';
 
 describe('color palette', () => {
@@ -34,5 +35,26 @@ describe('color palette', () => {
     expect(categoryColors.music.icon).toBe('#F2E2E6');
     expect(categoryColors.holidays.icon).toBe('#F2E9D2');
     expect(appliedColorScheme()).toBe('dark');
+  });
+
+  it('uses the splash artwork colors for each scheme', () => {
+    expect(splashColors('light')).toEqual({
+      background: '#FFF8F0',
+      logo: '#963B50',
+      text: '#282423',
+      subtitle: '#877B74',
+      wave1: '#F2D0D0',
+      wave2: '#CF8C9D',
+      wave3: '#963B50',
+    });
+    expect(splashColors('dark')).toEqual({
+      background: '#19191B',
+      logo: '#B85B72',
+      text: '#F5F0E8',
+      subtitle: '#B8B1AC',
+      wave1: '#343438',
+      wave2: '#702C3B',
+      wave3: '#963B50',
+    });
   });
 });

@@ -42,7 +42,6 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   const system = useColorScheme();
   const scheme = resolveAppearance(preference, system);
   applyColorScheme(scheme);
-  setNativeScheme(preference);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +52,10 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    setNativeScheme(preference);
+  }, [preference]);
 
   const setPreference = (next: AppearancePreference) => {
     setPreferenceState(next);
@@ -72,28 +75,37 @@ export function useAppearance(): AppearanceContextValue {
   return value;
 }
 
-/**
- * Remount key for native views that keep the first color they were given.
- * A hidden tab may miss the context update, so focusing it bumps the key
- * when the live palette has moved on.
- */
-export function useSchemeKey(): string {
+function useSchemeEpoch(): { scheme: ColorScheme; epoch: number } {
   const { scheme } = useAppearance();
   const [epoch, setEpoch] = useState(0);
-  const mounted = useRef(scheme);
+  const seen = useRef(scheme);
 
   useEffect(() => {
-    mounted.current = scheme;
+    seen.current = scheme;
   }, [scheme]);
 
   useFocusEffect(
     useCallback(() => {
       const live = appliedColorScheme();
-      if (mounted.current === live) return;
-      mounted.current = live;
+      if (seen.current === live) return;
+      seen.current = live;
       setEpoch((value) => value + 1);
     }, []),
   );
 
+  return { scheme, epoch };
+}
+
+/** Current scheme. The splash uses this so its intro is not rebuilt. */
+export function useLiveScheme(): ColorScheme {
+  return useSchemeEpoch().scheme;
+}
+
+/**
+ * Remount key for native views that keep the first color they were given.
+ * A hidden tab bumps it on focus when that tab missed the switch.
+ */
+export function useSchemeKey(): string {
+  const { scheme, epoch } = useSchemeEpoch();
   return `${scheme}-${epoch}`;
 }

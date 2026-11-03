@@ -12,7 +12,7 @@ type Props = {
   onLayout?: ViewProps['onLayout'];
 };
 
-/** Remounts the page when the color scheme changes, so native views pick up the new palette. */
+/** Rebuilds the page when the scheme changes so native views take the new colors. */
 export function ThemedScreen({ children, style, background = 'canvas', onLayout }: Props) {
   const paint = useSchemeKey();
   return (

@@ -12,7 +12,9 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, FadeOut, runOnJS, useReducedMotion } from 'react-native-reanimated';
 
 import AppSplash from '@/components/splash-screen';
+import { useLiveScheme } from '@/lib/appearance-context';
 import { shouldHoldSplashForHome } from '@/lib/home-splash';
+import { splashColors } from '@/theme/colors';
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const FADE_MS = 280;
@@ -61,6 +63,7 @@ export function SplashCover({
   alreadySeen?: boolean;
 }) {
   const reduced = useReducedMotion();
+  const splash = splashColors(useLiveScheme());
   const segments = useSegments();
   const holdForHome = waitForHome && shouldHoldSplashForHome(segments);
   const [introDone, setIntroDone] = useState(alreadySeen);
@@ -121,7 +124,7 @@ export function SplashCover({
               exiting={exiting}
               onLayout={onCovered}
               pointerEvents="auto"
-              style={styles.cover}
+              style={[styles.cover, { backgroundColor: splash.background }]}
             >
               <AppSplash onIntroEnd={markIntroDone} />
             </Animated.View>
@@ -139,6 +142,5 @@ const styles = StyleSheet.create({
   cover: {
     ...StyleSheet.absoluteFill,
     zIndex: 1000,
-    backgroundColor: '#FFF8F0',
   },
 });

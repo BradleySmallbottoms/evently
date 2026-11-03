@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { reloadAppAsync } from 'expo';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
@@ -16,7 +17,7 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { api, throwIfError } from '@/lib/api';
-import { appVersion } from '@/lib/app-version';
+import { appVersion, otaUpdateId } from '@/lib/app-version';
 import { clearLocalAppData, clearStoredPromptState } from '@/lib/clear-local-data';
 import { ensureIdentity, loadStoredIdentity, refreshIdentitySession } from '@/lib/identity';
 import { listNotifications } from '@/lib/notifications';
@@ -98,6 +99,11 @@ export default function ProfileScreen() {
   const { hasUnread, numUnread } = useHasUnreadNotifications();
   const name = profile.data?.displayName?.trim() || t('profile.guest');
   const version = appVersion(Constants.expoConfig?.version);
+  const updateId = otaUpdateId({
+    enabled: Updates.isEnabled,
+    embedded: Updates.isEmbeddedLaunch,
+    updateId: Updates.updateId,
+  });
 
   async function refreshCounts() {
     setRefreshing(true);
@@ -402,6 +408,11 @@ export default function ProfileScreen() {
             <AppText variant="caption" style={{ textAlign: 'center', color: colors.ink }}>
               {t('app.version', { version })}
             </AppText>
+            {updateId ? (
+              <AppText variant="caption" style={{ textAlign: 'center' }}>
+                {t('app.update', { id: updateId })}
+              </AppText>
+            ) : null}
           </>
         ) : null}
       </ScrollView>
