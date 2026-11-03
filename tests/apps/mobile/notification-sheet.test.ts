@@ -86,4 +86,9 @@ describe('notification swipe', () => {
     expect(notificationSwipeRelease(120, 0, width, true)).toBe('delete');
     expect(notificationSwipeRelease(90, 0, width, true)).toBe('read');
   });
+
+  it('does not delete until the swipe passes 128 points on a narrow card', () => {
+    expect(notificationSwipeRelease(100, 0, 200, false)).toBe('read');
+    expect(notificationSwipeRelease(128, 0, 200, false)).toBe('delete');
+  });
 });

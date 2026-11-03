@@ -374,6 +374,7 @@ function NotificationCard({
         settle(action);
       })
       .onFinalize((_event, success) => {
+        // A cancelled drag does not reach onEnd, so the card has to spring back here.
         if (success || !dragged.value) return;
         // eslint-disable-next-line react-hooks/immutability -- reanimated shared value
         dragged.value = false;
