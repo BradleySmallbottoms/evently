@@ -30,8 +30,10 @@ function isAbortError(error: unknown): boolean {
 export async function shareEventLink(input: {
   title: string;
   eventId: string;
+  /** Ticket link, then the event page, then the web app. Copy link omits this. */
+  url?: string;
 }): Promise<ShareEventResult> {
-  const url = buildEventWebUrl(input.eventId);
+  const url = input.url ?? buildEventWebUrl(input.eventId);
   const platform = Platform.OS === 'android' ? 'android' : Platform.OS === 'web' ? 'web' : 'ios';
   const content = eventShareContent(input.title, url, platform);
 

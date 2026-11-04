@@ -9,6 +9,7 @@ const sectionIds = [
   'location',
   'content',
   'calendar',
+  'share',
   'crash',
   'deletion',
   'rights',

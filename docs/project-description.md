@@ -303,9 +303,14 @@ push is visible. A published tip opens the thank-you screen, and any other resul
 ### Share an event
 
 1. On the event detail screen the user taps Share (or Copy link in the overflow menu).
-2. Share opens the OS share sheet with the public web URL
-   (`{EXPO_PUBLIC_WEB_URL}/events/{id}`) so Messages, Messenger, Facebook, Mail, and Copy all
-   receive the same link. Copy link writes that URL to the clipboard.
+2. Copy link writes the public web URL (`{EXPO_PUBLIC_WEB_URL}/events/{id}`) to the clipboard.
+   Share opens the OS share sheet with the ticket link when the event has one, otherwise the
+   event's own page, otherwise that web page, so Messages, Instagram, Mail, and the other
+   targets receive that link. The Facebook button opens the Facebook app's composer with the
+   same link when the Facebook SDK is configured. The Messenger button opens Messenger with it.
+   The person still publishes the post or sends the message. Without that configuration, or when
+   the Facebook app is not installed, Facebook opens the browser sharer. Messenger opens through
+   its dialog. When that dialog cannot be shown, the button says so.
 3. Recipients who have the app installed open the HTTPS URL via Universal Links (iOS) or App Links
    (Android) into `/events/[id]`. Others land on the Next.js public event page. Locale-prefixed
    web paths (`/en/events/…`, `/sv/events/…`) redirect to the same native route.

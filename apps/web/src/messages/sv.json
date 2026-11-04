@@ -229,6 +229,10 @@
         "title": "Kalender",
         "body": "Om du lägger ett evenemang i kalendern skriver appen bara in det evenemanget. Vi läser inte övriga händelser i din kalender."
       },
+      "share": {
+        "title": "Delning",
+        "body": "Om du trycker på Facebook försöker appen öppna Facebooks app med en länk till evenemanget, så att du själv kan publicera inlägget. Om du trycker på Messenger försöker appen öppna Messenger så att du själv kan skicka den länken. Om Messenger inte är installerat säger appen till. Om Facebook inte är installerat, eller om Facebook-delningen inte kan öppnas där, öppnas Facebook-länken i webbläsaren. Facebooks verktyg startas först när du trycker, och bara för att öppna den vyn. Automatisk händelselogg och insamling av annons-id är avstängda. Vi använder det inte för reklam eller för att följa dig mellan appar."
+      },
       "crash": {
         "title": "Kraschrapporter",
         "body": "Vi använder Sentry för kraschrapporter, så att vi kan rätta fel. En rapport kan kopplas till enhetsidentiteten. Den används inte för reklam."

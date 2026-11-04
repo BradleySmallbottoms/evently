@@ -1,6 +1,48 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
+import { withInfoPlist, type ConfigPlugin } from 'expo/config-plugins';
 
 import appJson from './app.json' with { type: 'json' };
+
+/**
+ * Native Facebook share dialog. Omitted until both values exist, because the
+ * plugin refuses to run without them. Set them in apps/mobile/.env, then
+ * rebuild the dev client. An OTA update cannot add the SDK.
+ */
+const withMessengerQueryScheme: ConfigPlugin = (config) =>
+  withInfoPlist(config, (config) => {
+    const existing = config.modResults.LSApplicationQueriesSchemes;
+    const schemes = Array.isArray(existing)
+      ? existing.filter((scheme): scheme is string => typeof scheme === 'string')
+      : [];
+    if (!schemes.includes('fb-messenger-share-api')) {
+      config.modResults.LSApplicationQueriesSchemes = [...schemes, 'fb-messenger-share-api'];
+    }
+    return config;
+  });
+
+function facebookSharePlugin(): (NonNullable<ExpoConfig['plugins']>[number] | ConfigPlugin)[] {
+  const appID = process.env.EXPO_PUBLIC_FACEBOOK_APP_ID?.trim() ?? '';
+  const clientToken = process.env.EXPO_PUBLIC_FACEBOOK_CLIENT_TOKEN?.trim() ?? '';
+  if (!/^\d+$/.test(appID) || clientToken.length === 0) return [];
+  return [
+    [
+      'react-native-fbsdk-next',
+      {
+        appID,
+        clientToken,
+        displayName: 'Evently',
+        scheme: `fb${appID}`,
+        advertiserIDCollectionEnabled: false,
+        autoLogAppEventsEnabled: false,
+        isAutoInitEnabled: false,
+        iosUserTrackingPermission: false,
+      },
+    ],
+    // The SDK asks iOS if Messenger is installed through this scheme.
+    // The Facebook plugin writes the older fb-messenger-api name only.
+    withMessengerQueryScheme,
+  ];
+}
 
 /**
  * Host for Universal Links / App Links.
@@ -27,6 +69,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...base,
     ...config,
+    plugins: [...(base.plugins ?? []), ...facebookSharePlugin()] as ExpoConfig['plugins'],
     ios: {
       ...base.ios,
       ...(webHost ? { associatedDomains: [`applinks:${webHost}`] } : {}),

@@ -339,8 +339,16 @@ calls) in the same change as every new major feature.**
 
 ### Event share links
 
-- Mobile share uses the OS sheet with `EXPO_PUBLIC_WEB_URL/events/{id}` (default local web
-  `http://localhost:13100`). Copy link uses the same URL.
+- Copy link uses `EXPO_PUBLIC_WEB_URL/events/{id}` (default local web `http://localhost:13100`).
+  The share sheet, the Facebook post, and Messenger use the event's ticket link when it has one,
+  otherwise the event's own page, otherwise that web page. Facebook opens the Facebook app's
+  composer, and Messenger opens the Messenger app, when `EXPO_PUBLIC_FACEBOOK_APP_ID` and
+  `EXPO_PUBLIC_FACEBOOK_CLIENT_TOKEN` are set in `apps/mobile/.env` and the dev client has been
+  rebuilt. Cloud builds need the same two variables on the Expo project (Environment variables).
+  They are not in `eas.json`, and `.env` is not uploaded. Until then Facebook opens the browser
+  sharer. Messenger opens only through the Messenger dialog. A JavaScript update cannot add
+  that. The iOS build must list `fb-messenger-share-api` under `LSApplicationQueriesSchemes`,
+  or the button says Messenger is not available. Do not put the Facebook app secret in the app.
 - Opening that HTTPS URL in the installed app needs Universal / App Links: set
   `EXPO_PUBLIC_WEB_URL` to the https production host (rebuild native so
   `associatedDomains` / `intentFilters` apply), and on web set `APPLE_TEAM_ID` plus

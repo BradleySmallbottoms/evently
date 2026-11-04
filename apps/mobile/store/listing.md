@@ -146,7 +146,7 @@ App Store Connect will not accept the version until these exist. They are not in
 | Crash data          | Yes, via Sentry                                                                                  | Yes                           | No                | App functionality |
 | Camera              | Used to scan a check-in code or photograph a poster. Not stored unless the person sends a photo. | —                             | No                | —                 |
 
-Location is not collected in the background. The calendar permission is write-only (add an event) and calendar contents are not read. There is no advertising SDK and no tracking prompt in this version.
+Location is not collected in the background. The calendar permission is write-only (add an event) and calendar contents are not read. There is no advertising and no tracking prompt. When the Facebook share credentials are set at build time, the binary includes the Facebook SDK only to open the Facebook composer or Messenger. Advertiser-id collection and automatic event logging stay off, and the SDK starts when the person taps Facebook or Messenger. That plugin also writes two SKAdNetwork identifiers. Answer the App Store privacy questions as sharing, not tracking.
 
 Resetting app data on the profile screen removes the credential from the phone. It does not delete the anonymous record on the server. Say that in the privacy policy, and give a contact address for a deletion request. App Review and GDPR both expect a way to ask for deletion.
 
@@ -168,6 +168,8 @@ Om du tipsar om ett evenemang sparar vi texten och de bilder du väljer att skic
 
 Vi använder Sentry för kraschrapporter, så att vi kan rätta fel. Vi säljer inte uppgifterna och använder dem inte för spårning mellan appar.
 
+Om du trycker på Facebook försöker appen öppna Facebooks app med en länk till evenemanget. Om du trycker på Messenger försöker appen öppna Messenger med samma länk. Om Messenger inte är installerat säger appen till. Om Facebook inte kan öppnas öppnas Facebook-länken i webbläsaren. Facebooks verktyg startas först då, med automatisk händelselogg och annons-id avstängda.
+
 Återställning i appen tar bort identiteten från telefonen. Den tar inte automatiskt bort den anonyma posten hos oss. Skriv till info@candybanana.se om du vill att vi raderar den.
 
 Personuppgiftsansvarig: Candy Banana AB, org.nr 556999-5813, Pinnarviken 319, 826 91 Söderhamn, info@candybanana.se.
@@ -185,6 +187,8 @@ While the app is open it can read your location, to show events near you and to 
 If you submit a tip we store the text and any photos you choose to send. If you check in you can leave a rating.
 
 We use Sentry for crash reports, so we can fix failures. We do not sell the data and we do not use it to track you across apps.
+
+If you tap Facebook, the app tries to open the Facebook app with a link to the event. If you tap Messenger, the app tries to open Messenger with the same link. If Messenger is not installed, the app says so. If Facebook cannot be opened, the Facebook link opens in the browser. Facebook's tools start only then, with automatic event logging and advertiser-id collection off.
 
 Resetting the app removes the identity from the phone. It does not by itself delete the anonymous record on our side. Email info@candybanana.se if you want that record deleted.
 

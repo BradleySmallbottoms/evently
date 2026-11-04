@@ -229,6 +229,10 @@
         "title": "Calendar",
         "body": "If you add an event to the calendar, the app only writes that event. We do not read the other entries in your calendar."
       },
+      "share": {
+        "title": "Sharing",
+        "body": "If you tap Facebook, the app tries to open the Facebook app with a link to the event so you can publish the post yourself. If you tap Messenger, it tries to open Messenger so you can send that link yourself. If Messenger is not installed, the app says so. If Facebook is not installed, or the Facebook share cannot be opened there, the Facebook link opens in the browser. Facebook's tools start only when you tap, and only to open that screen. Automatic event logging and advertiser-id collection are off. We do not use them for advertising or to follow you across apps."
+      },
       "crash": {
         "title": "Crash reports",
         "body": "We use Sentry for crash reports, so we can fix failures. A report can be tied to the device identity. It is not used for advertising."

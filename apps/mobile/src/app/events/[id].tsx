@@ -3,7 +3,6 @@ import { krPriceLabel } from '@local-events/domain';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { useMemo, useRef, useState, type ComponentRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -75,6 +74,8 @@ import { calendarDraft } from '@/lib/calendar-draft';
 import { directionsUrl } from '@/lib/directions';
 import { isWholeDay } from '@/lib/span-occasions';
 import { shareEventLink } from '@/lib/event-share';
+import { shareEventOnFacebook, shareEventOnMessenger } from '@/lib/facebook-share';
+import { eventOutboundUrl } from '@/lib/facebook-share-target';
 import { buildEventWebUrl } from '@/lib/event-share-url';
 import { reportEvent } from '@/lib/reports';
 import { followTarget, listSubscriptions, unfollowTarget } from '@/lib/subscriptions';
@@ -543,7 +544,11 @@ export default function EventDetailScreen() {
   async function shareEvent() {
     if (!event.data || typeof id !== 'string') return;
     try {
-      const result = await shareEventLink({ title: event.data.title, eventId: id });
+      const result = await shareEventLink({
+        title: event.data.title,
+        eventId: id,
+        url: eventOutboundUrl({ eventId: id, links: event.data.links }),
+      });
       if (result === 'copied') {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert(t('events.share'), t('events.linkCopied'));
@@ -565,9 +570,20 @@ export default function EventDetailScreen() {
 
   async function shareFacebook() {
     if (typeof id !== 'string') return;
-    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(buildEventWebUrl(id))}`;
     try {
-      await WebBrowser.openBrowserAsync(shareUrl);
+      await shareEventOnFacebook({ eventId: id, links: event.data?.links ?? [] });
+    } catch {
+      Alert.alert(t('events.share'), t('events.shareLinkError'));
+    }
+  }
+
+  async function shareMessenger() {
+    if (typeof id !== 'string') return;
+    try {
+      const result = await shareEventOnMessenger({ eventId: id, links: event.data?.links ?? [] });
+      if (result === 'unavailable') {
+        Alert.alert(t('events.detail.shareMessenger'), t('events.messengerUnavailable'));
+      }
     } catch {
       Alert.alert(t('events.share'), t('events.shareLinkError'));
     }
@@ -791,6 +807,13 @@ export default function EventDetailScreen() {
       label: t('events.detail.shareFacebook'),
       letter: 'f',
       onPress: () => void shareFacebook(),
+    },
+    {
+      key: 'messenger',
+      label: t('events.detail.shareMessenger'),
+      sf: 'bubble.left.fill',
+      md: 'chat',
+      onPress: () => void shareMessenger(),
     },
     {
       key: 'instagram',
