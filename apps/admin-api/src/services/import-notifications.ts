@@ -17,6 +17,7 @@ export async function scheduleImportPlanForEvent(
     startsAt: Date;
     eventStatus: string;
     planId: MarketingPushPlanId;
+    notifyOnPublish?: boolean;
     now?: Date;
   },
 ): Promise<number> {
@@ -26,6 +27,7 @@ export async function scheduleImportPlanForEvent(
     eventTitle: input.eventTitle,
     startsAt: input.startsAt,
     now,
+    notifyOnPublish: input.notifyOnPublish,
   });
   return insertApprovedEventReminders(db, {
     eventId: input.eventId,
@@ -49,6 +51,12 @@ export async function scheduleImportPlanForPublisher(
   planId: MarketingPushPlanId,
   now = new Date(),
 ): Promise<number> {
+  const [publisher] = await db
+    .select({ importNotifyOnPublish: schema.publishers.importNotifyOnPublish })
+    .from(schema.publishers)
+    .where(eq(schema.publishers.id, publisherId))
+    .limit(1);
+  const notifyOnPublish = publisher?.importNotifyOnPublish ?? false;
   const rows = await db
     .select({
       id: schema.events.id,
@@ -73,6 +81,7 @@ export async function scheduleImportPlanForPublisher(
       startsAt: row.startsAt,
       eventStatus: row.status,
       planId,
+      notifyOnPublish,
       now,
     });
   }

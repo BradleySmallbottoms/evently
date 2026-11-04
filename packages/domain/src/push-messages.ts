@@ -99,6 +99,9 @@ export type PushMessageCopy = {
 export const PUSH_SCHEDULE_OFFSETS = ['week', 'day', 'hour'] as const;
 export type PushScheduleOffset = (typeof PUSH_SCHEDULE_OFFSETS)[number];
 
+/** A reminder offset, or a message sent as soon as the event is published. */
+export type ImportNotificationOffset = PushScheduleOffset | 'published';
+
 const OFFSET_BEFORE_START_MS: Record<PushScheduleOffset, number> = {
   week: 7 * 24 * 60 * 60 * 1000,
   day: 24 * 60 * 60 * 1000,
@@ -152,25 +155,66 @@ export function marketingPushPlan(id: string) {
 export const IMPORT_NOTIFICATION_AUDIENCE = 'area_and_tag' as const;
 
 export type ImportNotificationMessage = {
-  offset: PushScheduleOffset;
+  offset: ImportNotificationOffset;
   sendAt: Date;
   copy: PushMessageCopy;
 };
 
-/** Future reminders for one imported event. Offsets already in the past are left out. */
+/** Copy for the notification that goes out when the event is published. */
+export function publishedPushCopy(eventTitle: string): PushMessageCopy {
+  return defaultPushMessageCopy(eventTitle, 'nearby');
+}
+
+/**
+ * Simple stays a single reminder. Every other plan can also notify as soon as
+ * the event is published.
+ */
+export function importPlanNotifiesOnPublish(
+  planId: MarketingPushPlanId | null,
+  notifyOnPublish: boolean,
+): boolean {
+  return notifyOnPublish && planId !== null && planId !== 'single';
+}
+
+/** Steps a plan will send, with the publish notification first when it is included. */
+export function marketingPlanSteps(
+  planId: MarketingPushPlanId,
+  notifyOnPublish = false,
+): ImportNotificationOffset[] {
+  const plan = marketingPushPlan(planId);
+  if (!plan) return [];
+  const offsets: ImportNotificationOffset[] = [...plan.offsets];
+  if (!importPlanNotifiesOnPublish(planId, notifyOnPublish)) return offsets;
+  return ['published', ...offsets];
+}
+
+/**
+ * Future reminders for one imported event. Offsets already in the past are left out.
+ * A publish notification is included whenever the plan allows it, and is due immediately.
+ */
 export function importNotificationMessages(input: {
   planId: MarketingPushPlanId;
   eventTitle: string;
   startsAt: Date;
   now: Date;
+  notifyOnPublish?: boolean;
 }): ImportNotificationMessage[] {
   const plan = marketingPushPlan(input.planId);
   if (!plan) return [];
-  return plan.offsets.flatMap((offset) => {
+  const reminders = plan.offsets.flatMap((offset) => {
     const sendAt = offsetBeforeEventStart(input.startsAt, offset);
     if (sendAt.getTime() <= input.now.getTime()) return [];
     return [{ offset, sendAt, copy: reminderPushCopy(input.eventTitle, offset) }];
   });
+  if (!importPlanNotifiesOnPublish(input.planId, input.notifyOnPublish ?? false)) return reminders;
+  return [
+    {
+      offset: 'published',
+      sendAt: input.now,
+      copy: publishedPushCopy(input.eventTitle),
+    },
+    ...reminders,
+  ];
 }
 
 /**

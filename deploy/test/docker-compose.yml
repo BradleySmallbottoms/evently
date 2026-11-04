@@ -45,6 +45,7 @@ services:
       ADMIN_HOST: admin.${DOMAIN}
       ADMIN_API_HOST: admin-api.${DOMAIN}
       ASSETS_HOST: assets.${DOMAIN}
+      ASSETS_ORIGIN_HOST: assets-origin.${DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data
@@ -57,6 +58,8 @@ services:
       admin:
         condition: service_healthy
       admin-api:
+        condition: service_healthy
+      images:
         condition: service_healthy
 
   postgres:
@@ -137,6 +140,36 @@ services:
     entrypoint: ['/garage']
     command: ['bucket', 'website', '--allow', 'local-events-assets']
 
+  images:
+    image: local-events-test/images
+    build:
+      <<: *build
+      target: images
+    restart: unless-stopped
+    init: true
+    mem_limit: 512m
+    environment:
+      ASSET_ORIGIN: http://garage:3902
+      ASSET_HOST: local-events-assets.localhost
+      PORT: '13910'
+    depends_on:
+      garage:
+        condition: service_started
+      garage-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:13910/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
   migrate:
     image: local-events-test/migrate
     build:
@@ -203,6 +236,9 @@ services:
       ADMIN_CORS_ORIGINS: https://admin.${DOMAIN}
       ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL}
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD}
+      # Login codes are emailed when both are set. The from address uses a domain verified in Resend.
+      RESEND_API_KEY: '${RESEND_API_KEY:-}'
+      RESEND_FROM: '${RESEND_FROM:-}'
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -1,3 +1,4 @@
+import { withImageDelivery } from '@local-events/domain';
 import { AppLink } from '@/components/app-link';
 
 export type PublicEventCardData = {
@@ -34,7 +35,11 @@ export function PublicEventCard({
     <li className="overflow-hidden rounded-2xl bg-card text-card-foreground ring-1 ring-border">
       <AppLink href={`/events/${event.id}`} aria-label={readMoreLabel} className="flex flex-col">
         {event.imageUrl ? (
-          <img src={event.imageUrl} alt="" className="aspect-[16/10] w-full object-cover" />
+          <img
+            src={withImageDelivery(event.imageUrl, 800)}
+            alt=""
+            className="aspect-[16/10] w-full object-cover"
+          />
         ) : null}
         <div className="flex flex-col gap-2 p-4">
           <h2 className="line-clamp-2 text-lg font-medium text-foreground">{event.title}</h2>

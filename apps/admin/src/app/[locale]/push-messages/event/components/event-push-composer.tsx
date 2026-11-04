@@ -4,7 +4,9 @@ import {
   canAdminNotifyEvent,
   defaultPushMessageCopy,
   offsetBeforeEventStart,
+  publishedPushCopy,
   reminderPushCopy,
+  type PushScheduleOffset,
 } from '@local-events/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
@@ -44,6 +46,15 @@ type PushMessage = {
   id: string;
 };
 
+function isReminderOffset(offset: ScheduleOffsetChoice): offset is PushScheduleOffset {
+  return offset === 'week' || offset === 'day' || offset === 'hour';
+}
+
+function localSendAt(at: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
+}
+
 export function EventPushComposer({ initialEventId }: { initialEventId?: string }) {
   const t = useTranslations('PushMessages');
   const router = useRouter();
@@ -71,39 +82,52 @@ export function EventPushComposer({ initialEventId }: { initialEventId?: string 
 
   if (selected && filledFor !== selected.id) {
     const copy =
-      offset === 'custom'
-        ? defaultPushMessageCopy(selected.title)
-        : reminderPushCopy(selected.title, offset);
+      offset === 'published'
+        ? publishedPushCopy(selected.title)
+        : offset === 'custom'
+          ? defaultPushMessageCopy(selected.title)
+          : reminderPushCopy(selected.title, offset);
     setTitleSv(copy.titleSv);
     setBodySv(copy.bodySv);
     setTitleEn(copy.titleEn);
     setBodyEn(copy.bodyEn);
-    if (offset !== 'custom' && selected.startsAt) {
-      const at = offsetBeforeEventStart(new Date(selected.startsAt), offset);
-      const pad = (value: number) => String(value).padStart(2, '0');
-      setSendAt(
-        `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`,
-      );
+    if (offset === 'published') setSendAt('');
+    else if (isReminderOffset(offset) && selected.startsAt) {
+      setSendAt(localSendAt(offsetBeforeEventStart(new Date(selected.startsAt), offset)));
     }
     setFilledFor(selected.id);
   }
 
   function applyOffset(next: ScheduleOffsetChoice, event = selected) {
     setOffset(next);
-    if (next === 'custom' || !event?.startsAt) return;
-    const at = offsetBeforeEventStart(new Date(event.startsAt), next);
-    const pad = (value: number) => String(value).padStart(2, '0');
-    setSendAt(
-      `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`,
-    );
+    if (!event) return;
     const defaults = defaultPushMessageCopy(event.title);
-    const previous = offset === 'custom' ? null : reminderPushCopy(event.title, offset);
+    const previous =
+      offset === 'published'
+        ? publishedPushCopy(event.title)
+        : isReminderOffset(offset)
+          ? reminderPushCopy(event.title, offset)
+          : null;
     const same = (copy: { titleSv: string; bodySv: string; titleEn: string; bodyEn: string }) =>
       titleSv === copy.titleSv &&
       bodySv === copy.bodySv &&
       titleEn === copy.titleEn &&
       bodyEn === copy.bodyEn;
-    if (same(defaults) || (previous && same(previous))) {
+    const untouched = same(defaults) || (previous !== null && same(previous));
+    if (next === 'published') {
+      setSendAt('');
+      if (untouched) {
+        const copy = publishedPushCopy(event.title);
+        setTitleSv(copy.titleSv);
+        setBodySv(copy.bodySv);
+        setTitleEn(copy.titleEn);
+        setBodyEn(copy.bodyEn);
+      }
+      return;
+    }
+    if (next === 'custom' || !event.startsAt || !isReminderOffset(next)) return;
+    setSendAt(localSendAt(offsetBeforeEventStart(new Date(event.startsAt), next)));
+    if (untouched) {
       const copy = reminderPushCopy(event.title, next);
       setTitleSv(copy.titleSv);
       setBodySv(copy.bodySv);
@@ -285,22 +309,27 @@ export function EventPushComposer({ initialEventId }: { initialEventId?: string 
           <PushScheduleOffsetSelect
             id="event-push-offset"
             value={offset}
+            allowPublished
             disabled={!selected}
             onChange={(next) => applyOffset(next)}
           />
-          <Field>
-            <FieldLabel htmlFor="event-push-send-at">{t('sendAt')}</FieldLabel>
-            <Input
-              id="event-push-send-at"
-              type="datetime-local"
-              value={sendAt}
-              onChange={(event) => {
-                setSendAt(event.target.value);
-                setOffset('custom');
-              }}
-            />
-            <FieldDescription>{t('eventSendAtHint')}</FieldDescription>
-          </Field>
+          {offset === 'published' ? (
+            <FieldDescription>{t('offsetPublishedHint')}</FieldDescription>
+          ) : (
+            <Field>
+              <FieldLabel htmlFor="event-push-send-at">{t('sendAt')}</FieldLabel>
+              <Input
+                id="event-push-send-at"
+                type="datetime-local"
+                value={sendAt}
+                onChange={(event) => {
+                  setSendAt(event.target.value);
+                  setOffset('custom');
+                }}
+              />
+              <FieldDescription>{t('eventSendAtHint')}</FieldDescription>
+            </Field>
+          )}
           <div className="flex gap-2">
             <Button onClick={() => create.mutate()} disabled={!canSubmit}>
               {create.isPending ? <Spinner data-icon="inline-start" /> : null}

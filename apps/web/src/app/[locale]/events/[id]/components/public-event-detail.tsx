@@ -1,3 +1,4 @@
+import { withImageDelivery } from '@local-events/domain';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AppLink } from '@/components/app-link';
@@ -73,7 +74,11 @@ export async function PublicEventDetail({
           {t('title')}
         </AppLink>
         {imageUrl ? (
-          <img src={imageUrl} alt="" className="aspect-[16/10] w-full rounded-2xl object-cover" />
+          <img
+            src={withImageDelivery(imageUrl, 1600)}
+            alt=""
+            className="aspect-[16/10] w-full rounded-2xl object-cover"
+          />
         ) : null}
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">{event.title}</h1>
         <p className="text-sm text-muted-foreground">

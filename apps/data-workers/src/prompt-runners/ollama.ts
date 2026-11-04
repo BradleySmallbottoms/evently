@@ -248,6 +248,7 @@ export function createOllamaPromptRunner(
               isTemporary: match.isTemporary,
               status: match.status,
               importNotificationPlan: match.importNotificationPlan,
+              importNotifyOnPublish: match.importNotifyOnPublish,
             }
           : {
               kind: 'temporary',

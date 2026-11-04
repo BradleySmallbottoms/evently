@@ -1,4 +1,4 @@
 {
   "extends": "@local-events/config/tsconfig.node-app.json",
-  "include": ["bin", "lib"]
+  "include": ["bin", "lib", "image-optimizer"]
 }

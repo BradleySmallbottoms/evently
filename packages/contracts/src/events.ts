@@ -505,6 +505,11 @@ export const PublisherSummaryAdmin = z.object({
   status: PublisherStatus,
   origin: EventOrigin,
   importNotificationPlan: ImportNotificationPlan.nullable(),
+  /**
+   * Also notify as soon as the event is published. Stored false for nothing and
+   * the simple plan.
+   */
+  importNotifyOnPublish: z.boolean(),
   /** Set on the in-review list. */
   eventCount: z.number().int().nonnegative().optional(),
   createdAt: z.iso.datetime(),

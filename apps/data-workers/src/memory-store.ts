@@ -52,6 +52,7 @@ interface StoredPublisher {
   isTemporary: boolean;
   status: PublisherStatus;
   importNotificationPlan: MarketingPushPlanId | null;
+  importNotifyOnPublish: boolean;
   createdAt: number;
   scanClaimedUntil?: Date | null;
   meta?: { lookup?: PublisherLookup };
@@ -145,6 +146,7 @@ export interface MemoryIngestStore extends IngestStore {
     isTemporary: boolean;
     status?: PublisherStatus;
     importNotificationPlan?: MarketingPushPlanId | null;
+    importNotifyOnPublish?: boolean;
   }): PublisherLink;
 }
 
@@ -353,6 +355,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           distanceMeters: nearIds.has(publisher.id) ? 0 : -1,
           isTemporary: publisher.isTemporary,
           importNotificationPlan: publisher.importNotificationPlan,
+          importNotifyOnPublish: publisher.importNotifyOnPublish,
           organizerKeys: aliases
             .filter((item) => item.publisherId === publisher.id)
             .map((item) => item.organizerKey),
@@ -376,6 +379,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
           distanceMeters: nearIds.has(publisher.id) ? 0 : -1,
           isTemporary: publisher.isTemporary,
           importNotificationPlan: publisher.importNotificationPlan,
+          importNotifyOnPublish: publisher.importNotifyOnPublish,
           organizerKeys: aliases
             .filter((item) => item.publisherId === publisher.id)
             .map((item) => item.organizerKey),
@@ -395,6 +399,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         isTemporary: publisher.isTemporary,
         status: publisher.status,
         importNotificationPlan: publisher.importNotificationPlan,
+        importNotifyOnPublish: publisher.importNotifyOnPublish,
       };
     },
     async createTemporaryPublisher(input) {
@@ -406,6 +411,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         isTemporary: true,
         status: 'pending_scan',
         importNotificationPlan: null,
+        importNotifyOnPublish: false,
         createdAt: stamp(),
       });
       for (const organizerKey of [...new Set(input.organizerKeys)]) {
@@ -416,6 +422,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         isTemporary: true,
         status: 'pending_scan',
         importNotificationPlan: null,
+        importNotifyOnPublish: false,
       };
     },
     async rememberPublisherLookup(publisherId, lookup) {
@@ -439,6 +446,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       const id = randomUUID();
       const status = input.status ?? 'in_review';
       const importNotificationPlan = input.importNotificationPlan ?? null;
+      const importNotifyOnPublish = input.importNotifyOnPublish ?? false;
       publishers.push({
         id,
         name: input.name,
@@ -446,6 +454,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         isTemporary: input.isTemporary,
         status,
         importNotificationPlan,
+        importNotifyOnPublish,
         createdAt: stamp(),
       });
       aliases.push({
@@ -453,7 +462,13 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         organizerKey: input.organizerKey,
         publisherId: id,
       });
-      return { publisherId: id, isTemporary: input.isTemporary, status, importNotificationPlan };
+      return {
+        publisherId: id,
+        isTemporary: input.isTemporary,
+        status,
+        importNotificationPlan,
+        importNotifyOnPublish,
+      };
     },
     async scheduleImportNotifications(input) {
       if (scheduledNotifications.some((row) => row.eventId === input.eventId)) return;
@@ -462,6 +477,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         eventTitle: input.eventTitle,
         startsAt: input.startsAt,
         now: new Date(),
+        notifyOnPublish: input.notifyOnPublish,
       });
       if (messages.length === 0) return;
       scheduledNotifications.push({
@@ -991,6 +1007,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         createdAt: publisher.createdAt,
         isTemporary: publisher.isTemporary,
         importNotificationPlan: publisher.importNotificationPlan,
+        importNotifyOnPublish: publisher.importNotifyOnPublish,
         organizerKeys: aliases
           .filter((alias) => alias.publisherId === publisher.id)
           .map((alias) => alias.organizerKey),

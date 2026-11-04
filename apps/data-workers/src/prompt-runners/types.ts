@@ -34,6 +34,7 @@ export type ChosenPublisher =
       isTemporary: boolean;
       status: PublisherStatus;
       importNotificationPlan: MarketingPushPlanId | null;
+      importNotifyOnPublish: boolean;
     }
   | { kind: 'temporary'; name: string; organizerKeys: string[] };
 

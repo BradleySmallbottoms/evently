@@ -19,6 +19,7 @@ import {
 } from '@local-events/auth';
 import type { AdminSessionResponse } from '@local-events/contracts';
 import { randomBytes, randomUUID } from 'node:crypto';
+import { deliverAdminLoginCode } from './mail';
 import { createEmailWindowLimit } from './rate-limit';
 import { AdminAuthError, type AdminAuthServices } from './types';
 
@@ -80,7 +81,12 @@ function addSeconds(d: Date, seconds: number): Date {
 
 export function createMemoryAdminAuthServices(
   store: AdminMemoryAuthStore = createAdminMemoryAuthStore(),
-  env: { now?: () => Date; includeLoginOtp?: boolean; otpPepper?: string } = {},
+  env: {
+    now?: () => Date;
+    includeLoginOtp?: boolean;
+    otpPepper?: string;
+    sendAdminLoginCode?: (input: { to: string; code: string }) => Promise<void>;
+  } = {},
 ): AdminAuthServices {
   const now = env.now ?? (() => new Date());
   const includeLoginOtp = env.includeLoginOtp ?? false;
@@ -222,9 +228,10 @@ export function createMemoryAdminAuthServices(
         usedAt: null,
         attempts: 0,
       });
-      return includeLoginOtp
-        ? { status: 'code_sent' as const, code }
-        : { status: 'code_sent' as const };
+      return deliverAdminLoginCode(
+        { includeLoginOtp, sendAdminLoginCode: env.sendAdminLoginCode },
+        { to: email, code },
+      );
     },
 
     async confirmOtp(input) {

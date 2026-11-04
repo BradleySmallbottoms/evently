@@ -745,7 +745,7 @@ export function createDbAdminPushMessageServices(db: Db): AdminPushMessageServic
             titleEn: item.titleEn,
             bodyEn: item.bodyEn,
             copyEdited: true,
-            sendAt: new Date(item.sendAt),
+            sendAt: item.sendAt ? new Date(item.sendAt) : null,
             approvedAt: approval.approvedAt,
             approvedByAdminId: approval.approvedByAdminId,
             updatedAt: now,

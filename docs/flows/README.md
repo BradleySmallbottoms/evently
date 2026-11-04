@@ -38,6 +38,7 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Visit Söderhamn import                                 | [visit-soderhamn.md](./visit-soderhamn.md)                               |
 | Import scan                                            | [event-scan.md](./event-scan.md)                                         |
 | Image focal point                                      | [image-focal.md](./image-focal.md)                                       |
+| Public event images                                    | [event-images.md](./event-images.md)                                     |
 | Publisher lookup                                       | [publisher-scan.md](./publisher-scan.md)                                 |
 | Glada Hudik import                                     | [glada-hudik.md](./glada-hudik.md)                                       |
 | Destination Hälsingland import                         | [destination-halsingland.md](./destination-halsingland.md)               |

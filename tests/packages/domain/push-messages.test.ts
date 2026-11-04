@@ -8,6 +8,8 @@ import {
   defaultPushMessageCopy,
   DEFAULT_MARKETING_PUSH_PLAN,
   importNotificationMessages,
+  importPlanNotifiesOnPublish,
+  marketingPlanSteps,
   initialPushMessageStatus,
   marketingPushPlan,
   offsetBeforeEventStart,
@@ -83,6 +85,37 @@ describe('push-messages domain', () => {
     expect(messages.map((message) => message.offset)).toEqual(['day', 'hour']);
     expect(messages[0]?.copy.bodySv).toContain('imorgon');
     expect(messages[0]?.sendAt.toISOString()).toBe('2026-06-19T18:00:00.000Z');
+  });
+
+  it('adds a publish notification to every plan except simple', () => {
+    expect(importPlanNotifiesOnPublish('single', true)).toBe(false);
+    expect(importPlanNotifiesOnPublish('standard', true)).toBe(true);
+    expect(importPlanNotifiesOnPublish('countdown', false)).toBe(false);
+    expect(marketingPlanSteps('single', true)).toEqual(['day']);
+    expect(marketingPlanSteps('standard', true)).toEqual(['published', 'week', 'day']);
+    expect(marketingPlanSteps('full', true)).toEqual(['published', 'week', 'day', 'hour']);
+
+    const startsAt = new Date('2026-06-20T18:00:00.000Z');
+    const now = new Date('2026-06-01T12:00:00.000Z');
+    const standard = importNotificationMessages({
+      planId: 'standard',
+      eventTitle: 'Jazzkväll',
+      startsAt,
+      now,
+      notifyOnPublish: true,
+    });
+    expect(standard.map((message) => message.offset)).toEqual(['published', 'week', 'day']);
+    expect(standard[0]?.sendAt).toEqual(now);
+    expect(standard[0]?.copy.bodyEn).toContain('near');
+
+    const simple = importNotificationMessages({
+      planId: 'single',
+      eventTitle: 'Jazzkväll',
+      startsAt,
+      now,
+      notifyOnPublish: true,
+    });
+    expect(simple.map((message) => message.offset)).toEqual(['day']);
   });
 
   it('builds default bilingual copy and aggregation lines', () => {

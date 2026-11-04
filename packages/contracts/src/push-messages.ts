@@ -127,7 +127,8 @@ const AdminEventPushPlanItem = z.object({
   bodySv: z.string().min(1).max(500),
   titleEn: z.string().min(1).max(200),
   bodyEn: z.string().min(1).max(500),
-  sendAt: z.iso.datetime(),
+  /** Null sends as soon as the notification is approved. */
+  sendAt: z.iso.datetime().nullable(),
 });
 
 /** Admin approves a reviewed marketing plan. Every item is created approved. */

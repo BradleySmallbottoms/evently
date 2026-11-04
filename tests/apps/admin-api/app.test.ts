@@ -225,7 +225,10 @@ describe('admin api', () => {
       body: JSON.stringify({ importNotificationPlan: 'standard' }),
     });
     expect(saved.status).toBe(200);
-    expect(await saved.json()).toMatchObject({ importNotificationPlan: 'standard' });
+    expect(await saved.json()).toMatchObject({
+      importNotificationPlan: 'standard',
+      importNotifyOnPublish: false,
+    });
     expect(store.scheduledImports).toEqual([
       {
         eventId: '33333333-3333-4333-8333-333333333301',
@@ -234,6 +237,37 @@ describe('admin api', () => {
         status: 'approved',
       },
     ]);
+
+    store.scheduledImports.length = 0;
+    const withPublish = await app.request('/v1/publishers/22222222-2222-4222-8222-222222222201', {
+      method: 'PATCH',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ importNotificationPlan: 'countdown', importNotifyOnPublish: true }),
+    });
+    expect(withPublish.status).toBe(200);
+    expect(await withPublish.json()).toMatchObject({
+      importNotificationPlan: 'countdown',
+      importNotifyOnPublish: true,
+    });
+    expect(store.scheduledImports).toEqual([
+      {
+        eventId: '33333333-3333-4333-8333-333333333301',
+        planId: 'countdown',
+        offsets: ['published', 'day', 'hour'],
+        status: 'approved',
+      },
+    ]);
+
+    const simple = await app.request('/v1/publishers/22222222-2222-4222-8222-222222222201', {
+      method: 'PATCH',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ importNotificationPlan: 'single', importNotifyOnPublish: true }),
+    });
+    expect(simple.status).toBe(200);
+    expect(await simple.json()).toMatchObject({
+      importNotificationPlan: 'single',
+      importNotifyOnPublish: false,
+    });
 
     const again = await app.request('/v1/publishers/22222222-2222-4222-8222-222222222201', {
       method: 'PATCH',
@@ -2469,6 +2503,47 @@ describe('admin api', () => {
     });
     expect(expired.status).toBe(401);
     expect(await expired.json()).toMatchObject({ error: { code: 'otp_expired' } });
+  });
+
+  it('emails a known admin and leaves the code out of the response', async () => {
+    const { store } = await seededAuth();
+    const sent: { to: string; code: string }[] = [];
+    const app = createApp({
+      auth: createMemoryAdminAuthServices(store, {
+        now: () => new Date('2026-06-15T12:00:00.000Z'),
+        includeLoginOtp: false,
+        sendAdminLoginCode: async (input) => {
+          sent.push(input);
+        },
+      }),
+    });
+
+    const unknown = await app.request('/v1/admin/login/otp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'missing@example.com' }),
+    });
+    expect(await unknown.json()).toEqual({ status: 'code_sent' });
+    expect(sent).toEqual([]);
+
+    const issued = await app.request('/v1/admin/login/otp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com' }),
+    });
+    expect(issued.status).toBe(200);
+    expect(await issued.json()).toEqual({ status: 'code_sent' });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ to: 'admin@example.com' });
+    expect(sent[0]?.code).toMatch(/^\d{6}$/);
+
+    const ok = await app.request('/v1/admin/login/otp/confirm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com', code: sent[0]?.code }),
+    });
+    expect(ok.status).toBe(200);
+    expect(ok.headers.get('set-cookie') ?? '').toContain('le_admin_session=');
   });
 
   it('burns an email code after five wrong guesses and limits requests', async () => {

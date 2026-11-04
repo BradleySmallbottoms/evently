@@ -1,6 +1,11 @@
 'use client';
 
-import { MARKETING_PUSH_PLANS, type MarketingPushPlanId } from '@local-events/domain';
+import {
+  MARKETING_PUSH_PLANS,
+  marketingPlanSteps,
+  type MarketingPushPlanId,
+  type PushScheduleOffset,
+} from '@local-events/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -9,6 +14,7 @@ import { cn } from 'cn';
 import { LoadingRows } from '@/components/list-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
@@ -42,6 +48,7 @@ type Publisher = {
   type: 'org' | 'person';
   status: 'pending_scan' | 'in_review' | 'published';
   importNotificationPlan: MarketingPushPlanId | null;
+  importNotifyOnPublish: boolean;
 };
 
 const PLAN_LABEL = {
@@ -50,6 +57,12 @@ const PLAN_LABEL = {
   countdown: 'planCountdown',
   full: 'planFull',
 } as const;
+
+const OFFSET_LABEL: Record<PushScheduleOffset, 'offsetWeek' | 'offsetDay' | 'offsetHour'> = {
+  week: 'offsetWeek',
+  day: 'offsetDay',
+  hour: 'offsetHour',
+};
 
 export function PublisherEditor({ publisherId }: { publisherId: string }) {
   const t = useTranslations('PublisherEditor');
@@ -65,6 +78,7 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
   const [type, setType] = useState<'org' | 'person'>('org');
   const [mode, setMode] = useState<'nothing' | 'plan'>('nothing');
   const [planId, setPlanId] = useState<MarketingPushPlanId>('single');
+  const [notifyOnPublish, setNotifyOnPublish] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,6 +118,9 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
     setType(current.type);
     setMode(current.importNotificationPlan ? 'plan' : 'nothing');
     setPlanId(current.importNotificationPlan ?? 'single');
+    setNotifyOnPublish(
+      current.importNotifyOnPublish && current.importNotificationPlan !== 'single',
+    );
   }
 
   const save = useMutation({
@@ -115,6 +132,7 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
           slug,
           type,
           importNotificationPlan: mode === 'plan' ? planId : null,
+          importNotifyOnPublish: mode === 'plan' && planId !== 'single' && notifyOnPublish,
         }),
       }),
     onSuccess: async (updated) => {
@@ -125,6 +143,9 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
       setType(updated.type);
       setMode(updated.importNotificationPlan ? 'plan' : 'nothing');
       setPlanId(updated.importNotificationPlan ?? 'single');
+      setNotifyOnPublish(
+        updated.importNotifyOnPublish && updated.importNotificationPlan !== 'single',
+      );
       await queryClient.invalidateQueries({ queryKey: ['admin-publisher', publisherId] });
       await queryClient.invalidateQueries({ queryKey: ['admin-publishers-all'] });
       await queryClient.invalidateQueries({ queryKey: ['admin-publishers-unverified'] });
@@ -250,27 +271,55 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
                 </RadioGroup>
               </FieldSet>
               {mode === 'plan' ? (
-                <Field>
-                  <FieldLabel htmlFor="publisher-plan">{t('plan')}</FieldLabel>
-                  <Select
+                <FieldSet>
+                  <FieldLegend variant="label">{t('plan')}</FieldLegend>
+                  <RadioGroup
                     value={planId}
                     onValueChange={(next) => {
-                      if (next != null) setPlanId(next);
+                      if (
+                        next === 'single' ||
+                        next === 'standard' ||
+                        next === 'countdown' ||
+                        next === 'full'
+                      ) {
+                        setPlanId(next);
+                      }
                     }}
                   >
-                    <SelectTrigger id="publisher-plan" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {MARKETING_PUSH_PLANS.map((plan) => (
-                          <SelectItem key={plan.id} value={plan.id}>
+                    {MARKETING_PUSH_PLANS.map((plan) => (
+                      <div key={plan.id} className="flex flex-col gap-1">
+                        <Field orientation="horizontal">
+                          <RadioGroupItem value={plan.id} id={`publisher-plan-${plan.id}`} />
+                          <FieldLabel htmlFor={`publisher-plan-${plan.id}`}>
                             {tPlans(PLAN_LABEL[plan.id])}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                          </FieldLabel>
+                        </Field>
+                        <ul className="ms-6 flex list-disc flex-col gap-1 text-sm text-muted-foreground">
+                          {marketingPlanSteps(plan.id, planId !== 'single' && notifyOnPublish).map(
+                            (step) => (
+                              <li key={step}>
+                                {step === 'published'
+                                  ? tPlans('offsetPublished')
+                                  : tPlans(OFFSET_LABEL[step])}
+                              </li>
+                            ),
+                          )}
+                        </ul>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </FieldSet>
+              ) : null}
+              {mode === 'plan' && planId !== 'single' ? (
+                <Field orientation="horizontal">
+                  <Checkbox
+                    id="publisher-notify-on-publish"
+                    checked={notifyOnPublish}
+                    onCheckedChange={(checked) => setNotifyOnPublish(checked === true)}
+                  />
+                  <FieldLabel htmlFor="publisher-notify-on-publish">
+                    {t('notifyOnPublish')}
+                  </FieldLabel>
                 </Field>
               ) : null}
               {mode === 'plan' ? (

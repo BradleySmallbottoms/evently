@@ -72,6 +72,7 @@ function storeWithNearbyRows() {
       isTemporary: false,
       status: 'published',
       importNotificationPlan: null,
+      importNotifyOnPublish: false,
       createdAt: 3,
     },
     {
@@ -81,6 +82,7 @@ function storeWithNearbyRows() {
       isTemporary: false,
       status: 'published',
       importNotificationPlan: null,
+      importNotifyOnPublish: false,
       createdAt: 1,
     },
     {
@@ -90,6 +92,7 @@ function storeWithNearbyRows() {
       isTemporary: true,
       status: 'in_review',
       importNotificationPlan: null,
+      importNotifyOnPublish: false,
       createdAt: 2,
     },
   );
@@ -490,6 +493,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
       isTemporary: false,
       status: 'published',
       importNotificationPlan: null,
+      importNotifyOnPublish: false,
       createdAt: 3,
     });
     store.events.push({

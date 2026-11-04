@@ -1,0 +1,1 @@
+ALTER TABLE "publishers" ADD COLUMN "import_notify_on_publish" boolean DEFAULT false NOT NULL;

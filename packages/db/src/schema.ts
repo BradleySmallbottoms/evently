@@ -293,6 +293,11 @@ export const publishers = pgTable(
     isTemporary: boolean('is_temporary').notNull().default(false),
     /** Null: do not notify about script-imported events. Otherwise a marketing plan id. */
     importNotificationPlan: importNotificationPlan('import_notification_plan'),
+    /**
+     * Also notify as soon as the event is published. Ignored for the simple plan
+     * and when no plan is set.
+     */
+    importNotifyOnPublish: boolean('import_notify_on_publish').notNull().default(false),
     claimedAt: timestamp('claimed_at', { withTimezone: true }),
     /**
      * Import-scan notes. `lookup` is the web lookup for a temporary publisher.

@@ -174,8 +174,10 @@ Product invariants (enforced in domain, tested)
 - A user id never authenticates; the app holds a device credential in secure storage.
 - Admin sign-in is password plus TOTP, or a single-use 6-digit email code (10 minutes, five
   guesses, five sends per 15 minutes per email). The code is stored hashed on
-  `email_verification_tokens`. Outside production the request response includes the code until
-  mail delivery exists. An unknown email gets the same response without a code.
+  `email_verification_tokens`. When `RESEND_API_KEY` and `RESEND_FROM` are both set, the API emails
+  the code through Resend and leaves it out of the response. The from address must use a domain
+  verified in Resend. Outside production, with Resend unset, the response includes the code. An
+  unknown email gets the same response without a code.
 - Publishers sign in on the web with a verified email and password, or a single-use 6-digit email
   code (10 minutes, five guesses, five sends per 15 minutes). Unknown and unverified emails get the
   same response without a code. When `RESEND_API_KEY` and `RESEND_FROM` are both set, the API emails
@@ -207,6 +209,11 @@ Product invariants (enforced in domain, tested)
   A new temporary publisher is `pending_scan`. A separate publisher scan looks that organizer up on the
   web. The profile is stored on `publishers.meta.lookup`. A website from a fetched page is also stored as an organizer key. A finished lookup sets `in_review`. A failed lookup leaves the
   publisher `pending_scan`.
+- Public event images on AWS are served by CloudFront. A miss runs a Lambda that scales the object
+  down to the nearest of 400, 800, 1200, or 1600 pixels wide, as WebP, at quality 60, 75, or 85.
+  A missing width is 1600 and a missing quality is 75. The image is not enlarged or cropped. The
+  app asks for 800 on a card, 1200 on a poster, and 1600 on the event hero. The test server runs the
+  same resize in front of Garage. Local Garage still serves the original file.
 - An event image stores `focal_x` and `focal_y`, fractions from the left and the top. A new image is
   `pending`. `JOB=image-focal` claims those rows when the event still has a showing, soonest start first, except posters, and asks the scan chat model for
   one point. A point is `done`. An answer that is not a point is `failed`. A transport failure
@@ -258,7 +265,8 @@ Product invariants (enforced in domain, tested)
 - Script-imported events are notified only when the publisher status is `published` and its import
   notification plan is set. Future reminders are approved when the event is published, and
   stored as pending while the event is still in review. Publishing the event approves them.
-  Nothing means no import notification.
+  Nothing means no import notification. Every plan except simple can also include a notification
+  that sends as soon as the event is published. Simple never includes it.
 - Only checked-in users rate, once, within 14 days after the end. Public sees aggregates only.
   Anonymous users can score but not comment.
 - A save is the interested bookmark. "I'm coming" is a separate row. Popularity is `numSaved` +

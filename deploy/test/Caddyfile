@@ -28,10 +28,8 @@
 	reverse_proxy admin-api:13001
 }
 
-# Garage's website endpoint routes on the Host header. Browsers use assets.<domain>.
-{$ASSETS_HOST} {
-	encode zstd gzip
-	reverse_proxy garage:3902 {
-		header_up Host local-events-assets.localhost
-	}
+# The image service reads Garage and returns a resized WebP.
+# assets.<domain> is the public name. assets-origin.<domain> is the CloudFront origin.
+{$ASSETS_HOST}, {$ASSETS_ORIGIN_HOST} {
+	reverse_proxy images:13910
 }

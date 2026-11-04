@@ -23,6 +23,7 @@ import { schema } from '@local-events/db';
 import type { AdminSessionResponse } from '@local-events/contracts';
 import { and, count, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
+import { deliverAdminLoginCode } from './mail';
 import { createEmailWindowLimit } from './rate-limit';
 import { AdminAuthError, type AdminAuthServices } from './types';
 
@@ -58,6 +59,7 @@ export function createDbAdminAuthServices(
     challenges?: Map<string, ChallengeRow>;
     includeLoginOtp?: boolean;
     otpPepper?: string;
+    sendAdminLoginCode?: (input: { to: string; code: string }) => Promise<void>;
   } = {},
 ): AdminAuthServices {
   const now = env.now ?? (() => new Date());
@@ -260,9 +262,10 @@ export function createDbAdminAuthServices(
               .returning({ id: schema.emailVerificationTokens.id });
             if (inserted) otpAttempts.set(inserted.id, 0);
           });
-          return includeLoginOtp
-            ? { status: 'code_sent' as const, code }
-            : { status: 'code_sent' as const };
+          return deliverAdminLoginCode(
+            { includeLoginOtp, sendAdminLoginCode: env.sendAdminLoginCode },
+            { to: email, code },
+          );
         } catch (err) {
           if (!isUniqueViolation(err)) throw err;
         }

@@ -100,6 +100,20 @@ USER node
 EXPOSE 13100
 CMD ["node", "apps/web/server.js"]
 
+FROM deps AS build-images
+RUN pnpm --filter @local-events/infra exec esbuild image-optimizer/server.ts \
+  --bundle --platform=node --target=node24 --format=esm \
+  --outfile=image-optimizer/dist/server.js --external:sharp
+
+FROM node:24-slim AS images
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build-images /repo/infra/image-optimizer/dist/server.js ./server.js
+RUN npm install --omit=dev sharp@0.35.5 && chown -R node:node /app
+USER node
+EXPOSE 13910
+CMD ["node", "server.js"]
+
 FROM node:24-slim AS admin
 WORKDIR /app
 ENV NODE_ENV=production

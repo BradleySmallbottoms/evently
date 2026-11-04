@@ -3,14 +3,15 @@
 One EC2 instance in eu-north-1 runs the whole server side as Docker containers: the public
 web app, the admin console, both APIs, the notification worker, Postgres + PostGIS, Valkey,
 ElasticMQ (the SQS stand-in), and Garage (the S3 stand-in). Caddy gets a Let's Encrypt
-certificate and routes five hostnames.
+certificate and routes five hostnames. `assets.<domain>` resizes public images to WebP before
+they are sent. Garage still stores the original.
 
 This is the testing box. Dev, staging, and production stay on the CDK stacks in `infra/`
 (Fargate, RDS, real SQS). Do not put production data here. Admin is on the public internet,
 behind the bootstrap password and TOTP, with no IP allowlist. Publisher registration returns
 the verification token in the JSON until that email is wired (`INCLUDE_VERIFICATION_TOKEN`).
-A publisher sign-in code is emailed when `RESEND_API_KEY` and `RESEND_FROM` in `.env` are both
-set. The from address has to use a domain verified in Resend.
+A publisher or admin sign-in code is emailed when `RESEND_API_KEY` and `RESEND_FROM` in `.env` are
+both set. The from address has to use a domain verified in Resend.
 
 The phone app is not a container. A TestFlight or internal build talks to this API when
 `EXPO_PUBLIC_API_URL` is `https://api.<domain>/v1` and `EXPO_PUBLIC_WEB_URL` is
@@ -33,13 +34,14 @@ group is what limits who can reach it. Connect as `events` to database `events` 
 
 One wildcard record is enough. If the name is `test.example.com`:
 
-| Hostname                     | Process      |
-| ---------------------------- | ------------ |
-| `app.test.example.com`       | Web          |
-| `api.test.example.com`       | Public API   |
-| `admin.test.example.com`     | Admin        |
-| `admin-api.test.example.com` | Admin API    |
-| `assets.test.example.com`    | Event images |
+| Hostname                         | Process                                                    |
+| -------------------------------- | ---------------------------------------------------------- |
+| `app.test.example.com`           | Web                                                        |
+| `api.test.example.com`           | Public API                                                 |
+| `admin.test.example.com`         | Admin                                                      |
+| `admin-api.test.example.com`     | Admin API                                                  |
+| `assets.test.example.com`        | Event images                                               |
+| `assets-origin.test.example.com` | CloudFront origin for those images. Stays on the wildcard. |
 
 `DOMAIN=test.example.com` in `.env`. Point `test.example.com` and `*.test.example.com` at the
 Elastic IP, and wait until they resolve, before starting Caddy. Port 80 has to be reachable

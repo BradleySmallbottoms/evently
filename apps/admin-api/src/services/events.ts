@@ -2081,6 +2081,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
         .select({
           status: schema.publishers.status,
           importNotificationPlan: schema.publishers.importNotificationPlan,
+          importNotifyOnPublish: schema.publishers.importNotifyOnPublish,
         })
         .from(schema.publishers)
         .where(eq(schema.publishers.id, row.publisherId))
@@ -2099,6 +2100,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
           startsAt: row.startsAt,
           eventStatus: 'published',
           planId: approvedPlan,
+          notifyOnPublish: publisher?.importNotifyOnPublish ?? false,
           now: at,
         });
       }
@@ -2650,6 +2652,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
               .select({
                 status: schema.publishers.status,
                 importNotificationPlan: schema.publishers.importNotificationPlan,
+                importNotifyOnPublish: schema.publishers.importNotifyOnPublish,
               })
               .from(schema.publishers)
               .where(eq(schema.publishers.id, existing.publisherId))
@@ -2672,6 +2675,7 @@ export function createDbAdminEventServices(db: Db, env: AdminEventEnv = {}): Adm
             startsAt: new Date(startsAt),
             eventStatus: 'published',
             planId: editedPlan,
+            notifyOnPublish: publisher?.importNotifyOnPublish ?? false,
             now: at,
           });
         } else if (existing.origin !== 'imported') {

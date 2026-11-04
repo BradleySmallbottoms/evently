@@ -8,6 +8,7 @@ import {
   publicPosterUrl,
   safeAssetKey,
 } from '../../../packages/domain/src/assets';
+import { imageDeliverySize, withImageDelivery } from '../../../packages/domain/src/image-delivery';
 import { describe, expect, it } from 'vitest';
 
 describe('publicAssetUrl', () => {
@@ -161,5 +162,20 @@ describe('safeAssetKey', () => {
     expect(safeAssetKey('events/abc/main')).toBe('events/abc/main');
     expect(safeAssetKey('events/../../secret')).toBeNull();
     expect(safeAssetKey('')).toBeNull();
+  });
+});
+
+describe('imageDeliverySize', () => {
+  it('defaults to the largest step and snaps a requested size', () => {
+    expect(imageDeliverySize({})).toEqual({ width: 1600, quality: 75 });
+    expect(imageDeliverySize({ w: '900', q: '70' })).toEqual({ width: 800, quality: 75 });
+    expect(imageDeliverySize({ w: '10000', q: 'nope' })).toEqual({ width: 1600, quality: 75 });
+  });
+
+  it('adds the snapped size to a public image URL', () => {
+    expect(withImageDelivery('https://assets.example/events/abc/main', 500)).toBe(
+      'https://assets.example/events/abc/main?w=400&q=75',
+    );
+    expect(withImageDelivery('not a url', 800)).toBe('not a url');
   });
 });

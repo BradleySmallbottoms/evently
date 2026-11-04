@@ -118,6 +118,8 @@ export interface PublisherRecord {
   createdAt: number;
   isTemporary: boolean;
   importNotificationPlan: MarketingPushPlanId | null;
+  /** Also notify as soon as the event is published. Ignored for the simple plan. */
+  importNotifyOnPublish: boolean;
   organizerKeys: string[];
   /** Web lookup for a temporary publisher. Null until that prompt returns. */
   lookup: PublisherLookup | null;
@@ -145,6 +147,7 @@ export interface ScanPublisherCandidate {
   distanceMeters: number;
   isTemporary: boolean;
   importNotificationPlan: MarketingPushPlanId | null;
+  importNotifyOnPublish: boolean;
   organizerKeys: string[];
   publisherName: string;
 }
@@ -154,6 +157,7 @@ export interface PublisherLink {
   isTemporary: boolean;
   status: PublisherStatus;
   importNotificationPlan: MarketingPushPlanId | null;
+  importNotifyOnPublish: boolean;
 }
 
 export interface ExternalRefHit {
@@ -302,6 +306,8 @@ export interface IngestStore {
     eventTitle: string;
     startsAt: Date;
     planId: MarketingPushPlanId;
+    /** Also notify as soon as the event is published. Ignored for the simple plan. */
+    notifyOnPublish?: boolean;
     /** Event status after this import. Published rows are approved; others stay pending. */
     status: EventStatus;
   }): Promise<void>;

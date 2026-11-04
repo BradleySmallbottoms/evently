@@ -285,6 +285,7 @@ export async function applyOutcome(
         eventTitle: row.title,
         startsAt,
         planId,
+        notifyOnPublish: publisher.importNotifyOnPublish,
         status,
       });
     }
@@ -458,5 +459,6 @@ async function publisherFor(
     isTemporary: outcome.publisher.isTemporary,
     status: outcome.publisher.status,
     importNotificationPlan: outcome.publisher.importNotificationPlan,
+    importNotifyOnPublish: outcome.publisher.importNotifyOnPublish,
   };
 }

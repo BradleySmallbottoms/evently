@@ -6,6 +6,7 @@ import {
   MAX_ADMIN_EVENT_PUSH_PLAN,
   marketingPushPlan,
   offsetBeforeEventStart,
+  publishedPushCopy,
   reminderPushCopy,
   type MarketingPushPlanId,
   type PushScheduleOffset,
@@ -59,6 +60,19 @@ type ScheduledPush = {
   sendAt: string | null;
   status: string;
 };
+
+function draftPublished(title: string): DraftNote {
+  const copy = publishedPushCopy(title);
+  return {
+    id: crypto.randomUUID(),
+    offset: 'published',
+    sendAtLocal: '',
+    titleSv: copy.titleSv,
+    bodySv: copy.bodySv,
+    titleEn: copy.titleEn,
+    bodyEn: copy.bodyEn,
+  };
+}
 
 function draftFromOffset(
   title: string,
@@ -164,7 +178,7 @@ export function EventNotifications({
         bodySv: string;
         titleEn: string;
         bodyEn: string;
-        sendAt: string;
+        sendAt: string | null;
       }[],
     ) =>
       adminFetch<{ items: { id: string }[] }>('/push-messages/event-plan', {
@@ -203,8 +217,14 @@ export function EventNotifications({
       current.map((draft) => {
         if (draft.id !== id) return draft;
         if (offset === 'custom') return { ...draft, offset };
-        const previous = draft.offset === 'custom' ? null : reminderPushCopy(title, draft.offset);
-        const nextCopy = reminderPushCopy(title, offset);
+        const previous =
+          draft.offset === 'custom'
+            ? null
+            : draft.offset === 'published'
+              ? publishedPushCopy(title)
+              : reminderPushCopy(title, draft.offset);
+        const nextCopy =
+          offset === 'published' ? publishedPushCopy(title) : reminderPushCopy(title, offset);
         const untouched =
           previous !== null &&
           draft.titleSv === previous.titleSv &&
@@ -214,12 +234,15 @@ export function EventNotifications({
         return {
           ...draft,
           offset,
-          sendAtLocal: startsAt
-            ? toDatetimeLocal(
-                offsetBeforeEventStart(new Date(startsAt), offset).toISOString(),
-                timezone,
-              )
-            : draft.sendAtLocal,
+          sendAtLocal:
+            offset === 'published'
+              ? ''
+              : startsAt
+                ? toDatetimeLocal(
+                    offsetBeforeEventStart(new Date(startsAt), offset).toISOString(),
+                    timezone,
+                  )
+                : draft.sendAtLocal,
           ...(untouched ? nextCopy : {}),
         };
       }),
@@ -238,7 +261,7 @@ export function EventNotifications({
       bodySv: string;
       titleEn: string;
       bodyEn: string;
-      sendAt: string;
+      sendAt: string | null;
     }[];
     try {
       notifications = drafts.map((draft) => ({
@@ -246,7 +269,10 @@ export function EventNotifications({
         bodySv: draft.bodySv.trim(),
         titleEn: draft.titleEn.trim(),
         bodyEn: draft.bodyEn.trim(),
-        sendAt: zonedLocalToIso(draft.sendAtLocal, timezone.trim() || 'Europe/Stockholm'),
+        sendAt:
+          draft.offset === 'published'
+            ? null
+            : zonedLocalToIso(draft.sendAtLocal, timezone.trim() || 'Europe/Stockholm'),
       }));
     } catch {
       setError(t('planInvalidTime'));
@@ -258,7 +284,11 @@ export function EventNotifications({
       setError(t('planIncomplete'));
       return;
     }
-    if (notifications.some((item) => new Date(item.sendAt).getTime() <= Date.now())) {
+    if (
+      notifications.some(
+        (item) => item.sendAt !== null && new Date(item.sendAt).getTime() <= Date.now(),
+      )
+    ) {
       setError(t('planPast'));
       return;
     }
@@ -391,27 +421,32 @@ export function EventNotifications({
                     <PushScheduleOffsetSelect
                       id={`plan-offset-${draft.id}`}
                       value={draft.offset}
+                      allowPublished={planId !== 'single'}
                       onChange={(offset) => onOffset(draft.id, offset)}
                     />
-                    <Field data-invalid={past || undefined}>
-                      <FieldLabel htmlFor={`plan-send-${draft.id}`}>{t('sendAt')}</FieldLabel>
-                      <Input
-                        id={`plan-send-${draft.id}`}
-                        type="datetime-local"
-                        required
-                        value={draft.sendAtLocal}
-                        aria-invalid={past || undefined}
-                        onChange={(event) =>
-                          updateDraft(draft.id, {
-                            sendAtLocal: event.target.value,
-                            offset: 'custom',
-                          })
-                        }
-                      />
-                      <FieldDescription>
-                        {past ? t('planPast') : t('planSendAtHint')}
-                      </FieldDescription>
-                    </Field>
+                    {draft.offset === 'published' ? (
+                      <p className="text-sm text-muted-foreground">{t('offsetPublishedHint')}</p>
+                    ) : (
+                      <Field data-invalid={past || undefined}>
+                        <FieldLabel htmlFor={`plan-send-${draft.id}`}>{t('sendAt')}</FieldLabel>
+                        <Input
+                          id={`plan-send-${draft.id}`}
+                          type="datetime-local"
+                          required
+                          value={draft.sendAtLocal}
+                          aria-invalid={past || undefined}
+                          onChange={(event) =>
+                            updateDraft(draft.id, {
+                              sendAtLocal: event.target.value,
+                              offset: 'custom',
+                            })
+                          }
+                        />
+                        <FieldDescription>
+                          {past ? t('planPast') : t('planSendAtHint')}
+                        </FieldDescription>
+                      </Field>
+                    )}
                     <Field>
                       <FieldLabel htmlFor={`plan-title-sv-${draft.id}`}>{t('titleSv')}</FieldLabel>
                       <Input
@@ -470,6 +505,26 @@ export function EventNotifications({
               >
                 {t('addNotification')}
               </Button>
+              {planId !== 'single' ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCustomized(true);
+                    setDrafts((current) =>
+                      current.some((draft) => draft.offset === 'published')
+                        ? current
+                        : [draftPublished(title), ...current],
+                    );
+                  }}
+                  disabled={
+                    drafts.some((draft) => draft.offset === 'published') ||
+                    drafts.length >= MAX_ADMIN_EVENT_PUSH_PLAN
+                  }
+                >
+                  {t('addPublished')}
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 onClick={approvePlan}

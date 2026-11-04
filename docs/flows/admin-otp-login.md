@@ -9,8 +9,10 @@ The code is stored as a peppered hash on `email_verification_tokens`
 (`purpose=admin_login_otp`). Without `ADMIN_OTP_PEPPER` the pepper is random for the process, so a
 restart invalidates outstanding codes and a database dump is not a 6-digit rainbow table. Confirm
 marks the row used only while it is still unused, then inserts the session in the same transaction.
-Outside production the request response includes the raw code, because mail delivery is not wired.
-`ADMIN_INCLUDE_LOGIN_OTP=true` includes it in production too. Leave that unset on a public host.
+When `RESEND_API_KEY` and `RESEND_FROM` are both set, the admin API emails the code through Resend
+and the response omits it. The from address must use a domain verified in Resend. Outside
+production, with Resend unset, the response includes the raw code. `ADMIN_INCLUDE_LOGIN_OTP=true`
+includes it in production too. Leave that unset on a public host.
 
 ## Sequence
 
@@ -20,12 +22,14 @@ sequenceDiagram
   participant UI as Admin console
   participant API as Admin API /v1
   participant DB as Postgres
+  participant Resend
 
   Admin->>UI: Sign in with a code
   UI->>API: POST /admin/login/otp { email }
   API->>DB: Retire unused admin_login_otp rows<br/>INSERT email_verification_tokens (hash, 10 min)
+  API->>Resend: Send the code when RESEND_API_KEY and RESEND_FROM are set
   API-->>UI: { status: code_sent, code? }
-  Note over UI: Local dev shows code.<br/>Production omits it until mail exists.
+  Note over UI: Outside production the response includes the code.<br/>Test runs as production, so it omits the code and emails it.
   Admin->>UI: Enter 6 digits
   UI->>API: POST /admin/login/otp/confirm { email, code }
   API->>DB: Match hash, set used_at,<br/>INSERT sessions (subject_type=admin)

@@ -32,6 +32,7 @@ import {
   releaseOnVerification,
   shouldEnqueueNotifications,
   importPlanToSchedule,
+  importPlanNotifiesOnPublish,
   pushStatusForEvent,
   type MarketingPushPlanId,
   type PublisherStatus,
@@ -135,6 +136,7 @@ export type AdminMemoryStore = {
       origin: 'native' | 'imported';
       isTemporary?: boolean;
       importNotificationPlan?: ImportNotificationPlan | null;
+      importNotifyOnPublish?: boolean;
       createdAt: Date;
     }
   >;
@@ -190,6 +192,7 @@ function asPublisherSummary(
     status: p.status,
     origin: p.origin,
     importNotificationPlan: p.importNotificationPlan ?? null,
+    importNotifyOnPublish: p.importNotifyOnPublish ?? false,
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -213,13 +216,21 @@ function scheduleMemoryImportPlanIfReady(
 ) {
   const planId = importPlanToSchedule(input);
   if (!planId) return;
-  scheduleMemoryImportPlan(store, publisherId, planId, at);
+  const publisher = store.publishers.get(publisherId);
+  scheduleMemoryImportPlan(
+    store,
+    publisherId,
+    planId,
+    publisher?.importNotifyOnPublish ?? false,
+    at,
+  );
 }
 
 function scheduleMemoryImportPlan(
   store: AdminMemoryStore,
   publisherId: string,
   planId: MarketingPushPlanId,
+  notifyOnPublish: boolean,
   now: Date,
 ) {
   const scheduled = store.scheduledImports ?? (store.scheduledImports = []);
@@ -234,6 +245,7 @@ function scheduleMemoryImportPlan(
       eventTitle: event.title,
       startsAt: event.startsAtDate,
       now,
+      notifyOnPublish,
     });
     if (messages.length === 0) continue;
     scheduled.push({
@@ -385,7 +397,13 @@ export function createMemoryAdminPublisherServices(
       if (body.importNotificationPlan !== undefined) {
         publisher.importNotificationPlan = body.importNotificationPlan;
       }
-      if (body.importNotificationPlan) {
+      if (body.importNotifyOnPublish !== undefined || body.importNotificationPlan !== undefined) {
+        publisher.importNotifyOnPublish = importPlanNotifiesOnPublish(
+          publisher.importNotificationPlan ?? null,
+          body.importNotifyOnPublish ?? publisher.importNotifyOnPublish ?? false,
+        );
+      }
+      if (body.importNotificationPlan || body.importNotifyOnPublish) {
         scheduleMemoryImportPlanIfReady(
           store,
           publisherId,
@@ -465,6 +483,7 @@ export function createDbAdminPublisherServices(
           status: schema.publishers.status,
           origin: schema.publishers.origin,
           importNotificationPlan: schema.publishers.importNotificationPlan,
+          importNotifyOnPublish: schema.publishers.importNotifyOnPublish,
           createdAt: schema.publishers.createdAt,
           eventCount: count(schema.events.id),
         })
@@ -479,6 +498,7 @@ export function createDbAdminPublisherServices(
           schema.publishers.status,
           schema.publishers.origin,
           schema.publishers.importNotificationPlan,
+          schema.publishers.importNotifyOnPublish,
           schema.publishers.createdAt,
         )
         .orderBy(asc(schema.publishers.name));
@@ -490,6 +510,7 @@ export function createDbAdminPublisherServices(
         status: r.status,
         origin: r.origin,
         importNotificationPlan: r.importNotificationPlan,
+        importNotifyOnPublish: r.importNotifyOnPublish,
         eventCount: Number(r.eventCount),
         createdAt: r.createdAt.toISOString(),
       }));
@@ -714,6 +735,7 @@ export function createDbAdminPublisherServices(
           status: schema.publishers.status,
           origin: schema.publishers.origin,
           importNotificationPlan: schema.publishers.importNotificationPlan,
+          importNotifyOnPublish: schema.publishers.importNotifyOnPublish,
           createdAt: schema.publishers.createdAt,
         })
         .from(schema.publishers)
@@ -734,6 +756,7 @@ export function createDbAdminPublisherServices(
           status: schema.publishers.status,
           origin: schema.publishers.origin,
           importNotificationPlan: schema.publishers.importNotificationPlan,
+          importNotifyOnPublish: schema.publishers.importNotifyOnPublish,
           createdAt: schema.publishers.createdAt,
         })
         .from(schema.publishers)
@@ -743,7 +766,11 @@ export function createDbAdminPublisherServices(
     },
     async patch(publisherId, body) {
       const [existing] = await db
-        .select({ id: schema.publishers.id })
+        .select({
+          id: schema.publishers.id,
+          importNotificationPlan: schema.publishers.importNotificationPlan,
+          importNotifyOnPublish: schema.publishers.importNotifyOnPublish,
+        })
         .from(schema.publishers)
         .where(eq(schema.publishers.id, publisherId))
         .limit(1);
@@ -756,14 +783,26 @@ export function createDbAdminPublisherServices(
           .limit(1);
         if (taken) return null;
       }
+      const nextPlan =
+        body.importNotificationPlan !== undefined
+          ? body.importNotificationPlan
+          : existing.importNotificationPlan;
+      const planTouched =
+        body.importNotificationPlan !== undefined || body.importNotifyOnPublish !== undefined;
       const [updated] = await db
         .update(schema.publishers)
         .set({
           ...(body.name !== undefined ? { name: body.name } : {}),
           ...(body.slug !== undefined ? { slug: body.slug } : {}),
           ...(body.type !== undefined ? { type: body.type } : {}),
-          ...(body.importNotificationPlan !== undefined
-            ? { importNotificationPlan: body.importNotificationPlan }
+          ...(planTouched
+            ? {
+                importNotificationPlan: nextPlan,
+                importNotifyOnPublish: importPlanNotifiesOnPublish(
+                  nextPlan,
+                  body.importNotifyOnPublish ?? existing.importNotifyOnPublish,
+                ),
+              }
             : {}),
         })
         .where(eq(schema.publishers.id, publisherId))
@@ -775,10 +814,11 @@ export function createDbAdminPublisherServices(
           status: schema.publishers.status,
           origin: schema.publishers.origin,
           importNotificationPlan: schema.publishers.importNotificationPlan,
+          importNotifyOnPublish: schema.publishers.importNotifyOnPublish,
           createdAt: schema.publishers.createdAt,
         });
       const savedPlan =
-        updated && body.importNotificationPlan
+        updated && (body.importNotificationPlan || body.importNotifyOnPublish)
           ? importPlanToSchedule({
               publisherStatus: updated.status,
               planId: updated.importNotificationPlan,

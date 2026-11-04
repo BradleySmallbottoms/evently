@@ -355,6 +355,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           isTemporary: publishers.isTemporary,
           status: publishers.status,
           importNotificationPlan: publishers.importNotificationPlan,
+          importNotifyOnPublish: publishers.importNotifyOnPublish,
           createdAt: publishers.createdAt,
           publisherName: publishers.name,
         })
@@ -372,6 +373,7 @@ export function createDbIngestStore(db: Db): IngestStore {
                 isTemporary: publishers.isTemporary,
                 status: publishers.status,
                 importNotificationPlan: publishers.importNotificationPlan,
+                importNotifyOnPublish: publishers.importNotifyOnPublish,
                 createdAt: publishers.createdAt,
                 publisherName: publishers.name,
               })
@@ -425,6 +427,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         distanceMeters: nearIds.has(row.publisherId) ? (nearIds.get(row.publisherId) ?? -1) : -1,
         isTemporary: row.isTemporary,
         importNotificationPlan: row.importNotificationPlan,
+        importNotifyOnPublish: row.importNotifyOnPublish,
         organizerKeys: [],
         publisherName: row.publisherName,
       }));
@@ -447,6 +450,7 @@ export function createDbIngestStore(db: Db): IngestStore {
             : -1,
           isTemporary: publisher.isTemporary,
           importNotificationPlan: publisher.importNotificationPlan,
+          importNotifyOnPublish: publisher.importNotifyOnPublish,
           organizerKeys: [],
           publisherName: publisher.publisherName,
         });
@@ -475,6 +479,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         isTemporary: match.isTemporary,
         status: match.status,
         importNotificationPlan: match.importNotificationPlan,
+        importNotifyOnPublish: match.importNotifyOnPublish,
       };
     },
     async createTemporaryPublisher(input) {
@@ -507,6 +512,7 @@ export function createDbIngestStore(db: Db): IngestStore {
           isTemporary: true,
           status: 'pending_scan',
           importNotificationPlan: null,
+          importNotifyOnPublish: false,
         };
       });
     },
@@ -970,6 +976,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         eventTitle: input.eventTitle,
         startsAt: input.startsAt,
         now: new Date(),
+        notifyOnPublish: input.notifyOnPublish,
       });
       await insertApprovedEventReminders(db, {
         eventId: input.eventId,
@@ -1340,6 +1347,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         createdAt: row.createdAt.getTime(),
         isTemporary: row.isTemporary,
         importNotificationPlan: row.importNotificationPlan,
+        importNotifyOnPublish: row.importNotifyOnPublish,
         organizerKeys: aliases.map((alias) => alias.key),
         lookup: row.meta.lookup ?? null,
       };

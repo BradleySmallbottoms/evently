@@ -435,6 +435,7 @@ async function bestPublisher(
     isTemporary: publisher.isTemporary,
     status: publisher.status,
     importNotificationPlan: publisher.importNotificationPlan,
+    importNotifyOnPublish: publisher.importNotifyOnPublish,
   };
 }
 

@@ -674,6 +674,20 @@ describe('saveIncomingEvents', () => {
       },
     ]);
 
+    const announced = createMemoryIngestStore();
+    announced.linkPublisher({
+      sourceId: source.id,
+      organizerKey: future.organizerKeys[0]!,
+      name: 'Broberg',
+      isTemporary: false,
+      status: 'published',
+      importNotificationPlan: 'standard',
+      importNotifyOnPublish: true,
+    });
+    await saveIncomingEvents(announced, trusted, [future]);
+    await finishScan(announced, trusted);
+    expect(announced.scheduledNotifications[0]?.offsets).toEqual(['published', 'week', 'day']);
+
     const quiet = createMemoryIngestStore();
     quiet.linkPublisher({
       sourceId: source.id,

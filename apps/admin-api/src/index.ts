@@ -4,6 +4,7 @@ import { createDb, resolveDatabaseUrl } from '@local-events/db';
 import { createApp } from './app';
 import { createDbAdminAuditServices, createMemoryAdminAuditServices } from './services/audit';
 import { createDbAdminAuthServices } from './services/auth/db';
+import { createAdminLoginMailer } from './services/auth/mail';
 import { createAdminMemoryAuthStore, createMemoryAdminAuthServices } from './services/auth/memory';
 import { createMemoryDomainEventPublisher } from './services/domain-events/memory';
 import { createSqsDomainEventPublisher } from './services/domain-events/sqs';
@@ -50,6 +51,7 @@ const includeLoginOtp =
   process.env.ADMIN_INCLUDE_LOGIN_OTP === 'true' ||
   (process.env.ADMIN_INCLUDE_LOGIN_OTP !== 'false' && process.env.NODE_ENV !== 'production');
 const otpPepper = process.env.ADMIN_OTP_PEPPER?.trim() || randomBytes(32).toString('hex');
+const sendAdminLoginCode = createAdminLoginMailer(process.env);
 
 const authStore = createAdminMemoryAuthStore();
 const { auth, publishers, events, dataSources, audit, moderation, pushMessages } = (() => {
@@ -57,7 +59,7 @@ const { auth, publishers, events, dataSources, audit, moderation, pushMessages }
     const db = createDb(databaseUrl);
     const auditSvc = createDbAdminAuditServices(db);
     return {
-      auth: createDbAdminAuthServices(db, { includeLoginOtp, otpPepper }),
+      auth: createDbAdminAuthServices(db, { includeLoginOtp, otpPepper, sendAdminLoginCode }),
       publishers: createDbAdminPublisherServices(db, { domainEvents }),
       events: createDbAdminEventServices(db, {
         domainEvents,
@@ -73,7 +75,11 @@ const { auth, publishers, events, dataSources, audit, moderation, pushMessages }
   }
   const auditSvc = createMemoryAdminAuditServices();
   return {
-    auth: createMemoryAdminAuthServices(authStore, { includeLoginOtp, otpPepper }),
+    auth: createMemoryAdminAuthServices(authStore, {
+      includeLoginOtp,
+      otpPepper,
+      sendAdminLoginCode,
+    }),
     publishers: createMemoryAdminPublisherServices(
       { publishers: new Map(), events: new Map() },
       { domainEvents },
@@ -104,6 +110,7 @@ if (!queueUrl) {
 console.log(
   JSON.stringify({
     adminLoginOtp: includeLoginOtp ? 'inline' : 'stored-only',
+    adminLoginMail: sendAdminLoginCode ? 'resend' : 'off',
   }),
 );
 

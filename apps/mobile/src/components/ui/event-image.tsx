@@ -1,4 +1,9 @@
-import { deviceAssetUrl, imageContentPosition, type ImageFocal } from '@local-events/domain';
+import {
+  deviceAssetUrl,
+  imageContentPosition,
+  withImageDelivery,
+  type ImageFocal,
+} from '@local-events/domain';
 import { Image, type ImageProps } from 'expo-image';
 import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -54,21 +59,32 @@ type Props = {
   eventId?: string | null;
   /** Position among the same scene in the list that is on screen. */
   placeholderSlot?: number;
+  /** Pixel width to request. CloudFront snaps it to 400, 800, 1200, or 1600. */
+  deliveryWidth?: number;
   style?: ImageProps['style'];
 };
 
 /** Expo Go on a phone cannot open Garage at `*.localhost`. Load those via the API. */
-function imageUri(imageUrl: string): string {
-  if (Platform.OS === 'web') return imageUrl;
-  return deviceAssetUrl(imageUrl, API_URL);
+function imageUri(imageUrl: string, deliveryWidth: number): string {
+  const sized = withImageDelivery(imageUrl, deliveryWidth);
+  if (Platform.OS === 'web') return sized;
+  return deviceAssetUrl(sized, API_URL);
 }
 
 /**
  * Event photo. A missing photo uses one picture from the tag's scene. A photo that is still
  * downloading keeps a gray field with a light sweep, then fades in.
  */
-export function EventImage({ imageUrl, focal, tags, eventId, placeholderSlot, style }: Props) {
-  const uri = imageUrl ? imageUri(imageUrl) : null;
+export function EventImage({
+  imageUrl,
+  focal,
+  tags,
+  eventId,
+  placeholderSlot,
+  deliveryWidth = 800,
+  style,
+}: Props) {
+  const uri = imageUrl ? imageUri(imageUrl, deliveryWidth) : null;
   const reduced = useReducedMotion();
   const [loadedUri, setLoadedUri] = useState<string | null>(null);
   const [failedUri, setFailedUri] = useState<string | null>(null);

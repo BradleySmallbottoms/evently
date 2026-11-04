@@ -54,8 +54,8 @@ export type AdminOtpLoginRequest = z.infer<typeof AdminOtpLoginRequest>;
 export const AdminOtpLoginResponse = z.object({
   status: z.literal('code_sent'),
   /**
-   * Present only when the server is allowed to reveal the code (local/dev, until mail exists).
-   * Omitted for an unknown email so a production response never distinguishes accounts.
+   * Present outside production, or when ADMIN_INCLUDE_LOGIN_OTP is true.
+   * Omitted for an unknown email so the response does not distinguish accounts.
    */
   code: z
     .string()
@@ -611,5 +611,7 @@ export const AdminPublisherPatchRequest = z.object({
     .optional(),
   type: z.enum(['org', 'person']).optional(),
   importNotificationPlan: ImportNotificationPlan.nullable().optional(),
+  /** Also notify as soon as the event is published. Ignored for nothing and simple. */
+  importNotifyOnPublish: z.boolean().optional(),
 });
 export type AdminPublisherPatchRequest = z.infer<typeof AdminPublisherPatchRequest>;

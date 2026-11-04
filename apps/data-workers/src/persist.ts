@@ -335,6 +335,7 @@ async function scheduleImportedNotifications(
     eventTitle: input.eventTitle,
     startsAt: new Date(input.startsAt),
     planId,
+    notifyOnPublish: input.publisher.importNotifyOnPublish,
     status: input.status,
   });
 }

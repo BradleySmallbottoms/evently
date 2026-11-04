@@ -107,9 +107,11 @@ pnpm api-client:generate   # after public API OpenAPI changes
 ### Publisher import notifications
 
 - Admin edits a publisher at `/publishers/{id}` (name, slug, type, and notification settings).
-  Notification settings are **nothing** or a marketing plan. A plan schedules reminders for events
-  a script imports for that publisher, and only when the publisher status is **published**. The reminders
-  use saved area plus a matching interest (`area_and_tag`) and skip times already in the past.
+  Notification settings are **nothing** or a marketing plan. The editor lists the notifications in
+  each plan. Every plan except simple can also notify as soon as the event is published. A plan
+  schedules reminders for events a script imports for that publisher, and only when the publisher
+  status is **published**. The reminders use saved area plus a matching interest (`area_and_tag`)
+  and skip times already in the past. The publish notification is due immediately.
   A published import (`auto_publish`) is approved immediately. An event still in review is stored
   as `pending` and is not sent until an admin publishes the event, which approves those rows.
   Flow: [docs/flows/publisher-import-notifications.md](docs/flows/publisher-import-notifications.md).
@@ -197,7 +199,11 @@ calls) in the same change as every new major feature.**
   URLs to `GET /v1/assets/…` on the API host, and the API fetches Garage. The phone
   still needs `EXPO_PUBLIC_API_URL` set to this computer's LAN address.
   Browse the buckets at `http://localhost:13909` (Garage Web UI).
-  In AWS the same key is served from CloudFront (`ASSETS_PUBLIC_BASE_URL`).
+  In AWS the same key is served from CloudFront (`ASSETS_PUBLIC_BASE_URL`). A miss resizes
+  the file to WebP at the nearest of 400, 800, 1200, or 1600 pixels wide. `?w` and `?q` choose
+  the step. Quality defaults to 75. The image is not enlarged. The test server resizes the same
+  way in front of Garage. Local Garage ignores those parameters and serves the original file. Flow:
+  [docs/flows/event-images.md](docs/flows/event-images.md).
 
 ### Glada Hudik import
 
@@ -439,8 +445,10 @@ calls) in the same change as every new major feature.**
   publishers via admin console (`apps/admin` → Publishers) or
   `POST /v1/publishers/{id}/verify` (admin session cookie / Bearer). Bootstrap first admin with
   `ADMIN_BOOTSTRAP_EMAIL` + `ADMIN_BOOTSTRAP_PASSWORD`; enroll TOTP on first password login.
-  An admin can also sign in with a 6-digit email code (`POST /v1/admin/login/otp`). Outside
-  production that response includes the code, because mail is not wired. Do not set
+  An admin can also sign in with a 6-digit email code (`POST /v1/admin/login/otp`). With
+  `RESEND_API_KEY` and `RESEND_FROM` set, the admin API emails the code through Resend. The from
+  address must use a domain verified in Resend. Outside production, with Resend unset, the response
+  includes the code. Do not set
   `ADMIN_INCLUDE_LOGIN_OTP=true` on a public host. Flow:
   [docs/flows/admin-otp-login.md](docs/flows/admin-otp-login.md).
 - Publishers sign in with email and password, or a 6-digit email code

@@ -114,14 +114,16 @@ Closed beta around week 15, store launch around week 19.
 ## Parallel track — Admin console (from week 4)
 
 - [x] Admin login (password + TOTP) + publisher verification queue
-- [x] Admin email one-time-code login (alongside password + TOTP)
+- [x] Admin email one-time-code login (alongside password + TOTP). The code is emailed with Resend when
+      `RESEND_API_KEY` and `RESEND_FROM` are set.
 - [x] Publisher email-code login and optional authenticator. Admin can list, add, edit, and remove
       the accounts attached to a publisher. A verified account's code is emailed with Resend when
       `RESEND_API_KEY` and `RESEND_FROM` are set.
 - [x] Entity CRUD (events, users, remaining publisher fields)
 - [x] Publisher editor: name, slug, type, and import notification plan (nothing, or a marketing plan
-      scheduled for published publishers' script imports). In-review imports get `pending`
-      reminders; publishing the event approves them. The page lists the publisher's events.
+      scheduled for published publishers' script imports). The editor lists what each plan sends.
+      Every plan except simple can also notify when the event is published. In-review imports get
+      `pending` reminders; publishing the event approves them. The page lists the publisher's events.
       Delete is available when that list is empty.
 
 - [x] Moderation queue for ratings and suspicious check-ins; user bans
@@ -162,7 +164,9 @@ Closed beta around week 15, store launch around week 19.
 - [x] First real source: Visit Söderhamn adapter (Citybreak, Evenemang only). Occasions follow the shared collapse rule with Glada Hudik and Destination Hälsingland.
 - [x] Event images: copy into public assets (Garage locally, S3 + CloudFront in AWS) and link via
       `event_images`. Visit Söderhamn fills a missing hero from a linked page (`og:image`, then
-      `<img>`) and stores the other crawled images as gallery roles
+      `<img>`) and stores the other crawled images as gallery roles. On AWS, CloudFront resizes
+      the public object to WebP (widths 400, 800, 1200, 1600; quality 60, 75, or 85) and caches it.
+      The test server runs that same resize in front of Garage.
 - [x] Image focal point: `event_images.focal_x` and `focal_y`. `JOB=image-focal` asks the scan chat
       model for a point on each pending image for an event that still has a showing, soonest first, except posters. Explore uses the hero point. EventBridge runs it every 5 minutes.
 - [x] Remaining launch-area sources (generic `ics-feed` adapter + seed; configure `feedUrl` per

@@ -1,4 +1,4 @@
-import { deviceAssetUrl } from '@local-events/domain';
+import { deviceAssetUrl, withImageDelivery } from '@local-events/domain';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
@@ -54,8 +54,9 @@ type Props = {
 };
 
 function posterUri(posterUrl: string): string {
-  if (Platform.OS === 'web') return posterUrl;
-  return deviceAssetUrl(posterUrl, API_URL);
+  const sized = withImageDelivery(posterUrl, 1200);
+  if (Platform.OS === 'web') return sized;
+  return deviceAssetUrl(sized, API_URL);
 }
 
 /** The poster is the whole row. Title, time, and place stay on the image. */
