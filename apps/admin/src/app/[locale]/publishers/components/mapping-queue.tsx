@@ -274,7 +274,7 @@ export function MappingQueue() {
                         href={`/publishers/${item.id}`}
                         className="text-primary underline-offset-4 hover:underline"
                       >
-                        {item.name}
+                        {item.name.length > 20 ? item.name.slice(0, 40) + '...' : item.name}
                       </Link>
                       <p className="text-xs text-muted-foreground">{item.slug}</p>
                     </TableCell>

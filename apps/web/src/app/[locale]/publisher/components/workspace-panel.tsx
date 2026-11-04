@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { AppLink } from '@/components/app-link';
 import { api, throwIfError } from '@/lib/api';
 import { QueryProvider } from '@/lib/query-provider';
+import { AuthenticatorPanel } from './authenticator-panel';
 import { LogoutButton } from './logout-button';
 
 const linkClass = 'text-sm underline-offset-4 hover:underline';
@@ -63,6 +64,7 @@ function WorkspaceInner() {
           ))}
         </ul>
       </div>
+      <AuthenticatorPanel enabled={me.data.totpEnabled} />
     </div>
   );
 }

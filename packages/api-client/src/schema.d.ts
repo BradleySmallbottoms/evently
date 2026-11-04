@@ -624,30 +624,39 @@ export interface paths {
         };
       };
       responses: {
-        /** @description Logged in; session cookie set */
+        /** @description Session cookie set, or authenticator still required */
         200: {
           headers: {
             [name: string]: unknown;
           };
           content: {
-            'application/json': {
-              /** Format: uuid */
-              publisherAccountId: string;
-              /** Format: email */
-              email: string;
-              publishers: {
-                /** Format: uuid */
-                id: string;
-                name: string;
-                slug: string;
-                /** @enum {string} */
-                type: 'org' | 'person';
-                /** @enum {string} */
-                status: 'pending_scan' | 'in_review' | 'published';
-                /** @enum {string} */
-                role: 'owner' | 'editor';
-              }[];
-            };
+            'application/json':
+              | {
+                  /** Format: uuid */
+                  publisherAccountId: string;
+                  /** Format: email */
+                  email: string;
+                  publishers: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                    slug: string;
+                    /** @enum {string} */
+                    type: 'org' | 'person';
+                    /** @enum {string} */
+                    status: 'pending_scan' | 'in_review' | 'published';
+                    /** @enum {string} */
+                    role: 'owner' | 'editor';
+                  }[];
+                  totpEnabled: boolean;
+                  /** @enum {string} */
+                  status: 'authenticated';
+                }
+              | {
+                  /** @enum {string} */
+                  status: 'totp_required';
+                  challengeToken: string;
+                };
           };
         };
         /** @description Invalid credentials */
@@ -681,6 +690,413 @@ export interface paths {
       };
     };
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/publishers/login/otp': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            /** Format: email */
+            email: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Code issued when the email can sign in. Other emails get the same body. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @enum {string} */
+              status: 'code_sent';
+              code?: string;
+            };
+          };
+        };
+        /** @description Too many code requests for this email */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/publishers/login/otp/confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            /** Format: email */
+            email: string;
+            code: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Session cookie set, or authenticator still required */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json':
+              | {
+                  /** Format: uuid */
+                  publisherAccountId: string;
+                  /** Format: email */
+                  email: string;
+                  publishers: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                    slug: string;
+                    /** @enum {string} */
+                    type: 'org' | 'person';
+                    /** @enum {string} */
+                    status: 'pending_scan' | 'in_review' | 'published';
+                    /** @enum {string} */
+                    role: 'owner' | 'editor';
+                  }[];
+                  totpEnabled: boolean;
+                  /** @enum {string} */
+                  status: 'authenticated';
+                }
+              | {
+                  /** @enum {string} */
+                  status: 'totp_required';
+                  challengeToken: string;
+                };
+          };
+        };
+        /** @description Invalid or expired code */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/publishers/login/totp': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            token: string;
+            code: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Session created */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json':
+              | {
+                  /** Format: uuid */
+                  publisherAccountId: string;
+                  /** Format: email */
+                  email: string;
+                  publishers: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                    slug: string;
+                    /** @enum {string} */
+                    type: 'org' | 'person';
+                    /** @enum {string} */
+                    status: 'pending_scan' | 'in_review' | 'published';
+                    /** @enum {string} */
+                    role: 'owner' | 'editor';
+                  }[];
+                  totpEnabled: boolean;
+                  /** @enum {string} */
+                  status: 'authenticated';
+                }
+              | {
+                  /** @enum {string} */
+                  status: 'totp_required';
+                  challengeToken: string;
+                };
+          };
+        };
+        /** @description Invalid or expired challenge / authenticator code */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/publishers/me/totp/setup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Authenticator enrollment started */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              secret: string;
+              otpauthUrl: string;
+            };
+          };
+        };
+        /** @description Not authenticated */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/publishers/me/totp/confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            code: string;
+            password: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Authenticator turned on */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              totpEnabled: boolean;
+            };
+          };
+        };
+        /** @description Not authenticated, or the password or code is wrong */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/publishers/me/totp': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            code: string;
+            password: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Authenticator turned off */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              totpEnabled: boolean;
+            };
+          };
+        };
+        /** @description Not authenticated, or the password or code is wrong */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+        /** @description Authenticator is not turned on */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+              };
+            };
+          };
+        };
+      };
+    };
     options?: never;
     head?: never;
     patch?: never;
@@ -758,6 +1174,7 @@ export interface paths {
                 /** @enum {string} */
                 role: 'owner' | 'editor';
               }[];
+              totpEnabled: boolean;
             };
           };
         };

@@ -54,8 +54,8 @@ export function PublisherEvents({ publisherId }: { publisherId: string }) {
           <Table>
             <TableHeader className="rounded-t-lg border-b bg-muted">
               <TableRow>
-                <TableHead>{t('colId')}</TableHead>
                 <TableHead>{t('colTitle')}</TableHead>
+                <TableHead>{t('colId')}</TableHead>
                 <TableHead>{t('colStatus')}</TableHead>
                 <TableHead>{t('colStarts')}</TableHead>
                 <TableHead>{t('colVenue')}</TableHead>
@@ -64,7 +64,6 @@ export function PublisherEvents({ publisherId }: { publisherId: string }) {
             <TableBody>
               {items.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="font-mono text-xs">{item.id}</TableCell>
                   <TableCell>
                     <Link
                       href={`/events/${item.id}`}
@@ -73,6 +72,7 @@ export function PublisherEvents({ publisherId }: { publisherId: string }) {
                       {item.title}
                     </Link>
                   </TableCell>
+                  <TableCell className="font-mono text-xs">{item.id}</TableCell>
                   <TableCell>{item.status}</TableCell>
                   <TableCell>
                     {item.startsAt ? new Date(item.startsAt).toLocaleString() : '—'}

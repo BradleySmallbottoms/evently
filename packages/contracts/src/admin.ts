@@ -542,6 +542,64 @@ export const AdminOccasionPatchRequest = z
   });
 export type AdminOccasionPatchRequest = z.infer<typeof AdminOccasionPatchRequest>;
 
+export const AdminPublisherAccount = z.object({
+  id: Id,
+  email: z.email(),
+  role: z.enum(['owner', 'editor']),
+  emailVerifiedAt: z.iso.datetime().nullable(),
+  totpEnabled: z.boolean(),
+  createdAt: z.iso.datetime(),
+});
+export type AdminPublisherAccount = z.infer<typeof AdminPublisherAccount>;
+
+export const AdminPublisherAccountListResponse = z.object({
+  items: z.array(AdminPublisherAccount),
+});
+export type AdminPublisherAccountListResponse = z.infer<typeof AdminPublisherAccountListResponse>;
+
+export const AdminPublisherAccountLookupResponse = z.object({
+  status: z.enum(['new', 'existing', 'already_member']),
+});
+export type AdminPublisherAccountLookupResponse = z.infer<
+  typeof AdminPublisherAccountLookupResponse
+>;
+
+export const AdminCreatePublisherAccountRequest = z.object({
+  email: z.email().trim().toLowerCase(),
+  /** Required when the email has no account. Omitted when linking an existing account. */
+  password: z.string().min(10).max(200).optional(),
+  role: z.enum(['owner', 'editor']),
+});
+export type AdminCreatePublisherAccountRequest = z.infer<typeof AdminCreatePublisherAccountRequest>;
+
+export const AdminPatchPublisherAccountRequest = z.object({
+  role: z.enum(['owner', 'editor']),
+});
+export type AdminPatchPublisherAccountRequest = z.infer<typeof AdminPatchPublisherAccountRequest>;
+
+export const AdminPublisherAccountDirectoryItem = z.object({
+  id: Id,
+  email: z.email(),
+  emailVerifiedAt: z.iso.datetime().nullable(),
+  totpEnabled: z.boolean(),
+  createdAt: z.iso.datetime(),
+});
+export type AdminPublisherAccountDirectoryItem = z.infer<typeof AdminPublisherAccountDirectoryItem>;
+
+export const AdminPublisherAccountDirectoryResponse = z.object({
+  items: z.array(AdminPublisherAccountDirectoryItem),
+});
+export type AdminPublisherAccountDirectoryResponse = z.infer<
+  typeof AdminPublisherAccountDirectoryResponse
+>;
+
+export const AdminPublisherAccountPasswordRequest = z.object({
+  password: z.string().min(10).max(200),
+});
+export type AdminPublisherAccountPasswordRequest = z.infer<
+  typeof AdminPublisherAccountPasswordRequest
+>;
+
 export const AdminPublisherPatchRequest = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   slug: z

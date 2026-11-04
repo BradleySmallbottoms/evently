@@ -176,6 +176,20 @@ Product invariants (enforced in domain, tested)
   guesses, five sends per 15 minutes per email). The code is stored hashed on
   `email_verification_tokens`. Outside production the request response includes the code until
   mail delivery exists. An unknown email gets the same response without a code.
+- Publishers sign in on the web with a verified email and password, or a single-use 6-digit email
+  code (10 minutes, five guesses, five sends per 15 minutes). Unknown and unverified emails get the
+  same response without a code. An account can opt in to an authenticator. When that secret is set,
+  both sign-in paths return a short-lived challenge and the session cookie is set only after
+  `POST /publishers/login/totp`. A pending enrollment secret does not count. Turning the
+  authenticator on or off requires the current password. Enrollment is refused while an
+  authenticator is already on. A wrong authenticator code during sign-in can be tried again until
+  that challenge expires. Admins manage the accounts on a publisher
+  (`GET/POST /publishers/{id}/accounts`, `PATCH/DELETE …/accounts/{accountId}`). Adding an account
+  looks the email up first. A new account needs a password. An existing account is linked and keeps
+  its password. On a publisher, edit changes only the role, and remove only unlinks the account.
+  `GET /publisher-accounts` lists every account, including which have an authenticator.
+  `PATCH /publisher-accounts/{accountId}` sets a new password and signs that account out. Outside
+  production the email-code response includes the code.
 - Events from publishers that are not `published` are `awaiting_verification`: not listed, searched or pushed.
 - An event without a point is omitted from the public event list. Tags do not replace a missing
   point. It has no map pin and does not match nearby push. Direct lookup by id still returns it.

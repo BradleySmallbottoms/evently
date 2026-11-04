@@ -10,6 +10,8 @@ export const ADMIN_LOGIN_OTP_MAX_REQUESTS = 5;
 export const ADMIN_LOGIN_OTP_WINDOW_SECONDS = 15 * 60;
 /** `email_verification_tokens.purpose` for an admin sign-in code. */
 export const ADMIN_LOGIN_OTP_PURPOSE = 'admin_login_otp';
+/** `email_verification_tokens.purpose` for a publisher sign-in code. */
+export const PUBLISHER_LOGIN_OTP_PURPOSE = 'publisher_login_otp';
 
 /** Six-digit code. Stored hashed; the raw value is shown or mailed once. */
 export function generateLoginOtp(): string {

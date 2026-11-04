@@ -245,6 +245,10 @@ export const publisherAccounts = pgTable(
     email: text('email').notNull(),
     passwordHash: text('password_hash').notNull(),
     emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+    /** Set only after the account confirms an authenticator code. Login then requires that code. */
+    totpSecret: text('totp_secret'),
+    /** Secret shown during enrollment. Login ignores it until confirm copies it to totp_secret. */
+    totpPendingSecret: text('totp_pending_secret'),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('publisher_accounts_email_idx').on(sql`lower(${t.email})`)],

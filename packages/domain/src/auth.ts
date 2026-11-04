@@ -8,6 +8,11 @@ export function canPublisherLogin(account: {
   return { ok: true };
 }
 
+/** Authenticator is on only after the account confirms a code. A pending secret does not count. */
+export function publisherAuthenticatorEnabled(account: { totpSecret: string | null }): boolean {
+  return account.totpSecret != null && account.totpSecret.length > 0;
+}
+
 /** URL-safe slug from a publisher display name. */
 export function slugifyPublisherName(name: string): string {
   const base = name

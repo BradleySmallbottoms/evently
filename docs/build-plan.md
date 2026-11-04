@@ -115,6 +115,8 @@ Closed beta around week 15, store launch around week 19.
 
 - [x] Admin login (password + TOTP) + publisher verification queue
 - [x] Admin email one-time-code login (alongside password + TOTP)
+- [x] Publisher email-code login and optional authenticator. Admin can list, add, edit, and remove
+      the accounts attached to a publisher.
 - [x] Entity CRUD (events, users, remaining publisher fields)
 - [x] Publisher editor: name, slug, type, and import notification plan (nothing, or a marketing plan
       scheduled for published publishers' script imports). In-review imports get `pending`

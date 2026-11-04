@@ -72,6 +72,7 @@ export {
   ADMIN_LOGIN_OTP_MAX_REQUESTS,
   ADMIN_LOGIN_OTP_WINDOW_SECONDS,
   ADMIN_LOGIN_OTP_PURPOSE,
+  PUBLISHER_LOGIN_OTP_PURPOSE,
   type LoginOtpRecord,
   type LoginOtpConfirmDecision,
 } from './login-otp';

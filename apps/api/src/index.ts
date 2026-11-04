@@ -1,4 +1,5 @@
 import { serve } from '@hono/node-server';
+import { randomBytes } from 'node:crypto';
 import { createDb, resolveDatabaseUrl } from '@local-events/db';
 import { createApp } from './app';
 import { createDbAuthServices } from './services/auth/db';
@@ -58,9 +59,14 @@ const corsOrigin =
 const includeVerificationToken =
   process.env.INCLUDE_VERIFICATION_TOKEN === 'true' ||
   (process.env.INCLUDE_VERIFICATION_TOKEN !== 'false' && process.env.NODE_ENV !== 'production');
+/** Inline publisher login code until mail exists. Do not set this on a public host. */
+const includeLoginOtp =
+  process.env.PUBLISHER_INCLUDE_LOGIN_OTP === 'true' ||
+  (process.env.PUBLISHER_INCLUDE_LOGIN_OTP !== 'false' && process.env.NODE_ENV !== 'production');
+const otpPepper = process.env.PUBLISHER_OTP_PEPPER?.trim() || randomBytes(32).toString('hex');
 
 const databaseUrl = resolveDatabaseUrl();
-const authEnv = { includeVerificationToken, now: () => new Date() };
+const authEnv = { includeVerificationToken, includeLoginOtp, otpPepper, now: () => new Date() };
 const eventEnv = {
   now: () => new Date(),
   assetsPublicBaseUrl: process.env.ASSETS_PUBLIC_BASE_URL?.trim() || undefined,

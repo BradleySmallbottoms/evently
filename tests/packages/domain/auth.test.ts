@@ -3,6 +3,7 @@ import {
   canConfirmDeviceLink,
   canManagePublisherOrg,
   canPublisherLogin,
+  publisherAuthenticatorEnabled,
   isPasswordStrongEnough,
   slugifyPublisherName,
 } from '../../../packages/domain/src/auth';
@@ -15,6 +16,14 @@ describe('canPublisherLogin', () => {
       reason: 'email_unverified',
     });
     expect(canPublisherLogin({ emailVerifiedAt: new Date() })).toEqual({ ok: true });
+  });
+});
+
+describe('publisherAuthenticatorEnabled', () => {
+  it('is on only when a confirmed secret is stored', () => {
+    expect(publisherAuthenticatorEnabled({ totpSecret: null })).toBe(false);
+    expect(publisherAuthenticatorEnabled({ totpSecret: '' })).toBe(false);
+    expect(publisherAuthenticatorEnabled({ totpSecret: 'JBSWY3DPEHPK3PXP' })).toBe(true);
   });
 });
 

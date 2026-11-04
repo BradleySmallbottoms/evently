@@ -9,6 +9,13 @@ import {
   LoginPublisherResponse,
   PublisherInviteListResponse,
   PublisherMeResponse,
+  PublisherOtpConfirmRequest,
+  PublisherOtpLoginRequest,
+  PublisherOtpLoginResponse,
+  PublisherTotpChangeRequest,
+  PublisherTotpLoginRequest,
+  PublisherTotpSetupResponse,
+  PublisherTotpStatusResponse,
   PublisherMemberListResponse,
   PublisherProfile,
   RegisterPublisherRequest,
@@ -24,7 +31,15 @@ import {
   setPublisherSessionCookie,
 } from '../services/auth/cookies';
 import { authErrorResponse } from '../services/auth/errors';
-import type { AuthServices } from '../services/auth/types';
+import type { AuthServices, PublisherLoginResult } from '../services/auth/types';
+import type { Context } from 'hono';
+
+function finishPublisherLogin(c: Context, result: PublisherLoginResult) {
+  if (result.status === 'authenticated') {
+    setPublisherSessionCookie(c, result.sessionToken, result.expiresAt);
+  }
+  return c.json(result.body, 200);
+}
 
 const PublisherIdParam = z.object({ publisherId: z.uuid() });
 
@@ -97,7 +112,7 @@ export function registerPublisherRoutes(app: OpenAPIHono, auth: AuthServices): v
     },
     responses: {
       200: {
-        description: 'Logged in; session cookie set',
+        description: 'Session cookie set, or authenticator still required',
         content: { 'application/json': { schema: LoginPublisherResponse } },
       },
       401: {
@@ -112,10 +127,187 @@ export function registerPublisherRoutes(app: OpenAPIHono, auth: AuthServices): v
   });
   app.openapi(loginPublisher, async (c) => {
     try {
-      const body = c.req.valid('json');
-      const result = await auth.loginPublisher(body);
-      setPublisherSessionCookie(c, result.sessionToken, result.expiresAt);
-      return c.json(result.body, 200);
+      return finishPublisherLogin(c, await auth.loginPublisher(c.req.valid('json')));
+    } catch (err) {
+      return authErrorResponse(c, err);
+    }
+  });
+
+  const requestPublisherOtp = createRoute({
+    method: 'post',
+    path: '/publishers/login/otp',
+    request: {
+      body: {
+        content: { 'application/json': { schema: PublisherOtpLoginRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Code issued when the email can sign in. Other emails get the same body.',
+        content: { 'application/json': { schema: PublisherOtpLoginResponse } },
+      },
+      429: {
+        description: 'Too many code requests for this email',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(requestPublisherOtp, async (c) => {
+    try {
+      return c.json(await auth.requestPublisherOtp(c.req.valid('json')), 200);
+    } catch (err) {
+      return authErrorResponse(c, err);
+    }
+  });
+
+  const confirmPublisherOtp = createRoute({
+    method: 'post',
+    path: '/publishers/login/otp/confirm',
+    request: {
+      body: {
+        content: { 'application/json': { schema: PublisherOtpConfirmRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Session cookie set, or authenticator still required',
+        content: { 'application/json': { schema: LoginPublisherResponse } },
+      },
+      401: {
+        description: 'Invalid or expired code',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(confirmPublisherOtp, async (c) => {
+    try {
+      return finishPublisherLogin(c, await auth.confirmPublisherOtp(c.req.valid('json')));
+    } catch (err) {
+      return authErrorResponse(c, err);
+    }
+  });
+
+  const confirmPublisherTotp = createRoute({
+    method: 'post',
+    path: '/publishers/login/totp',
+    request: {
+      body: {
+        content: { 'application/json': { schema: PublisherTotpLoginRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Session created',
+        content: { 'application/json': { schema: LoginPublisherResponse } },
+      },
+      401: {
+        description: 'Invalid or expired challenge / authenticator code',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(confirmPublisherTotp, async (c) => {
+    try {
+      return finishPublisherLogin(c, await auth.confirmPublisherTotp(c.req.valid('json')));
+    } catch (err) {
+      return authErrorResponse(c, err);
+    }
+  });
+
+  const setupPublisherTotp = createRoute({
+    method: 'post',
+    path: '/publishers/me/totp/setup',
+    responses: {
+      200: {
+        description: 'Authenticator enrollment started',
+        content: { 'application/json': { schema: PublisherTotpSetupResponse } },
+      },
+      401: {
+        description: 'Not authenticated',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      409: {
+        description: 'Authenticator is already turned on',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(setupPublisherTotp, async (c) => {
+    try {
+      return c.json(await auth.setupPublisherTotp(readPublisherSessionToken(c)), 200);
+    } catch (err) {
+      return authErrorResponse(c, err);
+    }
+  });
+
+  const confirmPublisherTotpSetup = createRoute({
+    method: 'post',
+    path: '/publishers/me/totp/confirm',
+    request: {
+      body: {
+        content: { 'application/json': { schema: PublisherTotpChangeRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Authenticator turned on',
+        content: { 'application/json': { schema: PublisherTotpStatusResponse } },
+      },
+      401: {
+        description: 'Not authenticated, or the password or code is wrong',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      409: {
+        description: 'Authenticator is already turned on',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(confirmPublisherTotpSetup, async (c) => {
+    try {
+      return c.json(
+        await auth.confirmPublisherTotpSetup(readPublisherSessionToken(c), c.req.valid('json')),
+        200,
+      );
+    } catch (err) {
+      return authErrorResponse(c, err);
+    }
+  });
+
+  const disablePublisherTotp = createRoute({
+    method: 'delete',
+    path: '/publishers/me/totp',
+    request: {
+      body: {
+        content: { 'application/json': { schema: PublisherTotpChangeRequest } },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: 'Authenticator turned off',
+        content: { 'application/json': { schema: PublisherTotpStatusResponse } },
+      },
+      401: {
+        description: 'Not authenticated, or the password or code is wrong',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+      409: {
+        description: 'Authenticator is not turned on',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  });
+  app.openapi(disablePublisherTotp, async (c) => {
+    try {
+      return c.json(
+        await auth.disablePublisherTotp(readPublisherSessionToken(c), c.req.valid('json')),
+        200,
+      );
     } catch (err) {
       return authErrorResponse(c, err);
     }

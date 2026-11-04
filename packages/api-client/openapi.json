@@ -719,53 +719,84 @@
         },
         "responses": {
           "200": {
-            "description": "Logged in; session cookie set",
+            "description": "Session cookie set, or authenticator still required",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "publisherAccountId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "email": {
-                      "type": "string",
-                      "format": "email"
-                    },
-                    "publishers": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "slug": {
-                            "type": "string"
-                          },
-                          "type": {
-                            "type": "string",
-                            "enum": ["org", "person"]
-                          },
-                          "status": {
-                            "type": "string",
-                            "enum": ["pending_scan", "in_review", "published"]
-                          },
-                          "role": {
-                            "type": "string",
-                            "enum": ["owner", "editor"]
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "publisherAccountId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "publishers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": ["org", "person"]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["pending_scan", "in_review", "published"]
+                              },
+                              "role": {
+                                "type": "string",
+                                "enum": ["owner", "editor"]
+                              }
+                            },
+                            "required": ["id", "name", "slug", "type", "status", "role"]
                           }
                         },
-                        "required": ["id", "name", "slug", "type", "status", "role"]
-                      }
+                        "totpEnabled": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["authenticated"]
+                        }
+                      },
+                      "required": [
+                        "publisherAccountId",
+                        "email",
+                        "publishers",
+                        "totpEnabled",
+                        "status"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": ["totp_required"]
+                        },
+                        "challengeToken": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": ["status", "challengeToken"]
                     }
-                  },
-                  "required": ["publisherAccountId", "email", "publishers"]
+                  ]
                 }
               }
             }
@@ -797,6 +828,560 @@
           },
           "403": {
             "description": "Email not verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/publishers/login/otp": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                },
+                "required": ["email"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Code issued when the email can sign in. Other emails get the same body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["code_sent"]
+                    },
+                    "code": {
+                      "type": "string",
+                      "pattern": "^\\d{6}$"
+                    }
+                  },
+                  "required": ["status"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many code requests for this email",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/publishers/login/otp/confirm": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  }
+                },
+                "required": ["email", "code"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session cookie set, or authenticator still required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "publisherAccountId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "publishers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": ["org", "person"]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["pending_scan", "in_review", "published"]
+                              },
+                              "role": {
+                                "type": "string",
+                                "enum": ["owner", "editor"]
+                              }
+                            },
+                            "required": ["id", "name", "slug", "type", "status", "role"]
+                          }
+                        },
+                        "totpEnabled": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["authenticated"]
+                        }
+                      },
+                      "required": [
+                        "publisherAccountId",
+                        "email",
+                        "publishers",
+                        "totpEnabled",
+                        "status"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": ["totp_required"]
+                        },
+                        "challengeToken": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": ["status", "challengeToken"]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/publishers/login/totp": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  }
+                },
+                "required": ["token", "code"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "publisherAccountId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "publishers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": ["org", "person"]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["pending_scan", "in_review", "published"]
+                              },
+                              "role": {
+                                "type": "string",
+                                "enum": ["owner", "editor"]
+                              }
+                            },
+                            "required": ["id", "name", "slug", "type", "status", "role"]
+                          }
+                        },
+                        "totpEnabled": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["authenticated"]
+                        }
+                      },
+                      "required": [
+                        "publisherAccountId",
+                        "email",
+                        "publishers",
+                        "totpEnabled",
+                        "status"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": ["totp_required"]
+                        },
+                        "challengeToken": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": ["status", "challengeToken"]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired challenge / authenticator code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/publishers/me/totp/setup": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Authenticator enrollment started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "secret": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "otpauthUrl": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": ["secret", "otpauthUrl"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/publishers/me/totp/confirm": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": ["code", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticator turned on",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "totpEnabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["totpEnabled"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated, or the password or code is wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/publishers/me/totp": {
+      "delete": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": ["code", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticator turned off",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "totpEnabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["totpEnabled"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated, or the password or code is wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Authenticator is not turned on",
             "content": {
               "application/json": {
                 "schema": {
@@ -880,9 +1465,12 @@
                         },
                         "required": ["id", "name", "slug", "type", "status", "role"]
                       }
+                    },
+                    "totpEnabled": {
+                      "type": "boolean"
                     }
                   },
-                  "required": ["publisherAccountId", "email", "publishers"]
+                  "required": ["publisherAccountId", "email", "publishers", "totpEnabled"]
                 }
               }
             }

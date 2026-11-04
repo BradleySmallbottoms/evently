@@ -10,6 +10,7 @@ import {
   ScrollTextIcon,
   ShieldIcon,
   StoreIcon,
+  UsersIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, type ReactNode } from 'react';
@@ -51,6 +52,12 @@ const NAV = [
     key: 'navPublishers',
     icon: StoreIcon,
     match: (path: string) => path.startsWith('/publishers'),
+  },
+  {
+    href: '/publisher-accounts',
+    key: 'navPublisherAccounts',
+    icon: UsersIcon,
+    match: (path: string) => path.startsWith('/publisher-accounts'),
   },
   {
     href: '/push-messages',

@@ -33,6 +33,12 @@ describe('public api', () => {
     expect(doc.paths['/pairing/device-link/confirm']).toBeDefined();
     expect(doc.paths['/publishers/register']).toBeDefined();
     expect(doc.paths['/publishers/login']).toBeDefined();
+    expect(doc.paths['/publishers/login/otp']).toBeDefined();
+    expect(doc.paths['/publishers/login/otp/confirm']).toBeDefined();
+    expect(doc.paths['/publishers/login/totp']).toBeDefined();
+    expect(doc.paths['/publishers/me/totp/setup']).toBeDefined();
+    expect(doc.paths['/publishers/me/totp/confirm']).toBeDefined();
+    expect(doc.paths['/publishers/me/totp']).toBeDefined();
     expect(doc.paths['/publishers/logout']).toBeDefined();
     expect(doc.paths['/publishers/me']).toBeDefined();
     expect(doc.paths['/publishers/{publisherId}']).toBeDefined();

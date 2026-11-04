@@ -443,6 +443,16 @@ calls) in the same change as every new major feature.**
   production that response includes the code, because mail is not wired. Do not set
   `ADMIN_INCLUDE_LOGIN_OTP=true` on a public host. Flow:
   [docs/flows/admin-otp-login.md](docs/flows/admin-otp-login.md).
+- Publishers sign in with email and password, or a 6-digit email code
+  (`POST /v1/publishers/login/otp`). An account can turn on an authenticator from the workspace.
+  When it is on, both paths ask for that code before the session cookie is set. Outside production
+  the email-code response includes the code. Do not set `PUBLISHER_INCLUDE_LOGIN_OTP=true` on a
+  public host. Without `PUBLISHER_OTP_PEPPER` the pepper is random for the process. Admins manage
+  the accounts on a publisher page. A new account needs a password. An existing email is linked and
+  keeps its password. Edit on a publisher changes only the role, and remove only unlinks the
+  account. The Accounts page lists every account, shows which have an authenticator, and changes
+  passwords. Flow:
+  [docs/flows/publisher-login.md](docs/flows/publisher-login.md).
 - Fallback discovery point is **Söderhamn** (`61.3037, 17.0592`, 50 km).
 - **Publisher profiles / invites:** owners `GET`/`PATCH /v1/publishers/{id}`, list members, create
   email invites (`POST …/invites`). Invitee signs in with the invited email and

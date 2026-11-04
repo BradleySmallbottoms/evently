@@ -4,6 +4,13 @@ import { AuthError, type AuthErrorCode } from './types';
 
 const MESSAGES: Record<AuthErrorCode, string> = {
   invalid_credentials: 'Invalid credentials',
+  invalid_totp: 'Invalid authenticator code',
+  challenge_expired: 'Login challenge expired; start again',
+  invalid_otp: 'Invalid code',
+  otp_expired: 'Code expired; request a new one',
+  otp_rate_limited: 'Too many code requests; try again later',
+  totp_not_enabled: 'Authenticator is not turned on',
+  totp_already_enabled: 'Authenticator is already turned on',
   email_unverified: 'Email address is not verified',
   email_taken: 'Email is already registered',
   slug_taken: 'Publisher slug is already taken',
@@ -20,8 +27,15 @@ const MESSAGES: Record<AuthErrorCode, string> = {
   user_banned: 'User is banned',
 };
 
-const STATUS: Record<AuthErrorCode, 400 | 401 | 403 | 409> = {
+const STATUS: Record<AuthErrorCode, 400 | 401 | 403 | 409 | 429> = {
   invalid_credentials: 401,
+  invalid_totp: 401,
+  challenge_expired: 401,
+  invalid_otp: 401,
+  otp_expired: 401,
+  otp_rate_limited: 429,
+  totp_not_enabled: 409,
+  totp_already_enabled: 409,
   email_unverified: 403,
   email_taken: 409,
   slug_taken: 409,

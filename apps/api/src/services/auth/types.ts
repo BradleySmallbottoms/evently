@@ -17,6 +17,13 @@ import type {
   ExchangeWebLoginCodeResponse,
   LoginPublisherRequest,
   LoginPublisherResponse,
+  PublisherOtpConfirmRequest,
+  PublisherOtpLoginRequest,
+  PublisherOtpLoginResponse,
+  PublisherTotpChangeRequest,
+  PublisherTotpLoginRequest,
+  PublisherTotpSetupResponse,
+  PublisherTotpStatusResponse,
   RegisterPushTokenRequest,
   RegisterPushTokenResponse,
   PublisherInviteListResponse,
@@ -34,6 +41,13 @@ import type { PublisherStatus } from '@local-events/domain';
 
 export type AuthErrorCode =
   | 'invalid_credentials'
+  | 'invalid_totp'
+  | 'challenge_expired'
+  | 'invalid_otp'
+  | 'otp_expired'
+  | 'otp_rate_limited'
+  | 'totp_not_enabled'
+  | 'totp_already_enabled'
   | 'email_unverified'
   | 'email_taken'
   | 'slug_taken'
@@ -73,11 +87,19 @@ export type AuthServices = {
   verifyPublisherEmail: (
     input: VerifyPublisherEmailRequest,
   ) => Promise<VerifyPublisherEmailResponse>;
-  loginPublisher: (input: LoginPublisherRequest) => Promise<{
-    body: LoginPublisherResponse;
-    sessionToken: string;
-    expiresAt: Date;
-  }>;
+  loginPublisher: (input: LoginPublisherRequest) => Promise<PublisherLoginResult>;
+  requestPublisherOtp: (input: PublisherOtpLoginRequest) => Promise<PublisherOtpLoginResponse>;
+  confirmPublisherOtp: (input: PublisherOtpConfirmRequest) => Promise<PublisherLoginResult>;
+  confirmPublisherTotp: (input: PublisherTotpLoginRequest) => Promise<PublisherLoginResult>;
+  setupPublisherTotp: (sessionToken: string | undefined) => Promise<PublisherTotpSetupResponse>;
+  confirmPublisherTotpSetup: (
+    sessionToken: string | undefined,
+    input: PublisherTotpChangeRequest,
+  ) => Promise<PublisherTotpStatusResponse>;
+  disablePublisherTotp: (
+    sessionToken: string | undefined,
+    input: PublisherTotpChangeRequest,
+  ) => Promise<PublisherTotpStatusResponse>;
   logoutPublisher: (sessionToken: string | undefined) => Promise<void>;
   getPublisherMe: (sessionToken: string | undefined) => Promise<PublisherMeResponse>;
   createWebLoginCode: (input: CreateWebLoginCodeRequest) => Promise<CreateWebLoginCodeResponse>;
@@ -131,11 +153,31 @@ export type AuthServices = {
   ) => Promise<AcceptPublisherInviteResponse>;
 };
 
+/** Password or email-code login. The cookie is set only when status is authenticated. */
+export type PublisherLoginResult =
+  | {
+      status: 'authenticated';
+      body: Extract<LoginPublisherResponse, { status: 'authenticated' }>;
+      sessionToken: string;
+      expiresAt: Date;
+    }
+  | {
+      status: 'totp_required';
+      body: Extract<LoginPublisherResponse, { status: 'totp_required' }>;
+    };
+
 export type AuthEnv = {
   /**
    * When true, registration responses include the email verification token.
    * Used locally and on AWS until SES delivers the link (set INCLUDE_VERIFICATION_TOKEN).
    */
   includeVerificationToken: boolean;
+  /**
+   * When true, a publisher email-code response includes the code.
+   * Defaults to includeVerificationToken. Set PUBLISHER_INCLUDE_LOGIN_OTP.
+   */
+  includeLoginOtp?: boolean;
+  /** Pepper for publisher login-code hashes. A missing value is random for this process. */
+  otpPepper?: string;
   now: () => Date;
 };

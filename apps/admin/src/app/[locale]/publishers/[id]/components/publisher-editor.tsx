@@ -32,6 +32,7 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { Link, useRouter } from '@/i18n/navigation';
 import { AdminApiError, adminFetch } from '@/lib/api';
+import { PublisherAccounts } from './publisher-accounts';
 import { PublisherEvents } from './publisher-events';
 
 type Publisher = {
@@ -308,6 +309,7 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
           </Card>
         </form>
       ) : null}
+      {current ? <PublisherAccounts publisherId={publisherId} /> : null}
       {current ? <PublisherEvents publisherId={publisherId} /> : null}
       <Dialog
         open={confirmDelete}

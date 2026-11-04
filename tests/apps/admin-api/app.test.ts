@@ -70,6 +70,11 @@ describe('admin api', () => {
     expect(doc.paths['/publishers/{id}/map']).toBeDefined();
     expect(doc.paths['/publishers/{id}/complete']).toBeDefined();
     expect(doc.paths['/publishers/{id}/events']).toBeDefined();
+    expect(doc.paths['/publishers/{id}/accounts']).toBeDefined();
+    expect(doc.paths['/publishers/{id}/accounts/lookup']).toBeDefined();
+    expect(doc.paths['/publishers/{id}/accounts/{accountId}']).toBeDefined();
+    expect(doc.paths['/publisher-accounts']).toBeDefined();
+    expect(doc.paths['/publisher-accounts/{accountId}']).toBeDefined();
     expect((doc.paths['/publishers/{id}'] as { delete?: unknown }).delete).toBeDefined();
     expect(doc.paths['/events']).toBeDefined();
     expect(doc.paths['/events/workers']).toBeDefined();

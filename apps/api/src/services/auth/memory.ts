@@ -1,17 +1,27 @@
 import {
+  ADMIN_LOGIN_OTP_MAX_ATTEMPTS,
+  ADMIN_LOGIN_OTP_TTL_SECONDS,
   APP_SESSION_TTL_SECONDS,
   EMAIL_VERIFICATION_TTL_SECONDS,
   generateDeviceCredential,
   generateEmailToken,
+  generateLoginOtp,
   generatePairingCode,
   generateSessionToken,
+  generateTotpSecret,
   hashPassword,
   hashToken,
+  loginOtpHash,
+  loginOtpMatches,
+  decideLoginOtpConfirm,
   normalizePairingCode,
   PAIRING_CODE_TTL_SECONDS,
   PUBLISHER_INVITE_TTL_SECONDS,
+  PUBLISHER_LOGIN_OTP_PURPOSE,
   PUBLISHER_SESSION_TTL_SECONDS,
+  totpOtpauthUrl,
   verifyPassword,
+  verifyTotpCode,
 } from '@local-events/auth';
 import type {
   CreateIdentityRequest,
@@ -27,11 +37,16 @@ import {
   canManagePublisherOrg,
   canPublisherLogin,
   entitlementsFor,
+  publisherAuthenticatorEnabled,
   slugifyPublisherName,
 } from '@local-events/domain';
 import { randomUUID } from 'node:crypto';
-import { createMemoryStore, type MemoryStore } from '../memory-store';
+import { createMemoryStore, type MemoryPublisherAccount, type MemoryStore } from '../memory-store';
+import { createPublisherLoginFactors } from './publisher-factors';
 import { AuthError, type AuthEnv, type AuthServices } from './types';
+
+const DUMMY_LOGIN_OTP_HASH = hashToken('dummy-publisher-login-otp');
+const PUBLISHER_TOTP_ISSUER = 'Evently';
 
 function addSeconds(date: Date, seconds: number): Date {
   return new Date(date.getTime() + seconds * 1000);
@@ -43,6 +58,7 @@ export function createMemoryAuthServices(
   store: MemoryStore = createMemoryStore(),
 ): AuthServices {
   const { users, devices, sessions, accounts, publishers, members, invites, tokens } = store;
+  const factors = createPublisherLoginFactors(env);
 
   function normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
@@ -80,6 +96,40 @@ export function createMemoryAuthServices(
     const account = accounts.get(session.subjectId);
     if (!account) throw new AuthError('unauthorized');
     return account;
+  }
+
+  function issuePublisherSession(account: MemoryPublisherAccount) {
+    const now = env.now();
+    const sessionToken = generateSessionToken();
+    const expiresAt = addSeconds(now, PUBLISHER_SESSION_TTL_SECONDS);
+    sessions.set(sessionToken, {
+      id: randomUUID(),
+      subjectType: 'publisher_account',
+      subjectId: account.id,
+      tokenHash: hashToken(sessionToken),
+      client: 'web',
+      expiresAt,
+      revokedAt: null,
+    });
+    return {
+      status: 'authenticated' as const,
+      body: {
+        status: 'authenticated' as const,
+        publisherAccountId: account.id,
+        email: account.email,
+        publishers: publishersForAccount(account.id),
+        totpEnabled: publisherAuthenticatorEnabled(account),
+      },
+      sessionToken,
+      expiresAt,
+    };
+  }
+
+  function finishPublisherLogin(account: MemoryPublisherAccount) {
+    if (publisherAuthenticatorEnabled(account)) {
+      return factors.beginTotpChallenge(account.id, env.now());
+    }
+    return issuePublisherSession(account);
   }
 
   return {
@@ -186,6 +236,8 @@ export function createMemoryAuthServices(
         email,
         passwordHash: await hashPassword(input.password),
         emailVerifiedAt: null,
+        totpSecret: null,
+        totpPendingSecret: null,
       });
       publishers.set(publisherId, {
         id: publisherId,
@@ -245,29 +297,145 @@ export function createMemoryAuthServices(
       }
       const allowed = canPublisherLogin(account);
       if (!allowed.ok) throw new AuthError('email_unverified');
+      return finishPublisherLogin(account);
+    },
 
-      const now = env.now();
-      const sessionToken = generateSessionToken();
-      const expiresAt = addSeconds(now, PUBLISHER_SESSION_TTL_SECONDS);
-      sessions.set(sessionToken, {
-        id: randomUUID(),
-        subjectType: 'publisher_account',
+    async requestPublisherOtp(input) {
+      const email = normalizeEmail(input.email);
+      if (!factors.allowOtpRequest(email)) throw new AuthError('otp_rate_limited');
+      const account = [...accounts.values()].find((a) => a.email === email);
+      if (!account || !canPublisherLogin(account).ok) return { status: 'code_sent' as const };
+      const at = env.now();
+      for (const row of tokens.values()) {
+        if (
+          row.purpose === PUBLISHER_LOGIN_OTP_PURPOSE &&
+          row.subjectId === account.id &&
+          !row.usedAt
+        ) {
+          row.usedAt = at;
+          factors.otpAttempts.delete(row.id);
+        }
+      }
+      const code = generateLoginOtp();
+      const id = randomUUID();
+      tokens.set(id, {
+        id,
+        purpose: PUBLISHER_LOGIN_OTP_PURPOSE,
         subjectId: account.id,
-        tokenHash: hashToken(sessionToken),
-        client: 'web',
-        expiresAt,
-        revokedAt: null,
+        tokenHash: loginOtpHash(code, factors.otpPepper),
+        expiresAt: addSeconds(at, ADMIN_LOGIN_OTP_TTL_SECONDS),
+        usedAt: null,
       });
+      factors.otpAttempts.set(id, 0);
+      return factors.includeLoginOtp
+        ? { status: 'code_sent' as const, code }
+        : { status: 'code_sent' as const };
+    },
 
+    async confirmPublisherOtp(input) {
+      const email = normalizeEmail(input.email);
+      const at = env.now();
+      const account = [...accounts.values()].find((a) => a.email === email);
+      if (!account || !canPublisherLogin(account).ok) {
+        loginOtpMatches(input.code, factors.otpPepper, DUMMY_LOGIN_OTP_HASH);
+        throw new AuthError('invalid_otp');
+      }
+      const open = [...tokens.values()].filter(
+        (row) =>
+          row.purpose === PUBLISHER_LOGIN_OTP_PURPOSE &&
+          row.subjectId === account.id &&
+          !row.usedAt,
+      );
+      const decision = decideLoginOtpConfirm({
+        code: input.code,
+        pepper: factors.otpPepper,
+        records: open.map((row) => ({
+          id: row.id,
+          tokenHash: row.tokenHash,
+          expiresAt: row.expiresAt,
+          attempts: factors.otpAttempts.get(row.id) ?? 0,
+        })),
+        now: at,
+        maxAttempts: ADMIN_LOGIN_OTP_MAX_ATTEMPTS,
+      });
+      if (!decision.ok) {
+        for (const next of decision.attempts) factors.otpAttempts.set(next.id, next.attempts);
+        for (const id of decision.burnIds) {
+          const row = tokens.get(id);
+          if (row) row.usedAt = at;
+          factors.otpAttempts.delete(id);
+        }
+        throw new AuthError(decision.code);
+      }
+      const matched = tokens.get(decision.id);
+      if (!matched || matched.usedAt) throw new AuthError('invalid_otp');
+      matched.usedAt = at;
+      factors.otpAttempts.delete(decision.id);
+      return finishPublisherLogin(account);
+    },
+
+    async confirmPublisherTotp(input) {
+      const at = env.now();
+      const accountId = factors.readTotpChallenge(input.token, at);
+      const account = accounts.get(accountId);
+      if (
+        !account ||
+        !account.totpSecret ||
+        !verifyTotpCode(account.totpSecret, input.code, at.getTime())
+      ) {
+        throw new AuthError('invalid_totp');
+      }
+      factors.dropTotpChallenge(input.token);
+      return issuePublisherSession(account);
+    },
+
+    async setupPublisherTotp(sessionToken) {
+      const account = await resolvePublisherSession(sessionToken);
+      if (publisherAuthenticatorEnabled(account)) throw new AuthError('totp_already_enabled');
+      const secret = generateTotpSecret();
+      account.totpPendingSecret = secret;
       return {
-        body: {
-          publisherAccountId: account.id,
-          email: account.email,
-          publishers: publishersForAccount(account.id),
-        },
-        sessionToken,
-        expiresAt,
+        secret,
+        otpauthUrl: totpOtpauthUrl({
+          secret,
+          accountName: account.email,
+          issuer: PUBLISHER_TOTP_ISSUER,
+        }),
       };
+    },
+
+    async confirmPublisherTotpSetup(sessionToken, input) {
+      const account = await resolvePublisherSession(sessionToken);
+      if (publisherAuthenticatorEnabled(account)) throw new AuthError('totp_already_enabled');
+      if (!(await verifyPassword(input.password, account.passwordHash))) {
+        throw new AuthError('invalid_credentials');
+      }
+      if (
+        !account.totpPendingSecret ||
+        !verifyTotpCode(account.totpPendingSecret, input.code, env.now().getTime())
+      ) {
+        throw new AuthError('invalid_totp');
+      }
+      account.totpSecret = account.totpPendingSecret;
+      account.totpPendingSecret = null;
+      return { totpEnabled: true };
+    },
+
+    async disablePublisherTotp(sessionToken, input) {
+      const account = await resolvePublisherSession(sessionToken);
+      if (!publisherAuthenticatorEnabled(account)) throw new AuthError('totp_not_enabled');
+      if (!(await verifyPassword(input.password, account.passwordHash))) {
+        throw new AuthError('invalid_credentials');
+      }
+      if (
+        !account.totpSecret ||
+        !verifyTotpCode(account.totpSecret, input.code, env.now().getTime())
+      ) {
+        throw new AuthError('invalid_totp');
+      }
+      account.totpSecret = null;
+      account.totpPendingSecret = null;
+      return { totpEnabled: false };
     },
 
     async logoutPublisher(sessionToken: string | undefined) {
@@ -286,6 +454,7 @@ export function createMemoryAuthServices(
         publisherAccountId: account.id,
         email: account.email,
         publishers: publishersForAccount(account.id),
+        totpEnabled: publisherAuthenticatorEnabled(account),
       };
     },
 

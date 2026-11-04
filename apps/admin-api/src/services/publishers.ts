@@ -2,6 +2,13 @@ import type {
   AdminCompletePublisherRequest,
   AdminCompletePublisherResponse,
   AdminMapPublisherResponse,
+  AdminCreatePublisherAccountRequest,
+  AdminPatchPublisherAccountRequest,
+  AdminPublisherAccount,
+  AdminPublisherAccountDirectoryResponse,
+  AdminPublisherAccountListResponse,
+  AdminPublisherAccountPasswordRequest,
+  AdminPublisherAccountLookupResponse,
   AdminPublisherDeleteResponse,
   AdminPublisherEventListResponse,
   AdminPublisherListResponse,
@@ -31,6 +38,22 @@ import {
 } from '@local-events/domain';
 import { and, asc, count, desc, eq, ne } from 'drizzle-orm';
 import { scheduleImportPlanForPublisher } from './import-notifications';
+import {
+  createDbPublisherAccount,
+  createMemoryPublisherAccount,
+  listDbPublisherAccountDirectory,
+  listDbPublisherAccounts,
+  listMemoryPublisherAccountDirectory,
+  listMemoryPublisherAccounts,
+  lookupDbPublisherAccount,
+  lookupMemoryPublisherAccount,
+  patchDbPublisherAccount,
+  patchMemoryPublisherAccount,
+  removeDbPublisherAccount,
+  removeMemoryPublisherAccount,
+  setDbPublisherAccountPassword,
+  setMemoryPublisherAccountPassword,
+} from './publisher-accounts';
 import { createMemoryDomainEventPublisher } from './domain-events/memory';
 import { enqueueDomainEvent, type DomainEventPublisher } from './domain-events/types';
 
@@ -60,6 +83,38 @@ export type AdminPublisherServices = {
     | { ok: true; id: AdminPublisherDeleteResponse['id'] }
     | { ok: false; reason: 'not_found' | 'has_events' }
   >;
+  listAccounts: (publisherId: string) => Promise<AdminPublisherAccountListResponse | null>;
+  lookupAccount: (
+    publisherId: string,
+    email: string,
+  ) => Promise<
+    | { ok: true; status: AdminPublisherAccountLookupResponse['status'] }
+    | { ok: false; reason: 'not_found' }
+  >;
+  createAccount: (
+    publisherId: string,
+    body: AdminCreatePublisherAccountRequest,
+  ) => Promise<
+    | { ok: true; account: AdminPublisherAccount }
+    | { ok: false; reason: 'not_found' | 'already_member' | 'email_taken' | 'password_required' }
+  >;
+  patchAccount: (
+    publisherId: string,
+    accountId: string,
+    body: AdminPatchPublisherAccountRequest,
+  ) => Promise<
+    | { ok: true; account: AdminPublisherAccount }
+    | { ok: false; reason: 'not_found' | 'already_member' | 'email_taken' }
+  >;
+  removeAccount: (
+    publisherId: string,
+    accountId: string,
+  ) => Promise<{ ok: true } | { ok: false; reason: 'not_found' }>;
+  listAccountDirectory: () => Promise<AdminPublisherAccountDirectoryResponse>;
+  setAccountPassword: (
+    accountId: string,
+    body: AdminPublisherAccountPasswordRequest,
+  ) => Promise<{ ok: true } | { ok: false; reason: 'not_found' }>;
 };
 
 export type AdminPublisherEnv = {
@@ -97,6 +152,23 @@ export type AdminMemoryStore = {
       venueName?: string | null;
     }
   >;
+  accounts?: Map<
+    string,
+    {
+      id: string;
+      email: string;
+      passwordHash: string;
+      emailVerifiedAt: Date | null;
+      totpSecret: string | null;
+      createdAt: Date;
+    }
+  >;
+  members?: {
+    publisherId: string;
+    publisherAccountId: string;
+    role: 'owner' | 'editor';
+    createdAt: Date;
+  }[];
   /** Reminders recorded when a verified publisher's import plan is applied. */
   scheduledImports?: {
     eventId: string;
@@ -351,6 +423,27 @@ export function createMemoryAdminPublisherServices(
       }
       store.publishers.delete(publisherId);
       return { ok: true, id: publisherId };
+    },
+    async listAccounts(publisherId) {
+      return listMemoryPublisherAccounts(store, publisherId);
+    },
+    async lookupAccount(publisherId, email) {
+      return lookupMemoryPublisherAccount(store, publisherId, email);
+    },
+    async createAccount(publisherId, body) {
+      return createMemoryPublisherAccount(store, publisherId, body, now());
+    },
+    async patchAccount(publisherId, accountId, body) {
+      return patchMemoryPublisherAccount(store, publisherId, accountId, body);
+    },
+    async removeAccount(publisherId, accountId) {
+      return removeMemoryPublisherAccount(store, publisherId, accountId);
+    },
+    async listAccountDirectory() {
+      return listMemoryPublisherAccountDirectory(store);
+    },
+    async setAccountPassword(accountId, body) {
+      return setMemoryPublisherAccountPassword(store, accountId, body);
     },
   };
 }
@@ -766,6 +859,27 @@ export function createDbAdminPublisherServices(
         if (isForeignKeyViolation(err)) return { ok: false, reason: 'has_events' };
         throw err;
       }
+    },
+    async listAccounts(publisherId) {
+      return listDbPublisherAccounts(db, publisherId);
+    },
+    async lookupAccount(publisherId, email) {
+      return lookupDbPublisherAccount(db, publisherId, email);
+    },
+    async createAccount(publisherId, body) {
+      return createDbPublisherAccount(db, publisherId, body, now());
+    },
+    async patchAccount(publisherId, accountId, body) {
+      return patchDbPublisherAccount(db, publisherId, accountId, body);
+    },
+    async removeAccount(publisherId, accountId) {
+      return removeDbPublisherAccount(db, publisherId, accountId);
+    },
+    async listAccountDirectory() {
+      return listDbPublisherAccountDirectory(db);
+    },
+    async setAccountPassword(accountId, body) {
+      return setDbPublisherAccountPassword(db, accountId, body, now());
     },
   };
 }

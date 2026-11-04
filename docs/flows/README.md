@@ -23,6 +23,7 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Web sign-in with app pairing code                      | [web-pairing-login.md](./web-pairing-login.md)                           |
 | Device linking (new phone → old phone confirms)        | [device-linking.md](./device-linking.md)                                 |
 | Publisher profiles & member invites                    | [publisher-invites.md](./publisher-invites.md)                           |
+| Publisher email code and authenticator                 | [publisher-login.md](./publisher-login.md)                               |
 | Delete an empty publisher                              | [publisher-delete.md](./publisher-delete.md)                             |
 | Saved areas and area tags                              | [user-preferences.md](./user-preferences.md)                             |
 | Region suggestions                                     | [region-suggestions.md](./region-suggestions.md)                         |

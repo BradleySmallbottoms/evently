@@ -88,15 +88,83 @@ export const PublisherSummary = z.object({
 });
 export type PublisherSummary = z.infer<typeof PublisherSummary>;
 
-export const LoginPublisherResponse = z.object({
+export const PublisherAccountView = z.object({
   publisherAccountId: Id,
   email: z.email(),
   publishers: z.array(PublisherSummary),
+  /** True when this account has confirmed an authenticator. */
+  totpEnabled: z.boolean(),
 });
+export type PublisherAccountView = z.infer<typeof PublisherAccountView>;
+
+export const LoginPublisherAuthenticated = PublisherAccountView.extend({
+  status: z.literal('authenticated'),
+});
+export type LoginPublisherAuthenticated = z.infer<typeof LoginPublisherAuthenticated>;
+
+export const LoginPublisherTotpRequired = z.object({
+  status: z.literal('totp_required'),
+  challengeToken: z.string().min(1),
+});
+export type LoginPublisherTotpRequired = z.infer<typeof LoginPublisherTotpRequired>;
+
+/** Password login and email-code confirm. A session cookie is set only for `authenticated`. */
+export const LoginPublisherResponse = z.discriminatedUnion('status', [
+  LoginPublisherAuthenticated,
+  LoginPublisherTotpRequired,
+]);
 export type LoginPublisherResponse = z.infer<typeof LoginPublisherResponse>;
 
-export const PublisherMeResponse = LoginPublisherResponse;
+export const PublisherMeResponse = PublisherAccountView;
 export type PublisherMeResponse = z.infer<typeof PublisherMeResponse>;
+
+export const PublisherOtpLoginRequest = z.object({
+  email: z.email().trim().toLowerCase(),
+});
+export type PublisherOtpLoginRequest = z.infer<typeof PublisherOtpLoginRequest>;
+
+export const PublisherOtpLoginResponse = z.object({
+  status: z.literal('code_sent'),
+  /**
+   * Present only when the server is allowed to reveal the code (local/dev, until mail exists).
+   * Omitted when the email cannot sign in, so the response does not distinguish accounts.
+   */
+  code: z
+    .string()
+    .regex(/^\d{6}$/)
+    .optional(),
+});
+export type PublisherOtpLoginResponse = z.infer<typeof PublisherOtpLoginResponse>;
+
+export const PublisherOtpConfirmRequest = z.object({
+  email: z.email().trim().toLowerCase(),
+  code: z.string().regex(/^\d{6}$/),
+});
+export type PublisherOtpConfirmRequest = z.infer<typeof PublisherOtpConfirmRequest>;
+
+export const PublisherTotpLoginRequest = z.object({
+  token: z.string().min(1),
+  code: z.string().regex(/^\d{6}$/),
+});
+export type PublisherTotpLoginRequest = z.infer<typeof PublisherTotpLoginRequest>;
+
+export const PublisherTotpSetupResponse = z.object({
+  secret: z.string().min(1),
+  otpauthUrl: z.string().min(1),
+});
+export type PublisherTotpSetupResponse = z.infer<typeof PublisherTotpSetupResponse>;
+
+/** Confirm or turn off an authenticator. Password is required so a stolen session cannot change it. */
+export const PublisherTotpChangeRequest = z.object({
+  code: z.string().regex(/^\d{6}$/),
+  password: z.string().min(1).max(200),
+});
+export type PublisherTotpChangeRequest = z.infer<typeof PublisherTotpChangeRequest>;
+
+export const PublisherTotpStatusResponse = z.object({
+  totpEnabled: z.boolean(),
+});
+export type PublisherTotpStatusResponse = z.infer<typeof PublisherTotpStatusResponse>;
 
 export const MemberRole = z.enum(['owner', 'editor']);
 export type MemberRole = z.infer<typeof MemberRole>;

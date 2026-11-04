@@ -42,6 +42,8 @@ export type MemoryPublisherAccount = {
   email: string;
   passwordHash: string;
   emailVerifiedAt: Date | null;
+  totpSecret: string | null;
+  totpPendingSecret: string | null;
 };
 export type MemoryPublisher = {
   id: string;
