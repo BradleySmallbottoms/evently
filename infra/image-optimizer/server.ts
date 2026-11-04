@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { imageDeliverySize, safeAssetKey } from '@local-events/domain';
 import { IMAGE_SOURCE_MAX_BYTES, renderWebp } from './resize';
+import { readWebsiteObject } from './website';
 
 const origin = (process.env.ASSET_ORIGIN ?? 'http://garage:3902').replace(/\/$/, '');
 const assetHost = process.env.ASSET_HOST ?? 'local-events-assets.localhost';
@@ -21,18 +22,13 @@ function remember(key: string, body: Buffer): void {
   }
 }
 
-async function fetchOriginal(key: string): Promise<Buffer | null> {
-  const response = await fetch(`${origin}/${key}`, {
-    headers: { host: assetHost },
-    redirect: 'manual',
-    signal: AbortSignal.timeout(10_000),
+function fetchOriginal(key: string): Promise<Buffer | null> {
+  return readWebsiteObject({
+    origin,
+    host: assetHost,
+    key,
+    maxBytes: IMAGE_SOURCE_MAX_BYTES,
   });
-  if (response.status !== 200) return null;
-  const length = Number(response.headers.get('content-length') ?? 0);
-  if (length > IMAGE_SOURCE_MAX_BYTES) return null;
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.byteLength < 1 || bytes.byteLength > IMAGE_SOURCE_MAX_BYTES) return null;
-  return bytes;
 }
 
 async function optimized(key: string, width: number, quality: number): Promise<Buffer | null> {

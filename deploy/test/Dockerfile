@@ -109,7 +109,9 @@ FROM node:24-slim AS images
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build-images /repo/infra/image-optimizer/dist/server.js ./server.js
-RUN npm install --omit=dev sharp@0.35.5 && chown -R node:node /app
+RUN printf '%s\n' '{"type":"module"}' > package.json \
+  && npm install --omit=dev sharp@0.35.5 \
+  && chown -R node:node /app
 USER node
 EXPOSE 13910
 CMD ["node", "server.js"]
