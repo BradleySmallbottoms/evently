@@ -81,7 +81,8 @@ export async function scheduleImportPlanForPublisher(
       startsAt: row.startsAt,
       eventStatus: row.status,
       planId,
-      notifyOnPublish,
+      // An event that is already published must not be announced again as new.
+      notifyOnPublish: notifyOnPublish && row.status !== 'published',
       now,
     });
   }

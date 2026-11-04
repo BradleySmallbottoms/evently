@@ -266,7 +266,8 @@ Product invariants (enforced in domain, tested)
   notification plan is set. Future reminders are approved when the event is published, and
   stored as pending while the event is still in review. Publishing the event approves them.
   Nothing means no import notification. Every plan except simple can also include a notification
-  that sends as soon as the event is published. Simple never includes it.
+  that sends as soon as the event is published. Simple never includes it. Saving that option does
+  not send it for an event that is already published. A new import, and an event still in review, still get it.
 - Only checked-in users rate, once, within 14 days after the end. Public sees aggregates only.
   Anonymous users can score but not comment.
 - A save is the interested bookmark. "I'm coming" is a separate row. Popularity is `numSaved` +

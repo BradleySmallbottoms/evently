@@ -245,7 +245,7 @@ function scheduleMemoryImportPlan(
       eventTitle: event.title,
       startsAt: event.startsAtDate,
       now,
-      notifyOnPublish,
+      notifyOnPublish: notifyOnPublish && event.status !== 'published',
     });
     if (messages.length === 0) continue;
     scheduled.push({

@@ -33,8 +33,9 @@ sequenceDiagram
   end
 ```
 
-Reminders whose send time is already past are left out. The publish notification is not a reminder
-and is always included when that option is on. A second import, or saving the plan
+Reminders whose send time is already past are left out. The publish notification is not a reminder.
+A new import includes it when the option is on, and an event still in review keeps it pending until
+publish. Saving the plan does not send it for an event that is already published. A second import, or saving the plan
 again, does not add another set once that event has a non-cancelled `area_and_tag` message.
 `pending` reminders are not sent. Publishing the event approves them, and the worker sends
 only when the message is `approved` and the event is `published`.

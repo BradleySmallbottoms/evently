@@ -111,7 +111,9 @@ pnpm api-client:generate   # after public API OpenAPI changes
   each plan. Every plan except simple can also notify as soon as the event is published. A plan
   schedules reminders for events a script imports for that publisher, and only when the publisher
   status is **published**. The reminders use saved area plus a matching interest (`area_and_tag`)
-  and skip times already in the past. The publish notification is due immediately.
+  and skip times already in the past. The publish notification is due when a new import is published,
+  or when an event still in review is published later. Saving the plan does not send it for an event
+  that is already published.
   A published import (`auto_publish`) is approved immediately. An event still in review is stored
   as `pending` and is not sent until an admin publishes the event, which approves those rows.
   Flow: [docs/flows/publisher-import-notifications.md](docs/flows/publisher-import-notifications.md).

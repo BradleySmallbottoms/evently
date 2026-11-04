@@ -238,6 +238,16 @@ describe('admin api', () => {
       },
     ]);
 
+    events.set('33333333-3333-4333-8333-333333333302', {
+      id: '33333333-3333-4333-8333-333333333302',
+      publisherId: '22222222-2222-4222-8222-222222222201',
+      status: 'in_review',
+      origin: 'imported' as const,
+      title: 'Marknad',
+      startsAtDate: new Date('2026-07-02T18:00:00.000Z'),
+      endsAtDate: new Date('2026-07-02T21:00:00.000Z'),
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
     store.scheduledImports.length = 0;
     const withPublish = await app.request('/v1/publishers/22222222-2222-4222-8222-222222222201', {
       method: 'PATCH',
@@ -253,8 +263,14 @@ describe('admin api', () => {
       {
         eventId: '33333333-3333-4333-8333-333333333301',
         planId: 'countdown',
-        offsets: ['published', 'day', 'hour'],
+        offsets: ['day', 'hour'],
         status: 'approved',
+      },
+      {
+        eventId: '33333333-3333-4333-8333-333333333302',
+        planId: 'countdown',
+        offsets: ['published', 'day', 'hour'],
+        status: 'pending',
       },
     ]);
 
@@ -275,7 +291,7 @@ describe('admin api', () => {
       body: JSON.stringify({ importNotificationPlan: 'full' }),
     });
     expect(again.status).toBe(200);
-    expect(store.scheduledImports).toHaveLength(1);
+    expect(store.scheduledImports).toHaveLength(2);
 
     const cleared = await app.request('/v1/publishers/22222222-2222-4222-8222-222222222201', {
       method: 'PATCH',

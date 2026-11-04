@@ -295,7 +295,7 @@ export function PublisherEditor({ publisherId }: { publisherId: string }) {
                           </FieldLabel>
                         </Field>
                         <ul className="ms-6 flex list-disc flex-col gap-1 text-sm text-muted-foreground">
-                          {marketingPlanSteps(plan.id, planId !== 'single' && notifyOnPublish).map(
+                          {marketingPlanSteps(plan.id, plan.id === planId && notifyOnPublish).map(
                             (step) => (
                               <li key={step}>
                                 {step === 'published'
