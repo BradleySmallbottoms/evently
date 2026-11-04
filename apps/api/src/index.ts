@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { createDb, resolveDatabaseUrl } from '@local-events/db';
 import { createApp } from './app';
 import { createDbAuthServices } from './services/auth/db';
+import { createPublisherLoginMailer } from './services/auth/mail';
 import { createMemoryAuthServices } from './services/auth/memory';
 import { createDbCheckInServices } from './services/check-ins/db';
 import { createMemoryCheckInServices } from './services/check-ins/memory';
@@ -55,18 +56,24 @@ const corsOrigin =
     ? (origin: string) => (origin.length > 0 ? origin : null)
     : corsOriginList;
 
-/** Inline token until SES is wired; set INCLUDE_VERIFICATION_TOKEN=false in prod with mail. */
+/** Inline token until Resend sends the link; set INCLUDE_VERIFICATION_TOKEN=false in prod with mail. */
 const includeVerificationToken =
   process.env.INCLUDE_VERIFICATION_TOKEN === 'true' ||
   (process.env.INCLUDE_VERIFICATION_TOKEN !== 'false' && process.env.NODE_ENV !== 'production');
-/** Inline publisher login code until mail exists. Do not set this on a public host. */
+/** Inline publisher login code when Resend is not configured. Do not set this on a public host. */
 const includeLoginOtp =
   process.env.PUBLISHER_INCLUDE_LOGIN_OTP === 'true' ||
   (process.env.PUBLISHER_INCLUDE_LOGIN_OTP !== 'false' && process.env.NODE_ENV !== 'production');
 const otpPepper = process.env.PUBLISHER_OTP_PEPPER?.trim() || randomBytes(32).toString('hex');
 
 const databaseUrl = resolveDatabaseUrl();
-const authEnv = { includeVerificationToken, includeLoginOtp, otpPepper, now: () => new Date() };
+const authEnv = {
+  includeVerificationToken,
+  includeLoginOtp,
+  otpPepper,
+  sendPublisherLoginCode: createPublisherLoginMailer(process.env),
+  now: () => new Date(),
+};
 const eventEnv = {
   now: () => new Date(),
   assetsPublicBaseUrl: process.env.ASSETS_PUBLIC_BASE_URL?.trim() || undefined,

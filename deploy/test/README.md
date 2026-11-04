@@ -8,7 +8,9 @@ certificate and routes five hostnames.
 This is the testing box. Dev, staging, and production stay on the CDK stacks in `infra/`
 (Fargate, RDS, real SQS). Do not put production data here. Admin is on the public internet,
 behind the bootstrap password and TOTP, with no IP allowlist. Publisher registration returns
-the verification token in the JSON until email is wired (`INCLUDE_VERIFICATION_TOKEN`).
+the verification token in the JSON until that email is wired (`INCLUDE_VERIFICATION_TOKEN`).
+A publisher sign-in code is emailed when `RESEND_API_KEY` and `RESEND_FROM` in `.env` are both
+set. The from address has to use a domain verified in Resend.
 
 The phone app is not a container. A TestFlight or internal build talks to this API when
 `EXPO_PUBLIC_API_URL` is `https://api.<domain>/v1` and `EXPO_PUBLIC_WEB_URL` is

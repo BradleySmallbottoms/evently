@@ -3,7 +3,7 @@
 Owners manage publisher name/slug/type and invite owner/editor members by email. Invite tokens are
 hashed at rest (`publisher_invites.token_hash`), TTL 7 days. Outside production the create response
 may include `inviteToken` (same `INCLUDE_VERIFICATION_TOKEN` / `includeVerificationToken` flag as
-email verification) so local/dev can accept without SES.
+email verification) so local/dev can accept without Resend.
 
 ## Sequence
 

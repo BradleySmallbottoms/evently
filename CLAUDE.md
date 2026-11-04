@@ -178,7 +178,10 @@ Product invariants (enforced in domain, tested)
   mail delivery exists. An unknown email gets the same response without a code.
 - Publishers sign in on the web with a verified email and password, or a single-use 6-digit email
   code (10 minutes, five guesses, five sends per 15 minutes). Unknown and unverified emails get the
-  same response without a code. An account can opt in to an authenticator. When that secret is set,
+  same response without a code. When `RESEND_API_KEY` and `RESEND_FROM` are both set, the API emails
+  the code through Resend and leaves it out of the response. The from address must use a domain
+  verified in Resend. Outside production, with Resend unset, the response includes the code. An
+  account can opt in to an authenticator. When that secret is set,
   both sign-in paths return a short-lived challenge and the session cookie is set only after
   `POST /publishers/login/totp`. A pending enrollment secret does not count. Turning the
   authenticator on or off requires the current password. Enrollment is refused while an
@@ -188,8 +191,7 @@ Product invariants (enforced in domain, tested)
   looks the email up first. A new account needs a password. An existing account is linked and keeps
   its password. On a publisher, edit changes only the role, and remove only unlinks the account.
   `GET /publisher-accounts` lists every account, including which have an authenticator.
-  `PATCH /publisher-accounts/{accountId}` sets a new password and signs that account out. Outside
-  production the email-code response includes the code.
+  `PATCH /publisher-accounts/{accountId}` sets a new password and signs that account out.
 - Events from publishers that are not `published` are `awaiting_verification`: not listed, searched or pushed.
 - An event without a point is omitted from the public event list. Tags do not replace a missing
   point. It has no map pin and does not match nearby push. Direct lookup by id still returns it.

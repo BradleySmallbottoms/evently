@@ -57,7 +57,7 @@ export const RegisterPublisherResponse = z.object({
   publisherAccountId: Id,
   publisherId: Id,
   email: z.email(),
-  /** Present only outside production so local/dev can verify without SES. */
+  /** Present only outside production so local/dev can verify without Resend. */
   verificationToken: z.string().optional(),
 });
 export type RegisterPublisherResponse = z.infer<typeof RegisterPublisherResponse>;
@@ -217,7 +217,7 @@ export const CreatePublisherInviteResponse = z.object({
   email: z.email(),
   role: MemberRole,
   expiresAt: z.iso.datetime(),
-  /** Present only outside production so local/dev can accept without SES. */
+  /** Present only outside production so local/dev can accept without Resend. */
   inviteToken: z.string().optional(),
 });
 export type CreatePublisherInviteResponse = z.infer<typeof CreatePublisherInviteResponse>;

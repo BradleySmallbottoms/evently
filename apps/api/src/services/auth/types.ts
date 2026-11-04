@@ -169,7 +169,7 @@ export type PublisherLoginResult =
 export type AuthEnv = {
   /**
    * When true, registration responses include the email verification token.
-   * Used locally and on AWS until SES delivers the link (set INCLUDE_VERIFICATION_TOKEN).
+   * Used locally and on AWS until Resend delivers the link (set INCLUDE_VERIFICATION_TOKEN).
    */
   includeVerificationToken: boolean;
   /**
@@ -179,5 +179,7 @@ export type AuthEnv = {
   includeLoginOtp?: boolean;
   /** Pepper for publisher login-code hashes. A missing value is random for this process. */
   otpPepper?: string;
+  /** Sends the publisher sign-in code. Unset means the code is not emailed. */
+  sendPublisherLoginCode?: (input: { to: string; code: string }) => Promise<void>;
   now: () => Date;
 };

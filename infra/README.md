@@ -29,7 +29,7 @@ every 6 hours). Add slugs via `KNOWN_DATA_WORKER_SOURCE_SLUGS` / `sourceSchedule
 (`local-events/<env>/app`) and be mapped in the task definition when you wire them.
 
 Non-prod API tasks set `CORS_ORIGINS=*` (reflect Origin; required with credentialed cookies) and
-`INCLUDE_VERIFICATION_TOKEN=true` until SES sends verification links. Tighten both before prod.
+`INCLUDE_VERIFICATION_TOKEN=true` until Resend sends verification links. Tighten both before prod.
 
 ## First-time AWS setup
 

@@ -197,7 +197,7 @@ TypeScript end to end, so schemas, validation and API types are shared across ev
 | Push                   | Expo Push Service (APNs + FCM underneath)                                                                                                                                              | One API for iOS and Android, receipts for cleanup                                                                                  |
 | Ads                    | Google AdMob (react-native-google-mobile-ads), Ad Manager or AdSense on web, Google UMP consent                                                                                        | Works with Expo dev builds; consent handling built in                                                                              |
 | Billing (future)       | Stripe Billing + customer portal, webhooks handled by the worker                                                                                                                       | Subscriptions and VAT invoices without our own billing UI                                                                          |
-| Email                  | Amazon SES                                                                                                                                                                             | Verification, recovery codes, invites                                                                                              |
+| Email                  | Resend                                                                                                                                                                                 | Verification, recovery codes, invites, publisher sign-in codes                                                                     |
 | Auth                   | Own auth module (`packages/auth`): device credentials, publisher email + password or a single-use email code, optional authenticator, admin password + TOTP or a single-use email code | Anonymous users, no third-party identity provider                                                                                  |
 | Files                  | S3 + CloudFront. Public heroes are unsigned CloudFront URLs; attendee files stay signed                                                                                                | Event images, maps, PDFs                                                                                                           |
 | Search                 | Postgres full-text first; OpenSearch only if needed                                                                                                                                    | Avoid an extra system in v1                                                                                                        |
@@ -332,8 +332,9 @@ push is visible. A published tip opens the thank-you screen, and any other resul
 4. Publishers log in on the web with a verified email and password, or a single-use 6-digit email
    code (`POST /v1/publishers/login/otp`, then confirm). The code lasts 10 minutes, allows five
    guesses, and an email can request five codes per 15 minutes. An unknown or unverified email gets
-   the same response without a code. Outside production the response includes the code until mail
-   exists. An account can opt in to an authenticator. When that is on, both password and email-code
+   the same response without a code. When `RESEND_API_KEY` and `RESEND_FROM` are set, the API emails
+   the code through Resend and leaves it out of the response. Outside production, with Resend unset,
+   the response includes the code. An account can opt in to an authenticator. When that is on, both password and email-code
    login stop at a short-lived challenge and `POST /v1/publishers/login/totp` sets the httpOnly
    cookie. Turning the authenticator on or off requires the current password. Enrollment is refused
    while an authenticator is already on. A wrong authenticator code during sign-in can be tried
@@ -535,7 +536,7 @@ the path for dev, staging, and prod.
 | Schedules         | EventBridge Scheduler                                                    | Event start/end, rating prompts, source runs                         |
 | Files             | S3 public assets behind CloudFront (OAC), private files, raw-ingestion   | Heroes are public CloudFront URLs. Raw payloads expire after 30 days |
 | Secrets           | Secrets Manager / SSM Parameter Store                                    | Session keys, source API keys, Expo token, DB credentials            |
-| Email             | SES                                                                      | Verification, recovery codes, invites                                |
+| Email             | Resend                                                                   | Verification, recovery codes, invites, publisher sign-in codes       |
 | Monitoring        | CloudWatch, X-Ray or OTel collector                                      | Alarms on 5xx, queue age, DB CPU, failed source runs                 |
 
 Mobile builds and store submissions run on EAS; EAS Update channels map to the three environments. A release build checks for an update when its process starts, and again while that process stays alive: at least once an hour in the foreground, and immediately when it returns to the foreground after that hour. A downloaded update stays ready. A banner says a new version is available, and a tap reloads the JavaScript bundle.

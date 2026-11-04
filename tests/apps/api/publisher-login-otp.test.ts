@@ -1,6 +1,7 @@
 import { generateTotpCode, PUBLISHER_SESSION_COOKIE } from '../../../packages/auth/src/index';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../../apps/api/src/app';
+import { createPublisherLoginMailer } from '../../../apps/api/src/services/auth/mail';
 import { createMemoryAuthServices } from '../../../apps/api/src/services/auth/memory';
 
 const NOW = new Date('2026-06-15T12:00:00.000Z');
@@ -99,6 +100,49 @@ describe('publisher email code and authenticator', () => {
       body: JSON.stringify({ email: 'org@example.com', code: next.code }),
     });
     expect(reuse.status).toBe(401);
+  });
+
+  it('emails a verified account and leaves the code out of the response', async () => {
+    const sent: { to: string; code: string }[] = [];
+    const api = createApp({
+      auth: createMemoryAuthServices({
+        includeVerificationToken: true,
+        includeLoginOtp: false,
+        otpPepper: 'test-pepper',
+        now: () => NOW,
+        sendPublisherLoginCode: async (input) => {
+          sent.push(input);
+        },
+      }),
+    });
+    await verifiedPublisher(api);
+
+    const hidden = await api.request('/v1/publishers/login/otp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'missing@example.com' }),
+    });
+    expect(await hidden.json()).toEqual({ status: 'code_sent' });
+    expect(sent).toEqual([]);
+
+    const issued = await api.request('/v1/publishers/login/otp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'org@example.com' }),
+    });
+    expect(issued.status).toBe(200);
+    expect(await issued.json()).toEqual({ status: 'code_sent' });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ to: 'org@example.com' });
+    expect(sent[0]?.code).toMatch(/^\d{6}$/);
+
+    const ok = await api.request('/v1/publishers/login/otp/confirm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'org@example.com', code: sent[0]?.code }),
+    });
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toMatchObject({ status: 'authenticated' });
   });
 
   it('does not issue a code for an unverified email and limits requests', async () => {
@@ -220,5 +264,70 @@ describe('publisher email code and authenticator', () => {
     });
     expect(off.status).toBe(200);
     expect(await off.json()).toEqual({ totpEnabled: false });
+  });
+});
+
+describe('publisher login mail', () => {
+  it('sends only when both Resend settings are present', () => {
+    expect(createPublisherLoginMailer({})).toBeUndefined();
+    expect(() => createPublisherLoginMailer({ RESEND_API_KEY: 're_test' })).toThrow(/RESEND_FROM/);
+    expect(() =>
+      createPublisherLoginMailer({ RESEND_FROM: 'Evently <noreply@example.com>' }),
+    ).toThrow(/RESEND_API_KEY/);
+    expect(
+      createPublisherLoginMailer({
+        RESEND_API_KEY: 're_test',
+        RESEND_FROM: 'Evently <noreply@example.com>',
+      }),
+    ).toEqual(expect.any(Function));
+  });
+
+  it('posts the code to Resend and hides the key from errors', async () => {
+    const send = createPublisherLoginMailer({
+      RESEND_API_KEY: 're_secret',
+      RESEND_FROM: 'Evently <noreply@example.com>',
+    });
+    const calls: { url: string; init: RequestInit }[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return new Response(JSON.stringify({ name: 'validation_error' }), { status: 422 });
+    }) as typeof fetch;
+    try {
+      await expect(send?.({ to: 'org@example.com', code: '123456' })).rejects.toThrow(
+        'publisher_login_email_failed:422:validation_error',
+      );
+    } finally {
+      globalThis.fetch = original;
+    }
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toBe('https://api.resend.com/emails');
+    const headers = new Headers(calls[0]?.init.headers);
+    expect(headers.get('authorization')).toBe('Bearer re_secret');
+    const body = JSON.parse(String(calls[0]?.init.body)) as {
+      from: string;
+      to: string[];
+      text: string;
+    };
+    expect(body.from).toBe('Evently <noreply@example.com>');
+    expect(body.to).toEqual(['org@example.com']);
+    expect(body.text).toContain('123456');
+    expect(calls[0]?.url).not.toContain('re_secret');
+    expect(String(calls[0]?.init.body)).not.toContain('re_secret');
+  });
+
+  it('resolves when Resend accepts the message', async () => {
+    const send = createPublisherLoginMailer({
+      RESEND_API_KEY: 're_secret',
+      RESEND_FROM: 'Evently <noreply@example.com>',
+    });
+    const original = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ id: 'email_1' }), { status: 200 })) as typeof fetch;
+    try {
+      await expect(send?.({ to: 'org@example.com', code: '123456' })).resolves.toBeUndefined();
+    } finally {
+      globalThis.fetch = original;
+    }
   });
 });

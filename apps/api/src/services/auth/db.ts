@@ -44,6 +44,7 @@ import {
 } from '@local-events/domain';
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
+import { deliverPublisherLoginCode } from './mail';
 import { createPublisherLoginFactors } from './publisher-factors';
 import { AuthError, type AuthEnv, type AuthServices } from './types';
 
@@ -432,9 +433,13 @@ export function createDbAuthServices(db: Db, env: AuthEnv): AuthServices {
               .returning({ id: emailVerificationTokens.id });
             if (inserted) factors.otpAttempts.set(inserted.id, 0);
           });
-          return factors.includeLoginOtp
-            ? { status: 'code_sent' as const, code }
-            : { status: 'code_sent' as const };
+          return deliverPublisherLoginCode(
+            {
+              includeLoginOtp: factors.includeLoginOtp,
+              sendPublisherLoginCode: env.sendPublisherLoginCode,
+            },
+            { to: email, code },
+          );
         } catch (err) {
           if (!uniqueViolationConstraint(err)) throw err;
         }

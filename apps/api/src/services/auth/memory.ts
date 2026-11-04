@@ -42,6 +42,7 @@ import {
 } from '@local-events/domain';
 import { randomUUID } from 'node:crypto';
 import { createMemoryStore, type MemoryPublisherAccount, type MemoryStore } from '../memory-store';
+import { deliverPublisherLoginCode } from './mail';
 import { createPublisherLoginFactors } from './publisher-factors';
 import { AuthError, type AuthEnv, type AuthServices } from './types';
 
@@ -327,9 +328,13 @@ export function createMemoryAuthServices(
         usedAt: null,
       });
       factors.otpAttempts.set(id, 0);
-      return factors.includeLoginOtp
-        ? { status: 'code_sent' as const, code }
-        : { status: 'code_sent' as const };
+      return deliverPublisherLoginCode(
+        {
+          includeLoginOtp: factors.includeLoginOtp,
+          sendPublisherLoginCode: env.sendPublisherLoginCode,
+        },
+        { to: email, code },
+      );
     },
 
     async confirmPublisherOtp(input) {

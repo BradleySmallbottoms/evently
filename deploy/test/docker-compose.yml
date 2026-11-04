@@ -162,6 +162,9 @@ services:
       API_PORT: '13000'
       CORS_ORIGINS: https://app.${DOMAIN}
       INCLUDE_VERIFICATION_TOKEN: 'true'
+      # Login codes are emailed when both are set. The from address uses a domain verified in Resend.
+      RESEND_API_KEY: '${RESEND_API_KEY:-}'
+      RESEND_FROM: '${RESEND_FROM:-}'
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
     depends_on:
