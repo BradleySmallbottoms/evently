@@ -1,4 +1,8 @@
-import { copyEventImage, eventImageKey } from '../../../apps/data-workers/src/event-images';
+import {
+  copyEventImage,
+  eventImageKey,
+  isPublicHttpsImageUrl,
+} from '../../../apps/data-workers/src/event-images';
 import { describe, expect, it } from 'vitest';
 
 const EVENT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -27,17 +31,28 @@ describe('copyEventImage', () => {
   });
 
   it('does not fetch a private or non-https URL', async () => {
-    const local = await copyEventImage({
-      eventId: EVENT_ID,
-      sourceUrl: 'http://127.0.0.1/secret',
-      fetchImpl: async () => {
-        throw new Error('should not fetch');
-      },
-      put: async () => {
-        throw new Error('should not put');
-      },
-    });
-    expect(local).toBeNull();
+    const refused = [
+      'http://127.0.0.1/secret',
+      'https://[::ffff:127.0.0.1]/secret',
+      'https://[::ffff:10.0.0.1]/secret',
+      'https://[::7f00:1]/secret',
+      'https://100.64.0.1/meta',
+    ];
+    for (const sourceUrl of refused) {
+      expect(isPublicHttpsImageUrl(sourceUrl)).toBe(false);
+      const local = await copyEventImage({
+        eventId: EVENT_ID,
+        sourceUrl,
+        fetchImpl: async () => {
+          throw new Error('should not fetch');
+        },
+        put: async () => {
+          throw new Error('should not put');
+        },
+      });
+      expect(local).toBeNull();
+    }
+    expect(isPublicHttpsImageUrl('https://[::ffff:8.8.8.8]/ok')).toBe(true);
   });
 
   it('rejects a non-image and an oversized body', async () => {

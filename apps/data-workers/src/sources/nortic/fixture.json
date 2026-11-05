@@ -1,0 +1,16 @@
+{
+  "id": "87180",
+  "name": "Joel Nunez (USA) - Get Ready - Söderhamns Teater",
+  "eventUrl": "https://tickets.nortic.se/ticket/event/87180",
+  "category": "Konsert",
+  "imageUrl": "https://branding.nortic.io/organizer/3674/event/87180?redirect",
+  "description": "Första stycket.\r\n\r\nAndra stycket.\r\n\r\nÅldersgräns 13 år",
+  "organizer": { "id": "3674", "name": "NORTHEVENT AB" },
+  "showCount": 1,
+  "startsAt": "2027-04-07T17:00:00Z",
+  "endsAt": "2027-04-07T19:00:00Z",
+  "location": {
+    "city": "Söderhamn",
+    "venue": { "id": "117279", "name": "Söderhamns Teater" }
+  }
+}

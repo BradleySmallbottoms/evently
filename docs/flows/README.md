@@ -46,6 +46,9 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Bollnäs kommun import                                  | [bollnas-kommun.md](./bollnas-kommun.md)                                 |
 | Tickster import                                        | [tickster.md](./tickster.md)                                             |
 | Kulturbiljetter import                                 | [kulturbiljetter.md](./kulturbiljetter.md)                               |
+| Billetto import                                        | [billetto.md](./billetto.md)                                             |
+| Nortic import                                          | [nortic.md](./nortic.md)                                                 |
+| HTML calendar import                                   | [html-calendar.md](./html-calendar.md)                                   |
 | Saved events and custom lists                          | [saved-events.md](./saved-events.md)                                     |
 | I'm coming and popular events                          | [event-coming.md](./event-coming.md)                                     |
 | Show events count                                      | [event-counts.md](./event-counts.md)                                     |

@@ -470,6 +470,34 @@
       "when": 1794400000025,
       "tag": "0066_seed_kulturbiljetter",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1794400000026,
+      "tag": "0067_seed_html_calendar",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1794400000027,
+      "tag": "0068_seed_billetto",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1794400000028,
+      "tag": "0069_seed_abf_halsingland",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1794400000029,
+      "tag": "0070_seed_nortic",
+      "breakpoints": true
     }
   ]
 }

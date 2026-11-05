@@ -170,6 +170,30 @@ Import adapters (every new source)
   Ljusdal. One product is one event. Each date is an occasion. A unix time is that instant. The
   API sends a start and no end, so both are that instant. It sends no coordinates. The import
   does not geocode.
+  Billetto uses the public event API (`BILLETTO_API_KEY` and `BILLETTO_API_SECRET_KEY`, never
+  config). The worker pages `GET /api/v3/public/events` on billetto.se and saves a matching event
+  before the next page. Region filters still return other places, so a city is kept when it is
+  Söderhamn, Bollnäs, Hudiksvall, or Ljusdal. One public event is one event. A `Z` time is that
+  instant. The venue point is stored when the API sends one. A point of 0, 0 is omitted.
+  `amount_in_cents` is the major-unit price, so 165 is 165 SEK. The ticket link keeps the UTM
+  query. The import does not geocode.
+  Nortic uses the public events API (`NORTIC_API_KEY`, never config). The worker pages
+  `GET /api/ajar/public/v1/events?city=` on services.nortic.se and saves a matching event before
+  the next one. A city is kept when it is Söderhamn, Bollnäs, Hudiksvall, or Ljusdal. One product
+  is one event. The ticket page `https://tickets.nortic.se/ticket/event/{id}` supplies each showing,
+  the street, and the price. A clock on that page is Europe/Stockholm. A `Z` time from the list is
+  that instant and is used when the ticket page has no showing. The offer price is major-unit SEK.
+  `robots.txt` disallows `/ticket/ajax` and `/ticket/checkout`. The import does not geocode.
+  A calendar whose events are already in the HTML uses one shared adapter, `html-calendar`.
+  Each site is its own `data_sources` row. `config` is the list URL and the CSS selectors.
+  The worker reads the list, then each detail page, and saves that event before the next one.
+  A next link has to be an `a` with an `href`. The worker stays on the list host, skips a
+  `jsessionid` URL, and skips a path `robots.txt` disallows. A redirect to another host fails
+  the list and skips that detail page. A date with no clock, and a clock with no end, is that
+  instant for both start and end. Paragraphs, headings, and list items in the description
+  become separate lines. Several dates in the date field are occasions. A page with
+  no readable date is still saved. The import does not geocode. Hälsinglands museum, Systrarna
+  Söderström, Folkteatern Gävleborg, Ovanåker, and ABF Hälsingland are seeded disabled at trust `review`.
 
 Product invariants (enforced in domain, tested)
 

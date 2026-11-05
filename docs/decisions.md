@@ -90,4 +90,7 @@ digital code sharing. See `project-description.md` → Risks.
   Glada Hudik, Destination Hälsingland, Söderhamns stadsbibliotek, and Bollnäs kommun use the public calendar, not an API key.
   Tickster uses Event API v1.0. The key is `TICKSTER_API_KEY` and is not stored in `data_sources.config`.
   Kulturbiljetter uses Events API v3. The key is `KULTURBILJETTER_API_KEY` and is not stored in `data_sources.config`.
+  Billetto uses the public event API. The key pair is `BILLETTO_API_KEY` and `BILLETTO_API_SECRET_KEY` and is not stored in `data_sources.config`.
+  Nortic uses the public events API. The key is `NORTIC_API_KEY` and is not stored in `data_sources.config`.
+  A calendar whose events are already in the HTML uses the shared `html-calendar` adapter. Each site is its own row. The selectors are config. Paragraphs, headings, and list items in the description become separate lines. Hälsinglands museum, Systrarna Söderström, Folkteatern Gävleborg, Ovanåker, and ABF Hälsingland are seeded disabled.
 - Registration conflict with an already-imported publisher (investigate detection, proof and merge).

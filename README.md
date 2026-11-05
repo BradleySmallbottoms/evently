@@ -357,6 +357,44 @@ calls) in the same change as every new major feature.**
   events. The seeded row stays disabled. Flow:
   [docs/flows/kulturbiljetter.md](docs/flows/kulturbiljetter.md).
 
+### Billetto import
+
+- Public events from the Billetto API. Set `BILLETTO_API_KEY` and `BILLETTO_API_SECRET_KEY` before
+  a live run. The key pair is not stored in `data_sources.config`. The worker pages
+  `GET /api/v3/public/events` on billetto.se and saves a matching event before the next page.
+  Region filters still return other places, so a city is kept when it is Söderhamn, Bollnäs,
+  Hudiksvall, or Ljusdal. One public event is one event. A `Z` time is that instant. The venue
+  point is stored when the API sends one. A point of 0, 0 is omitted. `amount_in_cents` is the
+  major-unit price, so 165 is 165 SEK. The ticket link keeps the UTM query. The import does not
+  geocode.
+  `pnpm --filter @local-events/data-workers dev -- --source billetto` writes `pending_scan`
+  events. The seeded row stays disabled. Flow: [docs/flows/billetto.md](docs/flows/billetto.md).
+
+### Nortic import
+
+- Ticketed events from the Nortic public events API. Set `NORTIC_API_KEY` before a live run. The
+  key is not stored in `data_sources.config`. The worker pages
+  `GET /api/ajar/public/v1/events?city=` on services.nortic.se and saves a matching event before
+  the next one. A city is kept when it is Söderhamn, Bollnäs, Hudiksvall, or Ljusdal. One product
+  is one event. The ticket page supplies each showing, the street, and the price. A clock on that
+  page is Europe/Stockholm. A `Z` time from the list is used when the ticket page has no showing.
+  The offer price is major-unit SEK. The import does not geocode.
+  `pnpm --filter @local-events/data-workers dev -- --source nortic` writes `pending_scan` events.
+  The seeded row stays disabled. Flow: [docs/flows/nortic.md](docs/flows/nortic.md).
+
+### HTML calendar import
+
+- One adapter for a calendar whose events are already in the page. Each site is its own source
+  row. The list URL and the CSS selectors are `data_sources.config`. The worker reads the list,
+  follows each detail link, and saves that event before the next page. It stays on the list host
+  and skips a path `robots.txt` disallows. A date with no clock, and a clock with no end, is a
+  whole day. Paragraphs, headings, and list items in the description become separate lines.
+  A page with no readable date is still saved.
+  Seeded disabled: `halsinglands-museum`, `systrarna`, `folkteatern-gavleborg`, `ovanaker`, and
+  `abf-halsingland`.
+  `pnpm --filter @local-events/data-workers dev -- --source halsinglands-museum` writes
+  `pending_scan` events. Flow: [docs/flows/html-calendar.md](docs/flows/html-calendar.md).
+
 ### Event share links
 
 - Copy link uses `EXPO_PUBLIC_WEB_URL/events/{id}` (default local web `http://localhost:13100`).

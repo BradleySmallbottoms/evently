@@ -1,0 +1,49 @@
+{
+  "id": "2006928",
+  "object": "public_event",
+  "kind": "regular",
+  "state": "published",
+  "title": "Brutus Östling - föreläsning",
+  "description": "En kväll med bilder.\n\nÅldersgräns: 15.\nMer om klubben: https://example.com/klubben",
+  "url": "https://billetto.se/e/brutus-ostling-forelasning-biljetter-2006928?utm_source=billetto+advertising&utm_medium=publishers&utm_campaign=websites&utm_content=SE+6473947",
+  "image_link": "https://billetto.imgix.net/brutus.jpg",
+  "availability": true,
+  "organiser": {
+    "id": 7411183,
+    "name": "Söderhamns Kameraklubb"
+  },
+  "minimum_price": {
+    "amount_in_cents": 165,
+    "currency": "SEK"
+  },
+  "categorization": {
+    "category": "hobbies",
+    "category_localized": "Hobby & Speciella intressen",
+    "subcategory": "photography",
+    "subcategory_localized": "Fotografi",
+    "type": "seminar",
+    "type_localized": "Föreläsning eller Seminarium"
+  },
+  "location": {
+    "location_name": "Studieförbundet Bilda Mitt",
+    "address_line": "Kungsgatan 12",
+    "address_line_2": null,
+    "city": "Söderhamn",
+    "postal_code": "826 30",
+    "country": "Sverige",
+    "country_code": "SE",
+    "macroregion": "Norra Sverige",
+    "region": "Norra Mellansverige",
+    "subregion": "Gävleborgs län",
+    "coordinates": {
+      "latitude": 61.3036,
+      "longitude": 17.0559
+    }
+  },
+  "startdate": "2026-11-15T12:00:00Z",
+  "enddate": "2026-11-15T14:00:00Z",
+  "organization": {
+    "id": 1,
+    "domain": "billetto.se"
+  }
+}
