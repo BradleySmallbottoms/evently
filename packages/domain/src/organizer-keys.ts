@@ -19,6 +19,7 @@ const SHARED_SKIP_HOSTS = [
   'images.citybreakcdn.com',
   'images.citybreak.com',
   'tickster.com',
+  'kulturbiljetter.se',
   'nortic.se',
   'ticketco.events',
   'ticketmaster.com',

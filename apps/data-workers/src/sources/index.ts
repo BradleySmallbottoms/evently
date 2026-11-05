@@ -4,6 +4,7 @@ import { destinationHalsingland } from './destination-halsingland';
 import { exampleFixture } from './example-fixture';
 import { gladaHudik } from './glada-hudik';
 import { icsFeed } from './ics-feed';
+import { kulturbiljetter } from './kulturbiljetter';
 import { soderhamnBiblioteket } from './soderhamn-biblioteket';
 import { tickster } from './tickster';
 import { visitSoderhamn } from './visit-soderhamn';
@@ -18,6 +19,7 @@ export const sources: Record<string, SourceAdapter<any>> = {
   [soderhamnBiblioteket.slug]: soderhamnBiblioteket,
   [bollnasKommun.slug]: bollnasKommun,
   [tickster.slug]: tickster,
+  [kulturbiljetter.slug]: kulturbiljetter,
 };
 
 /** Slugs that identify a data source, not an organizer. They never match across workers. */

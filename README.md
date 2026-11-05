@@ -345,6 +345,18 @@ calls) in the same change as every new major feature.**
   `pnpm --filter @local-events/data-workers dev -- --source tickster` writes `pending_scan`
   events. The seeded row stays disabled. Flow: [docs/flows/tickster.md](docs/flows/tickster.md).
 
+### Kulturbiljetter import
+
+- Ticketed events from the Kulturbiljetter Events API. Set `KULTURBILJETTER_API_KEY` before a live
+  run. The key is not stored in `data_sources.config`. The worker reads the national list, fetches
+  each event, and saves it before the next one. A showing is kept when its city is Söderhamn,
+  Bollnäs, Hudiksvall, or Ljusdal. One product is one event and each date is an occasion. A unix
+  time is that instant. The API sends a start and no end, so that showing is a whole day. It sends
+  no coordinates. The import does not geocode.
+  `pnpm --filter @local-events/data-workers dev -- --source kulturbiljetter` writes `pending_scan`
+  events. The seeded row stays disabled. Flow:
+  [docs/flows/kulturbiljetter.md](docs/flows/kulturbiljetter.md).
+
 ### Event share links
 
 - Copy link uses `EXPO_PUBLIC_WEB_URL/events/{id}` (default local web `http://localhost:13100`).

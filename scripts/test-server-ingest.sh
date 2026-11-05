@@ -115,6 +115,7 @@ allowed = {
     "ANTHROPIC_MODEL",
     "VISIT_SODERHAMN_API_KEY",
     "TICKSTER_API_KEY",
+    "KULTURBILJETTER_API_KEY",
     "BRAVE_API_KEY",
 }
 path = pathlib.Path(sys.argv[1])

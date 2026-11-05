@@ -89,4 +89,5 @@ digital code sharing. See `project-description.md` → Risks.
   still has no public calendar feed). The candidate list and build order are in `docs/event-sources.md`.
   Glada Hudik, Destination Hälsingland, Söderhamns stadsbibliotek, and Bollnäs kommun use the public calendar, not an API key.
   Tickster uses Event API v1.0. The key is `TICKSTER_API_KEY` and is not stored in `data_sources.config`.
+  Kulturbiljetter uses Events API v3. The key is `KULTURBILJETTER_API_KEY` and is not stored in `data_sources.config`.
 - Registration conflict with an already-imported publisher (investigate detection, proof and merge).

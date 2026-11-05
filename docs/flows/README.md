@@ -45,6 +45,7 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Söderhamns stadsbibliotek import                       | [soderhamn-biblioteket.md](./soderhamn-biblioteket.md)                   |
 | Bollnäs kommun import                                  | [bollnas-kommun.md](./bollnas-kommun.md)                                 |
 | Tickster import                                        | [tickster.md](./tickster.md)                                             |
+| Kulturbiljetter import                                 | [kulturbiljetter.md](./kulturbiljetter.md)                               |
 | Saved events and custom lists                          | [saved-events.md](./saved-events.md)                                     |
 | I'm coming and popular events                          | [event-coming.md](./event-coming.md)                                     |
 | Show events count                                      | [event-counts.md](./event-counts.md)                                     |

@@ -1,0 +1,54 @@
+{
+  "title": "Hälsinge konsert",
+  "presentation_short": "<p>En kort kväll.</p>",
+  "presentation_long": "<p>En kväll med musik &amp; dans.</p><p>Åldersgräns: 15. <a href=\"https://example.com/band\">Bandet</a></p>",
+  "unixtime_release": 1794000000,
+  "price_min": "150.00",
+  "price_max": "295.00",
+  "organizer": {
+    "organizer_id": 1023,
+    "name": "Hälsinge Konsert",
+    "logo": "https://kulturbiljetter.se/storage/organizer-logo.jpg"
+  },
+  "images": {
+    "0": "https://kulturbiljetter.se/storage/halsinge-konsert.jpg",
+    "1": "https://kulturbiljetter.se/storage/halsinge-konsert-2.jpg"
+  },
+  "trailers": {
+    "0": "https://www.youtube.com/embed/eV5Qaaa000A"
+  },
+  "dates": {
+    "0": {
+      "date_id": 1021,
+      "location_id": 1191,
+      "unixtime_open": 1794672000,
+      "unixtime_start": 1794675600,
+      "ticket_amount": 100,
+      "ticket_available": 42,
+      "date_only": false,
+      "url_checkout": "https://kulturbiljetter.se/varukorg/1291/1021/halsinge-konsert/"
+    },
+    "1": {
+      "date_id": 1022,
+      "location_id": 1191,
+      "unixtime_open": 1795280400,
+      "unixtime_start": 1795284000,
+      "ticket_amount": 80,
+      "ticket_available": 10,
+      "date_only": true,
+      "url_checkout": "https://kulturbiljetter.se/varukorg/1291/1022/halsinge-konsert/"
+    }
+  },
+  "locations": {
+    "0": {
+      "location_id": 1191,
+      "name": "Kulturhuset Berget",
+      "street": "Köpmangatan 1",
+      "vicinity": null,
+      "city": "Söderhamn"
+    }
+  },
+  "url_checkout": "https://kulturbiljetter.se/varukorg/1291/halsinge-konsert/",
+  "url_event_page": "https://kulturbiljetter.se/evenemang/1291/halsinge-konsert/",
+  "url_organizer_serp": "https://kulturbiljetter.se/arrangor/1023/halsinge-konsert/"
+}

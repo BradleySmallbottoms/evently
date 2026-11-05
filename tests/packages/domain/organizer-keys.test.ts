@@ -21,6 +21,7 @@ describe('organizerKeys', () => {
           'https://brobergsoderhamn.se/',
           'https://www.brobergsoderhamn.se/lag',
           'https://www.nortic.se/ticket/event/82243',
+          'https://kulturbiljetter.se/evenemang/1291/halsinge-konsert/',
           'https://visit.destinationhalsingland.se/sv/event',
           'https://images.citybreakcdn.com/image.aspx?ImageId=1',
         ],

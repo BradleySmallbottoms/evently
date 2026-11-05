@@ -156,8 +156,8 @@ Import adapters (every new source)
   sends no tags leaves them in place.
 - `organizerKeys()` is the ordered list: ids, email, an info-link host plus its path, that host,
   the name, then the slug fallback only when nothing else identifies the organizer. `skipHosts`
-  includes the source site. Visit Söderhamn, Glada Hudik, and Destination Hälsingland store every
-  showing of one product on that one event as `event_occasions` rows. A calendar that already
+  includes the source site. Visit Söderhamn, Glada Hudik, Destination Hälsingland, and Kulturbiljetter
+  store every showing of one product on that one event as `event_occasions` rows. A calendar that already
   lists one showing per row stores that row as one event. The page or item id is the external id.
   Tickster uses Event API v1.0 (`TICKSTER_API_KEY`, never config). It searches by city — Söderhamn,
   Bollnäs, Hudiksvall, Ljusdal — then fetches each showing and skips a production or collection
@@ -165,6 +165,11 @@ Import adapters (every new source)
   the API sends one. A point of 0, 0 is omitted. `X-RATELIMIT-REMAINING: 0`, or a 429, waits
   five minutes and retries, for up to an hour. The test ingest script sets `TICKSTER_STOP_ON_403`,
   so the first 403 or rate limit stops that source and the script continues.
+  Kulturbiljetter uses Events API v3 (`KULTURBILJETTER_API_KEY`, never config). The list has no
+  city. The worker fetches each event and keeps a showing in Söderhamn, Bollnäs, Hudiksvall, or
+  Ljusdal. One product is one event. Each date is an occasion. A unix time is that instant. The
+  API sends a start and no end, so both are that instant. It sends no coordinates. The import
+  does not geocode.
 
 Product invariants (enforced in domain, tested)
 
@@ -221,7 +226,7 @@ Product invariants (enforced in domain, tested)
   The public event returns the hero point as `imageFocal`. Explore uses it to place the crop. A missing point stays centered.
 - An imported physical event with no venue name stores the city from its scraped address on `meta.import.venueName`. When that
   address has no city, the nearest city within 25 km of its point is used. A name the adapter already set stays on that field.
-- Visit Söderhamn, Glada Hudik, and Destination Hälsingland store one product as one event, with each
+- Visit Söderhamn, Glada Hudik, Destination Hälsingland, and Kulturbiljetter store one product as one event, with each
   showing on `event_occasions`. An import with no occasion, and a library page or ICS event with no date, is still saved, with empty start and end.
   The event scan returns `possibleOccasions`, each with a start, an end, and a venue. A showing that is not already stored is added. A description can name more than one showing.
   The model may read that page for tags, instructions, and the summary.
