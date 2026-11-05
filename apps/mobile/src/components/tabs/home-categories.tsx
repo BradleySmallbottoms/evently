@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
+import { ActivityIndicator, FlatList, PixelRatio, Pressable, View } from 'react-native';
 
 import { CategoryFiltersSheet } from '@/components/native/category-filters-sheet';
 import { AppText } from '@/components/ui/app-text';
@@ -56,6 +56,8 @@ type Props = {
 };
 
 const CARD_WIDTH = 168;
+/** Device pixels across the photo. Delivery snaps this to 400, 800, 1200, or 1600. */
+const CARD_IMAGE_WIDTH = PixelRatio.getPixelSizeForLayoutSize(CARD_WIDTH);
 
 function tap() {
   if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
@@ -91,6 +93,7 @@ function CategoryCard({
           tags={item.tags}
           eventId={item.id}
           placeholderSlot={item.placeholderSlot}
+          deliveryWidth={CARD_IMAGE_WIDTH}
           style={{ width: '100%', height: '100%' }}
         />
         <View
