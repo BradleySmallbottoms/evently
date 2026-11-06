@@ -155,6 +155,7 @@ Closed beta around week 15, store launch around week 19.
 - [x] Persist: upsert, `external_refs`, `ingestion_runs`. A new import is `pending_scan` with no
       publisher. The scan job resolves the publisher, duplicate check, and tags, then sets
       `in_review` or `published`. A physical import with no venue name stores the city from its address on `meta.import.venueName`, or the nearest city within 25 km of its point when that address has no city.
+- [x] Venue database: `venues` is one place by name and city, with a geography point. The scan uses that point before it geocodes. A miss stores the venue and sets `event_occasions.venue_id`. Photon is tried first. Nominatim is used when Photon does not answer. The first rows come from occasions that already have a name, a city, and a point. `--job venue-backfill` fills a showing that still has no venue. A name and a point with no city uses that point to find the city, then stores the venue.
 - [x] Import scan queue: `pending_scan` rows, batch prompt runner, Ollama model client, EventBridge
       schedule every 5 minutes (`JOB=event-scan`). `CHAT_PROVIDER=runpod` serves that job from one
       GPU pod of one, two, or four A40s, 25 scans at a time, and stops the pod when the run ends. More than one GPU disables vLLM custom all-reduce and NCCL peer access, and a pod started without that is replaced. A later scan starts that same pod. A start with no free GPU retries until one is free, and the pod stays. A duplicate ranked over 90 as another showing

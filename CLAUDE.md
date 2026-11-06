@@ -258,10 +258,11 @@ Product invariants (enforced in domain, tested)
   An event with no start stays off the public list.
   Importers store a scraped point and the street, postcode, and city on `meta.address`. They do not
   geocode. The model returns an address in the scan JSON. The scan keeps a scraped point. A point
-  already on the scraped address is used when the occasion has none. When the event still has none,
-  it geocodes the scraped address before nearby tools run, or the model address when the import
-  stored none, and writes that point on occasions that have none.
-  A street, or a postcode and city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept. The model does not supply coordinates.
+  already on the scraped address is used when the occasion has none. When the event still has none, the scan looks up `venues` by name and city and uses that point.
+  A miss geocodes the scraped address before nearby tools run, or the model address when the import
+  stored none, stores the venue, and links `event_occasions.venue_id`.
+  `--job venue-backfill` fills a showing that still has no venue, and a showing that has a name but no point. The scan's venue name or the name already on the showing is used, or the street when that name is only the city. A missing point is geocoded. A name and a point with no city uses that point to find the city, then stores the venue.
+  A street, or a postcode and city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Photon is tried first. Nominatim is used when Photon does not answer. Only a hit in Sweden is kept. The model does not supply coordinates.
   The model returns possible venue names. Importers leave `event_occasions.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written on showings that still have no venue. A showing from `possibleOccasions` keeps its own venue name. When no rank is above 80, the arena name is written, then an imported venue name that is not only the city. When neither of those is set, the highest rank above 50 is written. The city is used when the model returns none. A later scan replaces a city name already written. A later import does not clear a venue the scan already wrote.
   Showings stay on `event_occasions`. They are not copied onto `meta.occasions`. The mobile event page
   lists that event's occasion rows that have not ended.

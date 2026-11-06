@@ -48,6 +48,7 @@ Name files `kebab-case.md`. Prefer sequence or flowchart diagrams that name:
 | Kulturbiljetter import                                 | [kulturbiljetter.md](./kulturbiljetter.md)                               |
 | Billetto import                                        | [billetto.md](./billetto.md)                                             |
 | Nortic import                                          | [nortic.md](./nortic.md)                                                 |
+| Venue locations                                        | [venues.md](./venues.md)                                                 |
 | HTML calendar import                                   | [html-calendar.md](./html-calendar.md)                                   |
 | Saved events and custom lists                          | [saved-events.md](./saved-events.md)                                     |
 | I'm coming and popular events                          | [event-coming.md](./event-coming.md)                                     |

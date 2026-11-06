@@ -36,6 +36,7 @@ import {
 import {
   type EventRecord,
   type PublisherRecord,
+  type StoredVenue,
   NEARBY_RADIUS_M,
   PUBLISHER_NAME_SEARCH_RADIUS_M,
   publisherNameMatcher,
@@ -152,10 +153,32 @@ async function replaceLinks(
   );
 }
 
+async function readVenue(db: Db, nameKey: string, cityKey: string): Promise<StoredVenue | null> {
+  const [row] = await db
+    .select({
+      id: schema.venues.id,
+      name: schema.venues.name,
+      city: schema.venues.city,
+      lat: sql<number | null>`ST_Y(${schema.venues.location}::geometry)`,
+      lng: sql<number | null>`ST_X(${schema.venues.location}::geometry)`,
+    })
+    .from(schema.venues)
+    .where(and(eq(schema.venues.nameKey, nameKey), eq(schema.venues.cityKey, cityKey)))
+    .limit(1);
+  if (!row || row.lat == null || row.lng == null) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    city: row.city,
+    location: { lat: Number(row.lat), lng: Number(row.lng) },
+  };
+}
+
 export function createDbIngestStore(db: Db): IngestStore {
   const {
     events,
     eventOccasions,
+    venues,
     eventLinks,
     eventTags,
     eventImages,
@@ -228,6 +251,27 @@ export function createDbIngestStore(db: Db): IngestStore {
                 sql`lower(btrim(${eventOccasions.venueName})) = lower(${cityName})`,
               )
             : isNull(eventOccasions.venueName),
+        ),
+      );
+  }
+
+  /** Links showings whose venue name matches the place the scan resolved. */
+  async function linkOccasionVenue(
+    tx: Pick<Db, 'update'>,
+    eventId: string,
+    venueId: string | undefined,
+    venueName: string | undefined,
+  ) {
+    const key = venueName?.replace(/\s+/g, ' ').trim().toLocaleLowerCase('sv');
+    if (!venueId || !key) return;
+    await tx
+      .update(eventOccasions)
+      .set({ venueId, updatedAt: new Date() })
+      .where(
+        and(
+          eq(eventOccasions.eventId, eventId),
+          isNull(eventOccasions.venueId),
+          sql`lower(btrim(${eventOccasions.venueName})) = ${key}`,
         ),
       );
   }
@@ -1589,8 +1633,102 @@ export function createDbIngestStore(db: Db): IngestStore {
         await writeTags(tx, input.eventId, input.tagIds);
         await fillOccasionPoints(tx, input.eventId, input.location);
         await writeScanVenue(tx, input.eventId, input.venueName, input.venueCity);
+        await linkOccasionVenue(tx, input.eventId, input.venueId, input.venueName);
         return true;
       });
+    },
+    async findVenue(nameKey, cityKey) {
+      return readVenue(db, nameKey, cityKey);
+    },
+    async saveVenue(input) {
+      const [inserted] = await db
+        .insert(venues)
+        .values({
+          name: input.name,
+          city: input.city,
+          nameKey: input.nameKey,
+          cityKey: input.cityKey,
+          location: pointEwkt(input.location),
+          address: input.address ?? null,
+          zipCode: input.zipCode ?? null,
+        })
+        .onConflictDoNothing({ target: [venues.nameKey, venues.cityKey] })
+        .returning({ id: venues.id });
+      if (inserted) {
+        return { id: inserted.id, name: input.name, city: input.city, location: input.location };
+      }
+      const existing = await readVenue(db, input.nameKey, input.cityKey);
+      if (existing) return existing;
+      throw new Error('venue insert did not return a row');
+    },
+    async listUnnamedOccasions(limit) {
+      const rows = await db
+        .select({
+          occasionId: eventOccasions.id,
+          venueName: eventOccasions.venueName,
+          startsAt: eventOccasions.startsAt,
+          endsAt: eventOccasions.endsAt,
+          lat: sql<number | null>`ST_Y(${eventOccasions.location}::geometry)`,
+          lng: sql<number | null>`ST_X(${eventOccasions.location}::geometry)`,
+          meta: events.meta,
+          llmOutput: events.llmOutput,
+        })
+        .from(eventOccasions)
+        .innerJoin(events, eq(events.id, eventOccasions.eventId))
+        .where(
+          and(
+            isNull(eventOccasions.venueId),
+            or(
+              and(
+                sql`nullif(btrim(${eventOccasions.venueName}), '') is null`,
+                isNotNull(events.llmOutput),
+              ),
+              and(
+                isNull(eventOccasions.location),
+                or(
+                  isNotNull(events.llmOutput),
+                  sql`nullif(btrim(${events.meta}->'address'->>'city'), '') is not null`,
+                  sql`nullif(btrim(${events.meta}->'address'->>'address'), '') is not null`,
+                ),
+              ),
+              and(
+                sql`nullif(btrim(${eventOccasions.venueName}), '') is not null`,
+                sql`nullif(btrim(${events.meta}->'address'->>'city'), '') is null`,
+                or(
+                  isNotNull(eventOccasions.location),
+                  sql`nullif(${events.meta}->'address'->'location'->>'lat', '') is not null`,
+                ),
+              ),
+            ),
+          ),
+        )
+        .orderBy(asc(eventOccasions.createdAt))
+        .limit(limit);
+      return rows.map((row) => ({
+        occasionId: row.occasionId,
+        venueName: row.venueName,
+        startsAt: row.startsAt,
+        endsAt: row.endsAt,
+        location:
+          row.lat == null || row.lng == null
+            ? null
+            : { lat: Number(row.lat), lng: Number(row.lng) },
+        meta: readEventMeta(row.meta),
+        llmOutput: row.llmOutput,
+      }));
+    },
+    async assignOccasionVenue(input) {
+      const updated = await db
+        .update(eventOccasions)
+        .set({
+          venueName: sql`coalesce(nullif(btrim(${eventOccasions.venueName}), ''), ${input.venueName})`,
+          venueId: input.venueId,
+          ...(input.location ? { location: pointEwkt(input.location) } : {}),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(eventOccasions.id, input.occasionId), isNull(eventOccasions.venueId)))
+        .returning({ id: eventOccasions.id });
+      return updated.length > 0;
     },
     async reapplyImportedScan(input: ImportedScanWrite) {
       const now = new Date();
@@ -1623,6 +1761,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         await writeTags(tx, input.eventId, input.tagIds);
         await fillOccasionPoints(tx, input.eventId, input.location);
         await writeScanVenue(tx, input.eventId, input.venueName, input.venueCity);
+        await linkOccasionVenue(tx, input.eventId, input.venueId, input.venueName);
         return true;
       });
     },

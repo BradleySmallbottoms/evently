@@ -381,6 +381,29 @@ export interface IngestStore {
    * Returns false when a newer import or a newer claim owns it.
    */
   finishImportedScan(input: ImportedScanWrite & { claimedUntil: Date }): Promise<boolean>;
+  /** A stored place for this name and city, or null when the pair is new. */
+  findVenue(nameKey: string, cityKey: string): Promise<StoredVenue | null>;
+  /**
+   * Inserts the place. A name and city that already exist return that row
+   * and leave its point unchanged.
+   */
+  saveVenue(input: VenueWrite): Promise<StoredVenue>;
+  /**
+   * Showings that still need a venue. A showing with no name needs a stored scan.
+   * A showing with no point is included when the event has a scan or an address, so the
+   * address can be geocoded. Oldest first. `limit` caps the page.
+   */
+  listUnnamedOccasions(limit: number): Promise<UnnamedOccasion[]>;
+  /**
+   * Links the venue. A name already on the showing stays. A point is written only when
+   * the showing has none. Returns false when the showing already has a venue.
+   */
+  assignOccasionVenue(input: {
+    occasionId: string;
+    venueId: string;
+    venueName: string;
+    location?: { lat: number; lng: number };
+  }): Promise<boolean>;
   /**
    * Imported events with a stored model output (`events.llm_output`) that may be replayed.
    * Rows are returned oldest first. `eventId` narrows to one row. `skipEventIds` leaves rows
@@ -458,6 +481,33 @@ export interface StoredScanRow extends PendingScanRow {
   llmOutput: unknown;
 }
 
+export interface StoredVenue {
+  id: string;
+  name: string;
+  city: string;
+  location: { lat: number; lng: number };
+}
+
+export interface UnnamedOccasion {
+  occasionId: string;
+  venueName: string | null;
+  startsAt: Date | null;
+  endsAt: Date | null;
+  location: { lat: number; lng: number } | null;
+  meta: EventMeta;
+  llmOutput: unknown;
+}
+
+export interface VenueWrite {
+  name: string;
+  city: string;
+  nameKey: string;
+  cityKey: string;
+  location: { lat: number; lng: number };
+  address?: string;
+  zipCode?: string;
+}
+
 export interface ImportedScanWrite {
   eventId: string;
   publisherId: string;
@@ -472,6 +522,8 @@ export interface ImportedScanWrite {
   language: 'sv' | 'en';
   /** The point nearby tools used. Written onto occasions that still have none. */
   location?: { lat: number; lng: number };
+  /** Venue row for the chosen name and city. Linked onto matching showings. */
+  venueId?: string;
   /** Chosen venue. Written on showings that still have no venue, and on a city name already written. */
   venueName?: string;
   /** Address city. A showing whose venue is only this city can take {@link venueName}. */

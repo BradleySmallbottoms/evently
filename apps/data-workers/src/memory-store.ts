@@ -34,6 +34,9 @@ import type {
   ScanPublisherCandidate,
   StoredScanRow,
   SourceRecord,
+  StoredVenue,
+  UnnamedOccasion,
+  VenueWrite,
 } from './store';
 import {
   NEARBY_RADIUS_M,
@@ -85,7 +88,14 @@ interface StoredEvent {
   summary?: string | null;
   language?: 'sv' | 'en';
   links?: { type: EventLinkKind; url: string; label?: string }[];
-  occasions: { startsAt: Date; endsAt: Date; venueName: string | null }[];
+  occasions: {
+    id?: string;
+    startsAt: Date;
+    endsAt: Date;
+    venueName: string | null;
+    venueId?: string;
+    location?: { lat: number; lng: number };
+  }[];
 }
 
 interface StoredRef {
@@ -203,22 +213,41 @@ function applyScanOccasions(
   }
 }
 
-function storedOccasions(
-  input: ImportedEventWrite,
-): { startsAt: Date; endsAt: Date; venueName: string | null }[] {
+function linkStoredVenue(
+  event: StoredEvent,
+  venueId: string | undefined,
+  venueName: string | undefined,
+) {
+  const key = venueName?.replace(/\s+/g, ' ').trim().toLocaleLowerCase('sv');
+  if (!venueId || !key) return;
+  for (const occasion of event.occasions) {
+    const name = occasion.venueName?.replace(/\s+/g, ' ').trim().toLocaleLowerCase('sv');
+    if (name === key) occasion.venueId = venueId;
+  }
+}
+
+function storedOccasions(input: ImportedEventWrite): StoredEvent['occasions'] {
   if (input.event.occasions && input.event.occasions.length > 0) {
     return input.event.occasions.flatMap((occasion) => {
       const startsAt = new Date(occasion.startsAt);
       const endsAt = new Date(occasion.endsAt);
       if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return [];
-      return [{ startsAt, endsAt, venueName: occasion.venueName ?? null }];
+      return [
+        {
+          id: randomUUID(),
+          startsAt,
+          endsAt,
+          venueName: occasion.venueName ?? null,
+          ...(occasion.location ? { location: occasion.location } : {}),
+        },
+      ];
     });
   }
   if (!input.event.startsAt || !input.endsAt) return [];
   const startsAt = new Date(input.event.startsAt);
   const endsAt = new Date(input.endsAt);
   if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return [];
-  return [{ startsAt, endsAt, venueName: input.event.venueName ?? null }];
+  return [{ id: randomUUID(), startsAt, endsAt, venueName: input.event.venueName ?? null }];
 }
 
 /** Earliest start among showings that have not ended. A whole day stays through that calendar day. */
@@ -264,6 +293,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
   const publishers: StoredPublisher[] = [];
   const aliases: { sourceId: string; organizerKey: string; publisherId: string }[] = [];
   const events: StoredEvent[] = [];
+  const venues: (StoredVenue & { nameKey: string; cityKey: string })[] = [];
   const refs: StoredRef[] = [];
   const suppressions: MemoryIngestStore['suppressions'] = [];
   const runs: StoredRun[] = [];
@@ -1068,9 +1098,75 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       event.summary = input.summary;
       event.language = input.language;
       applyScanOccasions(event, input.occasions, input.venueName, input.venueCity);
+      linkStoredVenue(event, input.venueId, input.venueName);
       if (input.location) event.location = input.location;
       event.scanClaimedUntil = null;
       return true;
+    },
+    async findVenue(nameKey, cityKey) {
+      const venue = venues.find((item) => item.nameKey === nameKey && item.cityKey === cityKey);
+      if (!venue) return null;
+      return { id: venue.id, name: venue.name, city: venue.city, location: venue.location };
+    },
+    async saveVenue(input: VenueWrite) {
+      const existing = venues.find(
+        (item) => item.nameKey === input.nameKey && item.cityKey === input.cityKey,
+      );
+      if (existing) {
+        return {
+          id: existing.id,
+          name: existing.name,
+          city: existing.city,
+          location: existing.location,
+        };
+      }
+      const venue = { id: randomUUID(), ...input };
+      venues.push(venue);
+      return { id: venue.id, name: venue.name, city: venue.city, location: venue.location };
+    },
+    async listUnnamedOccasions(limit) {
+      const rows: UnnamedOccasion[] = [];
+      for (const event of events) {
+        for (const occasion of event.occasions) {
+          if (occasion.venueId) continue;
+          const named = Boolean(occasion.venueName?.trim());
+          const hasAddress = Boolean(event.meta.address?.city || event.meta.address?.address);
+          const missingPoint = !occasion.location;
+          const unnamedWithScan = !named && event.llmOutput != null;
+          const missingPointWithPlace = missingPoint && (event.llmOutput != null || hasAddress);
+          const namedPointWithoutCity =
+            named &&
+            !event.meta.address?.city &&
+            Boolean(occasion.location ?? event.meta.address?.location);
+          if (!unnamedWithScan && !missingPointWithPlace && !namedPointWithoutCity) continue;
+          if (!occasion.id) occasion.id = randomUUID();
+          rows.push({
+            occasionId: occasion.id,
+            venueName: occasion.venueName,
+            startsAt: occasion.startsAt,
+            endsAt: occasion.endsAt,
+            location: occasion.location ?? null,
+            meta: event.meta,
+            llmOutput: event.llmOutput ?? null,
+          });
+          if (rows.length >= limit) return rows;
+        }
+      }
+      return rows;
+    },
+    async assignOccasionVenue(input) {
+      for (const event of events) {
+        const occasion = event.occasions.find((item) => item.id === input.occasionId);
+        if (!occasion || occasion.venueId) continue;
+        if (!occasion.venueName?.trim()) occasion.venueName = input.venueName;
+        occasion.venueId = input.venueId;
+        if (!occasion.location && input.location) {
+          occasion.location = input.location;
+          event.location ??= input.location;
+        }
+        return true;
+      }
+      return false;
     },
     async reapplyImportedScan(input: ImportedScanWrite) {
       const now = Date.now();
@@ -1088,6 +1184,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       event.summary = input.summary;
       event.language = input.language;
       applyScanOccasions(event, input.occasions, input.venueName, input.venueCity);
+      linkStoredVenue(event, input.venueId, input.venueName);
       if (input.location) event.location = input.location;
       event.scanClaimedUntil = null;
       return true;

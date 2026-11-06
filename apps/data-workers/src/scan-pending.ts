@@ -8,9 +8,10 @@ import {
   OCCASION_GROUP_MIN_RANK,
   shouldEnqueueNotifications,
   statusAfterImportScan,
+  venueIdentity,
   venueNameFromScan,
 } from '@local-events/domain';
-import { geocodeSwedishAddress } from './page-place';
+import { cityFromPoint, geocodeSwedishAddress } from './page-place';
 import { failFinishedScan, type ScanProgress } from './scan-progress';
 import { emitDomainEvent, noopDomainEvents, type DomainEventSink } from './domain-events';
 import type { PromptRunner, ScanInput, ScanOutcome } from './prompt-runners';
@@ -108,7 +109,7 @@ export async function scanPendingEvents(
   const batch: ScanInput[] = [];
   const rows = new Map<string, PendingScanRow>();
   for (const row of claimed) {
-    await ensureScanPoint(row, fetchImpl);
+    await ensureScanPoint(store, row, fetchImpl);
     const input = scanInputFor(row);
     rows.set(row.eventId, row);
     batch.push(input);
@@ -251,11 +252,33 @@ export async function applyOutcome(
     if (kept) meta.possibleOccasionGroupId = kept;
   }
   const occasions = occasionsFromScan(outcome);
-  const place = await placeFromScan(row, outcome, fetchImpl);
-  const location = place.location ?? row.location ?? undefined;
-  const venueCity = row.meta.address?.city;
+  let venueCity = row.meta.address?.city;
   const venueName = venueNameFromScan(outcome.possibleVenueNames, row.meta.import, venueCity);
+  let identity = venueIdentity(venueName, venueCity);
+  let known = identity ? await store.findVenue(identity.nameKey, identity.cityKey) : null;
+  if (known && !row.location) row.location = known.location;
+  const place = await placeFromScan(row, outcome, fetchImpl);
+  const location = place.location ?? row.location ?? known?.location;
+  if (!venueCity) venueCity = place.address?.city;
+  if (!identity && venueName && location) {
+    venueCity = venueCity ?? (await cityFromPoint(location, fetchImpl));
+    identity = venueIdentity(venueName, venueCity);
+    if (identity) known = await store.findVenue(identity.nameKey, identity.cityKey);
+  }
+  let venueId = known?.id;
+  if (!venueId && identity && location) {
+    const savedVenue = await store.saveVenue({
+      ...identity,
+      location,
+      ...(place.address?.address ? { address: place.address.address } : {}),
+      ...(place.address?.zipCode ? { zipCode: place.address.zipCode } : {}),
+    });
+    venueId = savedVenue.id;
+  }
   if (place.address) meta.address = place.address;
+  if (venueCity && meta.address && !meta.address.city) {
+    meta.address = { ...meta.address, city: venueCity };
+  }
   const saved = await persist({
     eventId: row.eventId,
     publisherId: publisher.publisherId,
@@ -269,6 +292,7 @@ export async function applyOutcome(
     claimedUntil: row.claimedUntil,
     ...(occasions.length > 0 ? { occasions } : {}),
     ...(location ? { location } : {}),
+    ...(venueId ? { venueId } : {}),
     ...(venueName ? { venueName } : {}),
     ...(venueCity ? { venueCity } : {}),
   });
@@ -314,16 +338,35 @@ function addressPoint(
   return { lat: location.lat, lng: location.lng };
 }
 
-async function ensureScanPoint(row: PendingScanRow, fetchImpl: typeof fetch): Promise<void> {
+async function ensureScanPoint(
+  store: IngestStore,
+  row: PendingScanRow,
+  fetchImpl: typeof fetch,
+): Promise<void> {
   if (row.location) return;
   const stored = addressPoint(row.meta.address?.location);
   if (stored) {
     row.location = stored;
     return;
   }
+  const known = await rememberedVenue(store, row.meta.import?.venueName, row.meta.address?.city);
+  if (known) {
+    row.location = known.location;
+    return;
+  }
   if (!row.meta.address) return;
   const location = await geocodeSwedishAddress(row.meta.address, fetchImpl);
   if (location) row.location = location;
+}
+
+async function rememberedVenue(
+  store: IngestStore,
+  name: string | null | undefined,
+  city: string | null | undefined,
+): Promise<{ location: { lat: number; lng: number } } | null> {
+  const identity = venueIdentity(name, city);
+  if (!identity) return null;
+  return store.findVenue(identity.nameKey, identity.cityKey);
 }
 
 async function placeFromScan(

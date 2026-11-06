@@ -254,8 +254,11 @@ calls) in the same change as every new major feature.**
   steps from that page or the description. Tip chat lines, and a step that only asks
   someone to confirm a field, are left out. The model returns that address
   in the scan JSON. A scraped point and address are kept. When the event has no point, the
-  scraped address is geocoded, and the model address is used only when the import stored none.
-  A street, or a postcode with a city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept.
+  scan looks up `venues` by name and city and uses that point. A miss geocodes the
+  scraped address, and the model address is used only when the import stored none.
+  A street, or a postcode with a city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Photon is tried first. Nominatim is used when Photon does not answer. Only a hit in Sweden is kept.
+  A point that is found is stored on `venues` and linked from `event_occasions.venue_id`.
+  `pnpm --filter @local-events/data-workers dev -- --job venue-backfill` fills a showing that still has no venue, geocodes a showing that has a name but no point, and reads the city from a point when the address has none. See [docs/flows/venues.md](docs/flows/venues.md).
   The model does not supply coordinates. The model returns possible venue names. Importers leave `event_occasions.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written on showings that still have no venue. A showing from `possibleOccasions` keeps its own venue name. When no rank is above 80, the arena name is written, then an imported venue name that is not only the city. When neither of those is set, the highest rank above 50 is written. The city is used when the model returns none. A later scan replaces a city name already written. A later import does not clear a venue the scan already wrote.
   The worker publishes the event only when the scan approves it, the publisher status is `published`,
   and the source trust is `auto_publish`. Anything else that finishes goes to `in_review`. A model

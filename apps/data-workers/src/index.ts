@@ -5,6 +5,7 @@ import { eventImageUploaderFromEnv } from './event-images';
 import { persistSource } from './persist';
 import { promptRunnerFromEnv } from './prompt-runners';
 import { replayStoredScans } from './replay-scan';
+import { fillUnnamedVenues } from './venue-backfill';
 import { scanWithChatPod } from './scan-with-pod';
 import {
   imageFocalChatReady,
@@ -42,6 +43,9 @@ initSentry('data-workers');
  *   pnpm --filter @local-events/data-workers dev -- --job replay-scan --limit 20
  *   pnpm --filter @local-events/data-workers dev -- --job replay-scan --dry-run
  *
+ * Venue backfill reads the stored scan for showings that still have no venue name.
+ *   pnpm --filter @local-events/data-workers dev -- --job venue-backfill
+ *
  * The image focal job asks the scan chat model where to crop a photo.
  *   pnpm --filter @local-events/data-workers dev -- --job image-focal
  *   pnpm --filter @local-events/data-workers dev -- --job image-focal --image <image-id>
@@ -76,6 +80,7 @@ function importLimit(): number | undefined {
     job === 'event-scan' ||
     job === 'publisher-scan' ||
     job === 'replay-scan' ||
+    job === 'venue-backfill' ||
     job === 'image-focal'
   ) {
     return undefined;
@@ -95,6 +100,7 @@ if (
   job !== 'event-scan' &&
   job !== 'publisher-scan' &&
   job !== 'replay-scan' &&
+  job !== 'venue-backfill' &&
   job !== 'image-focal' &&
   !slug
 ) {
@@ -224,6 +230,27 @@ async function main(): Promise<number> {
       ...(selection.eventId ? { eventId: selection.eventId } : {}),
       ...(selection.limit != null ? { limit: selection.limit } : {}),
       ...(hasFlag('--dry-run', 'DRY_RUN') ? { dryRun: true } : {}),
+    });
+    console.log(JSON.stringify(summary, null, 2));
+    return 0;
+  }
+
+  if (job === 'venue-backfill') {
+    const databaseUrl = resolveDatabaseUrl();
+    if (!databaseUrl) {
+      console.error('DATABASE_URL is required for --job venue-backfill');
+      return 1;
+    }
+    const db = createDb(databaseUrl);
+    const store = createDbIngestStore(db);
+    const limitRaw = argValue('--limit', 'SCAN_LIMIT');
+    const limit = limitRaw ? Number(limitRaw) : undefined;
+    if (limit != null && (!Number.isInteger(limit) || limit < 1)) {
+      console.error('--limit must be a positive integer');
+      return 2;
+    }
+    const summary = await fillUnnamedVenues(store, {
+      ...(limit != null ? { limit } : {}),
     });
     console.log(JSON.stringify(summary, null, 2));
     return 0;

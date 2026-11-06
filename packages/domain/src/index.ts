@@ -19,6 +19,7 @@ export * from './notifications';
 export * from './push-messages';
 export * from './digital-codes';
 export * from './duplicates';
+export * from './venue';
 export * from './venue-city';
 export * from './event-address';
 export * from './review-warnings';

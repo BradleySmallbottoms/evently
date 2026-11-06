@@ -489,6 +489,31 @@ export const events = pgTable(
   (t) => [index('events_worker_ref_idx').on(t.workerId, t.refId)],
 );
 
+/**
+ * A place shared by showings. The name and city are the identity.
+ * `name_key` and `city_key` are the trimmed, space-collapsed, lowercased pair.
+ * A name that is only the city is not stored.
+ */
+export const venues = pgTable(
+  'venues',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    city: text('city').notNull(),
+    nameKey: text('name_key').notNull(),
+    cityKey: text('city_key').notNull(),
+    location: geographyPoint('location').notNull(),
+    address: text('address'),
+    zipCode: text('zip_code'),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('venues_name_city_idx').on(t.nameKey, t.cityKey),
+    index('venues_location_gist').using('gist', t.location),
+  ],
+);
+
 /** One row per showing/occasion attached to an event. */
 export const eventOccasions = pgTable(
   'event_occasions',
@@ -500,6 +525,7 @@ export const eventOccasions = pgTable(
     startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
     endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
     venueName: text('venue_name'),
+    venueId: uuid('venue_id').references(() => venues.id, { onDelete: 'set null' }),
     location: geographyPoint('location'),
     /**
      * Source-stable key so one imported showing can be updated in place
@@ -511,6 +537,7 @@ export const eventOccasions = pgTable(
   },
   (t) => [
     index('event_occasions_event_starts_idx').on(t.eventId, t.startsAt),
+    index('event_occasions_venue_idx').on(t.venueId),
     index('event_occasions_location_gist').using('gist', t.location),
     uniqueIndex('event_occasions_event_source_key_idx')
       .on(t.eventId, t.sourceKey)

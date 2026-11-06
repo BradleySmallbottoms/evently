@@ -66,6 +66,114 @@ describe('parseScanSelection', () => {
 });
 
 describe('scanPendingEvents', () => {
+  it('uses a stored venue point and does not geocode', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const venue = await store.saveVenue({
+      name: 'Söderhamns Teater',
+      city: 'Söderhamn',
+      nameKey: 'söderhamns teater',
+      cityKey: 'söderhamn',
+      location: { lat: 61.304, lng: 17.062 },
+    });
+    const { location: _location, ...withoutPoint } = event;
+    await saveIncomingEvents(store, source, [
+      {
+        ...withoutPoint,
+        externalId: 'venue-1',
+        venueName: 'Söderhamns Teater',
+        meta: { address: { city: 'Söderhamn', country: 'Sweden' } },
+      },
+    ]);
+    const calls: string[] = [];
+    const runner: PromptRunner = {
+      id: 'venue',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        expect(batch[0]?.location).toEqual({ lat: 61.304, lng: 17.062 });
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
+      },
+    };
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async (input) => {
+        calls.push(String(input));
+        throw new Error('geocoder should not be called');
+      },
+    });
+    expect(calls).toEqual([]);
+    expect(store.events[0]?.location).toEqual({ lat: 61.304, lng: 17.062 });
+    expect(store.events[0]?.occasions[0]?.venueId).toBe(venue.id);
+  });
+
+  it('geocodes a new venue and stores it', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const { location: _location, ...withoutPoint } = event;
+    await saveIncomingEvents(store, source, [
+      {
+        ...withoutPoint,
+        externalId: 'venue-2',
+        venueName: 'Staffansgården',
+        meta: {
+          address: {
+            address: 'Staffansvägen 1',
+            zipCode: '82632',
+            city: 'Söderhamn',
+            country: 'Sweden',
+          },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'venue-new',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
+      },
+    };
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async (input) => {
+        const query = new URL(String(input)).searchParams.get('q') ?? '';
+        if (query.startsWith('Staffansvägen')) {
+          return Response.json({
+            features: [
+              { geometry: { coordinates: [17.07, 61.31] }, properties: { countrycode: 'SE' } },
+            ],
+          });
+        }
+        return Response.json({ features: [] });
+      },
+    });
+    const stored = await store.findVenue('staffansgården', 'söderhamn');
+    expect(stored?.location).toEqual({ lat: 61.31, lng: 17.07 });
+    expect(store.events[0]?.location).toEqual({ lat: 61.31, lng: 17.07 });
+    expect(store.events[0]?.occasions[0]?.venueId).toBe(stored?.id);
+  });
+
   it('enqueues tip.scanned for an event a person tipped', async () => {
     const store = createMemoryIngestStore();
     store.sources.push(source);

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { geocodeSwedishAddress, lookupPageUrl } from '../../../apps/data-workers/src/page-place';
+import {
+  cityFromPoint,
+  geocodeSwedishAddress,
+  lookupPageUrl,
+} from '../../../apps/data-workers/src/page-place';
 
 describe('lookupPageUrl', () => {
   it('uses the source URL, then a ticket link, then an info link, then Facebook', () => {
@@ -78,5 +82,33 @@ describe('geocodeSwedishAddress', () => {
     );
     expect(fallbackCalls).toEqual(['Köpmangatan 14, Delsbo, Sweden', 'Delsbo, Sweden']);
     expect(fallback).toEqual({ lat: 61.8, lng: 16.55 });
+  });
+
+  it('asks Nominatim when Photon does not answer', async () => {
+    const urls: string[] = [];
+    const point = await geocodeSwedishAddress({ city: 'Söderhamn' }, async (input, init) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.includes('photon.komoot.io')) throw new Error('connect ECONNREFUSED');
+      expect((init?.headers as Record<string, string>)['user-agent']).toContain('LocalEvents/1.0');
+      return Response.json([{ lat: '61.303', lon: '17.059' }]);
+    });
+    expect(point).toEqual({ lat: 61.303, lng: 17.059 });
+    expect(urls.some((url) => url.includes('nominatim.openstreetmap.org'))).toBe(true);
+    expect(urls.filter((url) => url.includes('photon.komoot.io'))).toHaveLength(1);
+  });
+});
+
+describe('cityFromPoint', () => {
+  it('reads the city from Nominatim when Photon does not answer', async () => {
+    const urls: string[] = [];
+    const city = await cityFromPoint({ lat: 61.7265, lng: 17.1056 }, async (input) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.includes('photon.komoot.io')) throw new Error('connect ECONNREFUSED');
+      return Response.json({ address: { city: 'Hudiksvall', country_code: 'se' } });
+    });
+    expect(city).toBe('Hudiksvall');
+    expect(urls.some((url) => url.includes('/reverse'))).toBe(true);
   });
 });

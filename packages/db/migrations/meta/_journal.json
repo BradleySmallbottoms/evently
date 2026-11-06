@@ -498,6 +498,13 @@
       "when": 1794400000029,
       "tag": "0070_seed_nortic",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1794400000030,
+      "tag": "0071_venues",
+      "breakpoints": true
     }
   ]
 }
