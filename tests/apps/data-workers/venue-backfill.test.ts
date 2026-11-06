@@ -197,7 +197,7 @@ describe('fillUnnamedVenues', () => {
       },
     ]);
     const occasion = store.events[0]!.occasions[0]!;
-    occasion.venueName = 'Jakobs kyrka, Hudiksvall';
+    occasion.venueName = 'Jakobs kyrka';
     occasion.location = { lat: 61.7265, lng: 17.1056 };
     const urls: string[] = [];
     const summary = await fillUnnamedVenues(store, {
@@ -210,9 +210,71 @@ describe('fillUnnamedVenues', () => {
     });
     expect(summary).toMatchObject({ read: 1, linked: 1, created: 1, geocoded: 1, skipped: 0 });
     expect(urls.every((url) => url.includes('/reverse'))).toBe(true);
-    expect(await store.findVenue('jakobs kyrka, hudiksvall', 'hudiksvall')).toMatchObject({
+    expect(await store.findVenue('jakobs kyrka', 'hudiksvall')).toMatchObject({
       location: { lat: 61.7265, lng: 17.1056 },
     });
     expect(occasion.venueId).toBeTruthy();
+  });
+
+  it('uses the town in the address line before a source city', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push({ ...source, slug: 'abf-halsingland' });
+    await saveIncomingEvents(store, store.sources[0]!, [
+      {
+        ...event,
+        externalId: 'abf:odd',
+        meta: {
+          address: { address: 'Odd Fellow, Kyrkogatan 14 Ljusdal', country: 'Sweden' },
+        },
+      },
+    ]);
+    const occasion = store.events[0]!.occasions[0]!;
+    occasion.venueName = 'Odd Fellow';
+    const queries: string[] = [];
+    const summary = await fillUnnamedVenues(store, {
+      fetch: async (input) => {
+        queries.push(new URL(String(input)).searchParams.get('q') ?? '');
+        return Response.json({
+          features: [
+            { geometry: { coordinates: [16.09, 61.83] }, properties: { countrycode: 'SE' } },
+          ],
+        });
+      },
+    });
+    expect(summary).toMatchObject({ read: 1, linked: 1, created: 1, skipped: 0 });
+    expect(queries[0]).toContain('Ljusdal');
+    expect(store.events[0]?.meta.address?.city).toBe('Ljusdal');
+    expect(await store.findVenue('odd fellow', 'ljusdal')).toBeTruthy();
+  });
+
+  it('uses the source city when the page names none, and a town in the venue name first', async () => {
+    const store = createMemoryIngestStore();
+    const bollnas = {
+      ...source,
+      id: '33333333-3333-4333-8333-333333333302',
+      slug: 'bollnas-kommun',
+    };
+    store.sources.push(bollnas);
+    await saveIncomingEvents(store, bollnas, [
+      { ...event, externalId: 'arena' },
+      { ...event, externalId: 'alfta', title: 'Konsert i Alfta' },
+    ]);
+    store.events[0]!.occasions[0]!.venueName = 'SBB Arena';
+    store.events[1]!.occasions[0]!.venueName = 'Alfta Kyrka';
+    const queries: string[] = [];
+    const summary = await fillUnnamedVenues(store, {
+      fetch: async (input) => {
+        queries.push(new URL(String(input)).searchParams.get('q') ?? '');
+        return Response.json({
+          features: [
+            { geometry: { coordinates: [16.39, 61.35] }, properties: { countrycode: 'SE' } },
+          ],
+        });
+      },
+    });
+    expect(summary).toMatchObject({ read: 2, linked: 2, created: 2, geocoded: 2, skipped: 0 });
+    expect(queries).toEqual(['Bollnäs, Sweden', 'Alfta, Sweden']);
+    expect(store.events[0]?.meta.address?.city).toBe('Bollnäs');
+    expect(store.events[1]?.meta.address?.city).toBe('Alfta');
   });
 });

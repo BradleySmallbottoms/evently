@@ -1,5 +1,11 @@
 import type { EventMeta } from '@local-events/contracts';
-import { venueIdentity, venueNameFromScan, venueNamesMatch } from '@local-events/domain';
+import {
+  resolveImportCity,
+  sourceCity,
+  venueIdentity,
+  venueNameFromScan,
+  venueNamesMatch,
+} from '@local-events/domain';
 import { cityFromPoint, geocodeSwedishAddress } from './page-place';
 import { parseStoredScanOutput } from './prompt-runners';
 import type { IngestStore, StoredVenue, UnnamedOccasion } from './store';
@@ -75,15 +81,31 @@ export async function fillUnnamedVenues(
   };
   const resolved = new Map<string, StoredVenue | null>();
   for (const row of rows) {
+    const digital = /^(digitalt|online|webb)$/i.test(row.venueName?.trim() ?? '');
     const point = row.location ?? row.meta.address?.location;
-    const cityFromPointLookup =
-      !row.meta.address?.city && point && row.venueName?.trim()
+    const fromText = digital
+      ? row.meta.address?.city
+      : resolveImportCity({
+          city: row.meta.address?.city,
+          placeText: [row.meta.address?.address, row.venueName].filter(Boolean).join(', '),
+        });
+    const fromPoint =
+      !fromText && !digital && point && row.venueName?.trim()
         ? await cityFromPoint(point, fetchImpl)
         : undefined;
-    if (cityFromPointLookup) summary.geocoded += 1;
+    if (fromPoint) summary.geocoded += 1;
+    const city = fromText ?? fromPoint ?? (digital ? undefined : sourceCity(row.workerId));
+    if (city && !row.meta.address?.city) {
+      await store.rememberAddressCity(row.eventId, city);
+      row.meta.address = {
+        ...(row.meta.address ?? {}),
+        city,
+        country: row.meta.address?.country ?? 'Sweden',
+      };
+    }
     const draft = venueDraftFromScan({
       ...row,
-      ...(cityFromPointLookup ? { city: cityFromPointLookup } : {}),
+      ...(city ? { city } : {}),
       ...(row.location ? {} : point ? { location: point } : {}),
     });
     if (!draft) {

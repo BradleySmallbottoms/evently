@@ -2,6 +2,7 @@ import type { EventMeta } from '@local-events/contracts';
 import {
   cityFromAddress,
   eventAddress,
+  resolveImportCity,
   eventUrlKey,
   organizerKeys,
   type EventLinkKind,
@@ -648,7 +649,10 @@ function metaOf(product: HalsinglandProduct, digital: boolean): EventMeta | unde
   const place = eventAddress({
     address: product.street,
     zipCode: product.zipCode,
-    city: product.postalCity || product.town,
+    city: resolveImportCity({
+      city: product.postalCity || product.town,
+      placeText: product.street,
+    }),
     location: digital ? undefined : product.location,
   });
   if (place) meta.address = place;

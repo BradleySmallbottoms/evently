@@ -1,6 +1,8 @@
 import type { EventMeta } from '@local-events/contracts';
 import {
   eventAddress,
+  resolveImportCity,
+  sourceCity,
   mergeImportedLinks,
   organizerKeys,
   priceAmountFromText,
@@ -337,7 +339,11 @@ function addressed(
   const address = eventAddress({
     address: textField(product, STREET),
     zipCode: textField(product, POSTAL_CODE),
-    city: textField(product, CITY),
+    city: resolveImportCity({
+      city: textField(product, CITY),
+      placeText: textField(product, STREET),
+      fallback: sourceCity('visit-soderhamn'),
+    }),
     location,
   });
   if (!address) return meta;

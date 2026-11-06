@@ -1,9 +1,12 @@
 import type { EventMeta } from '@local-events/contracts';
 import {
+  cityInPlaceText,
   eventAddress,
   mergeImportedLinks,
   organizerKeys,
   priceAmountFromText,
+  resolveImportCity,
+  sourceCity,
   sourceDateTime,
   stockholmWallTime,
   type ImportEventLink,
@@ -512,6 +515,7 @@ function addressOf(addressText: string | undefined, cityText: string | undefined
         ?.trim();
     }
   }
+  if (!city) city = cityInPlaceText(text);
   return eventAddress({ address: street, zipCode: zip, city });
 }
 
@@ -571,8 +575,14 @@ export function mapHtmlCalendar(
     MAX_OCCASIONS,
   );
   const venueName = stripLabel(read(settings.fields.venue, false));
-  const city = stripLabel(read(settings.fields.city, false)) ?? settings.city;
-  const place = addressOf(read(settings.fields.address, true), city);
+  const addressText = read(settings.fields.address, true);
+  const parsed = addressOf(addressText, stripLabel(read(settings.fields.city, false)));
+  const city = parsed?.city ?? resolveImportCity({ fallback: settings.city ?? sourceCity(slug) });
+  const place = parsed
+    ? city && !parsed.city
+      ? { ...parsed, city }
+      : parsed
+    : eventAddress({ city });
   const price = priceOf(read(settings.fields.price, true));
   const images = imageUrls(
     valuesOf(detail, settings.fields.image).concat(valuesOf(card, settings.fields.image)),

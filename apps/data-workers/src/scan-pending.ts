@@ -7,6 +7,8 @@ import {
   occasionsToAdd,
   OCCASION_GROUP_MIN_RANK,
   shouldEnqueueNotifications,
+  resolveImportCity,
+  sourceCity,
   statusAfterImportScan,
   venueIdentity,
   venueNameFromScan,
@@ -338,11 +340,30 @@ function addressPoint(
   return { lat: location.lat, lng: location.lng };
 }
 
+function isDigitalPlace(name: string | null | undefined): boolean {
+  return /^(digitalt|online|webb)$/i.test(name?.trim() ?? '');
+}
+
+/**
+ * Page town, then the source city, on an address the import already stored.
+ * An event with no address is left empty so the scan can supply one.
+ */
+function fillKnownCity(row: PendingScanRow): void {
+  if (!row.meta.address || row.meta.address.city || isDigitalPlace(row.venueName)) return;
+  const city = resolveImportCity({
+    placeText: [row.meta.address.address, row.venueName].filter(Boolean).join(', '),
+    fallback: row.location ? undefined : sourceCity(row.sourceSlug),
+  });
+  if (!city) return;
+  row.meta.address = { ...row.meta.address, city, country: row.meta.address.country ?? 'Sweden' };
+}
+
 async function ensureScanPoint(
   store: IngestStore,
   row: PendingScanRow,
   fetchImpl: typeof fetch,
 ): Promise<void> {
+  fillKnownCity(row);
   if (row.location) return;
   const stored = addressPoint(row.meta.address?.location);
   if (stored) {
@@ -378,7 +399,15 @@ async function placeFromScan(
   address?: NonNullable<PendingScanRow['meta']['address']>;
 }> {
   const scraped = row.meta.address;
-  const chosen = scraped ?? outcome.address;
+  const found = scraped ?? outcome.address;
+  const filledCity =
+    found && !found.city && !isDigitalPlace(row.venueName)
+      ? resolveImportCity({
+          placeText: [found.address, row.venueName].filter(Boolean).join(', '),
+          fallback: sourceCity(row.sourceSlug),
+        })
+      : undefined;
+  const chosen = found && filledCity ? { ...found, city: filledCity } : found;
   if (row.location) {
     if (scraped && !scraped.location) {
       return { location: row.location, address: { ...scraped, location: row.location } };

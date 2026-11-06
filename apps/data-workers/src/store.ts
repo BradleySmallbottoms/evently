@@ -390,10 +390,13 @@ export interface IngestStore {
   saveVenue(input: VenueWrite): Promise<StoredVenue>;
   /**
    * Showings that still need a venue. A showing with no name needs a stored scan.
-   * A showing with no point is included when the event has a scan or an address, so the
-   * address can be geocoded. Oldest first. `limit` caps the page.
+   * A showing with no point is included when the event has a scan, an address, or a
+   * venue name, so a missing city can be filled and geocoded. Oldest first.
+   * `limit` caps the page.
    */
   listUnnamedOccasions(limit: number): Promise<UnnamedOccasion[]>;
+  /** Writes the city onto the event address when that field is still empty. */
+  rememberAddressCity(eventId: string, city: string): Promise<void>;
   /**
    * Links the venue. A name already on the showing stays. A point is written only when
    * the showing has none. Returns false when the showing already has a venue.
@@ -490,6 +493,9 @@ export interface StoredVenue {
 
 export interface UnnamedOccasion {
   occasionId: string;
+  eventId: string;
+  /** Source slug. A single-town source supplies the city when the page did not. */
+  workerId: string | null;
   venueName: string | null;
   startsAt: Date | null;
   endsAt: Date | null;

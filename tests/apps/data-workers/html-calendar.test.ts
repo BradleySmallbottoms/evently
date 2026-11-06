@@ -167,6 +167,43 @@ describe('html calendar map', () => {
     ]);
   });
 
+  it('reads a town from the address when the source has no city', () => {
+    const { city: _city, ...withoutCity } = config;
+    const mapped = mapHtmlCalendar(
+      {
+        pageUrl: 'https://calendar.example/evenemang/odd-fellow/',
+        html: `<h1>Musik</h1><p class="address">Odd Fellow, Kyrkogatan 14 Ljusdal</p>`,
+        cardHtml: '',
+      },
+      withoutCity,
+      'abf-halsingland',
+    );
+    expect(mapped?.meta?.address).toEqual({
+      address: 'Odd Fellow, Kyrkogatan 14 Ljusdal',
+      city: 'Ljusdal',
+      country: 'Sweden',
+    });
+  });
+
+  it('uses the source city when the page names none', () => {
+    const mapped = mapHtmlCalendar(
+      {
+        pageUrl: 'https://calendar.example/evenemang/arena/',
+        html: '<h1>Bandy</h1>',
+        cardHtml: '',
+      },
+      {
+        listUrl: config.listUrl,
+        item: 'a',
+        link: 'a',
+        organizerName: 'Bollnäs kommun',
+        fields: { title: 'h1' },
+      },
+      'bollnas-kommun',
+    );
+    expect(mapped?.meta?.address).toEqual({ city: 'Bollnäs', country: 'Sweden' });
+  });
+
   it('keeps paragraphs, a heading, a list, and a line break', () => {
     const mapped = mapHtmlCalendar(
       {

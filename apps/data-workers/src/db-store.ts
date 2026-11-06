@@ -1665,6 +1665,8 @@ export function createDbIngestStore(db: Db): IngestStore {
       const rows = await db
         .select({
           occasionId: eventOccasions.id,
+          eventId: eventOccasions.eventId,
+          workerId: events.workerId,
           venueName: eventOccasions.venueName,
           startsAt: eventOccasions.startsAt,
           endsAt: eventOccasions.endsAt,
@@ -1694,10 +1696,6 @@ export function createDbIngestStore(db: Db): IngestStore {
               and(
                 sql`nullif(btrim(${eventOccasions.venueName}), '') is not null`,
                 sql`nullif(btrim(${events.meta}->'address'->>'city'), '') is null`,
-                or(
-                  isNotNull(eventOccasions.location),
-                  sql`nullif(${events.meta}->'address'->'location'->>'lat', '') is not null`,
-                ),
               ),
             ),
           ),
@@ -1706,6 +1704,8 @@ export function createDbIngestStore(db: Db): IngestStore {
         .limit(limit);
       return rows.map((row) => ({
         occasionId: row.occasionId,
+        eventId: row.eventId,
+        workerId: row.workerId,
         venueName: row.venueName,
         startsAt: row.startsAt,
         endsAt: row.endsAt,
@@ -1716,6 +1716,25 @@ export function createDbIngestStore(db: Db): IngestStore {
         meta: readEventMeta(row.meta),
         llmOutput: row.llmOutput,
       }));
+    },
+    async rememberAddressCity(eventId, city) {
+      const [row] = await db
+        .select({ meta: events.meta })
+        .from(events)
+        .where(eq(events.id, eventId))
+        .limit(1);
+      const meta = readEventMeta(row?.meta);
+      if (meta.address?.city?.trim()) return;
+      await db
+        .update(events)
+        .set({
+          meta: {
+            ...meta,
+            address: { ...(meta.address ?? {}), city, country: 'Sweden' },
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(events.id, eventId));
     },
     async assignOccasionVenue(input) {
       const updated = await db

@@ -1,10 +1,13 @@
 import type { EventMeta } from '@local-events/contracts';
 import {
+  cityInPlaceText,
   eventAddress,
   eventUrlKey,
   organizerKeys,
   parseLinksFromText,
   priceAmountFromText,
+  resolveImportCity,
+  sourceCity,
   sourceDateTime,
   stockholmWallTime,
   type ImportEventLink,
@@ -22,27 +25,6 @@ const DEFAULT_RESOURCE_PATH = '/appresource/4.825d63f17dc1e8befb7a0c5/12.825d63f
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGES = 30;
 const ORGANIZER_FALLBACK = 'bollnas-kommun';
-
-const TOWNS = [
-  'Bollnäs',
-  'Kilafors',
-  'Arbrå',
-  'Rengsjö',
-  'Vallsta',
-  'Segersta',
-  'Undersvik',
-  'Freluga',
-  'Sibo',
-  'Hällbo',
-  'Växbo',
-  'Glösbo',
-  'Hanebo',
-  'Lottefors',
-  'Röste',
-  'Simeå',
-  'Söräng',
-];
-const TOWN_BY_KEY = new Map(TOWNS.map((town) => [town.toLocaleLowerCase('sv'), town]));
 
 const MONTHS: Record<string, number> = {
   januari: 1,
@@ -225,12 +207,7 @@ export function linksFor(sourceUrl: string, text: string): ImportEventLink[] {
 }
 
 function lastTown(value: string): string | undefined {
-  const tokens = value.toLocaleLowerCase('sv').match(/\p{L}+/gu) ?? [];
-  for (let index = tokens.length - 1; index >= 0; index -= 1) {
-    const town = TOWN_BY_KEY.get(tokens[index] ?? '');
-    if (town) return town;
-  }
-  return undefined;
+  return cityInPlaceText(value);
 }
 
 function placeOf(location: string | undefined): {
@@ -398,7 +375,9 @@ export function mapBollnasItem(item: BollnasItem): IncomingEvent {
   const address = eventAddress({
     address: place.street,
     zipCode: place.zipCode,
-    city: place.city,
+    city: digital
+      ? undefined
+      : resolveImportCity({ city: place.city, fallback: sourceCity('bollnas-kommun') }),
   });
   const meta: EventMeta = {};
   if (free) meta.freeEntry = true;

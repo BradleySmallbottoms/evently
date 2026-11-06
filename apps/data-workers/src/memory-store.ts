@@ -1138,10 +1138,19 @@ export function createMemoryIngestStore(): MemoryIngestStore {
             named &&
             !event.meta.address?.city &&
             Boolean(occasion.location ?? event.meta.address?.location);
-          if (!unnamedWithScan && !missingPointWithPlace && !namedPointWithoutCity) continue;
+          const namedWithoutCity = named && !event.meta.address?.city && missingPoint;
+          if (
+            !unnamedWithScan &&
+            !missingPointWithPlace &&
+            !namedPointWithoutCity &&
+            !namedWithoutCity
+          )
+            continue;
           if (!occasion.id) occasion.id = randomUUID();
           rows.push({
             occasionId: occasion.id,
+            eventId: event.id,
+            workerId: event.workerId ?? null,
             venueName: occasion.venueName,
             startsAt: occasion.startsAt,
             endsAt: occasion.endsAt,
@@ -1153,6 +1162,11 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         }
       }
       return rows;
+    },
+    async rememberAddressCity(eventId, city) {
+      const event = events.find((item) => item.id === eventId);
+      if (!event || event.meta.address?.city?.trim()) return;
+      event.meta.address = { ...(event.meta.address ?? {}), city, country: 'Sweden' };
     },
     async assignOccasionVenue(input) {
       for (const event of events) {

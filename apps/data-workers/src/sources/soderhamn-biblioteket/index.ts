@@ -1,6 +1,8 @@
 import type { EventMeta } from '@local-events/contracts';
 import {
   eventAddress,
+  resolveImportCity,
+  sourceCity,
   organizerKeys,
   priceAmountFromText,
   stockholmWallTime,
@@ -376,7 +378,11 @@ export function mapBibliotekEvent(event: BibliotekEvent, origin: string): Incomi
   const place = eventAddress({
     address: street,
     zipCode,
-    city: event.city,
+    city: resolveImportCity({
+      city: event.city,
+      placeText: event.place,
+      fallback: sourceCity('soderhamn-biblioteket'),
+    }),
     location: event.location,
   });
   if (place) meta.address = place;

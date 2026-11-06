@@ -1,5 +1,7 @@
 import {
   eventAddress,
+  resolveImportCity,
+  sourceCity,
   parseLinksFromText,
   priceAmountFromText,
   organizerKeys,
@@ -426,7 +428,11 @@ function mapProduct(
     : eventAddress({
         address: product.street,
         zipCode: product.zipCode,
-        city: product.city,
+        city: resolveImportCity({
+          city: product.city,
+          placeText: product.street ?? product.address,
+          fallback: sourceCity('glada-hudik'),
+        }),
         location: product.location,
       });
   const base = {

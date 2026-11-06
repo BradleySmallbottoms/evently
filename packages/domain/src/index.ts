@@ -22,6 +22,7 @@ export * from './duplicates';
 export * from './venue';
 export * from './venue-city';
 export * from './event-address';
+export * from './import-city';
 export * from './review-warnings';
 export * from './source-time';
 export * from './organizer-keys';
