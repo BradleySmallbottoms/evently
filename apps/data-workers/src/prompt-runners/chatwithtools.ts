@@ -25,7 +25,7 @@ import {
   type PublisherToolResult,
 } from '../publisher-tools';
 import { eventAddress, type EventAddressRecord } from '@local-events/domain';
-import { lookupPageUrl } from '../page-place';
+import { lookupPageUrl, placesForName } from '../page-place';
 import { MAX_SCAN_CONCURRENCY } from '../runpod-chat';
 import { scanEventLines, scanPlaceLines } from '../scan-event-text';
 import { beginScanProgress, finishScanProgress, type ScanProgress } from '../scan-progress';
@@ -52,8 +52,8 @@ import type {
 /** How long one chat request may run before the scan gives up on it. */
 const CHAT_TIMEOUT_MS = 3 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** Tool rounds for one event. The last round still has to be a text answer, or the scan is unavailable. */
-const MAX_TOOL_ROUNDS = 10;
+/** Tool rounds for one event. The last round still has to be a text answer, or the scan is unavailable. Two rounds are reserved for geocodePlace when the source stored no point. */
+const MAX_TOOL_ROUNDS = 12;
 /** Title patterns one getEventsByName call may send. */
 const EVENT_NAME_PATTERN_LIMIT = 5;
 /** Longest date range getEventsByName accepts. */
@@ -123,6 +123,17 @@ interface LookupContext {
   fetch?: typeof fetch;
   /** Resolves a hostname to addresses for the public-host check. */
   resolveHost?: (hostname: string) => Promise<string[]>;
+  /** Places from geocodePlace. A chosen point becomes the base for the other tools. */
+  placeSearch?: PlaceSearch;
+}
+
+const GEOCODE_CALLS = 2;
+
+interface PlaceSearch {
+  calls: number;
+  nextId: number;
+  byId: Map<string, { label: string; lat: number; lng: number }>;
+  chosen?: { lat: number; lng: number };
 }
 
 type ToolResult =
@@ -132,6 +143,8 @@ type ToolResult =
   | { possiblePublishers: PublisherCandidate[] }
   | { venues: VenueNameHit[] }
   | { tags: { id: string; name: string }[] }
+  | { places: { id: string; label: string }[] }
+  | { using: true; placeId: string }
   | PublisherToolResult;
 
 /**
@@ -255,6 +268,30 @@ function chatToolDefinitions(event: ScanInput): object[] {
         description:
           'Fetch the one event page. Takes no arguments. That page is the source URL, or else a ticket page, an info page, or a Facebook page, in that order. Use the page text for tags, instructions, the summary, the address, a venue name, and every showing. A page can name more than one showing. Returns the page title and text.',
         parameters: noArguments,
+      },
+    });
+  }
+  if (!event.location) {
+    tools.push({
+      type: 'function',
+      function: {
+        name: 'geocodePlace',
+        description:
+          'Look up a place by the name you choose when this event has no point. Returns places with ids. Call it again with use set to the id of the place for this event. That point is then used by the other tools. You may look up a name twice.',
+        parameters: {
+          type: 'object',
+          properties: {
+            name: {
+              type: 'string',
+              description: 'The place name to look up, such as a venue or a street and town.',
+            },
+            use: {
+              type: 'string',
+              description:
+                'Id of a place returned by an earlier call. Sets that point for the other tools.',
+            },
+          },
+        },
       },
     });
   }
@@ -387,6 +424,7 @@ async function scanOneEvent(
   if (event.organizer.keys.length === 0) {
     return { ok: false, eventId: event.eventId, reason: 'unavailable' };
   }
+  if (!event.location) context.placeSearch = { calls: 0, nextId: 1, byId: new Map() };
 
   const content = await askModelWithLookups(buildScanPrompt(event), context, config, fetchImpl);
   if (content === 'timeout' || !content) {
@@ -396,13 +434,19 @@ async function scanOneEvent(
       reason: content === 'timeout' ? 'timeout' : 'unavailable',
     };
   }
-  return scanOutcomeFromContent(event, content, context);
+  return scanOutcomeFromContent(event, content, {
+    store: context.store,
+    catalog: context.catalog,
+    ...(context.placeSearch?.chosen ? { chosenPoint: context.placeSearch.chosen } : {}),
+  });
 }
 
 export async function scanOutcomeFromContent(
   event: ScanInput,
   content: LLMScanResult & LLMOutput,
-  context: Pick<LookupContext, 'store' | 'catalog'>,
+  context: Pick<LookupContext, 'store' | 'catalog'> & {
+    chosenPoint?: { lat: number; lng: number };
+  },
 ): Promise<Extract<ScanOutcome, { ok: true }>> {
   const tags =
     context.catalog.length > 0 ? parseTagChoices(content, context.catalog) : event.existingTags;
@@ -436,6 +480,7 @@ export async function scanOutcomeFromContent(
     startsAt: content.startsAt,
     endsAt: content.endsAt,
     ...(content.address ? { address: content.address } : {}),
+    ...(context.chosenPoint ? { chosenPoint: context.chosenPoint } : {}),
     llmOutput: content.output,
   };
 }
@@ -523,7 +568,12 @@ function buildScanPrompt(event: ScanInput): string {
     'List possible venue names from the title, description, and event page. A venue is the place where the event happens, not the city and not the organizer.',
     'Call getVenuesByName before you decide the venue. * matches any text and ? matches one character. Search the venue name, not the street and not the town. You may call it again with another pattern.',
     'Return possibleVenues as objects with venueId and rank from 0 to 100. Include a venue only when its rank is over 90. The venueId must come from getVenuesByName. An empty list is allowed.',
-    'A rank over 90 uses that stored venue and its point. When possibleVenues is empty, the imported venue name is used, and the address is geocoded when that lookup has no point.',
+    'A rank over 90 uses that stored venue and its point. When this event has no point and geocodePlace did not choose one, the address in the JSON is geocoded.',
+    ...(event.location
+      ? []
+      : [
+          'This event has no point. Call geocodePlace with the place name you choose from the Place line, the description, or the page. You may call it twice. Call it again with use set to the id of the place for this event, before getVenuesByName and getNearbyEvents. That point is then used by the other tools. Do not invent a place id.',
+        ]),
     'Return possibleVenueNames as objects with name and rank from 0 to 100. Include a name only when the rank is over 50.',
     'Read the Place line, the description, and the event page and extract the street, postcode, and city into address.',
     'A Place line can mix a venue name, a street and house number, and a town. Split it. "Röda Kvarn Ljusdal, Norra Järnvägsgatan 17 Ljusdal" is venue Röda Kvarn, street Norra Järnvägsgatan 17, and city Ljusdal.',
@@ -690,6 +740,11 @@ function toolResultText(result: ToolResult): string {
     return `Result: ${result.venues.length} venues.`;
   }
   if ('tags' in result && Array.isArray(result.tags)) return `Result: ${result.tags.length} tags.`;
+  if ('places' in result && Array.isArray(result.places)) {
+    const labels = result.places.map((place) => `${place.id} ${place.label}`).join('; ');
+    return `Result: ${result.places.length} places. ${labels}`.slice(0, 240);
+  }
+  if ('using' in result && result.using) return `Result: using place ${result.placeId}.`;
   if ('results' in result && Array.isArray(result.results)) {
     return `Result: ${result.results.length} web results.`;
   }
@@ -1189,6 +1244,7 @@ async function executeToolCall(call: ParsedToolCall, context: LookupContext): Pr
     if (call.name === 'getEventsByName') return lookupEventsByName(call.arguments, context);
     if (call.name === 'getVenuesByName') return lookupVenuesByName(call.arguments, context);
     if (call.name === 'getPossiblePublishers') return lookupPossiblePublishers(context);
+    if (call.name === 'geocodePlace') return lookupGeocodePlace(call.arguments, context);
     if (call.name === 'fetchEventPage') return fetchEventPage(context);
     return { error: `Unknown tool ${call.name}.` };
   } catch {
@@ -1208,6 +1264,44 @@ function lookupAvailableTags(catalog: TagChoice[]): ToolResult {
 function eventPoint(context: LookupContext): { lat: number; lng: number } | { error: string } {
   if (!context.event.location) return { error: 'This event has no point.' };
   return context.event.location;
+}
+
+/** A place id from geocodePlace. A number and a numeric string are the same id. */
+function placeUseId(value: unknown): string {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return String(value);
+  if (typeof value === 'string') return value.trim();
+  return '';
+}
+
+/** A name the model chose, or a place id from an earlier geocodePlace result. */
+async function lookupGeocodePlace(
+  args: Record<string, unknown>,
+  context: LookupContext,
+): Promise<ToolResult> {
+  const search = context.placeSearch;
+  if (!search) return { error: 'This event already has a point.' };
+  const use = placeUseId(args.use);
+  if (use) {
+    const place = search.byId.get(use);
+    if (!place) return { error: 'That place was not found.' };
+    context.event.location = { lat: place.lat, lng: place.lng };
+    search.chosen = context.event.location;
+    return { using: true, placeId: use };
+  }
+  const name = typeof args.name === 'string' ? args.name.replace(/\s+/g, ' ').trim() : '';
+  if (!name) return { error: 'name is required.' };
+  if (name.length > 120) return { error: 'name is too long.' };
+  if (!/[0-9a-zåäö]/i.test(name)) return { error: 'name needs a letter or number.' };
+  if (search.calls >= GEOCODE_CALLS) return { error: 'A place can be looked up twice.' };
+  search.calls += 1;
+  const found = await placesForName(name, context.fetch ?? fetch);
+  const places = found.map((place) => {
+    const id = String(search.nextId);
+    search.nextId += 1;
+    search.byId.set(id, place);
+    return { id, label: place.label };
+  });
+  return { places };
 }
 
 /**

@@ -47,6 +47,18 @@ export function googleMapsKey(): string | undefined {
  * One line per Google place, for the scan log. The request URL, the key, and
  * `error_message` are left out. At most three places are listed.
  */
+/** Swedish places from one Google response. The model picks one of these. */
+export function listGooglePlaces(body: unknown): { label: string; lat: number; lng: number }[] {
+  return googleResults(body)
+    .flatMap((place) => {
+      if (!place.inSweden || place.lat == null || place.lng == null) return [];
+      const label = place.formatted.trim();
+      if (!label) return [];
+      return [{ label, lat: place.lat, lng: place.lng }];
+    })
+    .slice(0, 5);
+}
+
 export function describeGoogleResults(body: unknown): string[] {
   const results = googleResults(body);
   if (results.length === 0) return body ? ['Google returned no places.'] : [];

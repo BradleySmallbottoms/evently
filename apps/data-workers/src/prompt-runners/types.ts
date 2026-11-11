@@ -85,6 +85,8 @@ export type ScanOutcome =
       possibleOccasions?: { startsAt: string; endsAt: string; venueName?: string }[];
       /** Point geocoded from the address in the scan JSON. */
       location?: { lat: number; lng: number };
+      /** Point the model chose with geocodePlace when the source stored none. */
+      chosenPoint?: { lat: number; lng: number };
       /**
        * Address from the scan JSON, including the point when one was found.
        * `rank` over 80 replaces the address and point already stored.

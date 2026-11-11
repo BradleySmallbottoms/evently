@@ -140,6 +140,7 @@ describe('scanPendingEvents', () => {
       id: 'venue-new',
       lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
+        expect(batch[0]?.location).toBeUndefined();
         return batch.map((item): ScanOutcome => ({
           ok: true,
           eventId: item.eventId,
@@ -152,6 +153,13 @@ describe('scanPendingEvents', () => {
           approved: true,
           tags: [],
           ...scanned,
+          address: {
+            address: 'Staffansvägen 1',
+            zipCode: '82632',
+            city: 'Söderhamn',
+            country: 'Sweden',
+            rank: 40,
+          },
         }));
       },
     };
@@ -1183,7 +1191,7 @@ describe('scanPendingEvents', () => {
         expect(batch[0]?.pageLinks).toEqual([
           { type: 'tickets', url: 'https://tickets.example/show' },
         ]);
-        expect(batch[0]?.location).toEqual({ lat: 61.8, lng: 16.55 });
+        expect(batch[0]?.location).toBeUndefined();
         return batch.map((item): ScanOutcome => ({
           ok: true,
           eventId: item.eventId,
@@ -1196,7 +1204,7 @@ describe('scanPendingEvents', () => {
           approved: true,
           tags: [],
           ...scanned,
-          address: { address: 'Annan gata 1', city: 'Hudiksvall', country: 'Sweden' },
+          address: { address: 'Köpmangatan 14', city: 'Delsbo', country: 'Sweden', rank: 40 },
         }));
       },
     };
@@ -1446,7 +1454,7 @@ describe('scanPendingEvents', () => {
       id: 'venue-before-google',
       lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
-        expect(batch[0]?.location).toEqual(town);
+        expect(batch[0]?.location).toBeUndefined();
         return batch.map((item): ScanOutcome => ({
           ok: true,
           eventId: item.eventId,
@@ -1516,12 +1524,7 @@ describe('scanPendingEvents', () => {
       await scanPendingEvents(store, runner, undefined, {
         fetch: async (input) => {
           const url = String(input);
-          if (
-            url.includes('maps.googleapis.com') &&
-            url.toLocaleLowerCase('sv').includes('stanbog')
-          ) {
-            calls.push(url);
-          }
+          if (url.includes('maps.googleapis.com')) calls.push(url);
           return Response.json({
             status: 'OK',
             results: [
@@ -1548,6 +1551,49 @@ describe('scanPendingEvents', () => {
     }
     expect(calls).toHaveLength(1);
     expect(store.events[0]?.location).toBeUndefined();
+  });
+
+  it('uses the point the model chose and does not geocode', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const { location: _location, ...withoutPoint } = event;
+    const chosen = { lat: 61.26, lng: 17.14 };
+    await saveIncomingEvents(store, source, [
+      {
+        ...withoutPoint,
+        externalId: 'chosen-point',
+        meta: {
+          address: { address: 'Östanbogården, Östanbo', country: 'Sweden' as const },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'chosen-point',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        expect(batch[0]?.location).toBeUndefined();
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          chosenPoint: chosen,
+        }));
+      },
+    };
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () => {
+        throw new Error('geocoder should not be called');
+      },
+    });
+    expect(store.events[0]?.location).toEqual(chosen);
   });
 
   it('keeps the point when the same address is ranked again', async () => {

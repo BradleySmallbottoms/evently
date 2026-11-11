@@ -11,6 +11,7 @@ import {
   describeGoogleResults,
   googleGeocodeBody,
   googleMapsKey,
+  listGooglePlaces,
   pointFromGoogleGeocode,
   similarGooglePoint,
 } from './google-geocode';
@@ -213,6 +214,33 @@ export async function geocodeSwedishStreet(
   }
   if (street) note(options, `Photon had no street line for ${street}.`);
   return undefined;
+}
+
+/**
+ * Places for a name the model chose. Google is asked once. Photon is used when
+ * Google returns no Swedish place. The caller picks one result.
+ */
+export async function placesForName(
+  name: string,
+  fetchImpl: typeof fetch,
+  options?: GeocodeOptions,
+): Promise<{ label: string; lat: number; lng: number }[]> {
+  const query = name.replace(/\s+/g, ' ').trim();
+  if (!query) return [];
+  const google = await googleBody([query, 'Sweden'], fetchImpl, options);
+  const googlePlaces = listGooglePlaces(google);
+  if (googlePlaces.length > 0) return googlePlaces;
+  const photon = await photonHits([query, 'Sweden'], fetchImpl);
+  if (photon.down) return [];
+  return photon.hits
+    .flatMap((hit) => {
+      if (hit.country !== 'SE') return [];
+      const label = [hit.name, [hit.street, hit.housenumber].filter(Boolean).join(' '), hit.city]
+        .filter(Boolean)
+        .join(', ');
+      return [{ label: label || 'unnamed place', lat: hit.lat, lng: hit.lng }];
+    })
+    .slice(0, 5);
 }
 
 /** Town center. A stored town is returned without a lookup. */

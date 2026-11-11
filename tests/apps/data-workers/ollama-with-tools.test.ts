@@ -1326,6 +1326,69 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(progress).toEqual({ scanning: 0, done: 1, failed: 1 });
     expect(outcomes.map((outcome) => outcome.ok)).toEqual([true, false]);
   });
+
+  it('lets the model look up a place twice and use that point', async () => {
+    const store = storeWithNearbyRows();
+    const replies = [
+      toolCall('geocodePlace', { name: 'Helsingehus' }),
+      toolCall('geocodePlace', { use: 1 }),
+      toolCall('getNearbyEvents', {}),
+      toolCall('geocodePlace', { name: 'Sandarne' }),
+      toolCall('geocodePlace', { name: 'Östanbo' }),
+      finalAnswer,
+    ];
+    const bodies: {
+      tools?: { function: { name: string } }[];
+      messages: { role: string; content: string }[];
+    }[] = [];
+    const geocodes: string[] = [];
+    const previousMaps = process.env.GOOGLE_MAPS_API_KEY;
+    const previousPlaces = process.env.GOOGLE_PLACES_API_KEY;
+    delete process.env.GOOGLE_MAPS_API_KEY;
+    delete process.env.GOOGLE_PLACES_API_KEY;
+    const fetchImpl: typeof fetch = async (input, init) => {
+      const url = String(input);
+      if (url.includes('photon.komoot.io')) {
+        geocodes.push(url);
+        return Response.json({
+          features: [
+            {
+              geometry: { coordinates: [17.07, 61.3] },
+              properties: { countrycode: 'SE', name: 'Helsingehus', city: 'Söderhamn' },
+            },
+          ],
+        });
+      }
+      bodies.push(JSON.parse(String(init?.body)));
+      const next = replies.shift();
+      return new Response(JSON.stringify({ message: next ?? answer('{}') }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    };
+    try {
+      const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+      const input = { ...scanInput, location: undefined };
+      const [outcome] = await runner.scan([input]);
+
+      expect(bodies[0]?.tools?.map((tool) => tool.function.name)).toContain('geocodePlace');
+      expect(bodies[0]?.messages[0]?.content).toContain('You may call it twice.');
+      const placeMessage = bodies[1]?.messages.find((message) => message.role === 'tool');
+      expect(placeMessage?.content).toContain('"id":"1"');
+      expect(placeMessage?.content).not.toContain('"lat"');
+      const nearbyMessage = bodies[3]?.messages.filter((message) => message.role === 'tool').at(-1);
+      expect(nearbyMessage?.content).toContain('Marknad på torget');
+      const refused = bodies[5]?.messages.filter((message) => message.role === 'tool').at(-1);
+      expect(refused?.content).toContain('A place can be looked up twice.');
+      expect(geocodes).toHaveLength(2);
+      expect(outcome).toMatchObject({ ok: true, chosenPoint: { lat: 61.3, lng: 17.07 } });
+    } finally {
+      if (previousMaps == null) delete process.env.GOOGLE_MAPS_API_KEY;
+      else process.env.GOOGLE_MAPS_API_KEY = previousMaps;
+      if (previousPlaces == null) delete process.env.GOOGLE_PLACES_API_KEY;
+      else process.env.GOOGLE_PLACES_API_KEY = previousPlaces;
+    }
+  });
 });
 
 function restoreEnv(name: string, value: string | undefined) {
