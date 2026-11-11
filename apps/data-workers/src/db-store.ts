@@ -1597,6 +1597,60 @@ export function createDbIngestStore(db: Db): IngestStore {
         .sort((a, b) => a.distanceM - b.distanceM)
         .slice(0, NEARBY_RESULT_LIMIT);
     },
+    async venuesByName(point, name) {
+      const matcher = publisherNameMatcher(name);
+      if ('error' in matcher) return [];
+      const ewkt = pointEwkt(point);
+      const distance = sql<number>`ST_Distance(${venues.location}, ST_GeogFromText(${ewkt}))`;
+      const rows = await db
+        .select({
+          id: venues.id,
+          name: venues.name,
+          city: venues.city,
+          address: venues.address,
+          distanceM: distance,
+        })
+        .from(venues)
+        .where(
+          and(
+            sql`${venues.name} ILIKE ${matcher.like} ESCAPE '!'`,
+            sql`ST_DWithin(${venues.location}, ST_GeogFromText(${ewkt}), ${PUBLISHER_NAME_SEARCH_RADIUS_M})`,
+          ),
+        )
+        .orderBy(distance)
+        .limit(NEARBY_RESULT_LIMIT);
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        city: row.city,
+        address: row.address,
+        distanceM: Math.round(Number(row.distanceM)),
+      }));
+    },
+    async findVenueById(venueId) {
+      const [row] = await db
+        .select({
+          id: venues.id,
+          name: venues.name,
+          city: venues.city,
+          address: venues.address,
+          zipCode: venues.zipCode,
+          lat: sql<number | null>`ST_Y(${venues.location}::geometry)`,
+          lng: sql<number | null>`ST_X(${venues.location}::geometry)`,
+        })
+        .from(venues)
+        .where(eq(venues.id, venueId))
+        .limit(1);
+      if (!row || row.lat == null || row.lng == null) return null;
+      return {
+        id: row.id,
+        name: row.name,
+        city: row.city,
+        location: { lat: Number(row.lat), lng: Number(row.lng) },
+        address: row.address,
+        zipCode: row.zipCode,
+      };
+    },
     async markTipScanned(input) {
       const [tip] = await db
         .select({ id: schema.eventTips.id })

@@ -33,6 +33,9 @@ export function formatScanLog(input: {
   const venues = (input.outcome.possibleVenueNames ?? [])
     .map((venue) => `${venue.name} (${venue.rank})`)
     .join(', ');
+  const existingVenues = (input.outcome.possibleVenues ?? [])
+    .map((venue) => `${venue.venueId} (${venue.rank})`)
+    .join(', ');
   const address = input.outcome.address;
   const addressLine = address
     ? [address.address, address.zipCode, address.city].filter(Boolean).join(', ')
@@ -64,6 +67,7 @@ export function formatScanLog(input: {
     `Address: ${addressLine}${address?.rank != null ? `, rank ${address.rank}` : ''}.`,
     input.addressKept,
     `Venue names: ${venues || 'none'}.`,
+    `Existing venues: ${existingVenues || 'none'}.`,
     `Showings: ${showings || 'none'}.`,
     input.outcome.summary ? `Summary: ${clip(input.outcome.summary, 240)}` : 'Summary: none.',
     input.occasionGroup,

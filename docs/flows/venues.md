@@ -18,7 +18,7 @@ flowchart TD
 
 Photon is `https://photon.komoot.io/api/`. Nominatim is `https://nominatim.openstreetmap.org/search`, one request per second, with a User-Agent, and `countrycodes=se`. An empty Photon result is a miss and does not call Nominatim. OpenCage, Geoapify, LocationIQ, and Mapbox can replace either lookup when a key is configured. None of those keys is read yet.
 
-The scan stores the street and postcode on the venue. A later scan fills a blank street and leaves a street that is already there. The point on an existing venue stays.
+The scan stores the street and postcode on the venue. A later scan fills a blank street and leaves a street that is already there. The point on an existing venue stays. The model can call `getVenuesByName`. A rank over 90 uses that venue and its point. That point, and a geocode that replaces a town point, is written onto every showing. When the model returns none, the imported name is looked up, and the address is geocoded when that lookup has no point.
 
 A name that is only the city is not a venue. The first rows are copied from occasions that already have a name, a city, and a point. Showings at that name and city are linked, including ones that still have no point.
 

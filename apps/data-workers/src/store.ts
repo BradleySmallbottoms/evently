@@ -92,6 +92,15 @@ export interface NearbyPublisherHit {
   organizerKeys: string[];
 }
 
+/** One venue whose name matched `getVenuesByName`. */
+export interface VenueNameHit {
+  id: string;
+  name: string;
+  city: string;
+  address: string | null;
+  distanceM: number;
+}
+
 export interface PublisherCandidate {
   publisherId: string;
   sourceId: string | null;
@@ -236,6 +245,13 @@ export interface IngestStore {
     window: NearbyWindow,
     excludeEventId: string,
   ): Promise<NearbyEventHit[]>;
+  /**
+   * Venues whose name matches `name` (`*` any text, `?` one character) and whose
+   * point is within {@link PUBLISHER_NAME_SEARCH_RADIUS_M}.
+   */
+  venuesByName(point: GeoPoint, name: string): Promise<VenueNameHit[]>;
+  /** One venue by id. Null when that id is not stored. */
+  findVenueById(venueId: string): Promise<StoredVenue | null>;
   /**
    * This source's alias wins. Otherwise an email or website from any source.
    * A name or slug matches only when that publisher has an event near `location`.
@@ -540,7 +556,8 @@ export interface ImportedScanWrite {
   /** The point nearby tools used. Written onto occasions that still have none. */
   location?: { lat: number; lng: number };
   /**
-   * The model address was ranked over 80. Every showing takes `location`.
+   * Every showing takes `location`. Set when the model address ranks over 80,
+   * a stored venue is chosen, or a town point is geocoded.
    * An absent location clears the point already on those showings.
    */
   replaceLocation?: boolean;

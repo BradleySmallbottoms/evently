@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Id } from '@local-events/contracts';
 import { readScanInstructions } from '@local-events/ingest';
 import {
   choosePossibleOccasionGroupId,
@@ -8,6 +9,7 @@ import {
   OCCASION_GROUP_MIN_RANK,
   shouldEnqueueNotifications,
   addressRankReplaces,
+  chosenVenueMatch,
   resolveImportCity,
   sourceCity,
   statusAfterImportScan,
@@ -283,14 +285,70 @@ export async function applyOutcome(
     placeCity: row.meta.address?.city,
   };
   const lookups = notesFor(row);
-  const place = await placeFromScan(store, row, outcome, fetchImpl, lookups);
+  const place = await placeFromScan(store, row, outcome, fetchImpl);
+  const matched = chosenVenueMatch(outcome.possibleVenues);
+  if (
+    (outcome.possibleVenues ?? []).some(
+      (venue) => venue.rank > 90 && !Id.safeParse(venue.venueId).success,
+    )
+  ) {
+    lookups.push('The venue id was not a uuid.');
+  }
+  const matchedVenue =
+    matched && !(place.replacesStored && place.location)
+      ? await store.findVenueById(matched.venueId)
+      : null;
+  const matchedTown = matchedVenue ? await pointIsTown(store, row, matchedVenue.location) : false;
+  let pointChosen = false;
+  if (matched && !matchedVenue) {
+    lookups.push(`Venue ${matched.venueId} rank ${matched.rank} is not stored.`);
+  } else if (matchedVenue && matchedTown) {
+    lookups.push(
+      `Stored venue "${matchedVenue.name}" rank ${matched?.rank} is only the town ${row.meta.address?.city}.`,
+    );
+  } else if (matchedVenue && matched) {
+    row.location = matchedVenue.location;
+    pointChosen = true;
+    lookups.push(
+      `Used stored venue "${matchedVenue.name}" in ${matchedVenue.city}, rank ${matched.rank}, at ${pointText(matchedVenue.location)}.`,
+    );
+  }
   let venueCity = place.replacesStored ? place.address?.city : row.meta.address?.city;
   if (!venueCity) venueCity = place.address?.city;
-  const venueName = venueNameFromScan(outcome.possibleVenueNames, row.meta.import, venueCity);
+  if (matchedVenue && !matchedTown) venueCity = matchedVenue.city;
+  const venueName =
+    matchedVenue && !matchedTown
+      ? matchedVenue.name
+      : venueNameFromScan(outcome.possibleVenueNames, row.meta.import, venueCity);
   let identity = venueIdentity(venueName, venueCity);
-  let known = identity ? await store.findVenue(identity.nameKey, identity.cityKey) : null;
-  if (known && !row.location && !place.replacesStored) row.location = known.location;
-  const location = place.location ?? row.location ?? known?.location;
+  let known =
+    matchedVenue && !matchedTown
+      ? matchedVenue
+      : identity
+        ? await store.findVenue(identity.nameKey, identity.cityKey)
+        : null;
+  if (known && !matchedVenue && !row.location && !place.replacesStored)
+    row.location = known.location;
+  if (
+    known &&
+    !matchedVenue &&
+    !(place.replacesStored && place.location) &&
+    !(await pointIsTown(store, row, known.location)) &&
+    (!row.location || (await pointIsTown(store, row, row.location)))
+  ) {
+    row.location = known.location;
+    pointChosen = true;
+    lookups.push(`Used the stored venue "${known.name}" at ${pointText(known.location)}.`);
+  }
+  const beforeGeocode = row.location;
+  if (!(place.replacesStored && place.location)) {
+    await geocodeTownPoint(store, row, fetchImpl);
+    if (row.location && row.location !== beforeGeocode) pointChosen = true;
+  }
+  const location =
+    place.replacesStored && place.location
+      ? place.location
+      : (row.location ?? place.location ?? known?.location);
   if (!identity && venueName && location) {
     if (!venueCity) {
       lookups.push(`Look up the town for point ${pointText(location)}.`);
@@ -317,6 +375,9 @@ export async function applyOutcome(
         ? { ...place.address, location }
         : place.address;
   }
+  if (place.address && pointChosen && row.location && !place.replacesStored) {
+    meta.address = { ...meta.address, location: row.location };
+  }
   if (venueCity && meta.address && !meta.address.city) {
     meta.address = { ...meta.address, city: venueCity };
   }
@@ -336,7 +397,14 @@ export async function applyOutcome(
     },
     status,
     lookups,
-    venue: venueLine(venueName, venueCity, known, venueId, location),
+    venue: venueLine(
+      venueName,
+      venueCity,
+      known,
+      venueId,
+      location,
+      matchedVenue && !matchedTown ? matched?.rank : undefined,
+    ),
     point: location ?? undefined,
     addressKept: addressDecision(outcome, place, Boolean(before.point)),
     occasionGroup,
@@ -354,7 +422,9 @@ export async function applyOutcome(
     claimedUntil: row.claimedUntil,
     ...(occasions.length > 0 ? { occasions } : {}),
     ...(location ? { location } : {}),
-    ...(place.replacesStored && place.location ? { replaceLocation: true } : {}),
+    ...((place.replacesStored && place.location) || (pointChosen && location)
+      ? { replaceLocation: true }
+      : {}),
     ...(venueId ? { venueId } : {}),
     ...(venueName ? { venueName } : {}),
     ...(venueCity ? { venueCity } : {}),
@@ -454,20 +524,98 @@ async function ensureScanPoint(
     else notes.push('The import stored no address to look up.');
     return;
   }
-  if (townOnly(row.location) || townOnly(stored)) {
-    notes.push(`The stored point is the town ${city}. Looking up the address.`);
+  if (townOnly(row.location) || townOnly(stored) || (known && townOnly(known.location))) {
+    if (!row.location && stored) row.location = stored;
+    else if (!row.location && known) row.location = known.location;
+    notes.push(`The stored point is the town ${city}. Looking up a venue before geocoding.`);
+    return;
   }
-  const location = await geocodeSwedishAddress(row.meta.address, fetchImpl, {
+  if (town) {
+    row.location = town;
+    notes.push(`No precise point is stored. Using the town ${city} until a venue is chosen.`);
+    return;
+  }
+  await geocodeAddress(store, row, fetchImpl);
+}
+
+/** Google runs after the model when the point is still only the town, or still missing. */
+async function geocodeTownPoint(
+  store: IngestStore,
+  row: PendingScanRow,
+  fetchImpl: typeof fetch,
+): Promise<void> {
+  if (row.location && !(await pointIsTown(store, row, row.location))) return;
+  const notes = notesFor(row);
+  if (row.location) {
+    notes.push(`The stored point is the town ${row.meta.address?.city}. Looking up the address.`);
+  }
+  await geocodeAddress(store, row, fetchImpl);
+}
+
+const geocodeAttempts = new WeakMap<
+  PendingScanRow,
+  Map<string, { lat: number; lng: number } | undefined>
+>();
+
+function geocodeKey(address: NonNullable<PendingScanRow['meta']['address']>): string {
+  return [address.address, address.zipCode, address.city]
+    .filter(Boolean)
+    .join('|')
+    .toLocaleLowerCase('sv');
+}
+
+/** One address is sent to Google once in a scan. A later step keeps that point. */
+async function geocodeOnce(
+  store: IngestStore,
+  row: PendingScanRow,
+  address: NonNullable<PendingScanRow['meta']['address']>,
+  fetchImpl: typeof fetch,
+): Promise<{ lat: number; lng: number } | undefined> {
+  const notes = notesFor(row);
+  const key = geocodeKey(address);
+  const seen =
+    geocodeAttempts.get(row) ?? new Map<string, { lat: number; lng: number } | undefined>();
+  if (!geocodeAttempts.has(row)) geocodeAttempts.set(row, seen);
+  if (seen.has(key)) {
+    notes.push('The address was already looked up.');
+    return seen.get(key);
+  }
+  const location = await geocodeSwedishAddress(address, fetchImpl, {
     ...cityGeocodeOptions(store),
     log: (line) => notes.push(line),
   });
+  seen.set(key, location);
+  return location;
+}
+
+async function geocodeAddress(
+  store: IngestStore,
+  row: PendingScanRow,
+  fetchImpl: typeof fetch,
+): Promise<void> {
+  const notes = notesFor(row);
+  if (!row.meta.address) return;
+  const location = await geocodeOnce(store, row, row.meta.address, fetchImpl);
   if (location) {
     row.location = location;
     row.meta.address = { ...row.meta.address, location };
     return;
   }
-  if (!row.location && stored) row.location = stored;
-  else notes.push('The stored address had no point before the model ran.');
+  if (!row.location && notes.at(-1) !== 'The address was already looked up.') {
+    notes.push('Geocoding found no point.');
+  }
+}
+
+async function pointIsTown(
+  store: IngestStore,
+  row: PendingScanRow,
+  point: { lat: number; lng: number } | null | undefined,
+): Promise<boolean> {
+  const city = row.meta.address?.city;
+  const town = city ? await store.findKnownCity(city.toLocaleLowerCase('sv')) : null;
+  return Boolean(
+    point && town && addressHasPlace(row.meta.address?.address, city) && pointsMatch(point, town),
+  );
 }
 
 function addressHasPlace(
@@ -505,18 +653,12 @@ async function placeFromScan(
   row: PendingScanRow,
   outcome: Extract<ScanOutcome, { ok: true }>,
   fetchImpl: typeof fetch,
-  notes: string[],
 ): Promise<{
   location?: { lat: number; lng: number };
   address?: NonNullable<PendingScanRow['meta']['address']>;
   /** The model address was ranked over 80. The previous point stays when this address does not geocode. */
   replacesStored?: boolean;
 }> {
-  const geocode = (address: NonNullable<PendingScanRow['meta']['address']>) =>
-    geocodeSwedishAddress(address, fetchImpl, {
-      ...cityGeocodeOptions(store),
-      log: (line) => notes.push(line),
-    });
   const ranked = outcome.address;
   if (ranked && addressRankReplaces(ranked.rank)) {
     const chosen = {
@@ -525,7 +667,7 @@ async function placeFromScan(
       ...(ranked.city ? { city: ranked.city } : {}),
       country: ranked.country ?? ('Sweden' as const),
     };
-    const location = await geocode(chosen);
+    const location = await geocodeOnce(store, row, chosen, fetchImpl);
     return {
       replacesStored: true,
       ...(location ? { location } : {}),
@@ -554,7 +696,7 @@ async function placeFromScan(
     return { location: row.location };
   }
   if (!chosen) return {};
-  const location = await geocode(chosen);
+  const location = await geocodeOnce(store, row, chosen, fetchImpl);
   const address = location ? { ...chosen, location } : chosen;
   return {
     ...(location ? { location } : {}),
@@ -588,10 +730,12 @@ function venueLine(
   known: { id: string } | null,
   venueId: string | undefined,
   location: { lat: number; lng: number } | null | undefined,
+  rank?: number,
 ): string {
   if (!venueName) return 'No venue name was saved.';
   const town = venueCity || 'an unknown town';
-  if (known) return `Venue "${venueName}" in ${town} was already stored.`;
+  const ranked = rank != null ? `, rank ${rank}` : '';
+  if (known) return `Venue "${venueName}" in ${town} was already stored${ranked}.`;
   if (venueId) return `Venue "${venueName}" in ${town} was saved.`;
   if (!location) return `Venue "${venueName}" was not saved because it has no point.`;
   return `Venue "${venueName}" was not saved.`;

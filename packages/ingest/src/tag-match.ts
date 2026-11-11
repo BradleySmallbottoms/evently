@@ -189,6 +189,11 @@ export type LLMScanResult = {
   /** Venue guesses. The scan writes the highest rank above 80, or above 50 when the only other name is the city or none is set. */
   possibleVenueNames: { name: string; rank: number }[];
   /**
+   * Existing venues the model ranked after `getVenuesByName`.
+   * A rank over 90 uses that venue and its point.
+   */
+  possibleVenues: { venueId: string; rank: number }[];
+  /**
    * Street, postcode, and city from the description or the event page.
    * Absent when the model found none. `rank` over 80 replaces the stored address and point.
    */

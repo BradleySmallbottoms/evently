@@ -217,6 +217,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(bodies[0]?.tools?.map((tool) => tool.function.name)).toEqual([
       'getNearbyEvents',
       'getEventsByName',
+      'getVenuesByName',
       'getNearbyPublishers',
       'getPublishersByName',
       'getPossiblePublishers',
@@ -529,6 +530,79 @@ describe('createOllamaWithToolsPromptRunner', () => {
     expect(matched?.content).not.toContain('Hälsinglands teater');
     expect(rejected?.content).toContain('at least one letter or number');
     expect(rejected?.content).not.toContain('Hälsinglands museum');
+  });
+
+  it('returns venues whose name matches within 50 km', async () => {
+    const store = createMemoryIngestStore();
+    const near = await store.saveVenue({
+      name: 'Biografen Kilafors',
+      city: 'Kilafors',
+      nameKey: 'biografen kilafors',
+      cityKey: 'kilafors',
+      location: { lat: 61.23, lng: 16.56 },
+    });
+    await store.saveVenue({
+      name: 'Biografen Stockholm',
+      city: 'Stockholm',
+      nameKey: 'biografen stockholm',
+      cityKey: 'stockholm',
+      location: { lat: 59.33, lng: 18.06 },
+    });
+    const { fetchImpl, bodies } = scriptedFetch([
+      toolCall('getVenuesByName', { name: 'Biografen*' }),
+      toolCall('getVenuesByName', { name: '*' }),
+      finalAnswer,
+    ]);
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+
+    const [outcome] = await runner.scan([{ ...scanInput, location: { lat: 61.23, lng: 16.56 } }]);
+
+    const matched = bodies[1]?.messages.filter((message) => message.role === 'tool').at(-1);
+    const rejected = bodies[2]?.messages.filter((message) => message.role === 'tool').at(-1);
+    expect(matched?.content).toContain(near.id);
+    expect(matched?.content).toContain('Biografen Kilafors');
+    expect(matched?.content).not.toContain('Biografen Stockholm');
+    expect(rejected?.content).toContain('at least one letter or number');
+    expect(outcome).toMatchObject({ ok: true });
+    expect(bodies[0]?.messages[0]?.content).toContain('possibleVenues');
+  });
+
+  it('keeps a venue id only when getVenuesByName returned it', async () => {
+    const store = createMemoryIngestStore();
+    const near = await store.saveVenue({
+      name: 'Biografen Kilafors',
+      city: 'Kilafors',
+      nameKey: 'biografen kilafors',
+      cityKey: 'kilafors',
+      location: { lat: 61.23, lng: 16.56 },
+    });
+    const other = '33333333-3333-4333-8333-333333333399';
+    const { fetchImpl } = scriptedFetch([
+      toolCall('getVenuesByName', { name: 'Biografen*' }),
+      answer(
+        JSON.stringify({
+          contentVerdict: 'safe',
+          summary: 'Film',
+          language: 'sv',
+          possibleTags: [],
+          possiblePublishers: [],
+          possibleDuplicates: [],
+          possibleVenues: [
+            { venueId: near.id, rank: 95 },
+            { venueId: other, rank: 99 },
+            { venueId: 'not-an-id', rank: 98 },
+          ],
+        }),
+      ),
+    ]);
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+
+    const [outcome] = await runner.scan([{ ...scanInput, location: { lat: 61.23, lng: 16.56 } }]);
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      possibleVenues: [{ venueId: near.id, rank: 95 }],
+    });
   });
 
   it('reads a scan object whose strings contain raw newlines', async () => {

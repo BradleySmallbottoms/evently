@@ -1015,17 +1015,17 @@ describe('scanPendingEvents', () => {
       },
     };
 
-    await scanPendingEvents(store, runner);
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () => Response.json({ features: [] }),
+    });
 
     expect(store.events[0]?.startsAt?.toISOString()).toBe('2026-11-14T18:00:00.000Z');
     expect(store.events[0]?.endsAt?.toISOString()).toBe('2026-11-14T20:00:00.000Z');
-    expect(store.events[0]?.occasions).toEqual([
-      {
-        startsAt: new Date('2026-11-14T18:00:00.000Z'),
-        endsAt: new Date('2026-11-14T20:00:00.000Z'),
-        venueName: 'Helsingehus',
-      },
-    ]);
+    expect(store.events[0]?.occasions[0]).toMatchObject({
+      startsAt: new Date('2026-11-14T18:00:00.000Z'),
+      endsAt: new Date('2026-11-14T20:00:00.000Z'),
+      venueName: 'Helsingehus',
+    });
   });
 
   it('adds each showing from the description and skips a repeated time', async () => {
@@ -1300,7 +1300,7 @@ describe('scanPendingEvents', () => {
       id: 'town-point',
       lookupPublisher: async () => ({ ok: true, profile: null }),
       async scan(batch) {
-        expect(batch[0]?.location).toEqual(found);
+        expect(batch[0]?.location).toEqual(town);
         return batch.map((item): ScanOutcome => ({
           ok: true,
           eventId: item.eventId,
@@ -1350,7 +1350,313 @@ describe('scanPendingEvents', () => {
 
     expect(queries[0]).toContain('Stationsgatan Kilafors');
     expect(store.events[0]?.location).toEqual(found);
+    expect(store.events[0]?.occasions[0]?.location).toEqual(found);
     expect(store.events[0]?.meta.address?.location).toEqual(found);
+  });
+
+  it('uses a stored venue the model ranks over 90 and does not geocode', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const town = { lat: 61.2299391, lng: 16.5635885 };
+    const cinema = { lat: 61.230057, lng: 16.565837 };
+    await store.saveKnownCity({ name: 'Kilafors', cityKey: 'kilafors', location: town });
+    const venue = await store.saveVenue({
+      name: 'Biografen Kilafors',
+      city: 'Kilafors',
+      nameKey: 'biografen kilafors',
+      cityKey: 'kilafors',
+      location: cinema,
+    });
+    await saveIncomingEvents(store, source, [
+      {
+        ...event,
+        location: town,
+        venueName: 'Stationsgatan Kilafors',
+        meta: {
+          address: {
+            address: 'Biografen Kilafors, Stationsgatan Kilafors',
+            city: 'Kilafors',
+            country: 'Sweden' as const,
+            location: town,
+          },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'venue-match',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        expect(batch[0]?.location).toEqual(town);
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          possibleVenues: [{ venueId: venue.id, rank: 95 }],
+        }));
+      },
+    };
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () => {
+        throw new Error('geocoder should not be called');
+      },
+    });
+    expect(store.events[0]?.location).toEqual(cinema);
+    expect(store.events[0]?.occasions[0]?.location).toEqual(cinema);
+    expect(store.events[0]?.occasions[0]?.venueId).toBe(venue.id);
+    expect(store.events[0]?.occasions[0]?.venueName).toBe('Biografen Kilafors');
+  });
+
+  it('does not geocode a street when a rank over 90 venue is found from the town', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const town = { lat: 61.2299391, lng: 16.5635885 };
+    const cinema = { lat: 61.230057, lng: 16.565837 };
+    await store.saveKnownCity({ name: 'Kilafors', cityKey: 'kilafors', location: town });
+    const venue = await store.saveVenue({
+      name: 'Biografen Kilafors',
+      city: 'Kilafors',
+      nameKey: 'biografen kilafors',
+      cityKey: 'kilafors',
+      location: cinema,
+    });
+    const { location: _location, ...withoutPoint } = event;
+    await saveIncomingEvents(store, source, [
+      {
+        ...withoutPoint,
+        externalId: 'no-point',
+        venueName: 'Stationsgatan Kilafors',
+        meta: {
+          address: {
+            address: 'Biografen Kilafors, Stationsgatan Kilafors',
+            city: 'Kilafors',
+            country: 'Sweden' as const,
+          },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'venue-before-google',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        expect(batch[0]?.location).toEqual(town);
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          possibleVenues: [{ venueId: venue.id, rank: 95 }],
+        }));
+      },
+    };
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () => {
+        throw new Error('geocoder should not be called');
+      },
+    });
+    expect(store.events[0]?.location).toEqual(cinema);
+    expect(store.events[0]?.occasions[0]?.location).toEqual(cinema);
+  });
+
+  it('looks up an address once when Google keeps no point', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const { location: _location, ...withoutPoint } = event;
+    await saveIncomingEvents(store, source, [
+      {
+        ...withoutPoint,
+        externalId: 'ostanbo',
+        venueName: 'Östanbo',
+        meta: {
+          address: {
+            address: 'Östanbogården, Östanbo',
+            country: 'Sweden' as const,
+          },
+        },
+      },
+    ]);
+    const calls: string[] = [];
+    const runner: PromptRunner = {
+      id: 'once',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          address: { address: 'Östanbo', rank: 40 },
+        }));
+      },
+    };
+    const previousKey = process.env.GOOGLE_MAPS_API_KEY;
+    process.env.GOOGLE_MAPS_API_KEY = 'test-key';
+    try {
+      await scanPendingEvents(store, runner, undefined, {
+        fetch: async (input) => {
+          const url = String(input);
+          if (
+            url.includes('maps.googleapis.com') &&
+            url.toLocaleLowerCase('sv').includes('stanbog')
+          ) {
+            calls.push(url);
+          }
+          return Response.json({
+            status: 'OK',
+            results: [
+              {
+                formatted_address: 'Viaduktvägen 6, 826 72 Sandarne, Sverige',
+                address_components: [
+                  { long_name: '6', types: ['street_number'] },
+                  { long_name: 'Viaduktvägen', types: ['route'] },
+                  { long_name: 'Sandarne', types: ['postal_town'] },
+                  { long_name: 'Sweden', short_name: 'SE', types: ['country'] },
+                ],
+                geometry: {
+                  location: { lat: 61.259656, lng: 17.135223 },
+                  location_type: 'ROOFTOP',
+                },
+              },
+            ],
+          });
+        },
+      });
+    } finally {
+      if (previousKey == null) delete process.env.GOOGLE_MAPS_API_KEY;
+      else process.env.GOOGLE_MAPS_API_KEY = previousKey;
+    }
+    expect(calls).toHaveLength(1);
+    expect(store.events[0]?.location).toBeUndefined();
+  });
+
+  it('keeps the point when the same address is ranked again', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const { location: _location, ...withoutPoint } = event;
+    const rooftop = { lat: 61.303, lng: 17.06 };
+    await saveIncomingEvents(store, source, [
+      {
+        ...withoutPoint,
+        externalId: 'storgatan-once',
+        meta: {
+          address: {
+            address: 'Storgatan 1',
+            city: 'Söderhamn',
+            country: 'Sweden' as const,
+          },
+        },
+      },
+    ]);
+    const calls: string[] = [];
+    const runner: PromptRunner = {
+      id: 'same-address',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          address: { address: 'Storgatan 1', city: 'Söderhamn', rank: 90 },
+        }));
+      },
+    };
+    const previousKey = process.env.GOOGLE_MAPS_API_KEY;
+    process.env.GOOGLE_MAPS_API_KEY = 'test-key';
+    try {
+      await scanPendingEvents(store, runner, undefined, {
+        fetch: async (input) => {
+          const url = String(input);
+          if (url.includes('maps.googleapis.com')) calls.push(url);
+          return Response.json({
+            status: 'OK',
+            results: [
+              {
+                formatted_address: 'Storgatan 1, 826 32 Söderhamn, Sverige',
+                address_components: [
+                  { long_name: '1', types: ['street_number'] },
+                  { long_name: 'Storgatan', types: ['route'] },
+                  { long_name: 'Söderhamn', types: ['postal_town'] },
+                  { long_name: 'Sweden', short_name: 'SE', types: ['country'] },
+                ],
+                geometry: {
+                  location: rooftop,
+                  location_type: 'ROOFTOP',
+                },
+              },
+            ],
+          });
+        },
+      });
+    } finally {
+      if (previousKey == null) delete process.env.GOOGLE_MAPS_API_KEY;
+      else process.env.GOOGLE_MAPS_API_KEY = previousKey;
+    }
+    expect(calls).toHaveLength(1);
+    expect(store.events[0]?.location).toEqual(rooftop);
+  });
+
+  it('ignores a venue id that is not a uuid', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    const runner: PromptRunner = {
+      id: 'venue-id',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          possibleVenues: [{ venueId: 'not-an-id', rank: 95 }],
+        }));
+      },
+    };
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () => {
+        throw new Error('geocoder should not be called');
+      },
+    });
+    expect(store.events[0]?.status).toBe('in_review');
+    const output = store.events[0]?.llmOutput as { scanLog?: string } | null;
+    expect(output?.scanLog).toContain('The venue id was not a uuid.');
+    expect(store.events[0]?.occasions[0]?.venueName).toBe('Helsingehus');
   });
 
   it('replaces a stored address and point when the model ranks the address over 80', async () => {

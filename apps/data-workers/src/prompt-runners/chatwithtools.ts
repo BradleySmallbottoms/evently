@@ -39,6 +39,7 @@ import {
   type NearbyPublisherHit,
   type PublisherCandidate,
   type PublisherRecord,
+  type VenueNameHit,
 } from '../store';
 import type {
   ChosenPublisher,
@@ -129,6 +130,7 @@ type ToolResult =
   | { events: NearbyEventHit[] }
   | { publishers: NearbyPublisherHit[] }
   | { possiblePublishers: PublisherCandidate[] }
+  | { venues: VenueNameHit[] }
   | { tags: { id: string; name: string }[] }
   | PublisherToolResult;
 
@@ -176,6 +178,25 @@ function chatToolDefinitions(event: ScanInput): object[] {
             },
           },
           required: ['names', 'from', 'to'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'getVenuesByName',
+        description:
+          'Venues whose name matches, within 50 km of the event being scanned. * matches any text and ? matches one character. Each venue includes its id, name, city, street, and distance in meters. Call this with the venue name, not the street and not the town.',
+        parameters: {
+          type: 'object',
+          properties: {
+            name: {
+              type: 'string',
+              description:
+                'Venue name. Use * for any text and ? for one character, for example Biografen*.',
+            },
+          },
+          required: ['name'],
         },
       },
     },
@@ -410,6 +431,7 @@ export async function scanOutcomeFromContent(
     language: content.language,
     instructions: content.instructions,
     possibleVenueNames: content.possibleVenueNames,
+    possibleVenues: content.possibleVenues,
     possibleOccasions: content.possibleOccasions,
     startsAt: content.startsAt,
     endsAt: content.endsAt,
@@ -471,7 +493,7 @@ function buildScanPrompt(event: ScanInput): string {
   return [
     'You scan one imported event for spam, language, tags, a short summary, the publisher, and a duplicate.',
     'Call one tool, wait for its result, then decide the next step. Do not return JSON in the same turn as a tool call.',
-    'Never invent a publisher id, an event id, or a tag id. Every id in the JSON must come from a tool result.',
+    'Never invent a publisher id, an event id, a venue id, or a tag id. Every id in the JSON must come from a tool result.',
     '1. Call getAvailableTags(). This call is required and can never be skipped. Tags may only use ids from that list. Score every tag from 0 to 100 and order them by highest score. Return at most 3 tags.',
     '2. Call getPossiblePublishers() before you match a publisher. Each returned publisher has a name and one or more organizer keys and dinstance in meter to the closest event from this event.',
     'Use the possible publishers name to rate how plausible it that this publisher has events like this event.',
@@ -499,6 +521,9 @@ function buildScanPrompt(event: ScanInput): string {
         ]
       : []),
     'List possible venue names from the title, description, and event page. A venue is the place where the event happens, not the city and not the organizer.',
+    'Call getVenuesByName before you decide the venue. * matches any text and ? matches one character. Search the venue name, not the street and not the town. You may call it again with another pattern.',
+    'Return possibleVenues as objects with venueId and rank from 0 to 100. Include a venue only when its rank is over 90. The venueId must come from getVenuesByName. An empty list is allowed.',
+    'A rank over 90 uses that stored venue and its point. When possibleVenues is empty, the imported venue name is used, and the address is geocoded when that lookup has no point.',
     'Return possibleVenueNames as objects with name and rank from 0 to 100. Include a name only when the rank is over 50.',
     'Read the Place line, the description, and the event page and extract the street, postcode, and city into address.',
     'A Place line can mix a venue name, a street and house number, and a town. Split it. "Röda Kvarn Ljusdal, Norra Järnvägsgatan 17 Ljusdal" is venue Röda Kvarn, street Norra Järnvägsgatan 17, and city Ljusdal.',
@@ -520,7 +545,7 @@ function buildScanPrompt(event: ScanInput): string {
     'contentVerdict is "spam", "harmful", or "safe". language is the event language, such as "sv" or "en". rank and score are numbers from 0 to 100.',
     'Include a explanation of why tags where chosed and why the publisher and duplicate were chosen etc. in the JSON object.',
     'When you are finished, return only the JSON object. Do not explain it and do not wrap it in markdown:',
-    '{"decision_explanation": "<decision_explanation>", "instructions":[],"possiblePublishers":[{"publisherId":"<publisherId>","rank":95}],"possibleDuplicates":[{"eventId":"<eventId>","rank":95,"occasionRank":10}],"contentVerdict":"safe","summary":"<summary>","language":"sv","possibleTags":[{"id":"<id>","score":95}],"possibleOccasions":[{"startsAt":"2026-11-14T19:00:00+01:00","endsAt":"2026-11-14T21:00:00+01:00","venueName":"Svea Bio"},{"startsAt":"2026-11-21T19:00:00+01:00","endsAt":"2026-11-21T21:00:00+01:00","venueName":null}],"address":{"address":"Köpmangatan 14","zipCode":"82471","city":"Delsbo","rank":95},"possibleVenueNames":[{"name":"Svea Bio","rank":95}]}',
+    '{"decision_explanation": "<decision_explanation>", "instructions":[],"possiblePublishers":[{"publisherId":"<publisherId>","rank":95}],"possibleDuplicates":[{"eventId":"<eventId>","rank":95,"occasionRank":10}],"contentVerdict":"safe","summary":"<summary>","language":"sv","possibleTags":[{"id":"<id>","score":95}],"possibleOccasions":[{"startsAt":"2026-11-14T19:00:00+01:00","endsAt":"2026-11-14T21:00:00+01:00","venueName":"Svea Bio"},{"startsAt":"2026-11-21T19:00:00+01:00","endsAt":"2026-11-21T21:00:00+01:00","venueName":null}],"address":{"address":"Köpmangatan 14","zipCode":"82471","city":"Delsbo","rank":95},"possibleVenueNames":[{"name":"Svea Bio","rank":95}],"possibleVenues":[{"venueId":"<venueId>","rank":95}]}',
     'Event:',
     `Title: ${event.title}`,
     `Starts: ${event.startsAt || '(missing)'}`,
@@ -546,10 +571,17 @@ async function askModelWithLookups(
   config: Record<string, unknown>,
   fetchImpl: typeof fetch,
 ): Promise<(LLMScanResult & LLMOutput) | 'timeout' | null> {
+  const offeredVenueIds = new Set<string>();
   const finished = await runToolChat(
     prompt,
     chatToolDefinitions(context.event),
-    (call) => executeToolCall(call, context),
+    async (call) => {
+      const result = await executeToolCall(call, context);
+      if (call.name === 'getVenuesByName' && 'venues' in result && Array.isArray(result.venues)) {
+        for (const venue of result.venues) offeredVenueIds.add(venue.id);
+      }
+      return result;
+    },
     config,
     fetchImpl,
     MAX_TOOL_ROUNDS,
@@ -558,7 +590,13 @@ async function askModelWithLookups(
   if (!finished) return null;
   const parsed = parseScanJson(finished.text);
   if (!parsed) return null;
-  return { ...parsed, output: finished.output };
+  return {
+    ...parsed,
+    possibleVenues: parsed.possibleVenues.filter(
+      (venue) => Id.safeParse(venue.venueId).success && offeredVenueIds.has(venue.venueId),
+    ),
+    output: finished.output,
+  };
 }
 
 /**
@@ -647,6 +685,9 @@ function toolResultText(result: ToolResult): string {
   }
   if ('possiblePublishers' in result && Array.isArray(result.possiblePublishers)) {
     return `Result: ${result.possiblePublishers.length} publishers.`;
+  }
+  if ('venues' in result && Array.isArray(result.venues)) {
+    return `Result: ${result.venues.length} venues.`;
   }
   if ('tags' in result && Array.isArray(result.tags)) return `Result: ${result.tags.length} tags.`;
   if ('results' in result && Array.isArray(result.results)) {
@@ -1146,6 +1187,7 @@ async function executeToolCall(call: ParsedToolCall, context: LookupContext): Pr
     if (call.name === 'getNearbyPublishers') return lookupNearbyPublishers(context);
     if (call.name === 'getPublishersByName') return lookupPublishersByName(call.arguments, context);
     if (call.name === 'getEventsByName') return lookupEventsByName(call.arguments, context);
+    if (call.name === 'getVenuesByName') return lookupVenuesByName(call.arguments, context);
     if (call.name === 'getPossiblePublishers') return lookupPossiblePublishers(context);
     if (call.name === 'fetchEventPage') return fetchEventPage(context);
     return { error: `Unknown tool ${call.name}.` };
@@ -1268,6 +1310,20 @@ async function lookupEventsByName(
   return { events };
 }
 
+/** Venues whose name matches `*` and `?`, within 50 km of the event point. */
+async function lookupVenuesByName(
+  args: Record<string, unknown>,
+  context: LookupContext,
+): Promise<ToolResult> {
+  const point = eventPoint(context);
+  if ('error' in point) return point;
+  const name = typeof args.name === 'string' ? args.name : '';
+  const matcher = publisherNameMatcher(name);
+  if ('error' in matcher) return matcher;
+  const venues = await context.store.venuesByName(point, name);
+  return { venues };
+}
+
 /** Wildcard title patterns. A string is accepted as one pattern. */
 function readEventNamePatterns(raw: unknown): string[] | { error: string } {
   const values = Array.isArray(raw) ? raw : typeof raw === 'string' ? [raw] : [];
@@ -1328,6 +1384,7 @@ export function parseScanJson(content: string): LLMScanResult | null {
     language: typeof record.language === 'string' ? record.language : '',
     instructions: readScanInstructions(record.instructions),
     possibleVenueNames: possibleVenueNames(record.possibleVenueNames),
+    possibleVenues: possibleVenues(record.possibleVenues),
     possibleOccasions: readScanOccasions(record),
     ...scanRangeOf(record),
     ...addressFromModel(record.address),
@@ -1362,6 +1419,7 @@ function normalizeStoredScanRecord(record: Record<string, unknown>): LLMScanResu
       language: '',
       instructions: [],
       possibleVenueNames: [],
+      possibleVenues: [],
       possibleOccasions: [],
       startsAt: null,
       endsAt: null,
@@ -1609,6 +1667,21 @@ function possibleVenueNames(value: unknown): LLMScanResult['possibleVenueNames']
     names.push({ name, rank });
   }
   return names;
+}
+
+function possibleVenues(value: unknown): LLMScanResult['possibleVenues'] {
+  if (!Array.isArray(value)) return [];
+  const venues: LLMScanResult['possibleVenues'] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const venueId = 'venueId' in item ? item.venueId : undefined;
+    const rank = 'rank' in item ? item.rank : undefined;
+    if ((typeof venueId !== 'string' && typeof venueId !== 'number') || typeof rank !== 'number') {
+      continue;
+    }
+    venues.push({ venueId: String(venueId), rank });
+  }
+  return venues;
 }
 
 function possiblePublishers(value: unknown): LLMScanResult['possiblePublishers'] {

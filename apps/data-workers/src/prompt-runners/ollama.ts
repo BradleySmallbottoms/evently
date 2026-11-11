@@ -67,6 +67,7 @@ function parseResponse(content: string): LLMScanResult {
     language: parsed.language ?? '',
     instructions: readScanInstructions(parsed.instructions),
     possibleVenueNames: Array.isArray(parsed.possibleVenueNames) ? parsed.possibleVenueNames : [],
+    possibleVenues: Array.isArray(parsed.possibleVenues) ? parsed.possibleVenues : [],
     possibleOccasions: readScanOccasions(parsed),
     ...(readScanRange(parsed) ?? { startsAt: null, endsAt: null }),
   };
@@ -82,6 +83,7 @@ function emptyScan(): LLMScanResult {
     language: '',
     instructions: [],
     possibleVenueNames: [],
+    possibleVenues: [],
     possibleOccasions: [],
     startsAt: null,
     endsAt: null,

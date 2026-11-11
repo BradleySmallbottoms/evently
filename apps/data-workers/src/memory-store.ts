@@ -36,6 +36,7 @@ import type {
   SourceRecord,
   StoredVenue,
   UnnamedOccasion,
+  VenueNameHit,
   VenueWrite,
 } from './store';
 import {
@@ -264,7 +265,15 @@ function storedOccasions(input: ImportedEventWrite): StoredEvent['occasions'] {
   const startsAt = new Date(input.event.startsAt);
   const endsAt = new Date(input.endsAt);
   if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return [];
-  return [{ id: randomUUID(), startsAt, endsAt, venueName: input.event.venueName ?? null }];
+  return [
+    {
+      id: randomUUID(),
+      startsAt,
+      endsAt,
+      venueName: input.event.venueName ?? null,
+      ...(input.event.location ? { location: input.event.location } : {}),
+    },
+  ];
 }
 
 /** Earliest start among showings that have not ended. A whole day stays through that calendar day. */
@@ -1045,6 +1054,36 @@ export function createMemoryIngestStore(): MemoryIngestStore {
         });
       }
       return hits.sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
+    },
+    async venuesByName(point, name) {
+      const matcher = publisherNameMatcher(name);
+      if ('error' in matcher) return [];
+      const hits: VenueNameHit[] = [];
+      for (const venue of venues) {
+        if (!matcher.matches(venue.name)) continue;
+        const distanceM = Math.round(distanceMeters(point, venue.location));
+        if (distanceM > PUBLISHER_NAME_SEARCH_RADIUS_M) continue;
+        hits.push({
+          id: venue.id,
+          name: venue.name,
+          city: venue.city,
+          address: venue.address ?? null,
+          distanceM,
+        });
+      }
+      return hits.sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
+    },
+    async findVenueById(venueId) {
+      const venue = venues.find((item) => item.id === venueId);
+      if (!venue) return null;
+      return {
+        id: venue.id,
+        name: venue.name,
+        city: venue.city,
+        location: venue.location,
+        address: venue.address ?? null,
+        zipCode: venue.zipCode ?? null,
+      };
     },
     /** Publisher row plus the organizer keys stored as aliases. */
     async getPublisher(publisherId): Promise<PublisherRecord | null> {

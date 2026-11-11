@@ -57,6 +57,30 @@ export function choosePossibleOccasionGroupId(input: {
 /** A venue guess beats an imported name only when its rank is over this. */
 export const VENUE_NAME_MIN_RANK = 80;
 
+/** An existing venue from `getVenuesByName` is used only when its rank is over this. */
+export const VENUE_MATCH_MIN_RANK = 90;
+
+/** Highest `possibleVenues` rank over {@link VENUE_MATCH_MIN_RANK}. A weaker match is left out. */
+const VENUE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function chosenVenueMatch(
+  possible: { venueId: string; rank: number }[] | undefined,
+): { venueId: string; rank: number } | undefined {
+  let best: { venueId: string; rank: number } | undefined;
+  for (const item of possible ?? []) {
+    const venueId = item.venueId.trim();
+    if (
+      !VENUE_ID.test(venueId) ||
+      !Number.isFinite(item.rank) ||
+      item.rank <= VENUE_MATCH_MIN_RANK
+    ) {
+      continue;
+    }
+    if (!best || item.rank > best.rank) best = { venueId, rank: item.rank };
+  }
+  return best;
+}
+
 /** An address the model ranks over this replaces the address and point already stored. */
 export function addressRankReplaces(rank: number | null | undefined): boolean {
   return typeof rank === 'number' && Number.isFinite(rank) && rank > VENUE_NAME_MIN_RANK;

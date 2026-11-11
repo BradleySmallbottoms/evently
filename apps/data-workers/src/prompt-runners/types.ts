@@ -73,6 +73,8 @@ export type ScanOutcome =
       instructions: string[];
       /** Venue guesses. Empty when the model listed none. */
       possibleVenueNames?: { name: string; rank: number }[];
+      /** Existing venues from `getVenuesByName`. A rank over 90 uses that venue. */
+      possibleVenues?: { venueId: string; rank: number }[];
       /** Both set when the model found a range for an undated event. */
       startsAt?: string | null;
       endsAt?: string | null;
