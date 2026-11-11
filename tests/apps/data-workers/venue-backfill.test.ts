@@ -126,7 +126,15 @@ describe('fillUnnamedVenues', () => {
         calls.push(new URL(String(input)).searchParams.get('q') ?? '');
         return Response.json({
           features: [
-            { geometry: { coordinates: [17.05, 61.3] }, properties: { countrycode: 'SE' } },
+            {
+              geometry: { coordinates: [17.05, 61.3] },
+              properties: {
+                countrycode: 'SE',
+                housenumber: '6',
+                street: 'Kungsgatan',
+                city: 'Söderhamn',
+              },
+            },
           ],
         });
       },
@@ -173,7 +181,15 @@ describe('fillUnnamedVenues', () => {
       fetch: async () =>
         Response.json({
           features: [
-            { geometry: { coordinates: [17.141, 60.675] }, properties: { countrycode: 'SE' } },
+            {
+              geometry: { coordinates: [17.141, 60.675] },
+              properties: {
+                countrycode: 'SE',
+                housenumber: '23',
+                street: 'N. Rådmansgatan',
+                city: 'Gävle',
+              },
+            },
           ],
         }),
     });

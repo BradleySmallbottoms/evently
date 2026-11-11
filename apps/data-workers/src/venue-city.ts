@@ -2,6 +2,7 @@ import {
   cityFromAddress,
   nearestCityName,
   NEARBY_CITY_RADIUS_KM,
+  streetVenueName,
   type ReversePlace,
 } from '@local-events/domain';
 import type { IncomingEvent } from '@local-events/ingest';
@@ -27,9 +28,9 @@ export function geocodeDelayMs(config: Record<string, unknown>): number {
 }
 
 /**
- * A physical event with no venue name takes the city from its address.
- * When that address has no city, the point is reverse-geocoded.
- * A named venue, a digital event, and a failed lookup stay as they are.
+ * A physical event with no venue name takes the street and house number.
+ * A page with no street takes the city. When the address has no city either,
+ * the point is reverse-geocoded. A named venue and a digital event stay as they are.
  */
 export async function fillMissingVenueNames(
   events: IncomingEvent[],
@@ -51,11 +52,20 @@ async function fillOne(
   options: VenueCityOptions,
 ): Promise<IncomingEvent> {
   if (event.mode === 'digital' || event.venueName?.trim()) return event;
+  const street = streetVenueName(event.address);
+  if (street) {
+    options.log?.('venue city', {
+      externalId: event.externalId,
+      via: 'street',
+      city: street,
+    });
+    return { ...event, venueName: street };
+  }
   const fromAddress = cityFromAddress(event.address);
   if (fromAddress) {
     options.log?.('venue city', {
       externalId: event.externalId,
-      via: 'address',
+      via: 'city',
       city: fromAddress,
     });
     return { ...event, venueName: fromAddress };

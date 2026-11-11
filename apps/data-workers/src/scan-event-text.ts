@@ -21,3 +21,19 @@ export function scanEventLines(event: {
   }
   return description ? [`Description: ${description}`] : [];
 }
+
+/**
+ * The place text the importer stored. The scan asks the model to split a venue,
+ * a street and house number, and a town out of a line that mixes them.
+ */
+export function scanPlaceLines(event: {
+  placeLine?: string | null;
+  placeCity?: string | null;
+}): string[] {
+  const line = event.placeLine?.replace(/\s+/g, ' ').trim();
+  const city = event.placeCity?.replace(/\s+/g, ' ').trim();
+  const lines: string[] = [];
+  if (line) lines.push(`Place: ${line.slice(0, 300)}`);
+  if (city) lines.push(`City: ${city.slice(0, 80)}`);
+  return lines;
+}

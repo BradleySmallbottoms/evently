@@ -14,7 +14,10 @@ const LeafletMap = dynamic(
 
 export function EventLocationMap(props: EventLocationMapProps) {
   const t = useTranslations('EventEditor');
-  const idle = props.lat.trim() === '' && props.lng.trim() === '';
+  const lat = props.lat ?? '';
+  const lng = props.lng ?? '';
+  const idle = lat.trim() === '' && lng.trim() === '';
+  const caption = props.caption ?? (idle ? t('mapEmpty') : t('mapHint'));
   return (
     <div className="flex flex-col gap-2">
       <div
@@ -22,11 +25,11 @@ export function EventLocationMap(props: EventLocationMapProps) {
         aria-label={t('mapLabel')}
         className="relative z-0 h-[360px] overflow-hidden rounded-md border"
       >
-        <LeafletMap {...props} />
+        <LeafletMap {...props} lat={lat} lng={lng} />
       </div>
       <p className="text-sm text-muted-foreground">
-        {idle ? t('mapEmpty') : t('mapHint')}
-        {geofenceMeters(props.radiusM) != null ? ` ${t('mapRadiusHint')}` : ''}
+        {caption}
+        {geofenceMeters(props.radiusM) != null && !idle ? ` ${t('mapRadiusHint')}` : ''}
       </p>
     </div>
   );

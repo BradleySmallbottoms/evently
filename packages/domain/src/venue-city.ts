@@ -42,6 +42,41 @@ export function cityFromAddress(address: string | null | undefined): string | nu
 }
 
 /**
+ * Street and house number from a scraped address, used as the venue name when
+ * the page did not name a place. A postal line and the town are left out.
+ * `Hotellgatan 12 , Ljusdal` is `Hotellgatan 12`.
+ */
+export function streetVenueName(address: string | null | undefined): string | undefined {
+  const text = address?.replace(/\s+/g, ' ').trim();
+  if (!text) return undefined;
+  const parts = text
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part && !COUNTRIES.has(part.toLocaleLowerCase('sv')));
+  for (const part of parts) {
+    if (/^\d{3}\s?\d{2}\b/.test(part)) continue;
+    const numbered = /^(.*\p{L}.*?)\s+(\d{1,4})\s*([A-Za-z])?$/u.exec(part);
+    const street = numbered?.[1]?.replace(/\s+/g, ' ').trim();
+    const last = street?.split(' ').at(-1) ?? '';
+    if (street && numbered && STREET_SUFFIX.test(last)) {
+      return `${street} ${numbered[2]}${numbered[3] ?? ''}`.slice(0, 200);
+    }
+  }
+  for (const part of parts) {
+    if (/^\d{3}\s?\d{2}\b/.test(part) || /\d/.test(part)) continue;
+    if (part.split(/\s+/).some((word) => STREET_SUFFIX.test(word))) return part.slice(0, 200);
+  }
+  return undefined;
+}
+
+/** House number on {@link streetVenueName}, lowercased, such as `12` or `12a`. */
+export function houseNumberOf(address: string | null | undefined): string | undefined {
+  const street = streetVenueName(address);
+  const match = street?.match(/(\d{1,4}[A-Za-z]?)$/);
+  return match?.[1]?.toLocaleLowerCase('sv');
+}
+
+/**
  * Nearest city from a reverse-geocoder result, closest feature first.
  * A street hit's city is used. A hit outside Sweden is skipped.
  */

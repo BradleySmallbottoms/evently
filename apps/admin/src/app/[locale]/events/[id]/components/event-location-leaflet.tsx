@@ -2,7 +2,16 @@
 
 import L from 'leaflet';
 import { useEffect, useMemo, useRef } from 'react';
-import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import {
+  Circle,
+  CircleMarker,
+  MapContainer,
+  Marker,
+  TileLayer,
+  useMap,
+  useMapEvents,
+} from 'react-leaflet';
+import { cn } from 'cn';
 import 'leaflet/dist/leaflet.css';
 import {
   DEFAULT_MAP_CENTER,
@@ -15,12 +24,9 @@ import {
 
 const pin = L.divIcon({
   className: 'event-location-pin',
-  iconSize: [32, 42],
-  iconAnchor: [16, 42],
-  html: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42" aria-hidden="true">
-    <path fill="var(--primary)" d="M16 1C7.7 1 1 7.7 1 16c0 11.2 15 24.2 15 24.2S31 27.2 31 16C31 7.7 24.3 1 16 1z"/>
-    <circle fill="#fff" cx="16" cy="15.5" r="5.5"/>
-  </svg>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  html: `<span style="display:block;box-sizing:border-box;width:28px;height:28px;border-radius:9999px;background:#171717;border:3px solid #fff;box-shadow:0 1px 4px rgb(0 0 0 / 45%)"></span>`,
 });
 
 function Frame({
@@ -36,29 +42,33 @@ function Frame({
   const map = useMap();
   const pointKey = point ? `${point.lat.toFixed(6)},${point.lng.toFixed(6)}` : '';
   const radiusKey = radiusM == null ? '' : String(radiusM);
-  const seen = useRef<{ point: string; radius: string } | null>(null);
+  const framed = useRef('');
 
   useEffect(() => {
-    const prev = seen.current;
-    seen.current = { point: pointKey, radius: radiusKey };
-    map.invalidateSize();
-    if (!point) {
-      if (idle) map.setView([DEFAULT_MAP_CENTER.lat, DEFAULT_MAP_CENTER.lng], 11);
-      return;
-    }
-    const radiusChanged = !prev || prev.radius !== radiusKey;
-    if (radiusChanged && radiusM != null) {
-      map.fitBounds(L.latLng(point.lat, point.lng).toBounds(radiusM * 2), {
-        padding: [24, 24],
-        maxZoom: 16,
-      });
-      return;
-    }
-    if (!prev || radiusChanged) {
+    const container = map.getContainer();
+    const apply = () => {
+      if (container.clientWidth === 0 || container.clientHeight === 0) return;
+      map.invalidateSize();
+      const key = `${pointKey}|${radiusKey}|${idle ? 'idle' : ''}`;
+      if (framed.current === key) return;
+      framed.current = key;
+      if (!point) {
+        if (idle) map.setView([DEFAULT_MAP_CENTER.lat, DEFAULT_MAP_CENTER.lng], 11);
+        return;
+      }
+      if (radiusM != null) {
+        map.fitBounds(L.latLng(point.lat, point.lng).toBounds(radiusM * 2), {
+          padding: [24, 24],
+          maxZoom: 16,
+        });
+        return;
+      }
       map.setView([point.lat, point.lng], 15);
-      return;
-    }
-    if (prev.point !== pointKey) map.panTo([point.lat, point.lng]);
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(container);
+    return () => observer.disconnect();
   }, [idle, map, point, pointKey, radiusKey, radiusM]);
 
   return null;
@@ -75,7 +85,7 @@ function PlaceOnClick({ onPlace }: { onPlace: (lat: number, lng: number) => void
   return null;
 }
 
-/** OpenStreetMap view of the event point. Click or drag the pin to change it. */
+/** OpenStreetMap view of one occasion's point. A supplied `onPlace` lets a click or drag move it. */
 export function EventLocationLeaflet({ lat, lng, radiusM, onPlace }: EventLocationMapProps) {
   const pinned = useMemo(() => mapPoint(lat, lng), [lat, lng]);
   const radius = geofenceMeters(radiusM);
@@ -83,7 +93,12 @@ export function EventLocationLeaflet({ lat, lng, radiusM, onPlace }: EventLocati
   const center = pinned ?? DEFAULT_MAP_CENTER;
 
   return (
-    <div className="h-full w-full [&_.leaflet-container]:h-full [&_.leaflet-container]:w-full [&_.leaflet-container]:cursor-crosshair [&_.event-location-pin]:border-none [&_.event-location-pin]:bg-transparent">
+    <div
+      className={cn(
+        'absolute inset-0 [&_.leaflet-container]:h-full [&_.leaflet-container]:w-full [&_.event-location-pin]:border-none [&_.event-location-pin]:bg-transparent',
+        onPlace && '[&_.leaflet-container]:cursor-crosshair',
+      )}
+    >
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={pinned ? 15 : 11}
@@ -96,11 +111,13 @@ export function EventLocationLeaflet({ lat, lng, radiusM, onPlace }: EventLocati
           maxZoom={19}
         />
         <Frame point={pinned} radiusM={radius} idle={idle} />
-        <PlaceOnClick
-          onPlace={(nextLat, nextLng) =>
-            onPlace(formatMapCoordinate(nextLat), formatMapCoordinate(nextLng))
-          }
-        />
+        {onPlace ? (
+          <PlaceOnClick
+            onPlace={(nextLat, nextLng) =>
+              onPlace(formatMapCoordinate(nextLat), formatMapCoordinate(nextLng))
+            }
+          />
+        ) : null}
         {pinned && radius != null ? (
           <Circle
             center={[pinned.lat, pinned.lng]}
@@ -114,17 +131,29 @@ export function EventLocationLeaflet({ lat, lng, radiusM, onPlace }: EventLocati
           />
         ) : null}
         {pinned ? (
+          <CircleMarker
+            center={[pinned.lat, pinned.lng]}
+            radius={9}
+            pathOptions={{ color: '#fff', weight: 3, fillColor: '#171717', fillOpacity: 1 }}
+          />
+        ) : null}
+        {pinned ? (
           <Marker
             position={[pinned.lat, pinned.lng]}
             icon={pin}
-            draggable
-            eventHandlers={{
-              dragend(event) {
-                const marker = event.target as L.Marker;
-                const next = marker.getLatLng();
-                onPlace(formatMapCoordinate(next.lat), formatMapCoordinate(next.lng));
-              },
-            }}
+            draggable={onPlace != null}
+            zIndexOffset={500}
+            eventHandlers={
+              onPlace
+                ? {
+                    dragend(event) {
+                      const marker = event.target as L.Marker;
+                      const next = marker.getLatLng();
+                      onPlace(formatMapCoordinate(next.lat), formatMapCoordinate(next.lng));
+                    },
+                  }
+                : undefined
+            }
           />
         ) : null}
       </MapContainer>

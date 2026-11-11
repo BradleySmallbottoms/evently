@@ -51,11 +51,14 @@ For each event the Ollama runner:
    A page on visit.destinationhalsingland.se is fetched with curl over HTTP/1.1.
    The model uses the page text for tags, instructions, the summary,
    showings, and the address. The model returns `possibleOccasions` and that address in the scan JSON.
-   A scraped point is kept. A point already on the scraped address is used when the occasion
+   The prompt includes the stored place line. The model splits a venue, a street and number, and a town out of a line that mixes them.
+   An address in that JSON with a rank over 80 replaces the stored address and point, and that
+   address is geocoded onto every showing. When that address does not geocode, the previous point stays. Each finished scan stores a readable log of the data it found, the decisions it made, and each lookup, on `events.llm_output.scanLog`. Admin shows that log on Skanningsresultat. A lower rank, or no rank, leaves a scraped point in
+   place. A point already on the scraped address is used when the occasion
    has none. When the event still has no point, that address is geocoded before nearby tools
    run, and the address from that JSON is used only when the import stored none. The point is
    written on occasions that have none. A street, or a
-   postcode with a city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept. The model does not
+   postcode with a city, is geocoded. A stored town point does not skip a later lookup of a street address. A close Google result is kept when the town matches and the place name and house number are nearly the same. The scan log lists each Google place. When that finds nothing, or the address is only a city, the city is geocoded. Only a hit in Sweden is kept. The model does not
    supply coordinates. The model also returns possible venue names. Importers leave
    `event_occasions.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn
    also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena

@@ -14,6 +14,10 @@ export interface ScanInput {
   /** Chat lines from a user tip. The prompt receives these beside the written description. */
   tip?: { text?: string; categoryHint?: string };
   venue?: string;
+  /** The address line the importer stored, before it is split into a street and a town. */
+  placeLine?: string;
+  /** City stored with {@link placeLine}. */
+  placeCity?: string;
   startsAt: string;
   endsAt: string;
   location?: { lat: number; lng: number };
@@ -77,15 +81,19 @@ export type ScanOutcome =
        * Absent on an older outcome that only set `startsAt` and `endsAt`.
        */
       possibleOccasions?: { startsAt: string; endsAt: string; venueName?: string }[];
-      /** Point geocoded from the address in the scan JSON. Set only when the event had none. */
+      /** Point geocoded from the address in the scan JSON. */
       location?: { lat: number; lng: number };
-      /** Address from the scan JSON, including the point when one was found. */
+      /**
+       * Address from the scan JSON, including the point when one was found.
+       * `rank` over 80 replaces the address and point already stored.
+       */
       address?: {
         address?: string;
         zipCode?: string;
         city?: string;
         country?: 'Sweden';
         location?: { lat: number; lng: number };
+        rank?: number;
       };
     }
   | { ok: false; eventId: string; reason: 'unavailable' | 'timeout' };

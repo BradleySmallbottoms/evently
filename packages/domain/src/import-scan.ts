@@ -57,6 +57,11 @@ export function choosePossibleOccasionGroupId(input: {
 /** A venue guess beats an imported name only when its rank is over this. */
 export const VENUE_NAME_MIN_RANK = 80;
 
+/** An address the model ranks over this replaces the address and point already stored. */
+export function addressRankReplaces(rank: number | null | undefined): boolean {
+  return typeof rank === 'number' && Number.isFinite(rank) && rank > VENUE_NAME_MIN_RANK;
+}
+
 /** When no imported name exists, a guess over this rank is still written. */
 export const VENUE_NAME_FALLBACK_MIN_RANK = 50;
 const VENUE_NAME_LIMIT = 200;
@@ -117,6 +122,11 @@ function occasionKey(occasion: DatedOccasion): string | null {
   const end = occasion.endsAt.getTime();
   if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return null;
   return `${start}:${end}`;
+}
+
+/** Highest venue guess over {@link VENUE_NAME_MIN_RANK}. A weaker guess is left out. */
+export function confidentVenueName(possible: PossibleVenueName[] | undefined): string | undefined {
+  return bestVenueName(possible, VENUE_NAME_MIN_RANK);
 }
 
 function bestVenueName(

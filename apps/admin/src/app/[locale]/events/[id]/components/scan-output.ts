@@ -1,26 +1,44 @@
 export type ScanView = {
+  /** Readable record of what the scan found, decided, and looked up. */
+  log: string | null;
   /** The model's final scan object, without the reasoning text. */
   finalObject: Record<string, unknown> | null;
   reasoning: string | null;
   full: string;
 };
 
-/** Splits a stored model response into the scan object, its reasoning, and the raw JSON. */
+/** Splits a stored model response into the scan log, the scan object, its reasoning, and the raw JSON. */
 export function readScanView(output: unknown): ScanView | null {
-  const full = formatJson(output);
-  if (!full) return null;
-  const root = asRecord(typeof output === 'string' ? parseJson(output) : output);
+  const parsedRoot = asRecord(typeof output === 'string' ? parseJson(output) : output);
+  const log = textField(parsedRoot?.scanLog);
+  const stored = parsedRoot && 'scanLog' in parsedRoot ? withoutScanLog(parsedRoot) : output;
+  const full = formatJson(stored) ?? '';
+  if (!full && !log) return null;
+  const root = asRecord(stored);
   const message = assistantMessage(root);
   const content = message ? messageText(message.content) : null;
   const parsed = content ? parseObject(content) : null;
   const finalRecord = parsed ?? (root && isScanRecord(root) ? root : null);
   const reasoning = reasoningText(finalRecord, message);
-  const finalObject = finalRecord ? withoutReasoning(finalRecord) : null;
+  const finalObject = finalRecord ? withoutReasoning(withoutScanLogRecord(finalRecord)) : null;
   return {
+    log,
     finalObject: finalObject && Object.keys(finalObject).length > 0 ? finalObject : null,
     reasoning,
     full,
   };
+}
+
+function withoutScanLog(record: Record<string, unknown>): unknown {
+  const rest = withoutScanLogRecord(record);
+  return Object.keys(rest).length > 0 ? rest : null;
+}
+
+function withoutScanLogRecord(record: Record<string, unknown>): Record<string, unknown> {
+  if (!('scanLog' in record)) return record;
+  const rest = { ...record };
+  delete rest.scanLog;
+  return rest;
 }
 
 function formatJson(value: unknown): string | null {

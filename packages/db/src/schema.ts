@@ -55,6 +55,18 @@ export const eventStatus = pgEnum('event_status', [
 ]);
 /** Import-scan content decision. `unknown` until a scan writes a result. */
 export const contentVerdict = pgEnum('content_verdict', ['safe', 'harmful', 'spam', 'unknown']);
+/**
+ * How a stored point was chosen. A later lookup may replace it only with a
+ * stronger rank: scraped, then scan, source, address, places, and city.
+ */
+export const pointSource = pgEnum('point_source', [
+  'scraped',
+  'scan',
+  'source',
+  'address',
+  'places',
+  'city',
+]);
 export const origin = pgEnum('origin', ['native', 'imported']);
 export const publisherType = pgEnum('publisher_type', ['org', 'person']);
 /**
@@ -493,6 +505,7 @@ export const events = pgTable(
  * A place shared by showings. The name and city are the identity.
  * `name_key` and `city_key` are the trimmed, space-collapsed, lowercased pair.
  * A name that is only the city is not stored.
+ * `point_source` records which lookup wrote the point. A stronger rank replaces it.
  */
 export const venues = pgTable(
   'venues',
@@ -503,6 +516,7 @@ export const venues = pgTable(
     nameKey: text('name_key').notNull(),
     cityKey: text('city_key').notNull(),
     location: geographyPoint('location').notNull(),
+    pointSource: pointSource('point_source').notNull().default('address'),
     address: text('address'),
     zipCode: text('zip_code'),
     createdAt: createdAt(),
@@ -513,6 +527,52 @@ export const venues = pgTable(
     index('venues_location_gist').using('gist', t.location),
   ],
 );
+
+/** One town center. A later lookup does not replace a row that is already stored. */
+export const knownCities = pgTable(
+  'known_cities',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    cityKey: text('city_key').notNull(),
+    location: geographyPoint('location').notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('known_cities_key_idx').on(t.cityKey),
+    index('known_cities_location_gist').using('gist', t.location),
+  ],
+);
+
+/** One street geocode. The key is the lowercased street, postcode, and city. */
+export const knownAddresses = pgTable(
+  'known_addresses',
+  {
+    id: id(),
+    street: text('street'),
+    zipCode: text('zip_code'),
+    city: text('city').notNull(),
+    addressKey: text('address_key').notNull(),
+    location: geographyPoint('location').notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('known_addresses_key_idx').on(t.addressKey),
+    index('known_addresses_location_gist').using('gist', t.location),
+  ],
+);
+
+/**
+ * A place lookup that found nothing. The next import skips that name, street,
+ * or town instead of asking again. A transport failure is not stored.
+ */
+export const placeLookupMisses = pgTable('place_lookup_misses', {
+  lookupKey: text('lookup_key').primaryKey(),
+  kind: text('kind').notNull(),
+  createdAt: createdAt(),
+});
 
 /** One row per showing/occasion attached to an event. */
 export const eventOccasions = pgTable(

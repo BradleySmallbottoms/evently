@@ -159,6 +159,8 @@ async function readVenue(db: Db, nameKey: string, cityKey: string): Promise<Stor
       id: schema.venues.id,
       name: schema.venues.name,
       city: schema.venues.city,
+      address: schema.venues.address,
+      zipCode: schema.venues.zipCode,
       lat: sql<number | null>`ST_Y(${schema.venues.location}::geometry)`,
       lng: sql<number | null>`ST_X(${schema.venues.location}::geometry)`,
     })
@@ -171,6 +173,8 @@ async function readVenue(db: Db, nameKey: string, cityKey: string): Promise<Stor
     name: row.name,
     city: row.city,
     location: { lat: Number(row.lat), lng: Number(row.lng) },
+    address: row.address,
+    zipCode: row.zipCode,
   };
 }
 
@@ -179,6 +183,7 @@ export function createDbIngestStore(db: Db): IngestStore {
     events,
     eventOccasions,
     venues,
+    knownCities,
     eventLinks,
     eventTags,
     eventImages,
@@ -225,6 +230,23 @@ export function createDbIngestStore(db: Db): IngestStore {
       .update(eventOccasions)
       .set({ location: pointEwkt(location), updatedAt: new Date() })
       .where(and(eq(eventOccasions.eventId, eventId), isNull(eventOccasions.location)));
+  }
+
+  /** A high-rank scan address replaces every showing point. Otherwise only empty ones are filled. */
+  async function writeScanLocations(
+    tx: Pick<Db, 'update'>,
+    eventId: string,
+    location: { lat: number; lng: number } | undefined,
+    replace: boolean | undefined,
+  ) {
+    if (!replace) {
+      await fillOccasionPoints(tx, eventId, location);
+      return;
+    }
+    await tx
+      .update(eventOccasions)
+      .set({ location: location ? pointEwkt(location) : null, updatedAt: new Date() })
+      .where(eq(eventOccasions.eventId, eventId));
   }
 
   /**
@@ -1631,7 +1653,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         if (updated.length === 0) return false;
         await addScanOccasions(tx, input.eventId, input.occasions, input.location);
         await writeTags(tx, input.eventId, input.tagIds);
-        await fillOccasionPoints(tx, input.eventId, input.location);
+        await writeScanLocations(tx, input.eventId, input.location, input.replaceLocation);
         await writeScanVenue(tx, input.eventId, input.venueName, input.venueCity);
         await linkOccasionVenue(tx, input.eventId, input.venueId, input.venueName);
         return true;
@@ -1654,12 +1676,50 @@ export function createDbIngestStore(db: Db): IngestStore {
         })
         .onConflictDoNothing({ target: [venues.nameKey, venues.cityKey] })
         .returning({ id: venues.id });
+      if (!inserted) {
+        await db
+          .update(venues)
+          .set({
+            address: sql`coalesce(${venues.address}, ${input.address ?? null})`,
+            zipCode: sql`coalesce(${venues.zipCode}, ${input.zipCode ?? null})`,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(venues.nameKey, input.nameKey),
+              eq(venues.cityKey, input.cityKey),
+              or(isNull(venues.address), isNull(venues.zipCode)),
+            ),
+          );
+      }
       if (inserted) {
         return { id: inserted.id, name: input.name, city: input.city, location: input.location };
       }
       const existing = await readVenue(db, input.nameKey, input.cityKey);
       if (existing) return existing;
       throw new Error('venue insert did not return a row');
+    },
+    async findKnownCity(cityKey) {
+      const [row] = await db
+        .select({
+          lat: sql<number | null>`ST_Y(${knownCities.location}::geometry)`,
+          lng: sql<number | null>`ST_X(${knownCities.location}::geometry)`,
+        })
+        .from(knownCities)
+        .where(eq(knownCities.cityKey, cityKey))
+        .limit(1);
+      if (!row || row.lat == null || row.lng == null) return null;
+      return { lat: Number(row.lat), lng: Number(row.lng) };
+    },
+    async saveKnownCity(input) {
+      await db
+        .insert(knownCities)
+        .values({
+          name: input.name,
+          cityKey: input.cityKey,
+          location: pointEwkt(input.location),
+        })
+        .onConflictDoNothing({ target: knownCities.cityKey });
     },
     async listUnnamedOccasions(limit) {
       const rows = await db
@@ -1778,7 +1838,7 @@ export function createDbIngestStore(db: Db): IngestStore {
         if (updated.length === 0) return false;
         await addScanOccasions(tx, input.eventId, input.occasions, input.location);
         await writeTags(tx, input.eventId, input.tagIds);
-        await fillOccasionPoints(tx, input.eventId, input.location);
+        await writeScanLocations(tx, input.eventId, input.location, input.replaceLocation);
         await writeScanVenue(tx, input.eventId, input.venueName, input.venueCity);
         await linkOccasionVenue(tx, input.eventId, input.venueId, input.venueName);
         return true;

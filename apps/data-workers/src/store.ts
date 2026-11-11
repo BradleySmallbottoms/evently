@@ -388,6 +388,14 @@ export interface IngestStore {
    * and leave its point unchanged.
    */
   saveVenue(input: VenueWrite): Promise<StoredVenue>;
+  /** A town point stored from an earlier geocode, or null. */
+  findKnownCity(cityKey: string): Promise<{ lat: number; lng: number } | null>;
+  /** Remembers a town point. A city that is already stored keeps its point. */
+  saveKnownCity(input: {
+    name: string;
+    cityKey: string;
+    location: { lat: number; lng: number };
+  }): Promise<void>;
   /**
    * Showings that still need a venue. A showing with no name needs a stored scan.
    * A showing with no point is included when the event has a scan, an address, or a
@@ -489,6 +497,9 @@ export interface StoredVenue {
   name: string;
   city: string;
   location: { lat: number; lng: number };
+  /** Street line. Empty when the scan saved the place before it had one. */
+  address?: string | null;
+  zipCode?: string | null;
 }
 
 export interface UnnamedOccasion {
@@ -528,6 +539,11 @@ export interface ImportedScanWrite {
   language: 'sv' | 'en';
   /** The point nearby tools used. Written onto occasions that still have none. */
   location?: { lat: number; lng: number };
+  /**
+   * The model address was ranked over 80. Every showing takes `location`.
+   * An absent location clears the point already on those showings.
+   */
+  replaceLocation?: boolean;
   /** Venue row for the chosen name and city. Linked onto matching showings. */
   venueId?: string;
   /** Chosen venue. Written on showings that still have no venue, and on a city name already written. */

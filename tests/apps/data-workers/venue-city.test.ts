@@ -40,14 +40,32 @@ describe('fillMissingVenueNames', () => {
       },
       { delayMs: 0 },
     );
-    expect(named?.venueName).toBe('Söderhamn');
+    expect(named?.venueName).toBe('Storgatan 1');
     expect(calls).toEqual([]);
   });
 
-  it('reverse-geocodes when the address has no city', async () => {
+  it('uses the street when the town is only in the same line', async () => {
+    const [named] = await fillMissingVenueNames(
+      [event({ address: 'Hotellgatan 12 , Ljusdal' })],
+      async () => photon([]),
+      { delayMs: 0 },
+    );
+    expect(named?.venueName).toBe('Hotellgatan 12');
+  });
+
+  it('uses the city when the address has no street', async () => {
+    const [named] = await fillMissingVenueNames(
+      [event({ address: '826 30 Söderhamn' })],
+      async () => photon([]),
+      { delayMs: 0 },
+    );
+    expect(named?.venueName).toBe('Söderhamn');
+  });
+
+  it('reverse-geocodes when there is a point and no address', async () => {
     const calls: string[] = [];
     const [named] = await fillMissingVenueNames(
-      [event({ address: 'Storgatan 1', location: { lat: 61.303, lng: 17.06 } })],
+      [event({ location: { lat: 61.303, lng: 17.06 } })],
       async (input) => {
         calls.push(String(input));
         return photon([

@@ -12,7 +12,12 @@ describe('venueIdentity', () => {
   });
 
   it('skips a name that is only the city', () => {
-    expect(venueIdentity('Söderhamn', ' söderhamn ')).toBeUndefined();
+    expect(venueIdentity('Söderhamn', ' söderhamn ')).toEqual({
+      name: 'Söderhamn',
+      city: 'söderhamn',
+      nameKey: 'söderhamn',
+      cityKey: 'söderhamn',
+    });
     expect(venueIdentity('  ', 'Söderhamn')).toBeUndefined();
     expect(venueIdentity('Teatern', '')).toBeUndefined();
   });

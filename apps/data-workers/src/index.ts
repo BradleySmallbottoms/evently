@@ -4,7 +4,9 @@ import { createSqsDomainEventPublisher, noopDomainEvents } from './domain-events
 import { eventImageUploaderFromEnv } from './event-images';
 import { persistSource } from './persist';
 import { promptRunnerFromEnv } from './prompt-runners';
+import { assertLocalDatabase, resolveStoredPlaces } from './place-resolve';
 import { replayStoredScans } from './replay-scan';
+import { rewindImportedScans } from './rewind-scan';
 import { fillUnnamedVenues } from './venue-backfill';
 import { scanWithChatPod } from './scan-with-pod';
 import {
@@ -46,6 +48,14 @@ initSentry('data-workers');
  * Venue backfill reads the stored scan for showings that still have no venue name.
  *   pnpm --filter @local-events/data-workers dev -- --job venue-backfill
  *
+ * Rewind puts the local database back to a pre-scan status and keeps llm_output.
+ *   pnpm --filter @local-events/data-workers dev -- --job rewind-scan
+ *
+ * Place resolve replays stored scans into points without importers or model calls.
+ *   pnpm --filter @local-events/data-workers dev -- --job place-resolve
+ *   pnpm --filter @local-events/data-workers dev -- --job place-resolve --dry-run --limit 20
+ *   pnpm --filter @local-events/data-workers dev -- --job place-resolve --live
+ *
  * The image focal job asks the scan chat model where to crop a photo.
  *   pnpm --filter @local-events/data-workers dev -- --job image-focal
  *   pnpm --filter @local-events/data-workers dev -- --job image-focal --image <image-id>
@@ -81,6 +91,8 @@ function importLimit(): number | undefined {
     job === 'publisher-scan' ||
     job === 'replay-scan' ||
     job === 'venue-backfill' ||
+    job === 'place-resolve' ||
+    job === 'rewind-scan' ||
     job === 'image-focal'
   ) {
     return undefined;
@@ -101,6 +113,8 @@ if (
   job !== 'publisher-scan' &&
   job !== 'replay-scan' &&
   job !== 'venue-backfill' &&
+  job !== 'place-resolve' &&
+  job !== 'rewind-scan' &&
   job !== 'image-focal' &&
   !slug
 ) {
@@ -230,6 +244,41 @@ async function main(): Promise<number> {
       ...(selection.eventId ? { eventId: selection.eventId } : {}),
       ...(selection.limit != null ? { limit: selection.limit } : {}),
       ...(hasFlag('--dry-run', 'DRY_RUN') ? { dryRun: true } : {}),
+    });
+    console.log(JSON.stringify(summary, null, 2));
+    return 0;
+  }
+
+  if (job === 'rewind-scan' || job === 'place-resolve') {
+    const databaseUrl = resolveDatabaseUrl();
+    if (!databaseUrl) {
+      console.error(`DATABASE_URL is required for --job ${job}`);
+      return 1;
+    }
+    try {
+      assertLocalDatabase(databaseUrl);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : error);
+      return 2;
+    }
+    const db = createDb(databaseUrl);
+    const eventId = argValue('--event', 'EVENT_ID');
+    if (job === 'rewind-scan') {
+      const summary = await rewindImportedScans(db, eventId || undefined);
+      console.log(JSON.stringify(summary, null, 2));
+      return 0;
+    }
+    const limitRaw = argValue('--limit', 'SCAN_LIMIT');
+    const limit = limitRaw ? Number(limitRaw) : undefined;
+    if (limit != null && (!Number.isInteger(limit) || limit < 1)) {
+      console.error('--limit must be a positive integer');
+      return 2;
+    }
+    const summary = await resolveStoredPlaces(db, {
+      ...(eventId ? { eventId } : {}),
+      ...(limit != null ? { limit } : {}),
+      ...(hasFlag('--dry-run', 'DRY_RUN') ? { dryRun: true } : {}),
+      ...(hasFlag('--live', 'PLACE_RESOLVE_LIVE') ? { live: true } : {}),
     });
     console.log(JSON.stringify(summary, null, 2));
     return 0;

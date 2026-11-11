@@ -27,7 +27,7 @@ import {
 import { eventAddress, type EventAddressRecord } from '@local-events/domain';
 import { lookupPageUrl } from '../page-place';
 import { MAX_SCAN_CONCURRENCY } from '../runpod-chat';
-import { scanEventLines } from '../scan-event-text';
+import { scanEventLines, scanPlaceLines } from '../scan-event-text';
 import { beginScanProgress, finishScanProgress, type ScanProgress } from '../scan-progress';
 import { LOCAL_ORGANIZER_SLUGS } from '../sources';
 import {
@@ -500,8 +500,12 @@ function buildScanPrompt(event: ScanInput): string {
       : []),
     'List possible venue names from the title, description, and event page. A venue is the place where the event happens, not the city and not the organizer.',
     'Return possibleVenueNames as objects with name and rank from 0 to 100. Include a name only when the rank is over 50.',
-    'Read the description and the event page and extract the street, postcode, and city into address.',
-    'Use null when you cannot find one. Do not invent an address or coordinates.',
+    'Read the Place line, the description, and the event page and extract the street, postcode, and city into address.',
+    'A Place line can mix a venue name, a street and house number, and a town. Split it. "Röda Kvarn Ljusdal, Norra Järnvägsgatan 17 Ljusdal" is venue Röda Kvarn, street Norra Järnvägsgatan 17, and city Ljusdal.',
+    'address.address is only the street and house number. address.city is the town. Put the venue in possibleVenueNames, not in the street. The town written beside the venue is not part of the venue name.',
+    'When that line contains a street and a house number, parse it and rank the address over 80. Do this even when a point is already stored.',
+    'Add rank from 0 to 100 for how sure that address is the place of this event. A rank over 80 replaces an address and a point already stored.',
+    'Use null when the Place line, the description, and the page contain no street and no town. Do not invent an address or coordinates.',
     'Each showing has startsAt, endsAt, and venueName. venueName is the place for that showing, or null when the text names none.',
     'Return both times as ISO-8601 datetimes with a numeric offset. When the text names no time zone, use Europe/Stockholm.',
     'A date with no clock is that whole day: start at 00:00:00 and end at 23:59:59.',
@@ -516,7 +520,7 @@ function buildScanPrompt(event: ScanInput): string {
     'contentVerdict is "spam", "harmful", or "safe". language is the event language, such as "sv" or "en". rank and score are numbers from 0 to 100.',
     'Include a explanation of why tags where chosed and why the publisher and duplicate were chosen etc. in the JSON object.',
     'When you are finished, return only the JSON object. Do not explain it and do not wrap it in markdown:',
-    '{"decision_explanation": "<decision_explanation>", "instructions":[],"possiblePublishers":[{"publisherId":"<publisherId>","rank":95}],"possibleDuplicates":[{"eventId":"<eventId>","rank":95,"occasionRank":10}],"contentVerdict":"safe","summary":"<summary>","language":"sv","possibleTags":[{"id":"<id>","score":95}],"possibleOccasions":[{"startsAt":"2026-11-14T19:00:00+01:00","endsAt":"2026-11-14T21:00:00+01:00","venueName":"Svea Bio"},{"startsAt":"2026-11-21T19:00:00+01:00","endsAt":"2026-11-21T21:00:00+01:00","venueName":null}],"address":{"address":"Köpmangatan 14","zipCode":"82471","city":"Delsbo"},"possibleVenueNames":[{"name":"Svea Bio","rank":95}]}',
+    '{"decision_explanation": "<decision_explanation>", "instructions":[],"possiblePublishers":[{"publisherId":"<publisherId>","rank":95}],"possibleDuplicates":[{"eventId":"<eventId>","rank":95,"occasionRank":10}],"contentVerdict":"safe","summary":"<summary>","language":"sv","possibleTags":[{"id":"<id>","score":95}],"possibleOccasions":[{"startsAt":"2026-11-14T19:00:00+01:00","endsAt":"2026-11-14T21:00:00+01:00","venueName":"Svea Bio"},{"startsAt":"2026-11-21T19:00:00+01:00","endsAt":"2026-11-21T21:00:00+01:00","venueName":null}],"address":{"address":"Köpmangatan 14","zipCode":"82471","city":"Delsbo","rank":95},"possibleVenueNames":[{"name":"Svea Bio","rank":95}]}',
     'Event:',
     `Title: ${event.title}`,
     `Starts: ${event.startsAt || '(missing)'}`,
@@ -526,6 +530,7 @@ function buildScanPrompt(event: ScanInput): string {
     ...event.organizer.keys.map((key) => `- ${key}`),
     `Point: ${place}`,
     ...(event.venue ? [`Location: ${event.venue}`] : []),
+    ...scanPlaceLines(event),
     ...scanEventLines(event),
   ].join('\n');
 }
@@ -572,6 +577,7 @@ async function runToolChat(
   if (!endpoint) return null;
   if (endpoint.protocol === 'ollama' && ollamaDisabled()) return null;
   const messages: Record<string, unknown>[] = [{ role: 'user', content: prompt }];
+  const toolLookups: string[] = [];
   for (let round = 0; round < maxRounds; round++) {
     const payload = await postChat(endpoint, messages, round, fetchImpl, tools);
     if (payload === 'timeout') return 'timeout';
@@ -580,13 +586,73 @@ async function runToolChat(
     const calls = turn?.calls.slice(0, MAX_TOOL_CALLS_PER_ROUND) ?? [];
     if (!turn || calls.length === 0) {
       if (!turn || turn.text.length === 0) return null;
-      return { text: turn.text, output: payload };
+      return { text: turn.text, output: withToolLookups(payload, toolLookups) };
     }
     const results: ToolResult[] = [];
-    for (const call of calls) results.push(await execute(call));
+    for (const call of calls) {
+      const result = await execute(call);
+      results.push(result);
+      toolLookups.push(toolLookupLine(call, result));
+    }
     appendToolResults(endpoint.protocol, messages, turn.wire, calls, results);
   }
   return null;
+}
+
+/** The page body stays in the tool result. The scan log only keeps this short line. */
+function toolLookupLine(call: ParsedToolCall, result: ToolResult): string {
+  const detail = toolArgumentText(call.arguments);
+  const name = detail ? `${call.name} ${detail}` : call.name;
+  return `${name}. ${toolResultText(result)}`;
+}
+
+function withToolLookups(payload: object, toolLookups: string[]): object {
+  if (toolLookups.length === 0) return payload;
+  return { ...payload, toolLookups };
+}
+
+function toolArgumentText(args: Record<string, unknown>): string {
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(args)) {
+    if (typeof value === 'string') {
+      const text = value.replace(/\s+/g, ' ').trim();
+      if (text && text.length <= 80) parts.push(`${key}=${text}`);
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      parts.push(`${key}=${String(value)}`);
+    } else if (Array.isArray(value)) {
+      const items = value
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.replace(/\s+/g, ' ').trim())
+        .filter((item) => item.length > 0 && item.length <= 40)
+        .slice(0, 5);
+      if (items.length > 0) parts.push(`${key}=${items.join('|')}`);
+    }
+  }
+  return parts.join(', ');
+}
+
+function toolResultText(result: ToolResult): string {
+  if ('error' in result && typeof result.error === 'string') {
+    return `Result: ${result.error.replace(/\s+/g, ' ').trim().slice(0, 80)}`;
+  }
+  if ('text' in result && 'url' in result && typeof result.url === 'string') {
+    const count = Array.isArray(result.events) ? result.events.length : 0;
+    return `Result: opened ${result.url.slice(0, 120)}, ${count} events on the page.`;
+  }
+  if ('events' in result && Array.isArray(result.events)) {
+    return `Result: ${result.events.length} events.`;
+  }
+  if ('publishers' in result && Array.isArray(result.publishers)) {
+    return `Result: ${result.publishers.length} publishers.`;
+  }
+  if ('possiblePublishers' in result && Array.isArray(result.possiblePublishers)) {
+    return `Result: ${result.possiblePublishers.length} publishers.`;
+  }
+  if ('tags' in result && Array.isArray(result.tags)) return `Result: ${result.tags.length} tags.`;
+  if ('results' in result && Array.isArray(result.results)) {
+    return `Result: ${result.results.length} web results.`;
+  }
+  return 'Result: done.';
 }
 
 /**
@@ -1325,7 +1391,9 @@ function anthropicMessage(payload: Record<string, unknown>): Record<string, unkn
 }
 
 /** Street, postcode, and city from the scan JSON. A coordinate in that object is dropped. */
-function addressFromModel(value: unknown): { address: EventAddressRecord } | Record<string, never> {
+function addressFromModel(
+  value: unknown,
+): { address: EventAddressRecord & { rank?: number } } | Record<string, never> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const record = value as Record<string, unknown>;
   const address = eventAddress({
@@ -1333,7 +1401,10 @@ function addressFromModel(value: unknown): { address: EventAddressRecord } | Rec
     zipCode: typeof record.zipCode === 'string' ? record.zipCode : undefined,
     city: typeof record.city === 'string' ? record.city : undefined,
   });
-  return address ? { address } : {};
+  if (!address) return {};
+  const rank =
+    typeof record.rank === 'number' && Number.isFinite(record.rank) ? record.rank : undefined;
+  return rank === undefined ? { address } : { address: { ...address, rank } };
 }
 
 /** Scan object from a markdown fence, or from the reply when the fence is absent. */

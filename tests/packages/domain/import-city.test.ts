@@ -29,6 +29,7 @@ describe('resolveImportCity', () => {
 
   it('uses the source city only when the page names none', () => {
     expect(sourceCity('bollnas-kommun')).toBe('Bollnäs');
+    expect(sourceCity('ovanaker')).toBe('Edsbyn');
     expect(sourceCity('abf-halsingland')).toBeUndefined();
     expect(resolveImportCity({ fallback: sourceCity('bollnas-kommun') })).toBe('Bollnäs');
     expect(resolveImportCity({ fallback: sourceCity('folkteatern-gavleborg') })).toBeUndefined();

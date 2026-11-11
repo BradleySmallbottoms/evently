@@ -3,7 +3,7 @@
 import { canRescanImportedEvent } from '@local-events/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { XIcon } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { cn } from 'cn';
@@ -30,7 +30,7 @@ import { AdminApiError, adminFetch } from '@/lib/api';
 import { toDatetimeLocal } from '@/lib/zoned-datetime';
 import { EventImages } from './event-images';
 import { EventPoster } from './event-poster';
-import { EventLocationMap } from './event-location-map';
+import { LocationFields } from './event-location-fields';
 import { EventNotifications } from './event-notifications';
 import { EventOccasions } from './event-occasions';
 import { EventScan } from './event-scan';
@@ -73,6 +73,7 @@ type EventDetail = {
     startsAt: string;
     endsAt: string;
     venueName: string | null;
+    location: { lat: number; lng: number } | null;
   }[];
   meta: {
     possibleOccasionGroupId?: string;
@@ -112,9 +113,6 @@ type Draft = {
   startsAt: string;
   endsAt: string;
   timezone: string;
-  venueName: string;
-  lat: string;
-  lng: string;
   geofenceRadiusM: string;
   onlineUrl: string;
   priceAmount: string;
@@ -159,9 +157,6 @@ function toDraft(event: EventDetail): Draft {
     startsAt: event.startsAt ? toDatetimeLocal(event.startsAt, event.timezone) : '',
     endsAt: event.endsAt ? toDatetimeLocal(event.endsAt, event.timezone) : '',
     timezone: event.timezone,
-    venueName: event.venueName ?? '',
-    lat: event.location ? String(event.location.lat) : '',
-    lng: event.location ? String(event.location.lng) : '',
     geofenceRadiusM: event.geofenceRadiusM == null ? '' : String(event.geofenceRadiusM),
     onlineUrl: event.onlineUrl ?? '',
     priceAmount: event.priceAmount == null ? '' : String(event.priceAmount),
@@ -191,18 +186,21 @@ function isEditorTab(value: unknown): value is EditorTab {
 export function EventEditor({ eventId }: { eventId: string }) {
   const t = useTranslations('EventEditor');
   const tApp = useTranslations('App');
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const [eventKey, setEventKey] = useState(eventId);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [tab, setTab] = useState<EditorTab>('info');
+  const [occasionId, setOccasionId] = useState<string | null>(null);
   if (eventKey !== eventId) {
     setEventKey(eventId);
     setDraft(null);
     setNotice(null);
     setFormError(null);
     setTab('info');
+    setOccasionId(null);
   }
 
   const eventQuery = useQuery({
@@ -262,17 +260,6 @@ export function EventEditor({ eventId }: { eventId: string }) {
     if (!form) return;
     setNotice(null);
     setFormError(null);
-    const latRaw = form.lat.trim();
-    const lngRaw = form.lng.trim();
-    if ((latRaw === '') !== (lngRaw === '')) {
-      setFormError(t('invalidLocation'));
-      return;
-    }
-    const location = latRaw && lngRaw ? { lat: Number(latRaw), lng: Number(lngRaw) } : null;
-    if (location && (!Number.isFinite(location.lat) || !Number.isFinite(location.lng))) {
-      setFormError(t('invalidLocation'));
-      return;
-    }
     const priceRaw = form.priceAmount.trim();
     if (priceRaw !== '' && !/^\d+$/.test(priceRaw)) {
       setFormError(t('invalidPrice'));
@@ -299,7 +286,6 @@ export function EventEditor({ eventId }: { eventId: string }) {
       description: form.description.trim() || null,
       mode: form.mode,
       timezone: form.timezone.trim() || 'Europe/Stockholm',
-      location,
       geofenceRadiusM: radiusRaw === '' ? null : Number(radiusRaw),
       onlineUrl: form.onlineUrl.trim() || null,
       priceAmount: priceRaw === '' ? null : Number(priceRaw),
@@ -784,46 +770,15 @@ export function EventEditor({ eventId }: { eventId: string }) {
                   <CardTitle>{t('physicalDetails')}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
-                  <EventLocationMap
-                    lat={form.lat}
-                    lng={form.lng}
+                  <LocationFields
+                    occasions={event?.occasions ?? []}
+                    timeZone={event?.timezone ?? form.timezone}
+                    locale={locale}
+                    occasionId={occasionId}
+                    onOccasionId={setOccasionId}
                     radiusM={form.geofenceRadiusM}
-                    onPlace={(lat, lng) => setDraft({ ...form, lat, lng })}
+                    onRadius={(value) => update('geofenceRadiusM', value)}
                   />
-                  <Field data-disabled>
-                    <FieldLabel htmlFor="event-venue">{t('venueName')}</FieldLabel>
-                    <Input id="event-venue" disabled value={form.venueName} />
-                    <FieldDescription>{t('editOnOccasions')}</FieldDescription>
-                  </Field>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="event-lat">{t('latitude')}</FieldLabel>
-                      <Input
-                        id="event-lat"
-                        inputMode="decimal"
-                        value={form.lat}
-                        onChange={(e) => update('lat', e.target.value)}
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="event-lng">{t('longitude')}</FieldLabel>
-                      <Input
-                        id="event-lng"
-                        inputMode="decimal"
-                        value={form.lng}
-                        onChange={(e) => update('lng', e.target.value)}
-                      />
-                    </Field>
-                  </div>
-                  <Field>
-                    <FieldLabel htmlFor="event-radius">{t('geofenceRadiusM')}</FieldLabel>
-                    <Input
-                      id="event-radius"
-                      inputMode="numeric"
-                      value={form.geofenceRadiusM}
-                      onChange={(e) => update('geofenceRadiusM', e.target.value)}
-                    />
-                  </Field>
                 </CardContent>
               </Card>
             ) : (

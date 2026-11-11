@@ -9,7 +9,10 @@ export type EventLocationMapProps = {
   lat: string;
   lng: string;
   radiusM: string;
-  onPlace: (lat: string, lng: string) => void;
+  /** Shown under the map. The check-in radius sentence is added when the circle is drawn. */
+  caption?: string;
+  /** A click or a dragged pin reports a new point. Omitted, the pin only shows the point. */
+  onPlace?: (lat: string, lng: string) => void;
 };
 
 /** A complete latitude and longitude, or nothing while a field is empty or half-typed. */
@@ -28,9 +31,40 @@ export function formatMapCoordinate(value: number): string {
   return value.toFixed(6);
 }
 
+/** Latitude and longitude fields for a stored point. Empty when the point is missing. */
+export function coordinateText(
+  location: { lat: number | string; lng: number | string } | null | undefined,
+): { lat: string; lng: string } {
+  if (!location) return { lat: '', lng: '' };
+  const lat = Number(location.lat);
+  const lng = Number(location.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { lat: '', lng: '' };
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return { lat: '', lng: '' };
+  return { lat: formatMapCoordinate(lat), lng: formatMapCoordinate(lng) };
+}
+
 /** A positive whole-metre check-in radius, or nothing when the field is empty or invalid. */
 export function geofenceMeters(value: string): number | null {
   const text = value.trim();
   if (!/^[1-9]\d*$/.test(text)) return null;
   return Number(text);
+}
+
+/** Start, end, and venue for one showing in the place-tab list. */
+export function occasionOptionLabel(
+  occasion: { startsAt: string; endsAt: string; venueName: string | null },
+  timeZone: string,
+  locale: string,
+): string {
+  const format = (iso: string) =>
+    new Intl.DateTimeFormat(locale, {
+      timeZone,
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(iso));
+  const start = format(occasion.startsAt);
+  const end = format(occasion.endsAt);
+  const when = start === end ? start : `${start} – ${end}`;
+  const venue = occasion.venueName?.trim();
+  return venue ? `${when} · ${venue}` : when;
 }

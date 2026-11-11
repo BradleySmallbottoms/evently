@@ -7,13 +7,15 @@ import {
   occasionsToAdd,
   OCCASION_GROUP_MIN_RANK,
   shouldEnqueueNotifications,
+  addressRankReplaces,
   resolveImportCity,
   sourceCity,
   statusAfterImportScan,
   venueIdentity,
   venueNameFromScan,
 } from '@local-events/domain';
-import { cityFromPoint, geocodeSwedishAddress } from './page-place';
+import { cityFromPoint, cityGeocodeOptions, geocodeSwedishAddress } from './page-place';
+import { attachScanLog, formatScanLog } from './scan-log';
 import { failFinishedScan, type ScanProgress } from './scan-progress';
 import { emitDomainEvent, noopDomainEvents, type DomainEventSink } from './domain-events';
 import type { PromptRunner, ScanInput, ScanOutcome } from './prompt-runners';
@@ -36,6 +38,20 @@ export interface ScanSummary {
 }
 
 const EVENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+/** Geocode lines written before the model runs. The same row is passed to applyOutcome. */
+const placeNotes = new WeakMap<PendingScanRow, string[]>();
+
+function notesFor(row: PendingScanRow): string[] {
+  const existing = placeNotes.get(row);
+  if (existing) return existing;
+  const created: string[] = [];
+  placeNotes.set(row, created);
+  return created;
+}
+
+function pointText(point: { lat: number; lng: number }): string {
+  return `${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`;
+}
 
 function eventSummary(value: string): string | null {
   const summary = value.trim();
@@ -201,6 +217,8 @@ export function scanInputFor(row: PendingScanRow): ScanInput {
     title: row.title,
     ...scanDescription(row),
     ...(venue ? { venue } : {}),
+    ...(row.meta.address?.address ? { placeLine: row.meta.address.address } : {}),
+    ...(row.meta.address?.city ? { placeCity: row.meta.address.city } : {}),
     startsAt: row.startsAt?.toISOString() ?? '',
     endsAt: row.endsAt?.toISOString() ?? '',
     ...(row.location ? { location: row.location } : {}),
@@ -245,55 +263,98 @@ export async function applyOutcome(
   if (instructions.length > 0) meta.instructions = instructions;
   else delete meta.instructions;
   const group = await occasionGroupFor(store, row, outcome.occasionMatches ?? []);
+  let occasionGroup = 'No occasion group.';
   if (group) {
     meta.possibleOccasionGroupId = group.groupId;
     await store.setPossibleOccasionGroup(group.memberIds, group.groupId);
+    occasionGroup = `Occasion group ${group.groupId} on ${group.memberIds.join(', ')}.`;
   } else {
     const stored = await store.listOccasionGroups([row.eventId]);
     const kept = stored[0]?.possibleOccasionGroupId;
-    if (kept) meta.possibleOccasionGroupId = kept;
+    if (kept) {
+      meta.possibleOccasionGroupId = kept;
+      occasionGroup = `Kept occasion group ${kept}.`;
+    }
   }
   const occasions = occasionsFromScan(outcome);
-  let venueCity = row.meta.address?.city;
+  const before = {
+    point: row.location ?? undefined,
+    placeLine: row.meta.address?.address,
+    placeCity: row.meta.address?.city,
+  };
+  const lookups = notesFor(row);
+  const place = await placeFromScan(store, row, outcome, fetchImpl, lookups);
+  let venueCity = place.replacesStored ? place.address?.city : row.meta.address?.city;
+  if (!venueCity) venueCity = place.address?.city;
   const venueName = venueNameFromScan(outcome.possibleVenueNames, row.meta.import, venueCity);
   let identity = venueIdentity(venueName, venueCity);
   let known = identity ? await store.findVenue(identity.nameKey, identity.cityKey) : null;
-  if (known && !row.location) row.location = known.location;
-  const place = await placeFromScan(row, outcome, fetchImpl);
+  if (known && !row.location && !place.replacesStored) row.location = known.location;
   const location = place.location ?? row.location ?? known?.location;
-  if (!venueCity) venueCity = place.address?.city;
   if (!identity && venueName && location) {
-    venueCity = venueCity ?? (await cityFromPoint(location, fetchImpl));
+    if (!venueCity) {
+      lookups.push(`Look up the town for point ${pointText(location)}.`);
+      venueCity = await cityFromPoint(location, fetchImpl);
+      lookups.push(venueCity ? `The point is in ${venueCity}.` : 'The point did not match a town.');
+    }
     identity = venueIdentity(venueName, venueCity);
     if (identity) known = await store.findVenue(identity.nameKey, identity.cityKey);
   }
   let venueId = known?.id;
-  if (!venueId && identity && location) {
+  const venueStreet = place.address ?? row.meta.address;
+  if (identity && location) {
     const savedVenue = await store.saveVenue({
       ...identity,
       location,
-      ...(place.address?.address ? { address: place.address.address } : {}),
-      ...(place.address?.zipCode ? { zipCode: place.address.zipCode } : {}),
+      ...(venueStreet?.address ? { address: venueStreet.address } : {}),
+      ...(venueStreet?.zipCode ? { zipCode: venueStreet.zipCode } : {}),
     });
     venueId = savedVenue.id;
   }
-  if (place.address) meta.address = place.address;
+  if (place.address) {
+    meta.address =
+      place.replacesStored && location && !place.address.location
+        ? { ...place.address, location }
+        : place.address;
+  }
   if (venueCity && meta.address && !meta.address.city) {
     meta.address = { ...meta.address, city: venueCity };
   }
+  const scanLog = formatScanLog({
+    title: row.title,
+    source: row.sourceSlug,
+    trust: row.sourceTrust,
+    placeLine: before.placeLine,
+    placeCity: before.placeCity,
+    storedPoint: before.point,
+    outcome,
+    publisher: {
+      id: publisher.publisherId,
+      status: publisher.status,
+      isTemporary: publisher.isTemporary,
+      name: outcome.publisher.kind === 'temporary' ? outcome.publisher.name : publisher.publisherId,
+    },
+    status,
+    lookups,
+    venue: venueLine(venueName, venueCity, known, venueId, location),
+    point: location ?? undefined,
+    addressKept: addressDecision(outcome, place, Boolean(before.point)),
+    occasionGroup,
+  });
   const saved = await persist({
     eventId: row.eventId,
     publisherId: publisher.publisherId,
     status,
     meta,
     tagIds,
-    llmOutput: outcome.llmOutput ?? {},
+    llmOutput: attachScanLog(outcome.llmOutput, scanLog),
     contentVerdict: outcome.contentVerdict,
     summary: eventSummary(outcome.summary),
     language: eventLanguage(outcome.language),
     claimedUntil: row.claimedUntil,
     ...(occasions.length > 0 ? { occasions } : {}),
     ...(location ? { location } : {}),
+    ...(place.replacesStored && place.location ? { replaceLocation: true } : {}),
     ...(venueId ? { venueId } : {}),
     ...(venueName ? { venueName } : {}),
     ...(venueCity ? { venueCity } : {}),
@@ -324,9 +385,9 @@ export async function applyOutcome(
 
 /**
  * A point already on the occasion or the scraped address is kept. Otherwise the
- * scraped address is geocoded so nearby tools can use it. The address from the
- * scan JSON is used only when the import stored none. The model does not supply
- * the point.
+ * scraped address is geocoded so nearby tools can use it. An address the model
+ * ranks over 80 replaces that point. A lower rank is used only when the import
+ * stored none. The model does not supply the point.
  */
 function addressPoint(
   location: { lat: number; lng: number } | undefined,
@@ -363,21 +424,70 @@ async function ensureScanPoint(
   row: PendingScanRow,
   fetchImpl: typeof fetch,
 ): Promise<void> {
+  const notes = notesFor(row);
   fillKnownCity(row);
-  if (row.location) return;
+  const city = row.meta.address?.city;
+  const town = city ? await store.findKnownCity(city.toLocaleLowerCase('sv')) : null;
+  const hasPlace = addressHasPlace(row.meta.address?.address, city);
+  const townOnly = (point: { lat: number; lng: number } | null | undefined) =>
+    Boolean(point && town && hasPlace && pointsMatch(point, town));
+  if (row.location && !townOnly(row.location)) {
+    notes.push(`Kept the stored point ${pointText(row.location)}.`);
+    return;
+  }
   const stored = addressPoint(row.meta.address?.location);
-  if (stored) {
+  if (stored && !townOnly(stored)) {
     row.location = stored;
+    notes.push(`Kept the point already on the address, ${pointText(stored)}.`);
     return;
   }
   const known = await rememberedVenue(store, row.meta.import?.venueName, row.meta.address?.city);
-  if (known) {
+  if (known && !townOnly(known.location)) {
     row.location = known.location;
+    notes.push(
+      `Used the stored venue "${row.meta.import?.venueName ?? ''}" at ${pointText(known.location)}.`,
+    );
     return;
   }
-  if (!row.meta.address) return;
-  const location = await geocodeSwedishAddress(row.meta.address, fetchImpl);
-  if (location) row.location = location;
+  if (!row.meta.address) {
+    if (row.location) notes.push(`Kept the stored point ${pointText(row.location)}.`);
+    else notes.push('The import stored no address to look up.');
+    return;
+  }
+  if (townOnly(row.location) || townOnly(stored)) {
+    notes.push(`The stored point is the town ${city}. Looking up the address.`);
+  }
+  const location = await geocodeSwedishAddress(row.meta.address, fetchImpl, {
+    ...cityGeocodeOptions(store),
+    log: (line) => notes.push(line),
+  });
+  if (location) {
+    row.location = location;
+    row.meta.address = { ...row.meta.address, location };
+    return;
+  }
+  if (!row.location && stored) row.location = stored;
+  else notes.push('The stored address had no point before the model ran.');
+}
+
+function addressHasPlace(
+  address: string | null | undefined,
+  city: string | null | undefined,
+): boolean {
+  const text = address?.replace(/\s+/g, ' ').trim();
+  if (!text) return false;
+  const town = city?.toLocaleLowerCase('sv');
+  return text
+    .toLocaleLowerCase('sv')
+    .split(/[^a-zåäö0-9]+/i)
+    .some((word) => word.length > 0 && word !== town);
+}
+
+function pointsMatch(
+  left: { lat: number; lng: number },
+  right: { lat: number; lng: number },
+): boolean {
+  return Math.abs(left.lat - right.lat) < 0.0002 && Math.abs(left.lng - right.lng) < 0.0002;
 }
 
 async function rememberedVenue(
@@ -391,15 +501,40 @@ async function rememberedVenue(
 }
 
 async function placeFromScan(
+  store: IngestStore,
   row: PendingScanRow,
   outcome: Extract<ScanOutcome, { ok: true }>,
   fetchImpl: typeof fetch,
+  notes: string[],
 ): Promise<{
   location?: { lat: number; lng: number };
   address?: NonNullable<PendingScanRow['meta']['address']>;
+  /** The model address was ranked over 80. The previous point stays when this address does not geocode. */
+  replacesStored?: boolean;
 }> {
+  const geocode = (address: NonNullable<PendingScanRow['meta']['address']>) =>
+    geocodeSwedishAddress(address, fetchImpl, {
+      ...cityGeocodeOptions(store),
+      log: (line) => notes.push(line),
+    });
+  const ranked = outcome.address;
+  if (ranked && addressRankReplaces(ranked.rank)) {
+    const chosen = {
+      ...(ranked.address ? { address: ranked.address } : {}),
+      ...(ranked.zipCode ? { zipCode: ranked.zipCode } : {}),
+      ...(ranked.city ? { city: ranked.city } : {}),
+      country: ranked.country ?? ('Sweden' as const),
+    };
+    const location = await geocode(chosen);
+    return {
+      replacesStored: true,
+      ...(location ? { location } : {}),
+      address: location ? { ...chosen, location } : chosen,
+    };
+  }
   const scraped = row.meta.address;
-  const found = scraped ?? outcome.address;
+  const model = outcome.address ? placedAddress(outcome.address) : undefined;
+  const found = scraped ?? model;
   const filledCity =
     found && !found.city && !isDigitalPlace(row.venueName)
       ? resolveImportCity({
@@ -409,19 +544,65 @@ async function placeFromScan(
       : undefined;
   const chosen = found && filledCity ? { ...found, city: filledCity } : found;
   if (row.location) {
-    if (scraped && !scraped.location) {
-      return { location: row.location, address: { ...scraped, location: row.location } };
+    if (scraped) {
+      return {
+        location: row.location,
+        address: scraped.location ? scraped : { ...scraped, location: row.location },
+      };
     }
-    if (!scraped && chosen) return { location: row.location, address: chosen };
+    if (chosen) return { location: row.location, address: chosen };
     return { location: row.location };
   }
   if (!chosen) return {};
-  const location = await geocodeSwedishAddress(chosen, fetchImpl);
+  const location = await geocode(chosen);
   const address = location ? { ...chosen, location } : chosen;
   return {
     ...(location ? { location } : {}),
     address,
   };
+}
+
+function addressDecision(
+  outcome: Extract<ScanOutcome, { ok: true }>,
+  place: { replacesStored?: boolean; location?: { lat: number; lng: number } },
+  hadPoint: boolean,
+): string {
+  const rank = outcome.address?.rank;
+  if (place.replacesStored && place.location) {
+    return `Address rank ${rank} replaced the stored address and point.`;
+  }
+  if (place.replacesStored) {
+    return hadPoint
+      ? `Address rank ${rank} replaced the stored address. Geocoding found no point, so the previous point stays.`
+      : `Address rank ${rank} replaced the stored address. Geocoding found no point.`;
+  }
+  if (outcome.address) {
+    return `Address rank ${rank ?? 'none'} did not replace the stored address.`;
+  }
+  return 'The model returned no address.';
+}
+
+function venueLine(
+  venueName: string | undefined,
+  venueCity: string | null | undefined,
+  known: { id: string } | null,
+  venueId: string | undefined,
+  location: { lat: number; lng: number } | null | undefined,
+): string {
+  if (!venueName) return 'No venue name was saved.';
+  const town = venueCity || 'an unknown town';
+  if (known) return `Venue "${venueName}" in ${town} was already stored.`;
+  if (venueId) return `Venue "${venueName}" in ${town} was saved.`;
+  if (!location) return `Venue "${venueName}" was not saved because it has no point.`;
+  return `Venue "${venueName}" was not saved.`;
+}
+
+/** The stored address. The model's rank is not part of that record. */
+function placedAddress(
+  address: NonNullable<Extract<ScanOutcome, { ok: true }>['address']>,
+): NonNullable<PendingScanRow['meta']['address']> {
+  const { rank: _rank, ...stored } = address;
+  return stored;
 }
 
 /**

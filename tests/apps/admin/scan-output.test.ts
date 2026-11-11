@@ -74,4 +74,17 @@ describe('readScanView', () => {
   it('returns nothing when there is no output', () => {
     expect(readScanView(null)).toBeNull();
   });
+
+  it('shows the scan log and leaves it out of the JSON', () => {
+    const view = readScanView({
+      scanLog: 'Found\nTitle: Trail run',
+      choices: [{ message: { content: JSON.stringify(scan) } }],
+    });
+    expect(view?.log).toBe('Found\nTitle: Trail run');
+    expect(view?.full).not.toContain('scanLog');
+    expect(view?.finalObject).toEqual({
+      contentVerdict: 'safe',
+      possibleTags: [{ id: 'sport', score: 95 }],
+    });
+  });
 });

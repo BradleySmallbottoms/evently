@@ -161,7 +161,15 @@ describe('scanPendingEvents', () => {
         if (query.startsWith('Staffansvägen')) {
           return Response.json({
             features: [
-              { geometry: { coordinates: [17.07, 61.31] }, properties: { countrycode: 'SE' } },
+              {
+                geometry: { coordinates: [17.07, 61.31] },
+                properties: {
+                  countrycode: 'SE',
+                  housenumber: '1',
+                  street: 'Staffansvägen',
+                  city: 'Söderhamn',
+                },
+              },
             ],
           });
         }
@@ -170,8 +178,68 @@ describe('scanPendingEvents', () => {
     });
     const stored = await store.findVenue('staffansgården', 'söderhamn');
     expect(stored?.location).toEqual({ lat: 61.31, lng: 17.07 });
+    expect(stored?.address).toBe('Staffansvägen 1');
+    expect(stored?.zipCode).toBe('82632');
     expect(store.events[0]?.location).toEqual({ lat: 61.31, lng: 17.07 });
     expect(store.events[0]?.occasions[0]?.venueId).toBe(stored?.id);
+  });
+
+  it('writes the street onto a venue that was saved without one', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const point = { lat: 61.23, lng: 16.56 };
+    await store.saveVenue({
+      name: 'Biografen Kilafors',
+      city: 'Kilafors',
+      nameKey: 'biografen kilafors',
+      cityKey: 'kilafors',
+      location: point,
+    });
+    await saveIncomingEvents(store, source, [
+      {
+        ...event,
+        externalId: 'cinema',
+        location: point,
+        venueName: 'Biografen Kilafors',
+        meta: {
+          address: {
+            address: 'Biografen Kilafors, Stationsgatan Kilafors',
+            zipCode: '82330',
+            city: 'Kilafors',
+            country: 'Sweden' as const,
+            location: point,
+          },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'venue-street',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
+      },
+    };
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () => {
+        throw new Error('geocoder should not be called');
+      },
+    });
+    const stored = await store.findVenue('biografen kilafors', 'kilafors');
+    expect(stored?.address).toBe('Biografen Kilafors, Stationsgatan Kilafors');
+    expect(stored?.zipCode).toBe('82330');
+    expect(stored?.location).toEqual(point);
   });
 
   it('enqueues tip.scanned for an event a person tipped', async () => {
@@ -1137,7 +1205,15 @@ describe('scanPendingEvents', () => {
       fetch: async () =>
         Response.json({
           features: [
-            { geometry: { coordinates: [16.55, 61.8] }, properties: { countrycode: 'SE' } },
+            {
+              geometry: { coordinates: [16.55, 61.8] },
+              properties: {
+                countrycode: 'SE',
+                housenumber: '14',
+                street: 'Köpmangatan',
+                city: 'Delsbo',
+              },
+            },
           ],
         }),
     });
@@ -1197,6 +1273,262 @@ describe('scanPendingEvents', () => {
     });
 
     expect(store.events[0]?.location).toEqual(point);
+  });
+
+  it('looks up a street address when the stored point is only the town', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const town = { lat: 61.2299391, lng: 16.5635885 };
+    const found = { lat: 61.230057, lng: 16.565837 };
+    await store.saveKnownCity({ name: 'Kilafors', cityKey: 'kilafors', location: town });
+    await saveIncomingEvents(store, source, [
+      {
+        ...event,
+        location: town,
+        meta: {
+          address: {
+            address: 'Biografen Kilafors, Stationsgatan Kilafors',
+            city: 'Kilafors',
+            country: 'Sweden' as const,
+            location: town,
+          },
+        },
+      },
+    ]);
+    const queries: string[] = [];
+    const runner: PromptRunner = {
+      id: 'town-point',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        expect(batch[0]?.location).toEqual(found);
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+        }));
+      },
+    };
+
+    const previousKey = process.env.GOOGLE_MAPS_API_KEY;
+    process.env.GOOGLE_MAPS_API_KEY = 'test-key';
+    try {
+      await scanPendingEvents(store, runner, undefined, {
+        fetch: async (input) => {
+          queries.push(new URL(String(input)).searchParams.get('address') ?? '');
+          return Response.json({
+            status: 'OK',
+            results: [
+              {
+                formatted_address: 'Stationsgatan 11, 823 30 Kilafors, Sverige',
+                address_components: [
+                  { long_name: '11', types: ['street_number'] },
+                  { long_name: 'Stationsgatan', types: ['route'] },
+                  { long_name: 'Kilafors', types: ['postal_town'] },
+                  { long_name: 'Sweden', short_name: 'SE', types: ['country'] },
+                ],
+                geometry: {
+                  location: found,
+                  location_type: 'ROOFTOP',
+                },
+              },
+            ],
+          });
+        },
+      });
+    } finally {
+      if (previousKey == null) delete process.env.GOOGLE_MAPS_API_KEY;
+      else process.env.GOOGLE_MAPS_API_KEY = previousKey;
+    }
+
+    expect(queries[0]).toContain('Stationsgatan Kilafors');
+    expect(store.events[0]?.location).toEqual(found);
+    expect(store.events[0]?.meta.address?.location).toEqual(found);
+  });
+
+  it('replaces a stored address and point when the model ranks the address over 80', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const found = { lat: 61.96, lng: 16.8 };
+    await saveIncomingEvents(store, source, [
+      {
+        ...event,
+        meta: {
+          address: {
+            address: 'Kalavägen 10',
+            city: 'Järvsö',
+            country: 'Sweden' as const,
+            location: { lat: 61.7158943, lng: 16.1693209 },
+          },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'ranked-address',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          llmOutput: {
+            choices: [
+              {
+                message: {
+                  tool_calls: [
+                    {
+                      function: {
+                        name: 'fetchEventPage',
+                        arguments: '{"url":"https://example.test/event"}',
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+          address: { address: 'Storgatan 9', city: 'Färila', country: 'Sweden', rank: 90 },
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () =>
+        Response.json({
+          features: [
+            {
+              geometry: { coordinates: [found.lng, found.lat] },
+              properties: {
+                countrycode: 'SE',
+                housenumber: '9',
+                street: 'Storgatan',
+                city: 'Färila',
+              },
+            },
+          ],
+        }),
+    });
+
+    expect(store.events[0]?.location).toEqual(found);
+    expect(store.events[0]?.occasions[0]?.location).toEqual(found);
+    expect(store.events[0]?.meta.address).toEqual({
+      address: 'Storgatan 9',
+      city: 'Färila',
+      country: 'Sweden',
+      location: found,
+    });
+    const scanLog = scanLogOf(store.events[0]?.llmOutput);
+    expect(scanLog).toContain('Found');
+    expect(scanLog).toContain('Storgatan 9');
+    expect(scanLog).toContain('Lookups');
+    expect(scanLog).toContain('fetchEventPage url=https://example.test/event');
+    expect(scanLog).toContain('Decision');
+    expect(scanLog).toContain(`${found.lat.toFixed(6)}, ${found.lng.toFixed(6)}`);
+  });
+
+  it('keeps the stored point when a high-rank address does not geocode', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [event]);
+    const runner: PromptRunner = {
+      id: 'ranked-miss',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          address: {
+            address: 'Norra Järnvägsgatan 17',
+            city: 'Ljusdal',
+            country: 'Sweden',
+            rank: 90,
+          },
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () => Response.json({ features: [] }),
+    });
+
+    expect(store.events[0]?.location).toEqual(event.location);
+    expect(store.events[0]?.meta.address).toEqual({
+      address: 'Norra Järnvägsgatan 17',
+      city: 'Ljusdal',
+      country: 'Sweden',
+      location: event.location,
+    });
+  });
+
+  it('keeps a stored address when the model address rank is 80', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    await saveIncomingEvents(store, source, [
+      {
+        ...event,
+        meta: {
+          address: { address: 'Kalavägen 10', city: 'Järvsö', country: 'Sweden' as const },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'low-address',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          address: { address: 'Storgatan 9', city: 'Färila', country: 'Sweden', rank: 80 },
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () => {
+        throw new Error('a rank of 80 does not replace the stored place');
+      },
+    });
+
+    expect(store.events[0]?.location).toEqual(event.location);
+    expect(store.events[0]?.meta.address).toEqual({
+      address: 'Kalavägen 10',
+      city: 'Järvsö',
+      country: 'Sweden',
+      location: event.location,
+    });
   });
 
   it('leaves an existing point and stores a page address when the import had none', async () => {
@@ -1265,7 +1597,15 @@ describe('scanPendingEvents', () => {
       fetch: async () =>
         Response.json({
           features: [
-            { geometry: { coordinates: [16.55, 61.8] }, properties: { countrycode: 'SE' } },
+            {
+              geometry: { coordinates: [16.55, 61.8] },
+              properties: {
+                countrycode: 'SE',
+                housenumber: '14',
+                street: 'Köpmangatan',
+                city: 'Delsbo',
+              },
+            },
           ],
         }),
     });
@@ -1436,3 +1776,9 @@ describe('scanPendingEvents', () => {
     ]);
   });
 });
+
+function scanLogOf(output: unknown): string {
+  if (!output || typeof output !== 'object' || !('scanLog' in output)) return '';
+  const log = output.scanLog;
+  return typeof log === 'string' ? log : '';
+}

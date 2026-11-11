@@ -1,4 +1,8 @@
-import { cityFromAddress, nearestCityName } from '../../../packages/domain/src/venue-city';
+import {
+  cityFromAddress,
+  nearestCityName,
+  streetVenueName,
+} from '../../../packages/domain/src/venue-city';
 import { describe, expect, it } from 'vitest';
 
 describe('cityFromAddress', () => {
@@ -18,6 +22,19 @@ describe('cityFromAddress', () => {
     expect(cityFromAddress('Skogsvägen')).toBeNull();
     expect(cityFromAddress('Sweden')).toBeNull();
     expect(cityFromAddress('')).toBeNull();
+  });
+});
+
+describe('streetVenueName', () => {
+  it('uses the street and house number, not the town', () => {
+    expect(streetVenueName('Hotellgatan 12 , Ljusdal')).toBe('Hotellgatan 12');
+    expect(streetVenueName('Storgatan 1, 826 30 Söderhamn, Sweden')).toBe('Storgatan 1');
+  });
+
+  it('uses a street without a number, and leaves a town', () => {
+    expect(streetVenueName('Skogsvägen, Delsbo')).toBe('Skogsvägen');
+    expect(streetVenueName('826 30 Söderhamn')).toBeUndefined();
+    expect(streetVenueName('Ljusdal')).toBeUndefined();
   });
 });
 

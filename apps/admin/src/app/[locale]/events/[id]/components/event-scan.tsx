@@ -16,6 +16,16 @@ export function EventScan({ output }: { output: unknown }) {
   }
   return (
     <div className="flex flex-col gap-6">
+      {view.log ? (
+        <div className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold">{t('scanLog')}</h2>
+          <Card>
+            <CardContent className="max-h-[70vh] overflow-auto text-sm leading-relaxed whitespace-pre-wrap">
+              {view.log}
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
       {view.finalObject ? (
         <div className="flex flex-col gap-2">
           <h2 className="text-lg font-semibold">{t('scanResult')}</h2>
@@ -34,14 +44,16 @@ export function EventScan({ output }: { output: unknown }) {
           </Card>
         </div>
       ) : null}
-      <div className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold">{t('scanFull')}</h2>
-        <Card className="py-0">
-          <CardContent className="p-0">
-            <pre className={`${jsonClass} max-h-[70vh]`}>{view.full}</pre>
-          </CardContent>
-        </Card>
-      </div>
+      {view.full ? (
+        <div className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold">{t('scanFull')}</h2>
+          <Card className="py-0">
+            <CardContent className="p-0">
+              <pre className={`${jsonClass} max-h-[70vh]`}>{view.full}</pre>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
     </div>
   );
 }

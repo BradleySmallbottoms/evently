@@ -253,12 +253,13 @@ calls) in the same change as every new major feature.**
   Instructions are visitor
   steps from that page or the description. Tip chat lines, and a step that only asks
   someone to confirm a field, are left out. The model returns that address
-  in the scan JSON. A scraped point and address are kept. When the event has no point, the
+  in the scan JSON, with a rank from 0 to 100. The prompt includes the stored place line, and the model splits a venue, a street and number, and a town out of a line that mixes them. A rank over 80 replaces the stored address and point, and that address is geocoded onto every showing. A lower rank, or no rank, leaves a scraped point and address in place, and the model address is used only when the import stored none. When the event still has no point, the
   scan looks up `venues` by name and city and uses that point. A miss geocodes the
-  scraped address, and the model address is used only when the import stored none.
-  A street, or a postcode with a city, is geocoded. When that finds nothing, or the address is only a city, the city is geocoded. Photon is tried first. Nominatim is used when Photon does not answer. Only a hit in Sweden is kept.
-  A point that is found is stored on `venues` and linked from `event_occasions.venue_id`.
+  scraped address.
+  A street, or a postcode with a city, is geocoded. The best point is that street and its house number. The street name is next, and a rooftop Google returns on that street is kept when the result includes a house number. A stored town point does not skip a later lookup of a street address. The town is last. Google is tried first at each step, then Photon. A different house number is a miss. A place name and a number is kept when Google returns a precise point in that town. The name does not have to be a street. A close Google result is kept when the town matches and the place name and house number are nearly the same. The scan log lists each Google place. The city is then geocoded with Google, then Photon, and stored so it is not looked up again. Only a hit in Sweden is kept.
+  A point that is found is stored on `venues`, with the street and postcode, and linked from `event_occasions.venue_id`. A later scan fills a blank street and leaves a street that is already there.
   `pnpm --filter @local-events/data-workers dev -- --job venue-backfill` fills a showing that still has no venue, geocodes a showing that has a name but no point, and fills a missing city from the place line, the point, or the source town. See [docs/flows/venues.md](docs/flows/venues.md).
+  `pnpm --filter @local-events/data-workers dev -- --job rewind-scan` puts the local database back to a pre-scan status and keeps `llm_output`. `--job place-resolve` then fills points from that stored output. `--live` is required before Photon, Nominatim, or Google Places are called. See [docs/flows/venues.md](docs/flows/venues.md).
   The model does not supply coordinates. The model returns possible venue names. Importers leave `event_occasions.venue_name` empty and store the name on `meta.import.venueName`. Visit Söderhamn also stores the arena name on `meta.import.arenaName`. The scan prompt passes the arena name, then that venue name, as the location. The highest rank above 80 is written on showings that still have no venue. A showing from `possibleOccasions` keeps its own venue name. When no rank is above 80, the arena name is written, then an imported venue name that is not only the city. When neither of those is set, the highest rank above 50 is written. The city is used when the model returns none. A later scan replaces a city name already written. A later import does not clear a venue the scan already wrote.
   The worker publishes the event only when the scan approves it, the publisher status is `published`,
   and the source trust is `auto_publish`. Anything else that finishes goes to `in_review`. A model
@@ -272,6 +273,7 @@ calls) in the same change as every new major feature.**
   `OLLAMA_DISABLED=1` skips local Ollama, so an event that still needs tags stays `pending_scan`.
   `pnpm --filter @local-events/data-workers dev -- --job event-scan`
   scans the next batch. Add `--event <event-id>` to scan one row, or `--limit 1` to cap the batch.
+  Each finished scan stores a readable log of what it found, decided, and looked up. Admin shows it on the event's Skanningsresultat tab.
   `pnpm --filter @local-events/data-workers dev -- --job replay-scan` reuses stored `events.llm_output`
   and reruns the post-model chain (publisher, duplicate, tags, venue, status, reminders, and publish enqueue)
   without calling a model again. It accepts `--event` and `--limit` too.
@@ -600,7 +602,7 @@ calls) in the same change as every new major feature.**
 - **Data workers:** `pnpm --filter @local-events/data-workers dev -- --source visit-soderhamn`
   (needs `data_sources` row + `VISIT_SODERHAMN_API_KEY`). Add `--limit 5` to stop after that many
   events. The same flag works for every source. Generic ICS calendars use slug
-  `ics-feed` with `config.feedUrl` (https). An import with no occasion or no date is still saved, with empty start and end. The event scan adds each showing it can read when that showing is not already stored. An event with no start stays off the public list. A physical import with no venue name stores the city from its scraped address on `meta.import.venueName`. When that address has no city, the point is reverse-geocoded for the nearest city within 25 km. Review-trust sources stay silent until an admin
+  `ics-feed` with `config.feedUrl` (https). An import with no occasion or no date is still saved, with empty start and end. The event scan adds each showing it can read when that showing is not already stored. An event with no start stays off the public list. A physical import with no venue name stores the street and house number on `meta.import.venueName`. A page with no street stores the city. When that address has no city, the point is reverse-geocoded for the nearest city within 25 km. Review-trust sources stay silent until an admin
   publishes from the review queue.
 
 ### Preferences (areas)

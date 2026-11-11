@@ -213,6 +213,23 @@ function applyScanOccasions(
   }
 }
 
+/** A high-rank scan address replaces every showing point. Otherwise the event point is filled. */
+function writeScanLocations(
+  event: StoredEvent,
+  location: { lat: number; lng: number } | undefined,
+  replace: boolean | undefined,
+) {
+  if (replace) {
+    event.location = location;
+    for (const occasion of event.occasions) {
+      if (location) occasion.location = location;
+      else delete occasion.location;
+    }
+    return;
+  }
+  if (location) event.location = location;
+}
+
 function linkStoredVenue(
   event: StoredEvent,
   venueId: string | undefined,
@@ -294,6 +311,8 @@ export function createMemoryIngestStore(): MemoryIngestStore {
   const aliases: { sourceId: string; organizerKey: string; publisherId: string }[] = [];
   const events: StoredEvent[] = [];
   const venues: (StoredVenue & { nameKey: string; cityKey: string })[] = [];
+  const knownCities: { name: string; cityKey: string; location: { lat: number; lng: number } }[] =
+    [];
   const refs: StoredRef[] = [];
   const suppressions: MemoryIngestStore['suppressions'] = [];
   const runs: StoredRun[] = [];
@@ -1099,30 +1118,55 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       event.language = input.language;
       applyScanOccasions(event, input.occasions, input.venueName, input.venueCity);
       linkStoredVenue(event, input.venueId, input.venueName);
-      if (input.location) event.location = input.location;
+      writeScanLocations(event, input.location, input.replaceLocation);
       event.scanClaimedUntil = null;
       return true;
     },
     async findVenue(nameKey, cityKey) {
       const venue = venues.find((item) => item.nameKey === nameKey && item.cityKey === cityKey);
       if (!venue) return null;
-      return { id: venue.id, name: venue.name, city: venue.city, location: venue.location };
+      return {
+        id: venue.id,
+        name: venue.name,
+        city: venue.city,
+        location: venue.location,
+        address: venue.address ?? null,
+        zipCode: venue.zipCode ?? null,
+      };
     },
     async saveVenue(input: VenueWrite) {
       const existing = venues.find(
         (item) => item.nameKey === input.nameKey && item.cityKey === input.cityKey,
       );
       if (existing) {
+        if (!existing.address && input.address) existing.address = input.address;
+        if (!existing.zipCode && input.zipCode) existing.zipCode = input.zipCode;
         return {
           id: existing.id,
           name: existing.name,
           city: existing.city,
           location: existing.location,
+          address: existing.address ?? null,
+          zipCode: existing.zipCode ?? null,
         };
       }
       const venue = { id: randomUUID(), ...input };
       venues.push(venue);
-      return { id: venue.id, name: venue.name, city: venue.city, location: venue.location };
+      return {
+        id: venue.id,
+        name: venue.name,
+        city: venue.city,
+        location: venue.location,
+        address: venue.address ?? null,
+        zipCode: venue.zipCode ?? null,
+      };
+    },
+    async findKnownCity(cityKey) {
+      return knownCities.find((city) => city.cityKey === cityKey)?.location ?? null;
+    },
+    async saveKnownCity(input) {
+      if (knownCities.some((city) => city.cityKey === input.cityKey)) return;
+      knownCities.push(input);
     },
     async listUnnamedOccasions(limit) {
       const rows: UnnamedOccasion[] = [];
@@ -1199,7 +1243,7 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       event.language = input.language;
       applyScanOccasions(event, input.occasions, input.venueName, input.venueCity);
       linkStoredVenue(event, input.venueId, input.venueName);
-      if (input.location) event.location = input.location;
+      writeScanLocations(event, input.location, input.replaceLocation);
       event.scanClaimedUntil = null;
       return true;
     },

@@ -1,15 +1,38 @@
+/** Place a source knows before the page is read. A point belongs to that venue. */
+export interface SourcePlace {
+  city?: string;
+  venueName?: string;
+  street?: string;
+  point?: { lat: number; lng: number };
+}
+
 /**
- * City a source knows when the page names none. A source that covers many
- * towns has no entry, and the city stays empty.
+ * Defaults for a source that covers one town, or one building.
+ * A source that covers many towns has no entry. Ovanåker's town is Edsbyn,
+ * and only after the page text has been checked for another town.
+ * Systrarna's building is not named here; the page has to supply it.
  */
-export const SOURCE_CITY: Readonly<Record<string, string>> = {
-  'visit-soderhamn': 'Söderhamn',
-  'soderhamn-biblioteket': 'Söderhamn',
-  systrarna: 'Söderhamn',
-  'halsinglands-museum': 'Hudiksvall',
-  'glada-hudik': 'Hudiksvall',
-  'bollnas-kommun': 'Bollnäs',
+export const SOURCE_PLACE: Readonly<Record<string, SourcePlace>> = {
+  'visit-soderhamn': { city: 'Söderhamn' },
+  'soderhamn-biblioteket': {
+    city: 'Söderhamn',
+    venueName: 'Söderhamns stadsbibliotek',
+    street: 'Köpmangatan 11',
+    point: { lat: 61.3023668, lng: 17.0549701 },
+  },
+  systrarna: { city: 'Söderhamn' },
+  'halsinglands-museum': { city: 'Hudiksvall' },
+  'glada-hudik': { city: 'Hudiksvall' },
+  'bollnas-kommun': { city: 'Bollnäs' },
+  ovanaker: { city: 'Edsbyn' },
 };
+
+/** City a source knows when the page names none. */
+export const SOURCE_CITY: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(SOURCE_PLACE).flatMap(([slug, place]) =>
+    place.city ? [[slug, place.city] as const] : [],
+  ),
+);
 
 const PLACE_TOWNS = [
   'Söderhamn',
@@ -80,6 +103,12 @@ function clean(value: string | null | undefined): string | undefined {
 export function sourceCity(slug: string | null | undefined): string | undefined {
   if (!slug) return undefined;
   return SOURCE_CITY[slug];
+}
+
+/** Venue, street, and point the source knows before the page is read. */
+export function sourcePlace(slug: string | null | undefined): SourcePlace {
+  if (!slug) return {};
+  return SOURCE_PLACE[slug] ?? {};
 }
 
 /**

@@ -6,7 +6,7 @@ import {
   venueNameFromScan,
   venueNamesMatch,
 } from '@local-events/domain';
-import { cityFromPoint, geocodeSwedishAddress } from './page-place';
+import { cityFromPoint, cityGeocodeOptions, geocodeSwedishAddress } from './page-place';
 import { parseStoredScanOutput } from './prompt-runners';
 import type { IngestStore, StoredVenue, UnnamedOccasion } from './store';
 
@@ -126,6 +126,7 @@ export async function fillUnnamedVenues(
               city: draft.city,
             },
             fetchImpl,
+            cityGeocodeOptions(store),
           );
           if (location) summary.geocoded += 1;
         }

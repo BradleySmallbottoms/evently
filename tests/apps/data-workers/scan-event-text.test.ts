@@ -1,6 +1,6 @@
 import { publicEventMeta } from '../../../packages/contracts/src/events';
 import { describe, expect, it } from 'vitest';
-import { scanEventLines } from '../../../apps/data-workers/src/scan-event-text';
+import { scanEventLines, scanPlaceLines } from '../../../apps/data-workers/src/scan-event-text';
 
 describe('scanEventLines', () => {
   it('sends the chat lines as a tip and keeps the written description separate', () => {
@@ -23,6 +23,17 @@ describe('scanEventLines', () => {
     expect(scanEventLines({ description: 'Elitseriebandy i arenan.' })).toEqual([
       'Description: Elitseriebandy i arenan.',
     ]);
+  });
+});
+
+describe('scanPlaceLines', () => {
+  it('sends the stored place line and city for the model to split', () => {
+    expect(
+      scanPlaceLines({
+        placeLine: 'Röda Kvarn Ljusdal, Norra Järnvägsgatan 17 Ljusdal',
+        placeCity: 'Ljusdal',
+      }),
+    ).toEqual(['Place: Röda Kvarn Ljusdal, Norra Järnvägsgatan 17 Ljusdal', 'City: Ljusdal']);
   });
 });
 
