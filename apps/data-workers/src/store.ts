@@ -250,6 +250,16 @@ export interface IngestStore {
    * point is within {@link PUBLISHER_NAME_SEARCH_RADIUS_M}.
    */
   venuesByName(point: GeoPoint, name: string): Promise<VenueNameHit[]>;
+  /**
+   * Venues whose stored name is exactly `nameKey`. No wildcard and no radius.
+   * The same name in several towns is returned, at most 20, ordered by city.
+   */
+  venuesByExactName(nameKey: string): Promise<StoredVenue[]>;
+  /**
+   * Venues whose name matches `name` (`*` any text, `?` one character).
+   * No radius. At most 20, ordered by city.
+   */
+  venuesByPattern(name: string): Promise<StoredVenue[]>;
   /** One venue by id. Null when that id is not stored. */
   findVenueById(venueId: string): Promise<StoredVenue | null>;
   /**
@@ -410,6 +420,16 @@ export interface IngestStore {
   saveKnownCity(input: {
     name: string;
     cityKey: string;
+    location: { lat: number; lng: number };
+  }): Promise<void>;
+  /** A street point stored from an earlier geocode, or null. */
+  findKnownAddress(addressKey: string): Promise<{ lat: number; lng: number } | null>;
+  /** Remembers a street point. An address that is already stored keeps its point. */
+  saveKnownAddress(input: {
+    street?: string | null;
+    zipCode?: string | null;
+    city: string;
+    addressKey: string;
     location: { lat: number; lng: number };
   }): Promise<void>;
   /**

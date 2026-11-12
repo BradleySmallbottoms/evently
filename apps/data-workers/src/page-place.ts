@@ -3,6 +3,7 @@ import {
   houseNumberOf,
   nearestCityName,
   streetVenueName,
+  zipCodeOf,
   NEARBY_CITY_RADIUS_KM,
   type EventAddressParts,
   type ReversePlace,
@@ -89,6 +90,24 @@ export async function cityFromPoint(
 export interface GeocodeCache {
   findCity(city: string): Promise<{ lat: number; lng: number } | undefined>;
   saveCity(city: string, point: { lat: number; lng: number }): Promise<void>;
+  findAddress?(key: string): Promise<{ lat: number; lng: number } | undefined>;
+  saveAddress?(input: {
+    street?: string;
+    zipCode?: string;
+    city: string;
+    location: { lat: number; lng: number };
+  }): Promise<void>;
+}
+
+/** The known_addresses key. Street, postcode, and city, lowercased, empty parts kept. */
+export function addressCacheKey(
+  street: string | null | undefined,
+  zipCode: string | null | undefined,
+  city: string | null | undefined,
+): string {
+  return [street, zipCodeOf(zipCode) ?? '', city]
+    .map((part) => (part ?? '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('sv'))
+    .join('|');
 }
 
 export interface GeocodeOptions {
@@ -115,9 +134,21 @@ export async function geocodeSwedishAddress(
   fetchImpl: typeof fetch,
   options?: GeocodeOptions,
 ): Promise<{ lat: number; lng: number } | undefined> {
-  const specific = await geocodeSwedishStreet(parts, fetchImpl, options);
-  if (specific) return specific;
   const city = cityName(parts.city);
+  const stored = await storedStreetPoint(parts, city, options);
+  if (stored) return stored;
+  const specific = await geocodeSwedishStreet(parts, fetchImpl, options);
+  if (specific) {
+    if (city && options?.cache?.saveAddress && !(await sameAsTown(city, specific, options))) {
+      await options.cache.saveAddress({
+        ...(parts.address ? { street: parts.address } : {}),
+        ...(parts.zipCode ? { zipCode: parts.zipCode } : {}),
+        city,
+        location: specific,
+      });
+    }
+    return specific;
+  }
   if (!city) {
     note(options, 'No town was left to look up.');
     return undefined;
@@ -277,12 +308,20 @@ export async function geocodeSwedishCity(
   return undefined;
 }
 
-/** Reads and stores town points on the ingest store. */
+/** Reads and stores town points and street points on the ingest store. */
 export function cityGeocodeOptions(store: {
   findKnownCity(cityKey: string): Promise<{ lat: number; lng: number } | null>;
   saveKnownCity(input: {
     name: string;
     cityKey: string;
+    location: { lat: number; lng: number };
+  }): Promise<void>;
+  findKnownAddress(addressKey: string): Promise<{ lat: number; lng: number } | null>;
+  saveKnownAddress(input: {
+    street?: string | null;
+    zipCode?: string | null;
+    city: string;
+    addressKey: string;
     location: { lat: number; lng: number };
   }): Promise<void>;
 }): GeocodeOptions {
@@ -299,8 +338,50 @@ export function cityGeocodeOptions(store: {
           location,
         });
       },
+      async findAddress(key) {
+        const row = await store.findKnownAddress(key);
+        return row ?? undefined;
+      },
+      saveAddress(input) {
+        return store.saveKnownAddress({
+          street: input.street ?? null,
+          zipCode: input.zipCode ?? null,
+          city: input.city,
+          addressKey: addressCacheKey(input.street, input.zipCode, input.city),
+          location: input.location,
+        });
+      },
     },
   };
+}
+
+/** A remembered street point. A point that is only the town is left for a street lookup. */
+async function storedStreetPoint(
+  parts: EventAddressParts,
+  city: string | undefined,
+  options: GeocodeOptions | undefined,
+): Promise<{ lat: number; lng: number } | undefined> {
+  if (!city || !canGeocodeAddress(parts) || !options?.cache?.findAddress) {
+    return undefined;
+  }
+  const point = await options.cache.findAddress(
+    addressCacheKey(parts.address, parts.zipCode, city),
+  );
+  if (!point || (await sameAsTown(city, point, options))) return undefined;
+  const label = [parts.address, parts.zipCode, city].filter(Boolean).join(', ');
+  note(options, `Used the stored address "${label}" at ${pointText(point)}.`);
+  return point;
+}
+
+async function sameAsTown(
+  city: string,
+  point: { lat: number; lng: number },
+  options: GeocodeOptions,
+): Promise<boolean> {
+  const town = await options.cache?.findCity(city);
+  return Boolean(
+    town && Math.abs(town.lat - point.lat) < 0.0002 && Math.abs(town.lng - point.lng) < 0.0002,
+  );
 }
 
 function houseLabel(street: string | undefined, number: string | undefined): string {

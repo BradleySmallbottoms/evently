@@ -322,6 +322,13 @@ export function createMemoryIngestStore(): MemoryIngestStore {
   const venues: (StoredVenue & { nameKey: string; cityKey: string })[] = [];
   const knownCities: { name: string; cityKey: string; location: { lat: number; lng: number } }[] =
     [];
+  const knownAddresses: {
+    street?: string | null;
+    zipCode?: string | null;
+    city: string;
+    addressKey: string;
+    location: { lat: number; lng: number };
+  }[] = [];
   const refs: StoredRef[] = [];
   const suppressions: MemoryIngestStore['suppressions'] = [];
   const runs: StoredRun[] = [];
@@ -1073,6 +1080,36 @@ export function createMemoryIngestStore(): MemoryIngestStore {
       }
       return hits.sort((a, b) => a.distanceM - b.distanceM).slice(0, NEARBY_RESULT_LIMIT);
     },
+    async venuesByExactName(nameKey) {
+      return venues
+        .filter((venue) => venue.nameKey === nameKey)
+        .sort((left, right) => left.city.localeCompare(right.city, 'sv'))
+        .slice(0, 20)
+        .map((venue) => ({
+          id: venue.id,
+          name: venue.name,
+          city: venue.city,
+          location: venue.location,
+          address: venue.address ?? null,
+          zipCode: venue.zipCode ?? null,
+        }));
+    },
+    async venuesByPattern(name) {
+      const matcher = publisherNameMatcher(name);
+      if ('error' in matcher) return [];
+      return venues
+        .filter((venue) => matcher.matches(venue.name))
+        .sort((left, right) => left.city.localeCompare(right.city, 'sv'))
+        .slice(0, 20)
+        .map((venue) => ({
+          id: venue.id,
+          name: venue.name,
+          city: venue.city,
+          location: venue.location,
+          address: venue.address ?? null,
+          zipCode: venue.zipCode ?? null,
+        }));
+    },
     async findVenueById(venueId) {
       const venue = venues.find((item) => item.id === venueId);
       if (!venue) return null;
@@ -1206,6 +1243,13 @@ export function createMemoryIngestStore(): MemoryIngestStore {
     async saveKnownCity(input) {
       if (knownCities.some((city) => city.cityKey === input.cityKey)) return;
       knownCities.push(input);
+    },
+    async findKnownAddress(addressKey) {
+      return knownAddresses.find((row) => row.addressKey === addressKey)?.location ?? null;
+    },
+    async saveKnownAddress(input) {
+      if (knownAddresses.some((row) => row.addressKey === input.addressKey)) return;
+      knownAddresses.push(input);
     },
     async listUnnamedOccasions(limit) {
       const rows: UnnamedOccasion[] = [];

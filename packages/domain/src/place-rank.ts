@@ -1,3 +1,4 @@
+import { zipCodeOf } from './event-address';
 import { cityInPlaceText, sourcePlace, type SourcePlace } from './import-city';
 import { addressRankReplaces, venueNamesMatch } from './import-scan';
 import { venueIdentity } from './venue';
@@ -103,8 +104,8 @@ export function chooseOccasionPlace(input: {
       clean(input.scan.street) ??
       (keepSourceStreet ? clean(source.street) : undefined));
   const zipCode = scanWins
-    ? clean(input.scan.zipCode, 5)
-    : (clean(input.scraped.zipCode, 5) ?? clean(input.scan.zipCode, 5));
+    ? zipCodeOf(input.scan.zipCode)
+    : (zipCodeOf(input.scraped.zipCode) ?? zipCodeOf(input.scan.zipCode));
 
   let point = scanWins ? undefined : input.scraped.point;
   let pointRank: PointRank | undefined = point ? 'scraped' : undefined;

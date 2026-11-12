@@ -17,7 +17,7 @@ import {
 } from '@local-events/domain';
 import { and, asc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { googlePlacePoint } from './google-places';
-import { geocodeSwedishCity, geocodeSwedishStreet } from './page-place';
+import { addressCacheKey, geocodeSwedishCity, geocodeSwedishStreet } from './page-place';
 import { parseStoredScanOutput } from './prompt-runners';
 
 const { events, eventOccasions, venues, knownCities, knownAddresses, placeLookupMisses } = schema;
@@ -310,7 +310,7 @@ function lookups(
 ): Parameters<typeof fillPlacePoint>[1] {
   return {
     geocodeStreet: (street, zipCode, city) =>
-      cachedPoint(db, 'street', addressKey(street, zipCode, city), options, async () => {
+      cachedPoint(db, 'street', addressCacheKey(street, zipCode, city), options, async () => {
         const point = await geocodeSwedishStreet(
           { address: street, zipCode, city },
           options.fetchImpl,
@@ -402,16 +402,6 @@ async function cachedPoint(
   }
 }
 
-function addressKey(
-  street: string | undefined,
-  zipCode: string | undefined,
-  city: string | undefined,
-): string {
-  return [street, zipCode, city]
-    .map((part) => (part ?? '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('sv'))
-    .join('|');
-}
-
 async function rememberAddress(
   db: Db,
   street: string | undefined,
@@ -425,7 +415,7 @@ async function rememberAddress(
       street: street ?? null,
       zipCode: zipCode ?? null,
       city,
-      addressKey: addressKey(street, zipCode, city),
+      addressKey: addressCacheKey(street, zipCode, city),
       location: pointEwkt(point),
     })
     .onConflictDoNothing({ target: knownAddresses.addressKey });

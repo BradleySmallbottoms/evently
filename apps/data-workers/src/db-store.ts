@@ -184,6 +184,7 @@ export function createDbIngestStore(db: Db): IngestStore {
     eventOccasions,
     venues,
     knownCities,
+    knownAddresses,
     eventLinks,
     eventTags,
     eventImages,
@@ -1627,6 +1628,56 @@ export function createDbIngestStore(db: Db): IngestStore {
         distanceM: Math.round(Number(row.distanceM)),
       }));
     },
+    async venuesByExactName(nameKey) {
+      const rows = await db
+        .select({
+          id: venues.id,
+          name: venues.name,
+          city: venues.city,
+          address: venues.address,
+          zipCode: venues.zipCode,
+          lat: sql<number>`ST_Y(${venues.location}::geometry)`,
+          lng: sql<number>`ST_X(${venues.location}::geometry)`,
+        })
+        .from(venues)
+        .where(eq(venues.nameKey, nameKey))
+        .orderBy(asc(venues.city))
+        .limit(20);
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        city: row.city,
+        location: { lat: row.lat, lng: row.lng },
+        address: row.address,
+        zipCode: row.zipCode,
+      }));
+    },
+    async venuesByPattern(name) {
+      const matcher = publisherNameMatcher(name);
+      if ('error' in matcher) return [];
+      const rows = await db
+        .select({
+          id: venues.id,
+          name: venues.name,
+          city: venues.city,
+          address: venues.address,
+          zipCode: venues.zipCode,
+          lat: sql<number>`ST_Y(${venues.location}::geometry)`,
+          lng: sql<number>`ST_X(${venues.location}::geometry)`,
+        })
+        .from(venues)
+        .where(sql`${venues.name} ILIKE ${matcher.like} ESCAPE '!'`)
+        .orderBy(asc(venues.city))
+        .limit(20);
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        city: row.city,
+        location: { lat: row.lat, lng: row.lng },
+        address: row.address,
+        zipCode: row.zipCode,
+      }));
+    },
     async findVenueById(venueId) {
       const [row] = await db
         .select({
@@ -1774,6 +1825,30 @@ export function createDbIngestStore(db: Db): IngestStore {
           location: pointEwkt(input.location),
         })
         .onConflictDoNothing({ target: knownCities.cityKey });
+    },
+    async findKnownAddress(addressKey) {
+      const [row] = await db
+        .select({
+          lat: sql<number | null>`ST_Y(${knownAddresses.location}::geometry)`,
+          lng: sql<number | null>`ST_X(${knownAddresses.location}::geometry)`,
+        })
+        .from(knownAddresses)
+        .where(eq(knownAddresses.addressKey, addressKey))
+        .limit(1);
+      if (!row || row.lat == null || row.lng == null) return null;
+      return { lat: Number(row.lat), lng: Number(row.lng) };
+    },
+    async saveKnownAddress(input) {
+      await db
+        .insert(knownAddresses)
+        .values({
+          street: input.street ?? null,
+          zipCode: input.zipCode ?? null,
+          city: input.city,
+          addressKey: input.addressKey,
+          location: pointEwkt(input.location),
+        })
+        .onConflictDoNothing({ target: knownAddresses.addressKey });
     },
     async listUnnamedOccasions(limit) {
       const rows = await db

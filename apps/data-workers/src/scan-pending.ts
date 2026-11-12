@@ -299,7 +299,10 @@ export async function applyOutcome(
     lookups.push('The venue id was not a uuid.');
   }
   const matchedVenue =
-    matched && !(place.replacesStored && place.location)
+    matched &&
+    (place.keptMatchingPoint ||
+      !(place.replacesStored && place.location) ||
+      outcome.chosenVenueId === matched.venueId)
       ? await store.findVenueById(matched.venueId)
       : null;
   const matchedTown = matchedVenue ? await pointIsTown(store, row, matchedVenue.location) : false;
@@ -309,6 +312,10 @@ export async function applyOutcome(
   } else if (matchedVenue && matchedTown) {
     lookups.push(
       `Stored venue "${matchedVenue.name}" rank ${matched?.rank} is only the town ${row.meta.address?.city}.`,
+    );
+  } else if (matchedVenue && matched && place.keptMatchingPoint) {
+    lookups.push(
+      `Venue "${matchedVenue.name}" rank ${matched.rank} is already stored. The address point stays.`,
     );
   } else if (matchedVenue && matched) {
     row.location = matchedVenue.location;
@@ -666,6 +673,8 @@ async function placeFromScan(
   address?: NonNullable<PendingScanRow['meta']['address']>;
   /** The model address was ranked over 80. The previous point stays when this address does not geocode. */
   replacesStored?: boolean;
+  /** The model address is the stored address, and that address already has a point. */
+  keptMatchingPoint?: boolean;
 }> {
   const ranked = outcome.address;
   if (ranked && addressRankReplaces(ranked.rank)) {
@@ -680,6 +689,24 @@ async function placeFromScan(
         replacesStored: true,
         location: outcome.chosenPoint,
         address: { ...chosen, location: outcome.chosenPoint },
+      };
+    }
+    const stored = row.meta.address;
+    const storedPoint = addressPoint(stored?.location);
+    if (
+      stored &&
+      storedPoint &&
+      sameAddress(stored, chosen) &&
+      !(await pointIsTown(store, row, storedPoint))
+    ) {
+      notesFor(row).push(
+        `The model address matches the stored address, so its point stays at ${pointText(storedPoint)}.`,
+      );
+      const zip = addedZip(stored, chosen);
+      return {
+        keptMatchingPoint: true,
+        location: storedPoint,
+        address: zip ? { ...stored, zipCode: zip } : stored,
       };
     }
     const location = await geocodeOnce(store, row, chosen, fetchImpl);
@@ -714,12 +741,49 @@ async function placeFromScan(
   return { address: chosen };
 }
 
+function addressText(value: string | null | undefined): string {
+  return (value ?? '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('sv');
+}
+
+function addressZip(value: string | null | undefined): string {
+  return (value ?? '').replace(/\s+/g, '');
+}
+
+/** A five-digit postcode the model added. A stored postcode stays. */
+function addedZip(
+  stored: { zipCode?: string | null },
+  model: { zipCode?: string | null },
+): string | undefined {
+  if (addressZip(stored.zipCode)) return undefined;
+  const zip = addressZip(model.zipCode);
+  return /^\d{5}$/.test(zip) ? zip : undefined;
+}
+
+/** Street and city match. A postcode has to match only when both addresses have one. */
+function sameAddress(
+  stored: { address?: string | null; zipCode?: string | null; city?: string | null },
+  model: { address?: string | null; zipCode?: string | null; city?: string | null },
+): boolean {
+  if (addressText(stored.address) !== addressText(model.address)) return false;
+  if (addressText(stored.city) !== addressText(model.city)) return false;
+  const storedZip = addressZip(stored.zipCode);
+  const modelZip = addressZip(model.zipCode);
+  return !storedZip || !modelZip || storedZip === modelZip;
+}
+
 function addressDecision(
   outcome: Extract<ScanOutcome, { ok: true }>,
-  place: { replacesStored?: boolean; location?: { lat: number; lng: number } },
+  place: {
+    replacesStored?: boolean;
+    keptMatchingPoint?: boolean;
+    location?: { lat: number; lng: number };
+  },
   hadPoint: boolean,
 ): string {
   const rank = outcome.address?.rank;
+  if (place.keptMatchingPoint) {
+    return `Address rank ${rank} matches the stored address, so its point stays.`;
+  }
   if (place.replacesStored && place.location) {
     return `Address rank ${rank} replaced the stored address and point.`;
   }

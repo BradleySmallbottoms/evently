@@ -1372,7 +1372,7 @@ describe('createOllamaWithToolsPromptRunner', () => {
       const [outcome] = await runner.scan([input]);
 
       expect(bodies[0]?.tools?.map((tool) => tool.function.name)).toContain('geocodePlace');
-      expect(bodies[0]?.messages[0]?.content).toContain('You may call it twice.');
+      expect(bodies[0]?.messages[0]?.content).toContain('You may call geocodePlace twice.');
       const placeMessage = bodies[1]?.messages.find((message) => message.role === 'tool');
       expect(placeMessage?.content).toContain('"id":"1"');
       expect(placeMessage?.content).not.toContain('"lat"');
@@ -1388,6 +1388,68 @@ describe('createOllamaWithToolsPromptRunner', () => {
       if (previousPlaces == null) delete process.env.GOOGLE_PLACES_API_KEY;
       else process.env.GOOGLE_PLACES_API_KEY = previousPlaces;
     }
+  });
+
+  it('uses an exact venue name before geocoding when the event has no point', async () => {
+    const store = storeWithNearbyRows();
+    const cinema = await store.saveVenue({
+      name: 'Biografen Kilafors',
+      city: 'Kilafors',
+      nameKey: 'biografen kilafors',
+      cityKey: 'kilafors',
+      location: { lat: 61.3, lng: 17.07 },
+    });
+    const otherTown = await store.saveVenue({
+      name: 'Biografen Kilafors',
+      city: 'Bollnäs',
+      nameKey: 'biografen kilafors',
+      cityKey: 'bollnas',
+      location: { lat: 61.35, lng: 16.39 },
+    });
+    const otherId = '33333333-3333-4333-8333-333333333388';
+    const { fetchImpl, bodies } = scriptedFetch([
+      toolCall('getVenueFromName', { name: 'Biografen*' }),
+      toolCall('getVenueFromName', { name: 'Biografen' }),
+      toolCall('getVenueFromName', { name: 'Biografen*' }),
+      toolCall('getVenueFromName', { name: 'Biografen Kilafors' }),
+      toolCall('getVenueFromName', { use: cinema.id }),
+      toolCall('getNearbyEvents', {}),
+      answer(
+        JSON.stringify({
+          contentVerdict: 'safe',
+          summary: 'Musik i Helsingehus',
+          language: 'sv',
+          possibleVenues: [
+            { venueId: cinema.id, rank: 95 },
+            { venueId: otherId, rank: 95 },
+          ],
+        }),
+      ),
+    ]);
+    const runner = createOllamaWithToolsPromptRunner(store, { fetch: fetchImpl });
+    const [outcome] = await runner.scan([{ ...scanInput, location: undefined }]);
+    const names = bodies[0]?.tools?.map((tool) => tool.function.name) ?? [];
+
+    expect(names.indexOf('getVenueFromName')).toBeGreaterThanOrEqual(0);
+    expect(names.indexOf('getVenueFromName')).toBeLessThan(names.indexOf('geocodePlace'));
+    expect(bodies[0]?.messages[0]?.content).toContain('before geocodePlace');
+    const early = bodies[1]?.messages.filter((message) => message.role === 'tool').at(-1);
+    const missed = bodies[2]?.messages.filter((message) => message.role === 'tool').at(-1);
+    const wildcard = bodies[3]?.messages.filter((message) => message.role === 'tool').at(-1);
+    const refused = bodies[4]?.messages.filter((message) => message.role === 'tool').at(-1);
+    const nearby = bodies[6]?.messages.filter((message) => message.role === 'tool').at(-1);
+    expect(early?.content).toContain('Look up the exact name first.');
+    expect(missed?.content).toContain('"venues":[]');
+    expect(wildcard?.content).toContain(cinema.id);
+    expect(wildcard?.content).toContain(otherTown.id);
+    expect(wildcard?.content).not.toContain('"lat"');
+    expect(refused?.content).toContain('A venue can be looked up twice.');
+    expect(nearby?.content).toContain('Marknad på torget');
+    expect(outcome).toMatchObject({
+      ok: true,
+      chosenPoint: { lat: 61.3, lng: 17.07 },
+      possibleVenues: [{ venueId: cinema.id, rank: 95 }],
+    });
   });
 });
 

@@ -2,6 +2,7 @@ import type { DomainEvent } from '../../../packages/contracts/src/domain-events'
 import { describe, expect, it } from 'vitest';
 import { createMemoryIngestStore } from '../../../apps/data-workers/src/memory-store';
 import { saveIncomingEvents } from '../../../apps/data-workers/src/persist';
+import { addressCacheKey } from '../../../apps/data-workers/src/page-place';
 import { parseScanSelection, scanPendingEvents } from '../../../apps/data-workers/src/scan-pending';
 import {
   beginScanProgress,
@@ -1596,6 +1597,71 @@ describe('scanPendingEvents', () => {
     expect(store.events[0]?.location).toEqual(chosen);
   });
 
+  it('keeps the venue the model chose when the address rank is over 80', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const cinema = { lat: 61.23, lng: 16.56 };
+    const venue = await store.saveVenue({
+      name: 'Biografen Kilafors',
+      city: 'Kilafors',
+      nameKey: 'biografen kilafors',
+      cityKey: 'kilafors',
+      location: cinema,
+      address: 'Stationsgatan 11',
+    });
+    const { location: _location, ...withoutPoint } = event;
+    await saveIncomingEvents(store, source, [
+      {
+        ...withoutPoint,
+        externalId: 'chosen-venue',
+        venueName: 'Biografen',
+        meta: {
+          address: {
+            address: 'Biografen Kilafors, Stationsgatan Kilafors',
+            city: 'Kilafors',
+            country: 'Sweden' as const,
+          },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'chosen-venue',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          chosenPoint: cinema,
+          chosenVenueId: venue.id,
+          possibleVenues: [{ venueId: venue.id, rank: 95 }],
+          address: {
+            address: 'Stationsgatan 11',
+            city: 'Kilafors',
+            country: 'Sweden',
+            rank: 90,
+          },
+        }));
+      },
+    };
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () => {
+        throw new Error('geocoder should not be called');
+      },
+    });
+    expect(store.events[0]?.location).toEqual(cinema);
+    expect(store.events[0]?.occasions[0]?.venueId).toBe(venue.id);
+    expect(store.events[0]?.occasions[0]?.venueName).toBe('Biografen Kilafors');
+  });
+
   it('keeps the point when the same address is ranked again', async () => {
     const store = createMemoryIngestStore();
     store.sources.push(source);
@@ -1834,6 +1900,338 @@ describe('scanPendingEvents', () => {
       country: 'Sweden',
       location: event.location,
     });
+  });
+
+  it('keeps the stored point when the model repeats that address', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const point = { lat: 61.834031, lng: 16.052752 };
+    await saveIncomingEvents(store, source, [
+      {
+        ...event,
+        location: undefined,
+        meta: {
+          address: {
+            address: 'Borrvägen 60',
+            city: 'Ljusdal',
+            country: 'Sweden' as const,
+            location: point,
+          },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'same-address',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        expect(batch[0]?.location).toEqual(point);
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          address: {
+            address: 'borrvägen  60',
+            zipCode: '827 94',
+            city: 'ljusdal',
+            country: 'Sweden',
+            rank: 90,
+          },
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () => {
+        throw new Error('a matching address should not be geocoded');
+      },
+    });
+
+    expect(store.events[0]?.location).toEqual(point);
+    expect(store.events[0]?.meta.address).toEqual({
+      address: 'Borrvägen 60',
+      zipCode: '82794',
+      city: 'Ljusdal',
+      country: 'Sweden',
+      location: point,
+    });
+    expect(scanLogOf(store.events[0]?.llmOutput)).toContain(
+      'Address rank 90 matches the stored address, so its point stays.',
+    );
+  });
+
+  it('keeps the stored address point when a venue is also ranked over 90', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const point = { lat: 61.834031, lng: 16.052752 };
+    const venuePoint = { lat: 61.84, lng: 16.06 };
+    const venue = await store.saveVenue({
+      name: 'Borr Bygdegård',
+      city: 'Ljusdal',
+      nameKey: 'borr bygdegård',
+      cityKey: 'ljusdal',
+      location: venuePoint,
+    });
+    await saveIncomingEvents(store, source, [
+      {
+        ...event,
+        location: undefined,
+        meta: {
+          address: {
+            address: 'Borrvägen 60',
+            city: 'Ljusdal',
+            country: 'Sweden' as const,
+            location: point,
+          },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'same-address-venue',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          address: { address: 'Borrvägen 60', city: 'Ljusdal', country: 'Sweden', rank: 90 },
+          possibleVenues: [{ venueId: venue.id, rank: 95 }],
+          possibleVenueNames: [{ name: 'Borr Bygdegård', rank: 95 }],
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () => {
+        throw new Error('a matching address should not be geocoded');
+      },
+    });
+
+    expect(store.events[0]?.location).toEqual(point);
+    expect(store.events[0]?.meta.address?.location).toEqual(point);
+    expect(store.events[0]?.occasions[0]?.venueId).toBe(venue.id);
+    expect(scanLogOf(store.events[0]?.llmOutput)).toContain('The address point stays.');
+  });
+
+  it('uses a remembered street point and does not geocode', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const point = { lat: 61.834031, lng: 16.052752 };
+    await store.saveKnownAddress({
+      street: 'Borrvägen 60',
+      zipCode: '82794',
+      city: 'Ljusdal',
+      addressKey: addressCacheKey('Borrvägen 60', '827 94', 'Ljusdal'),
+      location: point,
+    });
+    await saveIncomingEvents(store, source, [
+      {
+        ...event,
+        location: undefined,
+        meta: {
+          address: { address: 'Kalavägen 10', city: 'Järvsö', country: 'Sweden' as const },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'cached-address',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          address: {
+            address: 'Borrvägen 60',
+            zipCode: '82794',
+            city: 'Ljusdal',
+            country: 'Sweden',
+            rank: 90,
+          },
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () => {
+        throw new Error('a remembered address should not be geocoded');
+      },
+    });
+
+    expect(store.events[0]?.location).toEqual(point);
+    expect(store.events[0]?.meta.address?.location).toEqual(point);
+    expect(scanLogOf(store.events[0]?.llmOutput)).toContain(
+      'Used the stored address "Borrvägen 60, 82794, Ljusdal"',
+    );
+  });
+
+  it('remembers a street point for the next event', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const found = { lat: 61.303, lng: 17.06 };
+    const { location: _location, ...withoutPoint } = event;
+    await saveIncomingEvents(store, source, [
+      {
+        ...withoutPoint,
+        externalId: 'first-street',
+        meta: {
+          address: { address: 'Storgatan 1', city: 'Söderhamn', country: 'Sweden' as const },
+        },
+      },
+      {
+        ...withoutPoint,
+        externalId: 'second-street',
+        meta: {
+          address: { address: 'Kalavägen 10', city: 'Järvsö', country: 'Sweden' as const },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'remember-street',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          address: { address: 'Storgatan 1', city: 'Söderhamn', country: 'Sweden', rank: 90 },
+        }));
+      },
+    };
+    const calls: string[] = [];
+    const previousMaps = process.env.GOOGLE_MAPS_API_KEY;
+    const previousPlaces = process.env.GOOGLE_PLACES_API_KEY;
+    delete process.env.GOOGLE_MAPS_API_KEY;
+    delete process.env.GOOGLE_PLACES_API_KEY;
+    try {
+      await scanPendingEvents(store, runner, undefined, {
+        fetch: async (input) => {
+          calls.push(String(input));
+          return Response.json({
+            features: [
+              {
+                geometry: { coordinates: [found.lng, found.lat] },
+                properties: {
+                  countrycode: 'SE',
+                  housenumber: '1',
+                  street: 'Storgatan',
+                  city: 'Söderhamn',
+                },
+              },
+            ],
+          });
+        },
+      });
+    } finally {
+      if (previousMaps == null) delete process.env.GOOGLE_MAPS_API_KEY;
+      else process.env.GOOGLE_MAPS_API_KEY = previousMaps;
+      if (previousPlaces == null) delete process.env.GOOGLE_PLACES_API_KEY;
+      else process.env.GOOGLE_PLACES_API_KEY = previousPlaces;
+    }
+
+    expect(calls).toHaveLength(1);
+    expect(store.events.map((item) => item.location)).toEqual([found, found]);
+    expect(
+      await store.findKnownAddress(addressCacheKey('Storgatan 1', undefined, 'Söderhamn')),
+    ).toEqual(found);
+  });
+
+  it('geocodes a matching street when the stored point is only the town', async () => {
+    const store = createMemoryIngestStore();
+    store.sources.push(source);
+    const town = { lat: 61.829, lng: 16.091 };
+    const found = { lat: 61.834022, lng: 16.052642 };
+    await store.saveKnownCity({ name: 'Ljusdal', cityKey: 'ljusdal', location: town });
+    await saveIncomingEvents(store, source, [
+      {
+        ...event,
+        location: undefined,
+        meta: {
+          address: {
+            address: 'Borrvägen 60',
+            city: 'Ljusdal',
+            country: 'Sweden' as const,
+            location: town,
+          },
+        },
+      },
+    ]);
+    const runner: PromptRunner = {
+      id: 'town-point',
+      lookupPublisher: async () => ({ ok: true, profile: null }),
+      async scan(batch) {
+        return batch.map((item): ScanOutcome => ({
+          ok: true,
+          eventId: item.eventId,
+          publisher: {
+            kind: 'temporary',
+            name: 'Föreningen',
+            organizerKeys: item.organizer.keys,
+          },
+          duplicate: null,
+          approved: true,
+          tags: [],
+          ...scanned,
+          address: {
+            address: 'Borrvägen 60',
+            city: 'Ljusdal',
+            country: 'Sweden',
+            rank: 90,
+          },
+        }));
+      },
+    };
+
+    await scanPendingEvents(store, runner, undefined, {
+      fetch: async () =>
+        Response.json({
+          features: [
+            {
+              geometry: { coordinates: [found.lng, found.lat] },
+              properties: {
+                countrycode: 'SE',
+                housenumber: '60',
+                street: 'Borrvägen',
+                city: 'Ljusdal',
+              },
+            },
+          ],
+        }),
+    });
+
+    expect(store.events[0]?.location).toEqual(found);
+    expect(store.events[0]?.meta.address?.location).toEqual(found);
   });
 
   it('keeps a stored address when the model address rank is 80', async () => {

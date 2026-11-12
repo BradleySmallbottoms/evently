@@ -87,6 +87,8 @@ export type ScanOutcome =
       location?: { lat: number; lng: number };
       /** Point the model chose with geocodePlace when the source stored none. */
       chosenPoint?: { lat: number; lng: number };
+      /** Venue whose point the model took with getVenueFromName. */
+      chosenVenueId?: string;
       /**
        * Address from the scan JSON, including the point when one was found.
        * `rank` over 80 replaces the address and point already stored.
