@@ -1,3 +1,4 @@
+import { gunzipSync } from 'node:zlib';
 import type { EventMeta } from '@local-events/contracts';
 import {
   eventAddress,
@@ -11,24 +12,18 @@ import {
 import { defineAdapter, type IncomingEvent, type SourceRunContext } from '@local-events/ingest';
 
 /**
- * Tickster Event API v1.0. The key is TICKSTER_API_KEY, never config.
- * Upcoming events for each configured city, then that event's detail.
+ * Tickster Event Dump, path version 1.0. The key is TICKSTER_API_KEY, never config.
+ * One daily file of every upcoming event, then the showings in the configured cities.
+ * The file uses the older event shape (start, goods, infoUri), not Event API field names.
  * A production or collection is the parent of its showings, so it is skipped.
- * Each showing is one event. A UTC time is that instant. The import does not geocode.
- * A 429, or `X-RATELIMIT-REMAINING: 0`, waits one five-minute slot and retries.
- * `TICKSTER_STOP_ON_403` stops on the first 403 or rate limit instead of waiting.
+ * Each showing is one event. A time with an offset is that instant. The import does not geocode.
+ * `TICKSTER_STOP_ON_403` stops on a 403 from the dump pointer instead of failing the run.
  */
 
-const API_ORIGIN = 'https://event.api.tickster.com';
-const API_HOST = 'event.api.tickster.com';
+const API_ORIGIN = 'https://api.tickster.com';
 const API_KEY_ENV = 'TICKSTER_API_KEY';
 const DEFAULT_CITIES = ['Söderhamn', 'Bollnäs', 'Hudiksvall', 'Ljusdal'];
 const DEFAULT_LANGUAGE = 'sv';
-const DEFAULT_PAGE_SIZE = 50;
-const MAX_PAGES = 30;
-/** Tickster counts the hourly limit in five-minute slots. */
-const RATE_LIMIT_SLOT_MS = 5 * 60 * 1000;
-const MAX_RATE_LIMIT_RETRIES = 12;
 const MAX_MAJOR = 100_000;
 const ORGANIZER_FALLBACK = 'tickster';
 const LANGUAGES = new Set(['sv', 'en', 'nb', 'da']);
@@ -36,6 +31,8 @@ const SKIP_HIERARCHY = new Set(['production', 'collection']);
 const SKIP_STATE = new Set(['cancelled', 'notreleased', 'undefined', 'releasedfornonpublicsale']);
 const TICKET_TYPES = new Set(['ticket', 'numberedticket', 'package']);
 const EVENT_ID = /^[A-Za-z0-9_-]{4,80}$/;
+/** The live file is about 50 MB. Leave room for growth, and stop a gzip bomb. */
+const MAX_DUMP_BYTES = 128 * 1024 * 1024;
 
 export interface TicksterPrice {
   amount: number;
@@ -102,9 +99,6 @@ export interface TicksterRaw {
 interface TicksterSettings {
   cities: string[];
   language: string;
-  pageSize: number;
-  delayMs: number;
-  rateLimitWaitMs: number;
 }
 
 function recordOf(value: unknown): Record<string, unknown> | undefined {
@@ -149,52 +143,11 @@ function languageFromConfig(config: Record<string, unknown>): string {
   return raw;
 }
 
-function pageSizeFromConfig(config: Record<string, unknown>): number {
-  const raw = config.pageSize ?? DEFAULT_PAGE_SIZE;
-  const size = typeof raw === 'number' ? raw : Number(raw);
-  if (!Number.isInteger(size) || size < 1 || size > 100) {
-    throw new Error('tickster config.pageSize must be 1–100');
-  }
-  return size;
-}
-
-function delayMsFromConfig(config: Record<string, unknown>): number {
-  const raw = config.delayMs ?? 200;
-  const delay = typeof raw === 'number' ? raw : Number(raw);
-  if (!Number.isFinite(delay) || delay < 0 || delay > 10_000) return 200;
-  return delay;
-}
-
-function rateLimitWaitMsFromConfig(config: Record<string, unknown>): number {
-  const raw = config.rateLimitWaitMs ?? RATE_LIMIT_SLOT_MS;
-  const wait = typeof raw === 'number' ? raw : Number(raw);
-  if (!Number.isFinite(wait) || wait < 0 || wait > 60 * 60 * 1000) return RATE_LIMIT_SLOT_MS;
-  return wait;
-}
-
 function settingsFromConfig(config: Record<string, unknown>): TicksterSettings {
   return {
     cities: citiesFromConfig(config),
     language: languageFromConfig(config),
-    pageSize: pageSizeFromConfig(config),
-    delayMs: delayMsFromConfig(config),
-    rateLimitWaitMs: rateLimitWaitMsFromConfig(config),
   };
-}
-
-/**
- * Pause for a rate-limit slot when the last response had none left.
- * Otherwise keep the normal gap between requests.
- */
-export function ticksterRequestPauseMs(input: {
-  requests: number;
-  remaining: number | undefined;
-  delayMs: number;
-  rateLimitWaitMs: number;
-}): number {
-  if (input.remaining === 0) return input.rateLimitWaitMs;
-  if (input.requests > 0) return input.delayMs;
-  return 0;
 }
 
 function apiKey(): string {
@@ -203,15 +156,9 @@ function apiKey(): string {
   return key;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function apiUrl(language: string, path: string, query?: Record<string, string>): URL {
-  const url = new URL(`/api/v1.0/${language}${path}`, API_ORIGIN);
-  if (query) {
-    for (const [name, value] of Object.entries(query)) url.searchParams.set(name, value);
-  }
+function pointerUrl(language: string, key: string): URL {
+  const url = new URL(`/${language}/api/1.0/events/dump/upcoming`, API_ORIGIN);
+  url.searchParams.set('key', key);
   return url;
 }
 
@@ -223,14 +170,24 @@ function responseUrl(response: Response, fallback: URL): URL {
   }
 }
 
-function sameHost(url: URL): boolean {
-  return url.protocol === 'https:' && url.hostname.toLowerCase() === API_HOST;
+/** The signed dump object lives on this bucket, including a regional host. */
+function dumpFileHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  if (host === 'event-api-dumps.s3.amazonaws.com') return true;
+  return /^event-api-dumps\.s3[.-][a-z]{2}-[a-z0-9]+-\d+\.amazonaws\.com$/.test(host);
 }
 
-function rateLimitRemaining(response: Response): number | undefined {
-  const raw = response.headers.get('x-ratelimit-remaining')?.trim();
-  if (!raw || !/^\d+$/.test(raw)) return undefined;
-  return Number(raw);
+function dumpFileUrl(value: string | undefined): URL | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    if (url.username || url.password) return undefined;
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined;
+    if (!dumpFileHost(url.hostname)) return undefined;
+    return url;
+  } catch {
+    return undefined;
+  }
 }
 
 function failedRequest(status: number): Error & { status?: number } {
@@ -255,32 +212,48 @@ class TicksterStop extends Error {
   }
 }
 
-async function readJson(
+async function readBody(response: Response): Promise<unknown> {
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length > MAX_DUMP_BYTES) throw new Error('tickster dump is too large');
+  const payload =
+    bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b
+      ? gunzipSync(bytes, { maxOutputLength: MAX_DUMP_BYTES })
+      : bytes;
+  return JSON.parse(payload.toString('utf8'));
+}
+
+function stayedOn(response: Response, expected: URL, message: string): void {
+  const url = responseUrl(response, expected);
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error(message);
+  if (url.hostname.toLowerCase() !== expected.hostname.toLowerCase()) throw new Error(message);
+}
+
+function errorText(error: unknown): string {
+  if (error == null || typeof error !== 'object') return error == null ? '' : String(error);
+  const message = error instanceof Error ? error.message : '';
+  const cause = 'cause' in error ? errorText((error as { cause?: unknown }).cause) : '';
+  return cause ? `${message}\n${cause}` : message;
+}
+
+/** A failed fetch can include the request URL. The pointer carries the API key, and the file URL is signed. */
+function quietError(error: unknown, secrets: string[]): Error {
+  const message = errorText(error);
+  if (secrets.some((secret) => secret.length > 0 && message.includes(secret))) {
+    return new Error('tickster request failed');
+  }
+  return error instanceof Error ? error : new Error(message);
+}
+
+async function load(
   ctx: SourceRunContext,
   url: URL,
-  key: string,
-  waitMs: number,
-): Promise<{ body: unknown; remaining: number | undefined }> {
-  for (let attempt = 0; ; attempt += 1) {
-    const response = await ctx.fetch(url, {
-      headers: { Accept: 'application/json', 'x-api-key': key },
-      redirect: 'error',
-    });
-    if (!sameHost(responseUrl(response, url))) {
-      throw new Error('tickster request redirected off event.api.tickster.com');
-    }
-    const remaining = rateLimitRemaining(response);
-    if (stopOn403() && (response.status === 403 || response.status === 429)) {
-      throw new TicksterStop(response.status);
-    }
-    if (response.status === 429) {
-      if (attempt >= MAX_RATE_LIMIT_RETRIES) throw failedRequest(429);
-      ctx.log('tickster rate limit', { remaining: remaining ?? null, retry: attempt + 1 });
-      await sleep(waitMs);
-      continue;
-    }
-    if (!response.ok) throw failedRequest(response.status);
-    return { body: await response.json(), remaining };
+  init: RequestInit,
+  secrets: string[],
+): Promise<Response> {
+  try {
+    return await ctx.fetch(url, init);
+  } catch (error) {
+    throw quietError(error, secrets);
   }
 }
 
@@ -427,7 +400,7 @@ function socialUrl(value: unknown, kind: 'facebook' | 'instagram'): string | und
 export function parseTicksterOrganizer(value: unknown): TicksterOrganizer | undefined {
   const body = recordOf(value);
   if (!body) return undefined;
-  const social = recordOf(body.socialMedia);
+  const social = recordOf(body.socialMedia) ?? recordOf(body.social);
   const id = textOf(body.id);
   const name = textOf(body.name);
   const website = httpsUrl(body.website);
@@ -449,9 +422,9 @@ function cityKey(value: string): string {
   return value.trim().toLocaleLowerCase('sv');
 }
 
-/** A venue city matches a configured city. An empty city stays, because the search already filtered. */
+/** A venue city matches a configured city. The dump is national, so an empty city is dropped. */
 export function ticksterCityMatches(city: string | undefined, allowed: string[]): boolean {
-  if (!city?.trim()) return true;
+  if (!city?.trim()) return false;
   const key = cityKey(city);
   return allowed.some((name) => {
     const allowedKey = cityKey(name);
@@ -664,12 +637,162 @@ export function mapTicksterEvent(parsed: TicksterParsed): IncomingEvent {
   };
 }
 
-function childEventsOf(value: unknown): unknown[] {
-  const body = recordOf(value);
-  return Array.isArray(body?.childEvents) ? body.childEvents : [];
+function majorAmount(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  const amount = Number(value.trim());
+  return Number.isFinite(amount) ? amount : undefined;
+}
+
+function goodsAmount(price: Record<string, unknown> | undefined): number | undefined {
+  const stated = majorAmount(price?.includingVat);
+  if (stated != null) return stated;
+  const regions = Array.isArray(price?.priceRegions) ? price.priceRegions : [];
+  const amounts = regions.flatMap((region) => {
+    const amount = majorAmount(recordOf(region)?.includingVat);
+    return amount == null ? [] : [amount];
+  });
+  const positive = amounts.filter((amount) => amount > 0);
+  const pool = positive.length > 0 ? positive : amounts.filter((amount) => amount === 0);
+  if (pool.length === 0) return undefined;
+  return Math.min(...pool);
+}
+
+function productsFromGoods(goods: unknown): unknown[] {
+  if (!Array.isArray(goods)) return [];
+  return goods.flatMap((good) => {
+    const item = recordOf(good);
+    if (!item) return [];
+    const amount = goodsAmount(recordOf(item.price));
+    const currency = textOf(recordOf(item.price)?.currency);
+    const productType = textOf(item.type);
+    return [
+      {
+        ...(productType ? { productType } : {}),
+        ...(amount != null ? { price: { amount, ...(currency ? { currency } : {}) } } : {}),
+        variants: [],
+      },
+    ];
+  });
+}
+
+function linksFromDump(links: unknown): unknown[] {
+  if (!Array.isArray(links)) return [];
+  return links.flatMap((link) => {
+    const item = recordOf(link);
+    const url = textOf(item?.uri) ?? textOf(item?.url);
+    if (!url) return [];
+    const text = textOf(item?.text);
+    return [text ? { url, text } : { url }];
+  });
+}
+
+function indexById(values: unknown): Map<string, Record<string, unknown>> {
+  const indexed = new Map<string, Record<string, unknown>>();
+  if (!Array.isArray(values)) return indexed;
+  for (const value of values) {
+    const body = recordOf(value);
+    const id = textOf(body?.id);
+    if (!body || !id || indexed.has(id)) continue;
+    indexed.set(id, body);
+  }
+  return indexed;
+}
+
+function venueRecord(
+  event: Record<string, unknown>,
+  venues: Map<string, Record<string, unknown>>,
+): Record<string, unknown> | undefined {
+  const nested = recordOf(event.venue);
+  const id = textOf(event.venueId) ?? textOf(nested?.id);
+  const listed = id ? venues.get(id) : undefined;
+  if (!nested) return listed;
+  if (!listed) return nested;
+  const nestedGeo = recordOf(nested.geo);
+  const listedGeo = recordOf(listed.geo);
+  const geo =
+    numberOf(nestedGeo?.latitude) != null && numberOf(nestedGeo?.longitude) != null
+      ? nestedGeo
+      : listedGeo;
+  return {
+    ...listed,
+    ...nested,
+    name: textOf(nested.name) ?? listed.name,
+    address: textOf(nested.address) ?? listed.address,
+    zipCode: textOf(nested.zipCode) ?? listed.zipCode,
+    city: textOf(nested.city) ?? listed.city,
+    country: textOf(nested.country) ?? listed.country,
+    ...(geo ? { geo } : {}),
+  };
+}
+
+/** The dump file uses the older event names. Map them onto the shape `parseTicksterEvent` reads. */
+function eventFromDump(
+  value: Record<string, unknown>,
+  venues: Map<string, Record<string, unknown>>,
+): TicksterEvent | undefined {
+  const published = value.published;
+  const state =
+    published === false ? 'notreleased' : (textOf(value.eventState) ?? textOf(value.state));
+  const organizerId = textOf(value.organizerId) ?? textOf(recordOf(value.organizer)?.id);
+  const venue = venueRecord(value, venues);
+  const goods = value.goods;
+  return parseTicksterEvent({
+    id: value.id,
+    name: value.name,
+    description: value.description,
+    startUtc: value.start ?? value.startUtc,
+    endUtc: value.end ?? value.endUtc,
+    ...(state ? { state } : {}),
+    imageUrl: value.imageUrl,
+    infoUrl: value.infoUri ?? value.infoUrl,
+    shopUrl: value.shopUri ?? value.shopUrl,
+    eventHierarchyType: value.hierarchyType ?? value.eventHierarchyType,
+    ...(organizerId ? { organizer: { id: organizerId } } : {}),
+    ...(venue ? { venue } : {}),
+    tags: value.tags,
+    webLinks: linksFromDump(value.links ?? value.webLinks),
+    products: Array.isArray(goods) ? productsFromGoods(goods) : value.products,
+  });
+}
+
+function rowsOf(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const body = recordOf(item);
+    return body ? [body] : [];
+  });
+}
+
+function childrenOf(
+  parent: Record<string, unknown>,
+  rows: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  const parentId = textOf(parent.id);
+  const nested = rowsOf(parent.childEvents);
+  const linked = parentId
+    ? rows.filter(
+        (row) => textOf(row.productionParentId) === parentId && textOf(row.id) !== parentId,
+      )
+    : [];
+  const merged = new Map<string, Record<string, unknown>>();
+  for (const child of [...linked, ...nested]) {
+    const id = textOf(child.id);
+    if (!id) continue;
+    const current = merged.get(id);
+    merged.set(id, current ? { ...current, ...child } : child);
+  }
+  return [...merged.values()];
 }
 
 /** A showing keeps its own time and venue. Text, price, and image fall back to the parent. */
+function hasTicketPrice(event: TicksterEvent): boolean {
+  return event.products.some((product) => {
+    const type = product.productType?.toLocaleLowerCase('sv');
+    return !!type && TICKET_TYPES.has(type) && product.price != null;
+  });
+}
+
 function withParentCopy(child: TicksterEvent, parent: TicksterEvent): TicksterEvent {
   return {
     ...child,
@@ -690,140 +813,102 @@ function withParentCopy(child: TicksterEvent, parent: TicksterEvent): TicksterEv
       ? {}
       : { organizerName: parent.organizerName }),
     tags: child.tags.length > 0 ? child.tags : parent.tags,
-    products: child.products.length > 0 ? child.products : parent.products,
+    products:
+      hasTicketPrice(child) || parent.products.length === 0 ? child.products : parent.products,
     webLinks: child.webLinks.length > 0 ? child.webLinks : parent.webLinks,
   };
-}
-
-function httpStatus(error: unknown): number | undefined {
-  return (error as { status?: number }).status;
 }
 
 async function* eachEvent(ctx: SourceRunContext): AsyncGenerator<TicksterRaw> {
   const settings = settingsFromConfig(ctx.config);
   const key = apiKey();
   const seen = new Set<string>();
-  const organizers = new Map<string, TicksterOrganizer | undefined>();
   let yielded = 0;
-  let requests = 0;
-  let remaining: number | undefined;
 
-  const load = async (url: URL): Promise<unknown> => {
-    if (stopOn403() && requests > 0 && remaining === 0) throw new TicksterStop();
-    const pause = ticksterRequestPauseMs({
-      requests,
-      remaining,
-      delayMs: settings.delayMs,
-      rateLimitWaitMs: settings.rateLimitWaitMs,
-    });
-    if (pause > 0) await sleep(pause);
-    requests += 1;
-    const result = await readJson(ctx, url, key, settings.rateLimitWaitMs);
-    remaining = result.remaining;
-    return result.body;
-  };
-
-  const organizerFor = async (id: string | undefined): Promise<TicksterOrganizer | undefined> => {
-    if (!id || !EVENT_ID.test(id)) return undefined;
-    if (organizers.has(id)) return organizers.get(id);
-    let organizer: TicksterOrganizer | undefined;
-    try {
-      organizer = parseTicksterOrganizer(
-        await load(apiUrl(settings.language, `/organizers/${id}`)),
-      );
-    } catch (error) {
-      if (httpStatus(error) !== 404) throw error;
-    }
-    organizers.set(id, organizer);
-    return organizer;
-  };
-
-  const emit = async (event: TicksterEvent): Promise<TicksterRaw | undefined> => {
+  const emit = (
+    event: TicksterEvent,
+    organizers: Map<string, Record<string, unknown>>,
+  ): TicksterRaw | undefined => {
     if (seen.has(event.id) || !ticksterShowing(event, settings.cities)) return undefined;
     seen.add(event.id);
-    const organizer = await organizerFor(event.organizerId);
     yielded += 1;
+    const organizer = parseTicksterOrganizer(organizers.get(event.organizerId ?? ''));
+    if (organizer?.name && !event.organizerName) event.organizerName = organizer.name;
     return { events: [{ event, ...(organizer ? { organizer } : {}) }] };
   };
 
   try {
-    for (const city of settings.cities) {
-      let skip = 0;
-      for (let page = 0; page < MAX_PAGES; page += 1) {
-        if (ctx.limit != null && yielded >= ctx.limit) return;
-        const body = recordOf(
-          await load(
-            apiUrl(settings.language, '/events', {
-              query: `city:${city}`,
-              take: String(settings.pageSize),
-              skip: String(skip),
-            }),
-          ),
-        );
-        const items = Array.isArray(body?.items) ? body.items : [];
-        const total = numberOf(body?.totalItems);
-        if (items.length === 0) break;
-        for (const item of items) {
+    const pointer = pointerUrl(settings.language, key);
+    const pointerResponse = await load(
+      ctx,
+      pointer,
+      {
+        headers: { Accept: 'application/json', 'x-api-key': key },
+        redirect: 'error',
+      },
+      [key, pointer.href],
+    );
+    stayedOn(pointerResponse, pointer, 'tickster request redirected off api.tickster.com');
+    if (pointerResponse.status === 403 && stopOn403()) throw new TicksterStop(403);
+    if (!pointerResponse.ok) throw failedRequest(pointerResponse.status);
+    let listed: Record<string, unknown> | undefined;
+    try {
+      listed = recordOf(await readBody(pointerResponse));
+    } catch (error) {
+      throw quietError(error, [key, pointer.href]);
+    }
+    const fileUrl = dumpFileUrl(textOf(listed?.uri));
+    if (!fileUrl) throw new Error('tickster dump file is not on the event dump bucket');
+    const fileResponse = await load(ctx, fileUrl, { redirect: 'error' }, [key, fileUrl.href]);
+    stayedOn(fileResponse, fileUrl, 'tickster dump file redirected off the event dump bucket');
+    if (!fileResponse.ok) throw failedRequest(fileResponse.status);
+    let dump: Record<string, unknown> | undefined;
+    try {
+      dump = recordOf(await readBody(fileResponse));
+    } catch (error) {
+      throw quietError(error, [key, fileUrl.href]);
+    }
+    const venues = indexById(dump?.venues);
+    const organizers = indexById(dump?.organizers);
+    const rows = rowsOf(dump?.events);
+    const byId = indexById(rows);
+    for (const row of rows) {
+      if (ctx.limit != null && yielded >= ctx.limit) return;
+      const id = textOf(row.id);
+      if (!id || seen.has(id)) continue;
+      const hierarchy = (
+        textOf(row.hierarchyType) ?? textOf(row.eventHierarchyType)
+      )?.toLocaleLowerCase('sv');
+      if (hierarchy && SKIP_HIERARCHY.has(hierarchy)) {
+        seen.add(id);
+        const parent = eventFromDump(row, venues);
+        for (const child of childrenOf(row, rows)) {
           if (ctx.limit != null && yielded >= ctx.limit) return;
-          const summary = parseTicksterEvent(item);
-          if (!summary || seen.has(summary.id)) continue;
-          const hierarchy = summary.eventHierarchyType?.toLocaleLowerCase('sv');
-          if (hierarchy && SKIP_HIERARCHY.has(hierarchy)) {
-            seen.add(summary.id);
-            let payload: unknown;
-            try {
-              payload = await load(apiUrl(settings.language, `/events/${summary.id}`));
-            } catch (error) {
-              if (httpStatus(error) === 404) {
-                ctx.log('tickster skipped a missing event', { id: summary.id });
-                continue;
-              }
-              throw error;
-            }
-            const parent = parseTicksterEvent(payload) ?? summary;
-            for (const child of childEventsOf(payload)) {
-              if (ctx.limit != null && yielded >= ctx.limit) return;
-              const showing = parseTicksterEvent(child);
-              if (!showing) continue;
-              const raw = await emit(withParentCopy(showing, parent));
-              if (raw) yield raw;
-            }
-            continue;
-          }
-          if (!ticksterShowing(summary, settings.cities)) continue;
-          let payload: unknown;
-          try {
-            payload = await load(apiUrl(settings.language, `/events/${summary.id}`));
-          } catch (error) {
-            if (httpStatus(error) === 404) {
-              ctx.log('tickster skipped a missing event', { id: summary.id });
-              continue;
-            }
-            throw error;
-          }
-          const detail = parseTicksterEvent(payload) ?? summary;
-          const detailHierarchy = detail.eventHierarchyType?.toLocaleLowerCase('sv');
-          if (detailHierarchy && SKIP_HIERARCHY.has(detailHierarchy)) {
-            seen.add(detail.id);
-            for (const child of childEventsOf(payload)) {
-              if (ctx.limit != null && yielded >= ctx.limit) return;
-              const showing = parseTicksterEvent(child);
-              if (!showing) continue;
-              const raw = await emit(withParentCopy(showing, detail));
-              if (raw) yield raw;
-            }
-            continue;
-          }
-          const raw = await emit(detail);
+          const showing = eventFromDump(child, venues);
+          if (!showing) continue;
+          const merged = parent ? withParentCopy(showing, parent) : showing;
+          const raw = emit(merged, organizers);
           if (raw) yield raw;
+          else seen.add(showing.id);
         }
-        skip += items.length;
-        if ((total != null && skip >= total) || items.length < settings.pageSize) break;
+        continue;
       }
+      if (hierarchy === 'production-child') {
+        const parentId = textOf(row.productionParentId);
+        const parentRow = parentId ? byId.get(parentId) : undefined;
+        const parentHierarchy = (
+          textOf(parentRow?.hierarchyType) ?? textOf(parentRow?.eventHierarchyType)
+        )?.toLocaleLowerCase('sv');
+        if (parentHierarchy && SKIP_HIERARCHY.has(parentHierarchy)) continue;
+      }
+      const event = eventFromDump(row, venues);
+      if (!event) continue;
+      const raw = emit(event, organizers);
+      if (raw) yield raw;
     }
   } catch (error) {
     if (!(error instanceof TicksterStop)) throw error;
-    ctx.log('tickster stopped', error.status == null ? { remaining: 0 } : { status: error.status });
+    ctx.log('tickster stopped', { status: error.status ?? null });
     return;
   }
   if (yielded === 0) throw new Error('tickster found no usable events');

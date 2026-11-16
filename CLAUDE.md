@@ -159,12 +159,13 @@ Import adapters (every new source)
   includes the source site. Visit Söderhamn, Glada Hudik, Destination Hälsingland, and Kulturbiljetter
   store every showing of one product on that one event as `event_occasions` rows. A calendar that already
   lists one showing per row stores that row as one event. The page or item id is the external id.
-  Tickster uses Event API v1.0 (`TICKSTER_API_KEY`, never config). It searches by city — Söderhamn,
-  Bollnäs, Hudiksvall, Ljusdal — then fetches each showing and skips a production or collection
-  parent. Each showing is one event. A UTC time is that instant. The venue point is stored when
-  the API sends one. A point of 0, 0 is omitted. `X-RATELIMIT-REMAINING: 0`, or a 429, waits
-  five minutes and retries, for up to an hour. The test ingest script sets `TICKSTER_STOP_ON_403`,
-  so the first 403 or rate limit stops that source and the script continues.
+  Tickster uses the Event Dump at `/sv/api/1.0/events/dump/upcoming` (`TICKSTER_API_KEY`, never config).
+  The worker downloads that daily file and keeps a showing in Söderhamn, Bollnäs, Hudiksvall, or
+  Ljusdal. A production or collection parent is skipped. Each showing is one event. A time with an
+  offset is that instant. The venue point is stored when the file sends one. A point of 0, 0 is
+  omitted. The file host is the signed dump bucket. A redirect off `api.tickster.com` or off that
+  bucket fails that request. The test ingest script sets `TICKSTER_STOP_ON_403`, so a 403 stops
+  this source and the script continues.
   Kulturbiljetter uses Events API v3 (`KULTURBILJETTER_API_KEY`, never config). The list has no
   city. The worker fetches each event and keeps a showing in Söderhamn, Bollnäs, Hudiksvall, or
   Ljusdal. One product is one event. Each date is an occasion. A unix time is that instant. The

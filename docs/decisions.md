@@ -90,7 +90,7 @@ digital code sharing. See `project-description.md` → Risks.
 - Concrete ICS feed URLs for the launch area (generic `ics-feed` adapter is ready; Visit Gävle
   still has no public calendar feed). The candidate list and build order are in `docs/event-sources.md`.
   Glada Hudik, Destination Hälsingland, Söderhamns stadsbibliotek, and Bollnäs kommun use the public calendar, not an API key.
-  Tickster uses Event API v1.0. The key is `TICKSTER_API_KEY` and is not stored in `data_sources.config`.
+  Tickster uses the Event Dump at `/sv/api/1.0/events/dump/upcoming`. The key is `TICKSTER_API_KEY` and is not stored in `data_sources.config`.
   Kulturbiljetter uses Events API v3. The key is `KULTURBILJETTER_API_KEY` and is not stored in `data_sources.config`.
   Billetto uses the public event API. The key pair is `BILLETTO_API_KEY` and `BILLETTO_API_SECRET_KEY` and is not stored in `data_sources.config`.
   Nortic uses the public events API. The key is `NORTIC_API_KEY` and is not stored in `data_sources.config`.

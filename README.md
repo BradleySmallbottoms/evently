@@ -340,13 +340,13 @@ calls) in the same change as every new major feature.**
 
 ### Tickster import
 
-- Ticketed concerts and theatre from the Tickster Event API. Set `TICKSTER_API_KEY` before a live
-  run. The key is not stored in `data_sources.config`. The worker searches by city (Söderhamn,
-  Bollnäs, Hudiksvall, Ljusdal), fetches each showing, and saves it before the next one. A
-  production or collection parent is skipped. A UTC time is that instant. The venue address and
-  point are stored when the API sends them. A point of 0, 0 is omitted. The import does not geocode.
-  A response with `X-RATELIMIT-REMAINING: 0`, or a 429, waits five minutes and retries, for up to
-  an hour.
+- Ticketed concerts and theatre from the Tickster Event Dump. Set `TICKSTER_API_KEY` before a live
+  run. The key is not stored in `data_sources.config`. The worker calls
+  `GET /sv/api/1.0/events/dump/upcoming` and downloads the daily file. A showing is kept when its
+  city is Söderhamn, Bollnäs, Hudiksvall, or Ljusdal, and it is saved before the next one. A
+  production or collection parent is skipped. A time with an offset is that instant. The venue
+  address and point are stored when the file sends them. A point of 0, 0 is omitted. The import
+  does not geocode. A 403 stops this source when `TICKSTER_STOP_ON_403` is set.
   `pnpm --filter @local-events/data-workers dev -- --source tickster` writes `pending_scan`
   events. The seeded row stays disabled. Flow: [docs/flows/tickster.md](docs/flows/tickster.md).
 

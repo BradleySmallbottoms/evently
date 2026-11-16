@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { IncomingEvent, type SourceRunContext } from '../../../packages/ingest/src/index';
 import { describe, expect, it, vi } from 'vitest';
 import { createMemoryIngestStore } from '../../../apps/data-workers/src/memory-store';
@@ -8,7 +9,6 @@ import {
   parseTicksterEvent,
   parseTicksterOrganizer,
   tickster,
-  ticksterRequestPauseMs,
   type TicksterEvent,
 } from '../../../apps/data-workers/src/sources/tickster';
 
@@ -39,12 +39,13 @@ function event(): TicksterEvent {
 function ctx(
   fetchImpl: SourceRunContext['fetch'],
   config: Record<string, unknown> = {},
+  log: SourceRunContext['log'] = () => undefined,
 ): SourceRunContext {
   return {
     sourceSlug: 'tickster',
-    config: { delayMs: 0, cities: ['Söderhamn'], ...config },
+    config: { cities: ['Söderhamn'], ...config },
     fetch: fetchImpl,
-    log: () => undefined,
+    log,
   };
 }
 
@@ -155,32 +156,35 @@ describe('tickster map', () => {
 
 describe('tickster fetch', () => {
   const previous = process.env.TICKSTER_API_KEY;
+  const fileUrl = 'http://event-api-dumps.s3-eu-west-1.amazonaws.com/sv/upcoming/test';
 
   function restoreKey(): void {
     if (previous === undefined) delete process.env.TICKSTER_API_KEY;
     else process.env.TICKSTER_API_KEY = previous;
   }
 
-  it('pages by city, skips a parent, and saves each showing before the next page', async () => {
-    process.env.TICKSTER_API_KEY = 'test-key';
-    const store = createMemoryIngestStore();
-    store.sources.push({
-      id: '33333333-3333-4333-8333-333333333307',
-      slug: 'tickster',
-      trust: 'review',
-      config: { delayMs: 0, pageSize: 1, cities: ['Söderhamn'] },
-      enabled: true,
-    });
+  function pointer(uri = fileUrl): unknown {
+    return {
+      id: 'sv-upcoming-test',
+      created: '2026-11-12T03:22:49+00:00',
+      eTag: 'abc',
+      uri,
+    };
+  }
+
+  function dump(): unknown {
     const child = {
       id: 'soderhamnnight01',
       name: 'Hälsinge konsert',
-      startUtc: '2026-11-21T18:00:00Z',
-      endUtc: '2026-11-21T20:00:00Z',
-      state: 'releasedForSale',
-      eventHierarchyType: 'production-child',
-      infoUrl: 'https://www.tickster.com/sv/events/soderhamnnight01',
-      shopUrl: 'https://secure.tickster.com/soderhamnnight01',
-      organizer: { id: 'orghalsinge01', name: 'Hälsinge Konsert' },
+      start: '2026-11-21T19:00:00+01:00',
+      end: '2026-11-21T21:00:00+01:00',
+      eventState: 'ReleasedForSale',
+      published: true,
+      hierarchyType: 'production-child',
+      productionParentId: 'halsingeproduction',
+      infoUri: 'https://www.tickster.com/sv/events/soderhamnnight01',
+      shopUri: 'https://secure.tickster.com/soderhamnnight01',
+      goods: [],
       venue: {
         name: 'Kulturhuset Berget',
         address: 'Köpmangatan 1',
@@ -189,103 +193,241 @@ describe('tickster fetch', () => {
         country: 'SE',
       },
     };
-    const away = {
-      ...child,
-      id: 'stockholmnight01',
-      venue: { ...child.venue, city: 'Stockholm' },
+    return {
+      count: 4,
+      created: '2026-11-12T03:22:49+00:00',
+      events: [
+        child,
+        {
+          id: 'halsingeproduction',
+          name: 'Hälsinge turné',
+          hierarchyType: 'production',
+          eventState: 'ReleasedForSale',
+          published: true,
+          description: '<p>Turné.</p>',
+          goods: [{ type: 'ticket', price: { includingVat: '100', currency: 'SEK' } }],
+          organizerId: 'orghalsinge01',
+          childEvents: [
+            child,
+            { ...child, id: 'stockholmnight01', venue: { ...child.venue, city: 'Stockholm' } },
+          ],
+        },
+        {
+          id: 'soderhamnconcert01',
+          name: 'Hälsinge konsert',
+          start: '2026-11-14T17:00:00Z',
+          end: '2026-11-14T19:30:00Z',
+          eventState: 'ReleasedForSale',
+          published: true,
+          hierarchyType: 'event',
+          description:
+            '<p>En kväll med musik.</p><p><a href="https://example.com/band">Bandet</a></p>',
+          imageUrl: 'https://static.tickster.com/7b/108dec25ead1ac7b7bcb8e95a8951a68f9971e',
+          infoUri: 'https://www.tickster.com/sv/events/soderhamnconcert01',
+          shopUri: 'https://secure.tickster.com/soderhamnconcert01',
+          organizerId: 'orghalsinge01',
+          venueId: 'venueberget01',
+          tags: ['konsert', 'musik'],
+          links: [],
+          goods: [
+            { type: 'seasonoffer', price: { includingVat: '10', currency: 'SEK' } },
+            { type: 'ticket', price: { includingVat: '250', currency: 'SEK' } },
+            { type: 'ticket', price: { includingVat: '200', currency: 'SEK' } },
+          ],
+        },
+        {
+          id: 'cancelled01',
+          name: 'Inställt',
+          eventState: 'Cancelled',
+          published: true,
+          hierarchyType: 'event',
+          venueId: 'venueberget01',
+        },
+        {
+          id: 'nocity01',
+          name: 'Utan stad',
+          eventState: 'ReleasedForSale',
+          published: true,
+          hierarchyType: 'event',
+          venueId: 'venuenocity',
+        },
+      ],
+      venues: [
+        {
+          id: 'venueberget01',
+          name: 'Kulturhuset Berget',
+          address: 'Köpmangatan 1',
+          zipCode: '826 30',
+          city: 'Söderhamn',
+          country: 'SE',
+          geo: { latitude: 61.306, longitude: 17.06 },
+        },
+        { id: 'venuenocity', name: 'Okänd', country: 'SE' },
+      ],
+      organizers: [
+        {
+          id: 'orghalsinge01',
+          name: 'Hälsinge Konsert',
+          infoUri: 'https://www.tickster.com/sv/events/by/orghalsinge01',
+          social: {
+            facebook: 'https://www.facebook.com/halsingekonsert',
+            instagram: 'https://www.instagram.com/halsingekonsert',
+          },
+        },
+      ],
     };
-    const parent = {
-      id: 'halsingeproduction',
-      name: 'Hälsinge konsert',
-      eventHierarchyType: 'production',
-      state: 'releasedForSale',
-      venue: { city: 'Stockholm', country: 'SE' },
-      description: { html: '<p>Turné.</p>' },
-      products: [{ productType: 'ticket', price: { amount: 100, currency: 'SEK' }, variants: [] }],
-      childEvents: [child, away],
+  }
+
+  function dumpFetch(body: unknown = dump(), file = fileUrl): SourceRunContext['fetch'] {
+    return async (input, init) => {
+      const url = new URL(String(input));
+      expect(init?.redirect).toBe('error');
+      if (url.hostname === 'api.tickster.com') {
+        expect(url.pathname).toBe('/sv/api/1.0/events/dump/upcoming');
+        expect(url.searchParams.get('key')).toBe('test-key');
+        expect(new Headers(init?.headers).get('x-api-key')).toBe('test-key');
+        return jsonResponse(pointer(file));
+      }
+      expect(url.hostname).toBe(new URL(file).hostname);
+      return jsonResponse(body);
     };
+  }
+
+  it('reads the dump, skips a parent, and saves each showing', async () => {
+    process.env.TICKSTER_API_KEY = 'test-key';
+    const store = createMemoryIngestStore();
+    store.sources.push({
+      id: '33333333-3333-4333-8333-333333333307',
+      slug: 'tickster',
+      trust: 'review',
+      config: { cities: ['Söderhamn'] },
+      enabled: true,
+    });
     const requested: string[] = [];
-    let savedBeforeSecond = -1;
     vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input));
-      requested.push(url.pathname);
-      expect(new Headers(init?.headers).get('x-api-key')).toBe('test-key');
-      expect(init?.redirect).toBe('error');
-      expect(url.search).not.toContain('test-key');
-      expect(url.searchParams.get('query') ?? 'city:Söderhamn').toBe('city:Söderhamn');
-      if (url.pathname.endsWith('/organizers/orghalsinge01')) return jsonResponse(organizerBody);
-      if (url.pathname.endsWith('/events/halsingeproduction')) return jsonResponse(parent);
-      if (url.pathname.endsWith('/events/soderhamnconcert01')) return jsonResponse(fixture);
-      const skip = url.searchParams.get('skip');
-      if (skip === '1') savedBeforeSecond = store.events.length;
-      if (skip === '0') return jsonResponse({ totalItems: 2, items: [parent] });
-      return jsonResponse({ totalItems: 2, items: [fixture] });
+      requested.push(`${url.hostname}${url.pathname}`);
+      return dumpFetch()(input, init);
     });
     try {
       const summary = await persistSource(store, 'tickster');
-      expect(savedBeforeSecond).toBe(1);
       expect(summary.created).toBe(2);
       expect(store.events.map((row) => row.status)).toEqual(['pending_scan', 'pending_scan']);
       expect(store.events.map((row) => row.refId)).toEqual([
         'soderhamnnight01',
         'soderhamnconcert01',
       ]);
-      expect(requested.some((url) => url.endsWith('/events/stockholmnight01'))).toBe(false);
-      expect(requested.filter((url) => url.includes('/organizers/'))).toHaveLength(1);
       expect(store.events[0]?.priceAmount).toBe(10000);
+      expect(store.events[0]?.startsAt?.toISOString()).toBe('2026-11-21T18:00:00.000Z');
+      expect(store.events[1]?.priceAmount).toBe(20000);
       expect(store.events[1]?.location).toEqual({ lat: 61.306, lng: 17.06 });
+      expect(requested).toEqual([
+        'api.tickster.com/sv/api/1.0/events/dump/upcoming',
+        'event-api-dumps.s3-eu-west-1.amazonaws.com/sv/upcoming/test',
+      ]);
     } finally {
       vi.unstubAllGlobals();
       restoreKey();
     }
   });
 
-  it('skips a cancelled showing and a city outside the configured list', async () => {
+  it('keeps organizer social links and ignores a season offer', async () => {
     process.env.TICKSTER_API_KEY = 'test-key';
-    const requested: string[] = [];
     try {
-      const raw = await tickster.fetchRaw(
-        ctx(async (input) => {
-          const url = new URL(String(input));
-          requested.push(url.pathname);
-          if (url.pathname.includes('/organizers/')) return jsonResponse(organizerBody);
-          if (url.pathname.endsWith('/events/soderhamnconcert01')) return jsonResponse(fixture);
-          return jsonResponse({
-            totalItems: 3,
-            items: [
-              fixture,
-              {
-                id: 'cancelled01',
-                name: 'Inställt',
-                state: 'cancelled',
-                venue: { city: 'Söderhamn', country: 'SE' },
-              },
-              {
-                id: 'goteborg01',
-                name: 'Borta',
-                state: 'releasedForSale',
-                venue: { city: 'Göteborg', country: 'SE' },
-              },
-            ],
-          });
-        }),
-      );
-      expect(raw.events.map((item) => item.event.id)).toEqual(['soderhamnconcert01']);
-      expect(requested.some((path) => path.endsWith('/events/cancelled01'))).toBe(false);
-      expect(requested.some((path) => path.endsWith('/events/goteborg01'))).toBe(false);
+      const raw = await tickster.fetchRaw(ctx(dumpFetch()));
+      const concert = raw.events.find((item) => item.event.id === 'soderhamnconcert01');
+      if (!concert) throw new Error('missing concert');
+      const mapped = mapTicksterEvent(concert);
+      expect(mapped.priceAmount).toBe(20000);
+      expect(mapped.organizerKeys[0]).toBe('orghalsinge01');
+      expect(mapped.organizerKeys).not.toContain('tickster');
+      expect(mapped.links).toEqual([
+        {
+          type: 'tickets',
+          url: 'https://secure.tickster.com/soderhamnconcert01',
+          label: 'Tickster',
+        },
+        { type: 'info', url: 'https://www.tickster.com/sv/events/soderhamnconcert01' },
+        { type: 'facebook', url: 'https://www.facebook.com/halsingekonsert' },
+        { type: 'instagram', url: 'https://www.instagram.com/halsingekonsert' },
+        { type: 'info', url: 'https://example.com/band', label: 'Bandet' },
+      ]);
+      expect(raw.events.map((item) => item.event.id)).toEqual([
+        'soderhamnnight01',
+        'soderhamnconcert01',
+      ]);
     } finally {
       restoreKey();
     }
   });
 
-  it('fails when the API leaves event.api.tickster.com', async () => {
+  it('reads a gzip dump body', async () => {
+    process.env.TICKSTER_API_KEY = 'test-key';
+    try {
+      const raw = await tickster.fetchRaw(
+        ctx(async (input, init) => {
+          const url = new URL(String(input));
+          if (url.hostname === 'api.tickster.com') return jsonResponse(pointer());
+          const bytes = gzipSync(Buffer.from(JSON.stringify(dump())));
+          expect(init?.redirect).toBe('error');
+          return new Response(bytes, {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }),
+      );
+      expect(raw.events.map((item) => item.event.id)).toEqual([
+        'soderhamnnight01',
+        'soderhamnconcert01',
+      ]);
+    } finally {
+      restoreKey();
+    }
+  });
+
+  it('fails when the pointer leaves api.tickster.com', async () => {
     process.env.TICKSTER_API_KEY = 'test-key';
     try {
       await expect(
         tickster.fetchRaw(
-          ctx(async () => jsonResponse({ items: [] }, 200, 'https://evil.example/events')),
+          ctx(async () => jsonResponse(pointer(), 200, 'https://evil.example/events')),
         ),
-      ).rejects.toThrow(/event\.api\.tickster\.com/);
+      ).rejects.toThrow(/api\.tickster\.com/);
+    } finally {
+      restoreKey();
+    }
+  });
+
+  it('fails when the dump file is not on the dump bucket', async () => {
+    process.env.TICKSTER_API_KEY = 'test-key';
+    let calls = 0;
+    try {
+      await expect(
+        tickster.fetchRaw(
+          ctx(async () => {
+            calls += 1;
+            return jsonResponse(pointer('https://evil.example/dump.json'));
+          }),
+        ),
+      ).rejects.toThrow(/event dump bucket/);
+      expect(calls).toBe(1);
+    } finally {
+      restoreKey();
+    }
+  });
+
+  it('fails when the dump file leaves the dump bucket', async () => {
+    process.env.TICKSTER_API_KEY = 'test-key';
+    try {
+      await expect(
+        tickster.fetchRaw(
+          ctx(async (input) => {
+            const url = new URL(String(input));
+            if (url.hostname === 'api.tickster.com') return jsonResponse(pointer());
+            return jsonResponse(dump(), 200, 'https://evil.example/file');
+          }),
+        ),
+      ).rejects.toThrow(/event dump bucket/);
     } finally {
       restoreKey();
     }
@@ -295,6 +437,23 @@ describe('tickster fetch', () => {
     await expect(
       tickster.fetchRaw(ctx(async () => jsonResponse({}), { cities: ['https://evil.example'] })),
     ).rejects.toThrow(/city names/);
+  });
+
+  it('does not repeat the API key when the pointer request fails', async () => {
+    process.env.TICKSTER_API_KEY = 'test-key';
+    try {
+      await expect(
+        tickster.fetchRaw(
+          ctx(async () => {
+            throw new Error(
+              'connect failed for https://api.tickster.com/sv/api/1.0/events/dump/upcoming?key=test-key',
+            );
+          }),
+        ),
+      ).rejects.toThrow(/^tickster request failed$/);
+    } finally {
+      restoreKey();
+    }
   });
 
   it('throws when the key is missing', async () => {
@@ -308,162 +467,169 @@ describe('tickster fetch', () => {
     }
   });
 
-  it('retries a 429 and then reads the event', async () => {
-    process.env.TICKSTER_API_KEY = 'test-key';
-    let detailCalls = 0;
-    try {
-      const raw = await tickster.fetchRaw(
-        ctx(
-          async (input, init) => {
-            const url = new URL(String(input));
-            expect(init?.headers).toMatchObject({ 'x-api-key': 'test-key' });
-            expect(url.search).not.toContain('test-key');
-            if (url.pathname.includes('/organizers/')) {
-              return jsonResponse(organizerBody, 200, undefined, { 'x-ratelimit-remaining': '4' });
-            }
-            if (url.pathname.endsWith('/events/soderhamnconcert01')) {
-              detailCalls += 1;
-              if (detailCalls === 1) {
-                return jsonResponse({ title: 'Too Many Requests' }, 429, undefined, {
-                  'x-ratelimit-remaining': '0',
-                });
-              }
-              return jsonResponse(fixture, 200, undefined, { 'x-ratelimit-remaining': '3' });
-            }
-            return jsonResponse({ totalItems: 1, items: [fixture] }, 200, undefined, {
-              'x-ratelimit-remaining': '0',
-            });
-          },
-          { rateLimitWaitMs: 0 },
-        ),
-      );
-      expect(detailCalls).toBe(2);
-      expect(raw.events.map((item) => item.event.id)).toEqual(['soderhamnconcert01']);
-    } finally {
-      restoreKey();
-    }
-  });
-
-  it('stops on the first 403 when the test ingest asks it to', async () => {
+  it('stops on a 403 when the test ingest asks it to', async () => {
     process.env.TICKSTER_API_KEY = 'test-key';
     process.env.TICKSTER_STOP_ON_403 = '1';
-    let calls = 0;
+    const logged: string[] = [];
     try {
       const raw = await tickster.fetchRaw(
         ctx(
-          async (input) => {
-            calls += 1;
-            const url = new URL(String(input));
-            if (url.pathname.endsWith('/events/soderhamnconcert01')) {
-              return jsonResponse({ title: 'Forbidden' }, 403);
-            }
-            return jsonResponse({ totalItems: 1, items: [fixture] }, 200, undefined, {
-              'x-ratelimit-remaining': '2',
-            });
-          },
-          { rateLimitWaitMs: 60_000 },
+          async () => jsonResponse({ error: 'Invalid or missing API-key' }, 403),
+          {},
+          (message) => logged.push(message),
         ),
       );
-      expect(calls).toBe(2);
       expect(raw.events).toEqual([]);
+      expect(logged.join(' ')).not.toContain('test-key');
     } finally {
       restoreKey();
       delete process.env.TICKSTER_STOP_ON_403;
     }
   });
 
-  it('stops on the first rate limit when the test ingest asks it to', async () => {
+  it('fails a 403 when the test ingest has not asked it to stop', async () => {
     process.env.TICKSTER_API_KEY = 'test-key';
-    process.env.TICKSTER_STOP_ON_403 = '1';
-    let calls = 0;
-    try {
-      const raw = await tickster.fetchRaw(
-        ctx(
-          async () => {
-            calls += 1;
-            return jsonResponse({}, 429, undefined, { 'x-ratelimit-remaining': '0' });
-          },
-          { rateLimitWaitMs: 60_000 },
-        ),
-      );
-      expect(calls).toBe(1);
-      expect(raw.events).toEqual([]);
-    } finally {
-      restoreKey();
-      delete process.env.TICKSTER_STOP_ON_403;
-    }
-  });
-
-  it('stops before the next request when the rate limit is already spent', async () => {
-    process.env.TICKSTER_API_KEY = 'test-key';
-    process.env.TICKSTER_STOP_ON_403 = '1';
-    let calls = 0;
-    try {
-      const raw = await tickster.fetchRaw(
-        ctx(
-          async () => {
-            calls += 1;
-            return jsonResponse({ totalItems: 1, items: [fixture] }, 200, undefined, {
-              'x-ratelimit-remaining': '0',
-            });
-          },
-          { rateLimitWaitMs: 60_000 },
-        ),
-      );
-      expect(calls).toBe(1);
-      expect(raw.events).toEqual([]);
-    } finally {
-      restoreKey();
-      delete process.env.TICKSTER_STOP_ON_403;
-    }
-  });
-
-  it('stops after an hour of rate limits', async () => {
-    process.env.TICKSTER_API_KEY = 'test-key';
-    let calls = 0;
     try {
       await expect(
         tickster.fetchRaw(
-          ctx(
-            async () => {
-              calls += 1;
-              return jsonResponse({}, 429, undefined, { 'x-ratelimit-remaining': '0' });
-            },
-            { rateLimitWaitMs: 0 },
-          ),
+          ctx(async () => jsonResponse({ error: 'Invalid or missing API-key' }, 403)),
         ),
-      ).rejects.toThrow(/429/);
-      expect(calls).toBe(13);
+      ).rejects.toThrow(/403/);
     } finally {
       restoreKey();
     }
   });
 
-  it('waits out a spent rate limit before the next request', () => {
-    expect(
-      ticksterRequestPauseMs({
-        requests: 1,
-        remaining: 0,
-        delayMs: 200,
-        rateLimitWaitMs: 300_000,
-      }),
-    ).toBe(300_000);
-    expect(
-      ticksterRequestPauseMs({
-        requests: 1,
-        remaining: 3,
-        delayMs: 200,
-        rateLimitWaitMs: 300_000,
-      }),
-    ).toBe(200);
-    expect(
-      ticksterRequestPauseMs({
-        requests: 0,
-        remaining: undefined,
-        delayMs: 200,
-        rateLimitWaitMs: 300_000,
-      }),
-    ).toBe(0);
+  it('uses the parent ticket when the showing only has a season offer', async () => {
+    process.env.TICKSTER_API_KEY = 'test-key';
+    try {
+      const raw = await tickster.fetchRaw(
+        ctx(
+          dumpFetch({
+            events: [
+              {
+                id: 'parentoffer01',
+                name: 'Turné',
+                hierarchyType: 'production',
+                eventState: 'ReleasedForSale',
+                published: true,
+                goods: [{ type: 'ticket', price: { includingVat: '180', currency: 'SEK' } }],
+                childEvents: [
+                  {
+                    id: 'childoffer01',
+                    name: 'Kväll',
+                    hierarchyType: 'production-child',
+                    eventState: 'ReleasedForSale',
+                    published: true,
+                    goods: [
+                      { type: 'seasonoffer', price: { includingVat: '10', currency: 'SEK' } },
+                    ],
+                    venue: { name: 'Berget', city: 'Söderhamn', country: 'SE' },
+                  },
+                ],
+              },
+            ],
+            venues: [],
+            organizers: [],
+          }),
+        ),
+      );
+      expect(mapTicksterEvent(raw.events[0]!).priceAmount).toBe(18000);
+    } finally {
+      restoreKey();
+    }
+  });
+
+  it('keeps a paid price region when another region is zero', async () => {
+    process.env.TICKSTER_API_KEY = 'test-key';
+    try {
+      const raw = await tickster.fetchRaw(
+        ctx(
+          dumpFetch({
+            events: [
+              {
+                id: 'regions01',
+                name: 'Numrerat',
+                hierarchyType: 'event',
+                eventState: 'ReleasedForSale',
+                published: true,
+                goods: [
+                  {
+                    type: 'ticket',
+                    price: {
+                      currency: 'SEK',
+                      priceRegions: [{ includingVat: '0' }, { includingVat: '200' }],
+                    },
+                  },
+                ],
+                venue: { name: 'Berget', city: 'Söderhamn', country: 'SE' },
+              },
+            ],
+            venues: [],
+            organizers: [],
+          }),
+        ),
+      );
+      expect(mapTicksterEvent(raw.events[0]!).priceAmount).toBe(20000);
+      expect(mapTicksterEvent(raw.events[0]!).meta?.freeEntry).toBeUndefined();
+    } finally {
+      restoreKey();
+    }
+  });
+
+  it('fills a city and a point from the catalog when the nested venue has neither', async () => {
+    process.env.TICKSTER_API_KEY = 'test-key';
+    try {
+      const raw = await tickster.fetchRaw(
+        ctx(
+          dumpFetch({
+            events: [
+              {
+                id: 'nestedvenue01',
+                name: 'Konsert',
+                hierarchyType: 'event',
+                eventState: 'ReleasedForSale',
+                published: true,
+                venueId: 'venueberget01',
+                venue: { id: 'venueberget01', name: 'Kulturhuset Berget' },
+              },
+            ],
+            venues: [
+              {
+                id: 'venueberget01',
+                name: 'Kulturhuset Berget',
+                city: 'Söderhamn',
+                country: 'SE',
+                geo: { latitude: 61.306, longitude: 17.06 },
+              },
+            ],
+            organizers: [],
+          }),
+        ),
+      );
+      const mapped = mapTicksterEvent(raw.events[0]!);
+      expect(mapped.address).toBe('Söderhamn');
+      expect(mapped.location).toEqual({ lat: 61.306, lng: 17.06 });
+    } finally {
+      restoreKey();
+    }
+  });
+
+  it('rejects a dump host that only looks like the bucket', async () => {
+    process.env.TICKSTER_API_KEY = 'test-key';
+    try {
+      await expect(
+        tickster.fetchRaw(
+          ctx(async () =>
+            jsonResponse(
+              pointer('http://event-api-dumps.s3.attacker.s3.eu-north-1.amazonaws.com/dump.json'),
+            ),
+          ),
+        ),
+      ).rejects.toThrow(/event dump bucket/);
+    } finally {
+      restoreKey();
+    }
   });
 
   it('throws when every hit is skipped', async () => {
@@ -471,17 +637,20 @@ describe('tickster fetch', () => {
     try {
       await expect(
         tickster.fetchRaw(
-          ctx(async () =>
-            jsonResponse({
-              totalItems: 1,
-              items: [
+          ctx(
+            dumpFetch({
+              events: [
                 {
                   id: 'cancelled01',
                   name: 'Inställt',
-                  state: 'cancelled',
+                  eventState: 'Cancelled',
+                  published: true,
+                  hierarchyType: 'event',
                   venue: { city: 'Söderhamn', country: 'SE' },
                 },
               ],
+              venues: [],
+              organizers: [],
             }),
           ),
         ),
